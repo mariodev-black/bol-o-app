@@ -4,6 +4,7 @@ import { Button } from "@/app/(authenticated)/components/ui/button";
 import bgHome from "@/app/assets/bgHome.png";
 import { ExternalLink, ChevronRight } from "lucide-react";
 import { FlagsMarquee } from "@/app/shared/FlagsMarquee";
+import { InfluencersSection } from "@/app/shared/InfluencersSection";
 
 export default function HomePage() {
   return (
@@ -23,7 +24,7 @@ export default function HomePage() {
         <div className="absolute inset-0 bg-black/70" />
 
         {/* Conteúdo centralizado */}
-        <div className="relative z-10 w-full max-w-2xl px-3 sm:px-10 py-16 flex flex-col items-center text-center">
+        <div className="relative z-10 w-full max-w-2xl px-3af sm:px-10 py-16 flex flex-col items-center text-center">
 
           {/* "BOLÃO DO MILHÃO" com linhas decorativas */}
           <div className="flex items-center gap-2 mb-2">
@@ -110,6 +111,7 @@ export default function HomePage() {
         </div>
       </section>
       <FlagsMarquee />
+      <InfluencersSection />
     </div>
   );
 }

@@ -1,0 +1,87 @@
+import { Button } from "@/app/(authenticated)/components/ui/button";
+import Link from "next/link";
+
+interface Influencer {
+  name: string;
+  followers: string;
+  followUrl: string;
+  image: string | null;
+}
+
+const INFLUENCERS: Influencer[] = [
+  {
+    name: "Benjamin Back",
+    followers: "3 Milhões de seguidores",
+    followUrl: "#",
+    image: "https://www.reviversoft.com/resource/img/library/reggie_ext.png",
+  },
+  {
+    name: "Benjamin Back",
+    followers: "3 Milhões de seguidores",
+    followUrl: "#",
+    image: null,
+  },
+  {
+    name: "Caze TV",
+    followers: "3 Milhões de seguidores",
+    followUrl: "#",
+    image: null,
+  },
+];
+
+function InfluencerCard({ influencer }: { influencer: Influencer }) {
+  return (
+    <div className="relative w-full h-[280px] rounded-2xl overflow-hidden">
+      {/* Foto de fundo em P&B */}
+      {influencer.image ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={influencer.image}
+          alt={influencer.name}
+          className="absolute inset-0 w-full h-full object-cover object-center grayscale"
+        />
+      ) : (
+        <div className="absolute inset-0 bg-[#1a2535]" />
+      )}
+
+      {/* Overlay escuro — mais escuro na direita para o texto ser legível */}
+      <div className="absolute inset-0 bg-gradient-to-r from-black/20 via-black/50 to-black/85" />
+
+      {/* Conteúdo — posicionado na direita */}
+      <div className="absolute top-0 right-0 bottom-0 w-[55%] flex flex-col justify-center items-start px-6 sm:px-8">
+        <h3 className="text-xl sm:text-2xl font-bold text-white leading-tight">
+          {influencer.name}
+        </h3>
+        <p className="mt-1 text-sm text-white/60">{influencer.followers}</p>
+
+        <Button asChild size="sm" className="mt-4 rounded-full px-5">
+          <Link href={influencer.followUrl}>Seguir influenciador</Link>
+        </Button>
+
+        <p className="mt-3 text-xs text-white/40">
+          Participando do Bolão do Milhão
+        </p>
+      </div>
+    </div>
+  );
+}
+
+export function InfluencersSection() {
+  return (
+    <section
+      className="px-4 sm:px-10 lg:px-20 py-12"
+      style={{ backgroundColor: "#0E141B" }}
+    >
+      <h2 className="text-4xl sm:text-5xl font-black text-white text-center mb-8 leading-tight">
+        Influenciadores <br />
+        parceiros
+      </h2>
+
+      <div className="flex flex-col gap-3 max-w-2xl mx-auto">
+        {INFLUENCERS.map((inf, i) => (
+          <InfluencerCard key={i} influencer={inf} />
+        ))}
+      </div>
+    </section>
+  );
+}
