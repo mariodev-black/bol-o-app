@@ -23,13 +23,13 @@ export default function HomePage() {
         <div className="absolute inset-0 bg-black/70" />
 
         {/* Conteúdo centralizado */}
-        <div className="relative z-10 w-full max-w-2xl px-5 sm:px-10 py-16 flex flex-col items-center text-center">
+        <div className="relative z-10 w-full max-w-2xl px-3 sm:px-10 py-16 flex flex-col items-center text-center">
 
           {/* "BOLÃO DO MILHÃO" com linhas decorativas */}
-          <div className="flex items-center gap-3 mb-2">
+          <div className="flex items-center gap-2 mb-2">
             <span className="h-px w-8 bg-[#DAB682]/70" />
             <span
-              className="text-2xl sm:text-3xl font-extrabold uppercase tracking-widest"
+              className="text-[26px] sm:text-3xl font-extrabold uppercase tracking-widest"
               style={{
                 background: "linear-gradient(90deg, #FFAF2F, #FFE8BA)",
                 WebkitBackgroundClip: "text",
@@ -48,13 +48,13 @@ export default function HomePage() {
 
           {/* Subtítulo */}
           <p className="mt-5 text-base sm:text-lg text-white/75 max-w-md leading-relaxed">
-            Participe do maior bolão da copa <br /> e{" "}
+            Participe do maior bolão da copa e <br />{" "}
             <strong className="text-white font-bold">concorra a milhões</strong>
           </p>
 
           {/* Stats */}
           <div
-            className="mt-6 flex flex-row flex-nowrap items-center gap-6 sm:gap-10 text-sm sm:text-base text-white/70 rounded-sm"
+            className="mt-12 flex flex-row flex-nowrap items-center gap-[2px] sm:gap-10 text-sm sm:text-base text-white/70 rounded-sm"
             style={{
               padding: "6.6px 16.5px",
               background: "linear-gradient(rgba(0,0,0,0.25), rgba(0,0,0,0.25)) padding-box, linear-gradient(90deg, transparent 0%, rgba(180,140,50,0.5) 50%, transparent 100%) border-box",
