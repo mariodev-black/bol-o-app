@@ -1,0 +1,115 @@
+import Link from "next/link";
+import { Header } from "@/app/shared/Header";
+import { Button } from "@/app/(authenticated)/components/ui/button";
+import bgHome from "@/app/assets/bgHome.png";
+import { ExternalLink, ChevronRight } from "lucide-react";
+import { FlagsMarquee } from "@/app/shared/FlagsMarquee";
+
+export default function HomePage() {
+  return (
+    <div className="flex flex-col" style={{ backgroundColor: "#0E141B" }}>
+      <Header />
+
+      <section
+        className="relative flex items-center justify-center overflow-hidden"
+        style={{
+          backgroundImage: `url(${bgHome.src})`,
+          backgroundSize: "cover",
+          backgroundPosition: "80% center",
+          backgroundRepeat: "no-repeat",
+        }}
+      >
+        {/* Overlay escuro sobre toda a section */}
+        <div className="absolute inset-0 bg-black/70" />
+
+        {/* Conteúdo centralizado */}
+        <div className="relative z-10 w-full max-w-2xl px-5 sm:px-10 py-16 flex flex-col items-center text-center">
+
+          {/* "BOLÃO DO MILHÃO" com linhas decorativas */}
+          <div className="flex items-center gap-3 mb-2">
+            <span className="h-px w-8 bg-[#DAB682]/70" />
+            <span
+              className="text-2xl sm:text-3xl font-extrabold uppercase tracking-widest"
+              style={{
+                background: "linear-gradient(90deg, #FFAF2F, #FFE8BA)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+              }}
+            >
+              Bolão do Milhão
+            </span>
+            <span className="h-px w-10 bg-[#DAB682]/70" />
+          </div>
+
+          {/* "COPA DO MUNDO 🏆 2026" */}
+          <h1 className="text-xl sm:text-3xl font-black text-white uppercase leading-tight tracking-tight">
+            Copa do Mundo 2026
+          </h1>
+
+          {/* Subtítulo */}
+          <p className="mt-5 text-base sm:text-lg text-white/75 max-w-md leading-relaxed">
+            Participe do maior bolão da copa <br /> e{" "}
+            <strong className="text-white font-bold">concorra a milhões</strong>
+          </p>
+
+          {/* Stats */}
+          <div
+            className="mt-6 flex flex-row flex-nowrap items-center gap-6 sm:gap-10 text-sm sm:text-base text-white/70 rounded-sm"
+            style={{
+              padding: "6.6px 16.5px",
+              background: "linear-gradient(rgba(0,0,0,0.25), rgba(0,0,0,0.25)) padding-box, linear-gradient(90deg, transparent 0%, rgba(180,140,50,0.5) 50%, transparent 100%) border-box",
+              border: "1px solid transparent",
+            }}
+          >
+            <span className="whitespace-nowrap">
+              Participantes:{" "}
+              <strong className="font-bold" style={{ color: "#DAB682" }}>124.582</strong>
+            </span>
+            <span className="text-white/20 shrink-0">|</span>
+            <span className="whitespace-nowrap">
+              Premiações:{" "}
+              <strong className="font-bold" style={{ color: "#DAB682" }}>
+                + de R$ 1 Milhão
+              </strong>
+            </span>
+          </div>
+
+          {/* CTA — container dark pill envolvendo botão + ícone */}
+          <div
+            className="mt-8 flex items-center gap-2 rounded-full p-2"
+            style={{ backgroundColor: "rgba(0,0,0,0.45)" }}
+          >
+            <Button
+              asChild
+              size="lg"
+              className="rounded-full px-10 text-base font-bold h-13 shadow-lg shadow-amber-500/20"
+            >
+              <Link href="/cadastrar">Comprar Ticket por R$ 49</Link>
+            </Button>
+            <Link
+              href="/cadastrar"
+              aria-label="Abrir em nova aba"
+              className="flex items-center justify-center h-13 w-13 rounded-full text-white/80 hover:text-white hover:bg-white/10 transition-colors shrink-0"
+            >
+              <ExternalLink className="w-5 h-5" />
+            </Link>
+          </div>
+
+          {/* Ver ranking */}
+          <Button
+            variant="ghost"
+            asChild
+            className="mt-4 rounded-full border border-white/20 text-white hover:bg-white/10 px-7 gap-1"
+            style={{ backgroundColor: "rgba(0,0,0,0.35)" }}
+          >
+            <Link href="/ranking">
+              Ver ranking{" "}
+              <ChevronRight className="w-4 h-4" style={{ color: "#FFAF2F" }} />
+            </Link>
+          </Button>
+        </div>
+      </section>
+      <FlagsMarquee />
+    </div>
+  );
+}

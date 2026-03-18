@@ -1,0 +1,80 @@
+@import "tailwindcss";
+
+:root {
+  /* Brand palette */
+  --background: #0E141B;
+  --foreground: #e2d5b8;
+  --header-bg: #141E2A;
+
+  /* shadcn CSS variables (dark theme default) */
+  --card: #141E2A;
+  --card-foreground: #e2d5b8;
+  --popover: #141E2A;
+  --popover-foreground: #e2d5b8;
+
+  /* Primary = dourado #DAB682 */
+  --primary: #DAB682;
+  --primary-foreground: #0E141B;
+
+  --secondary: #1e2d3d;
+  --secondary-foreground: #e2d5b8;
+
+  --muted: #1a2535;
+  --muted-foreground: #8a9bb0;
+
+  --accent: #1e2d3d;
+  --accent-foreground: #DAB682;
+
+  --destructive: #e05252;
+  --destructive-foreground: #fff;
+
+  --border: #2a3a4a;
+  --input: #DAB682;        /* borda dos inputs */
+  --ring: #DAB682;
+
+  --radius: 0.5rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --font-sans: var(--font-montserrat);
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+@keyframes marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  animation: marquee 90s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
