@@ -5,7 +5,7 @@ import logo from "@/app/assets/logo.png";
 
 export function AuthHeader() {
   return (
-    <header className="w-full flex items-center justify-between px-4 sm:px-6 h-14 bg-card">
+    <header className="w-full flex items-center justify-between px-4 sm:px-6 h-14 bg-[#060B18]">
       <Link href="/dashboard" className="flex items-center" aria-label="Início">
         <Image src={logo} alt="Bolão do Milhão" height={40} priority />
       </Link>

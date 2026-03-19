@@ -2,14 +2,14 @@
 
 :root {
   /* Brand palette */
-  --background: #0E141B;
+  --background: #03060D;
   --foreground: #e2d5b8;
-  --header-bg: #141E2A;
+  --header-bg: #060B18;
 
   /* shadcn CSS variables (dark theme default) */
-  --card: #141E2A;
+  --card: #060B18;
   --card-foreground: #e2d5b8;
-  --popover: #141E2A;
+  --popover: #060B18;
   --popover-foreground: #e2d5b8;
 
   /* Primary = dourado #DAB682 */
@@ -58,7 +58,7 @@
   --radius-sm: calc(var(--radius) - 2px);
   --radius-md: var(--radius);
   --radius-lg: calc(var(--radius) + 2px);
-  --font-sans: var(--font-montserrat);
+  --font-sans: var(--font-dm-sans);
 }
 
 body {

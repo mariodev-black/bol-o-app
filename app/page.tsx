@@ -5,10 +5,13 @@ import bgHome from "@/app/assets/bgHome.png";
 import { ExternalLink, ChevronRight } from "lucide-react";
 import { FlagsMarquee } from "@/app/shared/FlagsMarquee";
 import { InfluencersSection } from "@/app/shared/InfluencersSection";
+import { ComoParticipar } from "@/app/shared/ComoParticipar";
+import { SistemaPontuacao } from "@/app/shared/SistemaPontuacao";
+import { RankingAtual } from "@/app/shared/RankingAtual";
 
 export default function HomePage() {
   return (
-    <div className="flex flex-col" style={{ backgroundColor: "#0E141B" }}>
+    <div className="flex flex-col bg-background">
       <Header />
 
       <section
@@ -112,6 +115,20 @@ export default function HomePage() {
       </section>
       <FlagsMarquee />
       <InfluencersSection />
+      <ComoParticipar />
+
+      {/* Divisória com gradiente dourado */}
+      <div className="flex justify-center px-5" style={{ backgroundColor: "#0E141B" }}>
+        <div
+          className="w-full max-w-md h-px"
+          style={{
+            background: "linear-gradient(90deg, transparent 0%, rgba(254,197,84,0.5) 50%, transparent 100%)",
+          }}
+        />
+      </div>
+
+      <SistemaPontuacao />
+      <RankingAtual />
     </div>
   );
 }

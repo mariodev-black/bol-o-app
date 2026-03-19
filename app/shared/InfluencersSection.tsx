@@ -1,6 +1,8 @@
 import { Button } from "@/app/(authenticated)/components/ui/button";
 import Link from "next/link";
 import Fred from "@/app/assets/fred.png";
+import Benjamin from "@/app/assets/benjamin.png";
+import Caze from "@/app/assets/caze.png";
 
 interface Influencer {
   name: string;
@@ -20,26 +22,26 @@ const INFLUENCERS: Influencer[] = [
     name: "Benjamin Back",
     followers: "3 Milhões de seguidores",
     followUrl: "#",
-    image: null,
+    image: Benjamin.src,
   },
   {
     name: "Caze TV",
     followers: "3 Milhões de seguidores",
     followUrl: "#",
-    image: null,
+    image: Caze.src,
   },
 ];
 
 function InfluencerCard({ influencer }: { influencer: Influencer }) {
   return (
-    <div className="relative w-full h-[230px] rounded-2xl overflow-hidden">
+    <div className="relative w-full h-[185.2850341796875px] rounded-2xl overflow-hidden">
       {/* Foto de fundo em P&B */}
       {influencer.image ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={influencer.image}
           alt={influencer.name}
-          className="absolute inset-0 w-full h-full object-cover object-top  grayscale"
+          className="absolute inset-0 w-full h-full object-cover object-top-right grayscale"
         />
       ) : (
         <div className="absolute inset-0 bg-[#1a2535]" />
@@ -71,9 +73,14 @@ export function InfluencersSection() {
   return (
     <section
       className="px-4 sm:px-10 lg:px-20 py-12"
-      style={{ backgroundColor: "#0E141B" }}
     >
-      <h2 className="text-4xl sm:text-5xl font-black text-white text-center mb-8 leading-tight">
+      <h2 className="text-4xl sm:text-5xl font-black text-white text-center mb-8 leading-tight" 
+      style={{
+        background: "linear-gradient(180deg, #FFFFFF 0%, #DAB682 100%)",
+        WebkitBackgroundClip: "text",
+        WebkitTextFillColor: "transparent",
+        backgroundClip: "text",
+      }}>
         Influenciadores <br />
         parceiros
       </h2>
