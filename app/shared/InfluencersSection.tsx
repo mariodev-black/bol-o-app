@@ -1,5 +1,6 @@
 import { Button } from "@/app/(authenticated)/components/ui/button";
 import Link from "next/link";
+import Fred from "@/app/assets/fred.png";
 
 interface Influencer {
   name: string;
@@ -13,7 +14,7 @@ const INFLUENCERS: Influencer[] = [
     name: "Benjamin Back",
     followers: "3 Milhões de seguidores",
     followUrl: "#",
-    image: "https://www.reviversoft.com/resource/img/library/reggie_ext.png",
+    image: Fred.src,
   },
   {
     name: "Benjamin Back",
@@ -31,14 +32,14 @@ const INFLUENCERS: Influencer[] = [
 
 function InfluencerCard({ influencer }: { influencer: Influencer }) {
   return (
-    <div className="relative w-full h-[280px] rounded-2xl overflow-hidden">
+    <div className="relative w-full h-[230px] rounded-2xl overflow-hidden">
       {/* Foto de fundo em P&B */}
       {influencer.image ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={influencer.image}
           alt={influencer.name}
-          className="absolute inset-0 w-full h-full object-cover object-center grayscale"
+          className="absolute inset-0 w-full h-full object-cover object-top  grayscale"
         />
       ) : (
         <div className="absolute inset-0 bg-[#1a2535]" />
