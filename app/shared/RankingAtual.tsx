@@ -4,7 +4,7 @@ import bgHome from "@/app/assets/bgHome.png";
 import bgHomeDesk from "@/app/assets/bg-home-desk.png";
 
 // ── Troféu Ouro ───────────────────────────────────────────────
-export const TrophyGold = ({ size = 25 }: { size?: number }) => (
+export const TrophyGold = ({ size = 25, label }: { size?: number; label?: string }) => (
   <svg width={size} height={Math.round(size * 1.08)} viewBox="0 0 25 27" fill="none" xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink">
     <mask id="mask0_2233_806" style={{ maskType: "alpha" }} maskUnits="userSpaceOnUse" x="0" y="1" width="25" height="26">
       <rect y="1.96289" width="24.9801" height="24.9801" fill="url(#pattern0_2233_806)" />
@@ -13,7 +13,11 @@ export const TrophyGold = ({ size = 25 }: { size?: number }) => (
       <rect y="1.96289" width="24.9801" height="24.9801" fill="url(#paint0_linear_2233_806)" />
     </g>
     <g filter="url(#filter0_d_2233_806)">
-      <path d="M12.3225 13.2396H10.9036V8.70316H9.14502V7.63401C9.39149 7.64067 9.62797 7.62402 9.85445 7.58405C10.0876 7.53742 10.2941 7.46082 10.474 7.35423C10.6605 7.24099 10.817 7.09444 10.9436 6.91458C11.0702 6.73473 11.1534 6.51157 11.1934 6.24512H12.3225V13.2396Z" fill="#543803" fillOpacity="0.44" shapeRendering="crispEdges" />
+      {label ? (
+        <text x="12" y="13.2" textAnchor="middle" fontFamily="sans-serif" fontWeight="bold" fontSize="8" fill="#543803" fillOpacity="0.55" shapeRendering="crispEdges">{label}</text>
+      ) : (
+        <path d="M12.3225 13.2396H10.9036V8.70316H9.14502V7.63401C9.39149 7.64067 9.62797 7.62402 9.85445 7.58405C10.0876 7.53742 10.2941 7.46082 10.474 7.35423C10.6605 7.24099 10.817 7.09444 10.9436 6.91458C11.0702 6.73473 11.1534 6.51157 11.1934 6.24512H12.3225V13.2396Z" fill="#543803" fillOpacity="0.44" shapeRendering="crispEdges" />
+      )}
     </g>
     <defs>
       <pattern id="pattern0_2233_806" patternContentUnits="objectBoundingBox" width="1" height="1">

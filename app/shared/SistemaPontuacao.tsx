@@ -1,4 +1,5 @@
 import { BollIcon } from "@/app/components/Icons";
+import { TrophyGold } from "@/app/shared/RankingAtual";
 
 const PONTUACOES = [
   { label: "PLACAR EXATO", pontos: "3 Pontos" },
@@ -93,17 +94,23 @@ export function SistemaPontuacao() {
               background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 50%, transparent 100%)",
             }}
           />
-          <p
-            className="relative text-2xl sm:text-4xl font-black uppercase text-center leading-tight tracking-wide"
-            style={{
-              background: "linear-gradient(180deg, #FFF9F3 0%, #FFE8BA 40%, #FFAF2F 100%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              backgroundClip: "text",
-            }}
-          >
-            FINAL VALE 6 PONTOS
-          </p>
+          <div className="relative flex flex-col items-center justify-center gap-3">
+            <TrophyGold size={80} label="6" />
+            <p
+              className="text-2xl sm:text-4xl font-black uppercase text-center leading-tight tracking-wide"
+              style={{
+                background: "linear-gradient(180deg, #FFF9F3 0%, #FFE8BA 40%, #FFAF2F 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+              }}
+            >
+              FINAL VALE 6 PONTOS
+            </p>
+          </div>
+
+          
+
         </div>
       </div>
     </section>
