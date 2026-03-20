@@ -133,17 +133,336 @@ const ArrowUp = () => (
 
 );
 
+const RankingPrimary = ({ className }: { className?: string }) => (
+  <svg width="100%" height="100%" viewBox="0 0 198 198" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+    <g filter="url(#filter0_ddi_2004_11537)">
+      <g clip-path="url(#paint0_diamond_2004_11537_clip_path)" data-figma-skip-parse="true"><g transform="matrix(0.0606141 -0.11629 0.11629 0.0606141 74.543 146.828)"><rect x="0" y="0" width="837.355" height="424.48" fill="url(#paint0_diamond_2004_11537)" opacity="1" shape-rendering="crispEdges" /><rect x="0" y="0" width="837.355" height="424.48" transform="scale(1 -1)" fill="url(#paint0_diamond_2004_11537)" opacity="1" shape-rendering="crispEdges" /><rect x="0" y="0" width="837.355" height="424.48" transform="scale(-1 1)" fill="url(#paint0_diamond_2004_11537)" opacity="1" shape-rendering="crispEdges" /><rect x="0" y="0" width="837.355" height="424.48" transform="scale(-1)" fill="url(#paint0_diamond_2004_11537)" opacity="1" shape-rendering="crispEdges" /></g></g><rect x="42.3235" y="96.2643" width="79.8222" height="79.8222" rx="17.8145" transform="rotate(-45 42.3235 96.2643)" data-figma-gradient-fill="{&#34;type&#34;:&#34;GRADIENT_DIAMOND&#34;,&#34;stops&#34;:[{&#34;color&#34;:{&#34;r&#34;:0.64431375265121460,&#34;g&#34;:0.93725490570068359,&#34;b&#34;:0.28627452254295349,&#34;a&#34;:1.0},&#34;position&#34;:0.4218750},{&#34;color&#34;:{&#34;r&#34;:0.72797852754592896,&#34;g&#34;:1.0,&#34;b&#34;:0.39550781250,&#34;a&#34;:1.0},&#34;position&#34;:1.0}],&#34;stopsVar&#34;:[{&#34;color&#34;:{&#34;r&#34;:0.64431375265121460,&#34;g&#34;:0.93725490570068359,&#34;b&#34;:0.28627452254295349,&#34;a&#34;:1.0},&#34;position&#34;:0.4218750},{&#34;color&#34;:{&#34;r&#34;:0.72797852754592896,&#34;g&#34;:1.0,&#34;b&#34;:0.39550781250,&#34;a&#34;:1.0},&#34;position&#34;:1.0}],&#34;transform&#34;:{&#34;m00&#34;:121.22822570800781,&#34;m01&#34;:232.57904052734375,&#34;m02&#34;:-102.36064147949219,&#34;m10&#34;:-232.57904052734375,&#34;m11&#34;:121.22822570800781,&#34;m12&#34;:202.50303649902344},&#34;opacity&#34;:1.0,&#34;blendMode&#34;:&#34;NORMAL&#34;,&#34;visible&#34;:true}" />
+      <g clip-path="url(#paint1_diamond_2004_11537_clip_path)" data-figma-skip-parse="true"><g transform="matrix(0.0201077 -0.059265 0.0313756 0.0106453 72.8379 91.8547)"><rect x="0" y="0" width="983.992" height="2517.09" fill="url(#paint1_diamond_2004_11537)" opacity="1" shape-rendering="crispEdges" /><rect x="0" y="0" width="983.992" height="2517.09" transform="scale(1 -1)" fill="url(#paint1_diamond_2004_11537)" opacity="1" shape-rendering="crispEdges" /><rect x="0" y="0" width="983.992" height="2517.09" transform="scale(-1 1)" fill="url(#paint1_diamond_2004_11537)" opacity="1" shape-rendering="crispEdges" /><rect x="0" y="0" width="983.992" height="2517.09" transform="scale(-1)" fill="url(#paint1_diamond_2004_11537)" opacity="1" shape-rendering="crispEdges" /></g></g><rect x="42.3235" y="96.2643" width="79.8222" height="79.8222" rx="17.8145" transform="rotate(-45 42.3235 96.2643)" data-figma-gradient-fill="{&#34;type&#34;:&#34;GRADIENT_DIAMOND&#34;,&#34;stops&#34;:[{&#34;color&#34;:{&#34;r&#34;:1.0,&#34;g&#34;:0.6250,&#34;b&#34;:0.91750001907348633,&#34;a&#34;:1.0},&#34;position&#34;:0.0},{&#34;color&#34;:{&#34;r&#34;:1.0,&#34;g&#34;:1.0,&#34;b&#34;:1.0,&#34;a&#34;:0.0},&#34;position&#34;:1.0}],&#34;stopsVar&#34;:[],&#34;transform&#34;:{&#34;m00&#34;:40.215488433837891,&#34;m01&#34;:62.751159667968750,&#34;m02&#34;:21.354616165161133,&#34;m10&#34;:-118.52990722656250,&#34;m11&#34;:21.290565490722656,&#34;m12&#34;:140.47434997558594},&#34;opacity&#34;:1.0,&#34;blendMode&#34;:&#34;NORMAL&#34;,&#34;visible&#34;:true}" />
+      <rect x="42.3235" y="96.2643" width="79.8222" height="79.8222" rx="17.8145" transform="rotate(-45 42.3235 96.2643)" fill="url(#paint2_linear_2004_11537)" />
+      <rect x="42.3235" y="96.2643" width="79.8222" height="79.8222" rx="17.8145" transform="rotate(-45 42.3235 96.2643)" fill="url(#paint3_linear_2004_11537)" />
+      <rect x="42.3235" y="96.2643" width="79.8222" height="79.8222" rx="17.8145" transform="rotate(-45 42.3235 96.2643)" fill="url(#paint4_linear_2004_11537)" />
+    </g>
+    <rect x="50.8732" y="96.2643" width="67.7314" height="67.7314" rx="11.8764" transform="rotate(-45 50.8732 96.2643)" fill="black" fill-opacity="0.2" />
+    <g filter="url(#filter1_ddi_2004_11537)">
+      <g clip-path="url(#paint5_diamond_2004_11537_clip_path)" data-figma-skip-parse="true"><g transform="matrix(0.0371531 -0.0712791 0.0712791 0.0371531 83.9181 127.257)"><rect x="0" y="0" width="855.284" height="442.41" fill="url(#paint5_diamond_2004_11537)" opacity="1" shape-rendering="crispEdges" /><rect x="0" y="0" width="855.284" height="442.41" transform="scale(1 -1)" fill="url(#paint5_diamond_2004_11537)" opacity="1" shape-rendering="crispEdges" /><rect x="0" y="0" width="855.284" height="442.41" transform="scale(-1 1)" fill="url(#paint5_diamond_2004_11537)" opacity="1" shape-rendering="crispEdges" /><rect x="0" y="0" width="855.284" height="442.41" transform="scale(-1)" fill="url(#paint5_diamond_2004_11537)" opacity="1" shape-rendering="crispEdges" /></g></g><rect x="64.1694" y="96.2643" width="48.9266" height="48.9266" rx="8.90727" transform="rotate(-45 64.1694 96.2643)" data-figma-gradient-fill="{&#34;type&#34;:&#34;GRADIENT_DIAMOND&#34;,&#34;stops&#34;:[{&#34;color&#34;:{&#34;r&#34;:0.64431375265121460,&#34;g&#34;:0.93725490570068359,&#34;b&#34;:0.28627452254295349,&#34;a&#34;:1.0},&#34;position&#34;:0.4218750},{&#34;color&#34;:{&#34;r&#34;:0.72797852754592896,&#34;g&#34;:1.0,&#34;b&#34;:0.39550781250,&#34;a&#34;:1.0},&#34;position&#34;:1.0}],&#34;stopsVar&#34;:[{&#34;color&#34;:{&#34;r&#34;:0.64431375265121460,&#34;g&#34;:0.93725490570068359,&#34;b&#34;:0.28627452254295349,&#34;a&#34;:1.0},&#34;position&#34;:0.4218750},{&#34;color&#34;:{&#34;r&#34;:0.72797852754592896,&#34;g&#34;:1.0,&#34;b&#34;:0.39550781250,&#34;a&#34;:1.0},&#34;position&#34;:1.0}],&#34;transform&#34;:{&#34;m00&#34;:74.306266784667969,&#34;m01&#34;:142.55821228027344,&#34;m02&#34;:-24.514112472534180,&#34;m10&#34;:-142.55821228027344,&#34;m11&#34;:74.306266784667969,&#34;m12&#34;:161.38281250},&#34;opacity&#34;:1.0,&#34;blendMode&#34;:&#34;NORMAL&#34;,&#34;visible&#34;:true}" />
+      <rect x="64.1694" y="96.2643" width="48.9266" height="48.9266" rx="8.90727" transform="rotate(-45 64.1694 96.2643)" fill="url(#paint6_linear_2004_11537)" />
+    </g>
+    <defs>
+      <filter id="filter0_ddi_2004_11537" x="-1.14441e-05" y="-2.45571e-05" width="197.533" height="197.533" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+        <feFlood flood-opacity="0" result="BackgroundImageFix" />
+        <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
+        <feOffset dy="2.50212" />
+        <feGaussianBlur stdDeviation="20.8727" />
+        <feComposite in2="hardAlpha" operator="out" />
+        <feColorMatrix type="matrix" values="0 0 0 0 0.501961 0 0 0 0 0.435294 0 0 0 0 0.403922 0 0 0 0.34 0" />
+        <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_2004_11537" />
+        <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
+        <feOffset dy="2.50212" />
+        <feGaussianBlur stdDeviation="24.8513" />
+        <feComposite in2="hardAlpha" operator="out" />
+        <feColorMatrix type="matrix" values="0 0 0 0 0.805127 0 0 0 0 0.720072 0 0 0 0 0.680047 0 0 0 0.25 0" />
+        <feBlend mode="normal" in2="effect1_dropShadow_2004_11537" result="effect2_dropShadow_2004_11537" />
+        <feBlend mode="normal" in="SourceGraphic" in2="effect2_dropShadow_2004_11537" result="shape" />
+        <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
+        <feOffset />
+        <feGaussianBlur stdDeviation="5.0334" />
+        <feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1" />
+        <feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0" />
+        <feBlend mode="normal" in2="shape" result="effect3_innerShadow_2004_11537" />
+      </filter>
+      <clipPath id="paint0_diamond_2004_11537_clip_path"><rect x="42.3235" y="96.2643" width="79.8222" height="79.8222" rx="17.8145" transform="rotate(-45 42.3235 96.2643)" /></clipPath><clipPath id="paint1_diamond_2004_11537_clip_path"><rect x="42.3235" y="96.2643" width="79.8222" height="79.8222" rx="17.8145" transform="rotate(-45 42.3235 96.2643)" /></clipPath><filter id="filter1_ddi_2004_11537" x="18.1563" y="18.157" width="161.219" height="161.219" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+        <feFlood flood-opacity="0" result="BackgroundImageFix" />
+        <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
+        <feOffset dy="2.50212" />
+        <feGaussianBlur stdDeviation="20.8727" />
+        <feComposite in2="hardAlpha" operator="out" />
+        <feColorMatrix type="matrix" values="0 0 0 0 0.50389 0 0 0 0 0.436059 0 0 0 0 0.402144 0 0 0 1 0" />
+        <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_2004_11537" />
+        <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
+        <feOffset dy="2.50212" />
+        <feGaussianBlur stdDeviation="24.8513" />
+        <feComposite in2="hardAlpha" operator="out" />
+        <feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.25 0" />
+        <feBlend mode="normal" in2="effect1_dropShadow_2004_11537" result="effect2_dropShadow_2004_11537" />
+        <feBlend mode="normal" in="SourceGraphic" in2="effect2_dropShadow_2004_11537" result="shape" />
+        <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
+        <feOffset />
+        <feGaussianBlur stdDeviation="5.0334" />
+        <feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1" />
+        <feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0" />
+        <feBlend mode="normal" in2="shape" result="effect3_innerShadow_2004_11537" />
+      </filter>
+      <clipPath id="paint5_diamond_2004_11537_clip_path"><rect x="64.1694" y="96.2643" width="48.9266" height="48.9266" rx="8.90727" transform="rotate(-45 64.1694 96.2643)" /></clipPath><linearGradient id="paint0_diamond_2004_11537" x1="0" y1="0" x2="500" y2="500" gradientUnits="userSpaceOnUse">
+        <stop offset="0.421875" stop-color="#A4EF49" />
+        <stop offset="1" stop-color="#BAFF65" />
+      </linearGradient>
+      <linearGradient id="paint1_diamond_2004_11537" x1="0" y1="0" x2="500" y2="500" gradientUnits="userSpaceOnUse">
+        <stop stop-color="#FF9FEA" />
+        <stop offset="1" stop-color="white" stop-opacity="0" />
+      </linearGradient>
+      <linearGradient id="paint2_linear_2004_11537" x1="44.3191" y1="97.9272" x2="117.822" y2="179.412" gradientUnits="userSpaceOnUse">
+        <stop stop-color="#7A96AC" />
+        <stop offset="0.18" stop-color="#EAEFF3" />
+        <stop offset="0.315" stop-color="#C2D4E1" />
+        <stop offset="0.491919" stop-color="white" />
+        <stop offset="0.615" stop-color="#D4DEE5" />
+        <stop offset="0.785" stop-color="#ABBDC8" />
+        <stop offset="0.955" stop-color="#BCCAD7" />
+      </linearGradient>
+      <linearGradient id="paint3_linear_2004_11537" x1="52.9665" y1="110.233" x2="114.829" y2="172.761" gradientUnits="userSpaceOnUse">
+        <stop stop-color="#9E8976" />
+        <stop offset="0.195" stop-color="#7A5E50" />
+        <stop offset="0.41" stop-color="#F6D0AB" />
+        <stop offset="0.61" stop-color="#9D774E" />
+        <stop offset="0.855" stop-color="#C99B70" />
+        <stop offset="1" stop-color="#795F52" />
+      </linearGradient>
+      <linearGradient id="paint4_linear_2004_11537" x1="120.415" y1="134.234" x2="50.5258" y2="158.825" gradientUnits="userSpaceOnUse">
+        <stop stop-color="#8C421D" />
+        <stop offset="0.325272" stop-color="#FBE67B" />
+        <stop offset="0.535488" stop-color="#FCFBE7" />
+        <stop offset="0.769917" stop-color="#F7D14E" />
+        <stop offset="1" stop-color="#D4A041" />
+      </linearGradient>
+      <linearGradient id="paint5_diamond_2004_11537" x1="0" y1="0" x2="500" y2="500" gradientUnits="userSpaceOnUse">
+        <stop offset="0.421875" stop-color="#A4EF49" />
+        <stop offset="1" stop-color="#BAFF65" />
+      </linearGradient>
+      <linearGradient id="paint6_linear_2004_11537" x1="75.0432" y1="95.4902" x2="102.222" y2="145.965" gradientUnits="userSpaceOnUse">
+        <stop stop-color="#8C421D" />
+        <stop offset="0.325272" stop-color="#FBE67B" />
+        <stop offset="0.535488" stop-color="#FCFBE7" />
+        <stop offset="0.769917" stop-color="#F7D14E" />
+        <stop offset="1" stop-color="#D4A041" />
+      </linearGradient>
+    </defs>
+  </svg>
+
+)
+
+const RankingSecondary = ({ className }: { className?: string }) => (
+  <svg width="100%" height="100%" viewBox="0 0 162 162" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+    <g filter="url(#filter0_ddi_430_877)">
+      <g clip-path="url(#paint0_diamond_430_877_clip_path)" data-figma-skip-parse="true"><g transform="matrix(0.0496748 -0.0953022 0.0953022 0.0496748 61.0902 120.329)"><rect x="0" y="0" width="837.355" height="424.48" fill="url(#paint0_diamond_430_877)" opacity="1" shape-rendering="crispEdges" /><rect x="0" y="0" width="837.355" height="424.48" transform="scale(1 -1)" fill="url(#paint0_diamond_430_877)" opacity="1" shape-rendering="crispEdges" /><rect x="0" y="0" width="837.355" height="424.48" transform="scale(-1 1)" fill="url(#paint0_diamond_430_877)" opacity="1" shape-rendering="crispEdges" /><rect x="0" y="0" width="837.355" height="424.48" transform="scale(-1)" fill="url(#paint0_diamond_430_877)" opacity="1" shape-rendering="crispEdges" /></g></g><rect x="34.6855" y="78.8906" width="65.4163" height="65.4163" rx="14.5995" transform="rotate(-45 34.6855 78.8906)" data-figma-gradient-fill="{&#34;type&#34;:&#34;GRADIENT_DIAMOND&#34;,&#34;stops&#34;:[{&#34;color&#34;:{&#34;r&#34;:0.64431375265121460,&#34;g&#34;:0.93725490570068359,&#34;b&#34;:0.28627452254295349,&#34;a&#34;:1.0},&#34;position&#34;:0.4218750},{&#34;color&#34;:{&#34;r&#34;:0.72797852754592896,&#34;g&#34;:1.0,&#34;b&#34;:0.39550781250,&#34;a&#34;:1.0},&#34;position&#34;:1.0}],&#34;stopsVar&#34;:[{&#34;color&#34;:{&#34;r&#34;:0.64431375265121460,&#34;g&#34;:0.93725490570068359,&#34;b&#34;:0.28627452254295349,&#34;a&#34;:1.0},&#34;position&#34;:0.4218750},{&#34;color&#34;:{&#34;r&#34;:0.72797852754592896,&#34;g&#34;:1.0,&#34;b&#34;:0.39550781250,&#34;a&#34;:1.0},&#34;position&#34;:1.0}],&#34;transform&#34;:{&#34;m00&#34;:99.349555969238281,&#34;m01&#34;:190.60432434082031,&#34;m02&#34;:-83.886749267578125,&#34;m10&#34;:-190.60432434082031,&#34;m11&#34;:99.349555969238281,&#34;m12&#34;:165.95593261718750},&#34;opacity&#34;:1.0,&#34;blendMode&#34;:&#34;NORMAL&#34;,&#34;visible&#34;:true}" />
+      <g clip-path="url(#paint1_diamond_430_877_clip_path)" data-figma-skip-parse="true"><g transform="matrix(0.0164788 -0.0485691 0.0257131 0.00872407 59.6929 75.2769)"><rect x="0" y="0" width="983.992" height="2517.09" fill="url(#paint1_diamond_430_877)" opacity="1" shape-rendering="crispEdges" /><rect x="0" y="0" width="983.992" height="2517.09" transform="scale(1 -1)" fill="url(#paint1_diamond_430_877)" opacity="1" shape-rendering="crispEdges" /><rect x="0" y="0" width="983.992" height="2517.09" transform="scale(-1 1)" fill="url(#paint1_diamond_430_877)" opacity="1" shape-rendering="crispEdges" /><rect x="0" y="0" width="983.992" height="2517.09" transform="scale(-1)" fill="url(#paint1_diamond_430_877)" opacity="1" shape-rendering="crispEdges" /></g></g><rect x="34.6855" y="78.8906" width="65.4163" height="65.4163" rx="14.5995" transform="rotate(-45 34.6855 78.8906)" data-figma-gradient-fill="{&#34;type&#34;:&#34;GRADIENT_DIAMOND&#34;,&#34;stops&#34;:[{&#34;color&#34;:{&#34;r&#34;:1.0,&#34;g&#34;:0.6250,&#34;b&#34;:0.91750001907348633,&#34;a&#34;:1.0},&#34;position&#34;:0.0},{&#34;color&#34;:{&#34;r&#34;:1.0,&#34;g&#34;:1.0,&#34;b&#34;:1.0,&#34;a&#34;:0.0},&#34;position&#34;:1.0}],&#34;stopsVar&#34;:[],&#34;transform&#34;:{&#34;m00&#34;:32.957595825195312,&#34;m01&#34;:51.426139831542969,&#34;m02&#34;:17.500984191894531,&#34;m10&#34;:-97.138214111328125,&#34;m11&#34;:17.448150634765625,&#34;m12&#34;:115.12187957763672},&#34;opacity&#34;:1.0,&#34;blendMode&#34;:&#34;NORMAL&#34;,&#34;visible&#34;:true}" />
+      <rect x="34.6855" y="78.8906" width="65.4163" height="65.4163" rx="14.5995" transform="rotate(-45 34.6855 78.8906)" fill="url(#paint2_linear_430_877)" />
+    </g>
+    <rect x="41.6914" y="78.8906" width="55.5075" height="55.5075" rx="9.73298" transform="rotate(-45 41.6914 78.8906)" fill="black" fill-opacity="0.2" />
+    <g filter="url(#filter1_ddi_430_877)">
+      <g clip-path="url(#paint3_diamond_430_877_clip_path)" data-figma-skip-parse="true"><g transform="matrix(0.0304479 -0.058415 0.058415 0.0304479 68.7744 104.29)"><rect x="0" y="0" width="855.284" height="442.41" fill="url(#paint3_diamond_430_877)" opacity="1" shape-rendering="crispEdges" /><rect x="0" y="0" width="855.284" height="442.41" transform="scale(1 -1)" fill="url(#paint3_diamond_430_877)" opacity="1" shape-rendering="crispEdges" /><rect x="0" y="0" width="855.284" height="442.41" transform="scale(-1 1)" fill="url(#paint3_diamond_430_877)" opacity="1" shape-rendering="crispEdges" /><rect x="0" y="0" width="855.284" height="442.41" transform="scale(-1)" fill="url(#paint3_diamond_430_877)" opacity="1" shape-rendering="crispEdges" /></g></g><rect x="52.5898" y="78.8906" width="40.0966" height="40.0966" rx="7.29973" transform="rotate(-45 52.5898 78.8906)" data-figma-gradient-fill="{&#34;type&#34;:&#34;GRADIENT_DIAMOND&#34;,&#34;stops&#34;:[{&#34;color&#34;:{&#34;r&#34;:0.64431375265121460,&#34;g&#34;:0.93725490570068359,&#34;b&#34;:0.28627452254295349,&#34;a&#34;:1.0},&#34;position&#34;:0.4218750},{&#34;color&#34;:{&#34;r&#34;:0.72797852754592896,&#34;g&#34;:1.0,&#34;b&#34;:0.39550781250,&#34;a&#34;:1.0},&#34;position&#34;:1.0}],&#34;stopsVar&#34;:[{&#34;color&#34;:{&#34;r&#34;:0.64431375265121460,&#34;g&#34;:0.93725490570068359,&#34;b&#34;:0.28627452254295349,&#34;a&#34;:1.0},&#34;position&#34;:0.4218750},{&#34;color&#34;:{&#34;r&#34;:0.72797852754592896,&#34;g&#34;:1.0,&#34;b&#34;:0.39550781250,&#34;a&#34;:1.0},&#34;position&#34;:1.0}],&#34;transform&#34;:{&#34;m00&#34;:60.895835876464844,&#34;m01&#34;:116.83001708984375,&#34;m02&#34;:-20.088483810424805,&#34;m10&#34;:-116.83001708984375,&#34;m11&#34;:60.895835876464844,&#34;m12&#34;:132.25689697265625},&#34;opacity&#34;:1.0,&#34;blendMode&#34;:&#34;NORMAL&#34;,&#34;visible&#34;:true}" />
+      <g clip-path="url(#paint4_diamond_430_877_clip_path)" data-figma-skip-parse="true"><g transform="matrix(0.0101006 -0.0297702 0.0157607 0.00534738 67.918 76.6756)"><rect x="0" y="0" width="1024.11" height="2592.87" fill="url(#paint4_diamond_430_877)" opacity="1" shape-rendering="crispEdges" /><rect x="0" y="0" width="1024.11" height="2592.87" transform="scale(1 -1)" fill="url(#paint4_diamond_430_877)" opacity="1" shape-rendering="crispEdges" /><rect x="0" y="0" width="1024.11" height="2592.87" transform="scale(-1 1)" fill="url(#paint4_diamond_430_877)" opacity="1" shape-rendering="crispEdges" /><rect x="0" y="0" width="1024.11" height="2592.87" transform="scale(-1)" fill="url(#paint4_diamond_430_877)" opacity="1" shape-rendering="crispEdges" /></g></g><rect x="52.5898" y="78.8906" width="40.0966" height="40.0966" rx="7.29973" transform="rotate(-45 52.5898 78.8906)" data-figma-gradient-fill="{&#34;type&#34;:&#34;GRADIENT_DIAMOND&#34;,&#34;stops&#34;:[{&#34;color&#34;:{&#34;r&#34;:1.0,&#34;g&#34;:0.6250,&#34;b&#34;:0.91750001907348633,&#34;a&#34;:1.0},&#34;position&#34;:0.0},{&#34;color&#34;:{&#34;r&#34;:1.0,&#34;g&#34;:1.0,&#34;b&#34;:1.0,&#34;a&#34;:0.0},&#34;position&#34;:1.0}],&#34;stopsVar&#34;:[],&#34;transform&#34;:{&#34;m00&#34;:20.201202392578125,&#34;m01&#34;:31.521409988403320,&#34;m02&#34;:42.056648254394531,&#34;m10&#34;:-59.54040527343750,&#34;m11&#34;:10.694760322570801,&#34;m12&#34;:101.09840393066406},&#34;opacity&#34;:1.0,&#34;blendMode&#34;:&#34;NORMAL&#34;,&#34;visible&#34;:true}" />
+      <rect x="52.5898" y="78.8906" width="40.0966" height="40.0966" rx="7.29973" transform="rotate(-45 52.5898 78.8906)" fill="url(#paint5_linear_430_877)" />
+    </g>
+    <defs>
+      <filter id="filter0_ddi_430_877" x="-8.7738e-05" y="-0.00031662" width="161.883" height="161.883" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+        <feFlood flood-opacity="0" result="BackgroundImageFix" />
+        <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
+        <feOffset dy="2.05055" />
+        <feGaussianBlur stdDeviation="17.1057" />
+        <feComposite in2="hardAlpha" operator="out" />
+        <feColorMatrix type="matrix" values="0 0 0 0 0.843137 0 0 0 0 0.886275 0 0 0 0 0.92549 0 0 0 0.34 0" />
+        <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_430_877" />
+        <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
+        <feOffset dy="2.05055" />
+        <feGaussianBlur stdDeviation="20.3663" />
+        <feComposite in2="hardAlpha" operator="out" />
+        <feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.25 0" />
+        <feBlend mode="normal" in2="effect1_dropShadow_430_877" result="effect2_dropShadow_430_877" />
+        <feBlend mode="normal" in="SourceGraphic" in2="effect2_dropShadow_430_877" result="shape" />
+        <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
+        <feOffset />
+        <feGaussianBlur stdDeviation="7.5" />
+        <feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1" />
+        <feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0" />
+        <feBlend mode="normal" in2="shape" result="effect3_innerShadow_430_877" />
+      </filter>
+      <clipPath id="paint0_diamond_430_877_clip_path"><rect x="34.6855" y="78.8906" width="65.4163" height="65.4163" rx="14.5995" transform="rotate(-45 34.6855 78.8906)" /></clipPath><clipPath id="paint1_diamond_430_877_clip_path"><rect x="34.6855" y="78.8906" width="65.4163" height="65.4163" rx="14.5995" transform="rotate(-45 34.6855 78.8906)" /></clipPath><filter id="filter1_ddi_430_877" x="14.8808" y="14.8805" width="132.123" height="132.121" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+        <feFlood flood-opacity="0" result="BackgroundImageFix" />
+        <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
+        <feOffset dy="2.05055" />
+        <feGaussianBlur stdDeviation="17.1057" />
+        <feComposite in2="hardAlpha" operator="out" />
+        <feColorMatrix type="matrix" values="0 0 0 0 0.827451 0 0 0 0 0.87451 0 0 0 0 0.913725 0 0 0 0.39 0" />
+        <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_430_877" />
+        <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
+        <feOffset dy="2.05055" />
+        <feGaussianBlur stdDeviation="20.3663" />
+        <feComposite in2="hardAlpha" operator="out" />
+        <feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.25 0" />
+        <feBlend mode="normal" in2="effect1_dropShadow_430_877" result="effect2_dropShadow_430_877" />
+        <feBlend mode="normal" in="SourceGraphic" in2="effect2_dropShadow_430_877" result="shape" />
+        <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
+        <feOffset />
+        <feGaussianBlur stdDeviation="7.5" />
+        <feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1" />
+        <feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0" />
+        <feBlend mode="normal" in2="shape" result="effect3_innerShadow_430_877" />
+      </filter>
+      <clipPath id="paint3_diamond_430_877_clip_path"><rect x="52.5898" y="78.8906" width="40.0966" height="40.0966" rx="7.29973" transform="rotate(-45 52.5898 78.8906)" /></clipPath><clipPath id="paint4_diamond_430_877_clip_path"><rect x="52.5898" y="78.8906" width="40.0966" height="40.0966" rx="7.29973" transform="rotate(-45 52.5898 78.8906)" /></clipPath><linearGradient id="paint0_diamond_430_877" x1="0" y1="0" x2="500" y2="500" gradientUnits="userSpaceOnUse">
+        <stop offset="0.421875" stop-color="#A4EF49" />
+        <stop offset="1" stop-color="#BAFF65" />
+      </linearGradient>
+      <linearGradient id="paint1_diamond_430_877" x1="0" y1="0" x2="500" y2="500" gradientUnits="userSpaceOnUse">
+        <stop stop-color="#FF9FEA" />
+        <stop offset="1" stop-color="white" stop-opacity="0" />
+      </linearGradient>
+      <linearGradient id="paint2_linear_430_877" x1="97.6225" y1="114.251" x2="35.0435" y2="136.524" gradientUnits="userSpaceOnUse">
+        <stop stop-color="#7A96AC" />
+        <stop offset="0.18" stop-color="#EAEFF3" />
+        <stop offset="0.315" stop-color="#C2D4E1" />
+        <stop offset="0.491919" stop-color="white" />
+        <stop offset="0.615" stop-color="#D4DEE5" />
+        <stop offset="0.785" stop-color="#ABBDC8" />
+        <stop offset="0.955" stop-color="#BCCAD7" />
+      </linearGradient>
+      <linearGradient id="paint3_diamond_430_877" x1="0" y1="0" x2="500" y2="500" gradientUnits="userSpaceOnUse">
+        <stop offset="0.421875" stop-color="#A4EF49" />
+        <stop offset="1" stop-color="#BAFF65" />
+      </linearGradient>
+      <linearGradient id="paint4_diamond_430_877" x1="0" y1="0" x2="500" y2="500" gradientUnits="userSpaceOnUse">
+        <stop stop-color="#FF9FEA" />
+        <stop offset="1" stop-color="white" stop-opacity="0" />
+      </linearGradient>
+      <linearGradient id="paint5_linear_430_877" x1="53.5923" y1="79.726" x2="90.5145" y2="120.658" gradientUnits="userSpaceOnUse">
+        <stop stop-color="#7A96AC" />
+        <stop offset="0.18" stop-color="#EAEFF3" />
+        <stop offset="0.315" stop-color="#C2D4E1" />
+        <stop offset="0.491919" stop-color="white" />
+        <stop offset="0.615" stop-color="#D4DEE5" />
+        <stop offset="0.785" stop-color="#ABBDC8" />
+        <stop offset="0.955" stop-color="#BCCAD7" />
+      </linearGradient>
+    </defs>
+  </svg>
+
+)
+
+const RankingTree = ({ className }: { className?: string }) => (
+  <svg width="100%" height="100%" viewBox="0 0 162 162" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+    <g filter="url(#filter0_ddi_430_897)">
+      <g clip-path="url(#paint0_diamond_430_897_clip_path)" data-figma-skip-parse="true"><g transform="matrix(0.0496748 -0.0953022 0.0953022 0.0496748 61.0902 120.329)"><rect x="0" y="0" width="837.355" height="424.48" fill="url(#paint0_diamond_430_897)" opacity="1" shape-rendering="crispEdges" /><rect x="0" y="0" width="837.355" height="424.48" transform="scale(1 -1)" fill="url(#paint0_diamond_430_897)" opacity="1" shape-rendering="crispEdges" /><rect x="0" y="0" width="837.355" height="424.48" transform="scale(-1 1)" fill="url(#paint0_diamond_430_897)" opacity="1" shape-rendering="crispEdges" /><rect x="0" y="0" width="837.355" height="424.48" transform="scale(-1)" fill="url(#paint0_diamond_430_897)" opacity="1" shape-rendering="crispEdges" /></g></g><rect x="34.6855" y="78.8906" width="65.4163" height="65.4163" rx="14.5995" transform="rotate(-45 34.6855 78.8906)" data-figma-gradient-fill="{&#34;type&#34;:&#34;GRADIENT_DIAMOND&#34;,&#34;stops&#34;:[{&#34;color&#34;:{&#34;r&#34;:0.64431375265121460,&#34;g&#34;:0.93725490570068359,&#34;b&#34;:0.28627452254295349,&#34;a&#34;:1.0},&#34;position&#34;:0.4218750},{&#34;color&#34;:{&#34;r&#34;:0.72797852754592896,&#34;g&#34;:1.0,&#34;b&#34;:0.39550781250,&#34;a&#34;:1.0},&#34;position&#34;:1.0}],&#34;stopsVar&#34;:[{&#34;color&#34;:{&#34;r&#34;:0.64431375265121460,&#34;g&#34;:0.93725490570068359,&#34;b&#34;:0.28627452254295349,&#34;a&#34;:1.0},&#34;position&#34;:0.4218750},{&#34;color&#34;:{&#34;r&#34;:0.72797852754592896,&#34;g&#34;:1.0,&#34;b&#34;:0.39550781250,&#34;a&#34;:1.0},&#34;position&#34;:1.0}],&#34;transform&#34;:{&#34;m00&#34;:99.349555969238281,&#34;m01&#34;:190.60432434082031,&#34;m02&#34;:-83.886749267578125,&#34;m10&#34;:-190.60432434082031,&#34;m11&#34;:99.349555969238281,&#34;m12&#34;:165.95593261718750},&#34;opacity&#34;:1.0,&#34;blendMode&#34;:&#34;NORMAL&#34;,&#34;visible&#34;:true}" />
+      <g clip-path="url(#paint1_diamond_430_897_clip_path)" data-figma-skip-parse="true"><g transform="matrix(0.0164788 -0.0485691 0.0257131 0.00872407 59.6929 75.2769)"><rect x="0" y="0" width="983.992" height="2517.09" fill="url(#paint1_diamond_430_897)" opacity="1" shape-rendering="crispEdges" /><rect x="0" y="0" width="983.992" height="2517.09" transform="scale(1 -1)" fill="url(#paint1_diamond_430_897)" opacity="1" shape-rendering="crispEdges" /><rect x="0" y="0" width="983.992" height="2517.09" transform="scale(-1 1)" fill="url(#paint1_diamond_430_897)" opacity="1" shape-rendering="crispEdges" /><rect x="0" y="0" width="983.992" height="2517.09" transform="scale(-1)" fill="url(#paint1_diamond_430_897)" opacity="1" shape-rendering="crispEdges" /></g></g><rect x="34.6855" y="78.8906" width="65.4163" height="65.4163" rx="14.5995" transform="rotate(-45 34.6855 78.8906)" data-figma-gradient-fill="{&#34;type&#34;:&#34;GRADIENT_DIAMOND&#34;,&#34;stops&#34;:[{&#34;color&#34;:{&#34;r&#34;:1.0,&#34;g&#34;:0.6250,&#34;b&#34;:0.91750001907348633,&#34;a&#34;:1.0},&#34;position&#34;:0.0},{&#34;color&#34;:{&#34;r&#34;:1.0,&#34;g&#34;:1.0,&#34;b&#34;:1.0,&#34;a&#34;:0.0},&#34;position&#34;:1.0}],&#34;stopsVar&#34;:[],&#34;transform&#34;:{&#34;m00&#34;:32.957595825195312,&#34;m01&#34;:51.426139831542969,&#34;m02&#34;:17.500984191894531,&#34;m10&#34;:-97.138214111328125,&#34;m11&#34;:17.448150634765625,&#34;m12&#34;:115.12187957763672},&#34;opacity&#34;:1.0,&#34;blendMode&#34;:&#34;NORMAL&#34;,&#34;visible&#34;:true}" />
+      <rect x="34.6855" y="78.8906" width="65.4163" height="65.4163" rx="14.5995" transform="rotate(-45 34.6855 78.8906)" fill="url(#paint2_linear_430_897)" />
+      <rect x="34.6855" y="78.8906" width="65.4163" height="65.4163" rx="14.5995" transform="rotate(-45 34.6855 78.8906)" fill="url(#paint3_linear_430_897)" />
+      <rect x="34.6855" y="78.8906" width="65.4163" height="65.4163" rx="14.5995" transform="rotate(-45 34.6855 78.8906)" fill="url(#paint4_linear_430_897)" />
+    </g>
+    <rect x="41.6914" y="78.8906" width="55.5075" height="55.5075" rx="9.73298" transform="rotate(-45 41.6914 78.8906)" fill="black" fill-opacity="0.2" />
+    <g filter="url(#filter1_ddi_430_897)">
+      <rect x="52.5898" y="78.8906" width="40.0966" height="40.0966" rx="7.29973" transform="rotate(-45 52.5898 78.8906)" fill="url(#paint5_linear_430_897)" />
+    </g>
+    <defs>
+      <filter id="filter0_ddi_430_897" x="-8.7738e-05" y="-0.00031662" width="161.883" height="161.883" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+        <feFlood flood-opacity="0" result="BackgroundImageFix" />
+        <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
+        <feOffset dy="2.05055" />
+        <feGaussianBlur stdDeviation="17.1057" />
+        <feComposite in2="hardAlpha" operator="out" />
+        <feColorMatrix type="matrix" values="0 0 0 0 0.501961 0 0 0 0 0.435294 0 0 0 0 0.403922 0 0 0 0.34 0" />
+        <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_430_897" />
+        <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
+        <feOffset dy="2.05055" />
+        <feGaussianBlur stdDeviation="20.3663" />
+        <feComposite in2="hardAlpha" operator="out" />
+        <feColorMatrix type="matrix" values="0 0 0 0 0.805127 0 0 0 0 0.720072 0 0 0 0 0.680047 0 0 0 0.25 0" />
+        <feBlend mode="normal" in2="effect1_dropShadow_430_897" result="effect2_dropShadow_430_897" />
+        <feBlend mode="normal" in="SourceGraphic" in2="effect2_dropShadow_430_897" result="shape" />
+        <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
+        <feOffset />
+        <feGaussianBlur stdDeviation="4.125" />
+        <feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1" />
+        <feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.7 0" />
+        <feBlend mode="normal" in2="shape" result="effect3_innerShadow_430_897" />
+      </filter>
+      <clipPath id="paint0_diamond_430_897_clip_path"><rect x="34.6855" y="78.8906" width="65.4163" height="65.4163" rx="14.5995" transform="rotate(-45 34.6855 78.8906)" /></clipPath><clipPath id="paint1_diamond_430_897_clip_path"><rect x="34.6855" y="78.8906" width="65.4163" height="65.4163" rx="14.5995" transform="rotate(-45 34.6855 78.8906)" /></clipPath><filter id="filter1_ddi_430_897" x="14.8808" y="14.8805" width="132.123" height="132.121" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+        <feFlood flood-opacity="0" result="BackgroundImageFix" />
+        <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
+        <feOffset dy="2.05055" />
+        <feGaussianBlur stdDeviation="17.1057" />
+        <feComposite in2="hardAlpha" operator="out" />
+        <feColorMatrix type="matrix" values="0 0 0 0 0.50389 0 0 0 0 0.436059 0 0 0 0 0.402144 0 0 0 1 0" />
+        <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_430_897" />
+        <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
+        <feOffset dy="2.05055" />
+        <feGaussianBlur stdDeviation="20.3663" />
+        <feComposite in2="hardAlpha" operator="out" />
+        <feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.25 0" />
+        <feBlend mode="normal" in2="effect1_dropShadow_430_897" result="effect2_dropShadow_430_897" />
+        <feBlend mode="normal" in="SourceGraphic" in2="effect2_dropShadow_430_897" result="shape" />
+        <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
+        <feOffset />
+        <feGaussianBlur stdDeviation="4.125" />
+        <feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1" />
+        <feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.7 0" />
+        <feBlend mode="normal" in2="shape" result="effect3_innerShadow_430_897" />
+      </filter>
+      <linearGradient id="paint0_diamond_430_897" x1="0" y1="0" x2="500" y2="500" gradientUnits="userSpaceOnUse">
+        <stop offset="0.421875" stop-color="#A4EF49" />
+        <stop offset="1" stop-color="#BAFF65" />
+      </linearGradient>
+      <linearGradient id="paint1_diamond_430_897" x1="0" y1="0" x2="500" y2="500" gradientUnits="userSpaceOnUse">
+        <stop stop-color="#FF9FEA" />
+        <stop offset="1" stop-color="white" stop-opacity="0" />
+      </linearGradient>
+      <linearGradient id="paint2_linear_430_897" x1="36.321" y1="80.2535" x2="96.5584" y2="147.033" gradientUnits="userSpaceOnUse">
+        <stop stop-color="#7A96AC" />
+        <stop offset="0.18" stop-color="#EAEFF3" />
+        <stop offset="0.315" stop-color="#C2D4E1" />
+        <stop offset="0.491919" stop-color="white" />
+        <stop offset="0.615" stop-color="#D4DEE5" />
+        <stop offset="0.785" stop-color="#ABBDC8" />
+        <stop offset="0.955" stop-color="#BCCAD7" />
+      </linearGradient>
+      <linearGradient id="paint3_linear_430_897" x1="43.4077" y1="90.3385" x2="94.1053" y2="141.581" gradientUnits="userSpaceOnUse">
+        <stop stop-color="#9E8976" />
+        <stop offset="0.195" stop-color="#7A5E50" />
+        <stop offset="0.41" stop-color="#F6D0AB" />
+        <stop offset="0.61" stop-color="#9D774E" />
+        <stop offset="0.855" stop-color="#C99B70" />
+        <stop offset="1" stop-color="#795F52" />
+      </linearGradient>
+      <linearGradient id="paint4_linear_430_897" x1="99.7438" y1="105.765" x2="39.8165" y2="134.933" gradientUnits="userSpaceOnUse">
+        <stop stop-color="#9E8976" />
+        <stop offset="0.195" stop-color="#7A5E50" />
+        <stop offset="0.41" stop-color="#F6D0AB" />
+        <stop offset="0.61" stop-color="#9D774E" />
+        <stop offset="0.855" stop-color="#C99B70" />
+        <stop offset="1" stop-color="#795F52" />
+      </linearGradient>
+      <linearGradient id="paint5_linear_430_897" x1="55.6676" y1="81.9686" x2="75.8202" y2="122.274" gradientUnits="userSpaceOnUse">
+        <stop stop-color="#9E8976" />
+        <stop offset="0.195" stop-color="#7A5E50" />
+        <stop offset="0.41" stop-color="#F6D0AB" />
+        <stop offset="0.61" stop-color="#9D774E" />
+        <stop offset="0.855" stop-color="#C99B70" />
+        <stop offset="1" stop-color="#795F52" />
+      </linearGradient>
+    </defs>
+  </svg>
+
+)
+
+
 // ── Dados ─────────────────────────────────────────────────────
 const PLAYERS = [
-  { position: 1, name: "Matheus Henrique", pts: 85, type: "gold" },
-  { position: 2, name: "Kristian Israel", pts: 76, type: "silver" },
-  { position: 3, name: "Leandro Rezende", pts: 72, type: "bronze" },
-  { position: 4, name: "Gustavo Henrique", pts: 21, type: "number" },
-  { position: 5, name: "Lucas Felipe", pts: 21, type: "number" },
+  { position: 1, name: "Matheus Henrique", pts: 85, prize: "R$ 1.521,51", type: "gold" },
+  { position: 2, name: "Kristian Israel", pts: 76, prize: "R$ 980,00", type: "silver" },
+  { position: 3, name: "Leandro Rezende", pts: 72, prize: "R$ 560,00", type: "bronze" },
+  { position: 4, name: "Gustavo Henrique", pts: 21, prize: "R$ 200,00", type: "number" },
+  { position: 5, name: "Lucas Felipe", pts: 21, prize: "R$ 50,31", type: "number" },
 ] as const;
 
-function PositionIcon({ player }: { player: (typeof PLAYERS)[number] }) {
-  if (player.type === "gold") return <TrophyGold />;
+// Ícones do pódio — wrapper controla o tamanho, SVG preenche
+function PodiumIcon({ player, isCenter }: { player: (typeof PLAYERS)[number]; isCenter: boolean }) {
+  const wrapSize = isCenter ? "w-32 h-32 md:w-40 md:h-40" : "w-24 h-24 md:w-32 md:h-32";
+  if (player.type === "gold")   return <div className={wrapSize + " shrink-0 block"}><RankingPrimary   className="w-full h-full" /></div>;
+  if (player.type === "silver") return <div className={wrapSize + " shrink-0 block"}><RankingSecondary className="w-full h-full" /></div>;
+  if (player.type === "bronze") return <div className={wrapSize + " shrink-0 block"}><RankingTree      className="w-full h-full" /></div>;
+  return null;
+}
+
+// Ícones da tabela (TrophyGold/Silver/Bronze)
+function TableIcon({ player }: { player: (typeof PLAYERS)[number] }) {
+  if (player.type === "gold")   return <TrophyGold />;
   if (player.type === "silver") return <TrophySilver />;
   if (player.type === "bronze") return <TrophyBronze />;
   return (
@@ -154,92 +473,146 @@ function PositionIcon({ player }: { player: (typeof PLAYERS)[number] }) {
   );
 }
 
-// ── Componente ────────────────────────────────────────────────
+// ── Pódio top 3 ──────────────────────────────────────────────
+const PODIUM_ORDER = [1, 0, 2]; // silver, gold, bronze (ordem visual)
+
+function PodiumCard({ player, isCenter }: { player: (typeof PLAYERS)[number]; isCenter: boolean }) {
+  const firstName = player.name.split(' ')[0];
+
+  return (
+    <div className={'flex flex-col items-center flex-1 min-w-0 ' + (isCenter ? ' pt-2 pb-4' : 'pt-4 pb-4 mt-8')}>
+      {/* Wrapper do ícone com glow contido apenas atrás dele */}
+      <div className='relative flex items-center justify-center mb-3'>
+        <div
+          className='absolute pointer-events-none rounded-full'
+          style={{
+            width: isCenter ? 50 : 38,
+            height: isCenter ? 50 : 38,
+            background: 'rgba(255,255,255,0.25)',
+            filter: isCenter ? 'blur(16px)' : 'blur(10px)',
+          }}
+        />
+        <PodiumIcon player={player} isCenter={isCenter} />
+      </div>
+
+      <span
+        className={'font-bold text-center leading-tight ' + (isCenter ? 'text-[14px] md:text-[16px]' : 'text-[12px] md:text-[14px]')}
+        style={{
+          background: isCenter
+            ? 'linear-gradient(180deg, #FFF9F3 0%, #FEC554 100%)'
+            : 'linear-gradient(180deg, #FFF9F3 0%, #999692 100%)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text',
+        }}
+      >
+        {firstName}
+      </span>
+      <span className={'text-white/40 mt-1 ' + (isCenter ? 'text-[11px]' : 'text-[10px]')}>{player.pts} pts</span>
+    </div>
+  );
+}
+
+// ── Componente principal ──────────────────────────────────────
 export function RankingAtual() {
+  const top3 = PODIUM_ORDER.map((i) => PLAYERS[i]);
+
   return (
     <div className="w-full">
-
       <div className="flex justify-center px-5 md:py-8 w-full">
         <div
           className="w-full max-w-md md:max-w-4xl h-px"
-          style={{
-            background: "linear-gradient(90deg, transparent 0%, rgba(254,197,84,0.5) 50%, transparent 100%)",
-          }}
+          style={{ background: "linear-gradient(90deg, transparent 0%, rgba(254,197,84,0.5) 50%, transparent 100%)" }}
         />
       </div>
-      {/* Título — FORA do bg image */}
-      <div className="flex justify-center px-5 mb-2 max-md:mt-2">
 
-        <h1 className="text-3xl sm:text-5xl font-light text-center leading-tight mb-2 md:font-light"
+      {/* Título */}
+      <div className="flex justify-center px-5 mb-6 max-md:mt-2">
+        <h1
+          className="text-3xl sm:text-5xl font-light text-center leading-tight"
           style={{
             background: "linear-gradient(180deg, #FFF9F3 0%, #999692 100%)",
             WebkitBackgroundClip: "text",
             WebkitTextFillColor: "transparent",
             backgroundClip: "text",
-          }}>
-          Ranking Atual
+          }}
+        >
+          Ranking da Galera
         </h1>
       </div>
 
-
-
-      {/* Área com bg image + gradientes de fade */}
+      {/* Área com bg */}
       <div className="relative overflow-hidden">
-
-        {/* Imagem de fundo — mobile */}
         <div
           className="absolute inset-0 opacity-4 md:hidden"
-          style={{
-            backgroundImage: `url(${bgHome.src})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
+          style={{ backgroundImage: `url(${bgHome.src})`, backgroundSize: "cover", backgroundPosition: "center" }}
         />
-
-        {/* Imagem de fundo — desktop */}
         <div
           className="absolute inset-0 opacity-[0.08] hidden md:block"
-          style={{
-            backgroundImage: `url(${bgHomeDesk.src})`,
-            backgroundSize: "cover",
-            backgroundPosition: "left top",
-          }}
+          style={{ backgroundImage: `url(${bgHomeDesk.src})`, backgroundSize: "cover", backgroundPosition: "left top" }}
         />
-        {/* Conteúdo */}
-        <div className="relative z-20 flex flex-col items-center px-5 md:py-12">
+
+        <div className="relative z-20 flex flex-col items-center px-5 md:pb-12">
           <div className="w-full max-w-md">
 
-            {/* Linhas do ranking */}
-            {PLAYERS.map((player, index) => (
-              <div key={player.name}>
+            {/* ── Pódio top 3 ── */}
+            <div className="flex gap-1 mb-5 items-end w-full overflow-hidden">
+              {top3.map((player) => (
+                <PodiumCard key={player.name} player={player} isCenter={player.type === "gold"} />
+              ))}
+            </div>
+
+            {/* ── Header da tabela ── */}
+            <div
+              className="grid px-4 py-2 mb-1 rounded-lg"
+              style={{
+                gridTemplateColumns: "2fr 1fr 1fr",
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.06)",
+              }}
+            >
+              <span className="text-[11px] font-semibold uppercase tracking-widest text-white/40">Classificação</span>
+              <span className="text-[11px] font-semibold uppercase tracking-widest text-white/40 text-center">Pontos</span>
+              <span className="text-[11px] font-semibold uppercase tracking-widest text-white/40 text-right">Premiação</span>
+            </div>
+
+            {/* ── Linhas da tabela ── */}
+            {PLAYERS.map((player) => (
+              <div key={player.name} className="mt-2">
                 <div
-                  className="mt-2"
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "1fr auto 1fr",
+                    gridTemplateColumns: "2fr 1fr 1fr",
                     alignItems: "center",
                     borderRadius: "10px",
                     border: "1px solid transparent",
                     background:
                       "linear-gradient(#080A11, #080A11) padding-box, linear-gradient(180deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%) border-box",
                     backdropFilter: "blur(58.03px)",
-                    padding: "15px 17.13px",
-                    gap: "17.13px",
+                    padding: "12px 17px",
+                    gap: "8px",
                   }}
                 >
-                  {/* Ícone — esquerda */}
-                  <div className="flex items-center justify-start">
-                    <PositionIcon player={player} />
+                  {/* Classificação: ícone + nome */}
+                  <div className="flex items-center gap-3 min-w-0">
+                    <TableIcon player={player} />
+                    <span className="text-white font-medium text-sm truncate">{player.name}</span>
                   </div>
 
-                  {/* Nome — centro absoluto */}
-                  <span className="text-white font-medium text-base text-center">
-                    {player.name}
-                  </span>
+                  {/* Pontos */}
+                  <span className="text-white/55 text-sm font-medium text-center">{player.pts} pts</span>
 
-                  {/* Pontos — direita */}
-                  <span className="text-white/55 text-sm font-medium text-right">
-                    {player.pts} pts
+                  {/* Premiação */}
+                  <span
+                    className="text-sm font-semibold text-right"
+                    style={{
+                      background: "linear-gradient(180deg, #FEC554 0%, #FFE8BA 100%)",
+                      WebkitBackgroundClip: "text",
+                      WebkitTextFillColor: "transparent",
+                      backgroundClip: "text",
+                    }}
+                  >
+                    {player.prize}
                   </span>
                 </div>
               </div>
@@ -250,14 +623,9 @@ export function RankingAtual() {
               <Link
                 href="/ranking"
                 className="flex items-center gap-1 rounded-full px-6 py-3"
-                style={{
-                  backgroundColor: "rgba(0,0,0,0.5)",
-                  border: "1px solid rgba(255,255,255,0.14)",
-                }}
+                style={{ backgroundColor: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.14)" }}
               >
-                <span className="text-white font-medium text-base">
-                  Ver ranking completo
-                </span>
+                <span className="text-white font-medium text-base">Ver ranking completo</span>
                 <div
                   className="flex items-center justify-center w-7 h-7 rounded-full ml-2"
                   style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
@@ -266,19 +634,10 @@ export function RankingAtual() {
                 </div>
               </Link>
             </div>
-
           </div>
 
-          {/* Stats — fora do max-w-md para ter largura total */}
+          {/* Stats */}
           <div className="relative flex flex-col items-center w-full pt-6 pb-10 overflow-hidden md:pt-10">
-            {/* Radial blur */}
-            {/* <div
-              className="absolute inset-0 pointer-events-none"
-              style={{
-                background: "radial-gradient(ellipse at center, #0B1428C4 0%, transparent 70%)",
-              }}
-            /> */}
-
             <p
               className="relative text-xs md:text-[19px] font-semibold uppercase tracking-widest mb-6"
               style={{
@@ -300,9 +659,7 @@ export function RankingAtual() {
                 <div
                   key={stat.label}
                   className="flex-1 flex flex-col items-center justify-center py-5"
-                  style={{
-                    borderLeft: i !== 0 ? "1px solid rgba(255,255,255,0.1)" : undefined,
-                  }}
+                  style={{ borderLeft: i !== 0 ? "1px solid rgba(255,255,255,0.1)" : undefined }}
                 >
                   <span
                     className="text-[19px] sm:text-4xl font-bold"
@@ -325,15 +682,10 @@ export function RankingAtual() {
         </div>
       </div>
 
-
-
-
       <div className="flex justify-center px-5">
         <div
           className="w-full max-w-md md:max-w-4xl h-px"
-          style={{
-            background: "linear-gradient(90deg, transparent 0%, rgba(254,197,84,0.5) 50%, transparent 100%)",
-          }}
+          style={{ background: "linear-gradient(90deg, transparent 0%, rgba(254,197,84,0.5) 50%, transparent 100%)" }}
         />
       </div>
     </div>
