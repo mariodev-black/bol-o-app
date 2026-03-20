@@ -23,17 +23,9 @@ export default function HomePage() {
 
       {/* Hero original */}
       <section
-        className="relative flex items-center justify-center overflow-hidden"
-        style={{
-          backgroundImage: `url(${bgHome.src})`,
-          backgroundSize: "cover",
-          backgroundPosition: "80% center",
-          backgroundRepeat: "no-repeat",
-        }}
-      >
-        <div className="absolute inset-0 bg-black/70" />
+        className="relative flex items-center justify-center overflow-hidden bg-transparent">
 
-        <div className="relative z-10 w-full max-w-4xl px-5 sm:px-10 md:py-36 py-12 flex flex-col items-center text-center">
+        <div className="relative z-10 w-full max-w-4xl px-5 sm:px-10 md:py-36 py-8 flex flex-col items-center text-center">
 
           {/* Carousel dentro do container com bordas */}
           <div className="w-full rounded-2xl overflow-hidden mb-8" style={{ border: "1px solid rgba(255,255,255,0.1)" }}>
@@ -75,7 +67,7 @@ export default function HomePage() {
           </p>
 
           <div
-            className="mt-12 flex flex-row items-center gap-[2px] sm:gap-4 text-sm sm:text-base text-white/70 rounded-sm"
+            className="mt-8 flex flex-row items-center gap-[2px] sm:gap-4 text-sm sm:text-base text-white/70 rounded-sm"
             style={{
               padding: "6.6px 26.5px",
               background: "linear-gradient(rgba(0,0,0,0.25), rgba(0,0,0,0.25)) padding-box, linear-gradient(90deg, transparent 0%, rgba(180,140,50,0.5) 50%, transparent 100%) border-box",
