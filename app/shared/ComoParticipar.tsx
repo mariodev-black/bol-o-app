@@ -28,7 +28,7 @@ export function ComoParticipar() {
     >
       {/* Título com gradiente linear */}
       <h2
-        className="w-full max-w-md text-3xl sm:text-5xl font-bold md:font-light text-center mb-8 leading-tight"
+        className="w-full max-w-md text-3xl sm:text-5xl font-light md:font-light text-center mb-8 leading-tight"
         style={{
           background: "linear-gradient(180deg, #FFF9F3 0%, #999692 100%)",
           WebkitBackgroundClip: "text",

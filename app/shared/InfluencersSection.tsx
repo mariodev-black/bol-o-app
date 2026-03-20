@@ -88,7 +88,7 @@ export function InfluencersSection() {
       <div className="items-center gap-3 mb-20 mt-4 justify-center hidden md:flex">
         <span className="h-[1.5px] w-32 bg-[#FFFFFF26]" />
         <span
-          className="text-2xl sm:text-3xl lg:text-5xl font-extrabold md:font-light md:font-black tracking-widest text-nowrap"
+          className="text-2xl sm:text-3xl lg:text-5xl font-extrabold md:font-light tracking-widest text-nowrap"
           style={{
             background: "linear-gradient(90deg, #FFF9F3, #999692)",
             WebkitBackgroundClip: "text",
