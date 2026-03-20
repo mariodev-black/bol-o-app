@@ -24,13 +24,13 @@ const STEPS = [
 export function ComoParticipar() {
   return (
     <section
-      className="flex flex-col items-center px-5 pt-10 pb-16 w-full"
+      className="flex flex-col items-center px-5 pt-10 pb-16 w-full md:gap-8"
     >
       {/* Título com gradiente linear */}
       <h2
-        className="w-full max-w-md text-3xl sm:text-4xl font-bold text-center mb-8 leading-tight"
+        className="w-full max-w-md text-3xl sm:text-5xl font-bold md:font-light text-center mb-8 leading-tight"
         style={{
-          background: "linear-gradient(180deg, #FFFFFF 0%, #DAB682 100%)",
+          background: "linear-gradient(180deg, #FFF9F3 0%, #999692 100%)",
           WebkitBackgroundClip: "text",
           WebkitTextFillColor: "transparent",
           backgroundClip: "text",
@@ -72,13 +72,11 @@ export function ComoParticipar() {
       </div>
 
       {/* Área com glow dourado + botões */}
-      <div className="relative flex flex-col items-center mt-8 w-full max-w-md md:flex-wrap">
+      <div className="relative flex flex-col md:flex-row items-center justify-center mt-8 w-full max-w-2xl gap-3">
         {/* Glow blur dourado */}
         <div
-          className="absolute left-1/2 -translate-x-1/2 bottom-0 pointer-events-none"
+          className="absolute left-1/2 -translate-x-1/2 md:bottom-[-60px]  bottom-0 pointer-events-none w-[340px] h-[180px] md:w-[600px] md:h-[250px]"
           style={{
-            width: "340px",
-            height: "180px",
             background:
               "radial-gradient(ellipse at center, rgba(254,197,84,0.35) 0%, transparent 70%)",
             filter: "blur(28px)",
@@ -88,7 +86,7 @@ export function ComoParticipar() {
 
         {/* Botão CTA */}
         <div
-          className="relative z-10 flex items-center gap-2 rounded-full p-1.5 w-full md:flex md:flex-wrap"
+          className="relative z-10 flex items-center gap-2 rounded-full p-1.5 w-full md:w-auto"
           style={{ backgroundColor: "rgba(0,0,0,0.4)" }}
         >
           <Button
@@ -111,7 +109,7 @@ export function ComoParticipar() {
         <Button
           variant="ghost"
           asChild
-          className="relative z-10 mt-3 rounded-full border border-white/20 text-white hover:bg-white/10 px-7 gap-1"
+          className="relative z-10 rounded-full border border-white/20 text-white hover:bg-white/10 px-7 gap-1 h-13 w-full md:w-auto shrink-0"
           style={{ backgroundColor: "rgba(0,0,0,0.35)" }}
         >
           <Link href="/ranking">

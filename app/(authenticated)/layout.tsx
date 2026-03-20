@@ -1,4 +1,5 @@
 import { AuthHeader } from "@/app/shared/AuthHeader";
+import { NavBottom } from "@/app/shared/NavBottom";
 
 export default function AuthenticatedLayout({
   children,
@@ -8,7 +9,8 @@ export default function AuthenticatedLayout({
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: "#0E141B" }}>
       <AuthHeader />
-      <main className="flex flex-1 flex-col">{children}</main>
+      <main className="flex flex-1 flex-col pb-24">{children}</main>
+      <NavBottom />
     </div>
   );
 }

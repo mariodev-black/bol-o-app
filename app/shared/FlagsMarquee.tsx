@@ -1,72 +1,80 @@
 const TEAMS = [
   // América do Sul
-  { flag: "🇧🇷", name: "Brasil" },
-  { flag: "🇦🇷", name: "Argentina" },
-  { flag: "🇺🇾", name: "Uruguai" },
-  { flag: "🇨🇴", name: "Colômbia" },
-  { flag: "🇪🇨", name: "Equador" },
-  { flag: "🇵🇾", name: "Paraguai" },
-  { flag: "🇻🇪", name: "Venezuela" },
-  { flag: "🇧🇴", name: "Bolívia" },
+  { code: "br", name: "Brasil" },
+  { code: "ar", name: "Argentina" },
+  { code: "uy", name: "Uruguai" },
+  { code: "co", name: "Colômbia" },
+  { code: "ec", name: "Equador" },
+  { code: "py", name: "Paraguai" },
+  { code: "ve", name: "Venezuela" },
+  { code: "bo", name: "Bolívia" },
   // América do Norte e Central
-  { flag: "🇺🇸", name: "EUA" },
-  { flag: "🇲🇽", name: "México" },
-  { flag: "🇨🇦", name: "Canadá" },
-  { flag: "🇵🇦", name: "Panamá" },
-  { flag: "🇨🇷", name: "Costa Rica" },
-  { flag: "🇭🇳", name: "Honduras" },
-  { flag: "🇯🇲", name: "Jamaica" },
+  { code: "us", name: "EUA" },
+  { code: "mx", name: "México" },
+  { code: "ca", name: "Canadá" },
+  { code: "pa", name: "Panamá" },
+  { code: "cr", name: "Costa Rica" },
+  { code: "hn", name: "Honduras" },
+  { code: "jm", name: "Jamaica" },
   // Europa
-  { flag: "🇫🇷", name: "França" },
-  { flag: "🇪🇸", name: "Espanha" },
-  { flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", name: "Inglaterra" },
-  { flag: "🇩🇪", name: "Alemanha" },
-  { flag: "🇵🇹", name: "Portugal" },
-  { flag: "🇳🇱", name: "Holanda" },
-  { flag: "🇧🇪", name: "Bélgica" },
-  { flag: "🇮🇹", name: "Itália" },
-  { flag: "🇭🇷", name: "Croácia" },
-  { flag: "🇨🇭", name: "Suíça" },
-  { flag: "🇩🇰", name: "Dinamarca" },
-  { flag: "🇷🇸", name: "Sérvia" },
-  { flag: "🇵🇱", name: "Polônia" },
-  { flag: "🇦🇹", name: "Áustria" },
-  { flag: "🏴󠁧󠁢󠁳󠁣󠁴󠁿", name: "Escócia" },
-  { flag: "🇹🇷", name: "Turquia" },
-  { flag: "🇺🇦", name: "Ucrânia" },
-  { flag: "🇸🇰", name: "Eslováquia" },
-  { flag: "🇸🇮", name: "Eslovênia" },
-  { flag: "🇬🇷", name: "Grécia" },
-  { flag: "🇨🇿", name: "Rep. Tcheca" },
-  { flag: "🇷🇴", name: "Romênia" },
-  { flag: "🇭🇺", name: "Hungria" },
+  { code: "fr", name: "França" },
+  { code: "es", name: "Espanha" },
+  { code: "gb-eng", name: "Inglaterra" },
+  { code: "de", name: "Alemanha" },
+  { code: "pt", name: "Portugal" },
+  { code: "nl", name: "Holanda" },
+  { code: "be", name: "Bélgica" },
+  { code: "it", name: "Itália" },
+  { code: "hr", name: "Croácia" },
+  { code: "ch", name: "Suíça" },
+  { code: "dk", name: "Dinamarca" },
+  { code: "rs", name: "Sérvia" },
+  { code: "pl", name: "Polônia" },
+  { code: "at", name: "Áustria" },
+  { code: "gb-sct", name: "Escócia" },
+  { code: "tr", name: "Turquia" },
+  { code: "ua", name: "Ucrânia" },
+  { code: "sk", name: "Eslováquia" },
+  { code: "si", name: "Eslovênia" },
+  { code: "gr", name: "Grécia" },
+  { code: "cz", name: "Rep. Tcheca" },
+  { code: "ro", name: "Romênia" },
+  { code: "hu", name: "Hungria" },
   // África
-  { flag: "🇲🇦", name: "Marrocos" },
-  { flag: "🇸🇳", name: "Senegal" },
-  { flag: "🇳🇬", name: "Nigéria" },
-  { flag: "🇪🇬", name: "Egito" },
-  { flag: "🇨🇲", name: "Camarões" },
-  { flag: "🇩🇿", name: "Argélia" },
-  { flag: "🇬🇭", name: "Gana" },
-  { flag: "🇿🇦", name: "África do Sul" },
-  { flag: "🇹🇳", name: "Tunísia" },
+  { code: "ma", name: "Marrocos" },
+  { code: "sn", name: "Senegal" },
+  { code: "ng", name: "Nigéria" },
+  { code: "eg", name: "Egito" },
+  { code: "cm", name: "Camarões" },
+  { code: "dz", name: "Argélia" },
+  { code: "gh", name: "Gana" },
+  { code: "za", name: "África do Sul" },
+  { code: "tn", name: "Tunísia" },
   // Ásia
-  { flag: "🇯🇵", name: "Japão" },
-  { flag: "🇰🇷", name: "Coreia do Sul" },
-  { flag: "🇮🇷", name: "Irã" },
-  { flag: "🇸🇦", name: "Arábia Saudita" },
-  { flag: "🇦🇺", name: "Austrália" },
-  { flag: "🇶🇦", name: "Catar" },
-  { flag: "🇯🇴", name: "Jordânia" },
-  { flag: "🇺🇿", name: "Uzbequistão" },
+  { code: "jp", name: "Japão" },
+  { code: "kr", name: "Coreia do Sul" },
+  { code: "ir", name: "Irã" },
+  { code: "sa", name: "Arábia Saudita" },
+  { code: "au", name: "Austrália" },
+  { code: "qa", name: "Catar" },
+  { code: "jo", name: "Jordânia" },
+  { code: "uz", name: "Uzbequistão" },
   // Oceania
-  { flag: "🇳🇿", name: "Nova Zelândia" },
+  { code: "nz", name: "Nova Zelândia" },
 ];
 
-function FlagItem({ flag, name }: { flag: string; name: string }) {
+function FlagItem({ code, name }: { code: string; name: string }) {
   return (
     <div className="flex flex-col items-center gap-2 px-5 shrink-0">
-      <span className="text-4xl sm:text-5xl leading-none">{flag}</span>
+      <img
+        src={`https://flagcdn.com/w40/${code}.png`}
+        srcSet={`https://flagcdn.com/w80/${code}.png 2x`}
+        width={40}
+        height={30}
+        alt={name}
+        className="rounded-sm object-cover"
+        style={{ width: 40, height: 30 }}
+      />
       <span className="text-[11px] sm:text-xs font-medium whitespace-nowrap" style={{ color: "#8a9bb0" }}>
         {name}
       </span>
@@ -87,7 +95,7 @@ export function FlagsMarquee() {
       <div className="flex overflow-hidden mask-[linear-gradient(to_right,transparent,black_8%,black_92%,transparent)]">
         <div className="flex animate-marquee">
           {doubled.map((team, i) => (
-            <FlagItem key={i} flag={team.flag} name={team.name} />
+            <FlagItem key={i} code={team.code} name={team.name} />
           ))}
         </div>
       </div>

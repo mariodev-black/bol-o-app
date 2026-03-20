@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import bgHome from "@/app/assets/bgHome.png";
+import bgHomeDesk from "@/app/assets/bg-home-desk.png";
 
 // ── Troféu Ouro ───────────────────────────────────────────────
 const TrophyGold = () => (
@@ -156,11 +157,20 @@ function PositionIcon({ player }: { player: (typeof PLAYERS)[number] }) {
 // ── Componente ────────────────────────────────────────────────
 export function RankingAtual() {
   return (
-    <div >
+    <div className="w-full">
 
+      <div className="flex justify-center px-5 md:py-8 w-full">
+        <div
+          className="w-full max-w-md md:max-w-4xl h-px"
+          style={{
+            background: "linear-gradient(90deg, transparent 0%, rgba(254,197,84,0.5) 50%, transparent 100%)",
+          }}
+        />
+      </div>
       {/* Título — FORA do bg image */}
       <div className="flex justify-center px-5 mb-2">
-        <h1 className="text-3xl sm:text-4xl font-bold text-center leading-tight mb-2"
+
+        <h1 className="text-3xl sm:text-5xl font-bold text-center leading-tight mb-2 md:font-light"
           style={{
             background: "linear-gradient(180deg, #FFF9F3 0%, #999692 100%)",
             WebkitBackgroundClip: "text",
@@ -171,29 +181,32 @@ export function RankingAtual() {
         </h1>
       </div>
 
-      <div className="flex justify-center px-5" style={{ backgroundColor: "#0E141B" }}>
-        <div
-          className="w-full max-w-md h-px"
-          style={{
-            background: "linear-gradient(90deg, transparent 0%, rgba(254,197,84,0.5) 50%, transparent 100%)",
-          }}
-        />
-      </div>
+
 
       {/* Área com bg image + gradientes de fade */}
-      <div className="relative overflow-hidden mb-4">
+      <div className="relative overflow-hidden">
 
-        {/* Imagem de fundo */}
+        {/* Imagem de fundo — mobile */}
         <div
-          className="absolute inset-0 opacity-4"
+          className="absolute inset-0 opacity-4 md:hidden"
           style={{
             backgroundImage: `url(${bgHome.src})`,
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
         />
+
+        {/* Imagem de fundo — desktop */}
+        <div
+          className="absolute inset-0 opacity-[0.08] hidden md:block"
+          style={{
+            backgroundImage: `url(${bgHomeDesk.src})`,
+            backgroundSize: "cover",
+            backgroundPosition: "left top",
+          }}
+        />
         {/* Conteúdo */}
-        <div className="relative z-20 flex flex-col items-center px-5">
+        <div className="relative z-20 flex flex-col items-center px-5 md:py-12">
           <div className="w-full max-w-md">
 
             {/* Linhas do ranking */}
@@ -255,11 +268,69 @@ export function RankingAtual() {
             </div>
 
           </div>
+
+          {/* Stats — fora do max-w-md para ter largura total */}
+          <div className="relative flex flex-col items-center w-full pt-6 pb-10 overflow-hidden md:pt-10">
+            {/* Radial blur */}
+            {/* <div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                background: "radial-gradient(ellipse at center, #0B1428C4 0%, transparent 70%)",
+              }}
+            /> */}
+
+            <p
+              className="relative text-xs md:text-[19px] font-semibold uppercase tracking-widest mb-6"
+              style={{
+                background: "linear-gradient(180deg, #FFE8BA 0%, #FFAF2F 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+              }}
+            >
+              TOP 10 GANHAM PRÊMIOS MILIONÁRIOS
+            </p>
+
+            <div className="relative flex w-full max-w-2xl">
+              {[
+                { value: "+52.000", label: "Jogadores Ativos" },
+                { value: "+500.000", label: "Palpites enviados" },
+                { value: "+200.000", label: "Lances confirmados" },
+              ].map((stat, i) => (
+                <div
+                  key={stat.label}
+                  className="flex-1 flex flex-col items-center justify-center py-5"
+                  style={{
+                    borderLeft: i !== 0 ? "1px solid rgba(255,255,255,0.1)" : undefined,
+                  }}
+                >
+                  <span
+                    className="text-3xl sm:text-4xl font-bold"
+                    style={{
+                      background: "linear-gradient(180deg, #FFE8BA 0%, #FFAF2F 100%)",
+                      WebkitBackgroundClip: "text",
+                      WebkitTextFillColor: "transparent",
+                      backgroundClip: "text",
+                    }}
+                  >
+                    {stat.value}
+                  </span>
+                  <span className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.45)" }}>
+                    {stat.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
-      <div className="flex justify-center px-5" style={{ backgroundColor: "#0E141B" }}>
+
+
+
+
+      <div className="flex justify-center px-5">
         <div
-          className="w-full max-w-md h-px"
+          className="w-full max-w-md md:max-w-4xl h-px"
           style={{
             background: "linear-gradient(90deg, transparent 0%, rgba(254,197,84,0.5) 50%, transparent 100%)",
           }}

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Header } from "@/app/shared/Header";
 import { Footer } from "@/app/shared/Footer";
+import { NavBottom } from "@/app/shared/NavBottom";
 import { Button } from "@/app/(authenticated)/components/ui/button";
 import bgHome from "@/app/assets/bgHome.png";
 import { ExternalLink, ChevronRight } from "lucide-react";
@@ -144,6 +145,7 @@ export default function HomePage() {
       <RankingAtual />
       <PremiacaoBolao />
       <Footer />
+      <NavBottom />
     </div>
   );
 }

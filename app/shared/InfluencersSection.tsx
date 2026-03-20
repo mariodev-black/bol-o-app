@@ -34,7 +34,7 @@ const INFLUENCERS: Influencer[] = [
 
 function InfluencerCard({ influencer }: { influencer: Influencer }) {
   return (
-    <div className="relative w-full h-[185.2850341796875px] rounded-2xl overflow-hidden">
+    <div className="relative w-full h-[185.2850341796875px] md:h-[250px] rounded-2xl overflow-hidden">
       {/* Foto de fundo em P&B */}
       {influencer.image ? (
         // eslint-disable-next-line @next/next/no-img-element
@@ -74,18 +74,33 @@ export function InfluencersSection() {
     <section
       className="px-4 sm:px-10 lg:px-20 py-12"
     >
-      <h2 className="text-4xl sm:text-5xl font-black text-white text-center mb-8 leading-tight" 
-      style={{
-        background: "linear-gradient(180deg, #FFFFFF 0%, #DAB682 100%)",
-        WebkitBackgroundClip: "text",
-        WebkitTextFillColor: "transparent",
-        backgroundClip: "text",
-      }}>
+      <h2 className="text-4xl sm:text-5xl font-black text-white text-center mb-8 leading-tight block md:hidden"
+        style={{
+          background: "linear-gradient(180deg, #FFFFFF 0%, #DAB682 100%)",
+          WebkitBackgroundClip: "text",
+          WebkitTextFillColor: "transparent",
+          backgroundClip: "text",
+        }}>
         Influenciadores <br />
         parceiros
       </h2>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-5xl mx-auto">
+      <div className="items-center gap-3 mb-20 mt-4 justify-center hidden md:flex">
+        <span className="h-[1.5px] w-32 bg-[#FFFFFF26]" />
+        <span
+          className="text-2xl sm:text-3xl lg:text-5xl font-extrabold md:font-light md:font-black tracking-widest text-nowrap"
+          style={{
+            background: "linear-gradient(90deg, #FFF9F3, #999692)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+          }}
+        >
+          Influenciadores parceiros
+        </span>
+        <span className="h-[2px] w-32 bg-[#FFFFFF26]" />
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-[1440px] mx-auto">
         {INFLUENCERS.map((inf, i) => (
           <InfluencerCard key={i} influencer={inf} />
         ))}
