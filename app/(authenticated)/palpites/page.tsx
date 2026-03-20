@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ChevronDown, ChevronUp, BarChart2, Trophy, AlignJustify, Target, CircleCheck, Star, Bell, Coins, AlertTriangle, Disc } from "lucide-react";
 import { TrophyGold, TrophySilver, TrophyBronze } from "@/app/shared/RankingAtual";
+import bgPalpitesDesk from "@/app/assets/bg-palpites-desktop.png";
 
 // ── Tipos ────────────────────────────────────────────────────
 type TabView = "jogos" | "tabela" | "ranking";
@@ -899,6 +900,17 @@ export default function PalpitesPage() {
 
   return (
     <div className="w-full max-w-lg mx-auto px-4 pt-6 pb-8 lg:max-w-7xl">
+
+      {/* Background desktop — cobre a tela inteira */}
+      <div
+        className="fixed inset-0 pointer-events-none hidden lg:block -z-10"
+        style={{
+          backgroundImage: `url(${bgPalpitesDesk.src})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center top",
+          opacity: 0.07,
+        }}
+      />
 
       {/* Título */}
       <div className="mb-5 lg:mb-7">
