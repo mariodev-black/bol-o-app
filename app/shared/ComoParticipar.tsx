@@ -24,7 +24,7 @@ const STEPS = [
 export function ComoParticipar() {
   return (
     <section
-      className="flex flex-col items-center px-5 pt-10 pb-16"
+      className="flex flex-col items-center px-5 pt-10 pb-16 w-full"
     >
       {/* Título com gradiente linear */}
       <h2
@@ -40,11 +40,11 @@ export function ComoParticipar() {
       </h2>
 
       {/* Cards dos steps */}
-      <div className="flex flex-col gap-4 w-full max-w-md">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full max-w-5xl">
         {STEPS.map((step) => (
           <div
             key={step.etapa}
-            className="flex items-center gap-5 rounded-2xl px-5 py-4 justify-center"
+            className="flex items-center gap-5 rounded-2xl md:rounded-sm px-5 py-4 justify-center"
             style={{
               backgroundColor: "#3131311A",
               border: "1px solid #5656561A",
@@ -72,7 +72,7 @@ export function ComoParticipar() {
       </div>
 
       {/* Área com glow dourado + botões */}
-      <div className="relative flex flex-col items-center mt-8 w-full max-w-md">
+      <div className="relative flex flex-col items-center mt-8 w-full max-w-md md:flex-wrap">
         {/* Glow blur dourado */}
         <div
           className="absolute left-1/2 -translate-x-1/2 bottom-0 pointer-events-none"
@@ -88,7 +88,7 @@ export function ComoParticipar() {
 
         {/* Botão CTA */}
         <div
-          className="relative z-10 flex items-center gap-2 rounded-full p-1.5 w-full"
+          className="relative z-10 flex items-center gap-2 rounded-full p-1.5 w-full md:flex md:flex-wrap"
           style={{ backgroundColor: "rgba(0,0,0,0.4)" }}
         >
           <Button

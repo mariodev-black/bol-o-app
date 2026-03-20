@@ -1,4 +1,5 @@
 import { Header } from "@/app/shared/Header";
+import { Footer } from "@/app/shared/Footer";
 
 export default function PublicLayout({
   children,
@@ -8,7 +9,8 @@ export default function PublicLayout({
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: "#0E141B" }}>
       <Header />
-      <main className="flex flex-1 flex-col">{children}</main>
+      <main className="flex flex-1 flex-col pt-16">{children}</main>
+      <Footer />
     </div>
   );
 }

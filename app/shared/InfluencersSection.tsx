@@ -85,7 +85,7 @@ export function InfluencersSection() {
         parceiros
       </h2>
 
-      <div className="flex flex-col gap-3 max-w-2xl mx-auto">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-5xl mx-auto">
         {INFLUENCERS.map((inf, i) => (
           <InfluencerCard key={i} influencer={inf} />
         ))}

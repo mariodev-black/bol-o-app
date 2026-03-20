@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Header } from "@/app/shared/Header";
+import { Footer } from "@/app/shared/Footer";
 import { Button } from "@/app/(authenticated)/components/ui/button";
 import bgHome from "@/app/assets/bgHome.png";
 import { ExternalLink, ChevronRight } from "lucide-react";
@@ -9,10 +10,10 @@ import { ComoParticipar } from "@/app/shared/ComoParticipar";
 import { SistemaPontuacao } from "@/app/shared/SistemaPontuacao";
 import { RankingAtual } from "@/app/shared/RankingAtual";
 import { PremiacaoBolao } from "@/app/shared/PremiacaoBolao";
-
+import TacaText from "@/app/assets/taca-text.png"
 export default function HomePage() {
   return (
-    <div className="flex flex-col bg-background">
+    <div className="flex flex-col bg-background pt-16">
       <Header />
 
       <section
@@ -28,13 +29,13 @@ export default function HomePage() {
         <div className="absolute inset-0 bg-black/70" />
 
         {/* Conteúdo centralizado */}
-        <div className="relative z-10 w-full max-w-2xl px-3af sm:px-10 py-16 flex flex-col items-center text-center">
+        <div className="relative z-10 w-full max-w-4xl px-3af sm:px-10 md:py-36 py-12 flex flex-col items-center text-center ">
 
           {/* "BOLÃO DO MILHÃO" com linhas decorativas */}
-          <div className="flex items-center gap-2 mb-2">
-            <span className="h-px w-8 bg-[#DAB682]/70" />
+          <div className="flex items-center gap-3 mb-2 ">
+            <span className="h-px w-8 bg-[#DAB682]/70 md:w-15" />
             <span
-              className="text-[26px] sm:text-3xl font-extrabold uppercase tracking-widest"
+              className="text-2xl sm:text-3xl lg:text-5xl font-extrabold md:font-black uppercase tracking-widest text-nowrap"
               style={{
                 background: "linear-gradient(90deg, #FFAF2F, #FFE8BA)",
                 WebkitBackgroundClip: "text",
@@ -43,25 +44,36 @@ export default function HomePage() {
             >
               Bolão do Milhão
             </span>
-            <span className="h-px w-10 bg-[#DAB682]/70" />
+            <span className="h-px w-8 bg-[#DAB682]/70 md:w-15" />
           </div>
 
           {/* "COPA DO MUNDO 🏆 2026" */}
-          <h1 className="text-xl sm:text-3xl font-black text-white uppercase leading-tight tracking-tight">
-            Copa do Mundo 2026
+          <h1 className="flex items-center justify-center gap-2 flex-wrap text-2xl sm:text-3xl lg:text-5xl font-black text-white uppercase leading-tight tracking-tight md:mb-6">
+            <span>Copa do Mundo</span>
+            <img
+              src={TacaText.src}
+              alt="Troféu"
+              className="inline-block h-7 sm:h-9 lg:h-12 w-auto object-contain"
+              style={{ verticalAlign: "middle" }}
+            />
+            <span>2026</span>
           </h1>
 
           {/* Subtítulo */}
-          <p className="mt-5 text-base sm:text-lg text-white/75 max-w-md leading-relaxed">
+          <p className="mt-5 text-base sm:text-lg text-white/75 max-w-md leading-relaxed md:hidden block">
             Participe do maior bolão da copa e <br />{" "}
             <strong className="text-white font-bold">concorra a milhões</strong>
           </p>
 
+          <p className="mt-5 text-base sm:text-lg text-white/75 max-w-md leading-relaxed md:flex gap-2 hidden w-full text-nowrap">
+            Participe do maior bolão da copa e<strong className="text-white font-bold">concorra a milhões</strong>
+          </p>
+
           {/* Stats */}
           <div
-            className="mt-12 flex flex-row flex-nowrap items-center gap-[2px] sm:gap-10 text-sm sm:text-base text-white/70 rounded-sm"
+            className="mt-12 flex flex-row items-center gap-[2px] sm:gap-4 text-sm sm:text-base text-white/70 rounded-sm "
             style={{
-              padding: "6.6px 16.5px",
+              padding: "6.6px 26.5px",
               background: "linear-gradient(rgba(0,0,0,0.25), rgba(0,0,0,0.25)) padding-box, linear-gradient(90deg, transparent 0%, rgba(180,140,50,0.5) 50%, transparent 100%) border-box",
               border: "1px solid transparent",
             }}
@@ -81,7 +93,7 @@ export default function HomePage() {
 
           {/* CTA — container dark pill envolvendo botão + ícone */}
           <div
-            className="mt-8 flex items-center gap-2 rounded-full p-2"
+            className="mt-8 flex items-center gap-2 rounded-full p-2 md:mt-14"
             style={{ backgroundColor: "rgba(0,0,0,0.45)" }}
           >
             <Button
@@ -131,6 +143,7 @@ export default function HomePage() {
       <SistemaPontuacao />
       <RankingAtual />
       <PremiacaoBolao />
+      <Footer />
     </div>
   );
 }
