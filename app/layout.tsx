@@ -15,8 +15,43 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Bolão do Milhão",
-  description: "O melhor bolão do Brasil",
+  title: "Bolão do Milhão | Faça seus palpites e concorra a prêmios milionários",
+  description:
+    "Participe do Bolão do Milhão, o maior bolão de futebol do Brasil. Faça seus palpites, suba no ranking e concorra a prêmios milionários. Mais de 52.000 jogadores ativos. Inscreva-se agora!",
+  keywords: [
+    "bolão",
+    "bolão do milhão",
+    "bolão de futebol",
+    "palpites futebol",
+    "prêmios futebol",
+    "bolão online",
+    "ranking futebol",
+    "concurso futebol",
+  ],
+  authors: [{ name: "Bolão do Milhão" }],
+  creator: "Bolão do Milhão",
+  openGraph: {
+    type: "website",
+    locale: "pt_BR",
+    title: "Bolão do Milhão | Prêmios Milionários",
+    description:
+      "Faça seus palpites de futebol, suba no ranking e concorra a prêmios milionários. Mais de 52.000 jogadores ativos no maior bolão do Brasil!",
+    siteName: "Bolão do Milhão",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Bolão do Milhão | Prêmios Milionários",
+    description:
+      "Faça seus palpites de futebol, suba no ranking e concorra a prêmios milionários. Mais de 52.000 jogadores ativos no maior bolão do Brasil!",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+    },
+  },
 };
 
 export default function RootLayout({
