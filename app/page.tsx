@@ -25,7 +25,7 @@ export default function HomePage() {
       <section
         className="relative flex items-center justify-center overflow-hidden bg-transparent">
 
-        <div className="relative z-10 w-full max-w-4xl px-5 sm:px-10 md:py-36 py-8 flex flex-col items-center text-center">
+        <div className="relative z-10 w-full max-w-4xl md:max-w-full  px-5 sm:px-10 py-8 flex flex-col items-center text-center">
 
           {/* Carousel dentro do container com bordas */}
           <div className="w-full rounded-2xl overflow-hidden mb-8" style={{ border: "1px solid rgba(255,255,255,0.1)" }}>

@@ -36,7 +36,7 @@ export function HeroCarousel() {
   }, [next]);
 
   return (
-    <div className="relative w-full overflow-hidden" style={{ height: 180 }}>
+    <div className="relative w-full overflow-hidden h-[180px] md:h-[320px] " >
       {/* Slides */}
       {SLIDES.map((slide, i) => (
         <div
