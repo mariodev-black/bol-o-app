@@ -8,6 +8,7 @@ import { InfluencersSection } from "@/app/shared/InfluencersSection";
 import { ComoParticipar } from "@/app/shared/ComoParticipar";
 import { SistemaPontuacao } from "@/app/shared/SistemaPontuacao";
 import { RankingAtual } from "@/app/shared/RankingAtual";
+import { PremiacaoBolao } from "@/app/shared/PremiacaoBolao";
 
 export default function HomePage() {
   return (
@@ -129,6 +130,7 @@ export default function HomePage() {
 
       <SistemaPontuacao />
       <RankingAtual />
+      <PremiacaoBolao />
     </div>
   );
 }

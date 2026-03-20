@@ -160,12 +160,13 @@ export function RankingAtual() {
 
       {/* Título — FORA do bg image */}
       <div className="flex justify-center px-5 mb-2">
-        <h1 className="text-3xl sm:text-4xl font-bold text-center leading-tight mb-2" style={{
-          background: "linear-gradient(180deg, #FFF9F3 0%, #999692 100%)",
-          WebkitBackgroundClip: "text",
-          WebkitTextFillColor: "transparent",
-          backgroundClip: "text",
-        }}>
+        <h1 className="text-3xl sm:text-4xl font-bold text-center leading-tight mb-2"
+          style={{
+            background: "linear-gradient(180deg, #FFF9F3 0%, #999692 100%)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            backgroundClip: "text",
+          }}>
           Ranking Atual
         </h1>
       </div>
