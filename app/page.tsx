@@ -35,7 +35,7 @@ export default function HomePage() {
           <div className="flex items-center gap-3 mb-2">
             <span className="h-px w-8 bg-[#DAB682]/70 md:w-15" />
             <span
-              className="text-2xl sm:text-3xl lg:text-5xl font-extrabold md:font-black uppercase tracking-widest text-nowrap"
+              className="text-3xl sm:text-4xl lg:text-5xl font-extrabold md:font-black uppercase tracking-normal text-nowrap"
               style={{
                 background: "linear-gradient(90deg, #FFAF2F, #FFE8BA)",
                 WebkitBackgroundClip: "text",
@@ -47,7 +47,7 @@ export default function HomePage() {
             <span className="h-px w-8 bg-[#DAB682]/70 md:w-15" />
           </div>
 
-          <h1 className="flex items-center justify-center gap-2 flex-wrap text-2xl sm:text-3xl lg:text-5xl font-black text-white uppercase leading-tight tracking-tight md:mb-6">
+          <h1 className="flex items-center justify-center gap-2 flex-wrap text-[20px] sm:text-3xl lg:text-5xl font-black text-white uppercase leading-tight tracking-tight md:mb-6">
             <span>Copa do Mundo</span>
             <img
               src={TacaText.src}
