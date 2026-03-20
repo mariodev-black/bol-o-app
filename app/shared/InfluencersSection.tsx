@@ -65,7 +65,7 @@ function PlatformIcon({ platform }: { platform: Influencer["platform"] }) {
   );
 }
 
-function InfluencerCard({ influencer }: { influencer: Influencer }) {
+function InfluencerCard({ influencer, index }: { influencer: Influencer; index: number }) {
   return (
     <Link href={influencer.followUrl} className="block group">
       {/* Glow externo dourado atrás do card */}
@@ -82,6 +82,16 @@ function InfluencerCard({ influencer }: { influencer: Influencer }) {
           className="relative w-full h-[200px] md:h-[230px] rounded-2xl overflow-hidden border border-[#2a2a2a]"
           style={{ backgroundColor: "#0a0a0a" }}
         >
+          {/* Shimmer — reflexo varrendo da esquerda pra direita infinitamente */}
+          <div className="absolute bottom-0 left-0 right-0 h-[2px] overflow-hidden z-20 pointer-events-none">
+            <div
+              className="animate-shimmer absolute inset-y-0 w-[40%]"
+              style={{
+                background: "linear-gradient(90deg, transparent 0%, rgba(254,197,84,0.4) 35%, rgba(255,240,180,1) 50%, rgba(254,197,84,0.4) 65%, transparent 100%)",
+                animationDelay: `${-(index * 0.7)}s`,
+              }}
+            />
+          </div>
           {/* Foto em P&B cobrindo lado esquerdo */}
           {influencer.image && (
             <img
@@ -187,7 +197,7 @@ export function InfluencersSection() {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-[1440px] mx-auto">
         {INFLUENCERS.map((inf, i) => (
-          <InfluencerCard key={i} influencer={inf} />
+          <InfluencerCard key={i} influencer={inf} index={i} />
         ))}
       </div>
     </section>
