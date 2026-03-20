@@ -305,7 +305,7 @@ export function RankingAtual() {
                   }}
                 >
                   <span
-                    className="text-3xl sm:text-4xl font-bold"
+                    className="text-[19px] sm:text-4xl font-bold"
                     style={{
                       background: "linear-gradient(180deg, #FFE8BA 0%, #FFAF2F 100%)",
                       WebkitBackgroundClip: "text",
@@ -315,7 +315,7 @@ export function RankingAtual() {
                   >
                     {stat.value}
                   </span>
-                  <span className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.45)" }}>
+                  <span className="text-[12px] mt-1" style={{ color: "rgba(255,255,255,0.45)" }}>
                     {stat.label}
                   </span>
                 </div>

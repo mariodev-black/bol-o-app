@@ -17,7 +17,7 @@ export function NavBottom() {
 
   return (
     <nav
-      className="fixed bottom-0 left-1/2 -translate-x-1/2 z-50 hidden items-center gap-1 w-full justify-between bg-card md:flex"
+      className="fixed bottom-0 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 w-full justify-between bg-card md:hidden"
     >
       {NAV_ITEMS.map(({ label, href, icon: Icon }) => {
         const active = pathname === href;
