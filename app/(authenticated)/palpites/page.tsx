@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronDown, ChevronUp, BarChart2, Trophy, AlignJustify, Target, CircleCheck, Star, Bell, Coins, AlertTriangle, Disc } from "lucide-react";
+import { ChevronDown, ChevronUp, BarChart2, Trophy, AlignJustify, Target, CircleCheck, Star, Bell, Coins, AlertTriangle, Disc, Pencil } from "lucide-react";
 import { TrophyGold, TrophySilver, TrophyBronze } from "@/app/shared/RankingAtual";
 import bgPalpitesDesk from "@/app/assets/bg-palpites-desktop.png";
 
@@ -266,22 +266,39 @@ function JogoCard({ jogo }: { jogo: Jogo }) {
 
       {/* Botão */}
       <div className="px-4 pb-4">
-        <button
-          onClick={() => setPalpiteSalvo(true)}
-          disabled={disabled}
-          className="w-full py-3.5 rounded-xl font-black text-[16px] transition-all duration-200"
-          style={{
-            background: palpiteSalvo
-              ? "rgba(52,211,153,0.15)"
-              : disabled
-              ? "#0A0E19"
-              : "#fff",
-            color: palpiteSalvo ? "#34D399" : disabled ? "rgba(255,255,255,0.2)" : "#0A0E19",
-            border: palpiteSalvo ? "1px solid rgba(52,211,153,0.3)" : "none",
-          }}
-        >
-          {palpiteSalvo ? "✓ Palpite enviado!" : "Fazer Palpite"}
-        </button>
+        {palpiteSalvo ? (
+          <div className="flex items-center gap-2">
+            <div
+              className="flex-1 py-3.5 rounded-xl flex items-center justify-center gap-2"
+              style={{ background: "rgba(52,211,153,0.12)", border: "1px solid rgba(52,211,153,0.25)" }}
+            >
+              <CircleCheck className="w-4 h-4" style={{ color: "#34D399" }} strokeWidth={2.5} />
+              <span className="font-black text-[15px]" style={{ color: "#34D399" }}>Palpite salvo</span>
+            </div>
+            {jogo.status === "aberto" && (
+              <button
+                onClick={() => setPalpiteSalvo(false)}
+                className="h-[50px] px-4 rounded-xl flex items-center gap-1.5 transition-all duration-200"
+                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
+              >
+                <Pencil className="w-3.5 h-3.5 text-white/50" strokeWidth={2} />
+                <span className="text-[13px] font-semibold text-white/50">Editar</span>
+              </button>
+            )}
+          </div>
+        ) : (
+          <button
+            onClick={() => setPalpiteSalvo(true)}
+            disabled={jogo.status !== "aberto"}
+            className="w-full py-3.5 rounded-xl font-black text-[16px] transition-all duration-200"
+            style={{
+              background: jogo.status !== "aberto" ? "#0A0E19" : "#fff",
+              color: jogo.status !== "aberto" ? "rgba(255,255,255,0.2)" : "#0A0E19",
+            }}
+          >
+            Fazer Palpite
+          </button>
+        )}
       </div>
     </div>
   );
@@ -779,8 +796,6 @@ function DesktopSidebar({ grupo, tabela, grupos, onGrupo }: {
 export default function PalpitesPage() {
   const [tab, setTab] = useState<TabView>("jogos");
   const [grupo, setGrupo] = useState("");
-  const [rodada, setRodada] = useState(0);
-  const [rodadaOpen, setRodadaOpen] = useState(false);
   const [jogos, setJogos] = useState<Jogo[]>([]);
   const [grupos, setGrupos] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -816,9 +831,10 @@ export default function PalpitesPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const jogosFiltrados = jogos.filter(
-    (j) => j.grupo === grupo && j.rodada === rodada
-  );
+  const jogosPorRodada = RODADAS_LABEL.map((label, idx) => ({
+    label,
+    jogos: jogos.filter((j) => j.grupo === grupo && j.rodada === idx),
+  })).filter((r) => r.jogos.length > 0);
 
   const BotoesGrupo = ({ className }: { className?: string }) => (
     <div className={className}>
@@ -862,42 +878,6 @@ export default function PalpitesPage() {
     </div>
   );
 
-  const SeletorRodada = ({ className }: { className?: string }) => (
-    <div className={`relative ${className ?? ""}`}>
-      <button
-        onClick={() => setRodadaOpen((v) => !v)}
-        className="w-full flex items-center justify-between px-4 py-3 rounded-xl"
-        style={{ background: "#0A0E19", border: "1px solid rgba(255,255,255,0.1)" }}
-      >
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-emerald-400" />
-          <span className="text-white font-semibold text-[14px]">{RODADAS_LABEL[rodada]}</span>
-        </div>
-        <ChevronDown
-          className="w-4 h-4 text-white/40 transition-transform duration-200"
-          style={{ transform: rodadaOpen ? "rotate(180deg)" : "rotate(0deg)" }}
-        />
-      </button>
-      {rodadaOpen && (
-        <div
-          className="absolute top-full left-0 right-0 mt-1 rounded-xl overflow-hidden z-20"
-          style={{ background: "#1a2030", border: "1px solid rgba(255,255,255,0.1)" }}
-        >
-          {RODADAS_LABEL.map((r, i) => (
-            <button
-              key={r}
-              onClick={() => { setRodada(i); setRodadaOpen(false); }}
-              className="w-full flex items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-white/5"
-            >
-              <span className="w-2 h-2 rounded-full" style={{ background: i === rodada ? "#34D399" : "rgba(255,255,255,0.2)" }} />
-              <span className="text-[14px] font-medium" style={{ color: i === rodada ? "#fff" : "rgba(255,255,255,0.5)" }}>{r}</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-
   return (
     <div className="w-full max-w-lg mx-auto px-4 pt-6 pb-8 lg:max-w-7xl">
 
@@ -917,18 +897,13 @@ export default function PalpitesPage() {
         <h1 className="text-[28px] lg:text-[42px] font-black text-white leading-tight">
           Copa do Mundo 2026
         </h1>
-        <p className="text-white/40 text-[13px] mt-1">
-          Fase de Grupos — {RODADAS_LABEL[rodada]}
-        </p>
+        <p className="text-white/40 text-[13px] mt-1">Fase de Grupos</p>
       </div>
 
       <div className="lg:grid lg:grid-cols-[1fr_360px] lg:gap-8 lg:items-start">
 
         {/* ── COLUNA ESQUERDA ─────────────────────────── */}
         <div>
-
-          {/* Mobile: seletor de rodada */}
-          {tab === "jogos" && <SeletorRodada className="mb-4 lg:hidden" />}
 
           {/* Mobile: tabs */}
           <div className="lg:hidden flex items-center gap-1 mb-5 p-1 rounded-xl bg-[#0A0E19]">
@@ -959,11 +934,10 @@ export default function PalpitesPage() {
             </div>
           )}
 
-          {/* Desktop: grupo + rodada na mesma linha */}
+          {/* Desktop: filtro de grupos */}
           {grupos.length > 0 && (
-            <div className="hidden lg:flex lg:items-end lg:justify-between lg:gap-6 mb-6">
-              <BotoesGrupo className="flex-1" />
-              <SeletorRodada className="w-52 shrink-0" />
+            <div className="hidden lg:block mb-6">
+              <BotoesGrupo />
             </div>
           )}
 
@@ -978,13 +952,21 @@ export default function PalpitesPage() {
                   </div>
                 ) : loading ? (
                   <><CardSkeleton /><CardSkeleton /></>
-                ) : jogosFiltrados.length === 0 ? (
+                ) : jogosPorRodada.length === 0 ? (
                   <div className="flex flex-col items-center py-16">
                     <Disc className="w-10 h-10 mb-3 text-white/20" strokeWidth={1.5} />
                     <p className="text-white/30 text-sm">Nenhum jogo neste grupo</p>
                   </div>
                 ) : (
-                  jogosFiltrados.map((jogo) => <JogoCard key={jogo.id} jogo={jogo} />)
+                  jogosPorRodada.map(({ label, jogos: rJogos }) => (
+                    <div key={label}>
+                      <div className="flex items-center gap-3 mb-3 mt-1">
+                        <span className="text-[11px] font-bold text-white/30 tracking-widest uppercase shrink-0">{label}</span>
+                        <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.06)" }} />
+                      </div>
+                      {rJogos.map((jogo) => <JogoCard key={jogo.id} jogo={jogo} />)}
+                    </div>
+                  ))
                 )}
               </div>
             )}
@@ -992,22 +974,34 @@ export default function PalpitesPage() {
             {tab === "ranking" && <RankingView />}
           </div>
 
-          {/* Desktop: grid 2 colunas de cards */}
-          <div className="hidden lg:grid lg:grid-cols-2 lg:gap-4">
+          {/* Desktop: grid 2 colunas de cards por rodada */}
+          <div className="hidden lg:block">
             {erro ? (
-              <div className="col-span-2 flex flex-col items-center py-16">
+              <div className="flex flex-col items-center py-16">
                 <AlertTriangle className="w-10 h-10 mb-3 text-white/20" strokeWidth={1.5} />
                 <p className="text-white/30 text-sm">Erro ao carregar partidas</p>
               </div>
             ) : loading ? (
-              <><CardSkeleton /><CardSkeleton /><CardSkeleton /><CardSkeleton /></>
-            ) : jogosFiltrados.length === 0 ? (
-              <div className="col-span-2 flex flex-col items-center py-16">
+              <div className="grid grid-cols-2 gap-4">
+                <CardSkeleton /><CardSkeleton /><CardSkeleton /><CardSkeleton />
+              </div>
+            ) : jogosPorRodada.length === 0 ? (
+              <div className="flex flex-col items-center py-16">
                 <Disc className="w-10 h-10 mb-3 text-white/20" strokeWidth={1.5} />
                 <p className="text-white/30 text-sm">Nenhum jogo neste grupo</p>
               </div>
             ) : (
-              jogosFiltrados.map((jogo) => <JogoCard key={jogo.id} jogo={jogo} />)
+              jogosPorRodada.map(({ label, jogos: rJogos }) => (
+                <div key={label} className="mb-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <span className="text-[11px] font-bold text-white/30 tracking-widest uppercase shrink-0">{label}</span>
+                    <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.06)" }} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    {rJogos.map((jogo) => <JogoCard key={jogo.id} jogo={jogo} />)}
+                  </div>
+                </div>
+              ))
             )}
           </div>
 
