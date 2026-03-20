@@ -72,17 +72,31 @@ export function SistemaPontuacao() {
 
         {/* FINAL VALE 6 PONTOS */}
         <div
-          className="flex items-center justify-center rounded-2xl px-10 py-5"
+          className="relative flex items-center justify-center rounded-2xl px-10 py-6 overflow-hidden"
           style={{
-            backgroundColor: "#3131311A",
-            border: "1px solid #5656561A",
+            background: "linear-gradient(135deg, rgba(255,175,47,0.10) 0%, rgba(218,182,130,0.06) 100%)",
+            border: "1px solid rgba(255,175,47,0.35)",
+            boxShadow: "0 0 32px rgba(255,175,47,0.10), inset 0 1px 0 rgba(255,255,255,0.06)",
           }}
         >
-          <p
-            className="text-2xl sm:text-3xl font-black uppercase text-center leading-tight"
+          {/* glow atrás do texto */}
+          <div
+            className="absolute inset-0 pointer-events-none"
             style={{
-              background:
-                "linear-gradient(180deg, #FFE8BA 0%, #FFAF2F 100%)",
+              background: "radial-gradient(ellipse at center, rgba(255,175,47,0.08) 0%, transparent 70%)",
+            }}
+          />
+          {/* espelho / shine sweep */}
+          <div
+            className="absolute inset-y-0 left-0 w-1/3 pointer-events-none animate-shine"
+            style={{
+              background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 50%, transparent 100%)",
+            }}
+          />
+          <p
+            className="relative text-2xl sm:text-4xl font-black uppercase text-center leading-tight tracking-wide"
+            style={{
+              background: "linear-gradient(180deg, #FFF9F3 0%, #FFE8BA 40%, #FFAF2F 100%)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
               backgroundClip: "text",

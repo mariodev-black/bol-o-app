@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronDown, ChevronUp, BarChart2, Trophy, AlignJustify } from "lucide-react";
+import { ChevronDown, ChevronUp, BarChart2, Trophy, AlignJustify, Target, CircleCheck, Star, Bell, Coins, AlertTriangle, Disc } from "lucide-react";
+import { TrophyGold, TrophySilver, TrophyBronze } from "@/app/shared/RankingAtual";
 
 // ── Tipos ────────────────────────────────────────────────────
 type TabView = "jogos" | "tabela" | "ranking";
@@ -429,15 +430,40 @@ function TabelaView({ grupo, tabela, onGrupo }: { grupo: string; tabela: TabelaG
 
 // ── Ranking ───────────────────────────────────────────────────
 const RANKING_MOCK = [
-  { pos: 1, nome: "João Silva",    iniciais: "JS", acertos: 8, pts: 47, cor: "#F97316" },
-  { pos: 2, nome: "Maria Santos",  iniciais: "MS", acertos: 7, pts: 43, cor: "#64748B" },
-  { pos: 3, nome: "Pedro Costa",   iniciais: "PC", acertos: 7, pts: 41, cor: "#06B6D4" },
-  { pos: 4, nome: "Ana Lima",      iniciais: "AL", acertos: 6, pts: 38, cor: "#7C3AED" },
-  { pos: 5, nome: "Carlos Ferr.",  iniciais: "CF", acertos: 6, pts: 35, cor: "#10B981" },
-  { pos: 6, nome: "Você",          iniciais: "OP", acertos: 5, pts: 32, cor: "#F97316", isMe: true },
-  { pos: 7, nome: "Luciana M.",    iniciais: "LM", acertos: 4, pts: 28, cor: "#9333EA" },
+  { pos: 1, nome: "João Silva",    iniciais: "JS", acertos: 8, pts: 47 },
+  { pos: 2, nome: "Maria Santos",  iniciais: "MS", acertos: 7, pts: 43 },
+  { pos: 3, nome: "Pedro Costa",   iniciais: "PC", acertos: 7, pts: 41 },
+  { pos: 4, nome: "Ana Lima",      iniciais: "AL", acertos: 6, pts: 38 },
+  { pos: 5, nome: "Carlos Ferr.",  iniciais: "CF", acertos: 6, pts: 35 },
+  { pos: 6, nome: "Você",          iniciais: "OP", acertos: 5, pts: 32, isMe: true },
+  { pos: 7, nome: "Luciana M.",    iniciais: "LM", acertos: 4, pts: 28 },
 ];
 const MEU = RANKING_MOCK.find((r) => r.isMe)!;
+
+function RankingMedal({ pos, size = 28 }: { pos: number; size?: number }) {
+  if (pos === 1) return <TrophyGold size={size} />;
+  if (pos === 2) return <TrophySilver size={size} />;
+  if (pos === 3) return <TrophyBronze size={size} />;
+  return <span className="text-[11px] font-bold" style={{ color: "rgba(255,255,255,0.25)" }}>#{pos}</span>;
+}
+
+function RankingAvatar({ iniciais, isMe, size = 32 }: { iniciais: string; isMe?: boolean; size?: number }) {
+  return (
+    <div
+      className="rounded-full flex items-center justify-center font-bold shrink-0"
+      style={{
+        width: size,
+        height: size,
+        fontSize: size * 0.38,
+        background: isMe ? "rgba(218,182,130,0.15)" : "rgba(255,255,255,0.07)",
+        color: isMe ? "#DAB682" : "rgba(255,255,255,0.5)",
+        border: isMe ? "1px solid rgba(218,182,130,0.25)" : "1px solid rgba(255,255,255,0.08)",
+      }}
+    >
+      {iniciais}
+    </div>
+  );
+};
 
 
 function RankingView() {
@@ -455,17 +481,12 @@ function RankingView() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="relative shrink-0">
+              <RankingAvatar iniciais={MEU.iniciais} isMe size={44} />
               <div
-                className="w-11 h-11 rounded-full flex items-center justify-center font-black text-[14px] text-white"
-                style={{ background: MEU.cor }}
-              >
-                {MEU.iniciais}
-              </div>
-              <div
-                className="absolute -bottom-1 -right-1 w-[18px] h-[18px] rounded-full flex items-center justify-center text-[10px]"
+                className="absolute -bottom-1 -right-1 w-[18px] h-[18px] rounded-full flex items-center justify-center"
                 style={{ background: "#FFAF2F" }}
               >
-                🪙
+                <Coins className="w-2.5 h-2.5" style={{ color: "#0E141B" }} strokeWidth={2.5} />
               </div>
             </div>
             <div>
@@ -485,16 +506,16 @@ function RankingView() {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-2">
         {[
-          { icon: "🎯", val: 32, label: "Palpites" },
-          { icon: "✅", val: 5,  label: "Acertos" },
-          { icon: "⭐", val: 32, label: "Pontos" },
-        ].map(({ icon, val, label }) => (
+          { Icon: Target,       val: 32, label: "Palpites", color: "#FFAF2F" },
+          { Icon: CircleCheck,  val: 5,  label: "Acertos",  color: "#34D399" },
+          { Icon: Star,         val: 32, label: "Pontos",   color: "#DAB682" },
+        ].map(({ Icon, val, label, color }) => (
           <div
             key={label}
             className="rounded-2xl py-4 flex flex-col items-center gap-1"
             style={{ background: "#0A0E19", border: "1px solid rgba(255,255,255,0.06)" }}
           >
-            <span className="text-[22px] leading-none mb-1">{icon}</span>
+            <Icon className="w-5 h-5 mb-1" style={{ color }} strokeWidth={2} />
             <span className="text-white font-black text-[22px] leading-none">{val}</span>
             <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.3)" }}>{label}</span>
           </div>
@@ -524,28 +545,9 @@ function RankingView() {
             }}
           >
             <div className="w-7 h-7 flex items-center justify-center shrink-0">
-              {r.pos === 1 && (
-                <div className="w-7 h-7 rounded-full flex items-center justify-center text-[12px]"
-                  style={{ background: "linear-gradient(135deg, #F6C23E 0%, #C98F00 100%)" }}>🥇</div>
-              )}
-              {r.pos === 2 && (
-                <div className="w-7 h-7 rounded-full flex items-center justify-center text-[12px]"
-                  style={{ background: "linear-gradient(135deg, #B0BAC8 0%, #7A8898 100%)" }}>🥈</div>
-              )}
-              {r.pos === 3 && (
-                <div className="w-7 h-7 rounded-full flex items-center justify-center text-[12px]"
-                  style={{ background: "linear-gradient(135deg, #C97B3C 0%, #8C4C18 100%)" }}>🥉</div>
-              )}
-              {r.pos > 3 && (
-                <span className="text-[12px] font-bold" style={{ color: "rgba(255,255,255,0.25)" }}>#{r.pos}</span>
-              )}
+              <RankingMedal pos={r.pos} size={28} />
             </div>
-            <div
-              className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-[13px] text-white shrink-0"
-              style={{ background: r.cor }}
-            >
-              {r.iniciais}
-            </div>
+            <RankingAvatar iniciais={r.iniciais} isMe={r.isMe} size={36} />
             <div className="flex-1 min-w-0">
               <p className="text-white font-semibold text-[13px] truncate">
                 {r.nome}
@@ -575,7 +577,7 @@ function RankingView() {
         className="rounded-2xl px-4 py-4 flex items-start gap-3"
         style={{ background: "rgba(218,182,130,0.06)", border: "1px solid rgba(218,182,130,0.18)" }}
       >
-        <span className="text-[22px] leading-none shrink-0" style={{ color: "#DAB682" }}>🔔</span>
+        <Bell className="w-5 h-5 shrink-0 mt-0.5" style={{ color: "#DAB682" }} strokeWidth={2} />
         <div>
           <p className="font-bold text-[13px]" style={{ color: "#DAB682" }}>Prazo para palpitar</p>
           <p className="text-[12px] mt-1 leading-relaxed" style={{ color: "rgba(218,182,130,0.5)" }}>
@@ -607,16 +609,16 @@ function DesktopSidebar({ grupo, tabela, grupos, onGrupo }: {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-2">
         {[
-          { icon: "🎯", val: 32, label: "Palpites" },
-          { icon: "✅", val: 5,  label: "Acertos" },
-          { icon: "⭐", val: 32, label: "Pontos" },
-        ].map(({ icon, val, label }) => (
+          { Icon: Target,       val: 32, label: "Palpites", color: "#FFAF2F" },
+          { Icon: CircleCheck,  val: 5,  label: "Acertos",  color: "#34D399" },
+          { Icon: Star,         val: 32, label: "Pontos",   color: "#DAB682" },
+        ].map(({ Icon, val, label, color }) => (
           <div
             key={label}
             className="rounded-xl py-3 flex flex-col items-center gap-0.5"
             style={{ background: "#0A0E19", border: "1px solid rgba(255,255,255,0.06)" }}
           >
-            <span className="text-[18px] leading-none mb-0.5">{icon}</span>
+            <Icon className="w-4 h-4 mb-0.5" style={{ color }} strokeWidth={2} />
             <span className="text-white font-black text-[20px] leading-none">{val}</span>
             <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.3)" }}>{label}</span>
           </div>
@@ -733,29 +735,10 @@ function DesktopSidebar({ grupo, tabela, grupos, onGrupo }: {
           >
             {/* Medal / position */}
             <div className="w-6 h-6 flex items-center justify-center shrink-0">
-              {r.pos === 1 && (
-                <div className="w-6 h-6 rounded-full flex items-center justify-center text-[11px]"
-                  style={{ background: "linear-gradient(135deg, #F6C23E 0%, #C98F00 100%)" }}>🥇</div>
-              )}
-              {r.pos === 2 && (
-                <div className="w-6 h-6 rounded-full flex items-center justify-center text-[11px]"
-                  style={{ background: "linear-gradient(135deg, #B0BAC8 0%, #7A8898 100%)" }}>🥈</div>
-              )}
-              {r.pos === 3 && (
-                <div className="w-6 h-6 rounded-full flex items-center justify-center text-[11px]"
-                  style={{ background: "linear-gradient(135deg, #C97B3C 0%, #8C4C18 100%)" }}>🥉</div>
-              )}
-              {r.pos > 3 && (
-                <span className="text-[11px] font-bold" style={{ color: "rgba(255,255,255,0.25)" }}>#{r.pos}</span>
-              )}
+              <RankingMedal pos={r.pos} size={24} />
             </div>
             {/* Avatar */}
-            <div
-              className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-[12px] text-white shrink-0"
-              style={{ background: r.cor }}
-            >
-              {r.iniciais}
-            </div>
+            <RankingAvatar iniciais={r.iniciais} isMe={r.isMe} size={32} />
             <div className="flex-1 min-w-0">
               <p className="text-white font-semibold text-[12px] truncate">
                 {r.nome}
@@ -778,7 +761,7 @@ function DesktopSidebar({ grupo, tabela, grupos, onGrupo }: {
         className="rounded-2xl px-4 py-4 flex items-start gap-3"
         style={{ background: "rgba(218,182,130,0.06)", border: "1px solid rgba(218,182,130,0.18)" }}
       >
-        <span className="text-[20px] leading-none shrink-0" style={{ color: "#DAB682" }}>🔔</span>
+        <Bell className="w-4 h-4 shrink-0 mt-0.5" style={{ color: "#DAB682" }} strokeWidth={2} />
         <div>
           <p className="font-bold text-[12px]" style={{ color: "#DAB682" }}>Prazo para palpitar</p>
           <p className="text-[11px] mt-1 leading-relaxed" style={{ color: "rgba(218,182,130,0.5)" }}>
@@ -978,14 +961,14 @@ export default function PalpitesPage() {
               <div>
                 {erro ? (
                   <div className="flex flex-col items-center py-16">
-                    <span className="text-4xl mb-3">⚠️</span>
+                    <AlertTriangle className="w-10 h-10 mb-3 text-white/20" strokeWidth={1.5} />
                     <p className="text-white/30 text-sm">Erro ao carregar partidas</p>
                   </div>
                 ) : loading ? (
                   <><CardSkeleton /><CardSkeleton /></>
                 ) : jogosFiltrados.length === 0 ? (
                   <div className="flex flex-col items-center py-16">
-                    <span className="text-4xl mb-3">⚽</span>
+                    <Disc className="w-10 h-10 mb-3 text-white/20" strokeWidth={1.5} />
                     <p className="text-white/30 text-sm">Nenhum jogo neste grupo</p>
                   </div>
                 ) : (
@@ -1001,14 +984,14 @@ export default function PalpitesPage() {
           <div className="hidden lg:grid lg:grid-cols-2 lg:gap-4">
             {erro ? (
               <div className="col-span-2 flex flex-col items-center py-16">
-                <span className="text-4xl mb-3">⚠️</span>
+                <AlertTriangle className="w-10 h-10 mb-3 text-white/20" strokeWidth={1.5} />
                 <p className="text-white/30 text-sm">Erro ao carregar partidas</p>
               </div>
             ) : loading ? (
               <><CardSkeleton /><CardSkeleton /><CardSkeleton /><CardSkeleton /></>
             ) : jogosFiltrados.length === 0 ? (
               <div className="col-span-2 flex flex-col items-center py-16">
-                <span className="text-4xl mb-3">⚽</span>
+                <Disc className="w-10 h-10 mb-3 text-white/20" strokeWidth={1.5} />
                 <p className="text-white/30 text-sm">Nenhum jogo neste grupo</p>
               </div>
             ) : (

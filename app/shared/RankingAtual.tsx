@@ -4,8 +4,8 @@ import bgHome from "@/app/assets/bgHome.png";
 import bgHomeDesk from "@/app/assets/bg-home-desk.png";
 
 // ── Troféu Ouro ───────────────────────────────────────────────
-const TrophyGold = () => (
-  <svg width="25" height="27" viewBox="0 0 25 27" fill="none" xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink">
+export const TrophyGold = ({ size = 25 }: { size?: number }) => (
+  <svg width={size} height={Math.round(size * 1.08)} viewBox="0 0 25 27" fill="none" xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink">
     <mask id="mask0_2233_806" style={{ maskType: "alpha" }} maskUnits="userSpaceOnUse" x="0" y="1" width="25" height="26">
       <rect y="1.96289" width="24.9801" height="24.9801" fill="url(#pattern0_2233_806)" />
     </mask>
@@ -43,8 +43,8 @@ const TrophyGold = () => (
 );
 
 // ── Troféu Prata ──────────────────────────────────────────────
-const TrophySilver = () => (
-  <svg width="25" height="27" viewBox="0 0 25 27" fill="none" xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink">
+export const TrophySilver = ({ size = 25 }: { size?: number }) => (
+  <svg width={size} height={Math.round(size * 1.08)} viewBox="0 0 25 27" fill="none" xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink">
     <mask id="mask0_2233_715" style={{ maskType: "alpha" }} maskUnits="userSpaceOnUse" x="0" y="1" width="25" height="26">
       <rect y="1.60327" width="24.9801" height="24.9801" fill="url(#pattern0_2233_715)" />
     </mask>
@@ -84,8 +84,8 @@ const TrophySilver = () => (
 );
 
 // ── Troféu Bronze ─────────────────────────────────────────────
-const TrophyBronze = () => (
-  <svg width="25" height="27" viewBox="0 0 25 27" fill="none" xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink">
+export const TrophyBronze = ({ size = 25 }: { size?: number }) => (
+  <svg width={size} height={Math.round(size * 1.08)} viewBox="0 0 25 27" fill="none" xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink">
     <mask id="mask0_2233_715b" style={{ maskType: "alpha" }} maskUnits="userSpaceOnUse" x="0" y="1" width="25" height="26">
       <rect y="1.60327" width="24.9801" height="24.9801" fill="url(#pattern0_2233_715b)" />
     </mask>
@@ -453,18 +453,18 @@ const PLAYERS = [
 
 // Ícones do pódio — wrapper controla o tamanho, SVG preenche
 function PodiumIcon({ player, isCenter }: { player: (typeof PLAYERS)[number]; isCenter: boolean }) {
-  const wrapSize = isCenter ? "w-20 h-20 md:w-36 md:h-36" : "w-16 h-16 md:w-28 md:h-28";
-  if (player.type === "gold")   return <div className={wrapSize + " block"}><RankingPrimary   className="w-full h-full" /></div>;
-  if (player.type === "silver") return <div className={wrapSize + " block"}><RankingSecondary className="w-full h-full" /></div>;
-  if (player.type === "bronze") return <div className={wrapSize + " block"}><RankingTree      className="w-full h-full" /></div>;
+  const size = isCenter ? 120 : 100;
+  if (player.type === "gold")   return <TrophyGold size={size} />;
+  if (player.type === "silver") return <TrophySilver size={size} />;
+  if (player.type === "bronze") return <TrophyBronze size={size} />;
   return null;
 }
 
 // Ícones da tabela (TrophyGold/Silver/Bronze)
 function TableIcon({ player }: { player: (typeof PLAYERS)[number] }) {
-  if (player.type === "gold")   return <TrophyGold />;
-  if (player.type === "silver") return <TrophySilver />;
-  if (player.type === "bronze") return <TrophyBronze />;
+  if (player.type === "gold")   return <TrophyGold size={40} />;
+  if (player.type === "silver") return <TrophySilver size={40} />;
+  if (player.type === "bronze") return <TrophyBronze size={40} />;
   return (
     <div className="flex flex-col items-center justify-center w-9 gap-0.5">
       <span className="text-white font-bold text-lg leading-none">{player.position}</span>
