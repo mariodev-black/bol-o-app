@@ -168,7 +168,7 @@ export function RankingAtual() {
         />
       </div>
       {/* Título — FORA do bg image */}
-      <div className="flex justify-center px-5 mb-2">
+      <div className="flex justify-center px-5 mb-2 max-md:mt-2">
 
         <h1 className="text-3xl sm:text-5xl font-bold text-center leading-tight mb-2 md:font-light"
           style={{
