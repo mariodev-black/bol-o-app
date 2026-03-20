@@ -453,10 +453,10 @@ const PLAYERS = [
 
 // Ícones do pódio — wrapper controla o tamanho, SVG preenche
 function PodiumIcon({ player, isCenter }: { player: (typeof PLAYERS)[number]; isCenter: boolean }) {
-  const wrapSize = isCenter ? "w-32 h-32 md:w-40 md:h-40" : "w-24 h-24 md:w-32 md:h-32";
-  if (player.type === "gold")   return <div className={wrapSize + " shrink-0 block"}><RankingPrimary   className="w-full h-full" /></div>;
-  if (player.type === "silver") return <div className={wrapSize + " shrink-0 block"}><RankingSecondary className="w-full h-full" /></div>;
-  if (player.type === "bronze") return <div className={wrapSize + " shrink-0 block"}><RankingTree      className="w-full h-full" /></div>;
+  const wrapSize = isCenter ? "w-20 h-20 md:w-36 md:h-36" : "w-16 h-16 md:w-28 md:h-28";
+  if (player.type === "gold")   return <div className={wrapSize + " block"}><RankingPrimary   className="w-full h-full" /></div>;
+  if (player.type === "silver") return <div className={wrapSize + " block"}><RankingSecondary className="w-full h-full" /></div>;
+  if (player.type === "bronze") return <div className={wrapSize + " block"}><RankingTree      className="w-full h-full" /></div>;
   return null;
 }
 
