@@ -66,6 +66,10 @@ body {
   color: var(--foreground);
 }
 
+button, [role="button"] {
+  cursor: pointer !important;
+}
+
 @keyframes marquee {
   0%   { transform: translateX(0); }
   100% { transform: translateX(-50%); }

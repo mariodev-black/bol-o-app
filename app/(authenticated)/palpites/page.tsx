@@ -439,16 +439,6 @@ const RANKING_MOCK = [
 ];
 const MEU = RANKING_MOCK.find((r) => r.isMe)!;
 
-function MedalBadge({ pos }: { pos: number }) {
-  if (pos === 1) return <span className="text-[20px] leading-none">🥇</span>;
-  if (pos === 2) return <span className="text-[20px] leading-none">🥈</span>;
-  if (pos === 3) return <span className="text-[20px] leading-none">🥉</span>;
-  return (
-    <span className="text-[12px] font-bold" style={{ color: "rgba(255,255,255,0.25)" }}>
-      #{pos}
-    </span>
-  );
-}
 
 function RankingView() {
   return (
@@ -533,8 +523,22 @@ function RankingView() {
               borderBottom: i < RANKING_MOCK.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none",
             }}
           >
-            <div className="w-7 flex items-center justify-center shrink-0">
-              <MedalBadge pos={r.pos} />
+            <div className="w-7 h-7 flex items-center justify-center shrink-0">
+              {r.pos === 1 && (
+                <div className="w-7 h-7 rounded-full flex items-center justify-center text-[12px]"
+                  style={{ background: "linear-gradient(135deg, #F6C23E 0%, #C98F00 100%)" }}>🥇</div>
+              )}
+              {r.pos === 2 && (
+                <div className="w-7 h-7 rounded-full flex items-center justify-center text-[12px]"
+                  style={{ background: "linear-gradient(135deg, #B0BAC8 0%, #7A8898 100%)" }}>🥈</div>
+              )}
+              {r.pos === 3 && (
+                <div className="w-7 h-7 rounded-full flex items-center justify-center text-[12px]"
+                  style={{ background: "linear-gradient(135deg, #C97B3C 0%, #8C4C18 100%)" }}>🥉</div>
+              )}
+              {r.pos > 3 && (
+                <span className="text-[12px] font-bold" style={{ color: "rgba(255,255,255,0.25)" }}>#{r.pos}</span>
+              )}
             </div>
             <div
               className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-[13px] text-white shrink-0"
@@ -575,6 +579,209 @@ function RankingView() {
         <div>
           <p className="font-bold text-[13px]" style={{ color: "#DAB682" }}>Prazo para palpitar</p>
           <p className="text-[12px] mt-1 leading-relaxed" style={{ color: "rgba(218,182,130,0.5)" }}>
+            Os palpites são bloqueados 1 hora antes do início de cada partida. Não esqueça de salvar!
+          </p>
+        </div>
+      </div>
+
+    </div>
+  );
+}
+
+// ── Sidebar desktop ───────────────────────────────────────────
+function DesktopSidebar({ grupo, tabela, grupos, onGrupo }: {
+  grupo: string;
+  tabela: TabelaGrupos | null;
+  grupos: string[];
+  onGrupo: (g: string) => void;
+}) {
+  const grupoKey = `grupo-${grupo.toLowerCase()}`;
+  const times = tabela ? (tabela[grupoKey] ?? []) : [];
+  const idx = grupos.indexOf(grupo);
+  const prev = idx > 0 ? grupos[idx - 1] : null;
+  const next = idx < grupos.length - 1 ? grupos[idx + 1] : null;
+
+  return (
+    <div className="flex flex-col gap-3 sticky top-6">
+
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-2">
+        {[
+          { icon: "🎯", val: 32, label: "Palpites" },
+          { icon: "✅", val: 5,  label: "Acertos" },
+          { icon: "⭐", val: 32, label: "Pontos" },
+        ].map(({ icon, val, label }) => (
+          <div
+            key={label}
+            className="rounded-xl py-3 flex flex-col items-center gap-0.5"
+            style={{ background: "#0A0E19", border: "1px solid rgba(255,255,255,0.06)" }}
+          >
+            <span className="text-[18px] leading-none mb-0.5">{icon}</span>
+            <span className="text-white font-black text-[20px] leading-none">{val}</span>
+            <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.3)" }}>{label}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Classificação */}
+      <div className="rounded-2xl overflow-hidden" style={{ background: "#0A0E19", border: "1px solid #FFFFFF12" }}>
+        <div
+          className="flex items-center justify-between px-4 py-3 gap-2"
+          style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+        >
+          {/* Seta prev */}
+          <button
+            onClick={() => prev && onGrupo(prev)}
+            disabled={!prev}
+            className="w-6 h-6 rounded-md flex items-center justify-center shrink-0 transition-opacity"
+            style={{ background: "rgba(255,255,255,0.06)", opacity: prev ? 1 : 0.25 }}
+          >
+            <ChevronDown className="w-3 h-3 text-white/60 rotate-90" />
+          </button>
+
+          {/* Título */}
+          <span className="text-white font-bold text-[12px] flex-1 text-center truncate">
+            Classificação — Grupo {grupo}
+          </span>
+
+          {/* Seta next */}
+          <button
+            onClick={() => next && onGrupo(next)}
+            disabled={!next}
+            className="w-6 h-6 rounded-md flex items-center justify-center shrink-0 transition-opacity"
+            style={{ background: "rgba(255,255,255,0.06)", opacity: next ? 1 : 0.25 }}
+          >
+            <ChevronDown className="w-3 h-3 text-white/60 -rotate-90" />
+          </button>
+
+          {/* Colunas */}
+          <div className="flex gap-2 shrink-0">
+            {["PTS", "J", "V", "E", "D"].map((col) => (
+              <span key={col} className="text-[9px] font-bold text-white/30 w-5 text-center">{col}</span>
+            ))}
+          </div>
+        </div>
+
+        {!tabela && (
+          <div className="py-6 flex justify-center">
+            <div className="w-6 h-6 rounded-full border-2 border-white/20 border-t-white/60 animate-spin" />
+          </div>
+        )}
+
+        {times.map((t, i) => (
+          <div
+            key={t.time.time_id}
+            className="flex items-center px-4 py-2.5 gap-2"
+            style={{
+              background: i < 2 ? "#5AADFF08" : "transparent",
+              borderBottom: i < times.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none",
+            }}
+          >
+            {/* Posição */}
+            <span
+              className="w-5 h-5 rounded-[5px] flex items-center justify-center text-[10px] font-bold shrink-0"
+              style={{
+                background: i === 0 ? "rgba(254,197,84,0.15)" : "rgba(255,255,255,0.06)",
+                color: i === 0 ? "#FEC554" : "rgba(255,255,255,0.4)",
+              }}
+            >
+              {t.posicao}
+            </span>
+            {/* Escudo */}
+            <div
+              className="w-6 h-6 rounded-md flex items-center justify-center overflow-hidden shrink-0"
+              style={{ background: "rgba(255,255,255,0.92)" }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={t.time.escudo} alt={t.time.sigla} className="w-5 h-5 object-contain" />
+            </div>
+            {/* Sigla */}
+            <span className="text-white font-bold text-[12px] flex-1 min-w-0 truncate">{t.time.sigla}</span>
+            {/* Stats */}
+            <div className="flex gap-2 shrink-0">
+              {[t.pontos, t.jogos, t.vitorias, t.empates, t.derrotas].map((val, vi) => (
+                <span
+                  key={vi}
+                  className="w-5 text-center text-[12px] font-bold"
+                  style={{ color: vi === 0 ? "#fff" : "rgba(255,255,255,0.35)" }}
+                >
+                  {val}
+                </span>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Top Palpiteiros */}
+      <div className="rounded-2xl overflow-hidden" style={{ background: "#0A0E19", border: "1px solid rgba(255,255,255,0.07)" }}>
+        <div
+          className="flex items-center justify-between px-4 py-3"
+          style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+        >
+          <span className="text-white font-bold text-[13px]">Top Palpiteiros</span>
+          <button className="text-[12px] font-semibold" style={{ color: "#5AADFF" }}>Ver todos</button>
+        </div>
+        {RANKING_MOCK.map((r, i) => (
+          <div
+            key={r.pos}
+            className="flex items-center gap-2.5 px-3 py-2.5"
+            style={{
+              background: r.isMe ? "rgba(90,173,255,0.07)" : "transparent",
+              borderBottom: i < RANKING_MOCK.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none",
+            }}
+          >
+            {/* Medal / position */}
+            <div className="w-6 h-6 flex items-center justify-center shrink-0">
+              {r.pos === 1 && (
+                <div className="w-6 h-6 rounded-full flex items-center justify-center text-[11px]"
+                  style={{ background: "linear-gradient(135deg, #F6C23E 0%, #C98F00 100%)" }}>🥇</div>
+              )}
+              {r.pos === 2 && (
+                <div className="w-6 h-6 rounded-full flex items-center justify-center text-[11px]"
+                  style={{ background: "linear-gradient(135deg, #B0BAC8 0%, #7A8898 100%)" }}>🥈</div>
+              )}
+              {r.pos === 3 && (
+                <div className="w-6 h-6 rounded-full flex items-center justify-center text-[11px]"
+                  style={{ background: "linear-gradient(135deg, #C97B3C 0%, #8C4C18 100%)" }}>🥉</div>
+              )}
+              {r.pos > 3 && (
+                <span className="text-[11px] font-bold" style={{ color: "rgba(255,255,255,0.25)" }}>#{r.pos}</span>
+              )}
+            </div>
+            {/* Avatar */}
+            <div
+              className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-[12px] text-white shrink-0"
+              style={{ background: r.cor }}
+            >
+              {r.iniciais}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-white font-semibold text-[12px] truncate">
+                {r.nome}
+                {r.isMe && (
+                  <span className="text-[10px] font-normal ml-0.5" style={{ color: "rgba(255,255,255,0.3)" }}>(você)</span>
+                )}
+              </p>
+              <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.3)" }}>{r.acertos} acertos</p>
+            </div>
+            <div className="shrink-0 flex items-baseline gap-0.5">
+              <span className="font-black text-[14px]" style={{ color: r.isMe ? "#FFAF2F" : "#fff" }}>{r.pts}</span>
+              <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.2)" }}>pts</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Prazo */}
+      <div
+        className="rounded-2xl px-4 py-4 flex items-start gap-3"
+        style={{ background: "rgba(218,182,130,0.06)", border: "1px solid rgba(218,182,130,0.18)" }}
+      >
+        <span className="text-[20px] leading-none shrink-0" style={{ color: "#DAB682" }}>🔔</span>
+        <div>
+          <p className="font-bold text-[12px]" style={{ color: "#DAB682" }}>Prazo para palpitar</p>
+          <p className="text-[11px] mt-1 leading-relaxed" style={{ color: "rgba(218,182,130,0.5)" }}>
             Os palpites são bloqueados 1 hora antes do início de cada partida. Não esqueça de salvar!
           </p>
         </div>
@@ -629,12 +836,90 @@ export default function PalpitesPage() {
     (j) => j.grupo === grupo && j.rodada === rodada
   );
 
+  const BotoesGrupo = ({ className }: { className?: string }) => (
+    <div className={className}>
+      <span className="text-[11px] font-bold text-white/30 tracking-widest uppercase block mb-2">Grupo</span>
+      {/* Mobile: chunked rows of 6 */}
+      <div className="flex flex-col gap-1.5 lg:hidden">
+        {Array.from({ length: Math.ceil(grupos.length / 6) }, (_, ri) =>
+          grupos.slice(ri * 6, ri * 6 + 6)
+        ).map((row, ri) => (
+          <div key={ri} className="flex gap-1.5">
+            {row.map((g) => (
+              <button
+                key={g}
+                onClick={() => setGrupo(g)}
+                className="flex-1 h-9 rounded-lg text-[13px] font-bold transition-all duration-200"
+                style={{
+                  background: grupo === g ? "linear-gradient(180deg, #FFE8BA 0%, #FFAF2F 100%)" : "#0A0E19",
+                  color: grupo === g ? "#0E141B" : "rgba(255,255,255,0.4)",
+                  boxShadow: grupo === g ? "0 0 14px rgba(255,175,47,0.45)" : "none",
+                }}
+              >{g}</button>
+            ))}
+          </div>
+        ))}
+      </div>
+      {/* Desktop: single flex row */}
+      <div className="hidden lg:flex gap-1.5 flex-wrap">
+        {grupos.map((g) => (
+          <button
+            key={g}
+            onClick={() => setGrupo(g)}
+            className="w-9 h-9 rounded-lg text-[13px] font-bold transition-all duration-200"
+            style={{
+              background: grupo === g ? "linear-gradient(180deg, #FFE8BA 0%, #FFAF2F 100%)" : "#0A0E19",
+              color: grupo === g ? "#0E141B" : "rgba(255,255,255,0.4)",
+              boxShadow: grupo === g ? "0 0 14px rgba(255,175,47,0.45)" : "none",
+            }}
+          >{g}</button>
+        ))}
+      </div>
+    </div>
+  );
+
+  const SeletorRodada = ({ className }: { className?: string }) => (
+    <div className={`relative ${className ?? ""}`}>
+      <button
+        onClick={() => setRodadaOpen((v) => !v)}
+        className="w-full flex items-center justify-between px-4 py-3 rounded-xl"
+        style={{ background: "#0A0E19", border: "1px solid rgba(255,255,255,0.1)" }}
+      >
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-emerald-400" />
+          <span className="text-white font-semibold text-[14px]">{RODADAS_LABEL[rodada]}</span>
+        </div>
+        <ChevronDown
+          className="w-4 h-4 text-white/40 transition-transform duration-200"
+          style={{ transform: rodadaOpen ? "rotate(180deg)" : "rotate(0deg)" }}
+        />
+      </button>
+      {rodadaOpen && (
+        <div
+          className="absolute top-full left-0 right-0 mt-1 rounded-xl overflow-hidden z-20"
+          style={{ background: "#1a2030", border: "1px solid rgba(255,255,255,0.1)" }}
+        >
+          {RODADAS_LABEL.map((r, i) => (
+            <button
+              key={r}
+              onClick={() => { setRodada(i); setRodadaOpen(false); }}
+              className="w-full flex items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-white/5"
+            >
+              <span className="w-2 h-2 rounded-full" style={{ background: i === rodada ? "#34D399" : "rgba(255,255,255,0.2)" }} />
+              <span className="text-[14px] font-medium" style={{ color: i === rodada ? "#fff" : "rgba(255,255,255,0.5)" }}>{r}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   return (
-    <div className="flex flex-col w-full max-w-lg mx-auto px-4 pt-6 pb-6">
+    <div className="w-full max-w-lg mx-auto px-4 pt-6 pb-8 lg:max-w-7xl">
 
       {/* Título */}
-      <div className="mb-5">
-        <h1 className="text-[28px] font-black text-white leading-tight">
+      <div className="mb-5 lg:mb-7">
+        <h1 className="text-[28px] lg:text-[42px] font-black text-white leading-tight">
           Copa do Mundo 2026
         </h1>
         <p className="text-white/40 text-[13px] mt-1">
@@ -642,123 +927,87 @@ export default function PalpitesPage() {
         </p>
       </div>
 
-      {/* Seletor de rodada */}
-      {tab === "jogos" && <div className="relative mb-4">
-        <button
-          onClick={() => setRodadaOpen((v) => !v)}
-          className="w-full flex items-center justify-between px-4 py-3 rounded-xl"
-          style={{ background: "#0A0E19", border: "1px solid rgba(255,255,255,0.1)" }}
-        >
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400" />
-            <span className="text-white font-semibold text-[14px]">{RODADAS_LABEL[rodada]}</span>
-          </div>
-          <ChevronDown
-            className="w-4 h-4 text-white/40 transition-transform duration-200"
-            style={{ transform: rodadaOpen ? "rotate(180deg)" : "rotate(0deg)" }}
-          />
-        </button>
+      <div className="lg:grid lg:grid-cols-[1fr_360px] lg:gap-8 lg:items-start">
 
-        {rodadaOpen && (
-          <div
-            className="absolute top-full left-0 right-0 mt-1 rounded-xl overflow-hidden z-20"
-            style={{ background: "#1a2030", border: "1px solid rgba(255,255,255,0.1)" }}
-          >
-            {RODADAS_LABEL.map((r, i) => (
+        {/* ── COLUNA ESQUERDA ─────────────────────────── */}
+        <div>
+
+          {/* Mobile: seletor de rodada */}
+          {tab === "jogos" && <SeletorRodada className="mb-4 lg:hidden" />}
+
+          {/* Mobile: tabs */}
+          <div className="lg:hidden flex items-center gap-1 mb-5 p-1 rounded-xl bg-[#0A0E19]">
+            {([
+              { key: "jogos", label: "Jogos", icon: AlignJustify },
+              { key: "tabela", label: "Tabela", icon: BarChart2 },
+              { key: "ranking", label: "Ranking", icon: Trophy },
+            ] as const).map(({ key, label, icon: Icon }) => (
               <button
-                key={r}
-                onClick={() => { setRodada(i); setRodadaOpen(false); }}
-                className="w-full flex items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-white/5"
+                key={key}
+                onClick={() => setTab(key)}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[13px] font-semibold transition-all duration-200"
+                style={{
+                  background: tab === key ? "#161D2D" : "transparent",
+                  color: tab === key ? "#fff" : "rgba(255,255,255,0.35)",
+                }}
               >
-                <span
-                  className="w-2 h-2 rounded-full"
-                  style={{ background: i === rodada ? "#34D399" : "rgba(255,255,255,0.2)" }}
-                />
-                <span
-                  className="text-[14px] font-medium"
-                  style={{ color: i === rodada ? "#fff" : "rgba(255,255,255,0.5)" }}
-                >
-                  {r}
-                </span>
+                <Icon className="w-3.5 h-3.5" />
+                {label}
               </button>
             ))}
           </div>
-        )}
-      </div>}
 
-      {/* Tabs */}
-      <div className="flex items-center gap-1 mb-5 p-1 rounded-xl bg-[#0A0E19]">
-        {(
-          [
-            { key: "jogos", label: "Jogos", icon: AlignJustify },
-            { key: "tabela", label: "Tabela", icon: BarChart2 },
-            { key: "ranking", label: "Ranking", icon: Trophy },
-          ] as const
-        ).map(({ key, label, icon: Icon }) => (
-          <button
-            key={key}
-            onClick={() => setTab(key)}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[13px] font-semibold transition-all duration-200"
-            style={{
-              background: tab === key ? "#161D2D" : "transparent",
-              color: tab === key ? "#fff" : "rgba(255,255,255,0.35)",
-            }}
-          >
-            <Icon className="w-3.5 h-3.5" />
-            {label}
-          </button>
-        ))}
-      </div>
+          {/* Mobile: filtro grupos (exceto ranking) */}
+          {grupos.length > 0 && tab !== "ranking" && (
+            <div className="mb-5 lg:hidden">
+              <BotoesGrupo />
+            </div>
+          )}
 
-      {/* Filtro de grupos */}
-      {grupos.length > 0 && tab !== "ranking" && (
-        <div className="mb-5">
-          <span className="text-[11px] font-bold text-white/30 tracking-widest uppercase block mb-2">
-            Grupo
-          </span>
-          <div className="flex flex-col gap-1.5">
-            {Array.from({ length: Math.ceil(grupos.length / 6) }, (_, ri) =>
-              grupos.slice(ri * 6, ri * 6 + 6)
-            ).map((row, ri) => (
-              <div key={ri} className="flex gap-1.5">
-                {row.map((g) => (
-                  <button
-                    key={g}
-                    onClick={() => setGrupo(g)}
-                    className="flex-1 h-9 rounded-lg text-[13px] font-bold transition-all duration-200"
-                    style={{
-                      background: grupo === g
-                        ? "linear-gradient(180deg, #FFE8BA 0%, #FFAF2F 100%)"
-                        : "#0A0E19",
-                      color: grupo === g ? "#0E141B" : "rgba(255,255,255,0.4)",
-                      boxShadow: grupo === g ? "0 0 14px rgba(255,175,47,0.45)" : "none",
-                    }}
-                  >
-                    {g}
-                  </button>
-                ))}
+          {/* Desktop: grupo + rodada na mesma linha */}
+          {grupos.length > 0 && (
+            <div className="hidden lg:flex lg:items-end lg:justify-between lg:gap-6 mb-6">
+              <BotoesGrupo className="flex-1" />
+              <SeletorRodada className="w-52 shrink-0" />
+            </div>
+          )}
+
+          {/* Mobile: conteúdo com tabs */}
+          <div key={tab} className="animate-tab-in lg:hidden">
+            {tab === "jogos" && (
+              <div>
+                {erro ? (
+                  <div className="flex flex-col items-center py-16">
+                    <span className="text-4xl mb-3">⚠️</span>
+                    <p className="text-white/30 text-sm">Erro ao carregar partidas</p>
+                  </div>
+                ) : loading ? (
+                  <><CardSkeleton /><CardSkeleton /></>
+                ) : jogosFiltrados.length === 0 ? (
+                  <div className="flex flex-col items-center py-16">
+                    <span className="text-4xl mb-3">⚽</span>
+                    <p className="text-white/30 text-sm">Nenhum jogo neste grupo</p>
+                  </div>
+                ) : (
+                  jogosFiltrados.map((jogo) => <JogoCard key={jogo.id} jogo={jogo} />)
+                )}
               </div>
-            ))}
+            )}
+            {tab === "tabela" && <TabelaView grupo={grupo} tabela={tabela} onGrupo={setGrupo} />}
+            {tab === "ranking" && <RankingView />}
           </div>
-        </div>
-      )}
 
-      {/* Conteúdo */}
-      <div key={tab} className="animate-tab-in">
-        {tab === "jogos" && (
-          <div>
+          {/* Desktop: grid 2 colunas de cards */}
+          <div className="hidden lg:grid lg:grid-cols-2 lg:gap-4">
             {erro ? (
-              <div className="flex flex-col items-center py-16">
+              <div className="col-span-2 flex flex-col items-center py-16">
                 <span className="text-4xl mb-3">⚠️</span>
                 <p className="text-white/30 text-sm">Erro ao carregar partidas</p>
               </div>
             ) : loading ? (
-              <>
-                <CardSkeleton />
-                <CardSkeleton />
-              </>
+              <><CardSkeleton /><CardSkeleton /><CardSkeleton /><CardSkeleton /></>
             ) : jogosFiltrados.length === 0 ? (
-              <div className="flex flex-col items-center py-16">
+              <div className="col-span-2 flex flex-col items-center py-16">
                 <span className="text-4xl mb-3">⚽</span>
                 <p className="text-white/30 text-sm">Nenhum jogo neste grupo</p>
               </div>
@@ -766,13 +1015,14 @@ export default function PalpitesPage() {
               jogosFiltrados.map((jogo) => <JogoCard key={jogo.id} jogo={jogo} />)
             )}
           </div>
-        )}
 
-        {tab === "tabela" && (
-          <TabelaView grupo={grupo} tabela={tabela} onGrupo={setGrupo} />
-        )}
+        </div>
 
-        {tab === "ranking" && <RankingView />}
+        {/* ── SIDEBAR DIREITA (desktop only) ───────────── */}
+        <div className="hidden lg:block">
+          <DesktopSidebar grupo={grupo} tabela={tabela} grupos={grupos} onGrupo={setGrupo} />
+        </div>
+
       </div>
     </div>
   );
