@@ -3,16 +3,14 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Bell } from "lucide-react";
-import { Button } from "@/app/(authenticated)/components/ui/button";
 import logo from "@/app/assets/logo.png";
 
 const NAV_LINKS = [
-  { label: "Home",            href: "/" },
-  { label: "Palpites",        href: "/palpites" },
-  { label: "Ranking",         href: "/ranking" },
+  { label: "Home", href: "/" },
+  { label: "Palpites", href: "/palpites" },
+  { label: "Ranking", href: "/ranking" },
   { label: "Indique e ganhe", href: "/indique" },
-  { label: "Regulamento",     href: "/regulamento" },
+  { label: "Regulamento", href: "/regulamento" },
 ];
 
 export function Header() {
@@ -45,35 +43,36 @@ export function Header() {
         })}
       </nav>
 
-      {/* Direita — sino + botão */}
-      <div className="flex items-center gap-3">
-        {/* Sino com badge e bg */}
-        <button
-          aria-label="Notificações"
-          className="relative flex items-center justify-center w-9 h-9 rounded-full transition-colors hover:bg-white/15"
+      {/* Direita — botões colados com inclinação */}
+      <div
+        className="flex items-stretch h-10 rounded-[14px] overflow-hidden"
+        style={{ border: "1px solid rgba(218,182,130,0.3)" }}
+      >
+        {/* Registre-se */}
+        <Link
+          href="/cadastrar"
+          className="flex items-center gap-2 pl-5 pr-5 font-bold text-sm relative z-10 whitespace-nowrap"
           style={{
-            backgroundColor: "rgba(255,255,255,0.08)",
-            color: "rgba(255,255,255,0.8)",
-          }}
-        >
-          <Bell className="w-5 h-5" />
-          <span
-            className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full"
-            style={{ backgroundColor: "#EF4444" }}
-          />
-        </button>
-
-        {/* Botão Comprar Ticket */}
-        <Button
-          asChild
-          className="rounded-full px-5 font-bold text-sm h-9 border-0"
-          style={{
-            background: "linear-gradient(90deg, #FFAF2F, #FFE8BA)",
+            background: "linear-gradient(135deg, #FFAF2F 0%, #FFD577 100%)",
             color: "#0E141B",
+            clipPath: "polygon(0 0, 100% 0, calc(100% - 16px) 100%, 0 100%)",
           }}
         >
-          <Link href="/cadastrar">Comprar Ticket</Link>
-        </Button>
+          Registre-se
+        </Link>
+
+        {/* Entrar */}
+        <Link
+          href="/login"
+          className="flex items-center px-5 font-bold text-sm -ml-4 relative z-20 whitespace-nowrap"
+          style={{
+            background: "#060B18",
+            color: "#DAB682",
+            clipPath: "polygon(16px 0, 100% 0, 100% 100%, 0 100%)",
+          }}
+        >
+          Entrar
+        </Link>
       </div>
     </header>
   );

@@ -131,3 +131,71 @@ button, [role="button"] {
 .animate-shine {
   animation: shine 1.4s linear infinite alternate;
 }
+
+/* ── Dialog animations ───────────────────────────────────────── */
+@keyframes dialogOverlayIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes dialogOverlayOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+@keyframes dialogContentIn {
+  from { opacity: 0; transform: translate(-50%, -46%) scale(0.96); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes dialogContentOut {
+  from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  to   { opacity: 0; transform: translate(-50%, -46%) scale(0.96); }
+}
+
+.auth-dialog-overlay[data-state="open"]  { animation: dialogOverlayIn  200ms ease-out; }
+.auth-dialog-overlay[data-state="closed"]{ animation: dialogOverlayOut 180ms ease-in forwards; }
+.auth-dialog-content[data-state="open"]  { animation: dialogContentIn  300ms cubic-bezier(0.16,1,0.3,1); }
+.auth-dialog-content[data-state="closed"]{ animation: dialogContentOut 180ms ease-in forwards; }
+
+/* Mobile: dialog ocupa tela toda */
+@media (max-width: 1023px) {
+  .auth-dialog-content {
+    top: 0 !important;
+    left: 0 !important;
+    transform: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    border-radius: 0 !important;
+    overflow-y: auto !important;
+  }
+
+  @keyframes dialogContentIn {
+    from { opacity: 0; transform: translateY(100%); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes dialogContentOut {
+    from { opacity: 1; transform: translateY(0); }
+    to   { opacity: 0; transform: translateY(100%); }
+  }
+}
+
+/* ── Auth inputs ─────────────────────────────────────────────── */
+.auth-input {
+  width: 100%;
+  height: 52px;
+  padding: 0 16px;
+  border-radius: 8px;
+  font-size: 15px;
+  outline: none;
+  background: #0D1E30;
+  border: 2px solid rgba(218, 182, 130, 0.3);
+  color: white;
+  transition: border-color 0.18s, box-shadow 0.18s;
+}
+.auth-input::placeholder {
+  color: rgba(255, 255, 255, 0.22);
+}
+.auth-input:focus {
+  border-color: rgba(218, 182, 130, 0.85);
+  box-shadow: 0 0 0 4px rgba(218, 182, 130, 0.1);
+}
