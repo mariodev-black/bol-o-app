@@ -12,7 +12,8 @@
       "Bash(ls \"E:/bol-o-app/app/\\(public\\)/\")",
       "Bash(ls \"E:/bol-o-app/app/\\(authenticated\\)/dashboard/\")",
       "Bash(ls \"E:/bol-o-app/app/\\(authenticated\\)/palpites/\")",
-      "Bash(claude sessions:*)"
+      "Bash(claude sessions:*)",
+      "Bash(grep -v '^\\\\.$')"
     ]
   }
 }
