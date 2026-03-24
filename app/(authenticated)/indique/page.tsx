@@ -166,7 +166,7 @@ export default function IndiqueGanhePage() {
                   <p className="text-[18px] font-black text-white tracking-[-0.01em]">R$12,00</p>
                 </div>
                 <div
-                  className="hidden items-center gap-2 px-3 py-2.5 rounded-[10px] md:flex"
+                  className="hidden items-center gap-2 px-3 py-2.5 rounded-[10px] md:hidden"
                   style={{ background: "rgba(255,232,186,0.08)", border: "1px solid rgba(212,175,55,0.22)" }}
                 >
                   <Zap size={13} style={{ color: C.gold }} className="shrink-0" />
