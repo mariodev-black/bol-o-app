@@ -703,7 +703,7 @@ function StatCard({
     <div
       className="rounded-2xl p-4 flex flex-col items-center gap-2.5"
       style={{
-        background: highlight ? "rgba(6,20,14,0.65)" : C.nested,
+        background: highlight ? "rgba(6,20,14,0.65)" : C.card,
         border: highlight ? "1px solid rgba(34,197,94,0.22)" : "1px solid rgba(255,255,255,0.07)",
       }}
     >
