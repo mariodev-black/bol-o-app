@@ -5,7 +5,6 @@ import { NavBottom } from "@/app/shared/NavBottom";
 import { HeroCarousel } from "@/app/shared/HeroCarousel";
 import { Button } from "@/app/(authenticated)/components/ui/button";
 import { ExternalLink, ChevronRight } from "lucide-react";
-import bgHome from "@/app/assets/bgHome.png";
 import TacaText from "@/app/assets/taca-text.png";
 import { FlagsMarquee } from "@/app/shared/FlagsMarquee";
 import { InfluencersSection } from "@/app/shared/InfluencersSection";
