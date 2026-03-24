@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import Link from "next/link";
 import {
   Gift,
   Trophy,
@@ -22,6 +23,7 @@ import {
   Sparkles,
   Banknote,
   Target,
+  CircleDollarSign,
 } from "lucide-react";
 import bgPalpitesDesk from "@/app/assets/bg-palpites-desktop.png";
 
@@ -36,9 +38,13 @@ const C = {
   /** Platina / “Diamante” sem azul — identidade dourada + neutro premium */
   platinum: "#C5D0E0",
   platinumMuted: "rgba(197,208,224,0.55)",
-  /** Verde só para ganhos / crédito (como em palpites: #22C55E) */
-  gain: "#22C55E",
-  gainSoft: "rgba(34,197,94,0.12)",
+  /** Valores monetários / crédito — sempre ouro âmbar (identidade única, sem verdes misturados) */
+  value: "#E8CF6A",
+  valueMuted: "#C9A96E",
+  valueSoft: "rgba(212, 175, 55, 0.10)",
+  valueBorder: "rgba(212, 175, 55, 0.28)",
+  /** WhatsApp: cor oficial só no ícone; superfície neutra como o resto do app */
+  wa: "#25D366",
 } as const;
 
 /* ─── Dados ─── */
@@ -66,7 +72,7 @@ const HOW_STEPS = [
   },
   {
     Icon: Zap,
-    color: C.gain,
+    color: C.goldMid,
     title: "Você recebe na hora",
     desc: "R$8 creditados imediatamente após confirmação da compra.",
   },
@@ -80,6 +86,10 @@ const ATIVIDADES = [
 ];
 
 const REF_LINK = "https://bolao.com/ref/SEU_CODIGO";
+
+const WHATSAPP_INVITE_TEXT = `Entre no Bolão do Milhão pelo meu link — cada ticket conta! 🎯\n${REF_LINK}`;
+
+const SHARE_TITLE = "Bolão do Milhão — indicação";
 
 /** Métricas do link — desktop, abaixo do campo (mock; ligar à API depois) */
 const LINK_STATS_DESKTOP = {
@@ -96,11 +106,68 @@ export default function IndiqueGanhePage() {
   const ganhoOuro = amigos * 12;
   const ganhoDiamante = amigos * 20;
 
-  function handleCopy() {
-    navigator.clipboard.writeText(REF_LINK).catch(() => { });
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2200);
-  }
+  const copyReferralLink = useCallback(async (): Promise<boolean> => {
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(REF_LINK);
+        return true;
+      }
+    } catch {
+      /* fallback abaixo */
+    }
+    if (typeof document === "undefined") return false;
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = REF_LINK;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.left = "-9999px";
+      ta.style.top = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      ta.setSelectionRange(0, REF_LINK.length);
+      const ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      return ok;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const handleCopy = useCallback(async () => {
+    const ok = await copyReferralLink();
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2200);
+    }
+  }, [copyReferralLink]);
+
+  const openWhatsAppInvite = useCallback(() => {
+    const url = `https://wa.me/?text=${encodeURIComponent(WHATSAPP_INVITE_TEXT)}`;
+    const w = window.open(url, "_blank", "noopener,noreferrer");
+    if (!w) window.location.href = url;
+  }, []);
+
+  const handleShareInvite = useCallback(async () => {
+    const shareData = {
+      title: SHARE_TITLE,
+      text: `Use meu link para participar:\n${REF_LINK}`,
+      url: REF_LINK,
+    };
+    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+      try {
+        await navigator.share(shareData);
+        return;
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name === "AbortError") return;
+      }
+    }
+    const ok = await copyReferralLink();
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2200);
+    }
+  }, [copyReferralLink]);
 
   return (
     <div className="min-h-screen pb-8">
@@ -215,7 +282,7 @@ export default function IndiqueGanhePage() {
                 </h1>
                 <p className="text-[15px] leading-[1.65] max-w-[640px]" style={{ color: "rgba(255,255,255,0.42)" }}>
                   Cada amigo que comprar um ticket vale{" "}
-                  <span className="font-bold" style={{ color: C.gain }}>R$12,00 direto pra você</span>
+                  <span className="font-bold" style={{ color: C.value }}>R$12,00 direto pra você</span>
                   . Quanto mais indicações, maior o nível e maior o bônus por amigo.
                 </p>
 
@@ -244,8 +311,8 @@ export default function IndiqueGanhePage() {
                   <div
                     className="rounded-2xl p-4 flex flex-col gap-3"
                     style={{
-                      background: "rgba(6, 32, 20, 0.72)",
-                      border: `1px solid rgba(34, 197, 94, 0.38)`,
+                      background: "rgba(255,255,255,0.03)",
+                      border: "1px solid rgba(255,255,255,0.08)",
                     }}
                   >
                     <p className="text-[9px] font-bold uppercase tracking-[0.12em]" style={{ color: "rgba(255,255,255,0.38)" }}>
@@ -254,11 +321,11 @@ export default function IndiqueGanhePage() {
                     <div className="flex items-center gap-2.5 mt-auto">
                       <div
                         className="w-11 h-11 rounded-xl flex items-center justify-center"
-                        style={{ background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.28)" }}
+                        style={{ background: C.valueSoft, border: `1px solid ${C.valueBorder}` }}
                       >
-                        <Banknote size={22} style={{ color: C.gain }} strokeWidth={2} />
+                        <Banknote size={22} style={{ color: C.valueMuted }} strokeWidth={2} />
                       </div>
-                      <span className="text-[20px] font-black tracking-tight" style={{ color: C.gain }}>R$12,00</span>
+                      <span className="text-[20px] font-black tracking-tight" style={{ color: C.value }}>R$12,00</span>
                     </div>
                   </div>
 
@@ -312,16 +379,26 @@ export default function IndiqueGanhePage() {
                 <div
                   className="flex-1 flex flex-col items-center justify-center gap-1 py-4 px-3 min-w-0"
                   style={{
-                    background: "rgba(8, 42, 28, 0.88)",
-                    borderLeft: "1px solid rgba(34, 197, 94, 0.18)",
+                    background: "rgba(212,175,55,0.05)",
+                    borderLeft: `1px solid ${C.valueBorder}`,
                   }}
                 >
-                  <Wallet size={20} style={{ color: C.gold }} strokeWidth={2} />
-                  <span className="text-[26px] font-black leading-none tracking-[-0.02em]" style={{ color: C.gain }}>R$212</span>
+                  <Wallet size={20} style={{ color: C.valueMuted }} strokeWidth={2} />
+                  <span className="text-[26px] font-black leading-none tracking-[-0.02em]" style={{ color: C.value }}>R$212</span>
                   <span className="text-[10px] font-medium text-center leading-snug" style={{ color: "rgba(255,255,255,0.36)" }}>
                     Total recebido
                   </span>
                 </div>
+              </div>
+
+              <div
+                className="hidden md:flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-t border-white/8 px-6 lg:px-8 py-3.5"
+                style={{ background: "rgba(0,0,0,0.22)" }}
+              >
+                <p className="text-[12px] leading-snug max-w-md hidden lg:block" style={{ color: "rgba(255,255,255,0.38)" }}>
+                  Use seu saldo de indicações quando quiser — solicite o saque em poucos passos.
+                </p>
+                <SacarGanhosLink className="shrink-0 w-full sm:w-auto justify-center" />
               </div>
             </div>
 
@@ -331,8 +408,9 @@ export default function IndiqueGanhePage() {
               <div className="grid grid-cols-3 gap-2">
                 <StatCard Icon={MousePointerClick} iconColor="rgba(255,255,255,0.45)" value="215" label="Cliques" />
                 <StatCard Icon={UserPlus} iconColor={C.gold} value="34+" label="Indicações" valueColor={C.gold} />
-                <StatCard Icon={Wallet} iconColor={C.gain} value="R$212" label="Ganhos" valueColor={C.gain} highlight />
+                <StatCard Icon={Wallet} iconColor={C.valueMuted} value="R$212" label="Ganhos" valueColor={C.value} highlight />
               </div>
+              <SacarGanhosLink variant="pill" className="mt-3" />
             </div>
 
             {/* ── SEU LINK DE INDICAÇÃO — desktop only ── */}
@@ -348,7 +426,7 @@ export default function IndiqueGanhePage() {
                     className="w-full rounded-[10px] px-3.5 py-3 text-[12px] truncate flex items-center gap-2"
                     style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.45)" }}
                   >
-                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: C.gain }} aria-hidden />
+                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: C.valueMuted }} aria-hidden />
                     <span className="truncate">{REF_LINK}</span>
                   </div>
                   <p className="text-[11px] leading-[1.5] pl-0.5" style={{ color: "rgba(255,255,255,0.38)" }}>
@@ -363,7 +441,8 @@ export default function IndiqueGanhePage() {
                   </p>
                 </div>
                 <button
-                  onClick={handleCopy}
+                  type="button"
+                  onClick={() => void handleCopy()}
                   className="h-9 px-4 rounded-[10px] text-[12px] font-black tracking-[0.04em] flex items-center gap-1.5 shrink-0 active:scale-[0.97]"
                   style={{
                     transition: "transform 0.1s ease, background 0.3s ease",
@@ -378,23 +457,29 @@ export default function IndiqueGanhePage() {
                 </button>
                 <div className="flex gap-2 shrink-0">
                   <button
-                    className="flex px-3 items-center justify-center gap-1.5 h-9 rounded-[10px] text-[11px] font-bold whitespace-nowrap"
-                    style={{ background: "#25D36618", border: "1px solid #25D36630", color: "#25D366" }}
                     type="button"
+                    onClick={openWhatsAppInvite}
+                    className="flex px-3 items-center justify-center gap-1.5 h-9 rounded-[10px] text-[11px] font-bold whitespace-nowrap"
+                    style={{
+                      background: "rgba(255,255,255,0.05)",
+                      border: "1px solid rgba(255,255,255,0.10)",
+                      color: "rgba(255,255,255,0.88)",
+                    }}
                   >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" className="shrink-0">
-                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
+                    <svg width="13" height="13" viewBox="0 0 24 24" className="shrink-0" aria-hidden>
+                      <path fill={C.wa} d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
                     </svg>
                     WhatsApp
                   </button>
                   <button
+                    type="button"
+                    onClick={() => void handleShareInvite()}
                     className="flex px-3 items-center justify-center gap-1.5 h-9 rounded-[10px] text-[11px] font-bold whitespace-nowrap"
                     style={{
                       background: "rgba(255,232,186,0.08)",
                       border: "1px solid rgba(212,175,55,0.22)",
                       color: C.goldMid,
                     }}
-                    type="button"
                   >
                     <Share2 size={12} className="shrink-0" style={{ color: C.gold }} />
                     Compartilhar
@@ -479,7 +564,7 @@ export default function IndiqueGanhePage() {
 
                     <span
                       className="text-[12px] font-extrabold px-2.5 py-1 rounded-full shrink-0"
-                      style={{ color: C.gain, background: C.gainSoft, border: "1px solid rgba(34,197,94,0.28)" }}
+                      style={{ color: C.value, background: C.valueSoft, border: `1px solid ${C.valueBorder}` }}
                     >
                       +R$8
                     </span>
@@ -509,7 +594,7 @@ export default function IndiqueGanhePage() {
                   style={{
                     width: "calc(66.67% - 10px)",
                     background: `linear-gradient(90deg, ${C.gold}, ${C.goldMid})`,
-                    boxShadow: `0 0 8px ${C.goldMid}90`,
+                    boxShadow: "0 0 10px rgba(212,175,55,0.2)",
                   }}
                 />
                 {TIERS.map((tier) => {
@@ -520,7 +605,7 @@ export default function IndiqueGanhePage() {
                         className="flex items-center justify-center rounded-full"
                         style={
                           tier.active
-                            ? { width: 44, height: 44, background: "#1A1200", outline: `2.5px solid ${C.gold}`, outlineOffset: 3, boxShadow: `0 0 18px ${C.goldMid}80` }
+                            ? { width: 44, height: 44, background: "#1A1200", outline: `2px solid ${C.gold}`, outlineOffset: 2, boxShadow: "0 0 14px rgba(212,175,55,0.22)" }
                             : { width: 40, height: 40, background: "#0D1425", border: "1px solid rgba(255,255,255,0.08)" }
                         }
                       >
@@ -546,7 +631,7 @@ export default function IndiqueGanhePage() {
                 </div>
                 <div className="flex flex-col items-center gap-2">
                   <ArrowRight size={15} style={{ color: "rgba(255,255,255,0.18)" }} />
-                  <span className="text-[13px] font-extrabold px-3 py-1.5 rounded-[8px]" style={{ background: C.gainSoft, border: "1px solid rgba(34,197,94,0.28)", color: C.gain }}>
+                  <span className="text-[13px] font-extrabold px-3 py-1.5 rounded-[8px]" style={{ background: C.valueSoft, border: `1px solid ${C.valueBorder}`, color: C.value }}>
                     +R$8
                   </span>
                 </div>
@@ -676,20 +761,51 @@ export default function IndiqueGanhePage() {
                 </div>
 
                 <button
-                  onClick={handleCopy}
+                  type="button"
+                  onClick={() => void handleCopy()}
                   className="w-full h-[52px] rounded-[10px] text-[14px] font-black tracking-[0.06em] uppercase  items-center justify-center gap-2 active:scale-[0.98] flex md:hidden"
                   style={{
-                    transition: "transform 0.1s ease, box-shadow 0.3s ease, background 0.3s ease",
+                    transition: "transform 0.1s ease, background 0.3s ease",
                     border: "none",
                     ...(copied
-                      ? { background: `linear-gradient(135deg, #8B6914, ${C.gold} 55%, #FFE8BA)`, color: "#0E141B", boxShadow: `0 0 20px ${C.goldMid}35` }
-                      : { background: `linear-gradient(135deg, #E89520, ${C.goldMid} 50%, #FFD96A)`, color: "#0E141B", boxShadow: `0 0 24px ${C.goldMid}40, 0 4px 14px rgba(0,0,0,0.5)` }
+                      ? { background: `linear-gradient(135deg, #8B6914, ${C.gold} 55%, #FFE8BA)`, color: "#0E141B" }
+                      : { background: `linear-gradient(135deg, #E89520, ${C.goldMid} 50%, #FFD96A)`, color: "#0E141B", boxShadow: "0 2px 12px rgba(0,0,0,0.35)" }
                     ),
                   }}
                 >
                   {copied ? <Check size={16} strokeWidth={3} /> : <Copy size={16} strokeWidth={2.5} />}
                   {copied ? "Link Copiado!" : "Copiar Link Agora"}
                 </button>
+                <div className="grid grid-cols-2 gap-2 md:hidden">
+                  <button
+                    type="button"
+                    onClick={openWhatsAppInvite}
+                    className="flex h-11 items-center justify-center gap-2 rounded-[10px] text-[12px] font-bold"
+                    style={{
+                      background: "rgba(255,255,255,0.05)",
+                      border: "1px solid rgba(255,255,255,0.10)",
+                      color: "rgba(255,255,255,0.9)",
+                    }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill={C.wa} className="shrink-0" aria-hidden>
+                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
+                    </svg>
+                    WhatsApp
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleShareInvite()}
+                    className="flex h-12 items-center justify-center gap-2 rounded-[10px] text-[12px] font-bold"
+                    style={{
+                      background: "rgba(255,232,186,0.08)",
+                      border: "1px solid rgba(212,175,55,0.25)",
+                      color: C.goldMid,
+                    }}
+                  >
+                    <Share2 size={15} className="shrink-0" style={{ color: C.gold }} />
+                    Compartilhar
+                  </button>
+                </div>
               </div>
             </div>
             <div
@@ -766,7 +882,7 @@ export default function IndiqueGanhePage() {
 
                     <span
                       className="text-[12px] font-extrabold px-2.5 py-1 rounded-full shrink-0"
-                      style={{ color: C.gain, background: C.gainSoft, border: "1px solid rgba(34,197,94,0.28)" }}
+                      style={{ color: C.value, background: C.valueSoft, border: `1px solid ${C.valueBorder}` }}
                     >
                       +R$8
                     </span>
@@ -808,6 +924,32 @@ export default function IndiqueGanhePage() {
 }
 
 /* ─── Componentes ─────────────────────────────────────────── */
+
+function SacarGanhosLink({ className = "" }: { className?: string }) {
+  return (
+    <Link
+      href="/saques"
+      className={`inline-flex items-center gap-3 rounded-xl pl-2.5 pr-5 py-2 text-[13px] font-bold tracking-wide transition-all active:scale-[0.98] hover:opacity-95 ${className}`}
+      style={{
+        background: "linear-gradient(135deg, rgba(212,175,55,0.14) 0%, rgba(10,14,25,0.92) 50%)",
+        border: "1px solid rgba(212,175,55,0.38)",
+        color: C.goldMid,
+        boxShadow: "inset 0 1px 0 rgba(255,232,186,0.14)",
+      }}
+    >
+      <span
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
+        style={{
+          background: "linear-gradient(160deg, rgba(255,232,186,0.22) 0%, rgba(212,175,55,0.1) 100%)",
+          border: "1px solid rgba(212,175,55,0.35)",
+        }}
+      >
+        <CircleDollarSign size={22} strokeWidth={2.25} style={{ color: C.gold }} aria-hidden />
+      </span>
+      <span>Sacar ganhos</span>
+    </Link>
+  );
+}
 
 function SmallLabel({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
