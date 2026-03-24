@@ -36,7 +36,7 @@ export default function HomePage() {
             <span
               className="text-3xl sm:text-4xl lg:text-5xl font-extrabold md:font-black uppercase tracking-normal text-nowrap"
               style={{
-                background: "linear-gradient(90deg, #BA901E, #FFE8BA)",
+                background: "linear-gradient(90deg, #D4AF37, #FFE8BA)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
               }}
@@ -110,7 +110,7 @@ export default function HomePage() {
           >
             <Link href="/ranking">
               Ver ranking{" "}
-              <ChevronRight className="w-4 h-4" style={{ color: "#BA901E" }} />
+              <ChevronRight className="w-4 h-4" style={{ color: "#D4AF37" }} />
             </Link>
           </Button>
         </div>

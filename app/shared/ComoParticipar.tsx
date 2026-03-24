@@ -114,7 +114,7 @@ export function ComoParticipar() {
         >
           <Link href="/ranking">
             Ver ranking
-            <ChevronRight className="w-4 h-4" style={{ color: "#BA901E" }} />
+            <ChevronRight className="w-4 h-4" style={{ color: "#D4AF37" }} />
           </Link>
         </Button>
       </div>

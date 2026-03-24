@@ -26,12 +26,15 @@ const C = {
   card: "#0A0E19",
   nested: "rgba(255,255,255,0.04)",
   deep: "#020509",
-  gold: "#BA901E",
+  gold: "#D4AF37",
   goldMid: "#FFE8BA",
   goldLight: "#FFE8BA",
-  blue: "#5B8DEF",
-  green: "#4CAF82",
-  orange: "#FF8C42",
+  /** Platina / “Diamante” sem azul — identidade dourada + neutro premium */
+  platinum: "#C5D0E0",
+  platinumMuted: "rgba(197,208,224,0.55)",
+  /** Verde só para ganhos / crédito (como em palpites: #22C55E) */
+  gain: "#22C55E",
+  gainSoft: "rgba(34,197,94,0.12)",
 } as const;
 
 /* ─── Dados ─── */
@@ -41,38 +44,45 @@ const TIERS: Array<{
     { label: "Bronze", threshold: "0+", active: false, color: "#CD7F32", Icon: Medal },
     { label: "Prata", threshold: "10+", active: false, color: "#A8A9AD", Icon: Medal },
     { label: "Ouro", threshold: "25+", active: true, color: C.gold, Icon: Trophy },
-    { label: "Diamante", threshold: "50+", active: false, color: C.blue, Icon: Gem },
+    { label: "Diamante", threshold: "50+", active: false, color: C.platinum, Icon: Gem },
   ];
 
 const HOW_STEPS = [
   {
     Icon: Link2,
-    color: C.blue,
+    color: C.gold,
     title: "Compartilhe seu link",
     desc: "Envie para amigos pelo WhatsApp, Instagram ou qualquer canal.",
   },
   {
     Icon: Ticket,
-    color: C.orange,
+    color: C.goldMid,
     title: "Amigos compram o ticket",
     desc: "Cada ticket comprado com seu link conta como uma indicação válida.",
   },
   {
     Icon: Zap,
-    color: C.green,
+    color: C.gain,
     title: "Você recebe na hora",
     desc: "R$8 creditados imediatamente após confirmação da compra.",
   },
 ];
 
 const ATIVIDADES = [
-  { initial: "C", name: "Carlos M.", color: C.gold, time: "há 2h atrás" },
-  { initial: "A", name: "Ana Paula", color: C.blue, time: "há 5h atrás" },
-  { initial: "R", name: "Ricardo S.", color: C.orange, time: "há 19h atrás" },
-  { initial: "F", name: "Fernanda L.", color: C.green, time: "há 1d atrás" },
+  { initial: "C", name: "Carlos M.", time: "há 2h atrás" },
+  { initial: "A", name: "Ana Paula", time: "há 5h atrás" },
+  { initial: "R", name: "Ricardo S.", time: "há 19h atrás" },
+  { initial: "F", name: "Fernanda L.", time: "há 1d atrás" },
 ];
 
 const REF_LINK = "https://bolao.com/ref/SEU_CODIGO";
+
+/** Métricas do link — desktop, abaixo do campo (mock; ligar à API depois) */
+const LINK_STATS_DESKTOP = {
+  compartilhamentos: 48,
+  cliquesUnicos: 215,
+  taxaConversao: "15,8",
+} as const;
 
 /* ─── Page ─── */
 export default function IndiqueGanhePage() {
@@ -129,7 +139,7 @@ export default function IndiqueGanhePage() {
               </p>
               <p className="text-[15px] leading-[1.6] mb-5 hidden md:block w-2/3" style={{ color: "rgba(255,255,255,0.45)" }}>
                 Cada amigo que comprar um ticket vale{" "}
-                <span className="font-bold text-[#22C55E]">R$12,00 direto pra você</span>. Quanto mais indicações, maior o nível e maior o bônus por amigo.
+                <span className="font-bold" style={{ color: C.goldMid }}>R$12,00 direto pra você</span>. Quanto mais indicações, maior o nível e maior o bônus por amigo.
               </p>
 
 
@@ -146,7 +156,7 @@ export default function IndiqueGanhePage() {
                     <span className="text-[15px] font-black" style={{ color: C.gold }}>Ouro</span>
                   </div>
                 </div>
-                < div
+                <div
                   className="flex-1 rounded-xl p-3"
                   style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
                 >
@@ -157,25 +167,25 @@ export default function IndiqueGanhePage() {
                 </div>
                 <div
                   className="hidden items-center gap-2 px-3 py-2.5 rounded-[10px] md:flex"
-                  style={{ background: `${C.blue}14`, border: `1px solid ${C.blue}25` }}
+                  style={{ background: "rgba(255,232,186,0.08)", border: "1px solid rgba(212,175,55,0.22)" }}
                 >
-                  <Zap size={13} style={{ color: C.blue }} className="shrink-0" />
+                  <Zap size={13} style={{ color: C.gold }} className="shrink-0" />
                   <p className="text-[11px] leading-[1.55]" style={{ color: "rgba(255,255,255,0.45)" }}>
-                    Faltam <span className="font-bold text-white">16 indicações</span> para{" "}
-                    <span className="font-bold" style={{ color: C.blue }}>Diamante</span>{" "}—{" "}
-                    <span className="font-bold" style={{ color: C.goldMid }}>ganhe R$20/ind</span>
+                  Faltam <span className="font-bold text-white">16 indicações</span> para{" "}
+                  <span className="font-bold" style={{ color: C.platinum }}>Diamante</span>{" "}—{" "}
+                  <span className="font-bold" style={{ color: C.goldMid }}>ganhe R$20/ind</span>
                   </p>
                 </div>
               </div>
 
               <div
                 className="flex items-center gap-2 px-3 py-2.5 rounded-[10px] md:hidden"
-                style={{ background: `${C.blue}14`, border: `1px solid ${C.blue}25` }}
+                style={{ background: "rgba(255,232,186,0.08)", border: "1px solid rgba(212,175,55,0.22)" }}
               >
-                <Zap size={13} style={{ color: C.blue }} className="shrink-0" />
+                <Zap size={13} style={{ color: C.gold }} className="shrink-0" />
                 <p className="text-[11px] leading-[1.55]" style={{ color: "rgba(255,255,255,0.45)" }}>
                   Faltam <span className="font-bold text-white">16 indicações</span> para{" "}
-                  <span className="font-bold" style={{ color: C.blue }}>Diamante</span>{" "}—{" "}
+                  <span className="font-bold" style={{ color: C.platinum }}>Diamante</span>{" "}—{" "}
                   <span className="font-bold" style={{ color: C.goldMid }}>ganhe R$20/ind</span>
                 </p>
               </div>
@@ -186,8 +196,8 @@ export default function IndiqueGanhePage() {
               <SmallLabel className="mb-2.5">Seu Progresso</SmallLabel>
               <div className="grid grid-cols-3 gap-2">
                 <StatCard Icon={MousePointerClick} iconColor="rgba(255,255,255,0.45)" value="215" label="Cliques" />
-                <StatCard Icon={UserPlus} iconColor={C.orange} value="34+" label="Indicações" valueColor={C.orange} />
-                <StatCard Icon={Wallet} iconColor={C.green} value="R$212" label="Ganhos" valueColor={C.green} highlight />
+                <StatCard Icon={UserPlus} iconColor={C.gold} value="34+" label="Indicações" valueColor={C.gold} />
+                <StatCard Icon={Wallet} iconColor={C.gain} value="R$212" label="Ganhos" valueColor={C.gain} highlight />
               </div>
             </div>
 
@@ -198,12 +208,25 @@ export default function IndiqueGanhePage() {
             >
               <SectionHeader>Seu link de indicação</SectionHeader>
 
-              <div className="flex items-center gap-2.5 mt-4 mb-3">
-                <div
-                  className="flex-1 rounded-[10px] px-3.5 py-3 text-[12px] truncate"
-                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.45)" }}
-                >
-                  {REF_LINK}
+              <div className="flex items-start gap-2.5 mt-4">
+                <div className="flex-1 min-w-0 flex flex-col gap-2">
+                  <div
+                    className="w-full rounded-[10px] px-3.5 py-3 text-[12px] truncate flex items-center gap-2"
+                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.45)" }}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: C.gain, boxShadow: `0 0 6px ${C.gain}80` }} aria-hidden />
+                    <span className="truncate">{REF_LINK}</span>
+                  </div>
+                  <p className="text-[11px] leading-[1.5] pl-0.5" style={{ color: "rgba(255,255,255,0.38)" }}>
+                    <span className="font-bold text-white">{LINK_STATS_DESKTOP.compartilhamentos}</span>
+                    {" "}compartilhamentos
+                    <span className="mx-1.5 opacity-40">·</span>
+                    <span className="font-bold text-white">{LINK_STATS_DESKTOP.cliquesUnicos}</span>
+                    {" "}cliques únicos
+                    <span className="mx-1.5 opacity-40">·</span>
+                    <span className="font-bold text-white">{LINK_STATS_DESKTOP.taxaConversao}%</span>
+                    {" "}taxa de conversão
+                  </p>
                 </div>
                 <button
                   onClick={handleCopy}
@@ -211,7 +234,7 @@ export default function IndiqueGanhePage() {
                   style={{
                     transition: "transform 0.1s ease, background 0.3s ease",
                     ...(copied
-                      ? { background: "linear-gradient(135deg, #2E7D52, #43A874)", color: "#fff" }
+                      ? { background: `linear-gradient(135deg, #8B6914, ${C.gold} 55%, #FFE8BA)`, color: "#0E141B" }
                       : { background: `linear-gradient(135deg, #E89520, ${C.goldMid} 50%, #FFD96A)`, color: "#0E141B" }
                     ),
                   }}
@@ -219,40 +242,37 @@ export default function IndiqueGanhePage() {
                   {copied ? <Check size={14} strokeWidth={3} /> : <Copy size={14} strokeWidth={2.5} />}
                   {copied ? "Copiado!" : "Copiar Link"}
                 </button>
+                <div className="flex gap-2.5 shrink-0">
+                  <button
+                    className="flex px-4 items-center justify-center gap-2 h-[42px] rounded-[10px] text-[12px] font-bold whitespace-nowrap"
+                    style={{ background: "#25D36618", border: "1px solid #25D36630", color: "#25D366" }}
+                    type="button"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" className="shrink-0">
+                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
+                    </svg>
+                    WhatsApp
+                  </button>
+                  <button
+                    className="flex px-4 items-center justify-center gap-2 h-[42px] rounded-[10px] text-[12px] font-bold whitespace-nowrap"
+                    style={{
+                      background: "rgba(255,232,186,0.08)",
+                      border: "1px solid rgba(212,175,55,0.22)",
+                      color: C.goldMid,
+                    }}
+                    type="button"
+                  >
+                    <Share2 size={13} className="shrink-0" style={{ color: C.gold }} />
+                    Compartilhar
+                  </button>
+                </div>
               </div>
 
-              <div className="flex gap-2.5">
-                <button
-                  className="flex-1 flex items-center justify-center gap-2 h-[38px] rounded-[10px] text-[12px] font-bold"
-                  style={{ background: "#25D36618", border: "1px solid #25D36630", color: "#25D366" }}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
-                  </svg>
-                  WhatsApp
-                </button>
-                <button
-                  className="flex-1 flex items-center justify-center gap-2 h-[38px] rounded-[10px] text-[12px] font-bold"
-                  style={{ background: "#2AABEE18", border: "1px solid #2AABEE30", color: "#2AABEE" }}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.96 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
-                  </svg>
-                  Telegram
-                </button>
-                <button
-                  className="flex-1 flex items-center justify-center gap-2 h-[38px] rounded-[10px] text-[12px] font-bold"
-                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)", color: "rgba(255,255,255,0.55)" }}
-                >
-                  <Share2 size={13} />
-                  Compartilhar
-                </button>
-              </div>
             </div>
 
             {/* ── COMO FUNCIONA ── */}
             <div
-              className="rounded-2xl p-5"
+              className="rounded-2xl p-5 hidden md:block"
               style={{ background: C.card, border: "1px solid rgba(255,255,255,0.06)" }}
             >
               <SectionHeader>Como Funciona</SectionHeader>
@@ -325,7 +345,7 @@ export default function IndiqueGanhePage() {
 
                     <span
                       className="text-[12px] font-extrabold px-2.5 py-1 rounded-full shrink-0"
-                      style={{ color: C.green, background: `${C.green}18`, border: `1px solid ${C.green}28` }}
+                      style={{ color: C.gain, background: C.gainSoft, border: "1px solid rgba(34,197,94,0.28)" }}
                     >
                       +R$8
                     </span>
@@ -392,13 +412,13 @@ export default function IndiqueGanhePage() {
                 </div>
                 <div className="flex flex-col items-center gap-2">
                   <ArrowRight size={15} style={{ color: "rgba(255,255,255,0.18)" }} />
-                  <span className="text-[13px] font-extrabold px-3 py-1.5 rounded-[8px]" style={{ background: "#22C55E18", border: "1px solid #22C55E30", color: "#22C55E" }}>
+                  <span className="text-[13px] font-extrabold px-3 py-1.5 rounded-[8px]" style={{ background: C.gainSoft, border: "1px solid rgba(34,197,94,0.28)", color: C.gain }}>
                     +R$8
                   </span>
                 </div>
                 <div className="text-right">
                   <p className="text-[9px] font-bold uppercase tracking-[0.12em] mb-1.5" style={{ color: "rgba(255,255,255,0.30)" }}>No Diamante</p>
-                  <p className="text-[36px] font-black leading-none tracking-[-0.02em]" style={{ background: "linear-gradient(135deg, #7EC8FF, #5B8DEF)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
+                  <p className="text-[36px] font-black leading-none tracking-[-0.02em]" style={{ background: `linear-gradient(135deg, #F8FAFC, ${C.platinum} 45%, ${C.goldLight} 95%)`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
                     R$20
                   </p>
                   <p className="text-[11px] mt-1.5" style={{ color: "rgba(255,255,255,0.28)" }}>por indic.</p>
@@ -406,15 +426,15 @@ export default function IndiqueGanhePage() {
               </div>
 
               <div className="h-[6px] rounded-full overflow-hidden mb-3" style={{ background: "rgba(255,255,255,0.07)" }}>
-                <div className="h-full w-[68%] rounded-full" style={{ background: `linear-gradient(90deg, ${C.gold}, ${C.goldMid} 60%, ${C.blue})` }} />
+                <div className="h-full w-[68%] rounded-full" style={{ background: `linear-gradient(90deg, ${C.gold}, ${C.goldMid} 55%, ${C.platinumMuted})` }} />
               </div>
               <div className="flex items-center justify-between">
                 <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.38)" }}>
                   <span className="font-bold text-white">34</span> de 50 indicações
                 </p>
                 <div className="flex items-center gap-1">
-                  <Gem size={10} style={{ color: C.blue }} />
-                  <span className="text-[12px] font-bold" style={{ color: C.blue }}>+16 para Diamante</span>
+                  <Gem size={10} style={{ color: C.platinum }} />
+                  <span className="text-[12px] font-bold" style={{ color: C.platinum }}>+16 para Diamante</span>
                 </div>
               </div>
             </div>
@@ -448,7 +468,7 @@ export default function IndiqueGanhePage() {
                     type="range" min={1} max={50} value={amigos}
                     onChange={(e) => setAmigos(Number(e.target.value))}
                     className="flex-1 accent-[#FAD98B] cursor-pointer"
-                    style={{ height: 4 }}
+                    style={{ height: 40 }}
                   />
 
                   <button
@@ -479,7 +499,7 @@ export default function IndiqueGanhePage() {
                 <div
                   className="rounded-[14px] px-5 pt-5 pb-4 mb-4 text-center"
                   style={{
-                    background: "linear-gradient(135deg, #FFD70012 0%, #F973160D 100%)",
+                    background: "linear-gradient(135deg, rgba(212,175,55,0.08) 0%, rgba(255,232,186,0.06) 100%)",
                     border: "1px solid #FFE8BA33",
                   }}
                 >
@@ -528,7 +548,7 @@ export default function IndiqueGanhePage() {
                     transition: "transform 0.1s ease, box-shadow 0.3s ease, background 0.3s ease",
                     border: "none",
                     ...(copied
-                      ? { background: "linear-gradient(135deg, #2E7D52, #43A874)", color: "#fff", boxShadow: "0 0 20px rgba(67,168,116,0.25)" }
+                      ? { background: `linear-gradient(135deg, #8B6914, ${C.gold} 55%, #FFE8BA)`, color: "#0E141B", boxShadow: `0 0 20px ${C.goldMid}35` }
                       : { background: `linear-gradient(135deg, #E89520, ${C.goldMid} 50%, #FFD96A)`, color: "#0E141B", boxShadow: `0 0 24px ${C.goldMid}40, 0 4px 14px rgba(0,0,0,0.5)` }
                     ),
                   }}
@@ -538,7 +558,47 @@ export default function IndiqueGanhePage() {
                 </button>
               </div>
             </div>
+            <div
+              className="rounded-2xl p-5 block md:hidden"
+              style={{ background: C.card, border: "1px solid rgba(255,255,255,0.06)" }}
+            >
+              <SectionHeader>Como Funciona</SectionHeader>
 
+              <div className="flex flex-col md:flex-row gap-2.5 mt-4">
+                {HOW_STEPS.map((step, i) => {
+                  const Icon = step.Icon;
+                  return (
+                    <div
+                      key={i}
+                      className="flex md:flex-col items-start md:items-start gap-3.5 rounded-[14px] p-4 md:flex-1"
+                      style={{ background: C.nested, border: "1px solid rgba(255,255,255,0.06)" }}
+                    >
+                      <div
+                        className="w-[44px] h-[44px] rounded-[12px] flex items-center justify-center shrink-0"
+                        style={{ background: `${step.color}18`, border: `1px solid ${step.color}28` }}
+                      >
+                        <Icon size={20} style={{ color: step.color }} />
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span
+                            className="w-[18px] h-[18px] rounded-full flex items-center justify-center text-[10px] font-black shrink-0"
+                            style={{ background: `${step.color}25`, color: step.color }}
+                          >
+                            {i + 1}
+                          </span>
+                          <p className="text-[13px] font-extrabold text-white leading-none">{step.title}</p>
+                        </div>
+                        <p className="text-[11px] leading-[1.55]" style={{ color: "rgba(255,255,255,0.38)" }}>
+                          {step.desc}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
             {/* ── ATIVIDADE RECENTE ── */}
             <div
               className="rounded-2xl p-5 block md:hidden"
@@ -554,7 +614,7 @@ export default function IndiqueGanhePage() {
                     style={i < ATIVIDADES.length - 1 ? { borderBottom: "1px solid rgba(255,255,255,0.05)" } : {}}
                   >
                     <div className="flex items-center gap-3">
-                    <div
+                      <div
                         className="w-[40px] h-[40px] rounded-full flex items-center justify-center text-[15px] font-black shrink-0"
                         style={{ background: `rgba(255, 255, 255, 0.07)`, border: `1.5px solid rgba(255, 255, 255, 0.2)`, color: "rgba(255, 255, 255, 0.5)" }}
                       >
@@ -572,7 +632,7 @@ export default function IndiqueGanhePage() {
 
                     <span
                       className="text-[12px] font-extrabold px-2.5 py-1 rounded-full shrink-0"
-                      style={{ color: C.green, background: `${C.green}18`, border: `1px solid ${C.green}28` }}
+                      style={{ color: C.gain, background: C.gainSoft, border: "1px solid rgba(34,197,94,0.28)" }}
                     >
                       +R$8
                     </span>
@@ -643,8 +703,8 @@ function StatCard({
     <div
       className="rounded-2xl p-4 flex flex-col items-center gap-2.5"
       style={{
-        background: highlight ? "#071410" : C.nested,
-        border: highlight ? "1px solid rgba(76,175,130,0.15)" : "1px solid rgba(255,255,255,0.07)",
+        background: highlight ? "rgba(6,20,14,0.65)" : C.nested,
+        border: highlight ? "1px solid rgba(34,197,94,0.22)" : "1px solid rgba(255,255,255,0.07)",
       }}
     >
       <div
@@ -673,8 +733,8 @@ function StatCardInline({
     <div
       className="flex-1 flex items-center gap-3 rounded-xl px-4 py-3"
       style={{
-        background: highlight ? "#071410" : "rgba(255,255,255,0.03)",
-        border: highlight ? "1px solid rgba(76,175,130,0.15)" : "1px solid rgba(255,255,255,0.07)",
+        background: highlight ? "rgba(6,20,14,0.65)" : "rgba(255,255,255,0.03)",
+        border: highlight ? "1px solid rgba(34,197,94,0.22)" : "1px solid rgba(255,255,255,0.07)",
       }}
     >
       <div
