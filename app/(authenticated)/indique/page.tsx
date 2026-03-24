@@ -19,7 +19,11 @@ import {
   ChevronRight,
   BarChart3,
   Share2,
+  Sparkles,
+  Banknote,
+  Target,
 } from "lucide-react";
+import bgPalpitesDesk from "@/app/assets/bg-palpites-desktop.png";
 
 /* ─── Design tokens ─── */
 const C = {
@@ -99,7 +103,7 @@ export default function IndiqueGanhePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#03060D] pb-8">
+    <div className="min-h-screen pb-8">
       <style>{`
         @keyframes indiqueFade {
           from { opacity: 0.45; }
@@ -107,12 +111,24 @@ export default function IndiqueGanhePage() {
         }
       `}</style>
 
-      <div className="max-w-[430px] md:max-w-[1400px] mx-auto px-3.5 md:px-8 pt-3.5 md:pt-8">
+      <div className="w-full max-w-lg mx-auto px-4 pt-6 pb-8 lg:max-w-7xl">
+
+        {/* Background desktop — cobre a tela inteira */}
+        <div
+          className="fixed inset-0 pointer-events-none hidden lg:block -z-10"
+          style={{
+            backgroundImage: `url(${bgPalpitesDesk.src})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center top",
+            opacity: 0.07,
+          }}
+        />
         <div className="flex flex-col gap-3 md:grid md:grid-cols-[1fr_380px] md:gap-6 md:items-start">
 
           <div className="flex flex-col gap-3 md:gap-4">
+            {/* Hero — mobile */}
             <div
-              className="rounded-[18px] p-5"
+              className="rounded-[18px] p-5 md:hidden"
               style={{ background: C.card, border: "1px solid rgba(255,255,255,0.07)" }}
             >
               <div className="mb-4">
@@ -121,27 +137,19 @@ export default function IndiqueGanhePage() {
                   style={{ background: `${C.gold}1A`, border: `1px solid ${C.gold}45` }}
                 >
                   <Gift size={11} style={{ color: C.goldLight }} />
-                  <span className="text-[10px] font-extrabold uppercase tracking-[0.1em]" style={{ color: C.goldLight }}>
+                  <span className="text-[10px] font-extrabold uppercase tracking-widest" style={{ color: C.goldLight }}>
                     Programa de Indicação
                   </span>
                 </span>
               </div>
 
-              <h1 className="text-[26px] font-black text-white leading-[1.2] tracking-[-0.01em] mb-2.5 block md:hidden">
+              <h1 className="text-[26px] font-black text-white leading-[1.2] tracking-[-0.01em] mb-2.5">
                 Indique amigos e<br />ganhe dinheiro
               </h1>
-              <h1 className="text-[38px] font-black text-white leading-[1.2] tracking-[-0.01em] mb-2.5 hidden md:block">
-                Indique amigos e <span className="text-[#FFE8BA]"> ganhe dinheiro</span>
-              </h1>
-              <p className="text-[13px] leading-[1.6] mb-5 block md:hidden" style={{ color: "rgba(255,255,255,0.45)" }}>
+              <p className="text-[13px] leading-[1.6] mb-5" style={{ color: "rgba(255,255,255,0.45)" }}>
                 Cada amigo que comprar um ticket rende{" "}
                 <span className="font-bold" style={{ color: C.goldMid }}>R$12,00</span> direto pra você.
               </p>
-              <p className="text-[15px] leading-[1.6] mb-5 hidden md:block w-2/3" style={{ color: "rgba(255,255,255,0.45)" }}>
-                Cada amigo que comprar um ticket vale{" "}
-                <span className="font-bold" style={{ color: C.goldMid }}>R$12,00 direto pra você</span>. Quanto mais indicações, maior o nível e maior o bônus por amigo.
-              </p>
-
 
               <div className="flex gap-2.5 mb-4">
                 <div
@@ -165,21 +173,10 @@ export default function IndiqueGanhePage() {
                   </p>
                   <p className="text-[18px] font-black text-white tracking-[-0.01em]">R$12,00</p>
                 </div>
-                <div
-                  className="hidden items-center gap-2 px-3 py-2.5 rounded-[10px] md:hidden"
-                  style={{ background: "rgba(255,232,186,0.08)", border: "1px solid rgba(212,175,55,0.22)" }}
-                >
-                  <Zap size={13} style={{ color: C.gold }} className="shrink-0" />
-                  <p className="text-[11px] leading-[1.55]" style={{ color: "rgba(255,255,255,0.45)" }}>
-                  Faltam <span className="font-bold text-white">16 indicações</span> para{" "}
-                  <span className="font-bold" style={{ color: C.platinum }}>Diamante</span>{" "}—{" "}
-                  <span className="font-bold" style={{ color: C.goldMid }}>ganhe R$20/ind</span>
-                  </p>
-                </div>
               </div>
 
               <div
-                className="flex items-center gap-2 px-3 py-2.5 rounded-[10px] md:hidden"
+                className="flex items-center gap-2 px-3 py-2.5 rounded-[10px]"
                 style={{ background: "rgba(255,232,186,0.08)", border: "1px solid rgba(212,175,55,0.22)" }}
               >
                 <Zap size={13} style={{ color: C.gold }} className="shrink-0" />
@@ -188,6 +185,143 @@ export default function IndiqueGanhePage() {
                   <span className="font-bold" style={{ color: C.platinum }}>Diamante</span>{" "}—{" "}
                   <span className="font-bold" style={{ color: C.goldMid }}>ganhe R$20/ind</span>
                 </p>
+              </div>
+            </div>
+
+            {/* Hero — desktop (layout referência) */}
+            <div
+              className="hidden md:block rounded-[22px] overflow-hidden relative"
+              style={{
+                background: C.card,
+                border: "1px solid rgba(255,255,255,0.07)",
+              }}
+            >
+              <div className="relative z-1 px-8 pt-8 pb-6">
+                <div className="mb-5">
+                  <span
+                    className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full"
+                    style={{ background: "rgba(212,175,55,0.08)", border: `1px solid rgba(212,175,55,0.42)` }}
+                  >
+                    <Sparkles size={13} style={{ color: C.gold }} strokeWidth={2.2} />
+                    <span className="text-[10px] font-extrabold uppercase tracking-[0.14em]" style={{ color: C.goldMid }}>
+                      Programa de Indicação
+                    </span>
+                  </span>
+                </div>
+
+                <h1 className="text-[40px] font-black text-white leading-[1.15] tracking-[-0.02em] mb-4 max-w-[720px]">
+                  Indique amigos e ganhe{" "}
+                  <span style={{ color: C.goldMid }}>dinheiro</span>
+                </h1>
+                <p className="text-[15px] leading-[1.65] max-w-[640px]" style={{ color: "rgba(255,255,255,0.42)" }}>
+                  Cada amigo que comprar um ticket vale{" "}
+                  <span className="font-bold" style={{ color: C.gain }}>R$12,00 direto pra você</span>
+                  . Quanto mais indicações, maior o nível e maior o bônus por amigo.
+                </p>
+
+                <div className="grid grid-cols-3 gap-4 mt-8">
+                  <div
+                    className="rounded-2xl p-4 flex flex-col gap-3"
+                    style={{
+                      background: "rgba(212,175,55,0.06)",
+                      border: `1px solid rgba(212,175,55,0.35)`,
+                    }}
+                  >
+                    <p className="text-[9px] font-bold uppercase tracking-[0.12em]" style={{ color: "rgba(255,255,255,0.38)" }}>
+                      Nível atual
+                    </p>
+                    <div className="flex items-center gap-2.5 mt-auto">
+                      <div
+                        className="w-11 h-11 rounded-xl flex items-center justify-center"
+                        style={{ background: "rgba(212,175,55,0.12)", border: "1px solid rgba(212,175,55,0.25)" }}
+                      >
+                        <Medal size={22} style={{ color: C.gold }} strokeWidth={2} />
+                      </div>
+                      <span className="text-[20px] font-black tracking-tight" style={{ color: C.gold }}>Ouro</span>
+                    </div>
+                  </div>
+
+                  <div
+                    className="rounded-2xl p-4 flex flex-col gap-3"
+                    style={{
+                      background: "rgba(6, 32, 20, 0.72)",
+                      border: `1px solid rgba(34, 197, 94, 0.38)`,
+                    }}
+                  >
+                    <p className="text-[9px] font-bold uppercase tracking-[0.12em]" style={{ color: "rgba(255,255,255,0.38)" }}>
+                      Por indicação
+                    </p>
+                    <div className="flex items-center gap-2.5 mt-auto">
+                      <div
+                        className="w-11 h-11 rounded-xl flex items-center justify-center"
+                        style={{ background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.28)" }}
+                      >
+                        <Banknote size={22} style={{ color: C.gain }} strokeWidth={2} />
+                      </div>
+                      <span className="text-[20px] font-black tracking-tight" style={{ color: C.gain }}>R$12,00</span>
+                    </div>
+                  </div>
+
+                  <div
+                    className="rounded-2xl p-4 flex flex-col justify-center min-h-[108px]"
+                    style={{
+                      background: "rgba(255,255,255,0.03)",
+                      border: "1px solid rgba(255,255,255,0.08)",
+                    }}
+                  >
+                    <div className="flex items-start gap-2.5">
+                      <Zap size={18} style={{ color: C.gold }} className="shrink-0 mt-0.5" />
+                      <p className="text-[13px] font-semibold leading-[1.45]" style={{ color: "rgba(255,255,255,0.45)" }}>
+                        <span className="text-white font-bold">+ 16 ind.</span>
+                        {" "}para{" "}
+                        <span className="inline-flex items-center gap-0.5 text-white font-bold">
+                          <Gem size={14} style={{ color: C.platinum }} className="inline shrink-0" strokeWidth={2} />
+                          <span style={{ color: C.platinum }}>Diamante</span>
+                        </span>
+                        {" "}
+                        <span className="font-bold" style={{ color: C.goldMid }}>R$20/ind.</span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                className="relative z-1 flex justify-between items-stretch border-t border-white/8"
+                style={{ background: "rgba(0,0,0,0.2)" }}
+              >
+                <div className="flex-1 flex flex-col items-center justify-center gap-1 py-4 px-3 min-w-0">
+                  <MousePointerClick size={20} style={{ color: "#FEC554" }} strokeWidth={2} />
+                  <span className="text-[26px] font-black text-white leading-none tracking-[-0.02em]">215</span>
+                  <span className="text-[10px] font-medium text-center leading-snug" style={{ color: "rgba(255,255,255,0.36)" }}>
+                    Cliques no seu link
+                  </span>
+                </div>
+
+                <div
+                  className="flex-1 flex flex-col items-center justify-center gap-1 py-4 px-3 min-w-0 border-l border-r border-white/6"
+                  style={{ background: "rgba(255,255,255,0.04)" }}
+                >
+                  <Target size={20} style={{ color: C.goldMid }} strokeWidth={2} />
+                  <span className="text-[26px] font-black text-white leading-none tracking-[-0.02em]">34+</span>
+                  <span className="text-[10px] font-medium text-center leading-snug" style={{ color: "rgba(255,255,255,0.36)" }}>
+                    Indicações confirmadas
+                  </span>
+                </div>
+
+                <div
+                  className="flex-1 flex flex-col items-center justify-center gap-1 py-4 px-3 min-w-0"
+                  style={{
+                    background: "rgba(8, 42, 28, 0.88)",
+                    borderLeft: "1px solid rgba(34, 197, 94, 0.18)",
+                  }}
+                >
+                  <Wallet size={20} style={{ color: C.gold }} strokeWidth={2} />
+                  <span className="text-[26px] font-black leading-none tracking-[-0.02em]" style={{ color: C.gain }}>R$212</span>
+                  <span className="text-[10px] font-medium text-center leading-snug" style={{ color: "rgba(255,255,255,0.36)" }}>
+                    Total recebido
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -214,7 +348,7 @@ export default function IndiqueGanhePage() {
                     className="w-full rounded-[10px] px-3.5 py-3 text-[12px] truncate flex items-center gap-2"
                     style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.45)" }}
                   >
-                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: C.gain, boxShadow: `0 0 6px ${C.gain}80` }} aria-hidden />
+                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: C.gain }} aria-hidden />
                     <span className="truncate">{REF_LINK}</span>
                   </div>
                   <p className="text-[11px] leading-[1.5] pl-0.5" style={{ color: "rgba(255,255,255,0.38)" }}>
@@ -230,7 +364,7 @@ export default function IndiqueGanhePage() {
                 </div>
                 <button
                   onClick={handleCopy}
-                  className="h-[42px] px-5 rounded-[10px] text-[13px] font-black tracking-[0.04em] flex items-center gap-2 shrink-0 active:scale-[0.97]"
+                  className="h-9 px-4 rounded-[10px] text-[12px] font-black tracking-[0.04em] flex items-center gap-1.5 shrink-0 active:scale-[0.97]"
                   style={{
                     transition: "transform 0.1s ease, background 0.3s ease",
                     ...(copied
@@ -239,22 +373,22 @@ export default function IndiqueGanhePage() {
                     ),
                   }}
                 >
-                  {copied ? <Check size={14} strokeWidth={3} /> : <Copy size={14} strokeWidth={2.5} />}
+                  {copied ? <Check size={13} strokeWidth={3} /> : <Copy size={13} strokeWidth={2.5} />}
                   {copied ? "Copiado!" : "Copiar Link"}
                 </button>
-                <div className="flex gap-2.5 shrink-0">
+                <div className="flex gap-2 shrink-0">
                   <button
-                    className="flex px-4 items-center justify-center gap-2 h-[42px] rounded-[10px] text-[12px] font-bold whitespace-nowrap"
+                    className="flex px-3 items-center justify-center gap-1.5 h-9 rounded-[10px] text-[11px] font-bold whitespace-nowrap"
                     style={{ background: "#25D36618", border: "1px solid #25D36630", color: "#25D366" }}
                     type="button"
                   >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" className="shrink-0">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" className="shrink-0">
                       <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
                     </svg>
                     WhatsApp
                   </button>
                   <button
-                    className="flex px-4 items-center justify-center gap-2 h-[42px] rounded-[10px] text-[12px] font-bold whitespace-nowrap"
+                    className="flex px-3 items-center justify-center gap-1.5 h-9 rounded-[10px] text-[11px] font-bold whitespace-nowrap"
                     style={{
                       background: "rgba(255,232,186,0.08)",
                       border: "1px solid rgba(212,175,55,0.22)",
@@ -262,7 +396,7 @@ export default function IndiqueGanhePage() {
                     }}
                     type="button"
                   >
-                    <Share2 size={13} className="shrink-0" style={{ color: C.gold }} />
+                    <Share2 size={12} className="shrink-0" style={{ color: C.gold }} />
                     Compartilhar
                   </button>
                 </div>
