@@ -35,7 +35,7 @@ export function Header() {
               key={label}
               href={href}
               className="text-sm font-medium transition-colors hover:text-white"
-              style={{ color: isActive ? "#FFAF2F" : "rgba(255,255,255,0.55)" }}
+              style={{ color: isActive ? "#BA901E" : "rgba(255,255,255,0.55)" }}
             >
               {label}
             </Link>
@@ -53,7 +53,7 @@ export function Header() {
           href="/cadastrar"
           className="flex items-center gap-2 pl-5 pr-5 font-bold text-sm relative z-10 whitespace-nowrap"
           style={{
-            background: "linear-gradient(135deg, #FFAF2F 0%, #FFD577 100%)",
+            background: "linear-gradient(135deg, #BA901E 0%, #FFD577 100%)",
             color: "#0E141B",
             clipPath: "polygon(0 0, 100% 0, calc(100% - 16px) 100%, 0 100%)",
           }}

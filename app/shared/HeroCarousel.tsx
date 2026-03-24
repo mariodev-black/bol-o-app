@@ -98,7 +98,7 @@ export function HeroCarousel() {
               height: 8,
               background:
                 i === current
-                  ? "linear-gradient(90deg, #FFE8BA, #FFAF2F)"
+                  ? "linear-gradient(90deg, #FFE8BA, #BA901E)"
                   : "rgba(255,255,255,0.3)",
             }}
             aria-label={`Slide ${i + 1}`}

@@ -58,7 +58,7 @@ export function SistemaPontuacao() {
                 <span
                   className="text-2xl font-bold"
                   style={{
-                    background: "linear-gradient(180deg, #FFE8BA 0%, #FFAF2F 100%)",
+                    background: "linear-gradient(180deg, #FFE8BA 0%, #BA901E 100%)",
                     WebkitBackgroundClip: "text",
                     WebkitTextFillColor: "transparent",
                     backgroundClip: "text",
@@ -99,7 +99,7 @@ export function SistemaPontuacao() {
             <p
               className="text-2xl sm:text-4xl font-black uppercase text-center leading-tight tracking-wide"
               style={{
-                background: "linear-gradient(180deg, #FFF9F3 0%, #FFE8BA 40%, #FFAF2F 100%)",
+                background: "linear-gradient(180deg, #FFF9F3 0%, #FFE8BA 40%, #BA901E 100%)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
                 backgroundClip: "text",

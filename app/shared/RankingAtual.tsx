@@ -634,7 +634,7 @@ export function RankingAtual() {
                   className="flex items-center justify-center w-7 h-7 rounded-full ml-2"
                   style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
                 >
-                  <ChevronRight className="w-4 h-4" style={{ color: "#FFAF2F" }} />
+                  <ChevronRight className="w-4 h-4" style={{ color: "#BA901E" }} />
                 </div>
               </Link>
             </div>
@@ -645,7 +645,7 @@ export function RankingAtual() {
             <p
               className="relative text-xs md:text-[19px] font-semibold uppercase tracking-widest mb-6"
               style={{
-                background: "linear-gradient(180deg, #FFE8BA 0%, #FFAF2F 100%)",
+                background: "linear-gradient(180deg, #FFE8BA 0%, #BA901E 100%)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
                 backgroundClip: "text",
@@ -668,7 +668,7 @@ export function RankingAtual() {
                   <span
                     className="text-[19px] sm:text-4xl font-bold"
                     style={{
-                      background: "linear-gradient(180deg, #FFE8BA 0%, #FFAF2F 100%)",
+                      background: "linear-gradient(180deg, #FFE8BA 0%, #BA901E 100%)",
                       WebkitBackgroundClip: "text",
                       WebkitTextFillColor: "transparent",
                       backgroundClip: "text",

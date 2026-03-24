@@ -35,7 +35,7 @@ export function NavBottom() {
               style={
                 active
                   ? {
-                    background: "linear-gradient(180deg, #FFE8BA 0%, #FFAF2F 100%)",
+                    background: "linear-gradient(180deg, #FFE8BA 0%, #BA901E 100%)",
                     boxShadow: "0 0 16px rgba(255,175,47,0.6), 0 0 32px rgba(255,175,47,0.25)",
                   }
                   : { background: "transparent" }
@@ -52,7 +52,7 @@ export function NavBottom() {
             <span
               className="text-[11px] font-medium leading-none"
               style={{
-                color: active ? "#FFAF2F" : "rgba(255,255,255,0.45)",
+                color: active ? "#BA901E" : "rgba(255,255,255,0.45)",
               }}
             >
               {label}

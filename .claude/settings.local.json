@@ -6,7 +6,12 @@
       "Bash(python3:*)",
       "Bash(node:*)",
       "Bash(cat:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(ls E:/bol-o-app/app/\\\\\\(authenticated\\\\\\)/components/)",
+      "Bash(ls \"E:/bol-o-app/app/\\(authenticated\\)/indique/\")",
+      "Bash(ls \"E:/bol-o-app/app/\\(public\\)/\")",
+      "Bash(ls \"E:/bol-o-app/app/\\(authenticated\\)/dashboard/\")",
+      "Bash(ls \"E:/bol-o-app/app/\\(authenticated\\)/palpites/\")"
     ]
   }
 }

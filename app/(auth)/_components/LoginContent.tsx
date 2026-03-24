@@ -20,7 +20,7 @@ export function LoginContent() {
           fontWeight: 900,
           textTransform: "uppercase",
           lineHeight: 1.1,
-          background: "linear-gradient(90deg, #FFAF2F 0%, #FFE085 100%)",
+          background: "linear-gradient(90deg, #BA901E 0%, #FFE085 100%)",
           WebkitBackgroundClip: "text",
           WebkitTextFillColor: "transparent",
           backgroundClip: "text",
@@ -79,7 +79,7 @@ export function LoginContent() {
         {/* Botão */}
         <button type="submit" style={{
           width: "100%", height: 56, borderRadius: 8, border: "none", cursor: "pointer",
-          background: "linear-gradient(90deg, #FFAF2F 0%, #FFD96A 100%)",
+          background: "linear-gradient(90deg, #BA901E 0%, #FFD96A 100%)",
           color: "#0E141B", fontSize: 16, fontWeight: 900, letterSpacing: "0.14em",
           textTransform: "uppercase", marginTop: 4,
         }}>

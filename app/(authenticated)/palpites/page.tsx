@@ -420,7 +420,7 @@ function TabelaView({ grupo, tabela, onGrupo }: { grupo: string; tabela: TabelaG
                         className="w-6 h-6 rounded-lg flex items-center justify-center text-[12px] font-black shrink-0"
                         style={{
                           background: ativo ? "rgba(255,175,47,0.2)" : "rgba(255,255,255,0.07)",
-                          color: ativo ? "#FFAF2F" : "rgba(255,255,255,0.5)",
+                          color: ativo ? "#BA901E" : "rgba(255,255,255,0.5)",
                         }}
                       >
                         {letra}
@@ -433,7 +433,7 @@ function TabelaView({ grupo, tabela, onGrupo }: { grupo: string; tabela: TabelaG
                         <img src={lider.time.escudo} alt={lider.time.sigla} className="w-5 h-5 object-contain" />
                       </div>
                       <span className="font-bold text-[12px] flex-1 truncate" style={{ color: ativo ? "#FFE8BA" : "#fff" }}>{lider.time.sigla}</span>
-                      <span className="text-[11px] font-light" style={{ color: ativo ? "#FFAF2F" : "rgba(255,255,255,0.35)" }}>Lidera</span>
+                      <span className="text-[11px] font-light" style={{ color: ativo ? "#BA901E" : "rgba(255,255,255,0.35)" }}>Lidera</span>
                     </button>
                   );
                 })}
@@ -502,7 +502,7 @@ function RankingView() {
               <RankingAvatar iniciais={MEU.iniciais} isMe size={44} />
               <div
                 className="absolute -bottom-1 -right-1 w-[18px] h-[18px] rounded-full flex items-center justify-center"
-                style={{ background: "#FFAF2F" }}
+                style={{ background: "#BA901E" }}
               >
                 <Coins className="w-2.5 h-2.5" style={{ color: "#0E141B" }} strokeWidth={2.5} />
               </div>
@@ -524,7 +524,7 @@ function RankingView() {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-2">
         {[
-          { Icon: Target,       val: 32, label: "Palpites", color: "#FFAF2F" },
+          { Icon: Target,       val: 32, label: "Palpites", color: "#BA901E" },
           { Icon: CircleCheck,  val: 5,  label: "Acertos",  color: "#34D399" },
           { Icon: Star,         val: 32, label: "Pontos",   color: "#DAB682" },
         ].map(({ Icon, val, label, color }) => (
@@ -580,7 +580,7 @@ function RankingView() {
             <div className="shrink-0 flex items-baseline gap-0.5">
               <span
                 className="font-black text-[16px]"
-                style={{ color: r.isMe ? "#FFAF2F" : "#fff" }}
+                style={{ color: r.isMe ? "#BA901E" : "#fff" }}
               >
                 {r.pts}
               </span>
@@ -627,7 +627,7 @@ function DesktopSidebar({ grupo, tabela, grupos, onGrupo }: {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-2">
         {[
-          { Icon: Target,       val: 32, label: "Palpites", color: "#FFAF2F" },
+          { Icon: Target,       val: 32, label: "Palpites", color: "#BA901E" },
           { Icon: CircleCheck,  val: 5,  label: "Acertos",  color: "#34D399" },
           { Icon: Star,         val: 32, label: "Pontos",   color: "#DAB682" },
         ].map(({ Icon, val, label, color }) => (
@@ -767,7 +767,7 @@ function DesktopSidebar({ grupo, tabela, grupos, onGrupo }: {
               <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.3)" }}>{r.acertos} acertos</p>
             </div>
             <div className="shrink-0 flex items-baseline gap-0.5">
-              <span className="font-black text-[14px]" style={{ color: r.isMe ? "#FFAF2F" : "#fff" }}>{r.pts}</span>
+              <span className="font-black text-[14px]" style={{ color: r.isMe ? "#BA901E" : "#fff" }}>{r.pts}</span>
               <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.2)" }}>pts</span>
             </div>
           </div>
@@ -851,7 +851,7 @@ export default function PalpitesPage() {
                 onClick={() => setGrupo(g)}
                 className="flex-1 h-9 rounded-lg text-[13px] font-bold transition-all duration-200"
                 style={{
-                  background: grupo === g ? "linear-gradient(180deg, #FFE8BA 0%, #FFAF2F 100%)" : "#0A0E19",
+                  background: grupo === g ? "linear-gradient(180deg, #FFE8BA 0%, #BA901E 100%)" : "#0A0E19",
                   color: grupo === g ? "#0E141B" : "rgba(255,255,255,0.4)",
                   boxShadow: grupo === g ? "0 0 14px rgba(255,175,47,0.45)" : "none",
                 }}
@@ -868,7 +868,7 @@ export default function PalpitesPage() {
             onClick={() => setGrupo(g)}
             className="w-9 h-9 rounded-lg text-[13px] font-bold transition-all duration-200"
             style={{
-              background: grupo === g ? "linear-gradient(180deg, #FFE8BA 0%, #FFAF2F 100%)" : "#0A0E19",
+              background: grupo === g ? "linear-gradient(180deg, #FFE8BA 0%, #BA901E 100%)" : "#0A0E19",
               color: grupo === g ? "#0E141B" : "rgba(255,255,255,0.4)",
               boxShadow: grupo === g ? "0 0 14px rgba(255,175,47,0.45)" : "none",
             }}
