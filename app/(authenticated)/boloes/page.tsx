@@ -110,7 +110,7 @@ export default function BoloesPage() {
               className="group relative block w-full overflow-hidden rounded-2xl border"
               style={{ borderColor: "rgba(212, 175, 55, 0.25)" }}
             >
-              <div className="relative min-h-[350px] sm:min-h-[370px]">
+              <div className="relative min-h-[310px] sm:min-h-[330px]">
                 <Image
                   src={bgPalpitesDesk}
                   alt={item.title}
@@ -128,7 +128,7 @@ export default function BoloesPage() {
                   }}
                 />
                 <div
-                  className="absolute inset-0 flex flex-col items-center text-center justify-start px-6 sm:px-6 pt-8 sm:pt-9 pb-7"
+                  className="absolute inset-0 flex flex-col items-center text-center justify-start px-3 sm:px-3 pt-8 sm:pt-9 pb-7"
                 >
                   <span
                     className="font-black tracking-tight leading-[1.05] text-[34px] sm:text-[42px]"
@@ -146,7 +146,7 @@ export default function BoloesPage() {
                       <Coins className="w-3.5 h-3.5" />
                       Prêmio: {item.prize}
                     </span>
-                    <div className="flex flex-wrap justify-center gap-2.5">
+                    <div className="grid grid-cols-2 gap-2.5">
                       <span
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold text-white/85"
                         style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.16)" }}
