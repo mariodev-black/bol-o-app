@@ -29,6 +29,9 @@ export function NavBottom() {
     if (href === "/") {
       return normalizedPath === "/";
     }
+    if (href === "/boloes") {
+      return normalizedPath.startsWith("/boloes") || normalizedPath.startsWith("/palpites");
+    }
     return normalizedPath === href || normalizedPath.startsWith(`${href}/`);
   };
 
@@ -47,16 +50,16 @@ export function NavBottom() {
             aria-label="Fechar menu"
             onClick={() => setMenuOpen(false)}
           />
-          <aside className="absolute right-0 top-0 h-full w-[86%] max-w-[320px] bg-[#0b1323] border-l border-white/10 shadow-2xl">
-            <div className="flex items-center justify-between px-4 py-4 border-b border-white/10">
+          <aside className="absolute right-0 top-0 h-full w-[86%] max-w-[320px] bg-[#0b1323] border-l border-[#D4AF3730] shadow-2xl">
+            <div className="flex items-center justify-between px-4 py-4 border-b border-[#D4AF372A]">
               <h2 className="text-[16px] font-bold text-white">Menu</h2>
               <button
                 type="button"
                 onClick={() => setMenuOpen(false)}
-                className="w-9 h-9 rounded-lg flex items-center justify-center bg-white/5 border border-white/10"
+                className="w-9 h-9 rounded-lg flex items-center justify-center bg-[#D4AF3712] border border-[#D4AF3733]"
                 aria-label="Fechar menu lateral"
               >
-                <X className="w-5 h-5 text-white/80" />
+                <X className="w-5 h-5 text-[#FFE8BA]" />
               </button>
             </div>
 
@@ -70,8 +73,8 @@ export function NavBottom() {
                     onClick={() => setMenuOpen(false)}
                     className="rounded-lg px-3 py-3 text-[14px] font-semibold transition-colors"
                     style={{
-                      background: active ? "rgba(59, 130, 246, 0.16)" : "transparent",
-                      borderLeft: active ? "3px solid #3B82F6" : "3px solid transparent",
+                      background: active ? "rgba(212, 175, 55, 0.16)" : "transparent",
+                      borderLeft: active ? "3px solid #D4AF37" : "3px solid transparent",
                       color: active ? "#ffffff" : "rgba(255,255,255,0.78)",
                     }}
                   >

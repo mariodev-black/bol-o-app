@@ -30,7 +30,12 @@ export function Header() {
       {/* Nav central — apenas desktop */}
       <nav className="hidden lg:flex items-center gap-8">
         {NAV_LINKS.map(({ label, href }) => {
-          const isActive = href === "/" ? pathname === "/" : pathname.startsWith(href);
+          const isActive =
+            href === "/"
+              ? pathname === "/"
+              : href === "/boloes"
+                ? pathname.startsWith("/boloes") || pathname.startsWith("/palpites")
+                : pathname.startsWith(href);
           return (
             <Link
               key={label}
