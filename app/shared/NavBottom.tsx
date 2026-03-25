@@ -3,10 +3,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { ElementType } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowRight, BarChart2, CalendarClock, Gift, Home, Menu, Ticket, Trophy, User, Wallet, X } from "lucide-react";
+import { ArrowRight, BarChart2, CalendarClock, Gift, Home, Menu, Ticket, Trophy, User, UserPlus, Wallet, X } from "lucide-react";
 
 const BOTTOM_ITEMS = [
-  { label: "Indique", href: "/indique", icon: Gift },
+  { label: "Indique", href: "/indique", icon: UserPlus },
   { label: "Meus Bolões", href: "/boloes", icon: Trophy },
   { label: "Início", href: "/", icon: Home },
   { label: "Adquirir ticket", href: "/cadastrar", icon: Ticket },
@@ -320,7 +320,10 @@ export function NavBottom() {
         </div>
       )}
 
-      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 z-60 flex items-center gap-1 w-full justify-between bg-card border-t border-white/10 md:hidden">
+      <nav
+        className="fixed bottom-0 left-1/2 -translate-x-1/2 z-60 flex items-center gap-1 w-full justify-between bg-card border-t border-white/10 md:hidden"
+        style={{ background: "rgba(6,11,24,0.78)", backdropFilter: "blur(10px)" }}
+      >
         {BOTTOM_ITEMS.map(({ label, href, icon: Icon }) => {
           const active = isItemActive(href);
 
@@ -328,18 +331,21 @@ export function NavBottom() {
             <Link
               key={href + label}
               href={href}
-              className="flex flex-col items-center justify-center gap-1 px-2 py-1.5 rounded-full transition-all duration-200"
+              className="flex flex-col items-center justify-center gap-1 px-2 py-1.5 rounded-xl transition-all duration-200"
               style={{ minWidth: 64 }}
             >
               <div
-                className="flex items-center justify-center w-10 h-10 rounded-full transition-all duration-200"
+                className={[
+                  "flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-200 border",
+                  active ? "border-[#D4AF37]" : "border-white/10",
+                ].join(" ")}
                 style={
                   active
                     ? {
-                      background: "linear-gradient(180deg, #FFE8BA 0%, #D4AF37 100%)",
-                      boxShadow: "0 0 16px rgba(255,175,47,0.6), 0 0 32px rgba(255,175,47,0.25)",
-                    }
-                    : { background: "transparent" }
+                        background: "linear-gradient(180deg, #FFE8BA 0%, #D4AF37 100%)",
+                        boxShadow: "0 0 18px rgba(255,175,47,0.55), 0 0 34px rgba(255,175,47,0.22)",
+                      }
+                    : { background: "rgba(255,255,255,0.03)" }
                 }
               >
                 <Icon
@@ -352,7 +358,7 @@ export function NavBottom() {
               <span
                 className="text-[10px] font-medium leading-none text-center"
                 style={{
-                  color: active ? "#D4AF37" : "rgba(255,255,255,0.45)",
+                  color: active ? "#D4AF37" : "rgba(255,232,186,0.45)",
                 }}
               >
                 {label}
@@ -364,12 +370,12 @@ export function NavBottom() {
         <button
           type="button"
           onClick={openMenu}
-          className="flex flex-col items-center justify-center gap-1 px-2 py-1.5 rounded-full transition-all duration-200"
+          className="flex flex-col items-center justify-center gap-1 px-2 py-1.5 rounded-xl transition-all duration-200"
           style={{ minWidth: 64 }}
           aria-label="Abrir menu"
           aria-expanded={menuOpen}
         >
-          <div className="flex items-center justify-center w-10 h-10 rounded-full transition-all duration-200">
+          <div className="flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-200">
             <Menu className="w-5 h-5" style={{ color: "rgba(255,255,255,0.55)" }} strokeWidth={1.9} />
           </div>
           <span className="text-[10px] font-medium leading-none text-center" style={{ color: "rgba(255,255,255,0.45)" }}>
