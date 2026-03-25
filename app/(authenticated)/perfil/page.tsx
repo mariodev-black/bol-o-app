@@ -5,12 +5,12 @@ export default function PerfilPage() {
   return (
     <div className="flex flex-1 flex-col px-4 sm:px-6 py-6 md:py-8 max-w-lg md:max-w-2xl mx-auto w-full">
       <Link
-        href="/dashboard"
+        href="/"
         className="inline-flex items-center gap-1.5 text-[13px] font-semibold mb-6 w-fit transition-opacity hover:opacity-80"
         style={{ color: "rgba(255,255,255,0.45)" }}
       >
         <ChevronLeft className="w-4 h-4" />
-        Voltar para dashboard
+        Voltar para o inicio
       </Link>
 
       <div className="flex items-center gap-3 mb-2">
