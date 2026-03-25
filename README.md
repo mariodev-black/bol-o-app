@@ -43,7 +43,7 @@ app/
     AuthContext.tsx, SidenavContext.tsx
     HeroCarousel, FlagsMarquee, RankingAtual, ...
   (authenticated)/        # Telas “da área logada” (layout com Header + NavBottom)
-    boloes/, palpites/, perfil/, deposito/, saques/, indique/, ...
+    boloes/, tickets/, palpites/, perfil/, deposito/, saques/, indique/, ...
   (public)/               # Layout com Footer (disponível para rotas públicas do grupo; a home usa `app/page.tsx` com composição própria)
   (auth)/                 # Login e cadastro (layout próprio)
   @modal/                 # Interceptação de rotas para modais (ex.: login/cadastrar)
@@ -52,7 +52,7 @@ app/
     tabela/route.ts       # Proxy/cache de tabela do campeonato
 ```
 
-Rotas efetivas (exemplos): `/`, `/login`, `/cadastrar`, `/dashboard`, `/boloes`, `/boloes/tickets`, `/palpites`, `/perfil`, `/deposito`, `/saques`, `/indique`, `/privacidade`, etc.
+Rotas efetivas (exemplos): `/`, `/login`, `/cadastrar`, `/dashboard`, `/boloes`, `/tickets`, `/palpites`, `/perfil`, `/deposito`, `/saques`, `/indique`, `/privacidade`, etc.
 
 ## API de futebol
 

@@ -11,7 +11,7 @@ const BOTTOM_ITEMS_PROFILE = [
   { label: "Indique", href: "/indique", icon: Gift },
   { label: "Meus Bolões", href: "/boloes", icon: Trophy },
   { label: "Início", href: "/", icon: Home },
-  { label: "Adquirir ticket", href: "/cadastrar", icon: Ticket },
+  { label: "Adquirir ticket", href: "/tickets", icon: Ticket },
   { label: "Perfil", href: "/perfil", icon: User },
 ] as const;
 
@@ -47,7 +47,7 @@ const MENU_SECTIONS: MenuSection[] = [
   {
     title: "FINANCEIRO",
     items: [
-      { label: "Adquirir ticket", href: "/cadastrar", icon: Ticket, subtitle: "Garanta sua aposta", variant: "cta" },
+      { label: "Adquirir ticket", href: "/tickets", icon: Ticket, subtitle: "Garanta sua aposta", variant: "cta" },
       { label: "Saques", href: "/saques", icon: Wallet, subtitle: "Retiradas do saldo" },
     ],
   },

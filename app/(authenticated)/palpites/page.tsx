@@ -1242,7 +1242,7 @@ function PalpitesPageContent() {
       {hasBoloesFlow && (
         <div className="mb-4">
           <StepsBreadcrumb
-            backHref={`/boloes/tickets?bolao=${bolaoType}`}
+            backHref={`/tickets?bolao=${bolaoType}`}
             items={["Bolões", "Tickets", "Palpites"]}
           />
         </div>

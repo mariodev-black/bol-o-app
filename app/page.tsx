@@ -91,10 +91,10 @@ export default function HomePage() {
             style={{ backgroundColor: "rgba(0,0,0,0.45)" }}
           >
             <Button asChild size="lg" className="rounded-full px-10 text-base font-bold h-13 shadow-lg shadow-amber-500/20">
-              <Link href="/cadastrar">Comprar Ticket por R$ 49</Link>
+              <Link href="/tickets">Adquirir Ticket</Link>
             </Button>
             <Link
-              href="/cadastrar"
+              href="/tickets"
               aria-label="Abrir em nova aba"
               className="flex items-center justify-center h-13 w-13 rounded-full text-white/80 hover:text-white hover:bg-white/10 transition-colors shrink-0"
             >

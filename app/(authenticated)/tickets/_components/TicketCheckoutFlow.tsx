@@ -1,0 +1,515 @@
+"use client";
+
+import { useCallback, useEffect, useState, type ReactNode } from "react";
+import Link from "next/link";
+import QRCode from "react-qr-code";
+import { TicketPurchaseBanner } from "./TicketPurchaseBanner";
+import { MyTicketsWallet } from "./MyTicketsWallet";
+import { appendTicketsFromPurchase } from "../lib/ownedTicketsStorage";
+import { ArrowLeft, Check, Copy, Loader2, Minus, Plus, QrCode, Ticket } from "lucide-react";
+
+const GOLD = "#D4AF37";
+const GOLD_LIGHT = "#FFE8BA";
+const CARD = "#0A0E19";
+const PRINCIPAL_CENTS = 5000;
+const DIARIO_CENTS = 1000;
+const PIX_WINDOW_MS = 5 * 60 * 1000;
+const PIX_TOTAL_SEC = 5 * 60;
+const montserrat = "var(--font-montserrat), ui-sans-serif, system-ui, sans-serif";
+
+function formatBRL(cents: number) {
+  return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function formatCountdown(totalSeconds: number) {
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+function buildDemoPixCopiaECola(totalCents: number, orderRef: string) {
+  const amount = (totalCents / 100).toFixed(2).replace(".", "").padStart(10, "0");
+  const id = orderRef.replace(/\W/g, "").slice(0, 25).padEnd(25, "0");
+  return [
+    "00020126580014br.gov.bcb.pix0136",
+    id,
+    "52040000530398654",
+    amount,
+    "5802BR5920BOLAO DO MILHAO6009SAO PAULO62070503***6304DEMO",
+  ].join("");
+}
+
+type FlowStep = "shop" | "generating" | "pix";
+
+type TicketCheckoutFlowProps = {
+  initialPrincipalQty: number;
+  initialDiarioQty: number;
+};
+
+export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: TicketCheckoutFlowProps) {
+  const [principalQty, setPrincipalQty] = useState(initialPrincipalQty);
+  const [diarioQty, setDiarioQty] = useState(initialDiarioQty);
+  const [step, setStep] = useState<FlowStep>("shop");
+  const [orderRef, setOrderRef] = useState("");
+  const [pixPayload, setPixPayload] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [pixDeadline, setPixDeadline] = useState<number | null>(null);
+  const [, setTick] = useState(0);
+  const [walletVersion, setWalletVersion] = useState(0);
+
+  useEffect(() => {
+    setPrincipalQty(initialPrincipalQty);
+    setDiarioQty(initialDiarioQty);
+  }, [initialPrincipalQty, initialDiarioQty]);
+
+  useEffect(() => {
+    if (step === "generating" || step === "pix") {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    }
+  }, [step]);
+
+  useEffect(() => {
+    if (step !== "pix" || !pixDeadline) return;
+    const id = window.setInterval(() => setTick((t) => t + 1), 1000);
+    return () => window.clearInterval(id);
+  }, [step, pixDeadline]);
+
+  const principalLine = principalQty * PRINCIPAL_CENTS;
+  const diarioLine = diarioQty * DIARIO_CENTS;
+  const totalCents = principalLine + diarioLine;
+  const totalQty = principalQty + diarioQty;
+  const hasSelection = totalCents > 0;
+
+  const secondsLeft =
+    step === "pix" && pixDeadline != null ? Math.max(0, Math.ceil((pixDeadline - Date.now()) / 1000)) : 0;
+  const pixExpired = step === "pix" && pixDeadline != null && secondsLeft === 0;
+  const pixProgressPct =
+    step === "pix" && pixDeadline != null ? Math.min(100, Math.max(0, (secondsLeft / PIX_TOTAL_SEC) * 100)) : 0;
+
+  const bump = (which: "p" | "d", delta: number) => {
+    if (which === "p") setPrincipalQty((q) => Math.max(0, Math.min(20, q + delta)));
+    else setDiarioQty((q) => Math.max(0, Math.min(20, q + delta)));
+  };
+
+  const goGenerate = useCallback(() => {
+    if (!hasSelection) return;
+    setCopied(false);
+    setStep("generating");
+    const ref = `TK${Date.now().toString(36).toUpperCase()}`;
+    setOrderRef(ref);
+    window.setTimeout(() => {
+      setPixPayload(buildDemoPixCopiaECola(totalCents, ref));
+      setPixDeadline(Date.now() + PIX_WINDOW_MS);
+      setStep("pix");
+    }, 1100);
+  }, [hasSelection, totalCents]);
+
+  const copyPix = useCallback(() => {
+    if (!pixPayload || pixExpired) return;
+    void navigator.clipboard.writeText(pixPayload);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 2200);
+  }, [pixPayload, pixExpired]);
+
+  const resetFlow = () => {
+    setStep("shop");
+    setPixPayload("");
+    setOrderRef("");
+    setCopied(false);
+    setPixDeadline(null);
+  };
+
+
+  return (
+    <>
+      {step === "shop" && <TicketPurchaseBanner />}
+
+      <div
+        className={
+          step === "shop"
+            ? "w-full max-w-2xl mx-auto px-4 pb-10 pt-0 sm:px-6"
+            : "w-full max-w-md mx-auto px-4 py-8 sm:px-6 sm:py-10 flex-1 flex flex-col justify-start"
+        }
+      >
+        <section className="w-full">
+          {step === "shop" && (
+            <div className="space-y-5">
+              <MyTicketsWallet refreshKey={walletVersion} />
+
+              <div className="relative pl-3 sm:pl-4" style={{ borderLeft: `2px solid ${GOLD}` }}>
+                <p className="text-[10px] font-bold uppercase tracking-[0.28em] mb-1" style={{ color: "rgba(218,182,130,0.8)" }}>
+                  Palpites
+                </p>
+                <h2 className="text-xl sm:text-2xl font-extrabold text-white leading-tight" style={{ fontFamily: montserrat }}>
+                  Tickets
+                </h2>
+                <p className="text-[12px] mt-1.5 max-w-md" style={{ color: "rgba(226,213,184,0.48)" }}>
+                  Compre com PIX. Geral = palpites em toda a Copa. Diário = você escolhe o dia na hora de palpitar.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <TicketTypeCard
+                  productLabel="Copa inteira"
+                  title="Geral"
+                  description="Palpites em todas as rodadas. Conta para o ranking principal."
+                  priceCents={PRINCIPAL_CENTS}
+                  qty={principalQty}
+                  onDelta={(d) => bump("p", d)}
+                  chip="Principal"
+                  icon={<Ticket className="w-5 h-5" style={{ color: GOLD_LIGHT }} strokeWidth={2} />}
+                />
+                <TicketTypeCard
+                  productLabel="Um dia"
+                  title="Diário"
+                  description="Válido só no dia que você escolher ao abrir os palpites."
+                  priceCents={DIARIO_CENTS}
+                  qty={diarioQty}
+                  onDelta={(d) => bump("d", d)}
+                  icon={<Ticket className="w-5 h-5" style={{ color: GOLD_LIGHT }} strokeWidth={2} />}
+                />
+              </div>
+
+              <div
+                className="rounded-xl p-3 sm:p-4"
+                style={{
+                  background: `linear-gradient(178deg, rgba(18,22,34,0.98) 0%, ${CARD} 100%)`,
+                  border: "1px solid rgba(212,175,55,0.2)",
+                }}
+              >
+                <div className="flex items-baseline justify-between gap-3 mb-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-white/35">Resumo · PIX</span>
+                  <span className="text-xl font-black tabular-nums" style={{ color: GOLD_LIGHT }}>
+                    {formatBRL(totalCents)}
+                  </span>
+                </div>
+
+                <p className="text-[11px] leading-snug mb-2.5" style={{ color: "rgba(226,213,184,0.42)" }}>
+                  Geral {formatBRL(PRINCIPAL_CENTS)} · Diário {formatBRL(DIARIO_CENTS)} · à vista no PIX. Os tickets
+                  aparecem na sua conta e você gasta ao palpitar.
+                </p>
+
+                <div className="space-y-1.5 text-[12px]">
+                  {principalQty > 0 && (
+                    <div className="flex justify-between gap-2 text-white/65">
+                      <span>
+                        <span className="font-mono text-white">{principalQty}×</span> Geral
+                        <span className="text-white/35 font-normal"> @ {formatBRL(PRINCIPAL_CENTS)}</span>
+                      </span>
+                      <span className="tabular-nums font-semibold" style={{ color: GOLD_LIGHT }}>
+                        {formatBRL(principalLine)}
+                      </span>
+                    </div>
+                  )}
+                  {diarioQty > 0 && (
+                    <div className="flex justify-between gap-2 text-white/65">
+                      <span>
+                        <span className="font-mono text-white">{diarioQty}×</span> Diário
+                        <span className="text-white/35 font-normal"> @ {formatBRL(DIARIO_CENTS)}</span>
+                      </span>
+                      <span className="tabular-nums font-semibold" style={{ color: GOLD_LIGHT }}>
+                        {formatBRL(diarioLine)}
+                      </span>
+                    </div>
+                  )}
+                  {!hasSelection && (
+                    <p className="text-[12px] py-0.5" style={{ color: "rgba(226,213,184,0.4)" }}>
+                      Escolha quantidades nos cards acima.
+                    </p>
+                  )}
+                  {hasSelection && (
+                    <p className="text-[11px] pt-0.5" style={{ color: "rgba(218,182,130,0.45)" }}>
+                      {totalQty} ticket{totalQty === 1 ? "" : "s"} no pedido
+                    </p>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  disabled={!hasSelection}
+                  onClick={goGenerate}
+                  className="mt-4 w-full py-3 rounded-lg text-[11px] sm:text-xs font-bold uppercase tracking-[0.14em] flex items-center justify-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed active:scale-[0.99] transition-transform"
+                  style={{
+                    fontFamily: montserrat,
+                    color: "#0E141B",
+                    background: hasSelection
+                      ? `linear-gradient(180deg, ${GOLD_LIGHT} 0%, ${GOLD} 50%, #B8860B 100%)`
+                      : "rgba(255,255,255,0.1)",
+                    boxShadow: hasSelection ? "0 6px 24px rgba(212,175,55,0.22)" : "none",
+                  }}
+                >
+                  <Ticket className="w-4 h-4" strokeWidth={2.2} />
+                  {hasSelection ? `Pagar ${totalQty} ticket${totalQty === 1 ? "" : "s"}` : "Escolha tickets"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {step === "generating" && (
+            <div
+              className="flex flex-col items-center justify-center py-20 px-6 rounded-2xl"
+              style={{
+                border: "1px solid rgba(212,175,55,0.18)",
+                background: `linear-gradient(180deg, rgba(14,20,32,0.96) 0%, ${CARD} 100%)`,
+              }}
+            >
+              <Loader2 className="w-11 h-11 animate-spin mb-5" style={{ color: GOLD_LIGHT }} strokeWidth={2} />
+              <p className="text-base font-semibold text-white text-center" style={{ fontFamily: montserrat }}>
+                Emitindo cobrança PIX
+              </p>
+              <p className="text-[13px] text-center mt-2 max-w-xs" style={{ color: "rgba(226,213,184,0.45)" }}>
+                Registrando pedido no sistema Bolão do Milhão…
+              </p>
+            </div>
+          )}
+
+          {step === "pix" && pixPayload && (
+            <div className="space-y-4">
+
+              <div>
+                <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-white/40">PIX</span>
+                  <span className="text-[11px] font-mono text-white/45">{orderRef}</span>
+                </div>
+                <div className="flex items-center justify-between text-[11px] mb-1.5" style={{ color: "rgba(226,213,184,0.5)" }}>
+                  <span>{pixExpired ? "Expirado" : "Válido 5 min"}</span>
+                  <span className="font-mono tabular-nums text-white/55">{pixExpired ? "0:00" : formatCountdown(secondsLeft)}</span>
+                </div>
+                <div
+                  className="h-1.5 rounded-full overflow-hidden"
+                  style={{ background: pixExpired ? "rgba(127,29,29,0.35)" : "rgba(255,255,255,0.08)" }}
+                  role="progressbar"
+                  aria-valuenow={pixExpired ? 0 : Math.round(pixProgressPct)}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                >
+                  <div
+                    className="h-full rounded-full transition-[width] duration-1000 ease-linear"
+                    style={{
+                      width: `${pixProgressPct}%`,
+                      background: pixExpired
+                        ? "rgba(248,113,113,0.5)"
+                        : secondsLeft <= 60
+                          ? "linear-gradient(90deg, #FBBF24, #F59E0B)"
+                          : `linear-gradient(90deg, ${GOLD_LIGHT}, ${GOLD})`,
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div
+                className="rounded-xl p-3 sm:p-4 space-y-4"
+                style={{
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  background: `linear-gradient(180deg, rgba(16,22,36,0.95) 0%, ${CARD} 100%)`,
+                }}
+              >
+                <div className="relative mx-auto w-fit">
+                  <div
+                    className={`p-3.5 rounded-2xl bg-white shadow-xl ${pixExpired ? "opacity-35 grayscale" : ""}`}
+                    style={{ boxShadow: "0 20px 50px rgba(0,0,0,0.45)" }}
+                  >
+                    <QRCode value={pixPayload} size={196} level="M" />
+                  </div>
+                  {pixExpired && (
+                    <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/55 px-4">
+                      <p className="text-center text-[13px] font-semibold text-white leading-snug">
+                        QR expirado — gere outro para pagar
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-white/32 mb-1">Pedido</p>
+                  <p className="text-[10px] mb-2" style={{ color: "rgba(226,213,184,0.38)" }}>
+                    Geral {formatBRL(PRINCIPAL_CENTS)} · Diário {formatBRL(DIARIO_CENTS)} · {totalQty} ticket
+                    {totalQty === 1 ? "" : "s"}
+                  </p>
+                  <div className="space-y-1 text-[12px]">
+                    {principalQty > 0 && (
+                      <div className="flex justify-between gap-2 text-white/65">
+                        <span>
+                          <span className="font-mono text-white">{principalQty}×</span> Geral
+                          <span className="text-white/35 font-normal"> @ {formatBRL(PRINCIPAL_CENTS)}</span>
+                        </span>
+                        <span className="tabular-nums font-medium" style={{ color: GOLD_LIGHT }}>
+                          {formatBRL(principalLine)}
+                        </span>
+                      </div>
+                    )}
+                    {diarioQty > 0 && (
+                      <div className="flex justify-between gap-2 text-white/65">
+                        <span>
+                          <span className="font-mono text-white">{diarioQty}×</span> Diário
+                          <span className="text-white/35 font-normal"> @ {formatBRL(DIARIO_CENTS)}</span>
+                        </span>
+                        <span className="tabular-nums font-medium" style={{ color: GOLD_LIGHT }}>
+                          {formatBRL(diarioLine)}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex justify-between gap-2 pt-1.5 mt-1 border-t border-white/10 text-sm font-bold text-white">
+                      <span>Total</span>
+                      <span className="tabular-nums" style={{ color: GOLD_LIGHT }}>
+                        {formatBRL(totalCents)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35 mb-2">PIX copia e cola</label>
+                  <div
+                    className="rounded-xl p-3 max-h-[88px] overflow-y-auto"
+                    style={{
+                      background: "rgba(0,0,0,0.42)",
+                      border: "1px solid rgba(255,255,255,0.08)",
+                    }}
+                  >
+                    <p className="text-[10px] sm:text-[11px] font-mono text-white/70 break-all leading-relaxed">{pixPayload}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={copyPix}
+                    disabled={pixExpired}
+                    className="mt-3 w-full py-3.5 rounded-xl text-[13px] font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-35"
+                    style={{
+                      background: copied ? "rgba(34,197,94,0.18)" : "rgba(212,175,55,0.12)",
+                      border: `1px solid ${copied ? "rgba(34,197,94,0.4)" : "rgba(212,175,55,0.32)"}`,
+                      color: copied ? "#86EFAC" : GOLD_LIGHT,
+                    }}
+                  >
+                    {copied ? (
+                      <>
+                        <Check className="w-5 h-5" strokeWidth={2.5} />
+                        Copiado
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-5 h-5" strokeWidth={2} />
+                        Copiar código PIX
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+      </div>
+    </>
+  );
+}
+
+function TicketTypeCard({
+  productLabel,
+  title,
+  description,
+  priceCents,
+  qty,
+  onDelta,
+  icon,
+  chip,
+}: {
+  productLabel: string;
+  title: string;
+  description: string;
+  priceCents: number;
+  qty: number;
+  onDelta: (d: number) => void;
+  icon: ReactNode;
+  chip?: string;
+}) {
+  const active = qty > 0;
+  const iconWrap = {
+    background: "rgba(212,175,55,0.11)",
+    border: "1px solid rgba(212,175,55,0.32)",
+  } as const;
+
+  return (
+    <div
+      className="relative rounded-2xl p-4 flex flex-col h-full min-h-[200px] transition-all duration-200"
+      style={{
+        background: `linear-gradient(168deg, rgba(11,15,26,0.99) 0%, ${CARD} 100%)`,
+        border: active ? `2px solid ${GOLD}` : "1px solid rgba(255,255,255,0.07)",
+        boxShadow: active
+          ? `0 14px 44px rgba(0,0,0,0.48), 0 0 36px rgba(212,175,55,0.1)`
+          : "0 6px 24px rgba(0,0,0,0.28)",
+      }}
+    >
+      {chip && (
+        <span
+          className="absolute top-3 right-3 text-[8px] font-bold uppercase tracking-[0.14em] px-2 py-0.5 rounded"
+          style={{
+            background: "rgba(212,175,55,0.14)",
+            border: "1px solid rgba(212,175,55,0.32)",
+            color: "rgba(255,232,186,0.88)",
+          }}
+        >
+          {chip}
+        </span>
+      )}
+
+      <p
+        className="text-[9px] font-bold uppercase tracking-[0.2em] mb-2"
+        style={{ color: "rgba(218,182,130,0.75)" }}
+      >
+        {productLabel}
+      </p>
+
+      <div className="flex gap-3 pr-12">
+        <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={iconWrap}>
+          {icon}
+        </div>
+        <div className="min-w-0 flex-1">
+          <h3 className="font-bold text-white text-[15px] leading-tight" style={{ fontFamily: montserrat }}>
+            {title}
+          </h3>
+          <p className="text-[11px] sm:text-[12px] mt-1.5 leading-relaxed" style={{ color: "rgba(226,213,184,0.5)" }}>
+            {description}
+          </p>
+          <p className="text-[14px] font-bold mt-2.5 tabular-nums" style={{ color: GOLD_LIGHT }}>
+            {formatBRL(priceCents)}
+            <span className="text-[10px] font-medium ml-1" style={{ color: "rgba(226,213,184,0.38)" }}>
+              cada
+            </span>
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-auto pt-4 flex items-center justify-between border-t border-white/8">
+        <span className="text-[12px] font-medium" style={{ color: "rgba(226,213,184,0.45)" }}>
+          Quantidade
+        </span>
+        <div
+          className="inline-flex items-stretch rounded-lg overflow-hidden"
+          style={{
+            border: `1px solid ${active ? "rgba(212,175,55,0.42)" : "rgba(255,255,255,0.09)"}`,
+            background: "rgba(0,0,0,0.38)",
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => onDelta(-1)}
+            className="w-9 h-9 flex items-center justify-center text-white/62 hover:bg-white/6 transition-colors"
+            aria-label={`Menos ${title}`}
+          >
+            <Minus className="w-3.5 h-3.5" strokeWidth={2.5} />
+          </button>
+          <span className="min-w-[36px] flex items-center justify-center font-mono text-sm font-bold text-white border-x border-white/10">
+            {qty}
+          </span>
+          <button
+            type="button"
+            onClick={() => onDelta(1)}
+            className="w-9 h-9 flex items-center justify-center text-white/62 hover:bg-white/6 transition-colors"
+            aria-label={`Mais ${title}`}
+          >
+            <Plus className="w-3.5 h-3.5" strokeWidth={2.5} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
