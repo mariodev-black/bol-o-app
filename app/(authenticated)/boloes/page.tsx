@@ -47,7 +47,7 @@ const OPTIONS = [
     title: "BOLÃO PRINCIPAL",
     subtitle:
       "Aqui você aposta durante toda a Copa: da abertura até a final, com pontuação acumulada no ranking geral.",
-    href: "/palpites?bolao=principal",
+    href: "/boloes/tickets?bolao=principal",
     prize: "R$ 1.000.000",
     players: "124.582 participantes",
     closeAt: "Apostas válidas durante toda a Copa",
@@ -59,7 +59,7 @@ const OPTIONS = [
     title: "BOLÃO DIÁRIO",
     subtitle:
       "Aqui você aposta somente nos jogos do dia. Terminou o dia, fecha a rodada e no dia seguinte abre uma nova.",
-    href: "/palpites?bolao=diario",
+    href: "/boloes/tickets?bolao=diario",
     prize: "R$ 50.000",
     players: "12.430 participantes",
     closeAt: "Válido apenas para os jogos de hoje",
@@ -73,6 +73,7 @@ export default function BoloesPage() {
   return (
     <div className="min-h-screen px-4 sm:px-6">
       <div className="mx-auto w-full max-w-3xl pt-2 sm:pt-5">
+
         <section
           className="rounded-2xl border p-4 sm:p-5 mb-4"
           style={{
@@ -137,7 +138,7 @@ export default function BoloesPage() {
                   }}
                 />
                 <div
-                  className="absolute inset-0 flex flex-col items-center text-center justify-start px-6 sm:px-8 pt-8 sm:pt-9 pb-7"
+                  className="absolute inset-0 flex flex-col items-center text-center justify-start px-6 sm:px-6 pt-8 sm:pt-9 pb-7"
                 >
                   <span
                     className="font-black tracking-tight leading-[1.05] text-[34px] sm:text-[42px]"
