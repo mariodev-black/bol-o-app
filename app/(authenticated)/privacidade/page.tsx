@@ -26,7 +26,8 @@ const GOLD = "#D4AF37";
 const GOLD_MID = "#FFE8BA";
 const TEXT_MUTED = "#94a3b8";
 const TEXT_INDEX_INACTIVE = "#9CA3AF";
-const GREEN_BADGE = "#22c55e";
+const BRAND_GOLD = "#D4AF37";
+const BRAND_GOLD_LIGHT = "#FFE8BA";
 
 /** Metadados do cabeçalho (alinhados ao layout de referência). */
 const HEADER_META =
@@ -35,15 +36,15 @@ const HEADER_META =
 type Accent = { bg: string; border: string; bullet: string; icon: string };
 
 const ACCENTS: Accent[] = [
-  { bg: "rgba(59, 130, 246, 0.18)", border: "rgba(59, 130, 246, 0.4)", bullet: "#60A5FA", icon: "#60A5FA" },
-  { bg: "rgba(34, 197, 94, 0.15)", border: "rgba(34, 197, 94, 0.35)", bullet: "#22c55e", icon: "#4ADE80" },
-  { bg: "rgba(249, 115, 22, 0.15)", border: "rgba(249, 115, 22, 0.35)", bullet: "#f97316", icon: "#FB923C" },
-  { bg: "rgba(244, 63, 94, 0.15)", border: "rgba(244, 63, 94, 0.35)", bullet: "#fb7185", icon: "#FB7185" },
-  { bg: "rgba(168, 85, 247, 0.15)", border: "rgba(168, 85, 247, 0.35)", bullet: "#a855f7", icon: "#C084FC" },
-  { bg: "rgba(180, 83, 9, 0.18)", border: "rgba(180, 83, 9, 0.4)", bullet: "#d97706", icon: "#F59E0B" },
-  { bg: "rgba(20, 184, 166, 0.15)", border: "rgba(20, 184, 166, 0.35)", bullet: "#2dd4bf", icon: "#2DD4BF" },
-  { bg: "rgba(34, 197, 94, 0.12)", border: "rgba(34, 197, 94, 0.3)", bullet: "#22c55e", icon: "#4ADE80" },
-  { bg: "rgba(234, 179, 8, 0.18)", border: "rgba(234, 179, 8, 0.4)", bullet: "#eab308", icon: "#FACC15" },
+  { bg: "rgba(212, 175, 55, 0.16)", border: "rgba(212, 175, 55, 0.34)", bullet: "#D4AF37", icon: "#FFE8BA" },
+  { bg: "rgba(255, 232, 186, 0.12)", border: "rgba(255, 232, 186, 0.28)", bullet: "#FFE8BA", icon: "#FFE8BA" },
+  { bg: "rgba(212, 175, 55, 0.13)", border: "rgba(212, 175, 55, 0.3)", bullet: "#D4AF37", icon: "#FFE8BA" },
+  { bg: "rgba(255, 232, 186, 0.1)", border: "rgba(255, 232, 186, 0.24)", bullet: "#FFE8BA", icon: "#FFE8BA" },
+  { bg: "rgba(212, 175, 55, 0.11)", border: "rgba(212, 175, 55, 0.26)", bullet: "#D4AF37", icon: "#FFE8BA" },
+  { bg: "rgba(255, 232, 186, 0.15)", border: "rgba(255, 232, 186, 0.32)", bullet: "#FFE8BA", icon: "#FFE8BA" },
+  { bg: "rgba(212, 175, 55, 0.14)", border: "rgba(212, 175, 55, 0.3)", bullet: "#D4AF37", icon: "#FFE8BA" },
+  { bg: "rgba(255, 232, 186, 0.13)", border: "rgba(255, 232, 186, 0.3)", bullet: "#FFE8BA", icon: "#FFE8BA" },
+  { bg: "rgba(212, 175, 55, 0.12)", border: "rgba(212, 175, 55, 0.28)", bullet: "#D4AF37", icon: "#FFE8BA" },
 ];
 
 const INDEX_ITEMS: { id: string; label: string; Icon: LucideIcon }[] = [
@@ -397,7 +398,7 @@ export default function PrivacidadePage() {
   }, []);
 
   return (
-    <div className="min-h-screen pb-32 lg:pb-16" style={{ backgroundColor: BG }}>
+    <div className="min-h-screen pb-32 lg:pb-16">
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0" aria-hidden>
         <div
           className="absolute -top-1/4 -right-1/4 w-[72%] h-[58%]"
@@ -443,7 +444,10 @@ export default function PrivacidadePage() {
                 </h1>
                 <span
                   className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold text-white shrink-0 leading-none"
-                  style={{ backgroundColor: GREEN_BADGE }}
+                  style={{
+                    background: `linear-gradient(180deg, ${BRAND_GOLD_LIGHT} 0%, ${BRAND_GOLD} 100%)`,
+                    color: "#0E141B",
+                  }}
                 >
                   v2.1
                 </span>
@@ -479,14 +483,14 @@ export default function PrivacidadePage() {
                       onClick={() => scrollTo(item.id)}
                       className="group flex items-start gap-3 w-full text-left rounded-lg py-2.5 pl-2.5 pr-2 transition-colors relative"
                       style={{
-                        background: active ? "rgba(59, 130, 246, 0.12)" : "transparent",
-                        borderLeft: active ? "3px solid #3B82F6" : "3px solid transparent",
+                        background: active ? "rgba(212, 175, 55, 0.16)" : "transparent",
+                        borderLeft: active ? "3px solid #D4AF37" : "3px solid transparent",
                         color: active ? "#ffffff" : TEXT_INDEX_INACTIVE,
                       }}
                     >
                       <Icon
                         className="w-4 h-4 shrink-0 mt-0.5"
-                        style={{ color: active ? "#60A5FA" : "rgba(148, 163, 184, 0.55)" }}
+                        style={{ color: active ? "#FFE8BA" : "rgba(148, 163, 184, 0.55)" }}
                         strokeWidth={2}
                       />
                       <span
@@ -508,8 +512,8 @@ export default function PrivacidadePage() {
               }}
             >
               <div className="flex items-center gap-2 mb-2">
-                <ShieldCheck className="w-5 h-5 shrink-0" style={{ color: GREEN_BADGE }} strokeWidth={2} />
-                <span className="text-[13px] font-bold" style={{ color: GREEN_BADGE }}>
+                <ShieldCheck className="w-5 h-5 shrink-0" style={{ color: BRAND_GOLD_LIGHT }} strokeWidth={2} />
+                <span className="text-[13px] font-bold" style={{ color: BRAND_GOLD_LIGHT }}>
                   Conformidade LGPD
                 </span>
               </div>
@@ -546,9 +550,9 @@ export default function PrivacidadePage() {
               <span
                 className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase"
                 style={{
-                  background: "rgba(34, 197, 94, 0.15)",
-                  border: "1px solid rgba(34, 197, 94, 0.3)",
-                  color: "#4ADE80",
+                  background: "rgba(212, 175, 55, 0.15)",
+                  border: "1px solid rgba(212, 175, 55, 0.35)",
+                  color: BRAND_GOLD_LIGHT,
                 }}
               >
                 <Check className="w-3 h-3" strokeWidth={3} />
@@ -666,7 +670,10 @@ export default function PrivacidadePage() {
               <Link
                 href="mailto:privacidade@bolaodomilhao.com.br"
                 className="shrink-0 px-6 py-3 rounded-xl text-[14px] font-bold text-white transition-opacity hover:opacity-90"
-                style={{ backgroundColor: "#F97316" }}
+                style={{
+                  background: `linear-gradient(180deg, ${BRAND_GOLD_LIGHT} 0%, ${BRAND_GOLD} 100%)`,
+                  color: "#0E141B",
+                }}
               >
                 Falar com Suporte
               </Link>
@@ -695,8 +702,8 @@ export default function PrivacidadePage() {
             onClick={() => setAgreed(true)}
             className="w-full flex items-center justify-center gap-2 min-h-[52px] rounded-xl text-[15px] font-black text-[#0E141B]"
             style={{
-              background: "linear-gradient(90deg, #FFE8BA 0%, #F97316 100%)",
-              boxShadow: "0 6px 28px rgba(249, 115, 22, 0.35)",
+              background: `linear-gradient(90deg, ${BRAND_GOLD_LIGHT} 0%, ${BRAND_GOLD} 100%)`,
+              boxShadow: "0 6px 28px rgba(212, 175, 55, 0.35)",
             }}
           >
             <Check className="w-5 h-5" strokeWidth={2.5} />
