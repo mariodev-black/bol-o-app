@@ -321,7 +321,7 @@ export function NavBottom() {
       )}
 
       <nav
-        className="fixed bottom-0 left-1/2 -translate-x-1/2 z-60 flex items-center gap-1 w-full justify-between bg-card border-t border-white/10 md:hidden"
+        className="fixed bottom-0 left-1/2 -translate-x-1/2 z-60 flex items-center gap-1 w-full justify-between bg-card border-t border-white/10 md:hidden px-2"
         style={{ background: "rgba(6,11,24,0.78)", backdropFilter: "blur(10px)" }}
       >
         {BOTTOM_ITEMS.map(({ label, href, icon: Icon }) => {
