@@ -780,7 +780,7 @@ export default function IndiqueGanhePage() {
                   {copied ? <Check size={16} strokeWidth={3} /> : <Copy size={16} strokeWidth={2.5} />}
                   {copied ? "Link Copiado!" : "Copiar Link Agora"}
                 </button>
-                <div className="grid grid-cols-2 gap-2 md:hidden">
+                <div className="grid grid-cols-2 gap-2 md:block hidden">
                   <button
                     type="button"
                     onClick={openWhatsAppInvite}

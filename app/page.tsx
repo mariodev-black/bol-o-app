@@ -101,18 +101,6 @@ export default function HomePage() {
               <ExternalLink className="w-5 h-5" />
             </Link>
           </div>
-
-          <Button
-            variant="ghost"
-            asChild
-            className="mt-4 rounded-full border border-white/20 text-white hover:bg-white/10 px-7 gap-1"
-            style={{ backgroundColor: "rgba(0,0,0,0.35)" }}
-          >
-            <Link href="/ranking">
-              Ver ranking{" "}
-              <ChevronRight className="w-4 h-4" style={{ color: "#D4AF37" }} />
-            </Link>
-          </Button>
         </div>
       </section>
       <FlagsMarquee />

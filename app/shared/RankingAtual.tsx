@@ -621,23 +621,6 @@ export function RankingAtual() {
                 </div>
               </div>
             ))}
-
-            {/* Botão */}
-            <div className="flex justify-center mt-8">
-              <Link
-                href="/ranking"
-                className="flex items-center gap-1 rounded-full px-6 py-3"
-                style={{ backgroundColor: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.14)" }}
-              >
-                <span className="text-white font-medium text-base">Ver ranking completo</span>
-                <div
-                  className="flex items-center justify-center w-7 h-7 rounded-full ml-2"
-                  style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
-                >
-                  <ChevronRight className="w-4 h-4" style={{ color: "#D4AF37" }} />
-                </div>
-              </Link>
-            </div>
           </div>
 
           {/* Stats */}

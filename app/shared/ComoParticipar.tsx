@@ -104,19 +104,6 @@ export function ComoParticipar() {
             <ExternalLink className="w-5 h-5" />
           </Link>
         </div>
-
-        {/* Ver ranking */}
-        <Button
-          variant="ghost"
-          asChild
-          className="relative z-10 rounded-full border border-white/20 text-white hover:bg-white/10 px-7 gap-1 h-13 w-full md:w-auto shrink-0"
-          style={{ backgroundColor: "rgba(0,0,0,0.35)" }}
-        >
-          <Link href="/ranking">
-            Ver ranking
-            <ChevronRight className="w-4 h-4" style={{ color: "#D4AF37" }} />
-          </Link>
-        </Button>
       </div>
     </section>
   );

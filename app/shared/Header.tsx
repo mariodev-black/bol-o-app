@@ -7,7 +7,7 @@ import logo from "@/app/assets/logo.png";
 
 const NAV_LINKS = [
   { label: "Home", href: "/" },
-  { label: "Palpites", href: "/palpites" },
+  { label: "Bolões", href: "/boloes" },
   { label: "Ranking", href: "/ranking" },
   { label: "Indique e ganhe", href: "/indique" },
   { label: "Regulamento", href: "/regulamento" },

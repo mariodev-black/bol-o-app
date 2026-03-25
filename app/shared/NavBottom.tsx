@@ -3,18 +3,17 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Menu, Target, Trophy, Wallet, X } from "lucide-react";
+import { Gift, Home, Menu, Trophy, Wallet, X } from "lucide-react";
 
 const BOTTOM_ITEMS = [
-  { label: "Meus Palpites", href: "/palpites", icon: Target },
-  { label: "Meus Bolões", href: "/dashboard", icon: Trophy },
-  { label: "Início", href: "/dashboard", icon: Home },
+  { label: "Indique", href: "/indique", icon: Gift },
+  { label: "Meus Bolões", href: "/boloes", icon: Trophy },
+  { label: "Início", href: "/", icon: Home },
   { label: "Depósito", href: "/saques", icon: Wallet },
 ] as const;
 
 const MENU_ITEMS = [
-  { label: "Início", href: "/dashboard" },
-  { label: "Meus Palpites", href: "/palpites" },
+  { label: "Início", href: "/" },
   { label: "Indique e Ganhe", href: "/indique" },
   { label: "Depósito / Saques", href: "/saques" },
   { label: "Termos", href: "/termos" },
@@ -27,8 +26,8 @@ export function NavBottom() {
   const normalizedPath = useMemo(() => pathname ?? "", [pathname]);
 
   const isItemActive = (href: string) => {
-    if (href === "/dashboard") {
-      return normalizedPath === "/" || normalizedPath.startsWith("/dashboard");
+    if (href === "/") {
+      return normalizedPath === "/";
     }
     return normalizedPath === href || normalizedPath.startsWith(`${href}/`);
   };
