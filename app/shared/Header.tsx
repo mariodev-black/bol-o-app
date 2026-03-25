@@ -11,6 +11,7 @@ const NAV_LINKS = [
   { label: "Ranking", href: "/ranking" },
   { label: "Indique e ganhe", href: "/indique" },
   { label: "Regulamento", href: "/regulamento" },
+  { label: "Termos", href: "/termos" },
 ];
 
 export function Header() {
