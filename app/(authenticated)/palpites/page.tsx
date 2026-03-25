@@ -8,7 +8,8 @@ import bgPalpitesDesk from "@/app/assets/bg-palpites-desktop.png";
 import { StepsBreadcrumb } from "../boloes/_components/StepsBreadcrumb";
 
 // ── Tipos ────────────────────────────────────────────────────
-type TabView = "jogos" | "tabela" | "ranking";
+type TabView = "jogos" | "tabela" | "ranking" | "resumo";
+type ResultTabView = "jogos" | "ranking" | "resumo";
 type StatusJogo = "aberto" | "encerrado";
 
 interface ClassificacaoTime {
@@ -662,6 +663,237 @@ function RankingView() {
   );
 }
 
+function mockPalpiteHistorico(jogo: Jogo, rodadaLabel: string) {
+  const pc = (jogo.id * 3) % 5;
+  const pv = (jogo.id * 7) % 4;
+  const rc = (jogo.id * 2) % 5;
+  const rv = (jogo.id * 5) % 4;
+  const pontos = ((jogo.id % 5) + (jogo.id % 3)) % 8;
+  const placarExato = pc === rc && pv === rv;
+  const status = placarExato ? "Placar exato" : pontos > 0 ? "Acerto parcial" : "Sem pontos";
+  const dataPalpiteDia = 5 + (jogo.id % 20);
+  const dataPalpiteMes = 6;
+  const horaPalpiteH = 8 + (jogo.id % 10);
+  const horaPalpiteM = (jogo.id * 7) % 60;
+  const dataPalpiteStr = `${String(dataPalpiteDia).padStart(2, "0")}/${String(dataPalpiteMes).padStart(2, "0")}/2026`;
+  const horaPalpiteStr = `${String(horaPalpiteH).padStart(2, "0")}:${String(horaPalpiteM).padStart(2, "0")}`;
+  return {
+    id: jogo.id,
+    rodadaLabel,
+    grupo: jogo.grupo,
+    mandante: jogo.timeCasa,
+    visitante: jogo.timeVisitante,
+    siglas: `${jogo.siglasCasa} x ${jogo.siglasVisitante}`,
+    jogoDataHora: `${jogo.data}, ${jogo.hora}`,
+    dataPalpite: dataPalpiteStr,
+    horaPalpite: horaPalpiteStr,
+    palpiteCasa: pc,
+    palpiteVisitante: pv,
+    resultadoCasa: rc,
+    resultadoVisitante: rv,
+    pontos,
+    status,
+    statusJogo: jogo.status === "encerrado" ? "Encerrado" : "Aberto",
+  };
+}
+
+function TicketResumoView({
+  ticketId,
+  eventDate,
+  ranking,
+  points,
+  resultMode,
+  bolaoType,
+  jogosPorRodada,
+}: {
+  ticketId: string | null;
+  eventDate: string | null;
+  ranking: string | null;
+  points: string | null;
+  resultMode: boolean;
+  bolaoType: "principal" | "diario";
+  jogosPorRodada: { label: string; jogos: Jogo[] }[];
+}) {
+  const [resumoSecao, setResumoSecao] = useState<"geral" | "historico">("geral");
+  const historico = jogosPorRodada
+    .flatMap(({ label, jogos }) => jogos.map((j) => mockPalpiteHistorico(j, label)))
+    .slice(0, 12);
+
+  return (
+    <div className="space-y-3">
+      <div
+        className="rounded-2xl px-4 py-4"
+        style={{ background: "#0A0E19", border: "1px solid rgba(255,255,255,0.08)" }}
+      >
+        <p className="text-[11px] uppercase tracking-[0.12em] font-bold text-white/45">
+          {resultMode ? "Resumo do ticket (resultado)" : "Resumo do ticket"}
+        </p>
+        <div className="mt-3 grid grid-cols-2 lg:grid-cols-4 gap-2">
+          {ticketId && (
+            <div className="rounded-lg px-2.5 py-2 text-[12px]" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.12)" }}>
+              Ticket
+              <p className="text-white font-semibold mt-0.5 truncate" title={ticketId}>{ticketId}</p>
+            </div>
+          )}
+          {eventDate && (
+            <div className="rounded-lg px-2.5 py-2 text-[12px]" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.12)" }}>
+              Evento
+              <p className="text-white font-semibold mt-0.5">{eventDate}</p>
+            </div>
+          )}
+          {ranking && (
+            <div className="rounded-lg px-2.5 py-2 text-[12px]" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.12)" }}>
+              Ranking
+              <p className="text-white font-semibold mt-0.5">#{ranking}</p>
+            </div>
+          )}
+          {points && (
+            <div className="rounded-lg px-2.5 py-2 text-[12px]" style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.22)" }}>
+              Pontos ganhos
+              <p className="text-[#4ADE80] font-semibold mt-0.5">{points} pts</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-1 p-1 rounded-xl bg-[#0A0E19]" style={{ border: "1px solid rgba(255,255,255,0.06)" }}>
+        <button
+          type="button"
+          onClick={() => setResumoSecao("geral")}
+          className="flex-1 py-2.5 rounded-lg text-[12px] font-semibold transition-all duration-200"
+          style={{
+            background: resumoSecao === "geral" ? "#161D2D" : "transparent",
+            color: resumoSecao === "geral" ? "#fff" : "rgba(255,255,255,0.4)",
+          }}
+        >
+          Resumo
+        </button>
+        <button
+          type="button"
+          onClick={() => setResumoSecao("historico")}
+          className="flex-1 py-2.5 rounded-lg text-[12px] font-semibold transition-all duration-200"
+          style={{
+            background: resumoSecao === "historico" ? "#161D2D" : "transparent",
+            color: resumoSecao === "historico" ? "#fff" : "rgba(255,255,255,0.4)",
+          }}
+        >
+          Histórico de palpites
+        </button>
+      </div>
+
+      {resumoSecao === "geral" ? (
+        <div
+          className="rounded-2xl px-4 py-4 text-[12px] leading-relaxed"
+          style={{ background: "#0A0E19", border: "1px solid rgba(255,255,255,0.08)" }}
+        >
+          <p className="text-[11px] uppercase tracking-[0.12em] font-bold text-white/45 mb-2">Informações</p>
+          <ul className="space-y-2 text-white/70">
+            <li className="flex justify-between gap-3">
+              <span className="text-white/45 shrink-0">Bolão</span>
+              <span className="text-right font-medium text-white/90">Copa do Mundo 2026 — Fase de Grupos</span>
+            </li>
+            <li className="flex justify-between gap-3">
+              <span className="text-white/45 shrink-0">Regra</span>
+              <span className="text-right font-medium text-white/90">
+                {bolaoType === "principal"
+                  ? "Ticket válido durante toda a Copa: todo dia você palpita em todos os jogos do dia."
+                  : "Ticket diário: você palpita apenas nos jogos daquele dia."}
+              </span>
+            </li>
+            <li className="flex justify-between gap-3">
+              <span className="text-white/45 shrink-0">Status do ticket</span>
+              <span className="text-right font-medium text-white/90">{resultMode ? "Resultado disponível" : "Em andamento"}</span>
+            </li>
+          </ul>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <p className="text-[11px] uppercase tracking-[0.12em] font-bold text-white/45 px-0.5">
+            Histórico de palpites
+          </p>
+          {historico.length === 0 ? (
+            <div
+              className="rounded-2xl px-4 py-4 text-[12px] text-white/45"
+              style={{ background: "#0A0E19", border: "1px solid rgba(255,255,255,0.08)" }}
+            >
+              Nenhum palpite registrado ainda.
+            </div>
+          ) : (
+            historico.map((item) => (
+              <div
+                key={item.id}
+                className="rounded-2xl px-4 py-3.5"
+                style={{ background: "#0A0E19", border: "1px solid rgba(255,255,255,0.08)" }}
+              >
+                <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-bold text-white leading-snug">
+                      {item.mandante} <span className="text-white/35 font-normal">vs</span> {item.visitante}
+                    </p>
+                    <p className="text-[11px] text-white/40 mt-0.5">{item.siglas} · Grupo {item.grupo} · {item.rodadaLabel}</p>
+                  </div>
+                  <span
+                    className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full shrink-0"
+                    style={{
+                      background: item.statusJogo === "Encerrado" ? "rgba(148,163,184,0.12)" : "rgba(34,197,94,0.12)",
+                      color: item.statusJogo === "Encerrado" ? "rgba(226,232,240,0.85)" : "#86EFAC",
+                      border: `1px solid ${item.statusJogo === "Encerrado" ? "rgba(148,163,184,0.25)" : "rgba(34,197,94,0.28)"}`,
+                    }}
+                  >
+                    {item.statusJogo}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                  <div className="rounded-lg px-2.5 py-2" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                    <p className="text-white/40 font-bold uppercase tracking-wide">Palpite enviado em</p>
+                    <p className="text-white/90 font-semibold mt-0.5">{item.dataPalpite} às {item.horaPalpite}</p>
+                  </div>
+                  <div className="rounded-lg px-2.5 py-2" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                    <p className="text-white/40 font-bold uppercase tracking-wide">Jogo</p>
+                    <p className="text-white/90 font-semibold mt-0.5">{item.jogoDataHora}</p>
+                  </div>
+                </div>
+
+                <div className="mt-2 flex flex-wrap items-center gap-3 text-[12px]">
+                  <div>
+                    <span className="text-white/40">Seu palpite</span>
+                    <p className="font-black text-white mt-0.5">
+                      {item.palpiteCasa} <span className="text-white/30 font-normal">x</span> {item.palpiteVisitante}
+                    </p>
+                  </div>
+                  <div className="h-8 w-px bg-white/10 hidden sm:block" />
+                  <div>
+                    <span className="text-white/40">Resultado</span>
+                    <p className="font-black text-white mt-0.5">
+                      {item.resultadoCasa} <span className="text-white/30 font-normal">x</span> {item.resultadoVisitante}
+                    </p>
+                  </div>
+                  <div className="sm:ml-auto flex items-center gap-2">
+                    <span
+                      className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                      style={{
+                        background: item.pontos > 0 ? "rgba(34,197,94,0.1)" : "rgba(255,255,255,0.06)",
+                        color: item.pontos > 0 ? "#86EFAC" : "rgba(255,255,255,0.45)",
+                        border: `1px solid ${item.pontos > 0 ? "rgba(34,197,94,0.25)" : "rgba(255,255,255,0.1)"}`,
+                      }}
+                    >
+                      {item.status}
+                    </span>
+                    <span className={`text-[13px] font-black ${item.pontos > 0 ? "text-[#4ADE80]" : "text-white/40"}`}>
+                      {item.pontos > 0 ? `+${item.pontos} pts` : "0 pts"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Sidebar desktop ───────────────────────────────────────────
 function DesktopSidebar({ grupo, tabela, grupos, onGrupo }: {
   grupo: string;
@@ -863,6 +1095,10 @@ export default function PalpitesPage() {
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState(false);
   const [tabela, setTabela] = useState<TabelaGrupos | null>(null);
+  const [resultTab, setResultTab] = useState<ResultTabView>("jogos");
+  const showJogos = resultMode ? resultTab === "jogos" : tab === "jogos";
+  const showRanking = resultMode ? resultTab === "ranking" : tab === "ranking";
+  const showResumo = resultMode ? resultTab === "resumo" : tab === "resumo";
 
   useEffect(() => {
     fetch("/api/tabela")
@@ -895,6 +1131,10 @@ export default function PalpitesPage() {
 
   useEffect(() => {
     if (resultMode) setTab("jogos");
+  }, [resultMode]);
+
+  useEffect(() => {
+    if (resultMode) setResultTab("jogos");
   }, [resultMode]);
 
   const jogosPorRodada = RODADAS_LABEL.map((label, idx) => ({
@@ -955,43 +1195,6 @@ export default function PalpitesPage() {
         </div>
       )}
 
-      {hasBoloesFlow && (
-        <div
-          className="mb-4 rounded-xl border px-4 py-3"
-          style={{ background: "rgba(10,14,25,0.9)", borderColor: resultMode ? "rgba(59,130,246,0.35)" : "rgba(212,175,55,0.25)" }}
-        >
-          <p className="text-[11px] uppercase tracking-[0.12em] font-bold text-white/45">
-            {resultMode ? "Resumo do ticket (resultado)" : "Resumo do ticket"}
-          </p>
-          <div className="mt-2 grid grid-cols-2 lg:grid-cols-4 gap-2">
-            {ticketId && (
-              <div className="rounded-lg px-2.5 py-2 text-[12px]" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.12)" }}>
-                Ticket
-                <p className="text-white font-semibold mt-0.5">{ticketId}</p>
-              </div>
-            )}
-            {eventDate && (
-              <div className="rounded-lg px-2.5 py-2 text-[12px]" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.12)" }}>
-                Evento
-                <p className="text-white font-semibold mt-0.5">{eventDate}</p>
-              </div>
-            )}
-            {ranking && (
-              <div className="rounded-lg px-2.5 py-2 text-[12px]" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.12)" }}>
-                Ranking
-                <p className="text-white font-semibold mt-0.5">#{ranking}</p>
-              </div>
-            )}
-            {points && (
-              <div className="rounded-lg px-2.5 py-2 text-[12px]" style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.22)" }}>
-                Pontos ganhos
-                <p className="text-[#4ADE80] font-semibold mt-0.5">{points} pts</p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Background desktop — cobre a tela inteira */}
       <div
         className="fixed inset-0 pointer-events-none hidden lg:block -z-10"
@@ -1017,31 +1220,53 @@ export default function PalpitesPage() {
         <div>
 
           {/* Mobile: tabs */}
-          {!resultMode && (
+          {resultMode ? (
             <div className="lg:hidden flex items-center gap-1 mb-5 p-1 rounded-xl bg-[#0A0E19]">
-            {([
-              { key: "jogos", label: "Jogos", icon: AlignJustify },
-              { key: "tabela", label: "Tabela", icon: BarChart2 },
-              { key: "ranking", label: "Ranking", icon: Trophy },
-            ] as const).map(({ key, label, icon: Icon }) => (
-              <button
-                key={key}
-                onClick={() => setTab(key)}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[13px] font-semibold transition-all duration-200"
-                style={{
-                  background: tab === key ? "#161D2D" : "transparent",
-                  color: tab === key ? "#fff" : "rgba(255,255,255,0.35)",
-                }}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                {label}
-              </button>
-            ))}
+              {([
+                { key: "jogos", label: "Jogos", icon: AlignJustify },
+                { key: "ranking", label: "Ranking", icon: Trophy },
+                { key: "resumo", label: "Resumo", icon: BarChart2 },
+              ] as const).map(({ key, label, icon: Icon }) => (
+                <button
+                  key={key}
+                  onClick={() => setResultTab(key)}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[13px] font-semibold transition-all duration-200"
+                  style={{
+                    background: resultTab === key ? "#161D2D" : "transparent",
+                    color: resultTab === key ? "#fff" : "rgba(255,255,255,0.35)",
+                  }}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  {label}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="lg:hidden flex items-center gap-1 mb-5 p-1 rounded-xl bg-[#0A0E19]">
+              {([
+                { key: "jogos", label: "Jogos", icon: AlignJustify },
+                { key: "tabela", label: "Tabela", icon: BarChart2 },
+                { key: "ranking", label: "Ranking", icon: Trophy },
+                { key: "resumo", label: "Resumo", icon: BarChart2 },
+              ] as const).map(({ key, label, icon: Icon }) => (
+                <button
+                  key={key}
+                  onClick={() => setTab(key)}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[13px] font-semibold transition-all duration-200"
+                  style={{
+                    background: tab === key ? "#161D2D" : "transparent",
+                    color: tab === key ? "#fff" : "rgba(255,255,255,0.35)",
+                  }}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  {label}
+                </button>
+              ))}
             </div>
           )}
 
           {/* Mobile: filtro grupos (exceto ranking) */}
-          {grupos.length > 0 && tab !== "ranking" && !resultMode && (
+          {grupos.length > 0 && tab !== "ranking" && tab !== "resumo" && !resultMode && (
             <div className="mb-5 lg:hidden">
               <BotoesGrupo />
             </div>
@@ -1054,9 +1279,9 @@ export default function PalpitesPage() {
             </div>
           )}
 
-          {/* Mobile: conteúdo com tabs */}
-          <div key={tab} className="animate-tab-in lg:hidden">
-            {(tab === "jogos" || resultMode) && (
+          {/* Mobile: conteúdo com tabs — em resultMode NÃO usar tab==="jogos" (tab fica em jogos e quebrava o Ranking) */}
+          <div key={resultMode ? `result-${resultTab}` : tab} className="animate-tab-in lg:hidden">
+            {showJogos && (
               <div>
                 {erro ? (
                   <div className="flex flex-col items-center py-16">
@@ -1084,12 +1309,58 @@ export default function PalpitesPage() {
               </div>
             )}
             {tab === "tabela" && !resultMode && <TabelaView grupo={grupo} tabela={tabela} onGrupo={setGrupo} />}
-            {!resultMode && tab === "ranking" && <RankingView />}
+            {showRanking ? <RankingView /> : null}
+            {showResumo ? (
+              <TicketResumoView
+                ticketId={ticketId}
+                eventDate={eventDate}
+                ranking={ranking}
+                points={points}
+                resultMode={resultMode}
+                bolaoType={bolaoType}
+                jogosPorRodada={jogosPorRodada}
+              />
+            ) : null}
           </div>
 
           {/* Desktop: grid 2 colunas de cards por rodada */}
           <div className="hidden lg:block">
-            {erro ? (
+            {resultMode && (
+              <div className="flex items-center gap-1 mb-5 p-1 rounded-xl bg-[#0A0E19] w-[280px]">
+                {([
+                  { key: "jogos", label: "Jogos", icon: AlignJustify },
+                  { key: "ranking", label: "Ranking", icon: Trophy },
+                  { key: "resumo", label: "Resumo", icon: BarChart2 },
+                ] as const).map(({ key, label, icon: Icon }) => (
+                  <button
+                    key={key}
+                    onClick={() => setResultTab(key)}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[13px] font-semibold transition-all duration-200"
+                    style={{
+                      background: resultTab === key ? "#161D2D" : "transparent",
+                      color: resultTab === key ? "#fff" : "rgba(255,255,255,0.35)",
+                    }}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {showResumo ? (
+              <TicketResumoView
+                ticketId={ticketId}
+                eventDate={eventDate}
+                ranking={ranking}
+                points={points}
+                resultMode={resultMode}
+                bolaoType={bolaoType}
+                jogosPorRodada={jogosPorRodada}
+              />
+            ) : showRanking ? (
+              <RankingView />
+            ) : erro ? (
               <div className="flex flex-col items-center py-16">
                 <AlertTriangle className="w-10 h-10 mb-3 text-white/20" strokeWidth={1.5} />
                 <p className="text-white/30 text-sm">Erro ao carregar partidas</p>

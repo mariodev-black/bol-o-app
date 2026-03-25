@@ -46,7 +46,7 @@ const OPTIONS = [
   {
     title: "BOLÃO PRINCIPAL",
     subtitle:
-      "Aqui você aposta durante toda a Copa: da abertura até a final, com pontuação acumulada no ranking geral.",
+      "Seu ticket vale da abertura até a final: todos os dias você palpita em todos os jogos do dia e soma pontos no ranking geral.",
     href: "/boloes/tickets?bolao=principal",
     prize: "R$ 1.000.000",
     players: "124.582 participantes",
@@ -58,11 +58,11 @@ const OPTIONS = [
   {
     title: "BOLÃO DIÁRIO",
     subtitle:
-      "Aqui você aposta somente nos jogos do dia. Terminou o dia, fecha a rodada e no dia seguinte abre uma nova.",
+      "Seu ticket vale só para os jogos do dia selecionado. No dia seguinte, é necessário um novo ticket diário.",
     href: "/boloes/tickets?bolao=diario",
     prize: "R$ 50.000",
     players: "12.430 participantes",
-    closeAt: "Válido apenas para os jogos de hoje",
+    closeAt: "Válido apenas para os jogos daquele dia",
     titleColor: "#FFFFFF",
     ctaLabel: "Jogar só hoje",
     chipInfo: "Duração: só hoje",
@@ -96,7 +96,7 @@ export default function BoloesPage() {
               </span>
               <h1 className="text-[34px] md:text-[40px] font-black leading-none text-white">Meus Bolões</h1>
               <p className="text-[15px] mt-2 leading-relaxed text-white/55 max-w-[620px] text-balance">
-                Escolha seu formato: temporada completa da Copa ou disputa rápida somente com os jogos de hoje.
+                Escolha seu formato: ticket válido por toda a Copa ou ticket diário válido apenas para um dia.
               </p>
             </div>
           </div>
@@ -107,7 +107,7 @@ export default function BoloesPage() {
           >
             <p className="text-[13px] leading-relaxed text-white/75">
               <span style={{ color: GOLD_LIGHT }} className="font-semibold">Regra oficial:</span>{" "}
-              no Bolão Principal você acumula pontos durante toda a Copa; no Bolão Diário você aposta só nos jogos do dia.
+              no Bolão Principal, o ticket vale a Copa inteira e você aposta todos os dias em todos os jogos do dia; no Bolão Diário, o ticket vale apenas para os jogos de um único dia.
             </p>
           </div>
         </section>
