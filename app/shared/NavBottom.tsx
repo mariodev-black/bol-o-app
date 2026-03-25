@@ -148,14 +148,6 @@ export function NavBottom() {
               boxShadow: "rgba(0,0,0,0.78) 0px 30px 90px -22px, rgba(212,175,55,0.18) 0px 0px 0px 1px inset",
             }}
           >
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0 opacity-90"
-              style={{
-                background:
-                  "repeating-linear-gradient(145deg, rgba(255,255,255,0.018) 0px, rgba(255,255,255,0.018) 1px, transparent 1px, transparent 7px)",
-              }}
-            />
 
             <div className="relative flex h-full flex-col">
               <div className="px-5 pt-5 pb-4">
@@ -344,9 +336,9 @@ export function NavBottom() {
                 style={
                   active
                     ? {
-                        background: "linear-gradient(180deg, #FFE8BA 0%, #D4AF37 100%)",
-                        boxShadow: "0 0 16px rgba(255,175,47,0.6), 0 0 32px rgba(255,175,47,0.25)",
-                      }
+                      background: "linear-gradient(180deg, #FFE8BA 0%, #D4AF37 100%)",
+                      boxShadow: "0 0 16px rgba(255,175,47,0.6), 0 0 32px rgba(255,175,47,0.25)",
+                    }
                     : { background: "transparent" }
                 }
               >
