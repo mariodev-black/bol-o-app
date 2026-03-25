@@ -765,10 +765,6 @@ function TicketResumoView({
         background: "linear-gradient(165deg, #121a2a 0%, #0A0E19 42%, #060912 100%)",
       }}
     >
-      <div
-        className="absolute left-0 top-0 bottom-0 w-[4px] z-0 rounded-l-[13px]"
-        style={{ background: "linear-gradient(180deg, #FFF8E7 0%, #D4AF37 45%, #6b5420 100%)" }}
-      />
 
       <div className="relative z-1 pl-[18px] pr-4 pt-4 pb-3 sm:pr-5 flex items-start justify-between gap-3">
         <p className="text-[11px] uppercase tracking-[0.14em] font-bold text-white/45 font-mono leading-snug">
@@ -847,7 +843,11 @@ function TicketResumoView({
           <ul className="space-y-2.5 text-white/75">
             <li className="flex justify-between gap-3">
               <span className="text-white/45 shrink-0">Bolão</span>
-              <span className="text-right font-medium text-white/90">Copa do Mundo 2026 — Fase de Grupos</span>
+              <span className="text-right font-medium text-white/90">
+                {bolaoType === "principal"
+                  ? "Copa do Mundo 2026 — jogos do dia (Copa inteira)"
+                  : "Copa do Mundo 2026 — jogos do dia"}
+              </span>
             </li>
             <li className="flex justify-between gap-3">
               <span className="text-white/45 shrink-0">Regra</span>
@@ -1264,7 +1264,13 @@ function PalpitesPageContent() {
         <h1 className="text-[28px] lg:text-[42px] font-black text-white leading-tight">
           Copa do Mundo 2026
         </h1>
-        <p className="text-white/40 text-[13px] mt-1">Fase de Grupos</p>
+        <p className="text-white/40 text-[13px] mt-1">
+          {hasBoloesFlow
+            ? bolaoType === "principal"
+              ? "Jogos do dia · Copa inteira"
+              : "Jogos do dia"
+            : "Fase de Grupos"}
+        </p>
       </div>
 
       <div className="lg:grid lg:grid-cols-[1fr_360px] lg:gap-8 lg:items-start">
@@ -1319,14 +1325,14 @@ function PalpitesPageContent() {
           )}
 
           {/* Mobile: filtro grupos (exceto ranking) */}
-          {grupos.length > 0 && tab !== "ranking" && tab !== "resumo" && !resultMode && (
+          {grupos.length > 0 && tab !== "ranking" && tab !== "resumo" && !resultMode && !hasBoloesFlow && (
             <div className="mb-5 lg:hidden">
               <BotoesGrupo />
             </div>
           )}
 
           {/* Desktop: filtro de grupos */}
-          {grupos.length > 0 && !resultMode && (
+          {grupos.length > 0 && !resultMode && !hasBoloesFlow && (
             <div className="hidden lg:block mb-6">
               <BotoesGrupo />
             </div>
@@ -1346,7 +1352,9 @@ function PalpitesPageContent() {
                 ) : jogosPorRodada.length === 0 ? (
                   <div className="flex flex-col items-center py-16">
                     <Disc className="w-10 h-10 mb-3 text-white/20" strokeWidth={1.5} />
-                    <p className="text-white/30 text-sm">Nenhum jogo neste grupo</p>
+                    <p className="text-white/30 text-sm">
+                      {hasBoloesFlow ? "Nenhum jogo disponível hoje" : "Nenhum jogo neste grupo"}
+                    </p>
                   </div>
                 ) : (
                   jogosPorRodada.map(({ label, jogos: rJogos }) => (
@@ -1425,7 +1433,9 @@ function PalpitesPageContent() {
             ) : jogosPorRodada.length === 0 ? (
               <div className="flex flex-col items-center py-16">
                 <Disc className="w-10 h-10 mb-3 text-white/20" strokeWidth={1.5} />
-                <p className="text-white/30 text-sm">Nenhum jogo neste grupo</p>
+                <p className="text-white/30 text-sm">
+                  {hasBoloesFlow ? "Nenhum jogo disponível hoje" : "Nenhum jogo neste grupo"}
+                </p>
               </div>
             ) : (
               jogosPorRodada.map(({ label, jogos: rJogos }) => (
