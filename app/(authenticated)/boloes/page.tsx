@@ -47,7 +47,7 @@ const OPTIONS = [
     title: "BOLÃO PRINCIPAL",
     subtitle:
       "Seu ticket vale da abertura até a final: todos os dias você palpita em todos os jogos do dia e soma pontos no ranking geral.",
-    href: "/tickets?bolao=principal",
+    href: "/boloes/tickets?bolao=principal",
     prize: "R$ 1.000.000",
     players: "124.582 participantes",
     closeAt: "Apostas válidas durante toda a Copa",
@@ -59,7 +59,7 @@ const OPTIONS = [
     title: "BOLÃO DIÁRIO",
     subtitle:
       "Seu ticket vale só para os jogos do dia selecionado. No dia seguinte, é necessário um novo ticket diário.",
-    href: "/tickets?bolao=diario",
+    href: "/boloes/tickets?bolao=diario",
     prize: "R$ 50.000",
     players: "12.430 participantes",
     closeAt: "Válido apenas para os jogos daquele dia",
