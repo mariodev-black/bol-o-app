@@ -137,13 +137,13 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
               <MyTicketsWallet refreshKey={walletVersion} />
 
               <div className="relative pl-3 sm:pl-4" style={{ borderLeft: `2px solid ${GOLD}` }}>
-                <p className="text-[10px] font-bold uppercase tracking-[0.28em] mb-1" style={{ color: "rgba(218,182,130,0.8)" }}>
+                <p className="text-[11px] font-bold uppercase tracking-[0.24em] mb-1" style={{ color: "rgba(218,182,130,0.8)" }}>
                   Palpites
                 </p>
-                <h2 className="text-xl sm:text-2xl font-extrabold text-white leading-tight" style={{ fontFamily: montserrat }}>
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-white leading-tight" style={{ fontFamily: montserrat }}>
                   Tickets
                 </h2>
-                <p className="text-[12px] mt-1.5 max-w-md" style={{ color: "rgba(226,213,184,0.48)" }}>
+                <p className="text-[14px] sm:text-[15px] mt-2 max-w-md leading-relaxed" style={{ color: "rgba(226,213,184,0.5)" }}>
                   Compre com PIX. Geral = palpites em toda a Copa. Diário = você escolhe o dia na hora de palpitar.
                 </p>
               </div>
@@ -157,7 +157,7 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
                   qty={principalQty}
                   onDelta={(d) => bump("p", d)}
                   chip="Principal"
-                  icon={<Ticket className="w-5 h-5" style={{ color: GOLD_LIGHT }} strokeWidth={2} />}
+                  icon={<Ticket className="w-6 h-6" style={{ color: GOLD_LIGHT }} strokeWidth={2} />}
                 />
                 <TicketTypeCard
                   productLabel="Um dia"
@@ -166,7 +166,7 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
                   priceCents={DIARIO_CENTS}
                   qty={diarioQty}
                   onDelta={(d) => bump("d", d)}
-                  icon={<Ticket className="w-5 h-5" style={{ color: GOLD_LIGHT }} strokeWidth={2} />}
+                  icon={<Ticket className="w-6 h-6" style={{ color: GOLD_LIGHT }} strokeWidth={2} />}
                 />
               </div>
 
@@ -178,18 +178,18 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
                 }}
               >
                 <div className="flex items-baseline justify-between gap-3 mb-2">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-white/35">Resumo · PIX</span>
-                  <span className="text-xl font-black tabular-nums" style={{ color: GOLD_LIGHT }}>
+                  <span className="text-[12px] font-bold uppercase tracking-wider text-white/40">Resumo · PIX</span>
+                  <span className="text-2xl font-black tabular-nums" style={{ color: GOLD_LIGHT }}>
                     {formatBRL(totalCents)}
                   </span>
                 </div>
 
-                <p className="text-[11px] leading-snug mb-2.5" style={{ color: "rgba(226,213,184,0.42)" }}>
+                <p className="text-[13px] leading-relaxed mb-3" style={{ color: "rgba(226,213,184,0.48)" }}>
                   Geral {formatBRL(PRINCIPAL_CENTS)} · Diário {formatBRL(DIARIO_CENTS)} · à vista no PIX. Os tickets
                   aparecem na sua conta e você gasta ao palpitar.
                 </p>
 
-                <div className="space-y-1.5 text-[12px]">
+                <div className="space-y-2 text-[14px]">
                   {principalQty > 0 && (
                     <div className="flex justify-between gap-2 text-white/65">
                       <span>
@@ -213,12 +213,12 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
                     </div>
                   )}
                   {!hasSelection && (
-                    <p className="text-[12px] py-0.5" style={{ color: "rgba(226,213,184,0.4)" }}>
+                    <p className="text-[14px] py-0.5" style={{ color: "rgba(226,213,184,0.45)" }}>
                       Escolha quantidades nos cards acima.
                     </p>
                   )}
                   {hasSelection && (
-                    <p className="text-[11px] pt-0.5" style={{ color: "rgba(218,182,130,0.45)" }}>
+                    <p className="text-[13px] pt-0.5" style={{ color: "rgba(218,182,130,0.5)" }}>
                       {totalQty} ticket{totalQty === 1 ? "" : "s"} no pedido
                     </p>
                   )}
@@ -228,7 +228,7 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
                   type="button"
                   disabled={!hasSelection}
                   onClick={goGenerate}
-                  className="mt-4 w-full py-3 rounded-lg text-[11px] sm:text-xs font-bold uppercase tracking-[0.14em] flex items-center justify-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed active:scale-[0.99] transition-transform"
+                  className="mt-4 w-full py-3.5 rounded-lg text-xs sm:text-sm font-bold uppercase tracking-[0.12em] flex items-center justify-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed active:scale-[0.99] transition-transform"
                   style={{
                     fontFamily: montserrat,
                     color: "#0E141B",
@@ -238,7 +238,7 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
                     boxShadow: hasSelection ? "0 6px 24px rgba(212,175,55,0.22)" : "none",
                   }}
                 >
-                  <Ticket className="w-4 h-4" strokeWidth={2.2} />
+                  <Ticket className="w-[18px] h-[18px]" strokeWidth={2.2} />
                   {hasSelection ? `Pagar ${totalQty} ticket${totalQty === 1 ? "" : "s"}` : "Escolha tickets"}
                 </button>
               </div>
@@ -253,11 +253,11 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
                 background: `linear-gradient(180deg, rgba(14,20,32,0.96) 0%, ${CARD} 100%)`,
               }}
             >
-              <Loader2 className="w-11 h-11 animate-spin mb-5" style={{ color: GOLD_LIGHT }} strokeWidth={2} />
-              <p className="text-base font-semibold text-white text-center" style={{ fontFamily: montserrat }}>
+              <Loader2 className="w-12 h-12 animate-spin mb-5" style={{ color: GOLD_LIGHT }} strokeWidth={2} />
+              <p className="text-lg font-semibold text-white text-center" style={{ fontFamily: montserrat }}>
                 Emitindo cobrança PIX
               </p>
-              <p className="text-[13px] text-center mt-2 max-w-xs" style={{ color: "rgba(226,213,184,0.45)" }}>
+              <p className="text-[15px] text-center mt-2 max-w-sm leading-relaxed" style={{ color: "rgba(226,213,184,0.5)" }}>
                 Registrando pedido no sistema Bolão do Milhão…
               </p>
             </div>
@@ -268,12 +268,12 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
 
               <div>
                 <div className="flex items-center justify-between gap-2 mb-1.5">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-white/40">PIX</span>
-                  <span className="text-[11px] font-mono text-white/45">{orderRef}</span>
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-white/45">PIX</span>
+                  <span className="text-[12px] font-mono text-white/55">{orderRef}</span>
                 </div>
-                <div className="flex items-center justify-between text-[11px] mb-1.5" style={{ color: "rgba(226,213,184,0.5)" }}>
+                <div className="flex items-center justify-between text-[13px] mb-1.5" style={{ color: "rgba(226,213,184,0.55)" }}>
                   <span>{pixExpired ? "Expirado" : "Válido 5 min"}</span>
-                  <span className="font-mono tabular-nums text-white/55">{pixExpired ? "0:00" : formatCountdown(secondsLeft)}</span>
+                  <span className="font-mono tabular-nums text-white/65">{pixExpired ? "0:00" : formatCountdown(secondsLeft)}</span>
                 </div>
                 <div
                   className="h-1.5 rounded-full overflow-hidden"
@@ -313,7 +313,7 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
                   </div>
                   {pixExpired && (
                     <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/55 px-4">
-                      <p className="text-center text-[13px] font-semibold text-white leading-snug">
+                      <p className="text-center text-[15px] font-semibold text-white leading-snug px-1">
                         QR expirado — gere outro para pagar
                       </p>
                     </div>
@@ -321,12 +321,12 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
                 </div>
 
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-white/32 mb-1">Pedido</p>
-                  <p className="text-[10px] mb-2" style={{ color: "rgba(226,213,184,0.38)" }}>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-white/40 mb-1">Pedido</p>
+                  <p className="text-[12px] mb-2 leading-snug" style={{ color: "rgba(226,213,184,0.45)" }}>
                     Geral {formatBRL(PRINCIPAL_CENTS)} · Diário {formatBRL(DIARIO_CENTS)} · {totalQty} ticket
                     {totalQty === 1 ? "" : "s"}
                   </p>
-                  <div className="space-y-1 text-[12px]">
+                  <div className="space-y-1.5 text-[14px]">
                     {principalQty > 0 && (
                       <div className="flex justify-between gap-2 text-white/65">
                         <span>
@@ -349,7 +349,7 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
                         </span>
                       </div>
                     )}
-                    <div className="flex justify-between gap-2 pt-1.5 mt-1 border-t border-white/10 text-sm font-bold text-white">
+                    <div className="flex justify-between gap-2 pt-2 mt-1 border-t border-white/10 text-[15px] font-bold text-white">
                       <span>Total</span>
                       <span className="tabular-nums" style={{ color: GOLD_LIGHT }}>
                         {formatBRL(totalCents)}
@@ -359,21 +359,21 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35 mb-2">PIX copia e cola</label>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-white/45 mb-2">PIX copia e cola</label>
                   <div
-                    className="rounded-xl p-3 max-h-[88px] overflow-y-auto"
+                    className="rounded-xl p-3.5 max-h-[100px] overflow-y-auto"
                     style={{
                       background: "rgba(0,0,0,0.42)",
                       border: "1px solid rgba(255,255,255,0.08)",
                     }}
                   >
-                    <p className="text-[10px] sm:text-[11px] font-mono text-white/70 break-all leading-relaxed">{pixPayload}</p>
+                    <p className="text-[11px] sm:text-[12px] font-mono text-white/75 break-all leading-relaxed">{pixPayload}</p>
                   </div>
                   <button
                     type="button"
                     onClick={copyPix}
                     disabled={pixExpired}
-                    className="mt-3 w-full py-3.5 rounded-xl text-[13px] font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-35"
+                    className="mt-3 w-full py-4 rounded-xl text-[15px] font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-35"
                     style={{
                       background: copied ? "rgba(34,197,94,0.18)" : "rgba(212,175,55,0.12)",
                       border: `1px solid ${copied ? "rgba(34,197,94,0.4)" : "rgba(212,175,55,0.32)"}`,
@@ -429,7 +429,7 @@ function TicketTypeCard({
 
   return (
     <div
-      className="relative rounded-2xl p-4 flex flex-col h-full min-h-[200px] transition-all duration-200"
+      className="relative rounded-2xl p-4 sm:p-5 flex flex-col h-full min-h-[220px] transition-all duration-200"
       style={{
         background: `linear-gradient(168deg, rgba(11,15,26,0.99) 0%, ${CARD} 100%)`,
         border: active ? `2px solid ${GOLD}` : "1px solid rgba(255,255,255,0.07)",
@@ -440,7 +440,7 @@ function TicketTypeCard({
     >
       {chip && (
         <span
-          className="absolute top-3 right-3 text-[8px] font-bold uppercase tracking-[0.14em] px-2 py-0.5 rounded"
+          className="absolute top-3 right-3 text-[9px] font-bold uppercase tracking-[0.12em] px-2 py-0.5 rounded"
           style={{
             background: "rgba(212,175,55,0.14)",
             border: "1px solid rgba(212,175,55,0.32)",
@@ -452,26 +452,26 @@ function TicketTypeCard({
       )}
 
       <p
-        className="text-[9px] font-bold uppercase tracking-[0.2em] mb-2"
+        className="text-[10px] font-bold uppercase tracking-[0.18em] mb-2"
         style={{ color: "rgba(218,182,130,0.75)" }}
       >
         {productLabel}
       </p>
 
       <div className="flex gap-3 pr-12">
-        <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={iconWrap}>
+        <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0" style={iconWrap}>
           {icon}
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="font-bold text-white text-[15px] leading-tight" style={{ fontFamily: montserrat }}>
+          <h3 className="font-bold text-white text-[17px] leading-tight" style={{ fontFamily: montserrat }}>
             {title}
           </h3>
-          <p className="text-[11px] sm:text-[12px] mt-1.5 leading-relaxed" style={{ color: "rgba(226,213,184,0.5)" }}>
+          <p className="text-[13px] sm:text-[14px] mt-2 leading-relaxed" style={{ color: "rgba(226,213,184,0.55)" }}>
             {description}
           </p>
-          <p className="text-[14px] font-bold mt-2.5 tabular-nums" style={{ color: GOLD_LIGHT }}>
+          <p className="text-[16px] font-bold mt-3 tabular-nums" style={{ color: GOLD_LIGHT }}>
             {formatBRL(priceCents)}
-            <span className="text-[10px] font-medium ml-1" style={{ color: "rgba(226,213,184,0.38)" }}>
+            <span className="text-[11px] font-medium ml-1" style={{ color: "rgba(226,213,184,0.42)" }}>
               cada
             </span>
           </p>
@@ -479,7 +479,7 @@ function TicketTypeCard({
       </div>
 
       <div className="mt-auto pt-4 flex items-center justify-between border-t border-white/8">
-        <span className="text-[12px] font-medium" style={{ color: "rgba(226,213,184,0.45)" }}>
+        <span className="text-[13px] font-medium" style={{ color: "rgba(226,213,184,0.5)" }}>
           Quantidade
         </span>
         <div
@@ -492,21 +492,21 @@ function TicketTypeCard({
           <button
             type="button"
             onClick={() => onDelta(-1)}
-            className="w-9 h-9 flex items-center justify-center text-white/62 hover:bg-white/6 transition-colors"
+            className="w-10 h-10 flex items-center justify-center text-white/65 hover:bg-white/6 transition-colors"
             aria-label={`Menos ${title}`}
           >
-            <Minus className="w-3.5 h-3.5" strokeWidth={2.5} />
+            <Minus className="w-4 h-4" strokeWidth={2.5} />
           </button>
-          <span className="min-w-[36px] flex items-center justify-center font-mono text-sm font-bold text-white border-x border-white/10">
+          <span className="min-w-[40px] flex items-center justify-center font-mono text-base font-bold text-white border-x border-white/10">
             {qty}
           </span>
           <button
             type="button"
             onClick={() => onDelta(1)}
-            className="w-9 h-9 flex items-center justify-center text-white/62 hover:bg-white/6 transition-colors"
+            className="w-10 h-10 flex items-center justify-center text-white/65 hover:bg-white/6 transition-colors"
             aria-label={`Mais ${title}`}
           >
-            <Plus className="w-3.5 h-3.5" strokeWidth={2.5} />
+            <Plus className="w-4 h-4" strokeWidth={2.5} />
           </button>
         </div>
       </div>

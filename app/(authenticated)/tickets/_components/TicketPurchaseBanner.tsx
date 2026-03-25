@@ -53,7 +53,7 @@ export function TicketPurchaseBanner() {
           >
             <span className="h-px w-6 sm:w-10 bg-gradient-to-r from-transparent to-[#D4AF37]/70" />
             <span
-              className="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-[0.42em] text-center"
+              className="text-[16px] sm:text-[20px] font-extrabold uppercase tracking-[0.38em] text-center"
               style={{ color: "rgba(218,182,130,0.92)" }}
             >
               Bolão do Milhão
@@ -62,7 +62,7 @@ export function TicketPurchaseBanner() {
           </div>
 
           <h1
-            className="text-center text-[19px] sm:text-[24px] md:text-[27px] font-extrabold uppercase leading-[1.15] tracking-[0.02em] text-balance px-1"
+            className="text-center text-[16px] sm:text-[20px] md:text-[24px] font-extrabold uppercase leading-[1.12] tracking-[0.02em] text-balance px-1"
             style={{
               fontFamily: montserrat,
               background: "linear-gradient(100deg, #C9A227 0%, #FFE8BA 38%, #E8D5A3 62%, #D4AF37 100%)",
@@ -75,7 +75,7 @@ export function TicketPurchaseBanner() {
           </h1>
 
           <p
-            className="mt-3 text-center text-[12px] sm:text-[13px] leading-snug max-w-md mx-auto"
+            className="mt-3 text-center text-[14px] sm:text-[15px] leading-relaxed max-w-md mx-auto"
             style={{ color: "rgba(226,213,184,0.52)" }}
           >
             Geral = palpites em toda a competição. Diário = só o dia que você escolher ao abrir os palpites. Pague com PIX.
