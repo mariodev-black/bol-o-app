@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Montserrat, DM_Sans } from "next/font/google";
 import "./globals.css";
+import { Providers } from "./providers";
 
 const montserrat = Montserrat({
   variable: "--font-montserrat",
@@ -71,8 +72,10 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" className={`${montserrat.variable} ${dmSans.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-background text-foreground">
-        {children}
-        {modal}
+        <Providers>
+          {children}
+          {modal}
+        </Providers>
       </body>
     </html>
   );

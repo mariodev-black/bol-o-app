@@ -1,14 +1,24 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { Eye, EyeOff } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/app/shared/AuthContext";
 
 export function LoginContent() {
   const [showPw, setShowPw] = useState(false);
+  const router = useRouter();
+  const { login } = useAuth();
+
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    login();
+    router.push("/boloes");
+  };
 
   return (
-    <div style={{ padding: "32px 24px 28px" }}>
+    <form onSubmit={handleSubmit} style={{ padding: "32px 24px 28px" }}>
 
       {/* ── Headline ── */}
       <div style={{ textAlign: "center", marginBottom: 28 }}>
@@ -133,6 +143,6 @@ export function LoginContent() {
         <span style={{ color: "rgba(255,255,255,0.35)", fontWeight: 600 }}>R$150,00 ou mais</span>
         {" "}em apostas nos jogos selecionados.
       </p>
-    </div>
+    </form>
   );
 }

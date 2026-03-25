@@ -1,5 +1,6 @@
 import { Header } from "@/app/shared/Header";
 import { Footer } from "@/app/shared/Footer";
+import { NavBottom } from "@/app/shared/NavBottom";
 
 export default function PublicLayout({
   children,
@@ -11,6 +12,7 @@ export default function PublicLayout({
       <Header />
       <main className="flex flex-1 flex-col pt-16">{children}</main>
       <Footer />
+      <NavBottom />
     </div>
   );
 }

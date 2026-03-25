@@ -4,9 +4,19 @@ import type { ElementType } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowRight, BarChart2, CalendarClock, Gift, Home, Menu, Ticket, Trophy, User, UserPlus, Wallet, X } from "lucide-react";
+import { useAuth } from "@/app/shared/AuthContext";
+import { useSidenav } from "@/app/shared/SidenavContext";
 
-const BOTTOM_ITEMS = [
-  { label: "Indique", href: "/indique", icon: UserPlus },
+const BOTTOM_ITEMS_PROFILE = [
+  { label: "Indique", href: "/indique", icon: Gift },
+  { label: "Meus Bolões", href: "/boloes", icon: Trophy },
+  { label: "Início", href: "/", icon: Home },
+  { label: "Adquirir ticket", href: "/cadastrar", icon: Ticket },
+  { label: "Perfil", href: "/perfil", icon: User },
+] as const;
+
+const BOTTOM_ITEMS_PUBLIC = [
+  { label: "Indique", href: "/indique", icon: Gift },
   { label: "Meus Bolões", href: "/boloes", icon: Trophy },
   { label: "Início", href: "/", icon: Home },
   { label: "Adquirir ticket", href: "/cadastrar", icon: Ticket },
@@ -56,7 +66,12 @@ export function NavBottom() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuMounted, setMenuMounted] = useState(false);
   const closeTimerRef = useRef<number | null>(null);
+  const openAnimRafRef = useRef<number | null>(null);
   const normalizedPath = useMemo(() => pathname ?? "", [pathname]);
+  const { ready, isLoggedIn } = useAuth();
+  const { open, closeSidenav } = useSidenav();
+
+  if (!ready) return null;
 
   const isItemActive = (href: string) => {
     if (href === "/") {
@@ -68,18 +83,41 @@ export function NavBottom() {
     return normalizedPath === href || normalizedPath.startsWith(`${href}/`);
   };
 
-  const openMenu = () => {
-    if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
-    setMenuMounted(true);
-    setMenuOpen(false);
-    requestAnimationFrame(() => setMenuOpen(true));
-  };
+  const closeMenu = () => closeSidenav();
 
-  const closeMenu = () => {
+  useEffect(() => {
+    if (!ready) return;
+
+    if (open) {
+      if (closeTimerRef.current) {
+        window.clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = null;
+      }
+      if (openAnimRafRef.current != null) {
+        cancelAnimationFrame(openAnimRafRef.current);
+        openAnimRafRef.current = null;
+      }
+      // 1º commit: monta fora da tela (translate-x-full) para o CSS conseguir animar no próximo frame
+      setMenuMounted(true);
+      setMenuOpen(false);
+      openAnimRafRef.current = requestAnimationFrame(() => {
+        openAnimRafRef.current = requestAnimationFrame(() => {
+          openAnimRafRef.current = null;
+          setMenuOpen(true);
+        });
+      });
+      return;
+    }
+
+    if (openAnimRafRef.current != null) {
+      cancelAnimationFrame(openAnimRafRef.current);
+      openAnimRafRef.current = null;
+    }
     setMenuOpen(false);
     if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
-    closeTimerRef.current = window.setTimeout(() => setMenuMounted(false), 260);
-  };
+    // duração alinhada ao transition-transform duration-300 do painel
+    closeTimerRef.current = window.setTimeout(() => setMenuMounted(false), 320);
+  }, [open, ready]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -324,7 +362,7 @@ export function NavBottom() {
         className="fixed bottom-0 left-1/2 -translate-x-1/2 z-60 flex items-center gap-1 w-full justify-between bg-card border-t border-white/10 md:hidden px-2"
         style={{ background: "rgba(6,11,24,0.78)", backdropFilter: "blur(10px)" }}
       >
-        {BOTTOM_ITEMS.map(({ label, href, icon: Icon }) => {
+        {(isLoggedIn ? BOTTOM_ITEMS_PROFILE : BOTTOM_ITEMS_PUBLIC).map(({ label, href, icon: Icon }) => {
           const active = isItemActive(href);
 
           return (
@@ -366,22 +404,6 @@ export function NavBottom() {
             </Link>
           );
         })}
-
-        <button
-          type="button"
-          onClick={openMenu}
-          className="flex flex-col items-center justify-center gap-1 px-2 py-1.5 rounded-xl transition-all duration-200"
-          style={{ minWidth: 64 }}
-          aria-label="Abrir menu"
-          aria-expanded={menuOpen}
-        >
-          <div className="flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-200">
-            <Menu className="w-5 h-5" style={{ color: "rgba(255,255,255,0.55)" }} strokeWidth={1.9} />
-          </div>
-          <span className="text-[10px] font-medium leading-none text-center" style={{ color: "rgba(255,255,255,0.45)" }}>
-            Menu
-          </span>
-        </button>
       </nav>
     </>
   );

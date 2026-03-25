@@ -4,6 +4,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import logo from "@/app/assets/logo.png";
+import { Bell, Menu as MenuIcon } from "lucide-react";
+import { useAuth } from "@/app/shared/AuthContext";
+import { useSidenav } from "@/app/shared/SidenavContext";
 
 const NAV_LINKS = [
   { label: "Home", href: "/" },
@@ -16,6 +19,63 @@ const NAV_LINKS = [
 
 export function Header() {
   const pathname = usePathname();
+  const { ready, isLoggedIn } = useAuth();
+  const { openSidenav } = useSidenav();
+
+  if (!ready) {
+    // evita flicker entre "logado" e "deslogado" durante a hidratação
+    return null;
+  }
+
+  if (isLoggedIn) {
+    return (
+      <header
+        className="fixed top-0 left-0 right-0 z-50 w-full flex items-center justify-between px-5 lg:px-10 h-16"
+        style={{ backgroundColor: "#060B18" }}
+      >
+        <Link href="/" className="flex items-center shrink-0" aria-label="Início">
+          <Image src={logo} alt="Bolão do Milhão" height={44} priority />
+        </Link>
+
+        <div className="flex items-center gap-3">
+          {/* Notificações */}
+          <button
+            type="button"
+            className="relative w-10 h-10 rounded-xl flex items-center justify-center"
+            style={{
+              background: "#13181F",
+            }}
+            aria-label="Notificações"
+          >
+            <Bell className="w-5 h-5" style={{ color: "rgba(255,255,255,0.65)" }} strokeWidth={2} />
+            <span
+              aria-hidden="true"
+              style={{
+                position: "absolute",
+                top: 10,
+                right: 10,
+                width: 8,
+                height: 8,
+                borderRadius: 999,
+                background: "#FF3B3B",
+                boxShadow: "0 0 0 3px rgba(255,59,59,0.12)",
+              }}
+            />
+          </button>
+
+          {/* Menu (sidenav) - a ação será conectada na camada acima */}
+          <button
+            type="button"
+            className="w-10 h-10 rounded-xl flex items-center justify-center"
+            aria-label="Abrir menu"
+            onClick={openSidenav}
+          >
+            <MenuIcon className="w-5 h-5" style={{ color: "rgba(255,255,255,0.65)" }} strokeWidth={2} />
+          </button>
+        </div>
+      </header>
+    );
+  }
 
   return (
     <header
