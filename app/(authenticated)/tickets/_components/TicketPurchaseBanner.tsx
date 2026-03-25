@@ -45,7 +45,7 @@ export function TicketPurchaseBanner() {
         />
       </div>
 
-      <div className="relative z-4 px-4 sm:px-6 pt-3 pb-11 sm:pb-14">
+      <div className="relative z-4 px-4 sm:px-6 pt-3 pb-4 sm:pb-10">
         <div className="mx-auto max-w-3xl">
           <div
             className="flex items-center justify-center gap-3 mb-5"
