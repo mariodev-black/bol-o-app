@@ -195,9 +195,11 @@ export default function IndiqueGanhePage() {
           <div className="flex flex-col gap-3 md:gap-4">
             {/* Hero — mobile */}
             <div
-              className="rounded-[18px] p-5 md:hidden"
+              className="rounded-[18px] p-5 md:hidden overflow-hidden relative"
               style={{ background: C.card, border: "1px solid rgba(255,255,255,0.07)" }}
             >
+              <HeroCardAmbientGlow radiusClass="rounded-[18px]" />
+              <div className="relative z-1">
               <div className="mb-4">
                 <span
                   className="inline-flex items-center gap-1.5 px-3 py-[5px] rounded-full"
@@ -253,6 +255,7 @@ export default function IndiqueGanhePage() {
                   <span className="font-bold" style={{ color: C.goldMid }}>ganhe R$20/ind</span>
                 </p>
               </div>
+              </div>
             </div>
 
             {/* Hero — desktop (layout referência) */}
@@ -263,6 +266,7 @@ export default function IndiqueGanhePage() {
                 border: "1px solid rgba(255,255,255,0.07)",
               }}
             >
+              <HeroCardAmbientGlow radiusClass="rounded-[22px]" />
               <div className="relative z-1 px-8 pt-8 pb-6">
                 <div className="mb-5">
                   <span
@@ -358,7 +362,7 @@ export default function IndiqueGanhePage() {
                 style={{ background: "rgba(0,0,0,0.2)" }}
               >
                 <div className="flex-1 flex flex-col items-center justify-center gap-1 py-4 px-3 min-w-0">
-                  <MousePointerClick size={20} style={{ color: "#FEC554" }} strokeWidth={2} />
+                  <MousePointerClick size={20} style={{ color: C.valueMuted }} strokeWidth={2} />
                   <span className="text-[26px] font-black text-white leading-none tracking-[-0.02em]">215</span>
                   <span className="text-[10px] font-medium text-center leading-snug" style={{ color: "rgba(255,255,255,0.36)" }}>
                     Cliques no seu link
@@ -787,8 +791,8 @@ export default function IndiqueGanhePage() {
                       color: "rgba(255,255,255,0.9)",
                     }}
                   >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill={C.wa} className="shrink-0" aria-hidden>
-                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
+                    <svg width="16" height="16" viewBox="0 0 24 24" className="shrink-0" aria-hidden>
+                      <path fill={C.wa} d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
                     </svg>
                     WhatsApp
                   </button>
@@ -925,26 +929,82 @@ export default function IndiqueGanhePage() {
 
 /* ─── Componentes ─────────────────────────────────────────── */
 
-function SacarGanhosLink({ className = "" }: { className?: string }) {
+/** Brilho interno do hero: #FFE8BA (topo direita) + #F97316 (base esquerda), recortado ao raio do card */
+function HeroCardAmbientGlow({ radiusClass }: { radiusClass: string }) {
+  return (
+    <div
+      className={`pointer-events-none absolute inset-0 overflow-hidden z-0 ${radiusClass}`}
+      aria-hidden
+    >
+      <div
+        className="absolute"
+        style={{
+          top: "-32%",
+          right: "-30%",
+          width: "100%",
+          height: "88%",
+          background:
+            "radial-gradient(ellipse 78% 68% at 84% 10%, rgba(255, 232, 186, 0.34) 0%, rgba(255, 232, 186, 0.11) 40%, transparent 70%)",
+        }}
+      />
+      <div
+        className="absolute"
+        style={{
+          bottom: "-34%",
+          left: "-30%",
+          width: "95%",
+          height: "82%",
+          background:
+            "radial-gradient(ellipse 72% 62% at 12% 90%, rgba(249, 115, 22, 0.26) 0%, rgba(249, 115, 22, 0.08) 42%, transparent 74%)",
+        }}
+      />
+    </div>
+  );
+}
+
+function SacarGanhosLink({
+  className = "",
+  variant = "default",
+}: {
+  className?: string;
+  /** Mobile: uma linha limpa, largura total, sem “caixa” extra no ícone */
+  variant?: "default" | "pill";
+}) {
+  if (variant === "pill") {
+    return (
+      <Link
+        href="/saques"
+        className={`flex w-full min-h-[48px] items-center justify-center gap-2.5 rounded-xl px-4 py-3 text-[14px] font-bold transition-all active:scale-[0.99] ${className}`}
+        style={{
+          background: "rgba(255,255,255,0.04)",
+          border: `1px solid ${C.valueBorder}`,
+          color: C.goldMid,
+        }}
+      >
+        <CircleDollarSign size={22} strokeWidth={2.25} className="shrink-0" style={{ color: C.value }} aria-hidden />
+        Sacar ganhos
+      </Link>
+    );
+  }
+
   return (
     <Link
       href="/saques"
       className={`inline-flex items-center gap-3 rounded-xl pl-2.5 pr-5 py-2 text-[13px] font-bold tracking-wide transition-all active:scale-[0.98] hover:opacity-95 ${className}`}
       style={{
-        background: "linear-gradient(135deg, rgba(212,175,55,0.14) 0%, rgba(10,14,25,0.92) 50%)",
-        border: "1px solid rgba(212,175,55,0.38)",
+        background: "rgba(255,255,255,0.05)",
+        border: `1px solid ${C.valueBorder}`,
         color: C.goldMid,
-        boxShadow: "inset 0 1px 0 rgba(255,232,186,0.14)",
       }}
     >
       <span
         className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
         style={{
-          background: "linear-gradient(160deg, rgba(255,232,186,0.22) 0%, rgba(212,175,55,0.1) 100%)",
-          border: "1px solid rgba(212,175,55,0.35)",
+          background: C.valueSoft,
+          border: `1px solid ${C.valueBorder}`,
         }}
       >
-        <CircleDollarSign size={22} strokeWidth={2.25} style={{ color: C.gold }} aria-hidden />
+        <CircleDollarSign size={22} strokeWidth={2.25} style={{ color: C.value }} aria-hidden />
       </span>
       <span>Sacar ganhos</span>
     </Link>
@@ -979,8 +1039,8 @@ function StatCard({
     <div
       className="rounded-2xl p-4 flex flex-col items-center gap-2.5"
       style={{
-        background: highlight ? "rgba(6,20,14,0.65)" : C.card,
-        border: highlight ? "1px solid rgba(34,197,94,0.22)" : "1px solid rgba(255,255,255,0.07)",
+        background: highlight ? "rgba(212,175,55,0.07)" : C.card,
+        border: highlight ? `1px solid ${C.valueBorder}` : "1px solid rgba(255,255,255,0.07)",
       }}
     >
       <div
@@ -1009,8 +1069,8 @@ function StatCardInline({
     <div
       className="flex-1 flex items-center gap-3 rounded-xl px-4 py-3"
       style={{
-        background: highlight ? "rgba(6,20,14,0.65)" : "rgba(255,255,255,0.03)",
-        border: highlight ? "1px solid rgba(34,197,94,0.22)" : "1px solid rgba(255,255,255,0.07)",
+        background: highlight ? "rgba(212,175,55,0.07)" : "rgba(255,255,255,0.03)",
+        border: highlight ? `1px solid ${C.valueBorder}` : "1px solid rgba(255,255,255,0.07)",
       }}
     >
       <div
