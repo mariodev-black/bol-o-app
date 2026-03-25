@@ -663,6 +663,43 @@ function RankingView() {
   );
 }
 
+function TicketPerforationLine() {
+  return (
+    <div className="relative h-3.5 shrink-0 w-full" aria-hidden>
+      <div
+        className="absolute left-0 top-1/2 z-1 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full"
+        style={{
+          background: "var(--background)",
+          boxShadow: "inset 0 0 0 1px rgba(212,175,55,0.28)",
+        }}
+      />
+      <div
+        className="absolute right-0 top-1/2 z-1 h-3 w-3 translate-x-1/2 -translate-y-1/2 rounded-full"
+        style={{
+          background: "var(--background)",
+          boxShadow: "inset 0 0 0 1px rgba(212,175,55,0.28)",
+        }}
+      />
+      <div className="absolute left-6 right-6 top-1/2 -translate-y-1/2 border-t border-dashed border-white/14" />
+    </div>
+  );
+}
+
+function TicketBarcodeMini() {
+  const w = [2, 3, 2, 4, 2, 3, 2, 2, 4, 3, 2, 3, 2, 2, 4, 2, 3];
+  return (
+    <div className="flex items-end justify-center gap-[2px] h-6 opacity-45 mt-3" aria-hidden>
+      {w.map((width, i) => (
+        <span
+          key={i}
+          className="rounded-[1px] bg-white/35"
+          style={{ width, height: i % 3 === 0 ? 20 : i % 2 === 0 ? 16 : 12 }}
+        />
+      ))}
+    </div>
+  );
+}
+
 function mockPalpiteHistorico(jogo: Jogo, rodadaLabel: string) {
   const pc = (jogo.id * 3) % 5;
   const pv = (jogo.id * 7) % 4;
@@ -720,50 +757,67 @@ function TicketResumoView({
     .slice(0, 12);
 
   return (
-    <div className="space-y-3">
+    <div
+      className="relative rounded-[14px]"
+      style={{
+        border: "1px solid rgba(212,175,55,0.45)",
+        boxShadow: "0 16px 48px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)",
+        background: "linear-gradient(165deg, #121a2a 0%, #0A0E19 42%, #060912 100%)",
+      }}
+    >
       <div
-        className="rounded-2xl px-4 py-4"
-        style={{ background: "#0A0E19", border: "1px solid rgba(255,255,255,0.08)" }}
-      >
-        <p className="text-[11px] uppercase tracking-[0.12em] font-bold text-white/45">
+        className="absolute left-0 top-0 bottom-0 w-[4px] z-0 rounded-l-[13px]"
+        style={{ background: "linear-gradient(180deg, #FFF8E7 0%, #D4AF37 45%, #6b5420 100%)" }}
+      />
+
+      <div className="relative z-1 pl-[18px] pr-4 pt-4 pb-3 sm:pr-5 flex items-start justify-between gap-3">
+        <p className="text-[11px] uppercase tracking-[0.14em] font-bold text-white/45 font-mono leading-snug">
           {resultMode ? "Resumo do ticket (resultado)" : "Resumo do ticket"}
         </p>
-        <div className="mt-3 grid grid-cols-2 lg:grid-cols-4 gap-2">
+        <span className="text-[8px] font-bold uppercase tracking-[0.28em] text-white/25 shrink-0 pt-0.5" aria-hidden>
+          Ingresso
+        </span>
+      </div>
+
+      <div className="relative z-1 px-4 pb-3 sm:px-5 sm:pb-3 -mt-0.5">
+        <div className="mt-2 grid grid-cols-2 lg:grid-cols-4 gap-2">
           {ticketId && (
-            <div className="rounded-lg px-2.5 py-2 text-[12px]" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.12)" }}>
+            <div className="rounded-md px-2.5 py-2 text-[12px]" style={{ background: "rgba(0,0,0,0.25)", border: "1px dashed rgba(212,175,55,0.22)" }}>
               Ticket
-              <p className="text-white font-semibold mt-0.5 truncate" title={ticketId}>{ticketId}</p>
+              <p className="text-white font-semibold mt-0.5 truncate font-mono" title={ticketId}>{ticketId}</p>
             </div>
           )}
           {eventDate && (
-            <div className="rounded-lg px-2.5 py-2 text-[12px]" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.12)" }}>
+            <div className="rounded-md px-2.5 py-2 text-[12px]" style={{ background: "rgba(0,0,0,0.25)", border: "1px dashed rgba(212,175,55,0.22)" }}>
               Evento
-              <p className="text-white font-semibold mt-0.5">{eventDate}</p>
+              <p className="text-white font-semibold mt-0.5 font-mono">{eventDate}</p>
             </div>
           )}
           {ranking && (
-            <div className="rounded-lg px-2.5 py-2 text-[12px]" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.12)" }}>
+            <div className="rounded-md px-2.5 py-2 text-[12px]" style={{ background: "rgba(0,0,0,0.25)", border: "1px dashed rgba(212,175,55,0.22)" }}>
               Ranking
-              <p className="text-white font-semibold mt-0.5">#{ranking}</p>
+              <p className="text-white font-semibold mt-0.5 font-mono">#{ranking}</p>
             </div>
           )}
           {points && (
-            <div className="rounded-lg px-2.5 py-2 text-[12px]" style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.22)" }}>
+            <div className="rounded-md px-2.5 py-2 text-[12px]" style={{ background: "rgba(34,197,94,0.08)", border: "1px dashed rgba(34,197,94,0.28)" }}>
               Pontos ganhos
-              <p className="text-[#4ADE80] font-semibold mt-0.5">{points} pts</p>
+              <p className="text-[#4ADE80] font-semibold mt-0.5 font-mono">{points} pts</p>
             </div>
           )}
         </div>
       </div>
 
-      <div className="flex items-center gap-1 p-1 rounded-xl bg-[#0A0E19]" style={{ border: "1px solid rgba(255,255,255,0.06)" }}>
+      <TicketPerforationLine />
+
+      <div className="relative z-1 flex w-full overflow-hidden border-t border-white/6" style={{ background: "rgba(0,0,0,0.2)" }}>
         <button
           type="button"
           onClick={() => setResumoSecao("geral")}
-          className="flex-1 py-2.5 rounded-lg text-[12px] font-semibold transition-all duration-200"
+          className="flex-1 py-3.5 px-2 text-[11px] font-bold font-mono uppercase tracking-wide transition-colors border-r border-dashed border-white/15"
           style={{
-            background: resumoSecao === "geral" ? "#161D2D" : "transparent",
-            color: resumoSecao === "geral" ? "#fff" : "rgba(255,255,255,0.4)",
+            background: resumoSecao === "geral" ? "rgba(212,175,55,0.1)" : "transparent",
+            color: resumoSecao === "geral" ? "#FFE8BA" : "rgba(255,255,255,0.4)",
           }}
         >
           Resumo
@@ -771,23 +825,26 @@ function TicketResumoView({
         <button
           type="button"
           onClick={() => setResumoSecao("historico")}
-          className="flex-1 py-2.5 rounded-lg text-[12px] font-semibold transition-all duration-200"
+          className="flex-1 py-3.5 px-2 text-[11px] font-bold font-mono uppercase tracking-wide transition-colors"
           style={{
-            background: resumoSecao === "historico" ? "#161D2D" : "transparent",
-            color: resumoSecao === "historico" ? "#fff" : "rgba(255,255,255,0.4)",
+            background: resumoSecao === "historico" ? "rgba(212,175,55,0.1)" : "transparent",
+            color: resumoSecao === "historico" ? "#FFE8BA" : "rgba(255,255,255,0.4)",
           }}
         >
-          Histórico de palpites
+          Histórico
         </button>
       </div>
 
+      <TicketPerforationLine />
+
+      <div
+        className="relative z-1 px-4 pb-4 pt-3 sm:px-5"
+        style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.35) 100%)" }}
+      >
       {resumoSecao === "geral" ? (
-        <div
-          className="rounded-2xl px-4 py-4 text-[12px] leading-relaxed"
-          style={{ background: "#0A0E19", border: "1px solid rgba(255,255,255,0.08)" }}
-        >
-          <p className="text-[11px] uppercase tracking-[0.12em] font-bold text-white/45 mb-2">Informações</p>
-          <ul className="space-y-2 text-white/70">
+        <div className="text-[12px] leading-relaxed rounded-lg px-3 py-3" style={{ border: "1px dashed rgba(255,255,255,0.12)", background: "rgba(0,0,0,0.15)" }}>
+          <p className="text-[10px] uppercase tracking-[0.14em] font-bold text-white/40 mb-2 font-mono">Informações</p>
+          <ul className="space-y-2.5 text-white/75">
             <li className="flex justify-between gap-3">
               <span className="text-white/45 shrink-0">Bolão</span>
               <span className="text-right font-medium text-white/90">Copa do Mundo 2026 — Fase de Grupos</span>
@@ -802,28 +859,22 @@ function TicketResumoView({
             </li>
             <li className="flex justify-between gap-3">
               <span className="text-white/45 shrink-0">Status do ticket</span>
-              <span className="text-right font-medium text-white/90">{resultMode ? "Resultado disponível" : "Em andamento"}</span>
+              <span className="text-right font-medium text-white/90 font-mono">{resultMode ? "Resultado disponível" : "Em andamento"}</span>
             </li>
           </ul>
         </div>
       ) : (
         <div className="space-y-3">
-          <p className="text-[11px] uppercase tracking-[0.12em] font-bold text-white/45 px-0.5">
-            Histórico de palpites
-          </p>
           {historico.length === 0 ? (
-            <div
-              className="rounded-2xl px-4 py-4 text-[12px] text-white/45"
-              style={{ background: "#0A0E19", border: "1px solid rgba(255,255,255,0.08)" }}
-            >
+            <div className="rounded-lg px-4 py-4 text-[12px] text-white/45 font-mono" style={{ border: "1px dashed rgba(255,255,255,0.14)", background: "rgba(0,0,0,0.15)" }}>
               Nenhum palpite registrado ainda.
             </div>
           ) : (
             historico.map((item) => (
               <div
                 key={item.id}
-                className="rounded-2xl px-4 py-3.5"
-                style={{ background: "#0A0E19", border: "1px solid rgba(255,255,255,0.08)" }}
+                className="rounded-lg px-3.5 py-3.5"
+                style={{ background: "rgba(0,0,0,0.2)", border: "1px dashed rgba(212,175,55,0.2)" }}
               >
                 <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
                   <div className="min-w-0">
@@ -890,6 +941,8 @@ function TicketResumoView({
           )}
         </div>
       )}
+        <TicketBarcodeMini />
+      </div>
     </div>
   );
 }

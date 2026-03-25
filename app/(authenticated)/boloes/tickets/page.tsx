@@ -3,7 +3,7 @@
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowRight, ChevronDown } from "lucide-react";
+import { ArrowRight, BarChart2, ChevronDown } from "lucide-react";
 import { StepsBreadcrumb } from "../_components/StepsBreadcrumb";
 
 const GOLD = "#D4AF37";
@@ -145,6 +145,47 @@ function TicketExtraRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+const PAGE_BG = "var(--background)";
+
+function TicketPerforation({ tone = "gold" as "gold" | "red" }) {
+  const line = tone === "red" ? "rgba(248,113,113,0.45)" : "rgba(212,175,55,0.35)";
+  return (
+    <div className="relative h-4 shrink-0 w-full" aria-hidden>
+      <div
+        className="absolute left-0 top-1/2 z-1 h-[14px] w-[14px] -translate-x-1/2 -translate-y-1/2 rounded-full"
+        style={{ background: PAGE_BG, boxShadow: `inset 0 0 0 1px ${line}` }}
+      />
+      <div
+        className="absolute right-0 top-1/2 z-1 h-[14px] w-[14px] translate-x-1/2 -translate-y-1/2 rounded-full"
+        style={{ background: PAGE_BG, boxShadow: `inset 0 0 0 1px ${line}` }}
+      />
+      <div
+        className="absolute left-[14px] right-[14px] top-1/2 -translate-y-1/2 border-t border-dashed"
+        style={{ borderColor: "rgba(255,255,255,0.22)" }}
+      />
+    </div>
+  );
+}
+
+/** Entalhes laterais no meio do bilhete (efeito “mordida” na borda) */
+function TicketSideNotches({ tone = "gold" as "gold" | "red" }) {
+  const ring = tone === "red" ? "rgba(248,113,113,0.4)" : "rgba(212,175,55,0.4)";
+  return (
+    <>
+      <div
+        className="pointer-events-none absolute left-0 top-[46%] z-2 h-[15px] w-[15px] -translate-x-1/2 -translate-y-1/2 rounded-full"
+        style={{ background: PAGE_BG, boxShadow: `inset 0 0 0 1px ${ring}` }}
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none absolute right-0 top-[46%] z-2 h-[15px] w-[15px] translate-x-1/2 -translate-y-1/2 rounded-full"
+        style={{ background: PAGE_BG, boxShadow: `inset 0 0 0 1px ${ring}` }}
+        aria-hidden
+      />
+    </>
+  );
+}
+
 function TicketsBoloesPageContent() {
   const search = useSearchParams();
   const bolao = search.get("bolao") === "diario" ? "diario" : "principal";
@@ -175,119 +216,150 @@ function TicketsBoloesPageContent() {
           {tickets.map((t) => {
             const open = detailsOpen[t.id] ?? false;
             return (
-            <article
-              key={t.id}
-              className="rounded-2xl border p-4 sm:p-5"
-              style={{
-                background: CARD,
-                borderColor: t.status === "expired" ? "rgba(239,68,68,0.35)" : "rgba(212,175,55,0.2)",
-                opacity: t.status === "expired" ? 0.78 : 1,
-              }}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-[11px] uppercase tracking-[0.14em] font-bold" style={{ color: "rgba(255,255,255,0.5)" }}>
-                    {t.id}
-                  </p>
-                  <h2 className="text-[18px] font-extrabold text-white mt-1">{t.label}</h2>
-                </div>
-                <span
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0"
-                  style={{ background: "rgba(212,175,55,0.14)", border: "1px solid rgba(212,175,55,0.32)", color: GOLD_LIGHT }}
-                >
-                  <PriceIcon />
-                  {t.value}
-                </span>
-              </div>
-
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <span
-                  className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold"
-                  style={{
-                    background: t.status === "expired" ? "rgba(239,68,68,0.12)" : "rgba(34,197,94,0.1)",
-                    border: `1px solid ${t.status === "expired" ? "rgba(239,68,68,0.35)" : "rgba(34,197,94,0.28)"}`,
-                    color: t.status === "expired" ? "#FCA5A5" : "#86EFAC",
-                  }}
-                >
-                  {t.statusLabel}
-                </span>
-                <span className="text-[12px] text-white/35">·</span>
-                <span className="text-[12px] text-white/55">{t.eventDate}</span>
-              </div>
-
-              <div
-                className="mt-3 flex rounded-xl px-3 py-2.5 gap-4"
-                style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="text-[10px] uppercase tracking-wider font-bold text-white/35">Ranking</p>
-                  <p className="text-[17px] font-black mt-0.5" style={{ color: GOLD }}>
-                    #{t.ranking}
-                  </p>
-                </div>
-                <div className="w-px shrink-0 self-stretch my-0.5 bg-white/8" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-[10px] uppercase tracking-wider font-bold text-white/35">Pontos</p>
-                  <p className="text-[17px] font-black text-white mt-0.5">{t.points} <span className="text-[12px] font-bold text-white/45">pts</span></p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setDetailsOpen((prev) => ({ ...prev, [t.id]: !open }))}
-                className="mt-3 w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[12px] font-semibold transition-colors hover:bg-white/6 hover:text-white/75"
+              <article
+                key={t.id}
+                className="relative rounded-[14px]"
                 style={{
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  color: "rgba(255,255,255,0.55)",
-                  background: "rgba(255,255,255,0.03)",
+                  opacity: t.status === "expired" ? 0.88 : 1,
+                  border: `1px solid ${t.status === "expired" ? "rgba(239,68,68,0.45)" : "rgba(212,175,55,0.45)"}`,
+                  boxShadow: "0 16px 48px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)",
+                  background: `linear-gradient(165deg, #121a2a 0%, ${CARD} 42%, #060912 100%), repeating-linear-gradient(-50deg, rgba(255,255,255,0.028) 0, rgba(255,255,255,0.028) 1px, transparent 1px, transparent 8px)`,
                 }}
-                aria-expanded={open}
               >
-                {open ? "Ocultar detalhes" : "Ver mais detalhes"}
-                <ChevronDown
-                  className={`w-4 h-4 shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
-                  strokeWidth={2.5}
-                />
-              </button>
+                <TicketSideNotches tone={t.status === "expired" ? "red" : "gold"} />
 
-              {open && (
-                <div
-                  className="mt-2 rounded-xl px-3 py-3 space-y-2.5"
-                  style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.08)" }}
-                >
-                  <TicketExtraRow label="Validade" value={t.valid} />
-                  <TicketExtraRow label="Jogos" value={t.jogos} />
-                  <TicketExtraRow label="Pontuação" value={t.janela} />
-                  <TicketExtraRow label="Envio de palpites" value={t.limite} />
+                <div className="relative z-1 pl-[18px] pr-4 sm:pr-5 pt-4 sm:pt-5 pb-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-mono text-[10px] uppercase tracking-[0.12em] font-semibold text-white/40">
+                      {t.id}
+                    </p>
+                    <span className="text-[8px] font-bold uppercase tracking-[0.32em] text-white/20">Ingresso</span>
+                  </div>
+                  <div className="mt-2.5 flex items-start justify-between gap-3">
+                    <h2 className="min-w-0 flex-1 text-[20px] font-extrabold text-white leading-[1.15] tracking-tight">
+                      {t.label}
+                    </h2>
+                    <span
+                      className="inline-flex shrink-0 items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-bold"
+                      style={{
+                        background: "rgba(212,175,55,0.08)",
+                        border: "1px solid rgba(212,175,55,0.45)",
+                        color: GOLD_LIGHT,
+                        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06)",
+                      }}
+                    >
+                      <PriceIcon />
+                      {t.value}
+                    </span>
+                  </div>
+
+                  <div className="mt-3.5 flex flex-wrap items-center gap-2">
+                    <span
+                      className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold"
+                      style={{
+                        background: t.status === "expired" ? "rgba(239,68,68,0.12)" : "rgba(34,197,94,0.1)",
+                        border: `1px solid ${t.status === "expired" ? "rgba(239,68,68,0.35)" : "rgba(34,197,94,0.28)"}`,
+                        color: t.status === "expired" ? "#FCA5A5" : "#86EFAC",
+                      }}
+                    >
+                      {t.statusLabel}
+                    </span>
+                    <span className="text-[12px] text-white/30">·</span>
+                    <span className="text-[12px] text-white/50 font-mono tabular-nums">{t.eventDate}</span>
+                  </div>
+
+                  <div
+                    className="mt-4 flex rounded-[10px] px-4 py-3 gap-0"
+                    style={{ background: "rgba(0,0,0,0.35)", border: "1px dashed rgba(212,175,55,0.28)" }}
+                  >
+                    <div className="min-w-0 flex-1 text-center sm:text-left">
+                      <p className="text-[9px] uppercase tracking-[0.18em] font-bold text-white/38">Ranking</p>
+                      <p className="text-[22px] font-black mt-0.5 font-mono tabular-nums leading-none" style={{ color: GOLD }}>
+                        #{t.ranking}
+                      </p>
+                    </div>
+                    <div className="w-px shrink-0 self-stretch bg-white/10 mx-2 sm:mx-4" />
+                    <div className="min-w-0 flex-1 text-center sm:text-right">
+                      <p className="text-[9px] uppercase tracking-[0.18em] font-bold text-white/38">Pontos</p>
+                      <p className="text-[22px] font-black text-white mt-0.5 font-mono tabular-nums leading-none">
+                        {t.points} <span className="text-[13px] font-bold text-white/45">pts</span>
+                      </p>
+                    </div>
+                  </div>
                 </div>
-              )}
 
-              <div className="mt-4">
-                {t.status === "expired" ? (
-                  <Link
-                    href={`/palpites?bolao=${bolao}&ticket=${t.id}&eventDate=${encodeURIComponent(
-                      t.eventDate
-                    )}&mode=resultado&ranking=${t.ranking}&points=${t.points}`}
-                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[13px] font-bold"
-                    style={{ background: "rgba(239,68,68,0.14)", border: "1px solid rgba(239,68,68,0.35)", color: "#FCA5A5" }}
+                <TicketPerforation tone={t.status === "expired" ? "red" : "gold"} />
+
+                <div className="relative z-1 px-4 sm:px-5 pb-3">
+                  <button
+                    type="button"
+                    onClick={() => setDetailsOpen((prev) => ({ ...prev, [t.id]: !open }))}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-[10px] text-[12px] font-medium tracking-wide transition-colors hover:bg-white/5"
+                    style={{
+                      border: "1px dashed rgba(255,255,255,0.16)",
+                      color: "rgba(255,255,255,0.55)",
+                      background: "rgba(0,0,0,0.25)",
+                    }}
+                    aria-expanded={open}
                   >
-                    Ver resultado
-                    <ArrowRight className="w-4 h-4" />
-                  </Link>
-                ) : (
-                  <Link
-                    href={`/palpites?bolao=${bolao}&ticket=${t.id}&eventDate=${encodeURIComponent(
-                      t.eventDate
-                    )}&ranking=${t.ranking}&points=${t.points}`}
-                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[13px] font-bold transition-transform hover:translate-x-0.5"
-                    style={{ background: `linear-gradient(180deg, ${GOLD_LIGHT} 0%, ${GOLD} 100%)`, color: "#0E141B" }}
-                  >
-                    Continuar com ticket
-                    <ArrowRight className="w-4 h-4" />
-                  </Link>
-                )}
-              </div>
-            </article>
+                    {open ? "Ocultar detalhes" : "Ver mais detalhes"}
+                    <ChevronDown
+                      className={`w-4 h-4 shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+                      strokeWidth={2.5}
+                    />
+                  </button>
+
+                  {open && (
+                    <div
+                      className="mt-2 rounded-[10px] px-3 py-3 space-y-2.5"
+                      style={{ background: "rgba(0,0,0,0.28)", border: "1px dashed rgba(255,255,255,0.1)" }}
+                    >
+                      <TicketExtraRow label="Validade" value={t.valid} />
+                      <TicketExtraRow label="Jogos" value={t.jogos} />
+                      <TicketExtraRow label="Pontuação" value={t.janela} />
+                      <TicketExtraRow label="Envio de palpites" value={t.limite} />
+                    </div>
+                  )}
+                </div>
+
+                <TicketPerforation tone={t.status === "expired" ? "red" : "gold"} />
+
+                <div
+                  className="relative z-1 px-4 sm:px-5 pt-1 pb-4 rounded-b-[13px]"
+                  style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.45) 100%)" }}
+                >
+
+                  <div className="mt-3 flex flex-col items-center gap-3">
+                    {t.status === "expired" ? (
+                      <Link
+                        href={`/palpites?bolao=${bolao}&ticket=${t.id}&eventDate=${encodeURIComponent(
+                          t.eventDate
+                        )}&mode=resultado&ranking=${t.ranking}&points=${t.points}`}
+                        className="w-full inline-flex items-center justify-center gap-2 px-4 py-3.5 rounded-[10px] text-[12px] font-bold"
+                        style={{ background: "rgba(239,68,68,0.14)", border: "1px solid rgba(239,68,68,0.45)", color: "#FCA5A5" }}
+                      >
+                        Ver resultado
+                        <ArrowRight className="w-4 h-4" />
+                      </Link>
+                    ) : (
+                      <Link
+                        href={`/palpites?bolao=${bolao}&ticket=${t.id}&eventDate=${encodeURIComponent(
+                          t.eventDate
+                        )}&ranking=${t.ranking}&points=${t.points}`}
+                        className="w-full inline-flex items-center justify-center gap-2 px-4 py-3.5 rounded-[10px] text-[11px] sm:text-[12px] font-bold uppercase tracking-[0.12em] transition-transform hover:translate-x-0.5"
+                        style={{
+                          background: `linear-gradient(180deg, ${GOLD_LIGHT} 0%, ${GOLD} 100%)`,
+                          color: "#0E141B",
+                          boxShadow: "0 4px 20px rgba(212,175,55,0.25)",
+                        }}
+                      >
+                        Continuar com ticket
+                        <ArrowRight className="w-4 h-4" />
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              </article>
             );
           })}
         </div>
