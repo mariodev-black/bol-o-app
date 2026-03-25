@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight, ChevronDown } from "lucide-react";
@@ -145,7 +145,7 @@ function TicketExtraRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-export default function TicketsBoloesPage() {
+function TicketsBoloesPageContent() {
   const search = useSearchParams();
   const bolao = search.get("bolao") === "diario" ? "diario" : "principal";
   const tickets = TICKETS[bolao];
@@ -297,5 +297,13 @@ export default function TicketsBoloesPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function TicketsBoloesPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen px-4 py-6 sm:px-6" />}>
+      <TicketsBoloesPageContent />
+    </Suspense>
   );
 }

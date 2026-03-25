@@ -100,16 +100,6 @@ export default function BoloesPage() {
               </p>
             </div>
           </div>
-
-          <div
-            className="mt-3 rounded-xl border px-4 py-3"
-            style={{ background: CARD, borderColor: "rgba(212,175,55,0.2)" }}
-          >
-            <p className="text-[13px] leading-relaxed text-white/75">
-              <span style={{ color: GOLD_LIGHT }} className="font-semibold">Regra oficial:</span>{" "}
-              no Bolão Principal, o ticket vale a Copa inteira e você aposta todos os dias em todos os jogos do dia; no Bolão Diário, o ticket vale apenas para os jogos de um único dia.
-            </p>
-          </div>
         </section>
 
         <div className="space-y-4">

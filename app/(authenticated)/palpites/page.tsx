@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ChevronDown, ChevronUp, BarChart2, Trophy, AlignJustify, Target, CircleCheck, Star, Bell, Coins, AlertTriangle, Disc, Pencil } from "lucide-react";
 import { TrophyGold, TrophySilver, TrophyBronze } from "@/app/shared/RankingAtual";
@@ -1079,7 +1079,7 @@ function DesktopSidebar({ grupo, tabela, grupos, onGrupo }: {
 }
 
 // ── Página ───────────────────────────────────────────────────
-export default function PalpitesPage() {
+function PalpitesPageContent() {
   const searchParams = useSearchParams();
   const hasBoloesFlow = Boolean(searchParams.get("bolao"));
   const resultMode = searchParams.get("mode") === "resultado";
@@ -1400,5 +1400,13 @@ export default function PalpitesPage() {
 
       </div>
     </div>
+  );
+}
+
+export default function PalpitesPage() {
+  return (
+    <Suspense fallback={<div className="w-full max-w-lg mx-auto px-4 pt-6 pb-8 lg:max-w-7xl" />}>
+      <PalpitesPageContent />
+    </Suspense>
   );
 }
