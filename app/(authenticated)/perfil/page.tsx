@@ -15,10 +15,11 @@ import {
 } from "lucide-react";
 
 const recentPicks = [
-  { id: "1", home: "BRA", away: "SRB", guess: "2x1", result: "2x1", hit: true },
-  { id: "2", home: "SUI", away: "CMR", guess: "1x0", result: "1x0", hit: true },
-  { id: "3", home: "POR", away: "GHA", guess: "3x2", result: "3x1", hit: false },
-  { id: "4", home: "URU", away: "KOR", guess: "0x1", result: "2x0", hit: false },
+  { id: "1", home: "BRA", away: "SRB", guess: "2x1", result: "2x1", hit: true, matchInfo: "24/11 · Copa do Mundo", points: "+10 pts" },
+  { id: "2", home: "SUI", away: "CMR", guess: "1x0", result: "1x0", hit: true, matchInfo: "24/11 · Copa do Mundo", points: "+10 pts" },
+  { id: "3", home: "POR", away: "GHA", guess: "3x2", result: "3x1", hit: false, matchInfo: "24/11 · Copa do Mundo", points: "0 pts" },
+  { id: "4", home: "URU", away: "KOR", guess: "0x1", result: "2x0", hit: false, matchInfo: "24/11 · Copa do Mundo", points: "0 pts" },
+  { id: "5", home: "BRA", away: "SUI", guess: "1x0", result: "1x0", hit: true, matchInfo: "28/11 · Copa do Mundo", points: "+10 pts" },
 ];
 
 const settingsItems = [
@@ -147,34 +148,74 @@ export default function PerfilPage() {
               </Link>
             </div>
             <div
-              className="hidden lg:grid grid-cols-[1fr_120px_120px] px-6 py-2 text-[10px] font-black uppercase tracking-[0.12em] border-b"
+              className="hidden lg:grid grid-cols-[1fr_120px_120px_120px] px-6 py-2 text-[10px] font-black uppercase tracking-[0.12em] border-b"
               style={{ color: "rgba(255,255,255,0.35)", borderColor: "rgba(255,255,255,0.06)" }}
             >
               <span>Partida</span>
               <span className="text-right">Meu palpite</span>
               <span className="text-right">Resultado</span>
+              <span className="text-right">Pontos</span>
             </div>
             <div className="px-3 py-2">
               {recentPicks.map((pick) => (
                 <div
                   key={pick.id}
-                  className="grid grid-cols-[24px_1fr_auto_auto] lg:grid-cols-[24px_1fr_120px_120px] items-center gap-3 px-2 lg:px-3 py-2.5 border-b last:border-b-0"
-                  style={{ borderColor: "rgba(255,255,255,0.06)" }}
+                  className="grid grid-cols-[24px_1fr_auto_auto] lg:grid-cols-[24px_1fr_120px_120px_120px] items-center gap-3 px-2 lg:px-3 py-2.5 border-b border-l-2 last:border-b-0"
+                  style={{
+                    borderColor: "rgba(255,255,255,0.06)",
+                    borderLeftColor: pick.hit ? "rgba(34,197,94,0.65)" : "rgba(239,68,68,0.65)",
+                  }}
                 >
                   <span className="w-4 h-4 rounded-full flex items-center justify-center" style={{ background: pick.hit ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)" }}>
                     <span className="w-1.5 h-1.5 rounded-full" style={{ background: pick.hit ? "#22C55E" : "#EF4444" }} />
                   </span>
-                  <p className="text-sm font-semibold text-white">
-                    {pick.home} <span style={{ color: "rgba(255,255,255,0.45)" }}>vs</span> {pick.away}
-                  </p>
+                  <div>
+                    <p className="text-sm font-semibold text-white">
+                      {pick.home} <span style={{ color: "rgba(255,255,255,0.45)" }}>vs</span> {pick.away}
+                    </p>
+                    <p className="hidden lg:block text-[11px] mt-0.5" style={{ color: "rgba(255,255,255,0.32)" }}>
+                      {pick.matchInfo}
+                    </p>
+                  </div>
                   <p className="text-sm font-black text-right" style={{ color: "rgba(255,255,255,0.8)" }}>
                     {pick.guess}
                   </p>
                   <p className="text-sm font-black text-right" style={{ color: pick.hit ? "#22C55E" : "#EF4444" }}>
                     {pick.result}
                   </p>
+                  <div className="hidden lg:flex justify-end">
+                    <span
+                      className="px-2.5 py-1 rounded-lg text-[12px] font-black"
+                      style={{
+                        color: pick.hit ? "#86EFAC" : "#FCA5A5",
+                        background: pick.hit ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.12)",
+                        border: pick.hit ? "1px solid rgba(34,197,94,0.28)" : "1px solid rgba(239,68,68,0.28)",
+                      }}
+                    >
+                      {pick.points}
+                    </span>
+                  </div>
                 </div>
               ))}
+            </div>
+            <div
+              className="hidden lg:flex items-center justify-between px-4 py-2.5 border-t"
+              style={{ borderColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.42)" }}
+            >
+              <div className="flex items-center gap-4 text-[12px]">
+                <span>
+                  <span style={{ color: "#22C55E" }}>●</span> 3 acertos
+                </span>
+                <span>
+                  <span style={{ color: "#EF4444" }}>●</span> 2 erros
+                </span>
+                <span>
+                  Taxa: <span style={{ color: "#D4AF37", fontWeight: 700 }}>60%</span>
+                </span>
+              </div>
+              <p className="text-[12px]">
+                Total: <span style={{ color: "#FFE8BA", fontWeight: 700 }}>+30 pts</span> nessa seleção
+              </p>
             </div>
           </section>
 
