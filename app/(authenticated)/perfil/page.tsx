@@ -22,16 +22,14 @@ const recentPicks = [
 ];
 
 const settingsItems = [
-  { icon: User2, title: "Dados da Conta", subtitle: "Nome, usuário e e-mail", href: "/perfil" },
-  { icon: Settings, title: "Preferências", subtitle: "Notificações e aparência", href: "/perfil" },
-  { icon: Shield, title: "Segurança", subtitle: "Senha e autenticação", href: "/perfil" },
+  { icon: Shield, title: "Segurança", subtitle: "Alterar senha", href: "/perfil" },
   { icon: CircleHelp, title: "Ajuda e Suporte", subtitle: "FAQ e atendimento", href: "/indique" },
   { icon: FileText, title: "Política de Privacidade", subtitle: "Seus dados e privacidade", href: "/privacidade" },
 ];
 
 const highlights = [
-  { label: "Meus Bolões", value: "3 ativos", href: "/boloes", icon: Trophy },
-  { label: "Tickets", value: "12 disponíveis", href: "/tickets", icon: Ticket },
+  { label: "Meus Bolões", value: "2 ativos", href: "/boloes", icon: Trophy },
+  { label: "Tickets", value: "12 disponíveis", href: "/boloes/tickets?bolao=principal", icon: Ticket },
   { label: "Taxa de acerto", value: "68%", href: "/palpites?bolao=principal", icon: Target },
 ];
 
