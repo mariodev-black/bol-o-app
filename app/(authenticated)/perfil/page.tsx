@@ -65,16 +65,14 @@ export default function PerfilPage() {
       </header>
 
       <section
-        className="rounded-[28px] p-4 sm:p-5 border relative overflow-hidden"
+        className="rounded-[18px] p-5 border relative overflow-hidden"
         style={{
-          borderColor: "rgba(255,255,255,0.1)",
-          background:
-            "radial-gradient(130% 110% at 0% 0%, rgba(212,175,55,0.16) 0%, rgba(212,175,55,0) 52%), radial-gradient(140% 100% at 100% 100%, rgba(59,130,246,0.2) 0%, rgba(59,130,246,0) 58%), linear-gradient(160deg, #0E1524 0%, #0A101D 60%, #090F1A 100%)",
-          boxShadow: "0 14px 38px rgba(0,0,0,0.34)",
+          borderColor: "rgba(255,255,255,0.07)",
+          background: "#0A0E19",
+          boxShadow: "0 12px 30px rgba(0,0,0,0.3)",
         }}
       >
-        <div className="absolute -right-10 -top-12 w-32 h-32 rounded-full blur-3xl" style={{ background: "rgba(212,175,55,0.22)" }} aria-hidden />
-        <div className="absolute -left-12 -bottom-14 w-36 h-36 rounded-full blur-3xl" style={{ background: "rgba(59,130,246,0.2)" }} aria-hidden />
+        <HeroCardAmbientGlow radiusClass="rounded-[18px]" />
         <div className="relative flex items-start justify-between gap-3">
           <div className="flex items-center gap-3.5 min-w-0">
             <div className="relative w-[70px] h-[70px] rounded-2xl bg-[#D4AF37] text-[#0E141B] flex items-center justify-center text-[30px] font-black shadow-[0_12px_24px_rgba(212,175,55,0.35)]">
@@ -100,7 +98,7 @@ export default function PerfilPage() {
             </span>
             <span
               className="px-3 py-1 rounded-lg text-[11px] font-black border"
-              style={{ background: "rgba(59,130,246,0.12)", borderColor: "rgba(59,130,246,0.38)", color: "#93C5FD" }}
+              style={{ background: "rgba(255,232,186,0.08)", borderColor: "rgba(212,175,55,0.28)", color: "#FFE8BA" }}
             >
               Premium
             </span>
@@ -112,7 +110,7 @@ export default function PerfilPage() {
             { label: "Palpites", value: "32", color: "white" },
             { label: "Acertos", value: "5", color: "#22C55E" },
             { label: "Pontos", value: "32", color: "#FACC15" },
-            { label: "Ranking", value: "#6", color: "#60A5FA" },
+              { label: "Ranking", value: "#6", color: "#FFE8BA" },
           ].map((item) => (
             <div
               key={item.label}
@@ -174,7 +172,7 @@ export default function PerfilPage() {
       >
         <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
           <h2 className="text-[22px] font-black text-white">Últimos Palpites</h2>
-          <Link href="/palpites?bolao=principal" className="text-sm font-bold inline-flex items-center gap-1" style={{ color: "#7EA8FF" }}>
+          <Link href="/palpites?bolao=principal" className="text-sm font-bold inline-flex items-center gap-1" style={{ color: "#D4AF37" }}>
             Ver todos <ChevronRight className="w-4 h-4" />
           </Link>
         </div>
@@ -285,6 +283,35 @@ export default function PerfilPage() {
         <LogOut className="w-5 h-5" />
         Sair da conta
       </button>
+    </div>
+  );
+}
+
+function HeroCardAmbientGlow({ radiusClass }: { radiusClass: string }) {
+  return (
+    <div className={`pointer-events-none absolute inset-0 overflow-hidden z-0 ${radiusClass}`} aria-hidden>
+      <div
+        className="absolute"
+        style={{
+          top: "-32%",
+          right: "-30%",
+          width: "100%",
+          height: "88%",
+          background:
+            "radial-gradient(ellipse 78% 68% at 84% 10%, rgba(255, 232, 186, 0.34) 0%, rgba(255, 232, 186, 0.11) 40%, transparent 70%)",
+        }}
+      />
+      <div
+        className="absolute"
+        style={{
+          bottom: "-34%",
+          left: "-30%",
+          width: "95%",
+          height: "82%",
+          background:
+            "radial-gradient(ellipse 72% 62% at 12% 90%, rgba(212, 175, 55, 0.26) 0%, rgba(212, 175, 55, 0.08) 42%, transparent 74%)",
+        }}
+      />
     </div>
   );
 }
