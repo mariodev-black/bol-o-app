@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import QRCode from "react-qr-code";
 import { TicketPurchaseBanner } from "./TicketPurchaseBanner";
 import { MyTicketsWallet } from "./MyTicketsWallet";
-import { Check, Copy, Loader2, Minus, Plus } from "lucide-react";
+import { Check, Copy, Loader2, Minus, Plus, Ticket } from "lucide-react";
 import Image, { type StaticImageData } from "next/image";
 import ticketGold from "@/app/assets/ticket-gold.png";
 import ticketBlue from "@/app/assets/Ticket-Blue.png";
@@ -239,10 +239,7 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
                     boxShadow: hasSelection ? "0 6px 24px rgba(212,175,55,0.22)" : "none",
                   }}
                 >
-                  <span className="relative inline-flex w-8 h-6 items-center">
-                    <Image src={ticketBlue} alt="" aria-hidden className="absolute left-0 bottom-0 w-5 h-auto opacity-90" />
-                    <Image src={ticketGold} alt="" aria-hidden className="absolute right-0 top-0 w-5 h-auto rotate-6" />
-                  </span>
+                  <Ticket className="w-[18px] h-[18px]" strokeWidth={2.2} />
                   {hasSelection ? `Pagar ${totalQty} ticket${totalQty === 1 ? "" : "s"}` : "Escolha tickets"}
                 </button>
               </div>
