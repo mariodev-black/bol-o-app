@@ -20,7 +20,7 @@ const NAV_LINKS = [
 const NAV_LINKS_LOGGED = [
   { label: "Home", href: "/" },
   { label: "Bolões", href: "/boloes" },
-  { label: "Política de Privacidade", href: "/privacidade" },
+  { label: "Meus Palpites", href: "/meus-palpites" },
   { label: "Tickets", href: "/tickets" },
   { label: "Perfil", href: "/perfil" },
 ];
@@ -53,8 +53,8 @@ export function Header() {
                 ? pathname === "/"
                 : baseHref === "/boloes"
                   ? pathname.startsWith("/boloes")
-                  : baseHref === "/palpites"
-                    ? pathname.startsWith("/palpites")
+                  : baseHref === "/palpites" || baseHref === "/meus-palpites"
+                    ? pathname.startsWith("/palpites") || pathname.startsWith("/meus-palpites")
                     : pathname === baseHref || pathname.startsWith(`${baseHref}/`);
 
             return (
@@ -127,7 +127,7 @@ export function Header() {
             href === "/"
               ? pathname === "/"
               : href === "/boloes"
-                ? pathname.startsWith("/boloes") || pathname.startsWith("/palpites")
+                ? pathname.startsWith("/boloes") || pathname.startsWith("/palpites") || pathname.startsWith("/meus-palpites")
                 : pathname.startsWith(href);
           return (
             <Link

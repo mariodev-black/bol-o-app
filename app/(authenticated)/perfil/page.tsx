@@ -31,7 +31,7 @@ const settingsItems = [
 const highlights = [
   { label: "Meus Bolões", value: "2 ativos", href: "/boloes", icon: Trophy },
   { label: "Tickets", value: "12 disponíveis", href: "/boloes/tickets?bolao=principal", icon: Ticket },
-  { label: "Taxa de acerto", value: "68%", href: "/palpites?bolao=principal", icon: Target },
+  { label: "Taxa de acerto", value: "68%", href: "/meus-palpites", icon: Target },
 ];
 
 const achievements = [
@@ -143,7 +143,7 @@ export default function PerfilPage() {
           >
             <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
               <h2 className="text-[22px] font-black text-white">Últimos Palpites</h2>
-              <Link href="/palpites?bolao=principal" className="text-sm font-bold inline-flex items-center gap-1" style={{ color: "#D4AF37" }}>
+              <Link href="/meus-palpites" className="text-sm font-bold inline-flex items-center gap-1" style={{ color: "#D4AF37" }}>
                 Ver todos <ChevronRight className="w-4 h-4" />
               </Link>
             </div>

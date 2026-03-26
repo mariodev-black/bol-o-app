@@ -40,7 +40,7 @@ const MENU_SECTIONS: MenuSection[] = [
     title: "BOLÕES",
     items: [
       { label: "Copa do Mundo 2026", href: "/boloes", icon: Trophy, subtitle: "Jogos e palpites" },
-      { label: "Meus Palpites", href: "/palpites?bolao=principal", icon: CalendarClock, subtitle: "Últimas escolhas" },
+      { label: "Meus Palpites", href: "/meus-palpites", icon: CalendarClock, subtitle: "Últimas escolhas" },
       { label: "Meus Bolões", href: "/boloes", icon: BarChart2, subtitle: "Acompanhe sua jornada" },
     ],
   },
@@ -78,7 +78,7 @@ export function NavBottom() {
       return normalizedPath === "/";
     }
     if (href === "/boloes") {
-      return normalizedPath.startsWith("/boloes") || normalizedPath.startsWith("/palpites");
+      return normalizedPath.startsWith("/boloes") || normalizedPath.startsWith("/palpites") || normalizedPath.startsWith("/meus-palpites");
     }
     return normalizedPath === href || normalizedPath.startsWith(`${href}/`);
   };
