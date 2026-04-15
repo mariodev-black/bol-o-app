@@ -2,13 +2,16 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import bgHome from "@/app/assets/bgHome.png";
-import bgHomeDesk from "@/app/assets/bg-home-desk.png";
+import banner00 from "@/app/assets/banner00.png";
+import banner01 from "@/app/assets/banner01.png";
+import banner02 from "@/app/assets/banner02.png";
+import banner03 from "@/app/assets/banner03.png";
 
 const SLIDES = [
-  { src: "https://assets.gmlinteractive.com/2026/02/0c27ab35e86d_265001-320x160.webp", srcDesk: bgHomeDesk.src, alt: "Slide 1" },
-  { src: bgHomeDesk.src, srcDesk: bgHomeDesk.src, alt: "Slide 2" },
-  { src: bgHome.src, srcDesk: bgHomeDesk.src, alt: "Slide 3" },
+  { src: banner00.src, srcDesk: banner00.src, alt: "Slide 1" },
+  { src: banner01.src, srcDesk: banner01.src, alt: "Slide 2" },
+  { src: banner02.src, srcDesk: banner02.src, alt: "Slide 3" },
+  { src: banner03.src, srcDesk: banner03.src, alt: "Slide 4" },
 ];
 
 const AUTOPLAY_INTERVAL = 5000;
