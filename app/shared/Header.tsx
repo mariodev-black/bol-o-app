@@ -17,6 +17,14 @@ const NAV_LINKS = [
   { label: "Termos", href: "/termos" },
 ];
 
+const NAV_LINKS_LOGGED = [
+  { label: "Home", href: "/" },
+  { label: "Bolões", href: "/boloes" },
+  { label: "Meus Palpites", href: "/meus-palpites" },
+  { label: "Tickets", href: "/tickets" },
+  { label: "Perfil", href: "/perfil" },
+];
+
 export function Header() {
   const pathname = usePathname();
   const { ready, isLoggedIn } = useAuth();
@@ -36,6 +44,31 @@ export function Header() {
         <Link href="/" className="flex items-center shrink-0" aria-label="Início">
           <Image src={logo} alt="Bolão do Milhão" height={44} priority />
         </Link>
+
+        <nav className="hidden lg:flex items-center gap-7">
+          {NAV_LINKS_LOGGED.map(({ label, href }) => {
+            const baseHref = href.split("?")[0] ?? href;
+            const isActive =
+              baseHref === "/"
+                ? pathname === "/"
+                : baseHref === "/boloes"
+                  ? pathname.startsWith("/boloes")
+                  : baseHref === "/palpites" || baseHref === "/meus-palpites"
+                    ? pathname.startsWith("/palpites") || pathname.startsWith("/meus-palpites")
+                    : pathname === baseHref || pathname.startsWith(`${baseHref}/`);
+
+            return (
+              <Link
+                key={label}
+                href={href}
+                className="text-sm font-semibold transition-colors hover:text-white"
+                style={{ color: isActive ? "#D4AF37" : "rgba(255,255,255,0.58)" }}
+              >
+                {label}
+              </Link>
+            );
+          })}
+        </nav>
 
         <div className="flex items-center gap-3">
           {/* Notificações */}
@@ -94,7 +127,7 @@ export function Header() {
             href === "/"
               ? pathname === "/"
               : href === "/boloes"
-                ? pathname.startsWith("/boloes") || pathname.startsWith("/palpites")
+                ? pathname.startsWith("/boloes") || pathname.startsWith("/palpites") || pathname.startsWith("/meus-palpites")
                 : pathname.startsWith(href);
           return (
             <Link

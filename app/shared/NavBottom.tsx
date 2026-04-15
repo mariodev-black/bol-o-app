@@ -40,7 +40,7 @@ const MENU_SECTIONS: MenuSection[] = [
     title: "BOLÕES",
     items: [
       { label: "Copa do Mundo 2026", href: "/boloes", icon: Trophy, subtitle: "Jogos e palpites" },
-      { label: "Meus Palpites", href: "/palpites?bolao=principal", icon: CalendarClock, subtitle: "Últimas escolhas" },
+      { label: "Meus Palpites", href: "/meus-palpites", icon: CalendarClock, subtitle: "Últimas escolhas" },
       { label: "Meus Bolões", href: "/boloes", icon: BarChart2, subtitle: "Acompanhe sua jornada" },
     ],
   },
@@ -66,7 +66,9 @@ export function NavBottom() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuMounted, setMenuMounted] = useState(false);
   const closeTimerRef = useRef<number | null>(null);
+  const openTimerRef = useRef<number | null>(null);
   const openAnimRafRef = useRef<number | null>(null);
+  const panelRef = useRef<HTMLElement | null>(null);
   const normalizedPath = useMemo(() => pathname ?? "", [pathname]);
   const { ready, isLoggedIn } = useAuth();
   const { open, closeSidenav } = useSidenav();
@@ -78,7 +80,7 @@ export function NavBottom() {
       return normalizedPath === "/";
     }
     if (href === "/boloes") {
-      return normalizedPath.startsWith("/boloes") || normalizedPath.startsWith("/palpites");
+      return normalizedPath.startsWith("/boloes") || normalizedPath.startsWith("/palpites") || normalizedPath.startsWith("/meus-palpites");
     }
     return normalizedPath === href || normalizedPath.startsWith(`${href}/`);
   };
@@ -93,6 +95,10 @@ export function NavBottom() {
         window.clearTimeout(closeTimerRef.current);
         closeTimerRef.current = null;
       }
+      if (openTimerRef.current) {
+        window.clearTimeout(openTimerRef.current);
+        openTimerRef.current = null;
+      }
       if (openAnimRafRef.current != null) {
         cancelAnimationFrame(openAnimRafRef.current);
         openAnimRafRef.current = null;
@@ -100,18 +106,23 @@ export function NavBottom() {
       // 1º commit: monta fora da tela (translate-x-full) para o CSS conseguir animar no próximo frame
       setMenuMounted(true);
       setMenuOpen(false);
-      openAnimRafRef.current = requestAnimationFrame(() => {
-        openAnimRafRef.current = requestAnimationFrame(() => {
-          openAnimRafRef.current = null;
-          setMenuOpen(true);
-        });
-      });
+      // Em alguns devices mobile, RAF duplo ainda pode "pular" a animação.
+      // Este pequeno delay garante o paint inicial antes de iniciar o open.
+      openTimerRef.current = window.setTimeout(() => {
+        openTimerRef.current = null;
+        void panelRef.current?.offsetHeight;
+        setMenuOpen(true);
+      }, 24);
       return;
     }
 
     if (openAnimRafRef.current != null) {
       cancelAnimationFrame(openAnimRafRef.current);
       openAnimRafRef.current = null;
+    }
+    if (openTimerRef.current) {
+      window.clearTimeout(openTimerRef.current);
+      openTimerRef.current = null;
     }
     setMenuOpen(false);
     if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
@@ -132,6 +143,8 @@ export function NavBottom() {
   useEffect(() => {
     return () => {
       if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
+      if (openTimerRef.current) window.clearTimeout(openTimerRef.current);
+      if (openAnimRafRef.current != null) cancelAnimationFrame(openAnimRafRef.current);
     };
   }, []);
 
@@ -175,6 +188,7 @@ export function NavBottom() {
           />
 
           <aside
+            ref={panelRef}
             className={[
               "absolute inset-0 h-full w-full overflow-hidden",
               "transition-transform duration-300 ease-out will-change-transform",

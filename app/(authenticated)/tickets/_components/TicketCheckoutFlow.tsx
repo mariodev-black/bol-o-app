@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import Link from "next/link";
 import QRCode from "react-qr-code";
 import { TicketPurchaseBanner } from "./TicketPurchaseBanner";
 import { MyTicketsWallet } from "./MyTicketsWallet";
-import { appendTicketsFromPurchase } from "../lib/ownedTicketsStorage";
-import { ArrowLeft, Check, Copy, Loader2, Minus, Plus, QrCode, Ticket } from "lucide-react";
+import { Check, Copy, Loader2, Minus, Plus, Ticket } from "lucide-react";
+import Image, { type StaticImageData } from "next/image";
+import ticketGold from "@/app/assets/ticket-gold.png";
+import ticketBlue from "@/app/assets/Ticket-Blue.png";
 
 const GOLD = "#D4AF37";
 const GOLD_LIGHT = "#FFE8BA";
@@ -157,7 +158,7 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
                   qty={principalQty}
                   onDelta={(d) => bump("p", d)}
                   chip="Principal"
-                  icon={<Ticket className="w-6 h-6" style={{ color: GOLD_LIGHT }} strokeWidth={2} />}
+                  iconSrc={ticketGold}
                 />
                 <TicketTypeCard
                   productLabel="Um dia"
@@ -166,7 +167,7 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
                   priceCents={DIARIO_CENTS}
                   qty={diarioQty}
                   onDelta={(d) => bump("d", d)}
-                  icon={<Ticket className="w-6 h-6" style={{ color: GOLD_LIGHT }} strokeWidth={2} />}
+                  iconSrc={ticketBlue}
                 />
               </div>
 
@@ -409,7 +410,7 @@ function TicketTypeCard({
   priceCents,
   qty,
   onDelta,
-  icon,
+  iconSrc,
   chip,
 }: {
   productLabel: string;
@@ -418,7 +419,7 @@ function TicketTypeCard({
   priceCents: number;
   qty: number;
   onDelta: (d: number) => void;
-  icon: ReactNode;
+  iconSrc: StaticImageData;
   chip?: string;
 }) {
   const active = qty > 0;
@@ -429,7 +430,7 @@ function TicketTypeCard({
 
   return (
     <div
-      className="relative rounded-2xl p-4 sm:p-5 flex flex-col h-full min-h-[220px] transition-all duration-200"
+      className="relative rounded-2xl p-5 sm:p-6 flex flex-col h-full min-h-[250px] transition-all duration-200"
       style={{
         background: `linear-gradient(168deg, rgba(11,15,26,0.99) 0%, ${CARD} 100%)`,
         border: active ? `2px solid ${GOLD}` : "1px solid rgba(255,255,255,0.07)",
@@ -458,18 +459,18 @@ function TicketTypeCard({
         {productLabel}
       </p>
 
-      <div className="flex gap-3 pr-12">
-        <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0" style={iconWrap}>
-          {icon}
+      <div className="flex gap-4 pr-12">
+        <div className="w-[76px] h-[76px] rounded-xl flex items-center justify-center shrink-0" style={iconWrap}>
+          <Image src={iconSrc} alt="" aria-hidden className="w-[82px] h-auto max-w-none drop-shadow-[0_14px_26px_rgba(0,0,0,0.4)]" />
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="font-bold text-white text-[17px] leading-tight" style={{ fontFamily: montserrat }}>
+          <h3 className="font-bold text-white text-[18px] leading-tight" style={{ fontFamily: montserrat }}>
             {title}
           </h3>
           <p className="text-[13px] sm:text-[14px] mt-2 leading-relaxed" style={{ color: "rgba(226,213,184,0.55)" }}>
             {description}
           </p>
-          <p className="text-[16px] font-bold mt-3 tabular-nums" style={{ color: GOLD_LIGHT }}>
+          <p className="text-[17px] font-bold mt-3 tabular-nums" style={{ color: GOLD_LIGHT }}>
             {formatBRL(priceCents)}
             <span className="text-[11px] font-medium ml-1" style={{ color: "rgba(226,213,184,0.42)" }}>
               cada
