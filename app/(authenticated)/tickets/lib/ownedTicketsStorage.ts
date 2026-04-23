@@ -90,23 +90,11 @@ export function isoDateToBR(iso: string) {
 }
 
 export function palpitesUrlPrincipal(ticketId: string) {
-  const q = new URLSearchParams({
-    bolao: "principal",
-    ticket: ticketId,
-    eventDate: "Temporada Copa 2026",
-    ranking: "0",
-    points: "0",
-  });
+  const q = new URLSearchParams({ ticket: ticketId });
   return `/palpites?${q.toString()}`;
 }
 
-export function palpitesUrlDiario(ticketId: string, eventDateBR: string) {
-  const q = new URLSearchParams({
-    bolao: "diario",
-    ticket: ticketId,
-    eventDate: eventDateBR,
-    ranking: "0",
-    points: "0",
-  });
+export function palpitesUrlDiario(ticketId: string) {
+  const q = new URLSearchParams({ ticket: ticketId });
   return `/palpites?${q.toString()}`;
 }

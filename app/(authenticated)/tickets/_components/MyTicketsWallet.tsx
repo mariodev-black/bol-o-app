@@ -128,7 +128,7 @@ function DiarioTicketRow({
     if (!br) return;
     setDiarioTicketPlayDate(ticket.id, br);
     onLinked();
-    onNavigate(palpitesUrlDiario(ticket.id, br));
+    onNavigate(palpitesUrlDiario(ticket.id));
   };
 
   if (ticket.playDate) {
@@ -143,7 +143,7 @@ function DiarioTicketRow({
           <p className="text-[13px] text-white/45 mt-0.5">Ticket amarrado a esta data — palpites contam só para os jogos do dia.</p>
         </div>
         <Link
-          href={palpitesUrlDiario(ticket.id, ticket.playDate)}
+          href={palpitesUrlDiario(ticket.id)}
           className="shrink-0 inline-flex items-center gap-1 px-3.5 py-2.5 rounded-lg text-[12px] font-bold uppercase tracking-wide"
           style={{
             background: "linear-gradient(180deg, rgba(147,197,253,0.25), rgba(59,130,246,0.35))",

@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, ChevronDown, Ticket } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ArrowRight, ChevronDown, Ticket } from "lucide-react";
 import {
   isoDateToBR,
   loadOwnedTickets,
@@ -64,8 +64,6 @@ function formatTicketDate(createdAt: number): string {
 export default function BoloesPage() {
   const [tickets, setTickets] = useState<StoredTicket[]>([]);
   const [detailsOpen, setDetailsOpen] = useState<Record<string, boolean>>({});
-  const [activeSlide, setActiveSlide] = useState(0);
-  const carouselRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setTickets(loadOwnedTickets());
@@ -80,20 +78,6 @@ export default function BoloesPage() {
     }
     return { gerais: g, diarios: d };
   }, [tickets]);
-  const ticketItems = useMemo(() => [...gerais, ...diarios], [gerais, diarios]);
-
-  useEffect(() => {
-    if (activeSlide > Math.max(0, ticketItems.length - 1)) setActiveSlide(0);
-  }, [ticketItems.length, activeSlide]);
-
-  const goToSlide = (idx: number) => {
-    const el = carouselRef.current;
-    if (!el) return;
-    const child = el.children.item(idx) as HTMLElement | null;
-    if (!child) return;
-    child.scrollIntoView({ behavior: "smooth", inline: "start", block: "nearest" });
-    setActiveSlide(idx);
-  };
 
   return (
     <div className="min-h-screen px-4 sm:px-6 py-4">
@@ -141,56 +125,136 @@ export default function BoloesPage() {
           </section>
         )}
 
-        <section className="space-y-3.5">
-          {ticketItems.length > 1 && (
-            <div className="flex items-center justify-between">
-              <p className="text-[12px] text-white/45">Deslize para ver mais tickets</p>
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => goToSlide(Math.max(0, activeSlide - 1))}
-                  className="w-8 h-8 rounded-lg border flex items-center justify-center"
-                  style={{ borderColor: "rgba(255,255,255,0.18)", color: "rgba(255,255,255,0.85)", background: "rgba(255,255,255,0.04)" }}
-                  aria-label="Ticket anterior"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => goToSlide(Math.min(ticketItems.length - 1, activeSlide + 1))}
-                  className="w-8 h-8 rounded-lg border flex items-center justify-center"
-                  style={{ borderColor: "rgba(255,255,255,0.18)", color: "rgba(255,255,255,0.85)", background: "rgba(255,255,255,0.04)" }}
-                  aria-label="Próximo ticket"
-                >
-                  <ArrowRight className="w-4 h-4" />
-                </button>
+        <section className="space-y-6">
+          {gerais.length > 0 && (
+            <div className="space-y-3">
+              <h2 className="text-[12px] font-bold uppercase tracking-[0.14em] text-white/45">Bolão Principal</h2>
+              <div className={gerais.length > 1 ? "flex gap-3 overflow-x-auto snap-x snap-mandatory pb-1 pr-8" : "space-y-3.5"}>
+                {gerais.map((t) => {
+                  const isDiario = false;
+                  const label = `Ticket Copa #${t.id.slice(-3)}`;
+                  const value = "R$ 50,00";
+                  const open = detailsOpen[t.id] ?? false;
+                  const ticketDate = formatTicketDate(t.createdAt);
+                  const detailsLine = "Válido da abertura até a final da Copa.";
+                  const actionHref = palpitesUrlPrincipal(t.id);
+
+                  return (
+                    <article
+                      key={t.id}
+                      className={`relative rounded-[14px] ${gerais.length > 1 ? "snap-start shrink-0 w-[calc(100%-28px)] sm:w-[calc(100%-52px)]" : ""}`}
+                      style={{
+                        border: "1px solid rgba(212,175,55,0.45)",
+                        boxShadow: "0 16px 48px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)",
+                        background:
+                          "linear-gradient(165deg, #121a2a 0%, #0A0E19 42%, #060912 100%), repeating-linear-gradient(-50deg, rgba(255,255,255,0.028) 0, rgba(255,255,255,0.028) 1px, transparent 1px, transparent 8px)",
+                      }}
+                    >
+                      <TicketSideNotches />
+                      <div className="relative z-1 pl-[18px] pr-4 sm:pr-5 pt-4 sm:pt-5 pb-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-mono text-[10px] uppercase tracking-[0.12em] font-semibold text-white/40">{t.id}</p>
+                          <span className="text-[8px] font-bold uppercase tracking-[0.32em] text-white/20">Ingresso</span>
+                        </div>
+                        <div className="mt-2.5 flex items-start justify-between gap-3">
+                          <h2 className="min-w-0 flex-1 text-[20px] font-extrabold text-white leading-[1.15] tracking-tight">{label}</h2>
+                          <span
+                            className="inline-flex shrink-0 items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-bold"
+                            style={{
+                              background: "rgba(212,175,55,0.08)",
+                              border: "1px solid rgba(212,175,55,0.45)",
+                              color: GOLD_LIGHT,
+                            }}
+                          >
+                            {value}
+                          </span>
+                        </div>
+                        <div className="mt-3.5 flex flex-wrap items-center gap-2">
+                          <span
+                            className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold"
+                            style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.28)", color: "#86EFAC" }}
+                          >
+                            Ativo e elegível
+                          </span>
+                          <span className="text-[12px] text-white/30">·</span>
+                          <span className="text-[12px] text-white/50 font-mono tabular-nums">{ticketDate}</span>
+                        </div>
+                        <div
+                          className="mt-4 flex rounded-[10px] px-4 py-3 gap-0"
+                          style={{ background: "rgba(0,0,0,0.35)", border: "1px dashed rgba(212,175,55,0.28)" }}
+                        >
+                          <div className="min-w-0 flex-1 text-center sm:text-left">
+                            <p className="text-[9px] uppercase tracking-[0.18em] font-bold text-white/38">Ranking</p>
+                            <p className="text-[22px] font-black mt-0.5 font-mono tabular-nums leading-none" style={{ color: GOLD }}>
+                              #--
+                            </p>
+                          </div>
+                          <div className="w-px shrink-0 self-stretch bg-white/10 mx-2 sm:mx-4" />
+                          <div className="min-w-0 flex-1 text-center sm:text-right">
+                            <p className="text-[9px] uppercase tracking-[0.18em] font-bold text-white/38">Pontos</p>
+                            <p className="text-[22px] font-black text-white mt-0.5 font-mono tabular-nums leading-none">
+                              -- <span className="text-[13px] font-bold text-white/45">pts</span>
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      <TicketPerforation />
+                      <div className="relative z-1 px-4 sm:px-5 pb-3">
+                        <button
+                          type="button"
+                          onClick={() => setDetailsOpen((prev) => ({ ...prev, [t.id]: !open }))}
+                          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-[10px] text-[12px] font-medium tracking-wide transition-colors hover:bg-white/5"
+                          style={{ border: "1px dashed rgba(255,255,255,0.16)", color: "rgba(255,255,255,0.55)", background: "rgba(0,0,0,0.25)" }}
+                          aria-expanded={open}
+                        >
+                          {open ? "Ocultar detalhes" : "Ver mais detalhes"}
+                          <ChevronDown
+                            className={`w-4 h-4 shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+                            strokeWidth={2.5}
+                          />
+                        </button>
+                        {open && (
+                          <div
+                            className="mt-2 rounded-[10px] px-3 py-3 space-y-2.5 text-[12px]"
+                            style={{ background: "rgba(0,0,0,0.28)", border: "1px dashed rgba(255,255,255,0.1)" }}
+                          >
+                            <p className="text-white/70">{detailsLine}</p>
+                            <p className="text-white/50">ID do ticket: {t.id}</p>
+                          </div>
+                        )}
+                      </div>
+                      <TicketPerforation />
+                      <div
+                        className="relative z-1 px-4 sm:px-5 pt-1 pb-4 rounded-b-[13px]"
+                        style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.45) 100%)" }}
+                      >
+                        <div className="mt-3 flex flex-col items-center gap-3">
+                          <Link
+                            href={actionHref}
+                            className="w-full inline-flex items-center justify-center gap-2 px-4 py-3.5 rounded-[10px] text-[11px] sm:text-[12px] font-bold uppercase tracking-[0.12em] transition-transform hover:translate-x-0.5"
+                            style={{
+                              background: `linear-gradient(180deg, ${GOLD_LIGHT} 0%, ${GOLD} 100%)`,
+                              color: "#0E141B",
+                              boxShadow: "0 4px 20px rgba(212,175,55,0.25)",
+                            }}
+                          >
+                            Continuar com ticket
+                            <ArrowRight className="w-4 h-4" />
+                          </Link>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             </div>
           )}
 
-          <div
-            ref={carouselRef}
-            className={ticketItems.length > 1 ? "flex gap-3 overflow-x-auto snap-x snap-mandatory pb-1 pr-8" : "space-y-3.5"}
-            onScroll={(e) => {
-              if (ticketItems.length <= 1) return;
-              const container = e.currentTarget;
-              const children = Array.from(container.children) as HTMLElement[];
-              if (children.length === 0) return;
-              const cCenter = container.scrollLeft + container.clientWidth / 2;
-              let nearest = 0;
-              let dist = Number.POSITIVE_INFINITY;
-              children.forEach((child, idx) => {
-                const center = child.offsetLeft + child.clientWidth / 2;
-                const d = Math.abs(center - cCenter);
-                if (d < dist) {
-                  dist = d;
-                  nearest = idx;
-                }
-              });
-              if (nearest !== activeSlide) setActiveSlide(nearest);
-            }}
-          >
-          {ticketItems.map((t) => {
+          {diarios.length > 0 && (
+            <div className="space-y-3">
+              <h2 className="text-[12px] font-bold uppercase tracking-[0.14em] text-white/45">Bolão Diário</h2>
+              <div className={diarios.length > 1 ? "flex gap-3 overflow-x-auto snap-x snap-mandatory pb-1 pr-8" : "space-y-3.5"}>
+                {diarios.map((t) => {
             const isDiario = t.kind === "diario";
             const label = isDiario ? `Ticket Diário #${t.id.slice(-3)}` : `Ticket Copa #${t.id.slice(-3)}`;
             const value = isDiario ? "R$ 25,00" : "R$ 50,00";
@@ -200,12 +264,12 @@ export default function BoloesPage() {
               ? "Válido apenas para os jogos do dia escolhido."
               : "Válido da abertura até a final da Copa.";
             const actionHref =
-              isDiario && !t.playDate ? "/tickets?bolao=diario#meus-tickets" : isDiario ? palpitesUrlDiario(t.id, t.playDate!) : palpitesUrlPrincipal(t.id);
+              isDiario && !t.playDate ? "/tickets?bolao=diario#meus-tickets" : isDiario ? palpitesUrlDiario(t.id) : palpitesUrlPrincipal(t.id);
 
             return (
               <article
                 key={t.id}
-                className={`relative rounded-[14px] ${ticketItems.length > 1 ? "snap-start shrink-0 w-[calc(100%-28px)] sm:w-[calc(100%-52px)]" : ""}`}
+                className={`relative rounded-[14px] ${diarios.length > 1 ? "snap-start shrink-0 w-[calc(100%-28px)] sm:w-[calc(100%-52px)]" : ""}`}
                 style={{
                   border: "1px solid rgba(212,175,55,0.45)",
                   boxShadow: "0 16px 48px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)",
@@ -309,23 +373,7 @@ export default function BoloesPage() {
               </article>
             );
           })}
-          </div>
-
-          {ticketItems.length > 1 && (
-            <div className="flex items-center justify-center gap-1.5 pt-1">
-              {ticketItems.map((t, idx) => (
-                <button
-                  key={`dot-${t.id}`}
-                  type="button"
-                  onClick={() => goToSlide(idx)}
-                  className="h-1.5 rounded-full transition-all"
-                  style={{
-                    width: idx === activeSlide ? 18 : 8,
-                    background: idx === activeSlide ? GOLD : "rgba(255,255,255,0.28)",
-                  }}
-                  aria-label={`Ir para ticket ${idx + 1}`}
-                />
-              ))}
+              </div>
             </div>
           )}
         </section>

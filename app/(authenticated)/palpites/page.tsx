@@ -2,10 +2,13 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { ChevronDown, ChevronUp, BarChart2, Trophy, AlignJustify, Target, CircleCheck, Star, Bell, Coins, AlertTriangle, Disc, Pencil } from "lucide-react";
+import { ChevronDown, ChevronUp, BarChart2, Trophy, AlignJustify, Target, CircleCheck, Star, Bell, Coins, AlertTriangle, Disc, Pencil, Loader2 } from "lucide-react";
 import { TrophyGold, TrophySilver, TrophyBronze } from "@/app/shared/RankingAtual";
 import bgPalpitesDesk from "@/app/assets/bg-palpites-desktop.png";
 import { StepsBreadcrumb } from "../boloes/_components/StepsBreadcrumb";
+import {
+  calcPredictionPoints,
+} from "./lib/predictionsStorage";
 
 // ── Tipos ────────────────────────────────────────────────────
 type TabView = "jogos" | "tabela" | "ranking" | "resumo";
@@ -36,6 +39,10 @@ interface Jogo {
   status: StatusJogo;
   grupo: string;
   rodada: number;
+  dataBR: string;
+  kickoffAt: string | null;
+  resultCasa: number | null;
+  resultVisitante: number | null;
 }
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -48,9 +55,42 @@ function formatData(dataStr: string): string {
   return `${MESES[parseInt(month) - 1]}. ${parseInt(day)}`;
 }
 
+function inferBolaoTypeFromTicketId(ticketId: string | null): "principal" | "diario" {
+  const t = (ticketId || "").toUpperCase();
+  if (t.startsWith("TD-")) return "diario";
+  return "principal";
+}
+
+function todayBR(): string {
+  return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo" }).format(new Date());
+}
+
 function mapStatus(s: string): StatusJogo {
   if (s === "encerrado" || s === "cancelado" || s === "finalizado") return "encerrado";
   return "aberto";
+}
+
+function parseKickoffISO(dataRealizacao: string | null | undefined, hora: string | null | undefined): string | null {
+  if (!dataRealizacao || !hora) return null;
+  const [d, m, y] = dataRealizacao.split("/");
+  if (!d || !m || !y) return null;
+  const hhmm = hora.slice(0, 5);
+  if (!/^\d{2}:\d{2}$/.test(hhmm)) return null;
+  return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}T${hhmm}:00-03:00`;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function pickScore(p: any, side: "casa" | "visitante"): number | null {
+  const keys =
+    side === "casa"
+      ? ["placar_mandante", "placar", "gols_mandante", "resultado_mandante"]
+      : ["placar_visitante", "gols_visitante", "resultado_visitante"];
+  for (const k of keys) {
+    const v = p?.[k];
+    if (typeof v === "number") return v;
+    if (typeof v === "string" && v.trim() !== "" && !Number.isNaN(Number(v))) return Number(v);
+  }
+  return null;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -75,10 +115,14 @@ function parsePartidas(faseGrupos: Record<string, any>): Jogo[] {
           siglasVisitante: p.time_visitante.sigla,
           escudoVisitante: p.time_visitante.escudo,
           data: formatData(p.data_realizacao),
+          dataBR: p.data_realizacao,
           hora: p.hora_realizacao,
           status: mapStatus(p.status),
           grupo: grupoLetra,
           rodada: rodadaIndex,
+          kickoffAt: parseKickoffISO(p.data_realizacao, p.hora_realizacao),
+          resultCasa: pickScore(p, "casa"),
+          resultVisitante: pickScore(p, "visitante"),
         });
       }
     });
@@ -150,30 +194,69 @@ function ScoreDisplay({ value, dir }: { value: number; dir: "up" | "down" }) {
 }
 
 // ── Card do jogo ──────────────────────────────────────────────
-function JogoCard({ jogo, readOnly = false }: { jogo: Jogo; readOnly?: boolean }) {
+function JogoCard({
+  jogo,
+  readOnly = false,
+  ticketId,
+  initialPrediction,
+  predictionsLoading = false,
+  onSavePrediction,
+}: {
+  jogo: Jogo;
+  readOnly?: boolean;
+  ticketId: string | null;
+  initialPrediction?: { scoreCasa: number; scoreVisitante: number } | null;
+  predictionsLoading?: boolean;
+  onSavePrediction?: (payload: { matchId: number; scoreCasa: number; scoreVisitante: number }) => Promise<void>;
+}) {
   const [scoreCasa, setScoreCasa] = useState(0);
   const [scoreVisitante, setScoreVisitante] = useState(0);
   const [dirCasa, setDirCasa] = useState<"up" | "down">("up");
   const [dirVisitante, setDirVisitante] = useState<"up" | "down">("up");
   const [palpiteSalvo, setPalpiteSalvo] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const p = initialPrediction;
+    if (!p) return;
+    setScoreCasa(p.scoreCasa);
+    setScoreVisitante(p.scoreVisitante);
+    setPalpiteSalvo(true);
+  }, [initialPrediction]);
+
+  const lockAtMs = jogo.kickoffAt ? new Date(jogo.kickoffAt).getTime() - 60 * 60 * 1000 : null;
+  const isLockedByTime = lockAtMs != null ? Date.now() >= lockAtMs : false;
+  const canEdit = !readOnly && jogo.status === "aberto" && !isLockedByTime;
 
   function increment(side: "casa" | "visitante") {
-    if (side === "casa") { setDirCasa("up"); setScoreCasa((v) => Math.min(v + 1, 99)); }
-    else { setDirVisitante("up"); setScoreVisitante((v) => Math.min(v + 1, 99)); }
+    setSaveError(null);
+    if (side === "casa") {
+      setDirCasa("up");
+      setScoreCasa((v) => Math.min(v + 1, 99));
+    } else {
+      setDirVisitante("up");
+      setScoreVisitante((v) => Math.min(v + 1, 99));
+    }
   }
   function decrement(side: "casa" | "visitante") {
-    if (side === "casa") { setDirCasa("down"); setScoreCasa((v) => Math.max(v - 1, 0)); }
-    else { setDirVisitante("down"); setScoreVisitante((v) => Math.max(v - 1, 0)); }
+    setSaveError(null);
+    if (side === "casa") {
+      setDirCasa("down");
+      setScoreCasa((v) => Math.max(v - 1, 0));
+    } else {
+      setDirVisitante("down");
+      setScoreVisitante((v) => Math.max(v - 1, 0));
+    }
   }
 
-  const disabled = readOnly || jogo.status !== "aberto" || palpiteSalvo;
-  const review = readOnly
-    ? {
-        casa: (jogo.id * 3) % 5,
-        visitante: (jogo.id * 7) % 4,
-        pontos: ((jogo.id % 5) + (jogo.id % 3)) % 8,
-      }
-    : null;
+  const disabled = readOnly || !canEdit || palpiteSalvo || isSubmitting || predictionsLoading;
+  const hasInitialPrediction = Boolean(initialPrediction);
+
+  const review =
+    readOnly && jogo.resultCasa != null && jogo.resultVisitante != null
+      ? calcPredictionPoints(scoreCasa, scoreVisitante, jogo.resultCasa, jogo.resultVisitante)
+      : null;
 
   return (
     <div
@@ -206,7 +289,9 @@ function JogoCard({ jogo, readOnly = false }: { jogo: Jogo; readOnly?: boolean }
               style={{ background: "#22C55E1A", border: "2px solid #22C55E33" }}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E] animate-pulse" />
-              <span className="text-[11px] font-bold text-[#22C55E] uppercase tracking-wide">Aberto</span>
+              <span className="text-[11px] font-bold text-[#22C55E] uppercase tracking-wide">
+                {isLockedByTime ? "Fechado (1h)" : "Aberto"}
+              </span>
             </div>
           )}
           {!readOnly && palpiteSalvo && (
@@ -241,14 +326,14 @@ function JogoCard({ jogo, readOnly = false }: { jogo: Jogo; readOnly?: boolean }
               className="w-12 h-12 rounded-xl flex items-center justify-center text-[26px] font-black"
               style={{ background: "rgba(255,255,255,0.08)", color: "#fff" }}
             >
-              {review?.casa}
+              {scoreCasa}
             </div>
             <span className="text-white/25 font-light text-2xl">×</span>
             <div
               className="w-12 h-12 rounded-xl flex items-center justify-center text-[26px] font-black"
               style={{ background: "rgba(255,255,255,0.08)", color: "#fff" }}
             >
-              {review?.visitante}
+              {scoreVisitante}
             </div>
           </div>
         ) : (
@@ -308,18 +393,26 @@ function JogoCard({ jogo, readOnly = false }: { jogo: Jogo; readOnly?: boolean }
           <div
             className="w-full py-3.5 rounded-xl flex items-center justify-center gap-2"
             style={{
-              background: review && review.pontos > 0 ? "rgba(34,197,94,0.12)" : "rgba(255,255,255,0.06)",
-              border: review && review.pontos > 0 ? "1px solid rgba(34,197,94,0.35)" : "1px solid rgba(255,255,255,0.14)",
+              background: review && review.points > 0 ? "rgba(34,197,94,0.12)" : "rgba(255,255,255,0.06)",
+              border: review && review.points > 0 ? "1px solid rgba(34,197,94,0.35)" : "1px solid rgba(255,255,255,0.14)",
             }}
           >
             <span
               className="font-black text-[14px]"
-              style={{ color: review && review.pontos > 0 ? "#4ADE80" : "rgba(255,255,255,0.72)" }}
+              style={{ color: review && review.points > 0 ? "#4ADE80" : "rgba(255,255,255,0.72)" }}
             >
-              {review && review.pontos > 0
-                ? `Voce ganhou ${review.pontos} pts nesta partida`
+              {review && review.points > 0
+                ? `Voce ganhou ${review.points} pts nesta partida`
                 : "Sem pontuacao nesta partida"}
             </span>
+          </div>
+        ) : predictionsLoading ? (
+          <div
+            className="w-full py-3.5 rounded-xl flex items-center justify-center gap-2"
+            style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.14)" }}
+          >
+            <Loader2 className="w-4 h-4 animate-spin text-white/70" />
+            <span className="font-bold text-[14px] text-white/70">Carregando palpite...</span>
           </div>
         ) : palpiteSalvo ? (
           <div className="flex items-center gap-2">
@@ -330,10 +423,14 @@ function JogoCard({ jogo, readOnly = false }: { jogo: Jogo; readOnly?: boolean }
               <CircleCheck className="w-4 h-4" style={{ color: "#34D399" }} strokeWidth={2.5} />
               <span className="font-black text-[15px]" style={{ color: "#34D399" }}>Palpite salvo</span>
             </div>
-            {jogo.status === "aberto" && (
+            {canEdit && (
               <button
-                onClick={() => setPalpiteSalvo(false)}
-                className="h-[50px] px-4 rounded-xl flex items-center gap-1.5 transition-all duration-200"
+                onClick={() => {
+                  setSaveError(null);
+                  setPalpiteSalvo(false);
+                }}
+                disabled={isSubmitting}
+                className="h-[50px] px-4 rounded-xl flex items-center gap-1.5 transition-all duration-200 disabled:opacity-40"
                 style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
               >
                 <Pencil className="w-3.5 h-3.5 text-white/50" strokeWidth={2} />
@@ -343,17 +440,43 @@ function JogoCard({ jogo, readOnly = false }: { jogo: Jogo; readOnly?: boolean }
           </div>
         ) : (
           <button
-            onClick={() => setPalpiteSalvo(true)}
-            disabled={jogo.status !== "aberto"}
+            onClick={async () => {
+              if (!ticketId || !onSavePrediction) return;
+              setSaveError(null);
+              setIsSubmitting(true);
+              try {
+                await onSavePrediction({
+                  matchId: jogo.id,
+                  scoreCasa,
+                  scoreVisitante,
+                });
+                setPalpiteSalvo(true);
+              } catch (error) {
+                setSaveError(error instanceof Error ? error.message : "Erro ao salvar palpite");
+              } finally {
+                setIsSubmitting(false);
+              }
+            }}
+            disabled={!canEdit || !ticketId || isSubmitting}
             className="w-full py-3.5 rounded-xl font-black text-[16px] transition-all duration-200"
             style={{
-              background: jogo.status !== "aberto" ? "#0A0E19" : "#fff",
-              color: jogo.status !== "aberto" ? "rgba(255,255,255,0.2)" : "#0A0E19",
+              background: !canEdit || !ticketId || isSubmitting ? "#0A0E19" : "#fff",
+              color: !canEdit || !ticketId || isSubmitting ? "rgba(255,255,255,0.2)" : "#0A0E19",
             }}
           >
-            Fazer Palpite
+            <span className="inline-flex items-center justify-center gap-2">
+              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              {isSubmitting
+                ? "Salvando palpite..."
+                : isLockedByTime
+                  ? "Apostas encerradas (1h antes)"
+                  : hasInitialPrediction
+                    ? "Atualizar palpite"
+                    : "Fazer Palpite"}
+            </span>
           </button>
         )}
+        {saveError ? <p className="mt-2 text-[12px] text-red-300">{saveError}</p> : null}
       </div>
     </div>
   );
@@ -502,16 +625,41 @@ function TabelaView({ grupo, tabela, onGrupo }: { grupo: string; tabela: TabelaG
 }
 
 // ── Ranking ───────────────────────────────────────────────────
-const RANKING_MOCK = [
-  { pos: 1, nome: "João Silva",    iniciais: "JS", acertos: 8, pts: 47 },
-  { pos: 2, nome: "Maria Santos",  iniciais: "MS", acertos: 7, pts: 43 },
-  { pos: 3, nome: "Pedro Costa",   iniciais: "PC", acertos: 7, pts: 41 },
-  { pos: 4, nome: "Ana Lima",      iniciais: "AL", acertos: 6, pts: 38 },
-  { pos: 5, nome: "Carlos Ferr.",  iniciais: "CF", acertos: 6, pts: 35 },
-  { pos: 6, nome: "Você",          iniciais: "OP", acertos: 5, pts: 32, isMe: true },
-  { pos: 7, nome: "Luciana M.",    iniciais: "LM", acertos: 4, pts: 28 },
-];
-const MEU = RANKING_MOCK.find((r) => r.isMe)!;
+type RankingRowView = {
+  pos: number;
+  nome: string;
+  iniciais: string;
+  acertos: number;
+  pts: number;
+  exact: number;
+  gols: number;
+  isMe?: boolean;
+};
+
+type ResumoStats = {
+  palpites: number;
+  acertos: number;
+  pontos: number;
+  exatos: number;
+};
+
+type HistoricoRowView = {
+  matchId: number;
+  ticketId: string;
+  bolaoType: "principal" | "diario";
+  mandante: string;
+  visitante: string;
+  jogoData: string;
+  jogoHora: string;
+  palpiteCasa: number;
+  palpiteVisitante: number;
+  resultadoCasa: number | null;
+  resultadoVisitante: number | null;
+  pontos: number;
+  exact: boolean;
+  submittedAt: string;
+  updatedAt: string;
+};
 
 function RankingMedal({ pos, size = 28 }: { pos: number; size?: number }) {
   if (pos === 1) return <TrophyGold size={size} />;
@@ -539,7 +687,8 @@ function RankingAvatar({ iniciais, isMe, size = 32 }: { iniciais: string; isMe?:
 };
 
 
-function RankingView() {
+function RankingView({ rows, stats }: { rows: RankingRowView[]; stats: ResumoStats }) {
+  const MEU = rows.find((r) => r.isMe) ?? rows[0] ?? { pos: 0, nome: "Você", iniciais: "VO", acertos: 0, pts: 0, exact: 0, gols: 0 };
   return (
     <div className="flex flex-col gap-3">
 
@@ -579,9 +728,9 @@ function RankingView() {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-2">
         {[
-          { Icon: Target,       val: 32, label: "Palpites", color: "#D4AF37" },
-          { Icon: CircleCheck,  val: 5,  label: "Acertos",  color: "#34D399" },
-          { Icon: Star,         val: 32, label: "Pontos",   color: "#DAB682" },
+          { Icon: Target, val: stats.palpites, label: "Palpites", color: "#D4AF37" },
+          { Icon: CircleCheck, val: stats.acertos, label: "Acertos", color: "#34D399" },
+          { Icon: Star, val: stats.pontos, label: "Pontos", color: "#DAB682" },
         ].map(({ Icon, val, label, color }) => (
           <div
             key={label}
@@ -608,13 +757,13 @@ function RankingView() {
           <button className="text-[13px] font-semibold" style={{ color: "#5AADFF" }}>Ver todos</button>
         </div>
 
-        {RANKING_MOCK.map((r, i) => (
+        {rows.map((r, i) => (
           <div
             key={r.pos}
             className="flex items-center gap-3 px-4 py-3"
             style={{
               background: r.isMe ? "rgba(90,173,255,0.06)" : "transparent",
-              borderBottom: i < RANKING_MOCK.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none",
+              borderBottom: i < rows.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none",
             }}
           >
             <div className="w-7 h-7 flex items-center justify-center shrink-0">
@@ -700,61 +849,24 @@ function TicketBarcodeMini() {
   );
 }
 
-function mockPalpiteHistorico(jogo: Jogo, rodadaLabel: string) {
-  const pc = (jogo.id * 3) % 5;
-  const pv = (jogo.id * 7) % 4;
-  const rc = (jogo.id * 2) % 5;
-  const rv = (jogo.id * 5) % 4;
-  const pontos = ((jogo.id % 5) + (jogo.id % 3)) % 8;
-  const placarExato = pc === rc && pv === rv;
-  const status = placarExato ? "Placar exato" : pontos > 0 ? "Acerto parcial" : "Sem pontos";
-  const dataPalpiteDia = 5 + (jogo.id % 20);
-  const dataPalpiteMes = 6;
-  const horaPalpiteH = 8 + (jogo.id % 10);
-  const horaPalpiteM = (jogo.id * 7) % 60;
-  const dataPalpiteStr = `${String(dataPalpiteDia).padStart(2, "0")}/${String(dataPalpiteMes).padStart(2, "0")}/2026`;
-  const horaPalpiteStr = `${String(horaPalpiteH).padStart(2, "0")}:${String(horaPalpiteM).padStart(2, "0")}`;
-  return {
-    id: jogo.id,
-    rodadaLabel,
-    grupo: jogo.grupo,
-    mandante: jogo.timeCasa,
-    visitante: jogo.timeVisitante,
-    siglas: `${jogo.siglasCasa} x ${jogo.siglasVisitante}`,
-    jogoDataHora: `${jogo.data}, ${jogo.hora}`,
-    dataPalpite: dataPalpiteStr,
-    horaPalpite: horaPalpiteStr,
-    palpiteCasa: pc,
-    palpiteVisitante: pv,
-    resultadoCasa: rc,
-    resultadoVisitante: rv,
-    pontos,
-    status,
-    statusJogo: jogo.status === "encerrado" ? "Encerrado" : "Aberto",
-  };
-}
-
 function TicketResumoView({
   ticketId,
-  eventDate,
-  ranking,
-  points,
   resultMode,
   bolaoType,
-  jogosPorRodada,
+  stats,
+  rankingPos,
+  historico,
+  loadingHistorico,
 }: {
   ticketId: string | null;
-  eventDate: string | null;
-  ranking: string | null;
-  points: string | null;
   resultMode: boolean;
   bolaoType: "principal" | "diario";
-  jogosPorRodada: { label: string; jogos: Jogo[] }[];
+  stats: ResumoStats;
+  rankingPos: number | null;
+  historico: HistoricoRowView[];
+  loadingHistorico: boolean;
 }) {
   const [resumoSecao, setResumoSecao] = useState<"geral" | "historico">("geral");
-  const historico = jogosPorRodada
-    .flatMap(({ label, jogos }) => jogos.map((j) => mockPalpiteHistorico(j, label)))
-    .slice(0, 12);
 
   return (
     <div
@@ -783,24 +895,28 @@ function TicketResumoView({
               <p className="text-white font-semibold mt-0.5 truncate font-mono" title={ticketId}>{ticketId}</p>
             </div>
           )}
-          {eventDate && (
-            <div className="rounded-md px-2.5 py-2 text-[12px]" style={{ background: "rgba(0,0,0,0.25)", border: "1px dashed rgba(212,175,55,0.22)" }}>
-              Evento
-              <p className="text-white font-semibold mt-0.5 font-mono">{eventDate}</p>
-            </div>
-          )}
-          {ranking && (
+          {rankingPos != null && (
             <div className="rounded-md px-2.5 py-2 text-[12px]" style={{ background: "rgba(0,0,0,0.25)", border: "1px dashed rgba(212,175,55,0.22)" }}>
               Ranking
-              <p className="text-white font-semibold mt-0.5 font-mono">#{ranking}</p>
+              <p className="text-white font-semibold mt-0.5 font-mono">#{rankingPos}</p>
             </div>
           )}
-          {points && (
-            <div className="rounded-md px-2.5 py-2 text-[12px]" style={{ background: "rgba(34,197,94,0.08)", border: "1px dashed rgba(34,197,94,0.28)" }}>
-              Pontos ganhos
-              <p className="text-[#4ADE80] font-semibold mt-0.5 font-mono">{points} pts</p>
-            </div>
-          )}
+          <div className="rounded-md px-2.5 py-2 text-[12px]" style={{ background: "rgba(34,197,94,0.08)", border: "1px dashed rgba(34,197,94,0.28)" }}>
+            Pontos
+            <p className="text-[#4ADE80] font-semibold mt-0.5 font-mono">{stats.pontos} pts</p>
+          </div>
+          <div className="rounded-md px-2.5 py-2 text-[12px]" style={{ background: "rgba(0,0,0,0.25)", border: "1px dashed rgba(212,175,55,0.22)" }}>
+            Acertos
+            <p className="text-white font-semibold mt-0.5 font-mono">{stats.acertos}</p>
+          </div>
+          <div className="rounded-md px-2.5 py-2 text-[12px]" style={{ background: "rgba(0,0,0,0.25)", border: "1px dashed rgba(212,175,55,0.22)" }}>
+            Placar exato
+            <p className="text-white font-semibold mt-0.5 font-mono">{stats.exatos}</p>
+          </div>
+          <div className="rounded-md px-2.5 py-2 text-[12px]" style={{ background: "rgba(0,0,0,0.25)", border: "1px dashed rgba(212,175,55,0.22)" }}>
+            Palpites
+            <p className="text-white font-semibold mt-0.5 font-mono">{stats.palpites}</p>
+          </div>
         </div>
       </div>
 
@@ -865,14 +981,18 @@ function TicketResumoView({
         </div>
       ) : (
         <div className="space-y-3">
-          {historico.length === 0 ? (
+          {loadingHistorico ? (
+            <div className="rounded-lg px-4 py-4 text-[12px] text-white/45 font-mono" style={{ border: "1px dashed rgba(255,255,255,0.14)", background: "rgba(0,0,0,0.15)" }}>
+              Carregando histórico...
+            </div>
+          ) : historico.length === 0 ? (
             <div className="rounded-lg px-4 py-4 text-[12px] text-white/45 font-mono" style={{ border: "1px dashed rgba(255,255,255,0.14)", background: "rgba(0,0,0,0.15)" }}>
               Nenhum palpite registrado ainda.
             </div>
           ) : (
             historico.map((item) => (
               <div
-                key={item.id}
+                key={`${item.matchId}-${item.submittedAt}`}
                 className="rounded-lg px-3.5 py-3.5"
                 style={{ background: "rgba(0,0,0,0.2)", border: "1px dashed rgba(212,175,55,0.2)" }}
               >
@@ -881,28 +1001,30 @@ function TicketResumoView({
                     <p className="text-[13px] font-bold text-white leading-snug">
                       {item.mandante} <span className="text-white/35 font-normal">vs</span> {item.visitante}
                     </p>
-                    <p className="text-[11px] text-white/40 mt-0.5">{item.siglas} · Grupo {item.grupo} · {item.rodadaLabel}</p>
+                    <p className="text-[11px] text-white/40 mt-0.5">{item.jogoData} · {item.jogoHora}</p>
                   </div>
                   <span
                     className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full shrink-0"
                     style={{
-                      background: item.statusJogo === "Encerrado" ? "rgba(148,163,184,0.12)" : "rgba(34,197,94,0.12)",
-                      color: item.statusJogo === "Encerrado" ? "rgba(226,232,240,0.85)" : "#86EFAC",
-                      border: `1px solid ${item.statusJogo === "Encerrado" ? "rgba(148,163,184,0.25)" : "rgba(34,197,94,0.28)"}`,
+                      background: item.resultadoCasa != null && item.resultadoVisitante != null ? "rgba(148,163,184,0.12)" : "rgba(34,197,94,0.12)",
+                      color: item.resultadoCasa != null && item.resultadoVisitante != null ? "rgba(226,232,240,0.85)" : "#86EFAC",
+                      border: `1px solid ${item.resultadoCasa != null && item.resultadoVisitante != null ? "rgba(148,163,184,0.25)" : "rgba(34,197,94,0.28)"}`,
                     }}
                   >
-                    {item.statusJogo}
+                    {item.resultadoCasa != null && item.resultadoVisitante != null ? "Encerrado" : "Aberto"}
                   </span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
                   <div className="rounded-lg px-2.5 py-2" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
                     <p className="text-white/40 font-bold uppercase tracking-wide">Palpite enviado em</p>
-                    <p className="text-white/90 font-semibold mt-0.5">{item.dataPalpite} às {item.horaPalpite}</p>
+                    <p className="text-white/90 font-semibold mt-0.5">
+                      {new Date(item.submittedAt).toLocaleDateString("pt-BR")} às {new Date(item.submittedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                    </p>
                   </div>
                   <div className="rounded-lg px-2.5 py-2" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
                     <p className="text-white/40 font-bold uppercase tracking-wide">Jogo</p>
-                    <p className="text-white/90 font-semibold mt-0.5">{item.jogoDataHora}</p>
+                    <p className="text-white/90 font-semibold mt-0.5">{item.jogoData}, {item.jogoHora}</p>
                   </div>
                 </div>
 
@@ -917,7 +1039,7 @@ function TicketResumoView({
                   <div>
                     <span className="text-white/40">Resultado</span>
                     <p className="font-black text-white mt-0.5">
-                      {item.resultadoCasa} <span className="text-white/30 font-normal">x</span> {item.resultadoVisitante}
+                      {item.resultadoCasa ?? "-"} <span className="text-white/30 font-normal">x</span> {item.resultadoVisitante ?? "-"}
                     </p>
                   </div>
                   <div className="sm:ml-auto flex items-center gap-2">
@@ -929,7 +1051,7 @@ function TicketResumoView({
                         border: `1px solid ${item.pontos > 0 ? "rgba(34,197,94,0.25)" : "rgba(255,255,255,0.1)"}`,
                       }}
                     >
-                      {item.status}
+                      {item.exact ? "Placar exato" : item.pontos > 0 ? "Acerto parcial" : "Sem pontos"}
                     </span>
                     <span className={`text-[13px] font-black ${item.pontos > 0 ? "text-[#4ADE80]" : "text-white/40"}`}>
                       {item.pontos > 0 ? `+${item.pontos} pts` : "0 pts"}
@@ -948,11 +1070,13 @@ function TicketResumoView({
 }
 
 // ── Sidebar desktop ───────────────────────────────────────────
-function DesktopSidebar({ grupo, tabela, grupos, onGrupo }: {
+function DesktopSidebar({ grupo, tabela, grupos, onGrupo, rankingRows, stats }: {
   grupo: string;
   tabela: TabelaGrupos | null;
   grupos: string[];
   onGrupo: (g: string) => void;
+  rankingRows: RankingRowView[];
+  stats: ResumoStats;
 }) {
   const grupoKey = `grupo-${grupo.toLowerCase()}`;
   const times = tabela ? (tabela[grupoKey] ?? []) : [];
@@ -966,9 +1090,9 @@ function DesktopSidebar({ grupo, tabela, grupos, onGrupo }: {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-2">
         {[
-          { Icon: Target,       val: 32, label: "Palpites", color: "#D4AF37" },
-          { Icon: CircleCheck,  val: 5,  label: "Acertos",  color: "#34D399" },
-          { Icon: Star,         val: 32, label: "Pontos",   color: "#DAB682" },
+          { Icon: Target, val: stats.palpites, label: "Palpites", color: "#D4AF37" },
+          { Icon: CircleCheck, val: stats.acertos, label: "Acertos", color: "#34D399" },
+          { Icon: Star, val: stats.pontos, label: "Pontos", color: "#DAB682" },
         ].map(({ Icon, val, label, color }) => (
           <div
             key={label}
@@ -1081,13 +1205,13 @@ function DesktopSidebar({ grupo, tabela, grupos, onGrupo }: {
           <span className="text-white font-bold text-[13px]">Top Palpiteiros</span>
           <button className="text-[12px] font-semibold" style={{ color: "#5AADFF" }}>Ver todos</button>
         </div>
-        {RANKING_MOCK.map((r, i) => (
+        {rankingRows.map((r, i) => (
           <div
             key={r.pos}
             className="flex items-center gap-2.5 px-3 py-2.5"
             style={{
               background: r.isMe ? "rgba(90,173,255,0.07)" : "transparent",
-              borderBottom: i < RANKING_MOCK.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none",
+              borderBottom: i < rankingRows.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none",
             }}
           >
             {/* Medal / position */}
@@ -1134,13 +1258,10 @@ function DesktopSidebar({ grupo, tabela, grupos, onGrupo }: {
 // ── Página ───────────────────────────────────────────────────
 function PalpitesPageContent() {
   const searchParams = useSearchParams();
-  const hasBoloesFlow = Boolean(searchParams.get("bolao"));
   const resultMode = searchParams.get("mode") === "resultado";
   const ticketId = searchParams.get("ticket");
-  const eventDate = searchParams.get("eventDate");
-  const ranking = searchParams.get("ranking");
-  const points = searchParams.get("points");
-  const bolaoType = searchParams.get("bolao") === "diario" ? "diario" : "principal";
+  const hasBoloesFlow = Boolean(ticketId);
+  const bolaoType = inferBolaoTypeFromTicketId(ticketId);
   const [tab, setTab] = useState<TabView>("jogos");
   const [grupo, setGrupo] = useState("");
   const [jogos, setJogos] = useState<Jogo[]>([]);
@@ -1149,6 +1270,12 @@ function PalpitesPageContent() {
   const [erro, setErro] = useState(false);
   const [tabela, setTabela] = useState<TabelaGrupos | null>(null);
   const [resultTab, setResultTab] = useState<ResultTabView>("jogos");
+  const [rankingRows, setRankingRows] = useState<RankingRowView[]>([]);
+  const [resumoStats, setResumoStats] = useState<ResumoStats>({ palpites: 0, acertos: 0, pontos: 0, exatos: 0 });
+  const [historicoRows, setHistoricoRows] = useState<HistoricoRowView[]>([]);
+  const [predictionsMap, setPredictionsMap] = useState<Record<number, { scoreCasa: number; scoreVisitante: number }>>({});
+  const [loadingPredictions, setLoadingPredictions] = useState(false);
+  const [loadingResumo, setLoadingResumo] = useState(false);
   const showJogos = resultMode ? resultTab === "jogos" : tab === "jogos";
   const showRanking = resultMode ? resultTab === "ranking" : tab === "ranking";
   const showResumo = resultMode ? resultTab === "resumo" : tab === "resumo";
@@ -1187,13 +1314,110 @@ function PalpitesPageContent() {
   }, [resultMode]);
 
   useEffect(() => {
+    if (!ticketId) return;
+    (async () => {
+      setLoadingPredictions(true);
+      try {
+        const r = await fetch(`/api/palpites?ticketId=${encodeURIComponent(ticketId)}`, {
+          credentials: "include",
+          cache: "no-store",
+        });
+        const d = (await r.json()) as { predictions?: Array<{ matchId: number; scoreCasa: number; scoreVisitante: number }> };
+        if (!r.ok || !Array.isArray(d.predictions)) return;
+        const next: Record<number, { scoreCasa: number; scoreVisitante: number }> = {};
+        for (const p of d.predictions) {
+          next[p.matchId] = { scoreCasa: p.scoreCasa, scoreVisitante: p.scoreVisitante };
+        }
+        setPredictionsMap(next);
+      } catch {
+        setPredictionsMap({});
+      } finally {
+        setLoadingPredictions(false);
+      }
+    })();
+  }, [ticketId]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const q = new URLSearchParams();
+        if (ticketId) q.set("ticketId", ticketId);
+        const r = await fetch(`/api/palpites/ranking?${q.toString()}`, { credentials: "include", cache: "no-store" });
+        const d = (await r.json()) as { ranking?: Array<{ pos: number; ticketId: string; totalPoints: number; outcomeCount: number; exactCount: number; goalsCount: number; isMe: boolean }> };
+        if (!r.ok || !Array.isArray(d.ranking)) return;
+        setRankingRows(
+          d.ranking.map((row) => ({
+            pos: row.pos,
+            nome: row.ticketId,
+            iniciais: row.ticketId.slice(0, 2).toUpperCase(),
+            acertos: row.outcomeCount,
+            pts: row.totalPoints,
+            exact: row.exactCount,
+            gols: row.goalsCount,
+            isMe: row.isMe,
+          }))
+        );
+      } catch {}
+    })();
+  }, [bolaoType, ticketId]);
+
+  useEffect(() => {
+    if (!ticketId) return;
+    (async () => {
+      setLoadingResumo(true);
+      try {
+        const q = new URLSearchParams({ ticketId });
+        const [resumoResp, historicoResp] = await Promise.all([
+          fetch(`/api/palpites/resumo?${q.toString()}`, { credentials: "include", cache: "no-store" }),
+          fetch(`/api/palpites/historico?${q.toString()}&limit=30`, { credentials: "include", cache: "no-store" }),
+        ]);
+        const resumoData = (await resumoResp.json().catch(() => ({}))) as { resumo?: ResumoStats };
+        const histData = (await historicoResp.json().catch(() => ({}))) as { historico?: HistoricoRowView[] };
+        if (resumoResp.ok && resumoData.resumo) setResumoStats(resumoData.resumo);
+        if (historicoResp.ok && Array.isArray(histData.historico)) setHistoricoRows(histData.historico);
+      } finally {
+        setLoadingResumo(false);
+      }
+    })();
+  }, [ticketId]);
+
+  const savePrediction = async (payload: { matchId: number; scoreCasa: number; scoreVisitante: number }) => {
+    if (!ticketId) return;
+    const isNewPrediction = !predictionsMap[payload.matchId];
+    const r = await fetch("/api/palpites", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ticketId,
+        matchId: payload.matchId,
+        scoreCasa: payload.scoreCasa,
+        scoreVisitante: payload.scoreVisitante,
+      }),
+    });
+    if (!r.ok) {
+      const d = (await r.json().catch(() => ({}))) as { error?: string };
+      throw new Error(d.error || "Falha ao salvar palpite");
+    }
+    setPredictionsMap((prev) => ({
+      ...prev,
+      [payload.matchId]: { scoreCasa: payload.scoreCasa, scoreVisitante: payload.scoreVisitante },
+    }));
+    if (isNewPrediction) {
+      setResumoStats((prev) => ({ ...prev, palpites: prev.palpites + 1 }));
+    }
+  };
+
+  useEffect(() => {
     if (resultMode) setResultTab("jogos");
   }, [resultMode]);
 
+  const jogosBase = bolaoType === "diario" ? jogos.filter((j) => j.dataBR === todayBR()) : jogos;
   const jogosPorRodada = RODADAS_LABEL.map((label, idx) => ({
     label,
-    jogos: jogos.filter((j) => j.grupo === grupo && j.rodada === idx),
+    jogos: jogosBase.filter((j) => j.grupo === grupo && j.rodada === idx),
   })).filter((r) => r.jogos.length > 0);
+  const myRankingPos = rankingRows.find((row) => row.isMe)?.pos ?? null;
 
   const BotoesGrupo = ({ className }: { className?: string }) => (
     <div className={className}>
@@ -1268,7 +1492,7 @@ function PalpitesPageContent() {
           {hasBoloesFlow
             ? bolaoType === "principal"
               ? "Jogos do dia · Copa inteira"
-              : "Jogos do dia"
+                  : "Jogos do dia atual"
             : "Fase de Grupos"}
         </p>
       </div>
@@ -1363,23 +1587,33 @@ function PalpitesPageContent() {
                         <span className="text-[11px] font-bold text-white/30 tracking-widest uppercase shrink-0">{label}</span>
                         <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.06)" }} />
                       </div>
-                      {rJogos.map((jogo) => <JogoCard key={jogo.id} jogo={jogo} readOnly={resultMode} />)}
+                      {rJogos.map((jogo) => (
+                        <JogoCard
+                          key={jogo.id}
+                          jogo={jogo}
+                          readOnly={resultMode}
+                          ticketId={ticketId}
+                          initialPrediction={predictionsMap[jogo.id] ?? null}
+                          predictionsLoading={loadingPredictions}
+                          onSavePrediction={savePrediction}
+                        />
+                      ))}
                     </div>
                   ))
                 )}
               </div>
             )}
             {tab === "tabela" && !resultMode && <TabelaView grupo={grupo} tabela={tabela} onGrupo={setGrupo} />}
-            {showRanking ? <RankingView /> : null}
+            {showRanking ? <RankingView rows={rankingRows} stats={resumoStats} /> : null}
             {showResumo ? (
               <TicketResumoView
                 ticketId={ticketId}
-                eventDate={eventDate}
-                ranking={ranking}
-                points={points}
                 resultMode={resultMode}
                 bolaoType={bolaoType}
-                jogosPorRodada={jogosPorRodada}
+                stats={resumoStats}
+                rankingPos={myRankingPos}
+                historico={historicoRows}
+                loadingHistorico={loadingResumo}
               />
             ) : null}
           </div>
@@ -1412,15 +1646,15 @@ function PalpitesPageContent() {
             {showResumo ? (
               <TicketResumoView
                 ticketId={ticketId}
-                eventDate={eventDate}
-                ranking={ranking}
-                points={points}
                 resultMode={resultMode}
                 bolaoType={bolaoType}
-                jogosPorRodada={jogosPorRodada}
+                stats={resumoStats}
+                rankingPos={myRankingPos}
+                historico={historicoRows}
+                loadingHistorico={loadingResumo}
               />
             ) : showRanking ? (
-              <RankingView />
+              <RankingView rows={rankingRows} stats={resumoStats} />
             ) : erro ? (
               <div className="flex flex-col items-center py-16">
                 <AlertTriangle className="w-10 h-10 mb-3 text-white/20" strokeWidth={1.5} />
@@ -1445,7 +1679,17 @@ function PalpitesPageContent() {
                     <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.06)" }} />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
-                    {rJogos.map((jogo) => <JogoCard key={jogo.id} jogo={jogo} readOnly={resultMode} />)}
+                    {rJogos.map((jogo) => (
+                      <JogoCard
+                        key={jogo.id}
+                        jogo={jogo}
+                        readOnly={resultMode}
+                        ticketId={ticketId}
+                        initialPrediction={predictionsMap[jogo.id] ?? null}
+                        predictionsLoading={loadingPredictions}
+                        onSavePrediction={savePrediction}
+                      />
+                    ))}
                   </div>
                 </div>
               ))
@@ -1457,7 +1701,14 @@ function PalpitesPageContent() {
         {/* ── SIDEBAR DIREITA (desktop only) ───────────── */}
         {!resultMode && (
           <div className="hidden lg:block">
-            <DesktopSidebar grupo={grupo} tabela={tabela} grupos={grupos} onGrupo={setGrupo} />
+            <DesktopSidebar
+              grupo={grupo}
+              tabela={tabela}
+              grupos={grupos}
+              onGrupo={setGrupo}
+              rankingRows={rankingRows}
+              stats={resumoStats}
+            />
           </div>
         )}
 
@@ -1468,8 +1719,26 @@ function PalpitesPageContent() {
 
 export default function PalpitesPage() {
   return (
-    <Suspense fallback={<div className="w-full max-w-lg mx-auto px-4 pt-6 pb-8 lg:max-w-7xl" />}>
+    <Suspense fallback={<PalpitesPageShell />}>
       <PalpitesPageContent />
     </Suspense>
+  );
+}
+
+function PalpitesPageShell() {
+  return (
+    <div className="w-full max-w-lg mx-auto px-4 pt-6 pb-8 lg:max-w-7xl">
+      <div className="mb-5 lg:mb-7">
+        <div className="h-10 w-64 rounded-xl bg-white/10" />
+        <div className="h-4 w-40 rounded mt-2 bg-white/10" />
+      </div>
+      <div className="lg:hidden flex items-center gap-1 mb-5 p-1 rounded-xl bg-[#0A0E19]">
+        <div className="h-9 flex-1 rounded-lg bg-white/10" />
+        <div className="h-9 flex-1 rounded-lg bg-white/10" />
+        <div className="h-9 flex-1 rounded-lg bg-white/10" />
+      </div>
+      <CardSkeleton />
+      <CardSkeleton />
+    </div>
   );
 }

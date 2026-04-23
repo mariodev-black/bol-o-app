@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import { LogoutAccountButton } from "@/app/(authenticated)/perfil/LogoutAccountButton";
+import { useEffect, useMemo, useState } from "react";
 import {
   ChevronRight,
   CircleHelp,
@@ -14,13 +17,16 @@ import {
   User2,
 } from "lucide-react";
 
-const recentPicks = [
-  { id: "1", home: "BRA", away: "SRB", guess: "2x1", result: "2x1", hit: true, matchInfo: "24/11 · Copa do Mundo", points: "+10 pts" },
-  { id: "2", home: "SUI", away: "CMR", guess: "1x0", result: "1x0", hit: true, matchInfo: "24/11 · Copa do Mundo", points: "+10 pts" },
-  { id: "3", home: "POR", away: "GHA", guess: "3x2", result: "3x1", hit: false, matchInfo: "24/11 · Copa do Mundo", points: "0 pts" },
-  { id: "4", home: "URU", away: "KOR", guess: "0x1", result: "2x0", hit: false, matchInfo: "24/11 · Copa do Mundo", points: "0 pts" },
-  { id: "5", home: "BRA", away: "SUI", guess: "1x0", result: "1x0", hit: true, matchInfo: "28/11 · Copa do Mundo", points: "+10 pts" },
-];
+type RecentPick = {
+  id: string;
+  home: string;
+  away: string;
+  guess: string;
+  result: string;
+  hit: boolean;
+  matchInfo: string;
+  points: string;
+};
 
 const settingsItems = [
   { icon: Shield, title: "Segurança", subtitle: "Alterar senha", href: "/perfil" },
@@ -56,6 +62,56 @@ function SectionHeader({ title }: { title: string }) {
 }
 
 export default function PerfilPage() {
+  const [recentPicks, setRecentPicks] = useState<RecentPick[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await fetch("/api/palpites/historico?limit=8", { credentials: "include", cache: "no-store" });
+        const d = (await r.json()) as {
+          historico?: Array<{
+            matchId: number;
+            mandante: string;
+            visitante: string;
+            palpiteCasa: number;
+            palpiteVisitante: number;
+            resultadoCasa: number | null;
+            resultadoVisitante: number | null;
+            jogoData: string;
+            pontos: number;
+          }>;
+        };
+        if (!r.ok || !Array.isArray(d.historico)) return;
+        setRecentPicks(
+          d.historico.map((h) => ({
+            id: String(h.matchId),
+            home: h.mandante,
+            away: h.visitante,
+            guess: `${h.palpiteCasa}x${h.palpiteVisitante}`,
+            result:
+              h.resultadoCasa != null && h.resultadoVisitante != null
+                ? `${h.resultadoCasa}x${h.resultadoVisitante}`
+                : "-",
+            hit: h.pontos > 0,
+            matchInfo: `${h.jogoData} · Copa do Mundo`,
+            points: h.pontos > 0 ? `+${h.pontos} pts` : "0 pts",
+          }))
+        );
+      } catch {}
+    })();
+  }, []);
+
+  const pickSummary = useMemo(() => {
+    const hits = recentPicks.filter((p) => p.hit).length;
+    const miss = Math.max(0, recentPicks.length - hits);
+    const totalPts = recentPicks.reduce((acc, p) => {
+      const n = Number.parseInt(p.points.replace(/[^\d-]/g, ""), 10);
+      return acc + (Number.isFinite(n) ? n : 0);
+    }, 0);
+    const rate = recentPicks.length > 0 ? Math.round((hits / recentPicks.length) * 100) : 0;
+    return { hits, miss, totalPts, rate };
+  }, [recentPicks]);
+
   return (
     <div className="flex flex-1 flex-col px-4 sm:px-6 py-6 w-full max-w-7xl mx-auto gap-4 lg:gap-5">
       <header className="pt-1">
@@ -204,17 +260,17 @@ export default function PerfilPage() {
             >
               <div className="flex items-center gap-4 text-[12px]">
                 <span>
-                  <span style={{ color: "#22C55E" }}>●</span> 3 acertos
+                  <span style={{ color: "#22C55E" }}>●</span> {pickSummary.hits} acertos
                 </span>
                 <span>
-                  <span style={{ color: "#EF4444" }}>●</span> 2 erros
+                  <span style={{ color: "#EF4444" }}>●</span> {pickSummary.miss} erros
                 </span>
                 <span>
-                  Taxa: <span style={{ color: "#D4AF37", fontWeight: 700 }}>60%</span>
+                  Taxa: <span style={{ color: "#D4AF37", fontWeight: 700 }}>{pickSummary.rate}%</span>
                 </span>
               </div>
               <p className="text-[12px]">
-                Total: <span style={{ color: "#FFE8BA", fontWeight: 700 }}>+30 pts</span> nessa seleção
+                Total: <span style={{ color: "#FFE8BA", fontWeight: 700 }}>{pickSummary.totalPts >= 0 ? "+" : ""}{pickSummary.totalPts} pts</span>
               </p>
             </div>
           </section>

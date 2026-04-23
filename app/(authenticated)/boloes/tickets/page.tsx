@@ -332,9 +332,7 @@ function TicketsBoloesPageContent() {
                   <div className="mt-3 flex flex-col items-center gap-3">
                     {t.status === "expired" ? (
                       <Link
-                        href={`/palpites?bolao=${bolao}&ticket=${t.id}&eventDate=${encodeURIComponent(
-                          t.eventDate
-                        )}&mode=resultado&ranking=${t.ranking}&points=${t.points}`}
+                        href={`/palpites?ticket=${encodeURIComponent(t.id)}&mode=resultado`}
                         className="w-full inline-flex items-center justify-center gap-2 px-4 py-3.5 rounded-[10px] text-[12px] font-bold"
                         style={{ background: "rgba(239,68,68,0.14)", border: "1px solid rgba(239,68,68,0.45)", color: "#FCA5A5" }}
                       >
@@ -343,9 +341,7 @@ function TicketsBoloesPageContent() {
                       </Link>
                     ) : (
                       <Link
-                        href={`/palpites?bolao=${bolao}&ticket=${t.id}&eventDate=${encodeURIComponent(
-                          t.eventDate
-                        )}&ranking=${t.ranking}&points=${t.points}`}
+                        href={`/palpites?ticket=${encodeURIComponent(t.id)}`}
                         className="w-full inline-flex items-center justify-center gap-2 px-4 py-3.5 rounded-[10px] text-[11px] sm:text-[12px] font-bold uppercase tracking-[0.12em] transition-transform hover:translate-x-0.5"
                         style={{
                           background: `linear-gradient(180deg, ${GOLD_LIGHT} 0%, ${GOLD} 100%)`,

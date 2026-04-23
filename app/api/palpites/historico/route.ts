@@ -1,0 +1,63 @@
+import { NextRequest, NextResponse } from "next/server";
+import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
+import { fetchMatchesMap } from "@/lib/football-api";
+import { calcPredictionPoints, listPredictions } from "@/lib/predictions";
+import { inferBolaoTypeFromTicketId } from "@/lib/ticket-kind";
+
+export const runtime = "nodejs";
+
+async function authUserId(request: NextRequest): Promise<string | null> {
+  const token = request.cookies.get(sessionCookieName())?.value;
+  if (!token) return null;
+  try {
+    return await verifySessionToken(token);
+  } catch {
+    return null;
+  }
+}
+
+export async function GET(request: NextRequest) {
+  const userId = await authUserId(request);
+  if (!userId) return NextResponse.json({ error: "Nao autenticado" }, { status: 401 });
+  const ticketId = request.nextUrl.searchParams.get("ticketId")?.trim() || undefined;
+  let bolaoType = request.nextUrl.searchParams.get("bolaoType") === "diario" ? "diario" : "principal";
+  if (ticketId) {
+    const inferred = await inferBolaoTypeFromTicketId(ticketId);
+    if (!inferred) return NextResponse.json({ error: "Ticket invalido" }, { status: 400 });
+    bolaoType = inferred;
+  }
+  const limit = Math.min(100, Math.max(1, Number.parseInt(request.nextUrl.searchParams.get("limit") ?? "20", 10) || 20));
+  const preds = await listPredictions({ userId, bolaoType, ticketId });
+  const matches = await fetchMatchesMap();
+
+  const rows = preds
+    .map((p) => {
+      const m = matches.get(p.match_id);
+      if (!m) return null;
+      const scored = m.resultCasa != null && m.resultVisitante != null;
+      const calc = scored ? calcPredictionPoints(p.score_casa, p.score_visitante, m.resultCasa!, m.resultVisitante!) : null;
+      return {
+        matchId: p.match_id,
+        ticketId: p.ticket_id,
+        bolaoType: p.bolao_type,
+        mandante: m.home,
+        visitante: m.away,
+        jogoData: m.dateBR,
+        jogoHora: m.hour,
+        palpiteCasa: p.score_casa,
+        palpiteVisitante: p.score_visitante,
+        resultadoCasa: m.resultCasa,
+        resultadoVisitante: m.resultVisitante,
+        pontos: calc?.points ?? 0,
+        exact: calc?.exact ?? false,
+        submittedAt: p.submitted_at.toISOString(),
+        updatedAt: p.updated_at.toISOString(),
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => new Date(b!.submittedAt).getTime() - new Date(a!.submittedAt).getTime())
+    .slice(0, limit);
+
+  return NextResponse.json({ historico: rows });
+}
+
