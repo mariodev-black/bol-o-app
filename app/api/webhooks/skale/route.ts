@@ -13,12 +13,52 @@ function webhookSecretOk(request: Request): boolean {
 type SkaleWebhookPayload = {
   id?: string;
   status?: string;
+  end2EndId?: string | null;
   pix?: {
     qrcode?: string | null;
     end2EndId?: string | null;
+    receiptUrl?: string | null;
+    expirationDate?: string | null;
+  };
+  transaction?: {
+    id?: string;
+    status?: string;
+    external_id?: string;
+    end2EndId?: string | null;
+    pix?: {
+      qrcode?: string | null;
+      end2EndId?: string | null;
+      receiptUrl?: string | null;
+      expirationDate?: string | null;
+    };
   };
   [k: string]: unknown;
 };
+
+function pickProviderTransactionId(p: SkaleWebhookPayload): string | null {
+  const fromCamel = (p.transaction as { externalId?: string } | undefined)?.externalId;
+  return p.id ?? p.transaction?.external_id ?? fromCamel ?? p.transaction?.id ?? null;
+}
+
+function pickStatus(p: SkaleWebhookPayload): string | null {
+  const s = p.status ?? p.transaction?.status ?? null;
+  if (!s) return null;
+  return String(s).trim().toLowerCase();
+}
+
+function pickPixQrcode(p: SkaleWebhookPayload): string | null {
+  return p.pix?.qrcode ?? p.transaction?.pix?.qrcode ?? null;
+}
+
+function pickPixEnd2EndId(p: SkaleWebhookPayload): string | null {
+  return (
+    p.pix?.end2EndId ??
+    p.transaction?.pix?.end2EndId ??
+    p.end2EndId ??
+    p.transaction?.end2EndId ??
+    null
+  );
+}
 
 export async function POST(request: Request) {
   if (!webhookSecretOk(request)) {
@@ -32,15 +72,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "JSON invalido" }, { status: 400 });
   }
 
-  if (!json.id || !json.status) {
+  const providerTransactionId = pickProviderTransactionId(json);
+  const status = pickStatus(json);
+  if (!providerTransactionId || !status) {
     return NextResponse.json({ error: "Payload sem id/status" }, { status: 400 });
   }
 
   await updateTransactionStatusByProviderId({
-    providerTransactionId: json.id,
-    status: json.status,
-    pixQrcode: json.pix?.qrcode ?? null,
-    pixEnd2EndId: json.pix?.end2EndId ?? null,
+    providerTransactionId,
+    status,
+    pixQrcode: pickPixQrcode(json),
+    pixEnd2EndId: pickPixEnd2EndId(json),
     rawWebhook: json,
   });
 

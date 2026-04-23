@@ -1,13 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import QRCode from "react-qr-code";
 import { TicketPurchaseBanner } from "./TicketPurchaseBanner";
 import { MyTicketsWallet } from "./MyTicketsWallet";
 import { Check, Copy, Loader2, Minus, Plus, Ticket } from "lucide-react";
 import Image, { type StaticImageData } from "next/image";
+import { useRouter } from "next/navigation";
 import ticketGold from "@/app/assets/ticket-gold.png";
 import ticketBlue from "@/app/assets/Ticket-Blue.png";
+import { appendTicketsFromPurchase } from "../lib/ownedTicketsStorage";
 
 const GOLD = "#D4AF37";
 const GOLD_LIGHT = "#FFE8BA";
@@ -57,6 +59,7 @@ type TicketCheckoutFlowProps = {
 };
 
 export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: TicketCheckoutFlowProps) {
+  const router = useRouter();
   const [principalQty, setPrincipalQty] = useState(initialPrincipalQty);
   const [diarioQty, setDiarioQty] = useState(initialDiarioQty);
   const [prices, setPrices] = useState({ general: DEFAULT_PRINCIPAL_CENTS, daily: DEFAULT_DIARIO_CENTS });
@@ -70,6 +73,9 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
   const [, setTick] = useState(0);
   const [walletVersion, setWalletVersion] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const paidHandledRef = useRef(false);
+  const purchasePrincipalRef = useRef(0);
+  const purchaseDiarioRef = useRef(0);
 
   useEffect(() => {
     setPrincipalQty(initialPrincipalQty);
@@ -115,15 +121,23 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
         if (payload.status) setTxStatus(payload.status);
         if (payload.pixQrcode) setPixPayload(payload.pixQrcode);
         if (payload.providerTransactionId) setOrderRef(payload.providerTransactionId);
-        if (payload.status === "paid" || payload.status === "approved") {
+        if ((payload.status === "paid" || payload.status === "approved") && !paidHandledRef.current) {
+          paidHandledRef.current = true;
+          appendTicketsFromPurchase(purchasePrincipalRef.current, purchaseDiarioRef.current);
           setWalletVersion((v) => v + 1);
+          const q = new URLSearchParams({
+            tx: transactionId,
+            principal: String(purchasePrincipalRef.current),
+            diario: String(purchaseDiarioRef.current),
+          });
+          router.replace(`/tickets/obrigado?${q.toString()}`);
         }
       } catch {
         // ignora payload invalido
       }
     });
     return () => es.close();
-  }, [step, transactionId]);
+  }, [step, transactionId, router]);
 
   const principalLine = principalQty * prices.general;
   const diarioLine = diarioQty * prices.daily;
@@ -133,6 +147,8 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
   const selectedType: TicketType | null =
     principalQty > 0 && diarioQty === 0 ? "general" : diarioQty > 0 && principalQty === 0 ? "daily" : null;
   const selectedQty = selectedType === "general" ? principalQty : selectedType === "daily" ? diarioQty : 0;
+  const purchasePrincipalQty = selectedType === "general" ? selectedQty : 0;
+  const purchaseDiarioQty = selectedType === "daily" ? selectedQty : 0;
 
   const secondsLeft =
     step === "pix" && pixDeadline != null ? Math.max(0, Math.ceil((pixDeadline - Date.now()) / 1000)) : 0;
@@ -172,6 +188,8 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
           setStep("shop");
           return;
         }
+        purchasePrincipalRef.current = selectedType === "general" ? selectedQty : 0;
+        purchaseDiarioRef.current = selectedType === "daily" ? selectedQty : 0;
         setTransactionId(d.transaction.id);
         setTxStatus(d.transaction.status);
         setPixPayload(d.transaction.pixQrcode);
@@ -193,6 +211,9 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
   }, [pixPayload, pixExpired]);
 
   const resetFlow = () => {
+    paidHandledRef.current = false;
+    purchasePrincipalRef.current = 0;
+    purchaseDiarioRef.current = 0;
     setStep("shop");
     setPixPayload("");
     setOrderRef("");

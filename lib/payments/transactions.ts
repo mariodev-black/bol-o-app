@@ -239,7 +239,7 @@ export async function updateTransactionStatusByProviderId(input: {
          pix_end2end_id = COALESCE($4, pix_end2end_id),
          raw_webhook = COALESCE($5::jsonb, raw_webhook),
          updated_at = now()
-     WHERE provider_transaction_id = $1
+     WHERE provider_transaction_id = $1 OR id::text = $1
      RETURNING id, user_id, ticket_id, pix_qrcode, provider_transaction_id`,
     [
       input.providerTransactionId,
