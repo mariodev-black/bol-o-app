@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import Link from "next/link";
+import { useAuth } from "@/app/shared/AuthContext";
 import {
   Gift,
   Trophy,
@@ -17,7 +18,6 @@ import {
   Copy,
   Ticket,
   ShieldCheck,
-  ChevronRight,
   BarChart3,
   Share2,
   Sparkles,
@@ -78,38 +78,155 @@ const HOW_STEPS = [
   },
 ];
 
-const ATIVIDADES = [
-  { initial: "C", name: "Carlos M.", time: "há 2h atrás" },
-  { initial: "A", name: "Ana Paula", time: "há 5h atrás" },
-  { initial: "R", name: "Ricardo S.", time: "há 19h atrás" },
-  { initial: "F", name: "Fernanda L.", time: "há 1d atrás" },
-];
-
-const REF_LINK = "https://bolao.com/ref/SEU_CODIGO";
-
-const WHATSAPP_INVITE_TEXT = `Entre no Bolão do Milhão pelo meu link — cada ticket conta! 🎯\n${REF_LINK}`;
-
 const SHARE_TITLE = "Bolão do Milhão — indicação";
 
-/** Métricas do link — desktop, abaixo do campo (mock; ligar à API depois) */
-const LINK_STATS_DESKTOP = {
-  compartilhamentos: 48,
-  cliquesUnicos: 215,
-  taxaConversao: "15,8",
-} as const;
+type ReferredUserRow = { id: string; name: string | null; createdAt: string };
+
+function formatRelativeTimePt(iso: string): string {
+  const d = new Date(iso);
+  const ms = Date.now() - d.getTime();
+  const sec = Math.floor(ms / 1000);
+  if (!Number.isFinite(sec) || sec < 0) return "";
+  if (sec < 60) return "agora há pouco";
+  if (sec < 3600) return `há ${Math.floor(sec / 60)} min`;
+  if (sec < 86400) return `há ${Math.floor(sec / 3600)} h`;
+  if (sec < 172800) return "ontem";
+  if (sec < 604800) return `há ${Math.floor(sec / 86400)} dias`;
+  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+}
+
+function referralInitial(name: string | null): string {
+  const t = name?.trim();
+  if (!t) return "?";
+  const c = t[0]!;
+  return /[a-zA-ZÀ-ÿà-ÿ]/.test(c) ? c.toUpperCase() : "?";
+}
+
+function ReferralActivityList({ items, loading }: { items: ReferredUserRow[]; loading: boolean }) {
+  if (loading) {
+    return (
+      <p className="text-[12px] py-4 text-center" style={{ color: "rgba(255,255,255,0.35)" }}>
+        Carregando atividade…
+      </p>
+    );
+  }
+  if (items.length === 0) {
+    return (
+      <p className="text-[12px] py-4 text-center leading-relaxed px-1" style={{ color: "rgba(255,255,255,0.35)" }}>
+        Ninguém se cadastrou com seu código ainda. Compartilhe seu link para começar.
+      </p>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-0 mt-4">
+      {items.map((item, i) => (
+        <div
+          key={item.id}
+          className="flex items-center justify-between py-3"
+          style={i < items.length - 1 ? { borderBottom: "1px solid rgba(255,255,255,0.05)" } : {}}
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div
+              className="w-[40px] h-[40px] rounded-full flex items-center justify-center text-[15px] font-black shrink-0"
+              style={{
+                background: "rgba(255, 255, 255, 0.07)",
+                border: "1.5px solid rgba(255, 255, 255, 0.2)",
+                color: "rgba(255, 255, 255, 0.5)",
+              }}
+            >
+              {referralInitial(item.name)}
+            </div>
+
+            <div className="min-w-0">
+              <p className="text-[13px] leading-snug mb-1">
+                <span className="font-bold text-white">{item.name?.trim() || "Novo usuário"}</span>
+                <span style={{ color: "rgba(255,255,255,0.45)" }}> cadastrou-se com seu código</span>
+              </p>
+              <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.28)" }}>
+                {formatRelativeTimePt(item.createdAt)}
+              </p>
+            </div>
+          </div>
+
+          <span
+            className="text-[12px] font-extrabold px-2.5 py-1 rounded-full shrink-0"
+            style={{ color: C.value, background: C.valueSoft, border: `1px solid ${C.valueBorder}` }}
+          >
+            +R$8
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 /* ─── Page ─── */
 export default function IndiqueGanhePage() {
+  const { user, ready } = useAuth();
   const [amigos, setAmigos] = useState(10);
   const [copied, setCopied] = useState(false);
+  const [codeCopied, setCodeCopied] = useState(false);
+  const [origin, setOrigin] = useState("");
+  const [referrals, setReferrals] = useState<ReferredUserRow[]>([]);
+  const [refLoading, setRefLoading] = useState(false);
+
+  useEffect(() => {
+    setOrigin(typeof window !== "undefined" ? window.location.origin : "");
+  }, []);
+
+  useEffect(() => {
+    if (!ready || !user) {
+      setReferrals([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setRefLoading(true);
+      try {
+        const r = await fetch("/api/auth/referrals", { credentials: "include" });
+        const d = (await r.json()) as { referrals?: ReferredUserRow[] };
+        if (!cancelled && r.ok && Array.isArray(d.referrals)) setReferrals(d.referrals);
+        else if (!cancelled) setReferrals([]);
+      } catch {
+        if (!cancelled) setReferrals([]);
+      } finally {
+        if (!cancelled) setRefLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, user?.id]);
+
+  const code = user?.referralCode?.trim() ?? "";
+  const signupLink =
+    origin && code ? `${origin}/cadastrar?ref=${encodeURIComponent(code)}` : origin ? `${origin}/cadastrar` : "";
+
+  const whatsappInviteText = useMemo(
+    () => `Entra no Bolão do Milhão com meu link — na hora de cadastrar usa meu código! 🎯\n${signupLink}`,
+    [signupLink]
+  );
+
+  const indicacoesCount = referrals.length;
+  const totalRecebidoFmt = new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(indicacoesCount * 8);
+
+  const goalDiamond = 50;
+  const remainingToDiamond = Math.max(0, goalDiamond - indicacoesCount);
+  const tierBarPct = Math.min(100, (indicacoesCount / goalDiamond) * 100);
 
   const ganhoOuro = amigos * 12;
   const ganhoDiamante = amigos * 20;
 
-  const copyReferralLink = useCallback(async (): Promise<boolean> => {
+  const copyText = useCallback(async (text: string): Promise<boolean> => {
+    if (!text) return false;
     try {
       if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(REF_LINK);
+        await navigator.clipboard.writeText(text);
         return true;
       }
     } catch {
@@ -118,14 +235,14 @@ export default function IndiqueGanhePage() {
     if (typeof document === "undefined") return false;
     try {
       const ta = document.createElement("textarea");
-      ta.value = REF_LINK;
+      ta.value = text;
       ta.setAttribute("readonly", "");
       ta.style.position = "fixed";
       ta.style.left = "-9999px";
       ta.style.top = "0";
       document.body.appendChild(ta);
       ta.select();
-      ta.setSelectionRange(0, REF_LINK.length);
+      ta.setSelectionRange(0, text.length);
       const ok = document.execCommand("copy");
       document.body.removeChild(ta);
       return ok;
@@ -133,6 +250,10 @@ export default function IndiqueGanhePage() {
       return false;
     }
   }, []);
+
+  const copyReferralLink = useCallback(async () => copyText(signupLink), [copyText, signupLink]);
+
+  const copyReferralCode = useCallback(async () => copyText(code), [copyText, code]);
 
   const handleCopy = useCallback(async () => {
     const ok = await copyReferralLink();
@@ -142,17 +263,25 @@ export default function IndiqueGanhePage() {
     }
   }, [copyReferralLink]);
 
+  const handleCopyCode = useCallback(async () => {
+    const ok = await copyReferralCode();
+    if (ok) {
+      setCodeCopied(true);
+      setTimeout(() => setCodeCopied(false), 2200);
+    }
+  }, [copyReferralCode]);
+
   const openWhatsAppInvite = useCallback(() => {
-    const url = `https://wa.me/?text=${encodeURIComponent(WHATSAPP_INVITE_TEXT)}`;
+    const url = `https://wa.me/?text=${encodeURIComponent(whatsappInviteText)}`;
     const w = window.open(url, "_blank", "noopener,noreferrer");
     if (!w) window.location.href = url;
-  }, []);
+  }, [whatsappInviteText]);
 
   const handleShareInvite = useCallback(async () => {
     const shareData = {
       title: SHARE_TITLE,
-      text: `Use meu link para participar:\n${REF_LINK}`,
-      url: REF_LINK,
+      text: `Use meu link para participar:\n${signupLink}`,
+      url: signupLink,
     };
     if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
       try {
@@ -167,7 +296,7 @@ export default function IndiqueGanhePage() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2200);
     }
-  }, [copyReferralLink]);
+  }, [copyReferralLink, signupLink]);
 
   return (
     <div className="min-h-screen pb-8">
@@ -250,9 +379,21 @@ export default function IndiqueGanhePage() {
               >
                 <Zap size={13} style={{ color: C.gold }} className="shrink-0" />
                 <p className="text-[11px] leading-[1.55]" style={{ color: "rgba(255,255,255,0.45)" }}>
-                  Faltam <span className="font-bold text-white">16 indicações</span> para{" "}
-                  <span className="font-bold" style={{ color: C.platinum }}>Diamante</span>{" "}—{" "}
-                  <span className="font-bold" style={{ color: C.goldMid }}>ganhe R$20/ind</span>
+                  {remainingToDiamond > 0 ? (
+                    <>
+                      Faltam <span className="font-bold text-white">{remainingToDiamond} indicações</span> para{" "}
+                      <span className="font-bold" style={{ color: C.platinum }}>Diamante</span>
+                      {" — "}
+                      <span className="font-bold" style={{ color: C.goldMid }}>ganhe R$20/ind</span>
+                    </>
+                  ) : (
+                    <>
+                      Você atingiu a meta de <span className="font-bold text-white">{goalDiamond} indicações</span> para{" "}
+                      <span className="font-bold" style={{ color: C.platinum }}>Diamante</span>
+                      {" — "}
+                      <span className="font-bold" style={{ color: C.goldMid }}>R$20/ind</span>
+                    </>
+                  )}
                 </p>
               </div>
               </div>
@@ -343,14 +484,29 @@ export default function IndiqueGanhePage() {
                     <div className="flex items-start gap-2.5">
                       <Zap size={18} style={{ color: C.gold }} className="shrink-0 mt-0.5" />
                       <p className="text-[13px] font-semibold leading-[1.45]" style={{ color: "rgba(255,255,255,0.45)" }}>
-                        <span className="text-white font-bold">+ 16 ind.</span>
-                        {" "}para{" "}
-                        <span className="inline-flex items-center gap-0.5 text-white font-bold">
-                          <Gem size={14} style={{ color: C.platinum }} className="inline shrink-0" strokeWidth={2} />
-                          <span style={{ color: C.platinum }}>Diamante</span>
-                        </span>
-                        {" "}
-                        <span className="font-bold" style={{ color: C.goldMid }}>R$20/ind.</span>
+                        {remainingToDiamond > 0 ? (
+                          <>
+                            <span className="text-white font-bold">+ {remainingToDiamond} ind.</span>
+                            {" "}para{" "}
+                            <span className="inline-flex items-center gap-0.5 text-white font-bold">
+                              <Gem size={14} style={{ color: C.platinum }} className="inline shrink-0" strokeWidth={2} />
+                              <span style={{ color: C.platinum }}>Diamante</span>
+                            </span>
+                            {" "}
+                            <span className="font-bold" style={{ color: C.goldMid }}>R$20/ind.</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-white font-bold">Meta Diamante</span>
+                            {" — "}
+                            <span className="inline-flex items-center gap-0.5 text-white font-bold">
+                              <Gem size={14} style={{ color: C.platinum }} className="inline shrink-0" strokeWidth={2} />
+                              <span style={{ color: C.platinum }}>50+ indicações</span>
+                            </span>
+                            {" "}
+                            <span className="font-bold" style={{ color: C.goldMid }}>R$20/ind.</span>
+                          </>
+                        )}
                       </p>
                     </div>
                   </div>
@@ -363,7 +519,7 @@ export default function IndiqueGanhePage() {
               >
                 <div className="flex-1 flex flex-col items-center justify-center gap-1 py-4 px-3 min-w-0">
                   <MousePointerClick size={20} style={{ color: C.valueMuted }} strokeWidth={2} />
-                  <span className="text-[26px] font-black text-white leading-none tracking-[-0.02em]">215</span>
+                  <span className="text-[26px] font-black text-white leading-none tracking-[-0.02em]">—</span>
                   <span className="text-[10px] font-medium text-center leading-snug" style={{ color: "rgba(255,255,255,0.36)" }}>
                     Cliques no seu link
                   </span>
@@ -374,7 +530,7 @@ export default function IndiqueGanhePage() {
                   style={{ background: "rgba(255,255,255,0.04)" }}
                 >
                   <Target size={20} style={{ color: C.goldMid }} strokeWidth={2} />
-                  <span className="text-[26px] font-black text-white leading-none tracking-[-0.02em]">34+</span>
+                  <span className="text-[26px] font-black text-white leading-none tracking-[-0.02em]">{indicacoesCount}</span>
                   <span className="text-[10px] font-medium text-center leading-snug" style={{ color: "rgba(255,255,255,0.36)" }}>
                     Indicações confirmadas
                   </span>
@@ -388,7 +544,7 @@ export default function IndiqueGanhePage() {
                   }}
                 >
                   <Wallet size={20} style={{ color: C.valueMuted }} strokeWidth={2} />
-                  <span className="text-[26px] font-black leading-none tracking-[-0.02em]" style={{ color: C.value }}>R$212</span>
+                  <span className="text-[26px] font-black leading-none tracking-[-0.02em]" style={{ color: C.value }}>{totalRecebidoFmt}</span>
                   <span className="text-[10px] font-medium text-center leading-snug" style={{ color: "rgba(255,255,255,0.36)" }}>
                     Total recebido
                   </span>
@@ -410,11 +566,81 @@ export default function IndiqueGanhePage() {
             <div className="md:hidden">
               <SmallLabel className="mb-2.5">Seu Progresso</SmallLabel>
               <div className="grid grid-cols-3 gap-2">
-                <StatCard Icon={MousePointerClick} iconColor="rgba(255,255,255,0.45)" value="215" label="Cliques" />
-                <StatCard Icon={UserPlus} iconColor={C.gold} value="34+" label="Indicações" valueColor={C.gold} />
-                <StatCard Icon={Wallet} iconColor={C.valueMuted} value="R$212" label="Ganhos" valueColor={C.value} highlight />
+                <StatCard Icon={MousePointerClick} iconColor="rgba(255,255,255,0.45)" value="—" label="Cliques" />
+                <StatCard Icon={UserPlus} iconColor={C.gold} value={String(indicacoesCount)} label="Indicações" valueColor={C.gold} />
+                <StatCard Icon={Wallet} iconColor={C.valueMuted} value={totalRecebidoFmt} label="Ganhos" valueColor={C.value} highlight />
               </div>
               <SacarGanhosLink variant="pill" className="mt-3" />
+            </div>
+
+            {/* ── CÓDIGO + LINK — mobile only ── */}
+            <div
+              className="md:hidden rounded-2xl p-4"
+              style={{ background: C.card, border: "1px solid rgba(255,255,255,0.06)" }}
+            >
+              <SectionHeader>Seu código e link</SectionHeader>
+              <div className="mt-4 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span
+                    className="font-mono text-[18px] font-black tracking-[0.14em] text-white truncate min-w-0"
+                    title={code || undefined}
+                  >
+                    {!ready ? "…" : code || "—"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => void handleCopyCode()}
+                    disabled={!code}
+                    className="h-9 px-3 rounded-[10px] text-[11px] font-black shrink-0 disabled:opacity-40"
+                    style={{
+                      background: codeCopied
+                        ? `linear-gradient(135deg, #8B6914, ${C.gold} 55%, #FFE8BA)`
+                        : "rgba(255,255,255,0.06)",
+                      color: codeCopied ? "#0E141B" : C.goldMid,
+                      border: "1px solid rgba(255,255,255,0.10)",
+                    }}
+                  >
+                    {codeCopied ? "Copiado" : "Copiar código"}
+                  </button>
+                </div>
+                <div
+                  className="rounded-[10px] px-3 py-2.5 text-[11px] leading-snug break-all"
+                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.5)" }}
+                >
+                  {signupLink || (ready ? "Carregando link…" : "…")}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void handleCopy()}
+                    className="flex-1 h-10 rounded-[10px] text-[12px] font-black flex items-center justify-center gap-1.5"
+                    style={{
+                      background: copied
+                        ? `linear-gradient(135deg, #8B6914, ${C.gold} 55%, #FFE8BA)`
+                        : `linear-gradient(135deg, #E89520, ${C.goldMid} 50%, #FFD96A)`,
+                      color: "#0E141B",
+                    }}
+                  >
+                    {copied ? <Check size={14} strokeWidth={3} /> : <Copy size={14} strokeWidth={2.5} />}
+                    {copied ? "Link copiado" : "Copiar link"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={openWhatsAppInvite}
+                    className="h-10 px-3 rounded-[10px] text-[11px] font-bold shrink-0"
+                    style={{
+                      background: "rgba(255,255,255,0.05)",
+                      border: "1px solid rgba(255,255,255,0.10)",
+                      color: "rgba(255,255,255,0.88)",
+                    }}
+                  >
+                    <span className="sr-only">WhatsApp</span>
+                    <svg width="18" height="18" viewBox="0 0 24 24" className="mx-auto" aria-hidden>
+                      <path fill={C.wa} d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* ── SEU LINK DE INDICAÇÃO — desktop only ── */}
@@ -424,24 +650,51 @@ export default function IndiqueGanhePage() {
             >
               <SectionHeader>Seu link de indicação</SectionHeader>
 
-              <div className="flex items-start gap-2.5 mt-4">
+              <div className="flex flex-col gap-2.5 mt-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.1em]" style={{ color: "rgba(255,255,255,0.35)" }}>
+                    Seu código
+                  </span>
+                  <div
+                    className="flex items-center gap-2 rounded-[10px] px-3 py-2 min-w-0"
+                    style={{ background: "rgba(212,175,55,0.08)", border: `1px solid ${C.valueBorder}` }}
+                  >
+                    <span
+                      className="font-mono text-[15px] font-black tracking-[0.12em] text-white truncate"
+                      title={code || undefined}
+                    >
+                      {!ready ? "…" : code || "—"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => void handleCopyCode()}
+                      disabled={!code}
+                      className="h-8 px-3 rounded-lg text-[11px] font-black tracking-wide shrink-0 disabled:opacity-40"
+                      style={{
+                        background: codeCopied
+                          ? `linear-gradient(135deg, #8B6914, ${C.gold} 55%, #FFE8BA)`
+                          : "rgba(255,255,255,0.08)",
+                        color: codeCopied ? "#0E141B" : C.goldMid,
+                        border: `1px solid ${codeCopied ? "transparent" : "rgba(255,255,255,0.12)"}`,
+                      }}
+                    >
+                      {codeCopied ? "Copiado" : "Copiar"}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2.5">
                 <div className="flex-1 min-w-0 flex flex-col gap-2">
                   <div
                     className="w-full rounded-[10px] px-3.5 py-3 text-[12px] truncate flex items-center gap-2"
                     style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.45)" }}
                   >
                     <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: C.valueMuted }} aria-hidden />
-                    <span className="truncate">{REF_LINK}</span>
+                    <span className="truncate">{signupLink || (ready ? "Carregando…" : "…")}</span>
                   </div>
                   <p className="text-[11px] leading-[1.5] pl-0.5" style={{ color: "rgba(255,255,255,0.38)" }}>
-                    <span className="font-bold text-white">{LINK_STATS_DESKTOP.compartilhamentos}</span>
-                    {" "}compartilhamentos
-                    <span className="mx-1.5 opacity-40">·</span>
-                    <span className="font-bold text-white">{LINK_STATS_DESKTOP.cliquesUnicos}</span>
-                    {" "}cliques únicos
-                    <span className="mx-1.5 opacity-40">·</span>
-                    <span className="font-bold text-white">{LINK_STATS_DESKTOP.taxaConversao}%</span>
-                    {" "}taxa de conversão
+                    Envie o <span className="font-semibold text-white/80">link</span> ou o{" "}
+                    <span className="font-semibold text-white/80">código</span> — na página de cadastro seu amigo pode colar o código no campo de indicação.
                   </p>
                 </div>
                 <button
@@ -489,6 +742,7 @@ export default function IndiqueGanhePage() {
                     Compartilhar
                   </button>
                 </div>
+              </div>
               </div>
 
             </div>
@@ -542,39 +796,7 @@ export default function IndiqueGanhePage() {
             >
               <SectionHeader>Atividade Recente</SectionHeader>
 
-              <div className="flex flex-col gap-0 mt-4">
-                {ATIVIDADES.map((item, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between py-3"
-                    style={i < ATIVIDADES.length - 1 ? { borderBottom: "1px solid rgba(255,255,255,0.05)" } : {}}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="w-[40px] h-[40px] rounded-full flex items-center justify-center text-[15px] font-black shrink-0"
-                        style={{ background: `rgba(255, 255, 255, 0.07)`, border: `1.5px solid rgba(255, 255, 255, 0.2)`, color: "rgba(255, 255, 255, 0.5)" }}
-                      >
-                        {item.initial}
-                      </div>
-
-                      <div>
-                        <p className="text-[13px] leading-none mb-1">
-                          <span className="font-bold text-white">{item.name}</span>
-                          <span style={{ color: "rgba(255,255,255,0.45)" }}> comprou um ticket</span>
-                        </p>
-                        <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.28)" }}>{item.time}</p>
-                      </div>
-                    </div>
-
-                    <span
-                      className="text-[12px] font-extrabold px-2.5 py-1 rounded-full shrink-0"
-                      style={{ color: C.value, background: C.valueSoft, border: `1px solid ${C.valueBorder}` }}
-                    >
-                      +R$8
-                    </span>
-                  </div>
-                ))}
-              </div>
+              <ReferralActivityList items={referrals} loading={refLoading} />
 
             </div>
 
@@ -649,15 +871,23 @@ export default function IndiqueGanhePage() {
               </div>
 
               <div className="h-[6px] rounded-full overflow-hidden mb-3" style={{ background: "rgba(255,255,255,0.07)" }}>
-                <div className="h-full w-[68%] rounded-full" style={{ background: `linear-gradient(90deg, ${C.gold}, ${C.goldMid} 55%, ${C.platinumMuted})` }} />
+                <div
+                  className="h-full rounded-full transition-[width] duration-300"
+                  style={{
+                    width: `${tierBarPct}%`,
+                    background: `linear-gradient(90deg, ${C.gold}, ${C.goldMid} 55%, ${C.platinumMuted})`,
+                  }}
+                />
               </div>
               <div className="flex items-center justify-between">
                 <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.38)" }}>
-                  <span className="font-bold text-white">34</span> de 50 indicações
+                  <span className="font-bold text-white">{indicacoesCount}</span> de {goalDiamond} indicações
                 </p>
                 <div className="flex items-center gap-1">
                   <Gem size={10} style={{ color: C.platinum }} />
-                  <span className="text-[12px] font-bold" style={{ color: C.platinum }}>+16 para Diamante</span>
+                  <span className="text-[12px] font-bold" style={{ color: C.platinum }}>
+                    {remainingToDiamond > 0 ? `+${remainingToDiamond} para Diamante` : "Meta Diamante"}
+                  </span>
                 </div>
               </div>
             </div>
@@ -860,47 +1090,8 @@ export default function IndiqueGanhePage() {
             >
               <SectionHeader>Atividade Recente</SectionHeader>
 
-              <div className="flex flex-col gap-0 mt-4">
-                {ATIVIDADES.map((item, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between py-3"
-                    style={i < ATIVIDADES.length - 1 ? { borderBottom: "1px solid rgba(255,255,255,0.05)" } : {}}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="w-[40px] h-[40px] rounded-full flex items-center justify-center text-[15px] font-black shrink-0"
-                        style={{ background: `rgba(255, 255, 255, 0.07)`, border: `1.5px solid rgba(255, 255, 255, 0.2)`, color: "rgba(255, 255, 255, 0.5)" }}
-                      >
-                        {item.initial}
-                      </div>
+              <ReferralActivityList items={referrals} loading={refLoading} />
 
-                      <div>
-                        <p className="text-[13px] leading-none mb-1">
-                          <span className="font-bold text-white">{item.name}</span>
-                          <span style={{ color: "rgba(255,255,255,0.45)" }}> comprou um ticket</span>
-                        </p>
-                        <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.28)" }}>{item.time}</p>
-                      </div>
-                    </div>
-
-                    <span
-                      className="text-[12px] font-extrabold px-2.5 py-1 rounded-full shrink-0"
-                      style={{ color: C.value, background: C.valueSoft, border: `1px solid ${C.valueBorder}` }}
-                    >
-                      +R$8
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              <button
-                className="w-full flex items-center justify-center gap-1 mt-3 pt-3 text-[12px] font-semibold transition-opacity hover:opacity-70"
-                style={{ borderTop: "1px solid rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.38)" }}
-              >
-                Ver todo histórico
-                <ChevronRight size={13} />
-              </button>
             </div>
 
           </div>

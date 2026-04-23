@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useRef, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useAuth } from "@/app/shared/AuthContext";
+import { useState, useRef, useEffect, useMemo, type FormEvent } from "react";
 import { Eye, EyeOff, ChevronDown, Search } from "lucide-react";
 import * as Flags from "country-flag-icons/react/3x2";
 
@@ -277,14 +279,30 @@ function CountrySelector({ selected, onChange }: { selected: Country; onChange: 
 
 /* ── Componente principal ──────────────────────────────────────── */
 export function CadastrarContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { refresh } = useAuth();
   const [showPw, setShowPw]       = useState(false);
   const [accepted, setAccepted]   = useState(false);
+  const [fullName, setFullName]   = useState("");
   const [cpf, setCpf]             = useState("");
   const [email, setEmail]         = useState("");
+  const [password, setPassword]   = useState("");
   const [phone, setPhone]         = useState("");
   const [country, setCountry]     = useState<Country>(COUNTRIES[0]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [error, setError]         = useState<string | null>(null);
+  const [notice, setNotice]       = useState<string | null>(null);
+  const [loading, setLoading]     = useState(false);
   const emailRef = useRef<HTMLDivElement>(null);
+
+  /** Código de indicação vindo só da URL (`/cadastrar?ref=...`) — enviado no body, sem campo no formulário. */
+  const referralFromUrl = useMemo(() => {
+    const ref = searchParams.get("ref");
+    if (!ref?.trim()) return null;
+    const norm = ref.trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12);
+    return norm.length > 0 ? norm : null;
+  }, [searchParams]);
 
   useEffect(() => {
     function outside(e: MouseEvent) {
@@ -313,8 +331,57 @@ export function CadastrarContent() {
     setSuggestions([]);
   }
 
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (!accepted) {
+      setError("Confirme que tem mais de 18 anos e aceite os termos.");
+      return;
+    }
+    const nameTrim = fullName.trim();
+    if (nameTrim.length < 2) {
+      setError("Informe seu nome completo.");
+      return;
+    }
+    const digits = phone.replace(/\D/g, "");
+    const phoneFull = digits.length > 0 ? `${country.code}${digits}` : null;
+
+    setLoading(true);
+    try {
+      const r = await fetch("/api/auth/register", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: nameTrim,
+          email: email.trim(),
+          cpf,
+          password,
+          phone: phoneFull,
+          referralCode: referralFromUrl,
+          acceptTerms: true,
+        }),
+      });
+      const data = (await r.json()) as { error?: string; user?: unknown; referralWarning?: string };
+      if (!r.ok) {
+        setError(data.error ?? "Não foi possível criar a conta.");
+        return;
+      }
+      await refresh();
+      if (data.referralWarning) {
+        setNotice(data.referralWarning);
+        await new Promise((resolve) => setTimeout(resolve, 2200));
+      }
+      router.push("/boloes");
+    } catch {
+      setError("Erro de rede. Tente novamente.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
-    <div style={{ padding: "32px 24px 28px" }}>
+    <form onSubmit={handleSubmit} style={{ padding: "32px 24px 28px" }}>
 
       {/* ── Headline ── */}
       <div style={{ textAlign: "center", marginBottom: 28 }}>
@@ -323,8 +390,64 @@ export function CadastrarContent() {
         <p style={{ fontSize: 15, fontWeight: 900, color: "white", textTransform: "uppercase", marginTop: 2 }}>DE ATÉ 25% TODOS OS DIAS</p>
       </div>
 
+      {error && (
+        <p
+          role="alert"
+          style={{
+            marginBottom: 16,
+            padding: "12px 14px",
+            borderRadius: 8,
+            fontSize: 13,
+            fontWeight: 600,
+            color: "#FCA5A5",
+            background: "rgba(127,29,29,0.25)",
+            border: "1px solid rgba(248,113,113,0.25)",
+          }}
+        >
+          {error}
+        </p>
+      )}
+
+      {notice && (
+        <p
+          role="status"
+          style={{
+            marginBottom: 16,
+            padding: "12px 14px",
+            borderRadius: 8,
+            fontSize: 13,
+            fontWeight: 600,
+            color: "#FDE68A",
+            background: "rgba(120, 53, 15, 0.35)",
+            border: "1px solid rgba(252, 211, 77, 0.35)",
+          }}
+        >
+          {notice}
+        </p>
+      )}
+
       {/* ── Form ── */}
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+
+        {/* Nome */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <label style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.55)" }}>
+            Nome completo
+          </label>
+          <input
+            className="auth-input"
+            type="text"
+            name="name"
+            autoComplete="name"
+            placeholder="Como no documento"
+            required
+            minLength={2}
+            maxLength={120}
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            disabled={loading}
+          />
+        </div>
 
         {/* CPF */}
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -374,7 +497,12 @@ export function CadastrarContent() {
           <label style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.55)" }}>Senha</label>
           <div style={{ position: "relative" }}>
             <input className="auth-input" type={showPw ? "text" : "password"} placeholder="••••••••"
-              style={{ paddingRight: 46 }} />
+              style={{ paddingRight: 46 }}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="new-password"
+              disabled={loading}
+            />
             <button type="button" onClick={() => setShowPw(!showPw)}
               style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.45)", display: "flex", alignItems: "center", padding: 0 }}>
               {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -395,8 +523,16 @@ export function CadastrarContent() {
         </div>
 
         {/* CTA */}
-        <button type="submit" style={{ width: "100%", height: 56, borderRadius: 8, border: "none", cursor: "pointer", background: "linear-gradient(90deg, #D4AF37 0%, #FFD96A 100%)", color: "#0E141B", fontSize: 16, fontWeight: 900, letterSpacing: "0.14em", textTransform: "uppercase", marginTop: 4 }}>
-          CRIAR CONTA
+        <button
+          type="submit"
+          disabled={loading}
+          style={{
+            width: "100%", height: 56, borderRadius: 8, border: "none",
+            cursor: loading ? "wait" : "pointer", opacity: loading ? 0.75 : 1,
+            background: "linear-gradient(90deg, #D4AF37 0%, #FFD96A 100%)", color: "#0E141B", fontSize: 16, fontWeight: 900, letterSpacing: "0.14em", textTransform: "uppercase", marginTop: 4,
+          }}
+        >
+          {loading ? "CRIANDO…" : "CRIAR CONTA"}
         </button>
       </div>
 
@@ -404,6 +540,6 @@ export function CadastrarContent() {
         JÁ POSSUI CONTA?{" "}
         <Link href="/login" style={{ color: "#DAB682", fontWeight: 900, textDecoration: "none", letterSpacing: "0.03em" }}>CLIQUE AQUI</Link>
       </p>
-    </div>
+    </form>
   );
 }

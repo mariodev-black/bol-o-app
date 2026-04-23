@@ -1,10 +1,10 @@
 import Link from "next/link";
+import { LogoutAccountButton } from "@/app/(authenticated)/perfil/LogoutAccountButton";
 import {
   ChevronRight,
   CircleHelp,
   Crown,
   FileText,
-  LogOut,
   Medal,
   Settings,
   Shield,
@@ -368,18 +368,7 @@ export default function PerfilPage() {
             })}
           </section>
 
-          <button
-            type="button"
-            className="w-full rounded-2xl border h-12 text-[16px] font-black inline-flex items-center justify-center gap-2"
-            style={{
-              borderColor: "rgba(239,68,68,0.35)",
-              color: "#F87171",
-              background: "linear-gradient(180deg, rgba(127,29,29,0.22) 0%, rgba(69,10,10,0.38) 100%)",
-            }}
-          >
-            <LogOut className="w-4.5 h-4.5" />
-            Sair da conta
-          </button>
+          <LogoutAccountButton />
         </aside>
       </div>
     </div>

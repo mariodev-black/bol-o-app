@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { X } from "lucide-react";
 import { LoginContent } from "@/app/(auth)/_components/LoginContent";
 
@@ -17,7 +18,9 @@ export default function LoginPage() {
       >
         <X size={15} />
       </Link>
-      <LoginContent />
+      <Suspense fallback={null}>
+        <LoginContent />
+      </Suspense>
     </div>
   );
 }

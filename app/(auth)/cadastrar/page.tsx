@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { X } from "lucide-react";
 import { CadastrarContent } from "@/app/(auth)/_components/CadastrarContent";
 
@@ -17,7 +18,9 @@ export default function CadastrarPage() {
       >
         <X size={15} />
       </Link>
-      <CadastrarContent />
+      <Suspense fallback={null}>
+        <CadastrarContent />
+      </Suspense>
     </div>
   );
 }

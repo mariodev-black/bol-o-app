@@ -131,7 +131,7 @@ export const TrophyBronze = ({ size = 25 }: { size?: number }) => (
 // ── Seta verde ────────────────────────────────────────────────
 const ArrowUp = () => (
   <svg width="9" height="5" viewBox="0 0 9 5" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M7.7041 3.92578H0.860352L4.28223 0.503906L7.7041 3.92578Z" fill="#35B979" stroke="#35B979" stroke-width="0.713718" />
+    <path d="M7.7041 3.92578H0.860352L4.28223 0.503906L7.7041 3.92578Z" fill="#35B979" stroke="#35B979" strokeWidth={0.713718} />
   </svg>
 
 

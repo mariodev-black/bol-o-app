@@ -73,8 +73,6 @@ export function NavBottom() {
   const { ready, isLoggedIn } = useAuth();
   const { open, closeSidenav } = useSidenav();
 
-  if (!ready) return null;
-
   const isItemActive = (href: string) => {
     if (href === "/") {
       return normalizedPath === "/";
@@ -147,6 +145,8 @@ export function NavBottom() {
       if (openAnimRafRef.current != null) cancelAnimationFrame(openAnimRafRef.current);
     };
   }, []);
+
+  if (!ready) return null;
 
   return (
     <>

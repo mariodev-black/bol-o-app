@@ -1,20 +1,61 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type FormEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState, type FormEvent } from "react";
 import { Eye, EyeOff } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/shared/AuthContext";
+
+const GOOGLE_ERRORS: Record<string, string> = {
+  google_denied: "Login com Google cancelado.",
+  google_invalid: "Resposta inválida do Google. Tente novamente.",
+  google_state: "Sessão de login expirada. Tente de novo.",
+  google_token: "Não foi possível validar o Google. Tente novamente.",
+  google_profile: "Não foi possível obter seu perfil do Google.",
+  google_conflict: "Esta conta Google já está vinculada a outro usuário.",
+  google_email_linked: "Este e-mail já está vinculado a outra conta Google.",
+  google_server: "Erro no servidor ao concluir o login. Tente mais tarde.",
+};
 
 export function LoginContent() {
   const [showPw, setShowPw] = useState(false);
+  const [identifier, setIdentifier] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const { login } = useAuth();
+  const searchParams = useSearchParams();
+  const { loginWithPassword, isLoggedIn, ready } = useAuth();
 
-  const handleSubmit = (e: FormEvent) => {
+  function safeReturnPath(from: string | null): string | null {
+    if (!from || !from.startsWith("/") || from.startsWith("//")) return null;
+    if (from.startsWith("/login") || from.startsWith("/cadastrar")) return null;
+    return from;
+  }
+
+  useEffect(() => {
+    const q = searchParams.get("error");
+    if (!q) return;
+    setError(GOOGLE_ERRORS[q] ?? "Não foi possível entrar com o Google.");
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!ready || !isLoggedIn) return;
+    const next = safeReturnPath(searchParams.get("from")) ?? "/boloes";
+    router.replace(next);
+  }, [ready, isLoggedIn, router, searchParams]);
+
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    login();
-    router.push("/boloes");
+    setError(null);
+    setLoading(true);
+    const result = await loginWithPassword(identifier, password);
+    setLoading(false);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    /* Cookie definido na resposta; `isLoggedIn` atualiza e o useEffect redireciona (evita push duplo). */
   };
 
   return (
@@ -53,6 +94,24 @@ export function LoginContent() {
         </div>
       </div>
 
+      {error && (
+        <p
+          role="alert"
+          style={{
+            marginBottom: 16,
+            padding: "12px 14px",
+            borderRadius: 8,
+            fontSize: 13,
+            fontWeight: 600,
+            color: "#FCA5A5",
+            background: "rgba(127,29,29,0.25)",
+            border: "1px solid rgba(248,113,113,0.25)",
+          }}
+        >
+          {error}
+        </p>
+      )}
+
       {/* ── Formulário ── */}
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
 
@@ -61,7 +120,16 @@ export function LoginContent() {
           <label style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.55)" }}>
             E-mail ou CPF
           </label>
-          <input className="auth-input" type="text" placeholder="exemplo@email.com" />
+          <input
+            className="auth-input"
+            type="text"
+            name="identifier"
+            autoComplete="username"
+            placeholder="exemplo@email.com ou CPF"
+            value={identifier}
+            onChange={(e) => setIdentifier(e.target.value)}
+            disabled={loading}
+          />
         </div>
 
         {/* Senha */}
@@ -73,8 +141,13 @@ export function LoginContent() {
             <input
               className="auth-input"
               type={showPw ? "text" : "password"}
+              name="password"
+              autoComplete="current-password"
               placeholder="••••••••"
               style={{ paddingRight: 46 }}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={loading}
             />
             <button
               type="button"
@@ -87,13 +160,18 @@ export function LoginContent() {
         </div>
 
         {/* Botão */}
-        <button type="submit" style={{
-          width: "100%", height: 56, borderRadius: 8, border: "none", cursor: "pointer",
-          background: "linear-gradient(90deg, #D4AF37 0%, #FFD96A 100%)",
-          color: "#0E141B", fontSize: 16, fontWeight: 900, letterSpacing: "0.14em",
-          textTransform: "uppercase", marginTop: 4,
-        }}>
-          ENTRAR
+        <button
+          type="submit"
+          disabled={loading}
+          style={{
+            width: "100%", height: 56, borderRadius: 8, border: "none", cursor: loading ? "wait" : "pointer",
+            opacity: loading ? 0.75 : 1,
+            background: "linear-gradient(90deg, #D4AF37 0%, #FFD96A 100%)",
+            color: "#0E141B", fontSize: 16, fontWeight: 900, letterSpacing: "0.14em",
+            textTransform: "uppercase", marginTop: 4,
+          }}
+        >
+          {loading ? "ENTRANDO…" : "ENTRAR"}
         </button>
 
         {/* Links */}
@@ -101,7 +179,14 @@ export function LoginContent() {
           <Link href="/recuperar-senha" style={{ fontSize: 11, fontWeight: 700, color: "#DAB682", textDecoration: "none", letterSpacing: "0.05em", textTransform: "uppercase" }}>
             ESQUECEU A SENHA?
           </Link>
-          <Link href="/cadastrar" style={{ fontSize: 11, fontWeight: 700, color: "#DAB682", textDecoration: "none", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+          <Link
+            href={
+              searchParams.get("ref")?.trim()
+                ? `/cadastrar?ref=${encodeURIComponent(searchParams.get("ref")!.trim())}`
+                : "/cadastrar"
+            }
+            style={{ fontSize: 11, fontWeight: 700, color: "#DAB682", textDecoration: "none", letterSpacing: "0.05em", textTransform: "uppercase" }}
+          >
             CRIAR CONTA
           </Link>
         </div>
@@ -115,12 +200,22 @@ export function LoginContent() {
       </div>
 
       {/* ── Google ── */}
-      <button type="button" style={{
-        width: "100%", height: 52, borderRadius: 8, cursor: "pointer",
-        background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)",
-        color: "rgba(255,255,255,0.8)", fontSize: 14, fontWeight: 600,
-        display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-      }}>
+      <button
+        type="button"
+        disabled={loading}
+        onClick={() => {
+          const r = searchParams.get("ref")?.trim();
+          window.location.href = r
+            ? `/api/auth/google?ref=${encodeURIComponent(r)}`
+            : "/api/auth/google";
+        }}
+        style={{
+          width: "100%", height: 52, borderRadius: 8, cursor: loading ? "wait" : "pointer",
+          background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)",
+          color: "rgba(255,255,255,0.8)", fontSize: 14, fontWeight: 600,
+          display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+        }}
+      >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
           <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
           <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />

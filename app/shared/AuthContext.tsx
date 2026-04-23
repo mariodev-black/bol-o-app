@@ -1,55 +1,112 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
+export type AuthUser = {
+  id: string;
+  email: string;
+  name: string | null;
+  avatarUrl: string | null;
+  /** Código de indicação deste usuário (para compartilhar). */
+  referralCode: string;
+};
 
 type AuthContextValue = {
   ready: boolean;
+  user: AuthUser | null;
   isLoggedIn: boolean;
-  login: () => void;
-  logout: () => void;
+  refresh: () => Promise<void>;
+  loginWithPassword: (identifier: string, password: string) => Promise<{ ok: true } | { ok: false; error: string }>;
+  logout: () => Promise<void>;
 };
-
-const AUTH_KEY = "bolao_logged_in_v1";
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+async function parseJsonSafe(r: Response): Promise<{ error?: string; user?: AuthUser | null }> {
+  try {
+    return (await r.json()) as { error?: string; user?: AuthUser | null };
+  } catch {
+    return {};
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [ready, setReady] = useState(true);
-  const [isLoggedIn, setIsLoggedIn] = useState(true);
+  const [ready, setReady] = useState(false);
+  const [user, setUser] = useState<AuthUser | null>(null);
 
-  // useEffect(() => {
-  //   try {
-  //     const v = localStorage.getItem(AUTH_KEY);
-  //     setIsLoggedIn(v === "1");
-  //   } catch {
-  //     setIsLoggedIn(false);
-  //   } finally {
-  //     setReady(true);
-  //   }
-  // }, []);
+  const refresh = useCallback(async () => {
+    try {
+      const r = await fetch("/api/auth/me", { credentials: "include" });
+      const data = await parseJsonSafe(r);
+      const u = data.user;
+      setUser(
+        u
+          ? { ...u, referralCode: u.referralCode ?? "" }
+          : null
+      );
+    } catch {
+      setUser(null);
+    }
+  }, []);
 
-  const value = useMemo<AuthContextValue>(() => {
-    return {
-      ready,
-      isLoggedIn,
-      login: () => {
-        try {
-          localStorage.setItem(AUTH_KEY, "1");
-        } catch {
-          // ignore
-        }
-        setIsLoggedIn(true);
-      },
-      logout: () => {
-        try {
-          localStorage.removeItem(AUTH_KEY);
-        } catch {
-          // ignore
-        }
-        setIsLoggedIn(false);
-      },
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      await refresh();
+      if (!cancelled) setReady(true);
+    })();
+    return () => {
+      cancelled = true;
     };
-  }, [isLoggedIn, ready]);
+  }, [refresh]);
+
+  const loginWithPassword = useCallback(
+    async (identifier: string, password: string) => {
+      const r = await fetch("/api/auth/login", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier: identifier.trim(), password }),
+      });
+      const data = await parseJsonSafe(r);
+      if (!r.ok) {
+        return { ok: false as const, error: data.error ?? "Não foi possível entrar" };
+      }
+      if (data.user) {
+        setUser({ ...data.user, referralCode: data.user.referralCode ?? "" });
+      }
+      return { ok: true as const };
+    },
+    []
+  );
+
+  const logout = useCallback(async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+    } catch {
+      // ignore
+    }
+    setUser(null);
+  }, []);
+
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      ready,
+      user,
+      isLoggedIn: Boolean(user),
+      refresh,
+      loginWithPassword,
+      logout,
+    }),
+    [ready, user, refresh, loginWithPassword, logout]
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
@@ -59,4 +116,3 @@ export function useAuth() {
   if (!ctx) throw new Error("useAuth precisa estar dentro de <AuthProvider />");
   return ctx;
 }
-

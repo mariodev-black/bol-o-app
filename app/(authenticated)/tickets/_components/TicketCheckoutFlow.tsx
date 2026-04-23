@@ -12,8 +12,8 @@ import ticketBlue from "@/app/assets/Ticket-Blue.png";
 const GOLD = "#D4AF37";
 const GOLD_LIGHT = "#FFE8BA";
 const CARD = "#0A0E19";
-const PRINCIPAL_CENTS = 5000;
-const DIARIO_CENTS = 1000;
+const DEFAULT_PRINCIPAL_CENTS = 5000;
+const DEFAULT_DIARIO_CENTS = 2500;
 const PIX_WINDOW_MS = 5 * 60 * 1000;
 const PIX_TOTAL_SEC = 5 * 60;
 const montserrat = "var(--font-montserrat), ui-sans-serif, system-ui, sans-serif";
@@ -28,19 +28,28 @@ function formatCountdown(totalSeconds: number) {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-function buildDemoPixCopiaECola(totalCents: number, orderRef: string) {
-  const amount = (totalCents / 100).toFixed(2).replace(".", "").padStart(10, "0");
-  const id = orderRef.replace(/\W/g, "").slice(0, 25).padEnd(25, "0");
-  return [
-    "00020126580014br.gov.bcb.pix0136",
-    id,
-    "52040000530398654",
-    amount,
-    "5802BR5920BOLAO DO MILHAO6009SAO PAULO62070503***6304DEMO",
-  ].join("");
+function statusLabelPt(status: string): string {
+  const s = (status || "").toLowerCase();
+  if (s === "waiting_payment" || s === "pending_payment" || s === "creating") return "Aguardando pagamento";
+  if (s === "paid" || s === "approved") return "Pago";
+  if (s === "failed") return "Falhou";
+  if (s === "expired") return "Expirado";
+  if (s === "cancelled" || s === "canceled") return "Cancelado";
+  return "Em processamento";
 }
 
 type FlowStep = "shop" | "generating" | "pix";
+type TicketType = "general" | "daily";
+
+type DepositTransaction = {
+  id: string;
+  status: string;
+  amountCents: number;
+  ticketType: TicketType;
+  pixQrcode: string | null;
+  providerTransactionId: string | null;
+  createdAt: string;
+};
 
 type TicketCheckoutFlowProps = {
   initialPrincipalQty: number;
@@ -50,13 +59,17 @@ type TicketCheckoutFlowProps = {
 export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: TicketCheckoutFlowProps) {
   const [principalQty, setPrincipalQty] = useState(initialPrincipalQty);
   const [diarioQty, setDiarioQty] = useState(initialDiarioQty);
+  const [prices, setPrices] = useState({ general: DEFAULT_PRINCIPAL_CENTS, daily: DEFAULT_DIARIO_CENTS });
   const [step, setStep] = useState<FlowStep>("shop");
   const [orderRef, setOrderRef] = useState("");
+  const [transactionId, setTransactionId] = useState<string | null>(null);
+  const [txStatus, setTxStatus] = useState<string>("");
   const [pixPayload, setPixPayload] = useState("");
   const [copied, setCopied] = useState(false);
   const [pixDeadline, setPixDeadline] = useState<number | null>(null);
   const [, setTick] = useState(0);
   const [walletVersion, setWalletVersion] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setPrincipalQty(initialPrincipalQty);
@@ -75,11 +88,51 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
     return () => window.clearInterval(id);
   }, [step, pixDeadline]);
 
-  const principalLine = principalQty * PRINCIPAL_CENTS;
-  const diarioLine = diarioQty * DIARIO_CENTS;
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await fetch("/api/deposits/transactions", { credentials: "include" });
+        const d = (await r.json()) as { prices?: { general: number; daily: number } };
+        if (r.ok && d.prices) {
+          setPrices({ general: d.prices.general, daily: d.prices.daily });
+        }
+      } catch {
+        // fallback nos valores default locais
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (step !== "pix" || !transactionId) return;
+    const es = new EventSource(`/api/deposits/transactions/${transactionId}/events`);
+    es.addEventListener("transaction", (evt) => {
+      try {
+        const payload = JSON.parse((evt as MessageEvent).data) as {
+          status?: string;
+          pixQrcode?: string | null;
+          providerTransactionId?: string | null;
+        };
+        if (payload.status) setTxStatus(payload.status);
+        if (payload.pixQrcode) setPixPayload(payload.pixQrcode);
+        if (payload.providerTransactionId) setOrderRef(payload.providerTransactionId);
+        if (payload.status === "paid" || payload.status === "approved") {
+          setWalletVersion((v) => v + 1);
+        }
+      } catch {
+        // ignora payload invalido
+      }
+    });
+    return () => es.close();
+  }, [step, transactionId]);
+
+  const principalLine = principalQty * prices.general;
+  const diarioLine = diarioQty * prices.daily;
   const totalCents = principalLine + diarioLine;
   const totalQty = principalQty + diarioQty;
   const hasSelection = totalCents > 0;
+  const selectedType: TicketType | null =
+    principalQty > 0 && diarioQty === 0 ? "general" : diarioQty > 0 && principalQty === 0 ? "daily" : null;
+  const selectedQty = selectedType === "general" ? principalQty : selectedType === "daily" ? diarioQty : 0;
 
   const secondsLeft =
     step === "pix" && pixDeadline != null ? Math.max(0, Math.ceil((pixDeadline - Date.now()) / 1000)) : 0;
@@ -88,22 +141,49 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
     step === "pix" && pixDeadline != null ? Math.min(100, Math.max(0, (secondsLeft / PIX_TOTAL_SEC) * 100)) : 0;
 
   const bump = (which: "p" | "d", delta: number) => {
+    setError(null);
     if (which === "p") setPrincipalQty((q) => Math.max(0, Math.min(20, q + delta)));
     else setDiarioQty((q) => Math.max(0, Math.min(20, q + delta)));
   };
 
   const goGenerate = useCallback(() => {
     if (!hasSelection) return;
+    if (!selectedType) {
+      setError("Para pagar com PIX agora, selecione somente um tipo de ticket por vez (Geral ou Diario).");
+      return;
+    }
+    setError(null);
     setCopied(false);
     setStep("generating");
-    const ref = `TK${Date.now().toString(36).toUpperCase()}`;
-    setOrderRef(ref);
-    window.setTimeout(() => {
-      setPixPayload(buildDemoPixCopiaECola(totalCents, ref));
-      setPixDeadline(Date.now() + PIX_WINDOW_MS);
-      setStep("pix");
-    }, 1100);
-  }, [hasSelection, totalCents]);
+    void (async () => {
+      try {
+        const r = await fetch("/api/deposits/transactions", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ticketType: selectedType,
+            quantity: selectedQty,
+          }),
+        });
+        const d = (await r.json()) as { error?: string; transaction?: DepositTransaction };
+        if (!r.ok || !d.transaction || !d.transaction.pixQrcode) {
+          setError(d.error ?? "Nao foi possivel gerar o PIX.");
+          setStep("shop");
+          return;
+        }
+        setTransactionId(d.transaction.id);
+        setTxStatus(d.transaction.status);
+        setPixPayload(d.transaction.pixQrcode);
+        setOrderRef(d.transaction.providerTransactionId ?? d.transaction.id);
+        setPixDeadline(Date.now() + PIX_WINDOW_MS);
+        setStep("pix");
+      } catch {
+        setError("Erro de rede ao gerar o PIX.");
+        setStep("shop");
+      }
+    })();
+  }, [hasSelection, selectedQty, selectedType]);
 
   const copyPix = useCallback(() => {
     if (!pixPayload || pixExpired) return;
@@ -116,6 +196,8 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
     setStep("shop");
     setPixPayload("");
     setOrderRef("");
+    setTransactionId(null);
+    setTxStatus("");
     setCopied(false);
     setPixDeadline(null);
   };
@@ -154,7 +236,7 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
                   productLabel="Copa inteira"
                   title="Geral"
                   description="Palpites em todas as rodadas. Conta para o ranking principal."
-                  priceCents={PRINCIPAL_CENTS}
+                  priceCents={prices.general}
                   qty={principalQty}
                   onDelta={(d) => bump("p", d)}
                   chip="Principal"
@@ -164,7 +246,7 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
                   productLabel="Um dia"
                   title="Diário"
                   description="Válido só no dia que você escolher ao abrir os palpites."
-                  priceCents={DIARIO_CENTS}
+                  priceCents={prices.daily}
                   qty={diarioQty}
                   onDelta={(d) => bump("d", d)}
                   iconSrc={ticketBlue}
@@ -186,7 +268,7 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
                 </div>
 
                 <p className="text-[13px] leading-relaxed mb-3" style={{ color: "rgba(226,213,184,0.48)" }}>
-                  Geral {formatBRL(PRINCIPAL_CENTS)} · Diário {formatBRL(DIARIO_CENTS)} · à vista no PIX. Os tickets
+                  Geral {formatBRL(prices.general)} · Diário {formatBRL(prices.daily)} · à vista no PIX. Os tickets
                   aparecem na sua conta e você gasta ao palpitar.
                 </p>
 
@@ -195,7 +277,7 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
                     <div className="flex justify-between gap-2 text-white/65">
                       <span>
                         <span className="font-mono text-white">{principalQty}×</span> Geral
-                        <span className="text-white/35 font-normal"> @ {formatBRL(PRINCIPAL_CENTS)}</span>
+                        <span className="text-white/35 font-normal"> @ {formatBRL(prices.general)}</span>
                       </span>
                       <span className="tabular-nums font-semibold" style={{ color: GOLD_LIGHT }}>
                         {formatBRL(principalLine)}
@@ -206,7 +288,7 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
                     <div className="flex justify-between gap-2 text-white/65">
                       <span>
                         <span className="font-mono text-white">{diarioQty}×</span> Diário
-                        <span className="text-white/35 font-normal"> @ {formatBRL(DIARIO_CENTS)}</span>
+                        <span className="text-white/35 font-normal"> @ {formatBRL(prices.daily)}</span>
                       </span>
                       <span className="tabular-nums font-semibold" style={{ color: GOLD_LIGHT }}>
                         {formatBRL(diarioLine)}
@@ -242,6 +324,11 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
                   <Ticket className="w-[18px] h-[18px]" strokeWidth={2.2} />
                   {hasSelection ? `Pagar ${totalQty} ticket${totalQty === 1 ? "" : "s"}` : "Escolha tickets"}
                 </button>
+                {error && (
+                  <p className="mt-3 text-[12px] font-medium" style={{ color: "#FCA5A5" }}>
+                    {error}
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -276,6 +363,9 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
                   <span>{pixExpired ? "Expirado" : "Válido 5 min"}</span>
                   <span className="font-mono tabular-nums text-white/65">{pixExpired ? "0:00" : formatCountdown(secondsLeft)}</span>
                 </div>
+                <p className="text-[12px] text-white/50 mt-1">
+                  Status: <span className="text-white/80 font-semibold">{statusLabelPt(txStatus || "waiting_payment")}</span>
+                </p>
                 <div
                   className="h-1.5 rounded-full overflow-hidden"
                   style={{ background: pixExpired ? "rgba(127,29,29,0.35)" : "rgba(255,255,255,0.08)" }}
@@ -324,7 +414,7 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
                 <div>
                   <p className="text-[11px] font-bold uppercase tracking-wider text-white/40 mb-1">Pedido</p>
                   <p className="text-[12px] mb-2 leading-snug" style={{ color: "rgba(226,213,184,0.45)" }}>
-                    Geral {formatBRL(PRINCIPAL_CENTS)} · Diário {formatBRL(DIARIO_CENTS)} · {totalQty} ticket
+                    Geral {formatBRL(prices.general)} · Diário {formatBRL(prices.daily)} · {totalQty} ticket
                     {totalQty === 1 ? "" : "s"}
                   </p>
                   <div className="space-y-1.5 text-[14px]">
@@ -332,7 +422,7 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
                       <div className="flex justify-between gap-2 text-white/65">
                         <span>
                           <span className="font-mono text-white">{principalQty}×</span> Geral
-                          <span className="text-white/35 font-normal"> @ {formatBRL(PRINCIPAL_CENTS)}</span>
+                          <span className="text-white/35 font-normal"> @ {formatBRL(prices.general)}</span>
                         </span>
                         <span className="tabular-nums font-medium" style={{ color: GOLD_LIGHT }}>
                           {formatBRL(principalLine)}
@@ -343,7 +433,7 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
                       <div className="flex justify-between gap-2 text-white/65">
                         <span>
                           <span className="font-mono text-white">{diarioQty}×</span> Diário
-                          <span className="text-white/35 font-normal"> @ {formatBRL(DIARIO_CENTS)}</span>
+                          <span className="text-white/35 font-normal"> @ {formatBRL(prices.daily)}</span>
                         </span>
                         <span className="tabular-nums font-medium" style={{ color: GOLD_LIGHT }}>
                           {formatBRL(diarioLine)}
