@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/sync-partidas",
-      "schedule": "* * * * *"
+      "schedule": "0 0 * * *"
     }
   ]
 }
