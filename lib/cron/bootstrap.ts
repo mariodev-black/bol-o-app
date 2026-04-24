@@ -8,6 +8,8 @@ type CronHandle = {
 declare global {
   // eslint-disable-next-line no-var
   var __bolaoCronHandle: CronHandle | undefined;
+  // eslint-disable-next-line no-var
+  var __bolaoWarmupStarted: boolean | undefined;
 }
 
 function boolEnv(name: string, fallback: boolean): boolean {
@@ -23,6 +25,15 @@ function intEnv(name: string, fallback: number): number {
 
 export function startInternalCronScheduler(): CronHandle {
   if (globalThis.__bolaoCronHandle?.started) return globalThis.__bolaoCronHandle;
+
+  // Warmup inicial do cache ao subir a aplicação (inclusive em Vercel),
+  // evitando esperar até o próximo cron diário para primeira carga.
+  if (!globalThis.__bolaoWarmupStarted) {
+    globalThis.__bolaoWarmupStarted = true;
+    void runSyncMatchesTask(false).catch((error) => {
+      console.error("[internal-cron] initial warmup failed", error);
+    });
+  }
 
   const enabled = boolEnv("INTERNAL_CRON_ENABLED", process.env.NODE_ENV !== "production");
   const runOnVercel = boolEnv("INTERNAL_CRON_RUN_ON_VERCEL", false);
