@@ -176,8 +176,8 @@ export async function listPaidTicketsForUser(userId: string): Promise<PaidTicket
       result.map((t) => ({
         id: t.id,
         type: t.ticketType,
-        dailyStatus: t.dailyStatus,
-        playDate: t.playDate,
+        dailyStatus: t.ticketType === "daily" ? t.dailyStatus : undefined,
+        playDate: t.ticketType === "daily" ? t.playDate : undefined,
         availableGames: t.availableGames ?? 0,
       })),
     );
