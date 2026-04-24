@@ -1,23 +1,162 @@
 import { NextResponse } from "next/server";
+import { fetchProviderMatches } from "@/lib/football-api";
+import { readMatchesCache, syncMatchesCache } from "@/lib/matches-cache";
+
+export const runtime = "nodejs";
+
+type NestedRounds = Record<string, Array<Record<string, unknown>>>;
+type PhaseMap = Record<string, NestedRounds | Record<string, NestedRounds>>;
+
+function todayBRDateMs(): number {
+  const now = new Date();
+  const br = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+  const [d, m, y] = br.split("/");
+  return Date.UTC(Number(y), Number(m) - 1, Number(d));
+}
+
+function brDateToUtcMs(dateBR: string): number | null {
+  const [d, m, y] = String(dateBR || "").split("/");
+  if (!d || !m || !y) return null;
+  const day = Number(d);
+  const month = Number(m);
+  const year = Number(y);
+  if (!Number.isFinite(day) || !Number.isFinite(month) || !Number.isFinite(year)) return null;
+  return Date.UTC(year, month - 1, day);
+}
+
+function brDateFromIso(iso: string): string {
+  const dt = new Date(iso);
+  if (Number.isNaN(dt.getTime())) return "";
+  const parts = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(dt);
+  const day = parts.find((p) => p.type === "day")?.value ?? "";
+  const month = parts.find((p) => p.type === "month")?.value ?? "";
+  const year = parts.find((p) => p.type === "year")?.value ?? "";
+  if (!day || !month || !year) return "";
+  return `${day}/${month}/${year}`;
+}
+
+function brHourFromIso(iso: string): string {
+  const dt = new Date(iso);
+  if (Number.isNaN(dt.getTime())) return "--:--";
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(dt);
+}
+
+function rowToPartida(row: Awaited<ReturnType<typeof readMatchesCache>>[number]) {
+  let dateBR = String(row.date_br ?? "").trim();
+  const hourRaw = String(row.hour_br ?? "").trim();
+  if ((!dateBR || dateBR === "undefined" || dateBR === "null") && row.kickoff_at) {
+    dateBR = brDateFromIso(row.kickoff_at);
+  }
+  const hourBR =
+    /^\d{2}:\d{2}$/.test(hourRaw.slice(0, 5))
+      ? hourRaw.slice(0, 5)
+      : row.kickoff_at
+        ? brHourFromIso(row.kickoff_at)
+        : "--:--";
+  return {
+    partida_id: row.match_id,
+    status: row.status,
+    data_realizacao: dateBR,
+    hora_realizacao: hourBR,
+    data_realizacao_iso: row.kickoff_at,
+    placar_mandante: row.result_casa,
+    placar_visitante: row.result_visitante,
+    time_mandante: {
+      nome_popular: row.home_name,
+      sigla: row.home_sigla,
+      escudo: row.home_logo,
+    },
+    time_visitante: {
+      nome_popular: row.away_name,
+      sigla: row.away_sigla,
+      escudo: row.away_logo,
+    },
+  };
+}
 
 export async function GET() {
-  const res = await fetch(
-    "https://api.api-futebol.com.br/v1/campeonatos/72/partidas",
-    {
-      headers: {
-        Authorization: "Bearer live_21fbe3f95b03a101ba8883edcf6e60",
-      },
-      next: { revalidate: 300 },
+  try {
+    const dbg = ["1", "true", "yes"].includes((process.env.DEBUG_MATCHES_SYNC || "").trim().toLowerCase());
+    await syncMatchesCache({ fetchProviderMatches, force: false });
+    const rows = await readMatchesCache();
+    if (dbg) console.log("[api/partidas] cache-after-soft-sync", { count: rows.length });
+    if (rows.length === 0) {
+      await syncMatchesCache({ fetchProviderMatches, force: true });
+      if (dbg) console.log("[api/partidas] forced-sync-triggered");
     }
-  );
+    const stableRows = (await readMatchesCache()).sort((a, b) => a.match_id - b.match_id);
+    const todayMs = todayBRDateMs();
+    const displayRows = stableRows.filter((row) => {
+      const dateMs = brDateToUtcMs(String(row.date_br ?? ""));
+      if (dateMs != null) return dateMs >= todayMs;
+      if (row.kickoff_at) {
+        const kickoff = new Date(row.kickoff_at).getTime();
+        if (Number.isFinite(kickoff)) return kickoff >= Date.now() - 12 * 60 * 60 * 1000;
+      }
+      return false;
+    });
+    if (dbg) {
+      const phases = new Set(stableRows.map((r) => r.phase_key || "fase-de-grupos"));
+      const withDate = stableRows.filter((r) => String(r.date_br || "").trim() !== "").length;
+      const withHour = stableRows.filter((r) => /^\d{2}:\d{2}$/.test(String(r.hour_br || "").slice(0, 5))).length;
+      const sample = displayRows.slice(0, 5).map((r) => ({
+        match_id: r.match_id,
+        phase: r.phase_key,
+        round: r.round_key,
+        status: r.status,
+        date_br: r.date_br,
+        hour_br: r.hour_br,
+        kickoff_at: r.kickoff_at,
+      }));
+      console.log("[api/partidas] stable-rows", {
+        count: stableRows.length,
+        displayCount: displayRows.length,
+        phases: Array.from(phases),
+        withDate,
+        withoutDate: stableRows.length - withDate,
+        withHour,
+        withoutHour: stableRows.length - withHour,
+        sample,
+      });
+    }
 
-  if (!res.ok) {
-    return NextResponse.json(
-      { error: "Falha ao buscar partidas" },
-      { status: res.status }
-    );
+    const fases: PhaseMap = {};
+    for (const row of displayRows) {
+      const phaseKey = row.phase_key || "fase-de-grupos";
+      const groupKey = row.group_key || "grupo-indefinido";
+      const roundKey = row.round_key || "rodada-unica";
+
+      if (!fases[phaseKey]) fases[phaseKey] = {};
+      if (row.group_key) {
+        const phaseObj = fases[phaseKey] as Record<string, NestedRounds>;
+        if (!phaseObj[groupKey]) phaseObj[groupKey] = {};
+        if (!phaseObj[groupKey][roundKey]) phaseObj[groupKey][roundKey] = [];
+        phaseObj[groupKey][roundKey].push(rowToPartida(row));
+      } else {
+        const phaseObj = fases[phaseKey] as NestedRounds;
+        if (!phaseObj[roundKey]) phaseObj[roundKey] = [];
+        phaseObj[roundKey].push(rowToPartida(row));
+      }
+    }
+
+    return NextResponse.json({ partidas: fases });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Falha ao buscar partidas";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
-
-  const data = await res.json();
-  return NextResponse.json(data);
 }

@@ -10,6 +10,7 @@ export type StoredTicketDiario = {
   createdAt: number;
   /** Formato DD/MM/AAAA — null até o usuário escolher o dia ao palpitar */
   playDate: string | null;
+  dailyStatus?: "disponivel" | "em_uso" | "usado";
 };
 
 export type StoredTicket = StoredTicketGeral | StoredTicketDiario;
@@ -62,12 +63,20 @@ type MineTicketDto = {
   quantity: number;
   paidAt: string | null;
   createdAt: string;
+  dailyStatus?: "disponivel" | "em_uso" | "usado";
+  playDate?: string | null;
 };
 
 function mapMineDtoToStored(row: MineTicketDto): StoredTicket {
   const createdAt = row.paidAt ? new Date(row.paidAt).getTime() : new Date(row.createdAt).getTime();
   if (row.ticketType === "daily") {
-    return { id: row.id, kind: "diario", createdAt, playDate: null };
+    return {
+      id: row.id,
+      kind: "diario",
+      createdAt,
+      playDate: row.playDate ?? null,
+      dailyStatus: row.dailyStatus ?? "disponivel",
+    };
   }
   return { id: row.id, kind: "geral", createdAt };
 }

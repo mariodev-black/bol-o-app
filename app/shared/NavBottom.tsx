@@ -2,8 +2,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ElementType } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { ArrowRight, BarChart2, CalendarClock, Gift, Home, Menu, Ticket, Trophy, User, UserPlus, Wallet, X } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { ArrowRight, BarChart2, CalendarClock, Gift, Home, LogOut, Menu, Ticket, Trophy, User, UserPlus, Wallet, X } from "lucide-react";
 import { useAuth } from "@/app/shared/AuthContext";
 import { useSidenav } from "@/app/shared/SidenavContext";
 
@@ -62,6 +62,7 @@ const MENU_SECTIONS: MenuSection[] = [
 ] as const;
 
 export function NavBottom() {
+  const router = useRouter();
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuMounted, setMenuMounted] = useState(false);
@@ -70,8 +71,16 @@ export function NavBottom() {
   const openAnimRafRef = useRef<number | null>(null);
   const panelRef = useRef<HTMLElement | null>(null);
   const normalizedPath = useMemo(() => pathname ?? "", [pathname]);
-  const { ready, isLoggedIn } = useAuth();
+  const { ready, isLoggedIn, user, logout } = useAuth();
   const { open, closeSidenav } = useSidenav();
+  const userName = user?.name?.trim() || "Minha Conta";
+  const initials = userName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("")
+    .slice(0, 2) || "MC";
 
   const isItemActive = (href: string) => {
     if (href === "/") {
@@ -84,6 +93,11 @@ export function NavBottom() {
   };
 
   const closeMenu = () => closeSidenav();
+  const handleLogout = async () => {
+    closeMenu();
+    await logout();
+    router.push("/login");
+  };
 
   useEffect(() => {
     if (!ready) return;
@@ -224,12 +238,12 @@ export function NavBottom() {
                         aria-hidden="true"
                       >
                         <span className="text-[13px] font-black" style={{ color: "#FFE8BA" }}>
-                          PA
+                          {initials}
                         </span>
                       </div>
                       <div className="leading-tight">
                         <p className="text-[14px] font-semibold" style={{ color: "rgba(255,255,255,0.92)" }}>
-                          Pedro Alves
+                          {userName}
                         </p>
                         <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.55)" }}>
                           Acompanhe seus tickets e palpites
@@ -365,6 +379,53 @@ export function NavBottom() {
                       </div>
                     </section>
                   ))}
+                  {isLoggedIn && (
+                    <section>
+                      <div className="flex items-center gap-2.5 px-1">
+                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: "rgba(248,113,113,0.9)" }} />
+                        <h3 className="text-[10px] font-black tracking-[0.22em] uppercase" style={{ color: "rgba(248,113,113,0.8)" }}>
+                          SESSÃO
+                        </h3>
+                        <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, rgba(248,113,113,0.45) 0%, rgba(248,113,113,0) 100%)" }} />
+                      </div>
+                      <div className="mt-3">
+                        <button
+                          type="button"
+                          onClick={handleLogout}
+                          className="w-full group relative flex items-center justify-between rounded-2xl border px-4 py-3 transition-all duration-200"
+                          style={{
+                            background: "linear-gradient(120deg, rgba(248,113,113,0.2) 0%, rgba(127,29,29,0.35) 100%)",
+                            borderColor: "rgba(248,113,113,0.38)",
+                          }}
+                        >
+                          <div className="relative flex items-center gap-3 min-w-0">
+                            <div
+                              className="w-10 h-10 rounded-xl flex items-center justify-center border transition-all duration-200"
+                              style={{
+                                background: "rgba(127,29,29,0.5)",
+                                borderColor: "rgba(248,113,113,0.4)",
+                              }}
+                              aria-hidden="true"
+                            >
+                              <LogOut className="w-5 h-5" style={{ color: "#FCA5A5" }} strokeWidth={2.2} />
+                            </div>
+                            <div className="min-w-0 text-left">
+                              <p className="text-[13px] font-black truncate" style={{ color: "#FECACA" }}>
+                                Sair da conta
+                              </p>
+                              <p className="text-[11px] truncate" style={{ color: "rgba(254,202,202,0.75)" }}>
+                                Encerrar sessão neste dispositivo
+                              </p>
+                            </div>
+                          </div>
+                          <ArrowRight
+                            className="relative w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5"
+                            style={{ color: "rgba(254,202,202,0.9)" }}
+                          />
+                        </button>
+                      </div>
+                    </section>
+                  )}
                 </div>
               </div>
             </div>

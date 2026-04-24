@@ -73,3 +73,19 @@ export async function listPredictions(input: {
   return rows;
 }
 
+export async function getPredictionByUserTicketMatch(input: {
+  userId: string;
+  ticketId: string;
+  matchId: number;
+}) {
+  const pool = getPool();
+  const { rows } = await pool.query<PredictionRow>(
+    `SELECT *
+     FROM predictions
+     WHERE user_id = $1 AND ticket_id = $2 AND match_id = $3
+     LIMIT 1`,
+    [input.userId, input.ticketId, input.matchId]
+  );
+  return rows[0] ?? null;
+}
+

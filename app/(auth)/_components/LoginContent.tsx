@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState, type FormEvent } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useMemo, useEffect, useState, type FormEvent } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/app/shared/AuthContext";
 
@@ -24,8 +24,11 @@ export function LoginContent() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { loginWithPassword, isLoggedIn, ready } = useAuth();
+  const { loginWithPassword, refresh, isLoggedIn, ready } = useAuth();
+  const fromParam = useMemo(() => searchParams.get("from"), [searchParams]);
+  const errorParam = useMemo(() => searchParams.get("error"), [searchParams]);
 
   function safeReturnPath(from: string | null): string | null {
     if (!from || !from.startsWith("/") || from.startsWith("//")) return null;
@@ -33,30 +36,46 @@ export function LoginContent() {
     return from;
   }
 
+  function navigateToAfterAuth(next: string) {
+    // Em rotas interceptadas (modal), às vezes já estamos na página de destino
+    // e só precisamos fechar a camada de autenticação.
+    if (pathname === next) {
+      router.back();
+      return;
+    }
+    router.replace(next);
+  }
+
   useEffect(() => {
-    const q = searchParams.get("error");
-    if (!q) return;
-    setError(GOOGLE_ERRORS[q] ?? "Não foi possível entrar com o Google.");
-  }, [searchParams]);
+    if (!errorParam) return;
+    setError(GOOGLE_ERRORS[errorParam] ?? "Não foi possível entrar com o Google.");
+  }, [errorParam]);
 
   useEffect(() => {
     if (!ready || !isLoggedIn) return;
-    const next = safeReturnPath(searchParams.get("from")) ?? "/boloes";
-    router.replace(next);
-  }, [ready, isLoggedIn, router, searchParams]);
+    const next = safeReturnPath(fromParam) ?? "/boloes";
+    navigateToAfterAuth(next);
+  }, [ready, isLoggedIn, fromParam, pathname, router]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     setError(null);
     setLoading(true);
-    const result = await loginWithPassword(identifier, password);
-    setLoading(false);
-    if (!result.ok) {
-      setError(result.error);
-      return;
+    try {
+      const result = await loginWithPassword(identifier, password);
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      // Garante que a sessão via cookie já está visível no backend
+      // antes de navegar para rotas protegidas (evita precisar de F5).
+      await refresh();
+      const next = safeReturnPath(fromParam) ?? "/boloes";
+      navigateToAfterAuth(next);
+    } finally {
+      setLoading(false);
     }
-    const next = safeReturnPath(searchParams.get("from")) ?? "/boloes";
-    router.replace(next);
   };
 
   return (

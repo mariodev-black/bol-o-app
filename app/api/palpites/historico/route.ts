@@ -39,30 +39,33 @@ export async function GET(request: NextRequest) {
 
   const rows = preds
     .map((p) => {
-      const m = matches.get(p.match_id);
-      if (!m) return null;
-      const scored = m.resultCasa != null && m.resultVisitante != null;
-      const calc = scored ? calcPredictionPoints(p.score_casa, p.score_visitante, m.resultCasa!, m.resultVisitante!) : null;
+      const matchId = Number(p.match_id);
+      const normalizedMatchId = Number.isFinite(matchId) ? matchId : null;
+      const m = normalizedMatchId != null ? matches.get(normalizedMatchId) : undefined;
+      const scored = m?.resultCasa != null && m?.resultVisitante != null;
+      const calc =
+        scored && m
+          ? calcPredictionPoints(p.score_casa, p.score_visitante, m.resultCasa!, m.resultVisitante!)
+          : null;
       return {
-        matchId: p.match_id,
+        matchId: normalizedMatchId ?? p.match_id,
         ticketId: p.ticket_id,
         bolaoType: p.bolao_type,
-        mandante: m.home,
-        visitante: m.away,
-        jogoData: m.dateBR,
-        jogoHora: m.hour,
+        mandante: m?.home ?? `Partida #${normalizedMatchId ?? p.match_id}`,
+        visitante: m?.away ?? "-",
+        jogoData: m?.dateBR ?? "-",
+        jogoHora: m?.hour ?? "-",
         palpiteCasa: p.score_casa,
         palpiteVisitante: p.score_visitante,
-        resultadoCasa: m.resultCasa,
-        resultadoVisitante: m.resultVisitante,
+        resultadoCasa: m?.resultCasa ?? null,
+        resultadoVisitante: m?.resultVisitante ?? null,
         pontos: calc?.points ?? 0,
         exact: calc?.exact ?? false,
         submittedAt: p.submitted_at.toISOString(),
         updatedAt: p.updated_at.toISOString(),
       };
     })
-    .filter(Boolean)
-    .sort((a, b) => new Date(b!.submittedAt).getTime() - new Date(a!.submittedAt).getTime())
+    .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())
     .slice(0, limit);
 
   return NextResponse.json({ historico: rows });

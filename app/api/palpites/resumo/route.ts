@@ -42,7 +42,9 @@ export async function GET(request: NextRequest) {
   let exatos = 0;
   for (const p of preds) {
     palpites += 1;
-    const m = matches.get(p.match_id);
+    const matchId = Number(p.match_id);
+    if (!Number.isFinite(matchId)) continue;
+    const m = matches.get(matchId);
     if (!m || m.resultCasa == null || m.resultVisitante == null) continue;
     const calc = calcPredictionPoints(p.score_casa, p.score_visitante, m.resultCasa, m.resultVisitante);
     pontos += calc.points;

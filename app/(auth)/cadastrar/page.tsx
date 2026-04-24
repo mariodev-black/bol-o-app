@@ -1,9 +1,18 @@
 import Link from "next/link";
 import { Suspense } from "react";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { X } from "lucide-react";
 import { CadastrarContent } from "@/app/(auth)/_components/CadastrarContent";
+import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 
-export default function CadastrarPage() {
+export default async function CadastrarPage() {
+  const token = (await cookies()).get(sessionCookieName())?.value;
+  if (token) {
+    const userId = await verifySessionToken(token).catch(() => null);
+    if (userId) redirect("/boloes");
+  }
+
   return (
     <div style={{ position: "relative", minHeight: "100dvh" }}>
       <Link

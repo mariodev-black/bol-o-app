@@ -34,8 +34,24 @@ export async function GET(request: NextRequest) {
     bolaoType = undefined;
   }
 
-  const preds = await listPredictions({ userId, bolaoType });
+  let preds = await listPredictions({ userId, bolaoType });
   const matches = await fetchMatchesMap();
+  if (ticketId && bolaoType === "diario") {
+    const selectedDates = new Set(
+      preds
+        .filter((p) => p.ticket_id === ticketId)
+        .map((p) => matches.get(Number(p.match_id))?.dateBR)
+        .filter((d): d is string => Boolean(d))
+    );
+    if (selectedDates.size > 0) {
+      preds = preds.filter((p) => {
+        const d = matches.get(Number(p.match_id))?.dateBR;
+        return d ? selectedDates.has(d) : false;
+      });
+    } else {
+      preds = preds.filter((p) => p.ticket_id === ticketId);
+    }
+  }
   const byTicket = new Map<string, {
     ticketId: string;
     totalPoints: number;
@@ -46,7 +62,9 @@ export async function GET(request: NextRequest) {
   }>();
 
   for (const p of preds) {
-    const m = matches.get(p.match_id);
+    const matchId = Number(p.match_id);
+    if (!Number.isFinite(matchId)) continue;
+    const m = matches.get(matchId);
     if (!m || m.resultCasa == null || m.resultVisitante == null) continue;
     const cur =
       byTicket.get(p.ticket_id) ??

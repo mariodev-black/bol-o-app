@@ -1,11 +1,24 @@
 import { NextResponse } from "next/server";
 
+function token(): string {
+  return (process.env.FOOTBALL_API_TOKEN || "").trim();
+}
+
+function competitionId(): string {
+  return (process.env.FOOTBALL_COMPETITION_ID || "72").trim();
+}
+
 export async function GET() {
+  const apiToken = token();
+  if (!apiToken) {
+    return NextResponse.json({ error: "FOOTBALL_API_TOKEN nao configurado" }, { status: 500 });
+  }
+
   const res = await fetch(
-    "https://api.api-futebol.com.br/v1/campeonatos/72/tabela",
+    `https://api.api-futebol.com.br/v1/campeonatos/${competitionId()}/tabela`,
     {
       headers: {
-        Authorization: "Bearer live_21fbe3f95b03a101ba8883edcf6e60",
+        Authorization: `Bearer ${apiToken}`,
       },
       next: { revalidate: 300 },
     }
