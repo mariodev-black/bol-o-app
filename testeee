@@ -1,0 +1,68 @@
+# Copie para ".env" na raiz do projeto e preencha os valores.
+# cp .env.example .env
+#
+# Teste de conexão (com `npm run dev` rodando): http://localhost:3000/api/db/test
+# ou: npm run db:test
+#
+# Schema do banco (tabela users / auth): scripts/auth-schema.sql
+# Migração nome obrigatório (banco já existente): scripts/migrate-users-name-not-null.sql
+# Migração afiliados (código + quem indicou): scripts/migrate-users-affiliates.sql
+# Criar no PostgreSQL: psql "$DATABASE_URL" -f scripts/auth-schema.sql
+# Fluxo de tickets/transacoes PIX: psql "$DATABASE_URL" -f scripts/payments-schema.sql
+# (com variáveis separadas: export PGHOST PGPORT PGUSER PGPASSWORD PGDATABASE e rode psql -f ...)
+
+# ─── PostgreSQL ─────────────────────────────────────────────────────────────
+# Recomendado (igual ao DBeaver): host, usuário, senha e banco em campos separados.
+# A senha fica em texto puro — não precisa codificar @ # / + % na URL.
+DATABASE_HOST=147.93.145.150
+DATABASE_PORT=5432
+DATABASE_USER=bolao_user
+DATABASE_PASSWORD=JP9mevsF
+DATABASE_NAME=bolao_milhao
+# "true" se o servidor exigir SSL (comum em hosts remotos)
+DATABASE_SSL=true
+
+# Alternativa: uma única URL (só use se a senha não tiver @ # / + etc., ou encodeURIComponent)
+# DATABASE_URL=postgresql://bolao_user:SENHA@147.93.145.150:5432/bolao_milhao
+
+# Segredo para assinar o cookie de sessão (mínimo 32 caracteres; gere com: openssl rand -base64 32)
+AUTH_SECRET=awdawdwdwd8128812jadjw9ajd9awdaw9
+
+# URL pública da aplicação (sem barra no final). Usada no redirect do Google OAuth.
+APP_URL=http://localhost:3000
+
+# Google OAuth — Console: https://console.cloud.google.com/apis/credentials
+# Authorized redirect URI: {APP_URL}/api/auth/google/callback
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+
+# ─── Ticket / Deposito (PIX - Skale) ─────────────────────────────────────────
+# Preco em centavos
+TICKET_PRICE_GENERAL_CENTS=5000
+TICKET_PRICE_DAILY_CENTS=2500
+
+# Gateway
+SKALE_API_URL=https://api.skalepayments.com.br
+SKALE_API_KEY=sk_1c2d9314823c395249930682c40c69b3cd140e4aba9e1579b4582e24318993b0
+
+# Webhook recebido apos atualizacao de status no gateway
+SKALE_POSTBACK_URL=http://localhost:3000/api/webhooks/skale
+# Opcional: se preencher, enviar o mesmo valor no header x-webhook-secret do webhook
+SKALE_WEBHOOK_SECRET=
+
+# ─── API Futebol (partidas/tabela) ──────────────────────────────────────────
+FOOTBALL_COMPETITION_ID=72
+FOOTBALL_API_TOKEN=
+
+# ─── Indicações (comissão após PIX do indicado pago) ─────────────────────────
+# Valores em centavos por indicação paga, conforme a N-ésima comissão do afiliado:
+# 1..(SILVER-1)=bronze, SILVER..(GOLD-1)=prata, GOLD..(DIAMOND-1)=ouro, DIAMOND+=diamante
+REFERRAL_REWARD_BRONZE_CENTS=800
+REFERRAL_REWARD_SILVER_CENTS=1000
+REFERRAL_REWARD_GOLD_CENTS=1200
+REFERRAL_REWARD_DIAMOND_CENTS=1500
+REFERRAL_TIER_SILVER_MIN_COMMISSIONS=10
+REFERRAL_TIER_GOLD_MIN_COMMISSIONS=25
+REFERRAL_TIER_DIAMOND_MIN_COMMISSIONS=50
+# Mínimo para solicitar saque (centavos), ex.: 2000 = R$ 20,00
+AFFILIATE_MIN_WITHDRAWAL_CENTS=2000
