@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useMemo, useState } from "react";
 import { ArrowRight, ChevronDown, Ticket } from "lucide-react";
+import ticketGold from "@/app/assets/ticket-gold.png";
 import {
   palpitesUrlDiario,
   palpitesUrlPrincipal,
@@ -90,15 +92,15 @@ export function BoloesClient({ tickets }: { tickets: StoredTicket[] }) {
           >
             <div className="flex items-start gap-3">
               <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                style={{ background: "rgba(212,175,55,0.12)", border: "1px solid rgba(212,175,55,0.32)" }}
+                className="w-14 h-14 rounded-xl flex items-center justify-center shrink-0"
+                style={{ background: "rgba(212,175,55,0.08)", border: "1px solid rgba(212,175,55,0.24)" }}
               >
-                <Ticket className="w-5 h-5" style={{ color: GOLD_LIGHT }} />
+                <Image src={ticketGold} alt="Ticket dourado" width={34} height={34} className="object-contain" />
               </div>
               <div className="min-w-0">
                 <p className="text-[17px] font-bold text-white">Você ainda não tem tickets</p>
                 <p className="text-[13px] mt-1 text-white/55">
-                  Para participar do bolão, você precisa adquirir pelo menos um ticket.
+                  Garanta seu primeiro ticket para começar a palpitar e entrar no ranking.
                 </p>
                 <Link
                   href="/tickets"

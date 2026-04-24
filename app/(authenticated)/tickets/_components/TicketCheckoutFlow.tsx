@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import QRCode from "react-qr-code";
 import { TicketPurchaseBanner } from "./TicketPurchaseBanner";
-import { MyTicketsWallet } from "./MyTicketsWallet";
 import { Check, Copy, Loader2, Minus, Plus, Ticket } from "lucide-react";
 import Image, { type StaticImageData } from "next/image";
 import { useRouter } from "next/navigation";
@@ -71,7 +70,6 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
   const [copied, setCopied] = useState(false);
   const [pixDeadline, setPixDeadline] = useState<number | null>(null);
   const [, setTick] = useState(0);
-  const [walletVersion, setWalletVersion] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const paidHandledRef = useRef(false);
   const purchasePrincipalRef = useRef(0);
@@ -124,7 +122,6 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
         if ((payload.status === "paid" || payload.status === "approved") && !paidHandledRef.current) {
           paidHandledRef.current = true;
           appendTicketsFromPurchase(purchasePrincipalRef.current, purchaseDiarioRef.current);
-          setWalletVersion((v) => v + 1);
           const q = new URLSearchParams({
             tx: transactionId,
             principal: String(purchasePrincipalRef.current),
@@ -238,8 +235,6 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
         <section className="w-full">
           {step === "shop" && (
             <div className="space-y-5">
-              <MyTicketsWallet refreshKey={walletVersion} />
-
               <div className="relative pl-3 sm:pl-4" style={{ borderLeft: `2px solid ${GOLD}` }}>
                 <p className="text-[11px] font-bold uppercase tracking-[0.24em] mb-1" style={{ color: "rgba(218,182,130,0.8)" }}>
                   Palpites
