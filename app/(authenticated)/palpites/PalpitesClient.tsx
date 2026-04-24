@@ -1450,12 +1450,25 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
       .catch(() => {});
 
     fetch("/api/partidas")
-      .then((r) => r.json())
-      .then((data) => {
+      .then(async (r) => {
+        const data = await r.json().catch(() => null);
+        return { ok: r.ok, data };
+      })
+      .then(({ ok, data }) => {
+        if (!ok) {
+          setErro(true);
+          return;
+        }
         const fases = data?.partidas as Record<string, any> | undefined;
         const faseKey = fases?.["fase-de-grupos"] ? "fase-de-grupos" : (fases ? Object.keys(fases)[0] : undefined);
         const faseSelecionada = faseKey ? fases?.[faseKey] : null;
-        if (!faseSelecionada || typeof faseSelecionada !== "object") { setErro(true); return; }
+        if (!faseSelecionada || typeof faseSelecionada !== "object") {
+          setJogos([]);
+          setGrupos([]);
+          setGrupo("GERAL");
+          setErro(false);
+          return;
+        }
 
         const parsed = parsePartidas(faseSelecionada);
         setJogos(parsed);
@@ -1466,6 +1479,7 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
           .sort();
         setGrupos(letras);
         setGrupo(letras[0] ?? "GERAL");
+        setErro(false);
       })
       .catch(() => setErro(true))
       .finally(() => setLoading(false));

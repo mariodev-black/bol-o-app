@@ -340,7 +340,7 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
     jogos: jogosFiltrados,
     grupos,
     grupo: grupos[0] ?? "GERAL",
-    erro: !faseSelecionada,
+    erro: !partidasRes.ok,
     predictionsMap,
     rankingRows,
     resumoStats,
