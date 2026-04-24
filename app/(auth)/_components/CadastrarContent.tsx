@@ -381,7 +381,6 @@ export function CadastrarContent() {
         await new Promise((resolve) => setTimeout(resolve, 2200));
       }
       router.replace("/boloes");
-      router.refresh();
     } catch {
       setError("Erro de rede. Tente novamente.");
     } finally {

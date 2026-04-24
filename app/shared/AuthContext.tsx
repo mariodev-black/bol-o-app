@@ -56,6 +56,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     (u: AuthUser) => {
       beginNewAuthEpoch();
       setUser({ ...u, referralCode: u.referralCode ?? "" });
+      /** Header/NavBottom só renderizam com `ready`; não dependem do 1º `/me` terminar depois do login/registro. */
+      setReady(true);
     },
     [beginNewAuthEpoch]
   );
@@ -81,8 +83,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      await refresh();
-      if (!cancelled) setReady(true);
+      try {
+        await refresh();
+      } finally {
+        if (!cancelled) setReady(true);
+      }
     })();
     return () => {
       cancelled = true;
@@ -103,6 +108,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       if (data.user) {
         applySessionUser(data.user);
+      } else {
+        setReady(true);
+        await refresh();
       }
       return { ok: true as const };
     },

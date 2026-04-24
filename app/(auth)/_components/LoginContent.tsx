@@ -43,7 +43,6 @@ export function LoginContent() {
     if (!ready || !isLoggedIn) return;
     const next = safeReturnPath(searchParams.get("from")) ?? "/boloes";
     router.replace(next);
-    router.refresh();
   }, [ready, isLoggedIn, router, searchParams]);
 
   const handleSubmit = async (e: FormEvent) => {
@@ -58,7 +57,6 @@ export function LoginContent() {
     }
     const next = safeReturnPath(searchParams.get("from")) ?? "/boloes";
     router.replace(next);
-    router.refresh();
   };
 
   return (
