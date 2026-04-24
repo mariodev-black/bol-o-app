@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, ChevronDown, Ticket } from "lucide-react";
 import {
   isoDateToBR,
@@ -60,6 +60,24 @@ function formatTicketDate(createdAt: number): string {
   return isoDateToBR(iso);
 }
 
+function todayBR(): string {
+  return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo" }).format(new Date());
+}
+
+function brDateToUtcMs(dateBR: string): number | null {
+  const [day, month, year] = dateBR.split("/");
+  if (!day || !month || !year) return null;
+  return Date.UTC(Number(year), Number(month) - 1, Number(day), 3, 0, 0);
+}
+
+function kickoffUtcMs(dateBR?: string, hourBR?: string): number | null {
+  if (!dateBR) return null;
+  const [day, month, year] = dateBR.split("/");
+  if (!day || !month || !year) return null;
+  const [hours, minutes] = (hourBR ?? "00:00").split(":");
+  return Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hours) + 3, Number(minutes ?? "0"), 0);
+}
+
 function TicketMetaRow({
   statusLabel,
   statusStyle,
@@ -89,6 +107,7 @@ function TicketMetaRow({
 
 export function BoloesClient({ tickets }: { tickets: StoredTicket[] }) {
   const [detailsOpen, setDetailsOpen] = useState<Record<string, boolean>>({});
+  const [availableGamesByTicket, setAvailableGamesByTicket] = useState<Record<string, number>>({});
 
   const { gerais, diarios } = useMemo(() => {
     const g: StoredTicketGeral[] = [];
@@ -98,6 +117,89 @@ export function BoloesClient({ tickets }: { tickets: StoredTicket[] }) {
       else d.push(t);
     }
     return { gerais: g, diarios: d };
+  }, [tickets]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadAvailableGames() {
+      if (!tickets.length) {
+        if (active) setAvailableGamesByTicket({});
+        return;
+      }
+
+      try {
+        const partidasRes = await fetch("/api/partidas", { credentials: "include", cache: "no-store" });
+        const partidasJson = partidasRes.ok ? await partidasRes.json() : null;
+        const partidas: Array<{ partida_id: number; status?: string; data_realizacao?: string; hora_realizacao?: string }> =
+          Array.isArray(partidasJson?.partidas)
+            ? partidasJson.partidas
+            : Array.isArray(partidasJson)
+              ? partidasJson
+              : [];
+
+        const now = Date.now();
+        const today = brDateToUtcMs(todayBR()) ?? now;
+        const emAposta = partidas.filter((p) => {
+          const kickoff = kickoffUtcMs(p.data_realizacao, p.hora_realizacao);
+          const lockAt = kickoff ? kickoff - 60 * 60 * 1000 : null;
+          const status = String(p.status ?? "").toLowerCase();
+          const notFinished = !["finalizado", "encerrado", "adiado", "cancelado", "suspenso"].includes(status);
+          const inFutureWindow = lockAt ? lockAt > now : (brDateToUtcMs(p.data_realizacao ?? "") ?? 0) >= today;
+          return notFinished && inFutureWindow;
+        });
+
+        const predictionEntries = await Promise.all(
+          tickets.map(async (ticket) => {
+            try {
+              const res = await fetch(`/api/palpites?ticketId=${encodeURIComponent(ticket.id)}`, {
+                credentials: "include",
+                cache: "no-store",
+              });
+              const json = res.ok ? await res.json() : null;
+              const predictions = Array.isArray(json?.predictions) ? json.predictions : [];
+              const ids = new Set<number>(
+                predictions.map((p: { matchId?: string | number; match_id?: string | number }) => Number(p.matchId ?? p.match_id)).filter(Number.isFinite),
+              );
+              return [ticket.id, ids] as const;
+            } catch {
+              return [ticket.id, new Set<number>()] as const;
+            }
+          }),
+        );
+
+        const predictionsByTicket = Object.fromEntries(predictionEntries) as Record<string, Set<number>>;
+        const playableDates = Array.from(
+          new Set(
+            emAposta
+              .map((p) => p.data_realizacao)
+              .filter((d): d is string => Boolean(d))
+              .sort((a, b) => (brDateToUtcMs(a) ?? 0) - (brDateToUtcMs(b) ?? 0)),
+          ),
+        );
+        const defaultDiarioDate = playableDates[0] ?? todayBR();
+
+        const nextMap: Record<string, number> = {};
+        for (const ticket of tickets) {
+          const predicted = predictionsByTicket[ticket.id] ?? new Set<number>();
+          const targetGames =
+            ticket.kind === "diario"
+              ? emAposta.filter((p) => p.data_realizacao === (ticket.playDate ?? defaultDiarioDate))
+              : emAposta;
+          const notPredictedCount = targetGames.reduce((acc, match) => (predicted.has(Number(match.partida_id)) ? acc : acc + 1), 0);
+          nextMap[ticket.id] = Math.max(0, notPredictedCount);
+        }
+
+        if (active) setAvailableGamesByTicket(nextMap);
+      } catch {
+        if (active) setAvailableGamesByTicket({});
+      }
+    }
+
+    void loadAvailableGames();
+    return () => {
+      active = false;
+    };
   }, [tickets]);
 
   return (
@@ -177,12 +279,38 @@ export function BoloesClient({ tickets }: { tickets: StoredTicket[] }) {
                     >
                       <TicketSideNotches />
                       <div className="relative z-1 pl-[18px] pr-4 sm:pr-5 pt-4 sm:pt-5 pb-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-mono text-[10px] uppercase tracking-[0.12em] font-semibold text-white/40">{t.id}</p>
+                          <span className="text-[8px] font-bold uppercase tracking-[0.32em] text-white/20">Ingresso</span>
+                        </div>
+                        <div className="mt-2.5 flex items-start justify-between gap-3">
+                          <h2 className="min-w-0 flex-1 text-[20px] font-extrabold text-white leading-[1.15] tracking-tight">{label}</h2>
+                          <span
+                            className="inline-flex shrink-0 items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-bold"
+                            style={{
+                              background: "rgba(212,175,55,0.08)",
+                              border: "1px solid rgba(212,175,55,0.45)",
+                              color: GOLD_LIGHT,
+                            }}
+                          >
+                            {value}
+                          </span>
+                        </div>
                         <TicketMetaRow
                           statusLabel="Ativo até a final"
                           statusStyle={principalStatusStyle}
                           dateLabel={`Comprado em ${ticketDate}`}
                           dateTitle={`Ticket comprado em ${ticketDate}`}
                         />
+                        <div
+                          className="mt-3 rounded-[10px] px-3.5 py-2.5 flex items-center justify-between"
+                          style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.11)" }}
+                        >
+                          <p className="text-[10px] uppercase tracking-[0.14em] font-bold text-white/40">Jogos disponíveis</p>
+                          <p className="text-[18px] font-black font-mono tabular-nums text-white">
+                            {availableGamesByTicket[t.id] ?? "--"}
+                          </p>
+                        </div>
                         <div
                           className="mt-4 flex rounded-[10px] px-4 py-3 gap-0"
                           style={{ background: "rgba(0,0,0,0.35)", border: "1px dashed rgba(212,175,55,0.28)" }}
@@ -323,6 +451,15 @@ export function BoloesClient({ tickets }: { tickets: StoredTicket[] }) {
                           dateLabel={`Dia ${ticketDate}`}
                           dateTitle={`Ticket válido para ${ticketDate}`}
                         />
+                        <div
+                          className="mt-3 rounded-[10px] px-3.5 py-2.5 flex items-center justify-between"
+                          style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.11)" }}
+                        >
+                          <p className="text-[10px] uppercase tracking-[0.14em] font-bold text-white/40">Jogos disponíveis</p>
+                          <p className="text-[18px] font-black font-mono tabular-nums text-white">
+                            {availableGamesByTicket[t.id] ?? "--"}
+                          </p>
+                        </div>
                         <div
                           className="mt-4 flex rounded-[10px] px-4 py-3 gap-0"
                           style={{ background: "rgba(0,0,0,0.35)", border: "1px dashed rgba(212,175,55,0.28)" }}
