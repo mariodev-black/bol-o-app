@@ -164,7 +164,7 @@ export async function listPaidTicketsForUser(userId: string): Promise<PaidTicket
       }
       const predDate = Array.from(matchDates)[0] ?? null;
       const usedByDate = predDate != null && predDate !== playableDate;
-      const dailyStatus = allFinished || usedByDate ? "usado" : "em_uso";
+      const dailyStatus: NonNullable<PaidTicketRow["dailyStatus"]> = allFinished || usedByDate ? "usado" : "em_uso";
       const targetDate = predDate ?? playableDate;
       const availableGames = openMatches
         .filter((m) => m.dateBR === targetDate)
@@ -176,8 +176,8 @@ export async function listPaidTicketsForUser(userId: string): Promise<PaidTicket
       result.map((t) => ({
         id: t.id,
         type: t.ticketType,
-        dailyStatus: t.ticketType === "daily" ? t.dailyStatus : undefined,
-        playDate: t.ticketType === "daily" ? t.playDate : undefined,
+        dailyStatus: "dailyStatus" in t ? t.dailyStatus : undefined,
+        playDate: "playDate" in t ? t.playDate : undefined,
         availableGames: t.availableGames ?? 0,
       })),
     );
