@@ -3,6 +3,7 @@ import { getPool } from "@/lib/db";
 import { createSkalePixTransaction } from "@/lib/payments/skale";
 import { getTicketPriceCents, parseTicketType, type TicketType } from "@/lib/payments/ticket-config";
 import { publishTransactionEvent } from "@/lib/payments/transaction-events";
+import { recordReferralCommissionIfApplicable } from "@/lib/referrals/commissions";
 
 type BillingUser = {
   id: string;
@@ -272,6 +273,18 @@ export async function updateTransactionStatusByProviderId(input: {
   );
 
   const row = updateTx.rows[0]!;
+
+  if (ticketStatus === "paid") {
+    try {
+      await recordReferralCommissionIfApplicable({
+        buyerUserId: row.user_id,
+        transactionId: row.id,
+      });
+    } catch (e) {
+      console.error("[referral] commission on paid transaction", e);
+    }
+  }
+
   publishTransactionEvent({
     transactionId: row.id,
     status: safeStatus,

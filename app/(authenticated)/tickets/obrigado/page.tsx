@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { CheckCircle2, ArrowRight } from "lucide-react";
 
@@ -9,7 +9,7 @@ const GOLD = "#D4AF37";
 const GOLD_LIGHT = "#FFE8BA";
 const CARD = "#0A0E19";
 
-export default function TicketObrigadoPage() {
+function TicketObrigadoContent() {
   const params = useSearchParams();
   const principal = Number.parseInt(params.get("principal") ?? "0", 10) || 0;
   const diario = Number.parseInt(params.get("diario") ?? "0", 10) || 0;
@@ -80,3 +80,28 @@ export default function TicketObrigadoPage() {
   );
 }
 
+function TicketObrigadoFallback() {
+  return (
+    <div className="min-h-screen px-4 sm:px-6 py-8">
+      <div className="mx-auto max-w-lg">
+        <section
+          className="rounded-2xl border p-6 sm:p-7 animate-pulse"
+          style={{ background: CARD, borderColor: "rgba(212,175,55,0.3)" }}
+        >
+          <div className="h-14 w-14 rounded-full mx-auto mb-4 bg-white/10" />
+          <div className="h-3 w-32 mx-auto rounded bg-white/10 mb-2" />
+          <div className="h-8 w-48 mx-auto rounded bg-white/10 mb-3" />
+          <div className="h-12 w-full rounded bg-white/5" />
+        </section>
+      </div>
+    </div>
+  );
+}
+
+export default function TicketObrigadoPage() {
+  return (
+    <Suspense fallback={<TicketObrigadoFallback />}>
+      <TicketObrigadoContent />
+    </Suspense>
+  );
+}

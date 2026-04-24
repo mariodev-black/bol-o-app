@@ -20,11 +20,18 @@ export async function GET(request: NextRequest) {
   const userId = await authUserId(request);
   if (!userId) return NextResponse.json({ error: "Nao autenticado" }, { status: 401 });
   const ticketId = request.nextUrl.searchParams.get("ticketId")?.trim() || undefined;
-  let bolaoType = request.nextUrl.searchParams.get("bolaoType") === "diario" ? "diario" : "principal";
+  const bolaoParam = request.nextUrl.searchParams.get("bolaoType");
+  let bolaoType: "principal" | "diario" | undefined;
   if (ticketId) {
     const inferred = await inferBolaoTypeFromTicketId(ticketId);
     if (!inferred) return NextResponse.json({ error: "Ticket invalido" }, { status: 400 });
     bolaoType = inferred;
+  } else if (bolaoParam === "diario") {
+    bolaoType = "diario";
+  } else if (bolaoParam === "principal") {
+    bolaoType = "principal";
+  } else {
+    bolaoType = undefined;
   }
   const preds = await listPredictions({ userId, bolaoType, ticketId });
   const matches = await fetchMatchesMap();

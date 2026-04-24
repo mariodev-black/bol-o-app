@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, CircleCheck, Clock3, Target, TriangleAlert, XCircle } from "lucide-react";
 
 const C = {
@@ -11,8 +12,25 @@ const C = {
   goldLight: "#FFE8BA",
 } as const;
 
+type HistoricoRow = {
+  matchId: number;
+  ticketId: string;
+  bolaoType: string;
+  mandante: string;
+  visitante: string;
+  jogoData: string;
+  jogoHora: string;
+  palpiteCasa: number;
+  palpiteVisitante: number;
+  resultadoCasa: number | null;
+  resultadoVisitante: number | null;
+  pontos: number;
+  exact: boolean;
+  submittedAt: string;
+};
+
 type Pick = {
-  id: number;
+  id: string;
   badge: string;
   hit: boolean;
   points: string;
@@ -27,28 +45,41 @@ type Pick = {
   awayFlag: string;
 };
 
-const STATS = [
-  { label: "Exatos", value: 3, tone: C.gold, icon: Target, soft: "rgba(212,175,55,0.12)" },
-  { label: "Certos", value: 6, tone: "#34D399", icon: CircleCheck, soft: "rgba(52,211,153,0.12)" },
-  { label: "Errados", value: 3, tone: "#FB7185", icon: XCircle, soft: "rgba(251,113,133,0.12)" },
-  { label: "Pendentes", value: 4, tone: "#94A3B8", icon: Clock3, soft: "rgba(148,163,184,0.12)" },
-];
+type FilterKey = "todos" | "exatos" | "certos" | "errados" | "pendentes";
 
-const FILTERS = [
-  { label: "Todos", count: 16, active: true },
-  { label: "Exatos", count: 3 },
-  { label: "Certos", count: 6 },
-  { label: "Errados", count: 3 },
-];
+function initials(name: string): string {
+  const p = name.trim().split(/\s+/).filter(Boolean);
+  if (p.length >= 2) return (p[0]![0]! + p[1]![0]!).toUpperCase();
+  const w = name.trim();
+  return w.slice(0, 3).toUpperCase() || "?";
+}
 
-const PICKS: Pick[] = [
-  { id: 1, badge: "Vencedor certo", hit: true, points: "+1 pt", home: "QAT", away: "ECU", guess: "1-2", result: "0-2", time: "20/11 · 19:00", homeName: "Catar", awayName: "Equador", homeFlag: "🇶🇦", awayFlag: "🇪🇨" },
-  { id: 2, badge: "Placar exato", hit: true, points: "+3 pts", home: "SEN", away: "NED", guess: "0-2", result: "0-2", time: "21/11 · 13:00", homeName: "Senegal", awayName: "Holanda", homeFlag: "🇸🇳", awayFlag: "🇳🇱" },
-  { id: 3, badge: "Vencedor certo", hit: true, points: "+1 pt", home: "ENG", away: "IRN", guess: "2-0", result: "3-2", time: "21/11 · 16:00", homeName: "Inglaterra", awayName: "Irã", homeFlag: "🏴", awayFlag: "🇮🇷" },
-  { id: 4, badge: "Errado", hit: false, points: "0 pts", home: "USA", away: "WAL", guess: "1-0", result: "1-1", time: "21/11 · 22:00", homeName: "EUA", awayName: "País de Gales", homeFlag: "🇺🇸", awayFlag: "🏴" },
-  { id: 5, badge: "Errado", hit: false, points: "0 pts", home: "ARG", away: "KSA", guess: "3-0", result: "1-2", time: "22/11 · 15:00", homeName: "Argentina", awayName: "Arábia Saudita", homeFlag: "🇦🇷", awayFlag: "🇸🇦" },
-  { id: 6, badge: "Vencedor certo", hit: true, points: "+1 pt", home: "FRA", away: "AUS", guess: "3-1", result: "4-1", time: "22/11 · 22:00", homeName: "França", awayName: "Austrália", homeFlag: "🇫🇷", awayFlag: "🇦🇺" },
-];
+function mapHistoricoToPick(h: HistoricoRow): Pick {
+  const scored = h.resultadoCasa != null && h.resultadoVisitante != null;
+  let badge = "Pendente";
+  if (scored) {
+    if (h.exact) badge = "Placar exato";
+    else if (h.pontos > 0) badge = "Acerto parcial";
+    else badge = "Errado";
+  }
+  const hit = scored && h.pontos > 0;
+  const pointsStr = scored ? (h.pontos > 0 ? `+${h.pontos} pts` : "0 pts") : "—";
+  return {
+    id: `${h.matchId}-${h.ticketId}`,
+    badge,
+    hit,
+    points: pointsStr,
+    home: initials(h.mandante),
+    away: initials(h.visitante),
+    guess: `${h.palpiteCasa}-${h.palpiteVisitante}`,
+    result: scored ? `${h.resultadoCasa}-${h.resultadoVisitante}` : "—",
+    time: `${h.jogoData} · ${h.jogoHora}`,
+    homeName: h.mandante,
+    awayName: h.visitante,
+    homeFlag: "⚽",
+    awayFlag: "⚽",
+  };
+}
 
 function SectionHeader({ title, right }: { title: string; right?: React.ReactNode }) {
   return (
@@ -122,6 +153,7 @@ function StatCard({
 }
 
 function PickCard({ pick }: { pick: Pick }) {
+  const neutral = pick.badge === "Pendente";
   return (
     <article
       className="rounded-2xl border p-3.5 relative overflow-hidden"
@@ -132,7 +164,9 @@ function PickCard({ pick }: { pick: Pick }) {
     >
       <span
         className="absolute left-0 top-0 h-full w-[2px]"
-        style={{ background: pick.hit ? "rgba(34,197,94,0.62)" : "rgba(239,68,68,0.62)" }}
+        style={{
+          background: neutral ? "rgba(148,163,184,0.5)" : pick.hit ? "rgba(34,197,94,0.62)" : "rgba(239,68,68,0.62)",
+        }}
         aria-hidden
       />
 
@@ -140,9 +174,9 @@ function PickCard({ pick }: { pick: Pick }) {
         <span
           className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-[0.08em]"
           style={{
-            color: pick.hit ? "#34D399" : "#F87171",
-            background: pick.hit ? "rgba(34,197,94,0.10)" : "rgba(127,29,29,0.20)",
-            border: pick.hit ? "1px solid rgba(34,197,94,0.24)" : "1px solid rgba(239,68,68,0.24)",
+            color: neutral ? "#94A3B8" : pick.hit ? "#34D399" : "#F87171",
+            background: neutral ? "rgba(148,163,184,0.12)" : pick.hit ? "rgba(34,197,94,0.10)" : "rgba(127,29,29,0.20)",
+            border: neutral ? "1px solid rgba(148,163,184,0.2)" : pick.hit ? "1px solid rgba(34,197,94,0.24)" : "1px solid rgba(239,68,68,0.24)",
           }}
         >
           {pick.badge}
@@ -152,11 +186,13 @@ function PickCard({ pick }: { pick: Pick }) {
           <span
             className="px-2.5 py-1 rounded-md text-[11px] font-black leading-none"
             style={{
-              color: pick.hit ? "#0E141B" : "#FCA5A5",
-              background: pick.hit
-                ? "linear-gradient(180deg, #FFE8BA 0%, #D4AF37 100%)"
-                : "linear-gradient(180deg, rgba(127,29,29,0.35) 0%, rgba(69,10,10,0.5) 100%)",
-              border: pick.hit ? "1px solid rgba(212,175,55,0.5)" : "1px solid rgba(239,68,68,0.28)",
+              color: neutral ? "#94A3B8" : pick.hit ? "#0E141B" : "#FCA5A5",
+              background: neutral
+                ? "rgba(148,163,184,0.15)"
+                : pick.hit
+                  ? "linear-gradient(180deg, #FFE8BA 0%, #D4AF37 100%)"
+                  : "linear-gradient(180deg, rgba(127,29,29,0.35) 0%, rgba(69,10,10,0.5) 100%)",
+              border: neutral ? "1px solid rgba(148,163,184,0.25)" : pick.hit ? "1px solid rgba(212,175,55,0.5)" : "1px solid rgba(239,68,68,0.28)",
             }}
           >
             {pick.points}
@@ -170,7 +206,7 @@ function PickCard({ pick }: { pick: Pick }) {
             <span aria-hidden>{pick.homeFlag}</span>
             {pick.home}
           </p>
-          <p className="text-[10px] text-white/35 mt-0.5">{pick.homeName}</p>
+          <p className="text-[10px] text-white/35 mt-0.5 truncate">{pick.homeName}</p>
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div className="rounded-lg border px-3 py-1.5 text-center" style={{ borderColor: "rgba(212,175,55,0.3)", background: "rgba(212,175,55,0.08)" }}>
@@ -179,7 +215,7 @@ function PickCard({ pick }: { pick: Pick }) {
           </div>
           <div className="rounded-lg border px-3 py-1.5 text-center" style={{ borderColor: "rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.03)" }}>
             <p className="text-[9px] uppercase tracking-[0.08em] text-white/45">Resultado</p>
-            <p className="text-[24px] leading-none font-black" style={{ color: pick.hit ? "#22C55E" : "#EF4444" }}>{pick.result}</p>
+            <p className="text-[24px] leading-none font-black" style={{ color: neutral ? "#94A3B8" : pick.hit ? "#22C55E" : "#EF4444" }}>{pick.result}</p>
           </div>
         </div>
         <div className="text-right">
@@ -187,7 +223,7 @@ function PickCard({ pick }: { pick: Pick }) {
             {pick.away}
             <span aria-hidden>{pick.awayFlag}</span>
           </p>
-          <p className="text-[10px] text-white/35 mt-0.5">{pick.awayName}</p>
+          <p className="text-[10px] text-white/35 mt-0.5 truncate">{pick.awayName}</p>
         </div>
       </div>
     </article>
@@ -195,13 +231,105 @@ function PickCard({ pick }: { pick: Pick }) {
 }
 
 export default function MeusPalpitesPage() {
+  const [historico, setHistorico] = useState<HistoricoRow[]>([]);
+  const [resumo, setResumo] = useState<{ palpites: number; acertos: number; pontos: number; exatos: number } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [filter, setFilter] = useState<FilterKey>("todos");
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(false);
+    try {
+      const [hRes, rRes] = await Promise.all([
+        fetch("/api/palpites/historico?limit=100", { credentials: "include", cache: "no-store" }),
+        fetch("/api/palpites/resumo", { credentials: "include", cache: "no-store" }),
+      ]);
+      const hJson = (await hRes.json()) as { historico?: HistoricoRow[] };
+      const rJson = (await rRes.json()) as { resumo?: { palpites: number; acertos: number; pontos: number; exatos: number } };
+      if (hRes.ok && Array.isArray(hJson.historico)) setHistorico(hJson.historico);
+      else setHistorico([]);
+      if (rRes.ok && rJson.resumo) setResumo(rJson.resumo);
+      else setResumo(null);
+    } catch {
+      setError(true);
+      setHistorico([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const picks = useMemo(() => historico.map(mapHistoricoToPick), [historico]);
+
+  const stats = useMemo(() => {
+    let certos = 0;
+    let errados = 0;
+    let pendentes = 0;
+    let exatos = 0;
+    for (const h of historico) {
+      const scored = h.resultadoCasa != null && h.resultadoVisitante != null;
+      if (!scored) {
+        pendentes += 1;
+        continue;
+      }
+      if (h.exact) exatos += 1;
+      if (h.pontos > 0) certos += 1;
+      else errados += 1;
+    }
+    return { exatos, certos, errados, pendentes, total: historico.length };
+  }, [historico]);
+
+  const filteredPicks = useMemo(() => {
+    if (filter === "todos") return picks;
+    return picks.filter((p) => {
+      if (filter === "exatos") return p.badge === "Placar exato";
+      if (filter === "certos") return p.badge === "Acerto parcial" || p.badge === "Placar exato";
+      if (filter === "errados") return p.badge === "Errado";
+      if (filter === "pendentes") return p.badge === "Pendente";
+      return true;
+    });
+  }, [picks, filter]);
+
+  const filterCounts = useMemo(
+    () => ({
+      todos: picks.length,
+      exatos: picks.filter((p) => p.badge === "Placar exato").length,
+      certos: picks.filter((p) => p.badge === "Acerto parcial" || p.badge === "Placar exato").length,
+      errados: picks.filter((p) => p.badge === "Errado").length,
+      pendentes: picks.filter((p) => p.badge === "Pendente").length,
+    }),
+    [picks]
+  );
+
+  const scoredCount = stats.certos + stats.errados;
+  const taxa = scoredCount > 0 ? Math.round((stats.certos / scoredCount) * 100) : 0;
+  const totalPts = resumo?.pontos ?? 0;
+
+  const FILTERS: { key: FilterKey; label: string }[] = [
+    { key: "todos", label: "Todos" },
+    { key: "exatos", label: "Exatos" },
+    { key: "certos", label: "Certos" },
+    { key: "errados", label: "Errados" },
+    { key: "pendentes", label: "Pendentes" },
+  ];
+
   return (
     <div className="w-full max-w-xl lg:max-w-5xl mx-auto px-4 pt-6 pb-8 space-y-4">
       <header className="space-y-2">
-        
+        <Link
+          href="/perfil"
+          className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-white/45 hover:text-white/70"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          Voltar ao perfil
+        </Link>
         <h1 className="text-[32px] leading-none font-black text-white tracking-tight">Meus Palpites</h1>
         <p className="text-[13px]" style={{ color: "rgba(255,255,255,0.45)" }}>
-          Histórico completo dos seus palpites no bolão
+          Histórico de todos os seus palpites (principal e diário), sincronizado com o servidor.
         </p>
       </header>
 
@@ -214,11 +342,11 @@ export default function MeusPalpitesPage() {
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-[11px] font-black uppercase tracking-[0.14em]" style={{ color: "rgba(255,232,186,0.68)" }}>
-                Temporada 2026
+                Copa do Mundo 2026
               </p>
               <h3 className="text-[20px] font-black text-white leading-tight mt-1">Performance dos seus palpites</h3>
               <p className="text-[12px] mt-1" style={{ color: "rgba(255,255,255,0.45)" }}>
-                Acompanhe evolução por rodada e consistência dos acertos.
+                Contagem considera partidas já com resultado na API.
               </p>
             </div>
 
@@ -230,31 +358,39 @@ export default function MeusPalpitesPage() {
                 border: "1px solid rgba(212,175,55,0.3)",
               }}
             >
-              15 pts
+              {loading ? "…" : `${totalPts} pts`}
             </span>
           </div>
 
+          {error ? (
+            <div className="flex items-center gap-2 text-amber-200/90 text-sm py-2">
+              <TriangleAlert className="w-4 h-4 shrink-0" />
+              Não foi possível carregar. Tente novamente.
+              <button type="button" onClick={() => void load()} className="underline font-bold">
+                Recarregar
+              </button>
+            </div>
+          ) : null}
+
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {STATS.map((item) => (
-              <StatCard key={item.label} {...item} />
-            ))}
+            <StatCard label="Exatos" value={stats.exatos} tone={C.gold} icon={Target} soft="rgba(212,175,55,0.12)" />
+            <StatCard label="Certos" value={stats.certos} tone="#34D399" icon={CircleCheck} soft="rgba(52,211,153,0.12)" />
+            <StatCard label="Errados" value={stats.errados} tone="#FB7185" icon={XCircle} soft="rgba(251,113,133,0.12)" />
+            <StatCard label="Pendentes" value={stats.pendentes} tone="#94A3B8" icon={Clock3} soft="rgba(148,163,184,0.12)" />
           </div>
 
           <div className="rounded-xl px-3 py-2.5 border" style={{ borderColor: "rgba(212,175,55,0.25)", background: "rgba(212,175,55,0.08)" }}>
             <div className="flex items-center justify-between text-[12px] mb-2">
-              <span style={{ color: "rgba(255,255,255,0.55)" }}>Taxa de acerto geral</span>
+              <span style={{ color: "rgba(255,255,255,0.55)" }}>Taxa de acerto (partidas com resultado)</span>
               <div className="flex items-center gap-2">
-                <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.45)" }}>12/16 palpites</span>
-                <span className="font-black" style={{ color: C.goldLight }}>75%</span>
+                <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.45)" }}>
+                  {stats.certos}/{scoredCount} palpites
+                </span>
+                <span className="font-black" style={{ color: C.goldLight }}>{taxa}%</span>
               </div>
             </div>
             <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.09)" }}>
-              <div className="h-full rounded-full" style={{ width: "75%", background: "linear-gradient(90deg, #B8860B 0%, #D4AF37 55%, #FFE8BA 100%)" }} />
-            </div>
-            <div className="mt-2 grid grid-cols-3 text-[10px]">
-              <span style={{ color: "rgba(255,255,255,0.4)" }}>0%</span>
-              <span className="text-center" style={{ color: "rgba(255,255,255,0.4)" }}>Meta 70%</span>
-              <span className="text-right" style={{ color: "rgba(255,255,255,0.4)" }}>100%</span>
+              <div className="h-full rounded-full transition-all" style={{ width: `${taxa}%`, background: "linear-gradient(90deg, #B8860B 0%, #D4AF37 55%, #FFE8BA 100%)" }} />
             </div>
           </div>
         </div>
@@ -263,30 +399,42 @@ export default function MeusPalpitesPage() {
       <section className="space-y-3">
         <SectionHeader
           title="Histórico"
-          right={<span className="text-[11px] text-white/35">16 palpites</span>}
+          right={<span className="text-[11px] text-white/35">{loading ? "…" : `${picks.length} palpites`}</span>}
         />
 
         <div className="flex items-center gap-2 overflow-x-auto pb-1">
           {FILTERS.map((item) => (
             <button
-              key={item.label}
+              key={item.key}
               type="button"
+              onClick={() => setFilter(item.key)}
               className="shrink-0 rounded-xl px-3 py-2 text-[12px] font-bold border"
               style={{
-                background: item.active ? "rgba(212,175,55,0.16)" : "rgba(255,255,255,0.03)",
-                borderColor: item.active ? "rgba(212,175,55,0.38)" : "rgba(255,255,255,0.08)",
-                color: item.active ? C.goldLight : "rgba(255,255,255,0.55)",
+                background: filter === item.key ? "rgba(212,175,55,0.16)" : "rgba(255,255,255,0.03)",
+                borderColor: filter === item.key ? "rgba(212,175,55,0.38)" : "rgba(255,255,255,0.08)",
+                color: filter === item.key ? C.goldLight : "rgba(255,255,255,0.55)",
               }}
             >
-              {item.label} <span className="opacity-70">{item.count}</span>
+              {item.label}{" "}
+              <span className="opacity-70">{filterCounts[item.key]}</span>
             </button>
           ))}
         </div>
 
         <div className="space-y-2.5">
-          {PICKS.map((pick) => (
-            <PickCard key={pick.id} pick={pick} />
-          ))}
+          {loading ? (
+            <p className="text-center text-sm text-white/35 py-10">Carregando…</p>
+          ) : filteredPicks.length === 0 ? (
+            <p className="text-center text-sm text-white/35 py-10">
+              Nenhum palpite neste filtro. Faça palpites em{" "}
+              <Link href="/boloes" className="font-bold text-amber-200 underline">
+                Meus bolões
+              </Link>
+              .
+            </p>
+          ) : (
+            filteredPicks.map((pick) => <PickCard key={pick.id} pick={pick} />)
+          )}
         </div>
       </section>
     </div>

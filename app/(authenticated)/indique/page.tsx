@@ -26,6 +26,8 @@ import {
   CircleDollarSign,
 } from "lucide-react";
 import bgPalpitesDesk from "@/app/assets/bg-palpites-desktop.png";
+import type { AffiliateSummary, ReferralTierId } from "./affiliate-types";
+import { formatBRLFromCents, simulateTotalForNewPaidReferrals } from "./affiliate-types";
 
 /* ─── Design tokens ─── */
 const C = {
@@ -46,37 +48,6 @@ const C = {
   /** WhatsApp: cor oficial só no ícone; superfície neutra como o resto do app */
   wa: "#25D366",
 } as const;
-
-/* ─── Dados ─── */
-const TIERS: Array<{
-  label: string; threshold: string; active: boolean; color: string; Icon: React.ElementType;
-}> = [
-    { label: "Bronze", threshold: "0+", active: false, color: "#CD7F32", Icon: Medal },
-    { label: "Prata", threshold: "10+", active: false, color: "#A8A9AD", Icon: Medal },
-    { label: "Ouro", threshold: "25+", active: true, color: C.gold, Icon: Trophy },
-    { label: "Diamante", threshold: "50+", active: false, color: C.platinum, Icon: Gem },
-  ];
-
-const HOW_STEPS = [
-  {
-    Icon: Link2,
-    color: C.gold,
-    title: "Compartilhe seu link",
-    desc: "Envie para amigos pelo WhatsApp, Instagram ou qualquer canal.",
-  },
-  {
-    Icon: Ticket,
-    color: C.goldMid,
-    title: "Amigos compram o ticket",
-    desc: "Cada ticket comprado com seu link conta como uma indicação válida.",
-  },
-  {
-    Icon: Zap,
-    color: C.goldMid,
-    title: "Você recebe na hora",
-    desc: "R$8 creditados imediatamente após confirmação da compra.",
-  },
-];
 
 const SHARE_TITLE = "Bolão do Milhão — indicação";
 
@@ -102,7 +73,15 @@ function referralInitial(name: string | null): string {
   return /[a-zA-ZÀ-ÿà-ÿ]/.test(c) ? c.toUpperCase() : "?";
 }
 
-function ReferralActivityList({ items, loading }: { items: ReferredUserRow[]; loading: boolean }) {
+function ReferralActivityList({
+  commissions,
+  pendingSignups,
+  loading,
+}: {
+  commissions: AffiliateSummary["commissionActivity"];
+  pendingSignups: ReferredUserRow[];
+  loading: boolean;
+}) {
   if (loading) {
     return (
       <p className="text-[12px] py-4 text-center" style={{ color: "rgba(255,255,255,0.35)" }}>
@@ -110,20 +89,21 @@ function ReferralActivityList({ items, loading }: { items: ReferredUserRow[]; lo
       </p>
     );
   }
-  if (items.length === 0) {
+  if (commissions.length === 0 && pendingSignups.length === 0) {
     return (
       <p className="text-[12px] py-4 text-center leading-relaxed px-1" style={{ color: "rgba(255,255,255,0.35)" }}>
-        Ninguém se cadastrou com seu código ainda. Compartilhe seu link para começar.
+        Nenhum pagamento confirmado ainda. Quando um indicado pagar um ticket, o valor aparece aqui. Cadastros com seu
+        código também aparecem abaixo como “aguardando compra”.
       </p>
     );
   }
   return (
     <div className="flex flex-col gap-0 mt-4">
-      {items.map((item, i) => (
+      {commissions.map((item, i) => (
         <div
           key={item.id}
           className="flex items-center justify-between py-3"
-          style={i < items.length - 1 ? { borderBottom: "1px solid rgba(255,255,255,0.05)" } : {}}
+          style={i < commissions.length - 1 || pendingSignups.length ? { borderBottom: "1px solid rgba(255,255,255,0.05)" } : {}}
         >
           <div className="flex items-center gap-3 min-w-0">
             <div
@@ -134,16 +114,16 @@ function ReferralActivityList({ items, loading }: { items: ReferredUserRow[]; lo
                 color: "rgba(255, 255, 255, 0.5)",
               }}
             >
-              {referralInitial(item.name)}
+              {referralInitial(item.referredName)}
             </div>
 
             <div className="min-w-0">
               <p className="text-[13px] leading-snug mb-1">
-                <span className="font-bold text-white">{item.name?.trim() || "Novo usuário"}</span>
-                <span style={{ color: "rgba(255,255,255,0.45)" }}> cadastrou-se com seu código</span>
+                <span className="font-bold text-white">{item.referredName?.trim() || "Indicado"}</span>
+                <span style={{ color: "rgba(255,255,255,0.45)" }}> — pagamento aprovado</span>
               </p>
               <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.28)" }}>
-                {formatRelativeTimePt(item.createdAt)}
+                {formatRelativeTimePt(item.createdAt)} · #{item.commissionIndex} · {item.tier}
               </p>
             </div>
           </div>
@@ -152,7 +132,39 @@ function ReferralActivityList({ items, loading }: { items: ReferredUserRow[]; lo
             className="text-[12px] font-extrabold px-2.5 py-1 rounded-full shrink-0"
             style={{ color: C.value, background: C.valueSoft, border: `1px solid ${C.valueBorder}` }}
           >
-            +R$8
+            +{formatBRLFromCents(item.amountCents)}
+          </span>
+        </div>
+      ))}
+      {pendingSignups.map((item, j) => (
+        <div
+          key={`p-${item.id}`}
+          className="flex items-center justify-between py-3"
+          style={j < pendingSignups.length - 1 ? { borderBottom: "1px solid rgba(255,255,255,0.05)" } : {}}
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div
+              className="w-[40px] h-[40px] rounded-full flex items-center justify-center text-[15px] font-black shrink-0"
+              style={{
+                background: "rgba(255, 255, 255, 0.05)",
+                border: "1.5px solid rgba(255, 255, 255, 0.12)",
+                color: "rgba(255, 255, 255, 0.35)",
+              }}
+            >
+              {referralInitial(item.name)}
+            </div>
+            <div className="min-w-0">
+              <p className="text-[13px] leading-snug mb-1">
+                <span className="font-bold text-white">{item.name?.trim() || "Novo usuário"}</span>
+                <span style={{ color: "rgba(255,255,255,0.38)" }}> cadastrou com seu código</span>
+              </p>
+              <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.25)" }}>
+                Aguardando primeira compra paga · {formatRelativeTimePt(item.createdAt)}
+              </p>
+            </div>
+          </div>
+          <span className="text-[11px] font-semibold shrink-0 px-2 py-1 rounded-full" style={{ color: "rgba(255,255,255,0.35)", border: "1px solid rgba(255,255,255,0.12)" }}>
+            —
           </span>
         </div>
       ))}
@@ -163,12 +175,12 @@ function ReferralActivityList({ items, loading }: { items: ReferredUserRow[]; lo
 /* ─── Page ─── */
 export default function IndiqueGanhePage() {
   const { user, ready } = useAuth();
-  const [amigos, setAmigos] = useState(10);
+  const [simExtraPaid, setSimExtraPaid] = useState(10);
   const [copied, setCopied] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
   const [origin, setOrigin] = useState("");
-  const [referrals, setReferrals] = useState<ReferredUserRow[]>([]);
-  const [refLoading, setRefLoading] = useState(false);
+  const [affiliateSummary, setAffiliateSummary] = useState<AffiliateSummary | null>(null);
+  const [affiliateLoading, setAffiliateLoading] = useState(false);
 
   useEffect(() => {
     setOrigin(typeof window !== "undefined" ? window.location.origin : "");
@@ -176,21 +188,21 @@ export default function IndiqueGanhePage() {
 
   useEffect(() => {
     if (!ready || !user) {
-      setReferrals([]);
+      setAffiliateSummary(null);
       return;
     }
     let cancelled = false;
     (async () => {
-      setRefLoading(true);
+      setAffiliateLoading(true);
       try {
-        const r = await fetch("/api/auth/referrals", { credentials: "include" });
-        const d = (await r.json()) as { referrals?: ReferredUserRow[] };
-        if (!cancelled && r.ok && Array.isArray(d.referrals)) setReferrals(d.referrals);
-        else if (!cancelled) setReferrals([]);
+        const r = await fetch("/api/affiliate/summary", { credentials: "include", cache: "no-store" });
+        const d = (await r.json()) as { summary?: AffiliateSummary };
+        if (!cancelled && r.ok && d.summary) setAffiliateSummary(d.summary);
+        else if (!cancelled) setAffiliateSummary(null);
       } catch {
-        if (!cancelled) setReferrals([]);
+        if (!cancelled) setAffiliateSummary(null);
       } finally {
-        if (!cancelled) setRefLoading(false);
+        if (!cancelled) setAffiliateLoading(false);
       }
     })();
     return () => {
@@ -207,20 +219,71 @@ export default function IndiqueGanhePage() {
     [signupLink]
   );
 
-  const indicacoesCount = referrals.length;
-  const totalRecebidoFmt = new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(indicacoesCount * 8);
+  const cfg = affiliateSummary?.config;
+  const paidIndicacoes = affiliateSummary?.paidReferralsCount ?? 0;
+  const totalRecebidoFmt = formatBRLFromCents(affiliateSummary?.balances.totalEarnedCents ?? 0);
+  const porIndicacaoFmt = cfg ? formatBRLFromCents(affiliateSummary?.nextRewardCents ?? cfg.rewardBronzeCents) : "—";
+  const currentTierLabel = affiliateSummary?.currentTierLabel ?? "Bronze";
+  const goalDiamond = cfg?.tierDiamondMinCommissions ?? 50;
+  const remainingToDiamond = Math.max(0, goalDiamond - paidIndicacoes);
+  const tierBarPct = goalDiamond > 0 ? Math.min(100, (paidIndicacoes / goalDiamond) * 100) : 0;
+  const diamondPerFmt = cfg ? formatBRLFromCents(cfg.rewardDiamondCents) : "—";
 
-  const goalDiamond = 50;
-  const remainingToDiamond = Math.max(0, goalDiamond - indicacoesCount);
-  const tierBarPct = Math.min(100, (indicacoesCount / goalDiamond) * 100);
+  const tierRows = useMemo(() => {
+    if (!cfg) {
+      return [
+        { label: "Bronze", threshold: "—", active: true, color: "#CD7F32", Icon: Medal },
+        { label: "Prata", threshold: "—", active: false, color: "#A8A9AD", Icon: Medal },
+        { label: "Ouro", threshold: "—", active: false, color: C.gold, Icon: Trophy },
+        { label: "Diamante", threshold: "—", active: false, color: C.platinum, Icon: Gem },
+      ];
+    }
+    const cur = affiliateSummary?.currentTier ?? "bronze";
+    const order: ReferralTierId[] = ["bronze", "silver", "gold", "diamond"];
+    const labels = { bronze: "Bronze", silver: "Prata", gold: "Ouro", diamond: "Diamante" };
+    const thresholds: Record<ReferralTierId, string> = {
+      bronze: `1–${cfg.tierSilverMinCommissions - 1}`,
+      silver: `${cfg.tierSilverMinCommissions}–${cfg.tierGoldMinCommissions - 1}`,
+      gold: `${cfg.tierGoldMinCommissions}–${cfg.tierDiamondMinCommissions - 1}`,
+      diamond: `${cfg.tierDiamondMinCommissions}+`,
+    };
+    return order.map((tid) => ({
+      label: labels[tid],
+      threshold: thresholds[tid],
+      active: cur === tid,
+      color: tid === "bronze" ? "#CD7F32" : tid === "silver" ? "#A8A9AD" : tid === "gold" ? C.gold : C.platinum,
+      Icon: tid === "gold" ? Trophy : tid === "diamond" ? Gem : Medal,
+    }));
+  }, [cfg, affiliateSummary?.currentTier]);
 
-  const ganhoOuro = amigos * 12;
-  const ganhoDiamante = amigos * 20;
+  const howSteps = useMemo(() => {
+    const bronzeFmt = cfg ? formatBRLFromCents(cfg.rewardBronzeCents) : "R$ 8,00";
+    return [
+      {
+        Icon: Link2,
+        color: C.gold,
+        title: "Compartilhe seu link",
+        desc: "Envie para amigos pelo WhatsApp, Instagram ou qualquer canal.",
+      },
+      {
+        Icon: Ticket,
+        color: C.goldMid,
+        title: "Amigos compram o ticket",
+        desc: "Cada pagamento aprovado (PIX) do indicado gera comissão para você.",
+      },
+      {
+        Icon: Zap,
+        color: C.goldMid,
+        title: "Você recebe na hora",
+        desc: `${bronzeFmt} ou mais creditados após confirmação do pagamento, conforme seu nível.`,
+      },
+    ];
+  }, [cfg]);
+
+  const simTotalCents = useMemo(() => {
+    if (!cfg) return 0;
+    return simulateTotalForNewPaidReferrals(cfg, paidIndicacoes, simExtraPaid);
+  }, [cfg, paidIndicacoes, simExtraPaid]);
 
   const copyText = useCallback(async (text: string): Promise<boolean> => {
     if (!text) return false;
@@ -346,7 +409,7 @@ export default function IndiqueGanhePage() {
               </h1>
               <p className="text-[13px] leading-[1.6] mb-5" style={{ color: "rgba(255,255,255,0.45)" }}>
                 Cada amigo que comprar um ticket rende{" "}
-                <span className="font-bold" style={{ color: C.goldMid }}>R$12,00</span> direto pra você.
+                <span className="font-bold" style={{ color: C.goldMid }}>{porIndicacaoFmt}</span> na próxima indicação paga.
               </p>
 
               <div className="flex gap-2.5 mb-4">
@@ -359,7 +422,7 @@ export default function IndiqueGanhePage() {
                   </p>
                   <div className="flex items-center gap-1.5">
                     <Trophy size={14} style={{ color: C.gold }} />
-                    <span className="text-[15px] font-black" style={{ color: C.gold }}>Ouro</span>
+                    <span className="text-[15px] font-black" style={{ color: C.gold }}>{currentTierLabel}</span>
                   </div>
                 </div>
                 <div
@@ -369,7 +432,7 @@ export default function IndiqueGanhePage() {
                   <p className="text-[9px] font-bold uppercase tracking-[0.08em] mb-1.5" style={{ color: "#FFFFFF59" }}>
                     Por indicação
                   </p>
-                  <p className="text-[18px] font-black text-white tracking-[-0.01em]">R$12,00</p>
+                  <p className="text-[18px] font-black text-white tracking-[-0.01em]">{porIndicacaoFmt}</p>
                 </div>
               </div>
 
@@ -384,14 +447,14 @@ export default function IndiqueGanhePage() {
                       Faltam <span className="font-bold text-white">{remainingToDiamond} indicações</span> para{" "}
                       <span className="font-bold" style={{ color: C.platinum }}>Diamante</span>
                       {" — "}
-                      <span className="font-bold" style={{ color: C.goldMid }}>ganhe R$20/ind</span>
+                      <span className="font-bold" style={{ color: C.goldMid }}>ganhe {diamondPerFmt}/ind.</span>
                     </>
                   ) : (
                     <>
                       Você atingiu a meta de <span className="font-bold text-white">{goalDiamond} indicações</span> para{" "}
                       <span className="font-bold" style={{ color: C.platinum }}>Diamante</span>
                       {" — "}
-                      <span className="font-bold" style={{ color: C.goldMid }}>R$20/ind</span>
+                      <span className="font-bold" style={{ color: C.goldMid }}>{diamondPerFmt}/ind.</span>
                     </>
                   )}
                 </p>
@@ -427,7 +490,7 @@ export default function IndiqueGanhePage() {
                 </h1>
                 <p className="text-[15px] leading-[1.65] max-w-[640px]" style={{ color: "rgba(255,255,255,0.42)" }}>
                   Cada amigo que comprar um ticket vale{" "}
-                  <span className="font-bold" style={{ color: C.value }}>R$12,00 direto pra você</span>
+                  <span className="font-bold" style={{ color: C.value }}>{porIndicacaoFmt} na próxima indicação paga</span>
                   . Quanto mais indicações, maior o nível e maior o bônus por amigo.
                 </p>
 
@@ -449,7 +512,7 @@ export default function IndiqueGanhePage() {
                       >
                         <Medal size={22} style={{ color: C.gold }} strokeWidth={2} />
                       </div>
-                      <span className="text-[20px] font-black tracking-tight" style={{ color: C.gold }}>Ouro</span>
+                      <span className="text-[20px] font-black tracking-tight" style={{ color: C.gold }}>{currentTierLabel}</span>
                     </div>
                   </div>
 
@@ -470,7 +533,7 @@ export default function IndiqueGanhePage() {
                       >
                         <Banknote size={22} style={{ color: C.valueMuted }} strokeWidth={2} />
                       </div>
-                      <span className="text-[20px] font-black tracking-tight" style={{ color: C.value }}>R$12,00</span>
+                      <span className="text-[20px] font-black tracking-tight" style={{ color: C.value }}>{porIndicacaoFmt}</span>
                     </div>
                   </div>
 
@@ -493,7 +556,7 @@ export default function IndiqueGanhePage() {
                               <span style={{ color: C.platinum }}>Diamante</span>
                             </span>
                             {" "}
-                            <span className="font-bold" style={{ color: C.goldMid }}>R$20/ind.</span>
+                            <span className="font-bold" style={{ color: C.goldMid }}>{diamondPerFmt}/ind.</span>
                           </>
                         ) : (
                           <>
@@ -504,7 +567,7 @@ export default function IndiqueGanhePage() {
                               <span style={{ color: C.platinum }}>50+ indicações</span>
                             </span>
                             {" "}
-                            <span className="font-bold" style={{ color: C.goldMid }}>R$20/ind.</span>
+                            <span className="font-bold" style={{ color: C.goldMid }}>{diamondPerFmt}/ind.</span>
                           </>
                         )}
                       </p>
@@ -530,9 +593,9 @@ export default function IndiqueGanhePage() {
                   style={{ background: "rgba(255,255,255,0.04)" }}
                 >
                   <Target size={20} style={{ color: C.goldMid }} strokeWidth={2} />
-                  <span className="text-[26px] font-black text-white leading-none tracking-[-0.02em]">{indicacoesCount}</span>
+                  <span className="text-[26px] font-black text-white leading-none tracking-[-0.02em]">{paidIndicacoes}</span>
                   <span className="text-[10px] font-medium text-center leading-snug" style={{ color: "rgba(255,255,255,0.36)" }}>
-                    Indicações confirmadas
+                    Indicações pagas
                   </span>
                 </div>
 
@@ -567,7 +630,7 @@ export default function IndiqueGanhePage() {
               <SmallLabel className="mb-2.5">Seu Progresso</SmallLabel>
               <div className="grid grid-cols-3 gap-2">
                 <StatCard Icon={MousePointerClick} iconColor="rgba(255,255,255,0.45)" value="—" label="Cliques" />
-                <StatCard Icon={UserPlus} iconColor={C.gold} value={String(indicacoesCount)} label="Indicações" valueColor={C.gold} />
+                <StatCard Icon={UserPlus} iconColor={C.gold} value={String(paidIndicacoes)} label="Pagas" valueColor={C.gold} />
                 <StatCard Icon={Wallet} iconColor={C.valueMuted} value={totalRecebidoFmt} label="Ganhos" valueColor={C.value} highlight />
               </div>
               <SacarGanhosLink variant="pill" className="mt-3" />
@@ -755,7 +818,7 @@ export default function IndiqueGanhePage() {
               <SectionHeader>Como Funciona</SectionHeader>
 
               <div className="flex flex-col md:flex-row gap-2.5 mt-4">
-                {HOW_STEPS.map((step, i) => {
+                {howSteps.map((step, i) => {
                   const Icon = step.Icon;
                   return (
                     <div
@@ -796,7 +859,11 @@ export default function IndiqueGanhePage() {
             >
               <SectionHeader>Atividade Recente</SectionHeader>
 
-              <ReferralActivityList items={referrals} loading={refLoading} />
+              <ReferralActivityList
+                commissions={affiliateSummary?.commissionActivity ?? []}
+                pendingSignups={affiliateSummary?.pendingSignupReferrals ?? []}
+                loading={affiliateLoading}
+              />
 
             </div>
 
@@ -823,7 +890,7 @@ export default function IndiqueGanhePage() {
                     boxShadow: "0 0 10px rgba(212,175,55,0.2)",
                   }}
                 />
-                {TIERS.map((tier) => {
+                {tierRows.map((tier) => {
                   const Icon = tier.Icon;
                   return (
                     <div key={tier.label} className="flex flex-col items-center gap-1.5 z-10">
@@ -852,19 +919,19 @@ export default function IndiqueGanhePage() {
               >
                 <div>
                   <p className="text-[9px] font-bold uppercase tracking-[0.12em] mb-1.5" style={{ color: "rgba(255,255,255,0.30)" }}>Agora</p>
-                  <p className="text-[36px] font-black leading-none tracking-[-0.02em]" style={{ color: C.goldLight }}>R$12</p>
+                  <p className="text-[36px] font-black leading-none tracking-[-0.02em]" style={{ color: C.goldLight }}>{porIndicacaoFmt}</p>
                   <p className="text-[11px] mt-1.5" style={{ color: "rgba(255,255,255,0.28)" }}>por indic.</p>
                 </div>
                 <div className="flex flex-col items-center gap-2">
                   <ArrowRight size={15} style={{ color: "rgba(255,255,255,0.18)" }} />
                   <span className="text-[13px] font-extrabold px-3 py-1.5 rounded-[8px]" style={{ background: C.valueSoft, border: `1px solid ${C.valueBorder}`, color: C.value }}>
-                    +R$8
+                    próximo
                   </span>
                 </div>
                 <div className="text-right">
                   <p className="text-[9px] font-bold uppercase tracking-[0.12em] mb-1.5" style={{ color: "rgba(255,255,255,0.30)" }}>No Diamante</p>
                   <p className="text-[36px] font-black leading-none tracking-[-0.02em]" style={{ background: `linear-gradient(135deg, #F8FAFC, ${C.platinum} 45%, ${C.goldLight} 95%)`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
-                    R$20
+                    {diamondPerFmt}
                   </p>
                   <p className="text-[11px] mt-1.5" style={{ color: "rgba(255,255,255,0.28)" }}>por indic.</p>
                 </div>
@@ -881,7 +948,7 @@ export default function IndiqueGanhePage() {
               </div>
               <div className="flex items-center justify-between">
                 <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.38)" }}>
-                  <span className="font-bold text-white">{indicacoesCount}</span> de {goalDiamond} indicações
+                  <span className="font-bold text-white">{paidIndicacoes}</span> de {goalDiamond} indicações pagas
                 </p>
                 <div className="flex items-center gap-1">
                   <Gem size={10} style={{ color: C.platinum }} />
@@ -902,12 +969,12 @@ export default function IndiqueGanhePage() {
               </div>
               <div className="px-5 pb-5">
                 <p className="text-[12px] mb-5" style={{ color: "rgba(255,255,255,0.36)" }}>
-                  Quantos amigos você consegue indicar?
+                  Quantas novas indicações pagas você projeta? (simulação com suas faixas atuais)
                 </p>
 
                 <div className="flex items-center gap-3 mb-2">
                   <button
-                    onClick={() => setAmigos((v) => Math.max(1, v - 1))}
+                    onClick={() => setSimExtraPaid((v) => Math.max(1, v - 1))}
                     className="w-9 h-9 rounded-xl flex items-center justify-center text-[18px] font-bold shrink-0 select-none active:scale-95"
                     style={{
                       background: "#00000038",
@@ -918,14 +985,14 @@ export default function IndiqueGanhePage() {
                   >−</button>
 
                   <input
-                    type="range" min={1} max={50} value={amigos}
-                    onChange={(e) => setAmigos(Number(e.target.value))}
+                    type="range" min={1} max={50} value={simExtraPaid}
+                    onChange={(e) => setSimExtraPaid(Number(e.target.value))}
                     className="flex-1 accent-[#FAD98B] cursor-pointer"
                     style={{ height: 40 }}
                   />
 
                   <button
-                    onClick={() => setAmigos((v) => Math.min(50, v + 1))}
+                    onClick={() => setSimExtraPaid((v) => Math.min(50, v + 1))}
                     className="w-9 h-9 rounded-xl flex items-center justify-center text-[18px] font-bold shrink-0 select-none active:scale-95"
                     style={{
                       background: "#00000038",
@@ -938,14 +1005,14 @@ export default function IndiqueGanhePage() {
 
                 <div className="text-center mb-5">
                   <span
-                    key={amigos}
+                    key={simExtraPaid}
                     className="text-[40px] font-black text-white tracking-[-0.02em] leading-none"
                     style={{ animation: "indiqueFade 0.2s ease forwards" }}
                   >
-                    {amigos}
+                    {simExtraPaid}
                   </span>
                   <span className="text-[13px] font-medium ml-2" style={{ color: "rgba(255,255,255,0.38)" }}>
-                    amigos
+                    novas pagas
                   </span>
                 </div>
 
@@ -957,14 +1024,13 @@ export default function IndiqueGanhePage() {
                   }}
                 >
                   <p className="text-[14px] mb-3" style={{ color: "#FFFFFF59" }}>
-                    No nível{" "}
-                    <span className="font-bold" style={{ color: C.goldMid }}>Ouro</span>
-                    {" "}você ganharia
+                    Total estimado dessas{" "}
+                    <span className="font-bold text-white">{simExtraPaid}</span> novas indicações pagas
                   </p>
 
                   <span
-                    key={ganhoOuro}
-                    className="text-[72px] font-black leading-none tracking-[-0.03em] block mb-4"
+                    key={simTotalCents}
+                    className="text-[56px] sm:text-[72px] font-black leading-none tracking-[-0.03em] block mb-4"
                     style={{
                       animation: "indiqueFade 0.2s ease forwards",
                       background: `linear-gradient(180deg, #FFF9F3 0%, ${C.goldLight} 28%, ${C.goldMid} 62%, #FEC554 100%)`,
@@ -973,23 +1039,15 @@ export default function IndiqueGanhePage() {
                       backgroundClip: "text",
                     }}
                   >
-                    R${ganhoOuro}
+                    {formatBRLFromCents(simTotalCents)}
                   </span>
 
                   <div className="flex items-center justify-center gap-1.5 bg-[#FAD98B14] py-3 border-2 border-[#FAD98B33] rounded-[10px]">
                     <Gem size={11} style={{ color: "#FAD98B" }} />
                     <p className="text-[14px]" style={{ color: "rgba(255,255,255,0.38)" }}>
-                      No Diamante:{" "}
-                      <span
-                        key={ganhoDiamante}
-                        className="font-bold"
-                        style={{
-                          color: "#FAD98B",
-                          animation: "indiqueFade 0.2s ease forwards",
-                        }}
-                      >
-                        R${ganhoDiamante}
-                      </span>
+                      Você já tem{" "}
+                      <span className="font-bold text-white">{paidIndicacoes}</span> pagas · no Diamante cada uma paga{" "}
+                      <span className="font-bold" style={{ color: "#FAD98B" }}>{diamondPerFmt}</span>
                     </p>
                   </div>
                 </div>
@@ -1049,7 +1107,7 @@ export default function IndiqueGanhePage() {
               <SectionHeader>Como Funciona</SectionHeader>
 
               <div className="flex flex-col md:flex-row gap-2.5 mt-4">
-                {HOW_STEPS.map((step, i) => {
+                {howSteps.map((step, i) => {
                   const Icon = step.Icon;
                   return (
                     <div
@@ -1090,7 +1148,11 @@ export default function IndiqueGanhePage() {
             >
               <SectionHeader>Atividade Recente</SectionHeader>
 
-              <ReferralActivityList items={referrals} loading={refLoading} />
+              <ReferralActivityList
+                commissions={affiliateSummary?.commissionActivity ?? []}
+                pendingSignups={affiliateSummary?.pendingSignupReferrals ?? []}
+                loading={affiliateLoading}
+              />
 
             </div>
 
