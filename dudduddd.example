@@ -23,7 +23,6 @@ DATABASE_PASSWORD=JP9mevsF
 DATABASE_NAME=bolao_milhao
 # "true" se o servidor exigir SSL (comum em hosts remotos)
 DATABASE_SSL=true
-
 # Alternativa: uma única URL (só use se a senha não tiver @ # / + etc., ou encodeURIComponent)
 # DATABASE_URL=postgresql://bolao_user:SENHA@147.93.145.150:5432/bolao_milhao
 
