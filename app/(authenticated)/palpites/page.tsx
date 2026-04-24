@@ -9,6 +9,7 @@ import { StepsBreadcrumb } from "../boloes/_components/StepsBreadcrumb";
 import {
   calcPredictionPoints,
 } from "./lib/predictionsStorage";
+import { inferBolaoTypeFromTicketPrefix } from "@/lib/ticket-kind";
 
 // ── Tipos ────────────────────────────────────────────────────
 type TabView = "jogos" | "tabela" | "ranking" | "resumo";
@@ -53,12 +54,6 @@ const RODADAS_LABEL = ["1ª Rodada", "2ª Rodada", "3ª Rodada"];
 function formatData(dataStr: string): string {
   const [day, month] = dataStr.split("/");
   return `${MESES[parseInt(month) - 1]}. ${parseInt(day)}`;
-}
-
-function inferBolaoTypeFromTicketId(ticketId: string | null): "principal" | "diario" {
-  const t = (ticketId || "").toUpperCase();
-  if (t.startsWith("TD-")) return "diario";
-  return "principal";
 }
 
 function todayBR(): string {
@@ -1261,7 +1256,7 @@ function PalpitesPageContent() {
   const resultMode = searchParams.get("mode") === "resultado";
   const ticketId = searchParams.get("ticket");
   const hasBoloesFlow = Boolean(ticketId);
-  const bolaoType = inferBolaoTypeFromTicketId(ticketId);
+  const [bolaoType, setBolaoType] = useState<"principal" | "diario">("principal");
   const [tab, setTab] = useState<TabView>("jogos");
   const [grupo, setGrupo] = useState("");
   const [jogos, setJogos] = useState<Jogo[]>([]);
@@ -1312,6 +1307,32 @@ function PalpitesPageContent() {
   useEffect(() => {
     if (resultMode) setTab("jogos");
   }, [resultMode]);
+
+  useEffect(() => {
+    if (!ticketId) {
+      setBolaoType("principal");
+      return;
+    }
+    const prefix = inferBolaoTypeFromTicketPrefix(ticketId);
+    if (prefix) setBolaoType(prefix);
+    let cancelled = false;
+    void (async () => {
+      try {
+        const r = await fetch(
+          `/api/tickets/bolao-type?ticketId=${encodeURIComponent(ticketId)}`,
+          { credentials: "include", cache: "no-store" }
+        );
+        const d = (await r.json()) as { bolaoType?: string };
+        const b = d.bolaoType === "diario" ? "diario" : "principal";
+        if (!cancelled) setBolaoType(b);
+      } catch {
+        if (!cancelled) setBolaoType(prefix ?? "principal");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ticketId]);
 
   useEffect(() => {
     if (!ticketId) return;

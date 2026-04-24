@@ -5,13 +5,14 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, ChevronDown, Ticket } from "lucide-react";
 import {
   isoDateToBR,
-  loadOwnedTickets,
+  loadOwnedTicketsMerged,
   palpitesUrlDiario,
   palpitesUrlPrincipal,
   type StoredTicket,
   type StoredTicketDiario,
   type StoredTicketGeral,
 } from "@/app/(authenticated)/tickets/lib/ownedTicketsStorage";
+import { useAuth } from "@/app/shared/AuthContext";
 
 const GOLD = "#D4AF37";
 const GOLD_LIGHT = "#FFE8BA";
@@ -62,12 +63,19 @@ function formatTicketDate(createdAt: number): string {
 }
 
 export default function BoloesPage() {
+  const { user } = useAuth();
   const [tickets, setTickets] = useState<StoredTicket[]>([]);
   const [detailsOpen, setDetailsOpen] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    setTickets(loadOwnedTickets());
-  }, []);
+    let cancelled = false;
+    void loadOwnedTicketsMerged().then((list) => {
+      if (!cancelled) setTickets(list);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   const { gerais, diarios } = useMemo(() => {
     const g: StoredTicketGeral[] = [];

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { CalendarDays, ChevronRight, Ticket } from "lucide-react";
 import {
   isoDateToBR,
-  loadOwnedTickets,
+  loadOwnedTicketsMerged,
   palpitesUrlDiario,
   palpitesUrlPrincipal,
   setDiarioTicketPlayDate,
@@ -29,7 +29,13 @@ export function MyTicketsWallet({ refreshKey }: MyTicketsWalletProps) {
   const router = useRouter();
 
   useEffect(() => {
-    setTickets(loadOwnedTickets());
+    let cancelled = false;
+    void loadOwnedTicketsMerged().then((list) => {
+      if (!cancelled) setTickets(list);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [refreshKey]);
 
   const { gerais, diarios } = useMemo(() => {
@@ -79,7 +85,7 @@ export function MyTicketsWallet({ refreshKey }: MyTicketsWalletProps) {
             <DiarioTicketRow
               key={t.id}
               ticket={t}
-              onLinked={() => setTickets(loadOwnedTickets())}
+              onLinked={() => void loadOwnedTicketsMerged().then(setTickets)}
               onNavigate={(path) => router.push(path)}
             />
           ))}

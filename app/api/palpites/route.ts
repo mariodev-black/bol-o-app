@@ -3,7 +3,7 @@ import { z } from "zod";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 import { fetchMatchesMap } from "@/lib/football-api";
 import { listPredictions, upsertPrediction } from "@/lib/predictions";
-import { inferBolaoTypeFromTicketId } from "@/lib/ticket-kind";
+import { inferBolaoTypeFromTicketId } from "@/lib/ticket-kind-server";
 
 export const runtime = "nodejs";
 

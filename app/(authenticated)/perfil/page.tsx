@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { LogoutAccountButton } from "@/app/(authenticated)/perfil/LogoutAccountButton";
-import { loadOwnedTickets } from "@/app/(authenticated)/tickets/lib/ownedTicketsStorage";
+import { loadOwnedTicketsMerged } from "@/app/(authenticated)/tickets/lib/ownedTicketsStorage";
 import type { AffiliateSummary } from "@/app/(authenticated)/indique/affiliate-types";
 import { useAuth } from "@/app/shared/AuthContext";
 import { useEffect, useMemo, useState } from "react";
@@ -69,8 +69,9 @@ export default function PerfilPage() {
   const [ticketCount, setTicketCount] = useState(0);
 
   useEffect(() => {
-    setTicketCount(loadOwnedTickets().length);
-  }, []);
+    if (!ready) return;
+    void loadOwnedTicketsMerged().then((list) => setTicketCount(list.length));
+  }, [ready, user?.id]);
 
   useEffect(() => {
     if (!ready) return;

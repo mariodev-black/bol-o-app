@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 import { fetchMatchesMap } from "@/lib/football-api";
 import { calcPredictionPoints, listPredictions } from "@/lib/predictions";
-import { inferBolaoTypeFromTicketId } from "@/lib/ticket-kind";
+import { inferBolaoTypeFromTicketId } from "@/lib/ticket-kind-server";
 
 export const runtime = "nodejs";
 

@@ -51,6 +51,48 @@ export function loadOwnedTickets(): StoredTicket[] {
   return safeParse(localStorage.getItem(STORAGE_KEY));
 }
 
+/** IDs de tickets persistidos no Postgres (UUID v4). */
+export function isLikelyDbTicketId(id: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id.trim());
+}
+
+type MineTicketDto = {
+  id: string;
+  ticketType: "general" | "daily";
+  quantity: number;
+  paidAt: string | null;
+  createdAt: string;
+};
+
+function mapMineDtoToStored(row: MineTicketDto): StoredTicket {
+  const createdAt = row.paidAt ? new Date(row.paidAt).getTime() : new Date(row.createdAt).getTime();
+  if (row.ticketType === "daily") {
+    return { id: row.id, kind: "diario", createdAt, playDate: null };
+  }
+  return { id: row.id, kind: "geral", createdAt };
+}
+
+/**
+ * Tickets pagos no banco + legado local (TG-/TD-).
+ * Se existir qualquer ticket pago no servidor, ele tem prioridade e só entram no merge
+ * entradas locais que não são UUID (evita duplicar após fluxo PIX + localStorage).
+ */
+export async function loadOwnedTicketsMerged(): Promise<StoredTicket[]> {
+  const local = loadOwnedTickets();
+  try {
+    const r = await fetch("/api/tickets/mine", { credentials: "include", cache: "no-store" });
+    if (!r.ok) return local;
+    const data = (await r.json()) as { tickets?: MineTicketDto[] };
+    const rows = Array.isArray(data.tickets) ? data.tickets : [];
+    const fromDb = rows.map(mapMineDtoToStored);
+    if (fromDb.length === 0) return local;
+    const localLegacy = local.filter((t) => !isLikelyDbTicketId(t.id));
+    return [...fromDb, ...localLegacy];
+  } catch {
+    return local;
+  }
+}
+
 export function saveOwnedTickets(tickets: StoredTicket[]) {
   if (typeof window === "undefined") return;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(tickets));
