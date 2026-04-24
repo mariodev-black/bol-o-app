@@ -95,6 +95,13 @@ function brDateToUtcMs(dateBR: string): number | null {
   return Date.UTC(year, month - 1, day);
 }
 
+function isLockedByKickoff(kickoffAt: string | null | undefined, nowMs: number): boolean {
+  if (!kickoffAt) return false;
+  const kickoffMs = new Date(kickoffAt).getTime();
+  if (!Number.isFinite(kickoffMs)) return false;
+  return nowMs >= kickoffMs - 60 * 60 * 1000;
+}
+
 function resolveDiarioPlayableDateFromJogos(jogos: Jogo[]): string {
   const today = todayBR();
   const todayMs = brDateToUtcMs(today);
@@ -1622,14 +1629,34 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
     if (bolaoType === "diario") return j.dataBR === diarioPlayableDate;
     return ms >= todayMs;
   });
+  const nowMs = Date.now();
+  const diarioLockedMode =
+    bolaoType === "diario" &&
+    jogosBase.length > 0 &&
+    jogosBase.every((j) => j.status === "encerrado" || isLockedByKickoff(j.kickoffAt, nowMs));
+  const readOnlyMode = resultMode || diarioLockedMode;
+  const jogosDisplayBase =
+    bolaoType === "diario" && diarioLockedMode
+      ? jogosBase.filter((j) => Boolean(predictionsMap[j.id]))
+      : jogosBase;
   const grupoFiltro = grupos.length > 0 ? grupo : "GERAL";
-  const rodadasDisponiveis = Array.from(new Set(jogosBase.filter((j) => j.grupo === grupoFiltro).map((j) => j.rodada))).sort(
+  const rodadasDisponiveis = Array.from(new Set(jogosDisplayBase.filter((j) => j.grupo === grupoFiltro).map((j) => j.rodada))).sort(
     (a, b) => a - b
   );
-  const jogosPorRodada = rodadasDisponiveis.map((idx) => ({
-    label: rodadaLabel(idx),
-    jogos: jogosBase.filter((j) => j.grupo === grupoFiltro && j.rodada === idx),
-  }));
+  const jogosPorRodada = rodadasDisponiveis.map((idx) => {
+    const jogosDaRodada = jogosDisplayBase
+      .filter((j) => j.grupo === grupoFiltro && j.rodada === idx)
+      .sort((a, b) => {
+        const aHasPrediction = Boolean(predictionsMap[a.id]);
+        const bHasPrediction = Boolean(predictionsMap[b.id]);
+        if (aHasPrediction !== bHasPrediction) return aHasPrediction ? 1 : -1;
+        return a.id - b.id;
+      });
+    return {
+      label: rodadaLabel(idx),
+      jogos: jogosDaRodada,
+    };
+  });
   const myRankingPos = rankingRows.find((row) => row.isMe)?.pos ?? null;
   const jogosById = useMemo(
     () =>
@@ -1724,7 +1751,7 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
         <div>
 
           {/* Mobile: tabs */}
-          {resultMode ? (
+          {readOnlyMode ? (
             <div className="lg:hidden flex items-center gap-1 mb-5 p-1 rounded-xl bg-[#0A0E19]">
               {([
                 { key: "jogos", label: "Jogos", icon: AlignJustify },
@@ -1770,21 +1797,21 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
           )}
 
           {/* Mobile: filtro grupos (exceto ranking) */}
-          {grupos.length > 0 && tab !== "ranking" && tab !== "resumo" && !resultMode && !hasBoloesFlow && (
+          {grupos.length > 0 && tab !== "ranking" && tab !== "resumo" && !readOnlyMode && !hasBoloesFlow && (
             <div className="mb-5 lg:hidden">
               <BotoesGrupo />
             </div>
           )}
 
           {/* Desktop: filtro de grupos */}
-          {grupos.length > 0 && !resultMode && !hasBoloesFlow && (
+          {grupos.length > 0 && !readOnlyMode && !hasBoloesFlow && (
             <div className="hidden lg:block mb-6">
               <BotoesGrupo />
             </div>
           )}
 
           {/* Mobile: conteúdo com tabs — em resultMode NÃO usar tab==="jogos" (tab fica em jogos e quebrava o Ranking) */}
-          <div key={resultMode ? `result-${resultTab}` : tab} className="animate-tab-in lg:hidden">
+          <div key={readOnlyMode ? `result-${resultTab}` : tab} className="animate-tab-in lg:hidden">
             {showJogos && (
               <div>
                 {erro ? (
@@ -1798,7 +1825,11 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                   <div className="flex flex-col items-center py-16">
                     <Disc className="w-10 h-10 mb-3 text-white/20" strokeWidth={1.5} />
                     <p className="text-white/30 text-sm">
-                      {hasBoloesFlow ? "Nenhum jogo disponível hoje" : "Nenhum jogo neste grupo"}
+                      {bolaoType === "diario" && diarioLockedMode
+                        ? "Nenhum palpite encontrado para este ticket diário"
+                        : hasBoloesFlow
+                          ? "Nenhum jogo disponível hoje"
+                          : "Nenhum jogo neste grupo"}
                     </p>
                   </div>
                 ) : (
@@ -1812,7 +1843,7 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                         <JogoCard
                           key={jogo.id}
                           jogo={jogo}
-                          readOnly={resultMode}
+                          readOnly={readOnlyMode}
                           ticketId={ticketId}
                           initialPrediction={predictionsMap[jogo.id] ?? null}
                           predictionsLoading={loadingPredictions}
@@ -1824,7 +1855,7 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                 )}
               </div>
             )}
-            {tab === "tabela" && !resultMode && <TabelaView grupo={grupo} tabela={tabela} onGrupo={setGrupo} />}
+            {tab === "tabela" && !readOnlyMode && <TabelaView grupo={grupo} tabela={tabela} onGrupo={setGrupo} />}
             {showRanking ? <RankingView rows={rankingRows} stats={resumoStats} /> : null}
             {showResumo ? (
               <TicketResumoView
@@ -1842,7 +1873,7 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
 
           {/* Desktop: grid 2 colunas de cards por rodada */}
           <div className="hidden lg:block">
-            {resultMode && (
+            {readOnlyMode && (
               <div className="flex items-center gap-1 mb-5 p-1 rounded-xl bg-[#0A0E19] w-[280px]">
                 {([
                   { key: "jogos", label: "Jogos", icon: AlignJustify },
@@ -1891,7 +1922,11 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
               <div className="flex flex-col items-center py-16">
                 <Disc className="w-10 h-10 mb-3 text-white/20" strokeWidth={1.5} />
                 <p className="text-white/30 text-sm">
-                  {hasBoloesFlow ? "Nenhum jogo disponível hoje" : "Nenhum jogo neste grupo"}
+                  {bolaoType === "diario" && diarioLockedMode
+                    ? "Nenhum palpite encontrado para este ticket diário"
+                    : hasBoloesFlow
+                      ? "Nenhum jogo disponível hoje"
+                      : "Nenhum jogo neste grupo"}
                 </p>
               </div>
             ) : (
@@ -1906,7 +1941,7 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                       <JogoCard
                         key={jogo.id}
                         jogo={jogo}
-                        readOnly={resultMode}
+                        readOnly={readOnlyMode}
                         ticketId={ticketId}
                         initialPrediction={predictionsMap[jogo.id] ?? null}
                         predictionsLoading={loadingPredictions}
@@ -1922,7 +1957,7 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
         </div>
 
         {/* ── SIDEBAR DIREITA (desktop only) ───────────── */}
-        {!resultMode && (
+        {!readOnlyMode && (
           <div className="hidden lg:block">
             <DesktopSidebar
               grupo={grupo}

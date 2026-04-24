@@ -2,6 +2,7 @@ export type StoredTicketGeral = {
   id: string;
   kind: "geral";
   createdAt: number;
+  availableGames?: number;
 };
 
 export type StoredTicketDiario = {
@@ -11,6 +12,7 @@ export type StoredTicketDiario = {
   /** Formato DD/MM/AAAA — null até o usuário escolher o dia ao palpitar */
   playDate: string | null;
   dailyStatus?: "disponivel" | "em_uso" | "usado";
+  availableGames?: number;
 };
 
 export type StoredTicket = StoredTicketGeral | StoredTicketDiario;
@@ -65,6 +67,7 @@ type MineTicketDto = {
   createdAt: string;
   dailyStatus?: "disponivel" | "em_uso" | "usado";
   playDate?: string | null;
+  availableGames?: number;
 };
 
 function mapMineDtoToStored(row: MineTicketDto): StoredTicket {
@@ -76,9 +79,10 @@ function mapMineDtoToStored(row: MineTicketDto): StoredTicket {
       createdAt,
       playDate: row.playDate ?? null,
       dailyStatus: row.dailyStatus ?? "disponivel",
+      availableGames: Math.max(0, Number(row.availableGames ?? 0)),
     };
   }
-  return { id: row.id, kind: "geral", createdAt };
+  return { id: row.id, kind: "geral", createdAt, availableGames: Math.max(0, Number(row.availableGames ?? 0)) };
 }
 
 /**

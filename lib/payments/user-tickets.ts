@@ -10,6 +10,7 @@ export type PaidTicketRow = {
   createdAt: string;
   dailyStatus?: "disponivel" | "em_uso" | "usado";
   playDate?: string | null;
+  availableGames?: number;
 };
 
 function isFinishedStatus(status: string): boolean {
@@ -22,6 +23,20 @@ function isFinishedStatus(status: string): boolean {
     s.includes("suspens") ||
     s.includes("interromp")
   );
+}
+
+function parseKickoffUtcMs(dateBR?: string, hourBR?: string): number | null {
+  if (!dateBR) return null;
+  const [d, m, y] = String(dateBR).split("/");
+  if (!d || !m || !y) return null;
+  const [hh, mm] = String(hourBR || "00:00").split(":");
+  const day = Number(d);
+  const month = Number(m);
+  const year = Number(y);
+  const hours = Number(hh || 0);
+  const minutes = Number(mm || 0);
+  if (![day, month, year, hours, minutes].every(Number.isFinite)) return null;
+  return Date.UTC(year, month - 1, day, hours + 3, minutes, 0);
 }
 
 function brDateToUtcMs(dateBR: string): number | null {
@@ -77,14 +92,46 @@ export async function listPaidTicketsForUser(userId: string): Promise<PaidTicket
       paidAt: r.paid_at ? r.paid_at.toISOString() : null,
       createdAt: r.created_at.toISOString(),
     }));
-    const hasDaily = mapped.some((t) => t.ticketType === "daily");
-    if (!hasDaily) return mapped;
-
     const [matchMap, preds] = await Promise.all([
       fetchMatchesMap().catch(() => new Map()),
-      listPredictions({ userId, bolaoType: "diario" }).catch(() => []),
+      listPredictions({ userId }).catch(() => []),
     ]);
+    if (!matchMap.size) {
+      return mapped.map((t) => ({
+        ...t,
+        dailyStatus: t.ticketType === "daily" ? "disponivel" : undefined,
+        playDate: t.ticketType === "daily" ? todayBR() : undefined,
+        availableGames: 0,
+      }));
+    }
+
+    const now = Date.now();
+    const today = todayBR();
+    const todayMs = brDateToUtcMs(today) ?? now;
+    const openMatches = Array.from(matchMap.entries())
+      .map(([matchId, m]) => ({
+        matchId: Number(matchId),
+        dateBR: m.dateBR,
+        status: m.status,
+        kickoffAt: parseKickoffUtcMs(m.dateBR, m.hourBR),
+      }))
+      .filter((m) => {
+        const finished = isFinishedStatus(m.status);
+        const lockAt = m.kickoffAt != null ? m.kickoffAt - 60 * 60 * 1000 : null;
+        const dateMs = m.dateBR ? brDateToUtcMs(m.dateBR) : null;
+        const stillOpenByTime = lockAt != null ? lockAt > now : (dateMs ?? 0) >= todayMs;
+        return !finished && stillOpenByTime;
+      });
+
     const playableDate = resolveDiarioPlayableDate(matchMap);
+    console.log("[user-tickets] calc:start", {
+      userId,
+      tickets: mapped.length,
+      totalMatchesInCache: matchMap.size,
+      openMatches: openMatches.length,
+      playableDate,
+      today,
+    });
     const byTicket = new Map<string, typeof preds>();
     for (const p of preds) {
       const arr = byTicket.get(p.ticket_id) ?? [];
@@ -92,12 +139,21 @@ export async function listPaidTicketsForUser(userId: string): Promise<PaidTicket
       byTicket.set(p.ticket_id, arr);
     }
 
-    return mapped.map((t) => {
-      if (t.ticketType !== "daily") return t;
+    const result = mapped.map((t) => {
+      if (t.ticketType !== "daily") {
+        const ticketPreds = byTicket.get(t.id) ?? [];
+        const predictedIds = new Set<number>(ticketPreds.map((p) => Number(p.match_id)).filter(Number.isFinite));
+        const availableGames = openMatches.reduce((acc, m) => (predictedIds.has(m.matchId) ? acc : acc + 1), 0);
+        return { ...t, availableGames };
+      }
+
       const ticketPreds = byTicket.get(t.id) ?? [];
       if (ticketPreds.length === 0) {
-        return { ...t, dailyStatus: "disponivel" as const, playDate: playableDate };
+        const availableGames = openMatches.filter((m) => m.dateBR === playableDate).length;
+        return { ...t, dailyStatus: "disponivel" as const, playDate: playableDate, availableGames };
       }
+
+      const predictedIds = new Set<number>(ticketPreds.map((p) => Number(p.match_id)).filter(Number.isFinite));
       const matchDates = new Set<string>();
       let allFinished = true;
       for (const p of ticketPreds) {
@@ -109,8 +165,23 @@ export async function listPaidTicketsForUser(userId: string): Promise<PaidTicket
       const predDate = Array.from(matchDates)[0] ?? null;
       const usedByDate = predDate != null && predDate !== playableDate;
       const dailyStatus = allFinished || usedByDate ? "usado" : "em_uso";
-      return { ...t, dailyStatus, playDate: predDate ?? playableDate };
+      const targetDate = predDate ?? playableDate;
+      const availableGames = openMatches
+        .filter((m) => m.dateBR === targetDate)
+        .reduce((acc, m) => (predictedIds.has(m.matchId) ? acc : acc + 1), 0);
+      return { ...t, dailyStatus, playDate: targetDate, availableGames };
     });
+    console.log(
+      "[user-tickets] calc:result",
+      result.map((t) => ({
+        id: t.id,
+        type: t.ticketType,
+        dailyStatus: t.dailyStatus,
+        playDate: t.playDate,
+        availableGames: t.availableGames ?? 0,
+      })),
+    );
+    return result;
   } catch (e) {
     console.error("[user-tickets] listPaidTicketsForUser", e);
     return [];

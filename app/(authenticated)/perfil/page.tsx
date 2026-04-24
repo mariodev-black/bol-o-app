@@ -23,6 +23,8 @@ type RecentPick = {
   id: string;
   home: string;
   away: string;
+  homeLogo: string | null;
+  awayLogo: string | null;
   guess: string;
   result: string;
   hit: boolean;
@@ -78,7 +80,7 @@ export default function PerfilPage() {
     (async () => {
       try {
         const [hRes, rRes, aRes, rankRes] = await Promise.all([
-          fetch("/api/palpites/historico?limit=8", { credentials: "include", cache: "no-store" }),
+          fetch("/api/palpites/historico?limit=10", { credentials: "include", cache: "no-store" }),
           fetch("/api/palpites/resumo", { credentials: "include", cache: "no-store" }),
           fetch("/api/affiliate/summary", { credentials: "include", cache: "no-store" }).catch(() => null),
           fetch("/api/palpites/ranking", { credentials: "include", cache: "no-store" }),
@@ -88,6 +90,8 @@ export default function PerfilPage() {
             matchId: number;
             mandante: string;
             visitante: string;
+            escudoMandante?: string | null;
+            escudoVisitante?: string | null;
             palpiteCasa: number;
             palpiteVisitante: number;
             resultadoCasa: number | null;
@@ -103,6 +107,8 @@ export default function PerfilPage() {
               id: String(h.matchId),
               home: h.mandante,
               away: h.visitante,
+              homeLogo: h.escudoMandante ?? null,
+              awayLogo: h.escudoVisitante ?? null,
               guess: `${h.palpiteCasa}x${h.palpiteVisitante}`,
               result:
                 h.resultadoCasa != null && h.resultadoVisitante != null
@@ -298,7 +304,21 @@ export default function PerfilPage() {
                   </span>
                   <div>
                     <p className="text-sm font-semibold text-white">
-                      {pick.home} <span style={{ color: "rgba(255,255,255,0.45)" }}>vs</span> {pick.away}
+                      <span className="inline-flex items-center gap-1.5">
+                        {pick.homeLogo ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={pick.homeLogo} alt={pick.home} className="w-4 h-4 object-contain" />
+                        ) : null}
+                        <span>{pick.home}</span>
+                      </span>{" "}
+                      <span style={{ color: "rgba(255,255,255,0.45)" }}>vs</span>{" "}
+                      <span className="inline-flex items-center gap-1.5">
+                        {pick.awayLogo ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={pick.awayLogo} alt={pick.away} className="w-4 h-4 object-contain" />
+                        ) : null}
+                        <span>{pick.away}</span>
+                      </span>
                     </p>
                     <p className="hidden lg:block text-[11px] mt-0.5" style={{ color: "rgba(255,255,255,0.32)" }}>
                       {pick.matchInfo}

@@ -8,6 +8,8 @@ type MatchMap = Map<number, {
   resultVisitante: number | null;
   home: string;
   away: string;
+  homeName: string;
+  awayName: string;
   homeLogo: string | null;
   awayLogo: string | null;
   dateBR: string;
@@ -86,6 +88,8 @@ function mapFromCacheRows(rows: Awaited<ReturnType<typeof readMatchesCache>>): M
       resultVisitante: r.result_visitante,
       home: r.home_sigla || r.home_name || "CASA",
       away: r.away_sigla || r.away_name || "VISIT",
+      homeName: r.home_name || r.home_sigla || "CASA",
+      awayName: r.away_name || r.away_sigla || "VISIT",
       homeLogo: r.home_logo ?? null,
       awayLogo: r.away_logo ?? null,
       dateBR: r.date_br || "",
@@ -106,6 +110,8 @@ function mapFromProvider(rows: Awaited<ReturnType<typeof fetchProviderMatches>>)
       resultVisitante: p.resultVisitante,
       home: p.homeSigla || p.homeName || "CASA",
       away: p.awaySigla || p.awayName || "VISIT",
+      homeName: p.homeName || p.homeSigla || "CASA",
+      awayName: p.awayName || p.awaySigla || "VISIT",
       homeLogo: p.homeLogo ?? null,
       awayLogo: p.awayLogo ?? null,
       dateBR: p.dateBR,
