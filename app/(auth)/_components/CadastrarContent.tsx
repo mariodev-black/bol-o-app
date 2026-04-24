@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useAuth } from "@/app/shared/AuthContext";
+import { useAuth, type AuthUser } from "@/app/shared/AuthContext";
 import { useState, useRef, useEffect, useMemo, type FormEvent } from "react";
 import { Eye, EyeOff, ChevronDown, Search } from "lucide-react";
 import * as Flags from "country-flag-icons/react/3x2";
@@ -281,7 +281,7 @@ function CountrySelector({ selected, onChange }: { selected: Country; onChange: 
 export function CadastrarContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { refresh } = useAuth();
+  const { refresh, applySessionUser } = useAuth();
   const [showPw, setShowPw]       = useState(false);
   const [accepted, setAccepted]   = useState(false);
   const [fullName, setFullName]   = useState("");
@@ -362,17 +362,26 @@ export function CadastrarContent() {
           acceptTerms: true,
         }),
       });
-      const data = (await r.json()) as { error?: string; user?: unknown; referralWarning?: string };
+      const data = (await r.json()) as {
+        error?: string;
+        user?: AuthUser;
+        referralWarning?: string;
+      };
       if (!r.ok) {
         setError(data.error ?? "Não foi possível criar a conta.");
         return;
       }
-      await refresh();
+      if (data.user) {
+        applySessionUser(data.user);
+      } else {
+        await refresh();
+      }
       if (data.referralWarning) {
         setNotice(data.referralWarning);
         await new Promise((resolve) => setTimeout(resolve, 2200));
       }
-      router.push("/boloes");
+      router.replace("/boloes");
+      router.refresh();
     } catch {
       setError("Erro de rede. Tente novamente.");
     } finally {

@@ -43,6 +43,7 @@ export function LoginContent() {
     if (!ready || !isLoggedIn) return;
     const next = safeReturnPath(searchParams.get("from")) ?? "/boloes";
     router.replace(next);
+    router.refresh();
   }, [ready, isLoggedIn, router, searchParams]);
 
   const handleSubmit = async (e: FormEvent) => {
@@ -55,7 +56,9 @@ export function LoginContent() {
       setError(result.error);
       return;
     }
-    /* Cookie definido na resposta; `isLoggedIn` atualiza e o useEffect redireciona (evita push duplo). */
+    const next = safeReturnPath(searchParams.get("from")) ?? "/boloes";
+    router.replace(next);
+    router.refresh();
   };
 
   return (
