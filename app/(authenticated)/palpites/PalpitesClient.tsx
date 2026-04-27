@@ -578,12 +578,30 @@ function JogoCard({
 }
 
 // ── Tabela de classificação ───────────────────────────────────
-function TabelaView({ grupo, tabela, onGrupo }: { grupo: string; tabela: TabelaGrupos | null; onGrupo: (g: string) => void }) {
-  if (!tabela) {
+function TabelaView({
+  grupo,
+  tabela,
+  onGrupo,
+  loading,
+}: {
+  grupo: string;
+  tabela: TabelaGrupos | null;
+  onGrupo: (g: string) => void;
+  loading: boolean;
+}) {
+  if (loading) {
     return (
       <div className="flex flex-col items-center py-16">
         <div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-white/60 animate-spin mb-3" />
         <p className="text-white/30 text-sm">Carregando tabela...</p>
+      </div>
+    );
+  }
+  if (!tabela) {
+    return (
+      <div className="flex flex-col items-center py-16">
+        <Disc className="w-10 h-10 mb-3 text-white/20" strokeWidth={1.5} />
+        <p className="text-white/30 text-sm">Tabela indisponível no momento</p>
       </div>
     );
   }
@@ -1425,6 +1443,7 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
   const [loading, setLoading] = useState(!initialData);
   const [erro, setErro] = useState(initialData?.erro ?? false);
   const [tabela, setTabela] = useState<TabelaGrupos | null>(initialData?.tabela ?? null);
+  const [loadingTabela, setLoadingTabela] = useState(false);
   const [resultTab, setResultTab] = useState<ResultTabView>("jogos");
   const [rankingRows, setRankingRows] = useState<RankingRowView[]>(initialData?.rankingRows ?? []);
   const [resumoStats, setResumoStats] = useState<ResumoStats>(initialData?.resumoStats ?? { palpites: 0, acertos: 0, pontos: 0, exatos: 0 });
@@ -1441,15 +1460,18 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
   useEffect(() => {
     if (initialData) {
       setLoading(false);
+      setLoadingTabela(false);
       return;
     }
+    setLoadingTabela(true);
     fetch("/api/tabela")
       .then((r) => r.json())
       .then((data) => {
         const fg = data?.["fase-de-grupos"];
         if (fg) setTabela(fg);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLoadingTabela(false));
 
     fetch("/api/partidas")
       .then(async (r) => {
@@ -1668,6 +1690,17 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
   });
   const showGroupedByGroup = hasBoloesFlow && bolaoType === "principal";
   const gruposComJogos = Array.from(new Set(jogosDisplayBase.map((j) => j.grupo).filter(Boolean))).sort();
+  const pendingByGroup = useMemo(() => {
+    const out: Record<string, number> = {};
+    for (const g of gruposComJogos) {
+      const totalPending = jogosDisplayBase.reduce((acc, j) => {
+        if (j.grupo !== g) return acc;
+        return predictionsMap[j.id] ? acc : acc + 1;
+      }, 0);
+      out[g] = totalPending;
+    }
+    return out;
+  }, [gruposComJogos, jogosDisplayBase, predictionsMap]);
   const jogosPorGrupoRodada = gruposComJogos.map((groupKey) => {
     const rodadasDoGrupo = Array.from(new Set(jogosDisplayBase.filter((j) => j.grupo === groupKey).map((j) => j.rodada))).sort((a, b) => a - b);
     return {
@@ -1679,6 +1712,14 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
     };
   });
   const myRankingPos = rankingRows.find((row) => row.isMe)?.pos ?? null;
+  const scrollToGroup = (groupKey: string) => {
+    setGrupo(groupKey);
+    if (typeof window === "undefined") return;
+    const targetId = window.matchMedia("(min-width: 1024px)").matches ? `desk-group-${groupKey}` : `mob-group-${groupKey}`;
+    const el = document.getElementById(targetId);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
   const jogosById = useMemo(
     () =>
       jogos.reduce((acc, j) => {
@@ -1824,6 +1865,50 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
             </div>
           )}
 
+          {showGroupedByGroup && showJogos && (
+            <div
+              className="sticky top-[84px] lg:top-[60px] z-30 mb-5 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2 border-y border-x-0"
+              style={{
+                background: "linear-gradient(180deg, rgba(10,14,25,0.96) 0%, rgba(10,14,25,0.92) 100%)",
+                borderColor: "rgba(255,255,255,0.08)",
+                backdropFilter: "blur(8px)",
+              }}
+            >
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+                <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/35 shrink-0 pr-1">Grupo</span>
+                {gruposComJogos.map((g) => {
+                  const active = grupo === g;
+                  const pending = pendingByGroup[g] ?? 0;
+                  return (
+                    <button
+                      key={`tray-${g}`}
+                      onClick={() => scrollToGroup(g)}
+                      className="h-10 shrink-0 rounded-xl px-3 inline-flex items-center gap-2 font-bold text-[13px] transition-all"
+                      style={{
+                        background: active ? "linear-gradient(180deg, #FFE8BA 0%, #D4AF37 100%)" : "rgba(255,255,255,0.02)",
+                        color: active ? "#0E141B" : "rgba(255,255,255,0.72)",
+                        border: active ? "1px solid rgba(212,175,55,0.35)" : "1px solid rgba(255,255,255,0.1)",
+                        boxShadow: active ? "0 0 16px rgba(255,175,47,0.35)" : "none",
+                      }}
+                    >
+                      <span>{g}</span>
+                      <span
+                        className="min-w-[18px] h-[18px] rounded-full px-1 inline-flex items-center justify-center text-[10px] font-black"
+                        style={{
+                          background: active ? "rgba(14,20,27,0.16)" : "rgba(212,175,55,0.18)",
+                          color: active ? "#0E141B" : "#FFE8BA",
+                          border: active ? "1px solid rgba(14,20,27,0.2)" : "1px solid rgba(212,175,55,0.28)",
+                        }}
+                      >
+                        {pending}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Desktop: filtro de grupos */}
           {grupos.length > 0 && !readOnlyMode && !hasBoloesFlow && (
             <div className="hidden lg:block mb-6">
@@ -1855,7 +1940,7 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                   </div>
                 ) : showGroupedByGroup ? (
                   jogosPorGrupoRodada.map(({ groupKey, rodadas }) => (
-                    <div key={`group-${groupKey}`}>
+                    <div key={`group-${groupKey}`} id={`mob-group-${groupKey}`} className="scroll-mt-28">
                       <div className="flex items-center gap-3 mb-3 mt-2">
                         <span className="text-[11px] font-bold text-white/35 tracking-widest uppercase shrink-0">{`Grupo ${groupKey}`}</span>
                         <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.08)" }} />
@@ -1904,7 +1989,9 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                 )}
               </div>
             )}
-            {tab === "tabela" && !readOnlyMode && <TabelaView grupo={grupo} tabela={tabela} onGrupo={setGrupo} />}
+            {tab === "tabela" && !readOnlyMode && (
+              <TabelaView grupo={grupo} tabela={tabela} onGrupo={setGrupo} loading={loadingTabela} />
+            )}
             {showRanking ? <RankingView rows={rankingRows} stats={resumoStats} /> : null}
             {showResumo ? (
               <TicketResumoView
@@ -1980,7 +2067,7 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
               </div>
             ) : showGroupedByGroup ? (
               jogosPorGrupoRodada.map(({ groupKey, rodadas }) => (
-                <div key={`desk-group-${groupKey}`} className="mb-6">
+                <div key={`desk-group-${groupKey}`} id={`desk-group-${groupKey}`} className="mb-6 scroll-mt-28">
                   <div className="flex items-center gap-3 mb-4 mt-1">
                     <span className="text-[11px] font-bold text-white/35 tracking-widest uppercase shrink-0">{`Grupo ${groupKey}`}</span>
                     <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.08)" }} />
