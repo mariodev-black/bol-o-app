@@ -1435,6 +1435,8 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
   const showJogos = resultMode ? resultTab === "jogos" : tab === "jogos";
   const showRanking = resultMode ? resultTab === "ranking" : tab === "ranking";
   const showResumo = resultMode ? resultTab === "resumo" : tab === "resumo";
+  const showPredictionsSkeleton =
+    Boolean(ticketId) && loadingPredictions && Object.keys(predictionsMap).length === 0;
 
   useEffect(() => {
     if (initialData) {
@@ -1658,13 +1660,7 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
   const rodadasDisponiveis = Array.from(new Set(jogosDisplayBase.filter((j) => matchesGroup(j)).map((j) => j.rodada))).sort((a, b) => a - b);
   const jogosPorRodada = rodadasDisponiveis.map((idx) => {
     const jogosDaRodada = jogosDisplayBase
-      .filter((j) => matchesGroup(j) && j.rodada === idx)
-      .sort((a, b) => {
-        const aHasPrediction = Boolean(predictionsMap[a.id]);
-        const bHasPrediction = Boolean(predictionsMap[b.id]);
-        if (aHasPrediction !== bHasPrediction) return aHasPrediction ? 1 : -1;
-        return a.id - b.id;
-      });
+      .filter((j) => matchesGroup(j) && j.rodada === idx);
     return {
       label: rodadaLabel(idx),
       jogos: jogosDaRodada,
@@ -1678,14 +1674,7 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
       groupKey,
       rodadas: rodadasDoGrupo.map((idx) => ({
         label: rodadaLabel(idx),
-        jogos: jogosDisplayBase
-          .filter((j) => j.grupo === groupKey && j.rodada === idx)
-          .sort((a, b) => {
-            const aHasPrediction = Boolean(predictionsMap[a.id]);
-            const bHasPrediction = Boolean(predictionsMap[b.id]);
-            if (aHasPrediction !== bHasPrediction) return aHasPrediction ? 1 : -1;
-            return a.id - b.id;
-          }),
+        jogos: jogosDisplayBase.filter((j) => j.grupo === groupKey && j.rodada === idx),
       })),
     };
   });
@@ -1851,7 +1840,7 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                     <AlertTriangle className="w-10 h-10 mb-3 text-white/20" strokeWidth={1.5} />
                     <p className="text-white/30 text-sm">Erro ao carregar partidas</p>
                   </div>
-                ) : loading ? (
+                ) : loading || showPredictionsSkeleton ? (
                   <><CardSkeleton /><CardSkeleton /></>
                 ) : jogosPorRodada.length === 0 ? (
                   <div className="flex flex-col items-center py-16">
@@ -1974,7 +1963,7 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                 <AlertTriangle className="w-10 h-10 mb-3 text-white/20" strokeWidth={1.5} />
                 <p className="text-white/30 text-sm">Erro ao carregar partidas</p>
               </div>
-            ) : loading ? (
+            ) : loading || showPredictionsSkeleton ? (
               <div className="grid grid-cols-2 gap-4">
                 <CardSkeleton /><CardSkeleton /><CardSkeleton /><CardSkeleton />
               </div>
