@@ -1874,7 +1874,7 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                 backdropFilter: "blur(8px)",
               }}
             >
-              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/35 shrink-0 pr-1">Grupo</span>
                 {gruposComJogos.map((g) => {
                   const active = grupo === g;
@@ -1885,10 +1885,10 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                       onClick={() => scrollToGroup(g)}
                       className="h-10 shrink-0 rounded-xl px-3 inline-flex items-center gap-2 font-bold text-[13px] transition-all"
                       style={{
-                        background: active ? "linear-gradient(180deg, #FFE8BA 0%, #D4AF37 100%)" : "rgba(255,255,255,0.02)",
+                        background: active ? "linear-gradient(180deg, #FFE8BA 0%, #FEC554 100%)" : "rgba(255,255,255,0.02)",
                         color: active ? "#0E141B" : "rgba(255,255,255,0.72)",
-                        border: active ? "1px solid rgba(212,175,55,0.35)" : "1px solid rgba(255,255,255,0.1)",
-                        boxShadow: active ? "0 0 16px rgba(255,175,47,0.35)" : "none",
+                        border: active ? "1px solid rgba(255,232,186,0.55)" : "1px solid rgba(255,255,255,0.1)",
+                        boxShadow: active ? "0 1.85px 9.23px rgba(246,202,59,0.4)" : "none",
                       }}
                     >
                       <span>{g}</span>
