@@ -1867,7 +1867,7 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
 
           {showGroupedByGroup && showJogos && (
             <div
-              className="sticky top-[84px] lg:top-[60px] z-30 mb-5 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2 border-y border-x-0"
+              className="sticky top-[60px] lg:top-[60px] z-30 mb-5 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2 border-y border-x-0"
               style={{
                 background: "linear-gradient(180deg, rgba(10,14,25,0.96) 0%, rgba(10,14,25,0.92) 100%)",
                 borderColor: "rgba(255,255,255,0.08)",
