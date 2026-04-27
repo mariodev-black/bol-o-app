@@ -145,19 +145,21 @@ export async function fetchProviderMatches(): Promise<
   if (!apiToken) throw new Error("FOOTBALL_API_TOKEN nao configurado");
   const compId = competitionId();
   debugLog("fetchProviderMatches:start", { competitionId: compId });
-  const fromRounds = await fetchProviderMatchesFromRounds(compId, apiToken).catch(() => []);
-  if (fromRounds.length > 0) {
-    debugLog("fetchProviderMatches:from-rounds", { count: fromRounds.length });
-    return fromRounds;
-  }
-  debugLog("fetchProviderMatches:rounds-empty-fallback-bulk");
 
   const url = `https://api.api-futebol.com.br/v1/campeonatos/${compId}/partidas`;
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${apiToken}` },
     cache: "no-store",
   });
-  if (!res.ok) throw new Error(`Falha ao buscar partidas (${res.status})`);
+  if (!res.ok) {
+    debugLog("fetchProviderMatches:bulk-failed", { status: res.status });
+    const fromRounds = await fetchProviderMatchesFromRounds(compId, apiToken).catch(() => []);
+    if (fromRounds.length > 0) {
+      debugLog("fetchProviderMatches:fallback-from-rounds", { count: fromRounds.length });
+      return fromRounds;
+    }
+    throw new Error(`Falha ao buscar partidas (${res.status})`);
+  }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const data = (await res.json()) as any;
   const fases = data?.partidas as Record<string, unknown> | undefined;
@@ -244,6 +246,13 @@ export async function fetchProviderMatches(): Promise<
     }
   }
   debugLog("fetchProviderMatches:bulk-result", { count: out.length, phaseCount: Object.keys(fases).length });
+  if (out.length === 0) {
+    const fromRounds = await fetchProviderMatchesFromRounds(compId, apiToken).catch(() => []);
+    if (fromRounds.length > 0) {
+      debugLog("fetchProviderMatches:bulk-empty-fallback-rounds", { count: fromRounds.length });
+      return fromRounds;
+    }
+  }
   return out;
 }
 

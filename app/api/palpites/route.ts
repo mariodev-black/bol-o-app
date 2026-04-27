@@ -123,6 +123,10 @@ export async function POST(request: NextRequest) {
   if (lockMs != null && Date.now() >= lockMs) {
     return NextResponse.json({ error: "Palpite bloqueado: faltam menos de 1h para a partida" }, { status: 400 });
   }
+  const kickoffMs = match.kickoffAt ? new Date(match.kickoffAt).getTime() : null;
+  if (kickoffMs != null && Number.isFinite(kickoffMs) && Date.now() >= kickoffMs) {
+    return NextResponse.json({ error: "Partida ja iniciada para palpites" }, { status: 400 });
+  }
   if (bolaoType === "diario") {
     const today = brToday();
     const playableDate = resolveDiarioPlayableDate(matchMap);

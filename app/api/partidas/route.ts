@@ -93,13 +93,17 @@ export async function GET() {
   try {
     const dbg = ["1", "true", "yes"].includes((process.env.DEBUG_MATCHES_SYNC || "").trim().toLowerCase());
     await syncMatchesCache({ fetchProviderMatches, force: false });
-    const rows = await readMatchesCache();
+    let rows = await readMatchesCache();
     if (dbg) console.log("[api/partidas] cache-after-soft-sync", { count: rows.length });
-    if (rows.length === 0) {
+    // Se o cache vier muito pequeno, força refresh para evitar ficar preso em payload parcial.
+    const beforeForceCount = rows.length;
+    const seemsIncomplete = rows.length > 0 && rows.length < 64;
+    if (rows.length === 0 || seemsIncomplete) {
       await syncMatchesCache({ fetchProviderMatches, force: true });
-      if (dbg) console.log("[api/partidas] forced-sync-triggered");
+      rows = await readMatchesCache();
+      if (dbg) console.log("[api/partidas] forced-sync-triggered", { previousCount: beforeForceCount, currentCount: rows.length, seemsIncomplete });
     }
-    const stableRows = (await readMatchesCache()).sort((a, b) => a.match_id - b.match_id);
+    const stableRows = rows.sort((a, b) => a.match_id - b.match_id);
     const todayMs = todayBRDateMs();
     const displayRows = stableRows.filter((row) => {
       const dateMs = brDateToUtcMs(String(row.date_br ?? ""));

@@ -1641,7 +1641,7 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
     const ms = brDateToUtcMs(j.dataBR);
     if (ms == null || todayMs == null) return true;
     if (bolaoType === "diario") return j.dataBR === diarioPlayableDate;
-    return ms >= todayMs;
+    return true;
   });
   const nowMs = Date.now();
   const diarioLockedMode =
@@ -1653,13 +1653,12 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
     bolaoType === "diario" && diarioLockedMode
       ? jogosBase.filter((j) => Boolean(predictionsMap[j.id]))
       : jogosBase;
-  const grupoFiltro = grupos.length > 0 ? grupo : "GERAL";
-  const rodadasDisponiveis = Array.from(new Set(jogosDisplayBase.filter((j) => j.grupo === grupoFiltro).map((j) => j.rodada))).sort(
-    (a, b) => a - b
-  );
+  const shouldFilterByGroup = !hasBoloesFlow && grupos.length > 0;
+  const matchesGroup = (j: Jogo) => (shouldFilterByGroup ? j.grupo === grupo : true);
+  const rodadasDisponiveis = Array.from(new Set(jogosDisplayBase.filter((j) => matchesGroup(j)).map((j) => j.rodada))).sort((a, b) => a - b);
   const jogosPorRodada = rodadasDisponiveis.map((idx) => {
     const jogosDaRodada = jogosDisplayBase
-      .filter((j) => j.grupo === grupoFiltro && j.rodada === idx)
+      .filter((j) => matchesGroup(j) && j.rodada === idx)
       .sort((a, b) => {
         const aHasPrediction = Boolean(predictionsMap[a.id]);
         const bHasPrediction = Boolean(predictionsMap[b.id]);

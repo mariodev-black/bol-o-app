@@ -8,20 +8,6 @@ import { fetchMatchesMap } from "@/lib/football-api";
 const MESES = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
 type StatusJogo = "aberto" | "encerrado";
 
-function todayBR(): string {
-  return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo" }).format(new Date());
-}
-
-function brDateToUtcMs(dateBR: string): number | null {
-  const [d, m, y] = dateBR.split("/");
-  if (!d || !m || !y) return null;
-  const day = Number(d);
-  const month = Number(m);
-  const year = Number(y);
-  if (!Number.isFinite(day) || !Number.isFinite(month) || !Number.isFinite(year)) return null;
-  return Date.UTC(year, month - 1, day);
-}
-
 function formatData(dataStr?: string | null, isoStr?: string | null): string {
   const normalized = String(dataStr ?? "").trim();
   if (normalized && normalized !== "undefined" && normalized !== "null" && normalized.includes("/")) {
@@ -188,12 +174,7 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
   const faseKey = fases?.["fase-de-grupos"] ? "fase-de-grupos" : (fases ? Object.keys(fases)[0] : undefined);
   const faseSelecionada = faseKey ? fases?.[faseKey] : null;
   const jogos = faseSelecionada && typeof faseSelecionada === "object" ? parsePartidas(faseSelecionada) : [];
-  const todayMs = brDateToUtcMs(todayBR());
-  const jogosFiltrados = jogos.filter((j) => {
-    const ms = brDateToUtcMs(j.dataBR);
-    if (ms == null || todayMs == null) return true;
-    return ms >= todayMs;
-  });
+  const jogosFiltrados = jogos;
   const grupos = faseSelecionada && typeof faseSelecionada === "object"
     ? Object.keys(faseSelecionada).filter((k) => k.startsWith("grupo-")).map((k) => k.replace("grupo-", "").toUpperCase()).sort()
     : [];
