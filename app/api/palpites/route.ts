@@ -4,6 +4,8 @@ import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 import { fetchMatchesMap } from "@/lib/football-api";
 import { getPredictionByUserTicketMatch, listPredictions, upsertPrediction } from "@/lib/predictions";
 import { inferBolaoTypeFromTicketId } from "@/lib/ticket-kind-server";
+import { inferBolaoTypeFromTicketPrefix } from "@/lib/ticket-kind-shared";
+import { getPool } from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -65,6 +67,39 @@ function isFinishedStatus(status: string): boolean {
   );
 }
 
+function isUuidTicketId(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value.trim());
+}
+
+async function resolveOwnedTicketType(userId: string, ticketId: string): Promise<"principal" | "diario" | null> {
+  const raw = ticketId.trim();
+  if (!raw) return null;
+
+  // Legado local (TG/TD) continua suportado.
+  const fromPrefix = inferBolaoTypeFromTicketPrefix(raw);
+  if (fromPrefix && !isUuidTicketId(raw)) return fromPrefix;
+
+  if (isUuidTicketId(raw)) {
+    const pool = getPool();
+    const { rows } = await pool.query<{ ticket_type: "general" | "daily" }>(
+      `SELECT ticket_type
+       FROM tickets
+       WHERE id::text = $1
+         AND user_id = $2
+         AND status = 'paid'
+       LIMIT 1`,
+      [raw, userId],
+    );
+    const tt = rows[0]?.ticket_type;
+    if (tt === "general") return "principal";
+    if (tt === "daily") return "diario";
+    return null;
+  }
+
+  // Fallback final para formatos antigos não UUID.
+  return inferBolaoTypeFromTicketId(raw);
+}
+
 export async function GET(request: NextRequest) {
   const userId = await authUserId(request);
   if (!userId) return NextResponse.json({ error: "Nao autenticado" }, { status: 401 });
@@ -76,7 +111,7 @@ export async function GET(request: NextRequest) {
         ? "principal"
         : undefined;
   if (ticketId) {
-    const inferred = await inferBolaoTypeFromTicketId(ticketId);
+    const inferred = await resolveOwnedTicketType(userId, ticketId);
     if (!inferred) return NextResponse.json({ error: "Ticket invalido" }, { status: 400 });
     bolaoType = inferred;
   }
@@ -108,7 +143,7 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: "Dados invalidos" }, { status: 400 });
 
   const data = parsed.data;
-  const bolaoType = await inferBolaoTypeFromTicketId(data.ticketId);
+  const bolaoType = await resolveOwnedTicketType(userId, data.ticketId);
   if (!bolaoType) return NextResponse.json({ error: "Ticket invalido" }, { status: 400 });
   const matchMap = await fetchMatchesMap();
   const match = matchMap.get(data.matchId);

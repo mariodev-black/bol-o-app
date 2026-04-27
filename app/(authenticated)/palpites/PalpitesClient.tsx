@@ -1670,6 +1670,25 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
       jogos: jogosDaRodada,
     };
   });
+  const showGroupedByGroup = hasBoloesFlow && bolaoType === "principal";
+  const gruposComJogos = Array.from(new Set(jogosDisplayBase.map((j) => j.grupo).filter(Boolean))).sort();
+  const jogosPorGrupoRodada = gruposComJogos.map((groupKey) => {
+    const rodadasDoGrupo = Array.from(new Set(jogosDisplayBase.filter((j) => j.grupo === groupKey).map((j) => j.rodada))).sort((a, b) => a - b);
+    return {
+      groupKey,
+      rodadas: rodadasDoGrupo.map((idx) => ({
+        label: rodadaLabel(idx),
+        jogos: jogosDisplayBase
+          .filter((j) => j.grupo === groupKey && j.rodada === idx)
+          .sort((a, b) => {
+            const aHasPrediction = Boolean(predictionsMap[a.id]);
+            const bHasPrediction = Boolean(predictionsMap[b.id]);
+            if (aHasPrediction !== bHasPrediction) return aHasPrediction ? 1 : -1;
+            return a.id - b.id;
+          }),
+      })),
+    };
+  });
   const myRankingPos = rankingRows.find((row) => row.isMe)?.pos ?? null;
   const jogosById = useMemo(
     () =>
@@ -1845,6 +1864,34 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                           : "Nenhum jogo neste grupo"}
                     </p>
                   </div>
+                ) : showGroupedByGroup ? (
+                  jogosPorGrupoRodada.map(({ groupKey, rodadas }) => (
+                    <div key={`group-${groupKey}`}>
+                      <div className="flex items-center gap-3 mb-3 mt-2">
+                        <span className="text-[11px] font-bold text-white/35 tracking-widest uppercase shrink-0">{`Grupo ${groupKey}`}</span>
+                        <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.08)" }} />
+                      </div>
+                      {rodadas.map(({ label, jogos: rJogos }) => (
+                        <div key={`${groupKey}-${label}`}>
+                          <div className="flex items-center gap-3 mb-3 mt-1">
+                            <span className="text-[11px] font-bold text-white/30 tracking-widest uppercase shrink-0">{label}</span>
+                            <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.06)" }} />
+                          </div>
+                          {rJogos.map((jogo) => (
+                            <JogoCard
+                              key={jogo.id}
+                              jogo={jogo}
+                              readOnly={readOnlyMode}
+                              ticketId={ticketId}
+                              initialPrediction={predictionsMap[jogo.id] ?? null}
+                              predictionsLoading={loadingPredictions}
+                              onSavePrediction={savePrediction}
+                            />
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  ))
                 ) : (
                   jogosPorRodada.map(({ label, jogos: rJogos }) => (
                     <div key={label}>
@@ -1942,6 +1989,36 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                       : "Nenhum jogo neste grupo"}
                 </p>
               </div>
+            ) : showGroupedByGroup ? (
+              jogosPorGrupoRodada.map(({ groupKey, rodadas }) => (
+                <div key={`desk-group-${groupKey}`} className="mb-6">
+                  <div className="flex items-center gap-3 mb-4 mt-1">
+                    <span className="text-[11px] font-bold text-white/35 tracking-widest uppercase shrink-0">{`Grupo ${groupKey}`}</span>
+                    <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.08)" }} />
+                  </div>
+                  {rodadas.map(({ label, jogos: rJogos }) => (
+                    <div key={`desk-${groupKey}-${label}`} className="mb-5">
+                      <div className="flex items-center gap-3 mb-4">
+                        <span className="text-[11px] font-bold text-white/30 tracking-widest uppercase shrink-0">{label}</span>
+                        <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.06)" }} />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        {rJogos.map((jogo) => (
+                          <JogoCard
+                            key={jogo.id}
+                            jogo={jogo}
+                            readOnly={readOnlyMode}
+                            ticketId={ticketId}
+                            initialPrediction={predictionsMap[jogo.id] ?? null}
+                            predictionsLoading={loadingPredictions}
+                            onSavePrediction={savePrediction}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))
             ) : (
               jogosPorRodada.map(({ label, jogos: rJogos }) => (
                 <div key={label} className="mb-6">
