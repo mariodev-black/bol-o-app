@@ -102,7 +102,7 @@ export function FlagsMarquee() {
 
       <div
         className="h-px w-full mt-5"
-        style={{ background: "linear-gradient(90deg, transparent, #DAB682 30%, #DAB682 70%, transparent)" }}
+        style={{ background: "linear-gradient(90deg, transparent, #C6FF00 30%, #C6FF00 70%, transparent)" }}
       />
     </section>
   );
