@@ -83,7 +83,7 @@ function AnimatedPremiacaoBars() {
   return (
     <div
       ref={ref}
-      className="mt-8 flex flex-1 items-end justify-center gap-3 sm:mt-10 sm:gap-5 lg:mt-12 lg:justify-between lg:px-2"
+      className="mt-8 flex flex-1 items-end justify-center gap-3 sm:mt-10 sm:gap-5 lg:mt-12 lg:justify-between lg:px-10"
     >
       {CHART_BARS.map(({ topLabel, tall }, i) => (
         <div
@@ -161,19 +161,19 @@ export function PrizesTestimonialsSection() {
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-8">
           {/* O que você está disputando */}
           <div className={`${CARD_SHELL} lg:min-h-[280px]`}>
-            <h3 className="mb-5 text-center text-[15px] font-bold uppercase tracking-wide text-white sm:text-base lg:mb-6">
+            <h3 className="mb-5 text-center text-[15px] font-bold tracking-wide text-white sm:text-[32px] lg:mb-6">
               O que você está disputando
             </h3>
 
-            <div className="grid min-h-0 flex-1 grid-cols-1 gap-5 lg:min-h-[17.5rem] lg:grid-cols-[minmax(0,260px)_minmax(0,1fr)] lg:items-stretch lg:gap-8">
+            <div className="grid min-h-0 flex-1 grid-cols-1 gap-5 lg:min-h-[17.5rem] lg:grid-cols-[minmax(0,300px)_minmax(0,1fr)] lg:items-stretch lg:gap-4">
               {/* Largura fixa moderada: não rouba espaço da lista (evita quebra dos valores) */}
-              <div className="mx-auto flex w-full max-w-[260px] shrink-0 flex-col items-center justify-center justify-self-center rounded-2xl border-2 border-primary/55 bg-black px-5 py-6 sm:max-w-[280px] lg:mx-0 lg:w-full lg:max-w-none lg:justify-self-stretch lg:self-stretch lg:py-8">
+              <div className="mx-auto flex w-full max-w-[260px] shrink-0 flex-col items-center justify-center justify-self-center rounded-2xl border-2 border-primary/55 bg-black px-1 py-6 sm:max-w-[280px] lg:mx-0 lg:w-full lg:max-w-none lg:justify-self-stretch lg:self-stretch lg:py-8">
                 <Trophy
                   className="mb-3 size-10 text-white sm:size-11"
                   strokeWidth={1.25}
                   aria-hidden
                 />
-                <p className="text-center text-2xl font-black tabular-nums leading-none text-primary sm:text-3xl">
+                <p className="text-center text-2xl font-black tabular-nums leading-none text-primary sm:text-[40px]">
                   R$ 500.000
                 </p>
                 <p className="mt-2 text-center text-xs font-semibold uppercase tracking-wider text-white/80">
@@ -203,11 +203,11 @@ export function PrizesTestimonialsSection() {
           <div
             className={`${CARD_SHELL} min-h-[300px] sm:min-h-[360px] lg:min-h-[420px]`}
           >
-            <h3 className="text-center text-[15px] font-bold uppercase leading-snug tracking-wide sm:text-lg lg:text-left">
+            <h3 className="text-center text-[15px] font-bold uppercase leading-snug tracking-wide sm:text-[32px] lg:text-center">
               <span className="text-white">A premiação </span>
               <span className="text-primary">aumenta!</span>
             </h3>
-            <p className="mx-auto mt-2 max-w-md text-center text-[13px] leading-relaxed text-white/70 sm:text-sm lg:mx-0 lg:text-left">
+            <p className="mt-2 text-center text-[13px] leading-relaxed text-white/70 sm:text-[16px] lg:mx-0 lg:text-center font-[500]">
               Quanto mais cotas vendidas, maior o prêmio final.
             </p>
 
@@ -216,23 +216,23 @@ export function PrizesTestimonialsSection() {
         </div>
 
         {/* Título central */}
-        <h2 className="mx-auto mt-14 max-w-4xl text-center text-[clamp(1.35rem,4.2vw,2.75rem)] font-black uppercase leading-[1.12] tracking-tight sm:mt-16 lg:mt-20">
+        <h2 className="mx-auto mt-14 max-w-4xl text-center text-[clamp(1.35rem,4.2vw,2.50rem)] font-bold uppercase leading-[1.12] tracking-tight sm:mt-16 lg:mt-36">
           <span className="text-white">Quem já está dentro, </span>
           <span className="text-primary">aprova!</span>
         </h2>
 
         {/* Depoimentos */}
-        <div className="mx-auto mt-10 grid max-w-[1200px] grid-cols-1 gap-4 sm:mt-12 sm:gap-5 lg:mt-14 lg:grid-cols-3">
+        <div className="mx-auto mt-10 grid max-w-[1200px] grid-cols-1 gap-4 sm:mt-12 sm:gap-5 lg:mt-30 lg:grid-cols-3 ">
           {TESTIMONIALS.map(({ name, quote }) => (
             <article
               key={name}
               className="flex flex-col rounded-2xl border border-white/10 bg-[#000] px-5 py-5 sm:px-6 sm:py-6"
             >
-              <p className="flex-1 text-[14px] leading-relaxed text-white/92 sm:text-[15px]">
+              <p className="flex-1 text-[14px] leading-relaxed text-white/92 sm:text-[16px] font-[500]">
                 {quote}
               </p>
               <div className="mt-5 flex items-end justify-between gap-3 border-t border-white/[0.06] pt-4">
-                <span className="text-sm font-bold text-primary sm:text-base">
+                <span className="text-sm font-bold text-primary sm:text-[16px] font-[500]">
                   {name}
                 </span>
                 <div className="flex shrink-0 gap-0.5" aria-hidden>
