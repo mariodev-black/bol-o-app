@@ -13,7 +13,7 @@ import {
   Building2,
   BookOpen,
 } from "lucide-react";
-import logo        from "@/app/assets/logo.png";
+import logo        from "@/app/assets/logo.svg";
 import criciuma   from "@/app/assets/criciuma.png";
 import vilaNova   from "@/app/assets/vila-nova.png";
 import vivoKeyd   from "@/app/assets/vivo-keyd.png";

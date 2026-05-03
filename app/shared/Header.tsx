@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import logo from "@/app/assets/logo.png";
+import logo from "@/app/assets/logo.svg";
 import { Bell, Menu as MenuIcon } from "lucide-react";
 import { useAuth } from "@/app/shared/AuthContext";
 import { useSidenav } from "@/app/shared/SidenavContext";
