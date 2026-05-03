@@ -1690,17 +1690,6 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
   });
   const showGroupedByGroup = hasBoloesFlow && bolaoType === "principal";
   const gruposComJogos = Array.from(new Set(jogosDisplayBase.map((j) => j.grupo).filter(Boolean))).sort();
-  const pendingByGroup = useMemo(() => {
-    const out: Record<string, number> = {};
-    for (const g of gruposComJogos) {
-      const totalPending = jogosDisplayBase.reduce((acc, j) => {
-        if (j.grupo !== g) return acc;
-        return predictionsMap[j.id] ? acc : acc + 1;
-      }, 0);
-      out[g] = totalPending;
-    }
-    return out;
-  }, [gruposComJogos, jogosDisplayBase, predictionsMap]);
   const jogosPorGrupoRodada = gruposComJogos.map((groupKey) => {
     const rodadasDoGrupo = Array.from(new Set(jogosDisplayBase.filter((j) => j.grupo === groupKey).map((j) => j.rodada))).sort((a, b) => a - b);
     return {
@@ -1878,12 +1867,11 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                 <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/35 shrink-0 pr-1">Grupo</span>
                 {gruposComJogos.map((g) => {
                   const active = grupo === g;
-                  const pending = pendingByGroup[g] ?? 0;
                   return (
                     <button
                       key={`tray-${g}`}
                       onClick={() => scrollToGroup(g)}
-                      className="h-10 shrink-0 rounded-xl px-3 inline-flex items-center gap-2 font-bold text-[13px] transition-all"
+                      className="h-10 min-w-[40px] shrink-0 rounded-xl px-3 inline-flex items-center justify-center font-bold text-[13px] transition-all"
                       style={{
                         background: active ? "linear-gradient(180deg, #FFE8BA 0%, #FEC554 100%)" : "rgba(255,255,255,0.02)",
                         color: active ? "#0E141B" : "rgba(255,255,255,0.72)",
@@ -1891,17 +1879,7 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                         boxShadow: active ? "0 1.85px 9.23px rgba(246,202,59,0.4)" : "none",
                       }}
                     >
-                      <span>{g}</span>
-                      <span
-                        className="min-w-[18px] h-[18px] rounded-full px-1 inline-flex items-center justify-center text-[10px] font-black"
-                        style={{
-                          background: active ? "rgba(14,20,27,0.16)" : "rgba(212,175,55,0.18)",
-                          color: active ? "#0E141B" : "#FFE8BA",
-                          border: active ? "1px solid rgba(14,20,27,0.2)" : "1px solid rgba(212,175,55,0.28)",
-                        }}
-                      >
-                        {pending}
-                      </span>
+                      {g}
                     </button>
                   );
                 })}
