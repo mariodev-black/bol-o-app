@@ -1,127 +1,108 @@
-import Link from "next/link";
 import { Header } from "@/app/shared/Header";
+import { HomePageContainer } from "@/app/shared/HomePageContainer";
 import { Footer } from "@/app/shared/Footer";
 import { NavBottom } from "@/app/shared/NavBottom";
-import { HeroCarousel } from "@/app/shared/HeroCarousel";
-import { Button } from "@/app/(authenticated)/components/ui/button";
-import { ExternalLink, ChevronRight } from "lucide-react";
-import TacaText from "@/app/assets/taca-text.png";
-import { FlagsMarquee } from "@/app/shared/FlagsMarquee";
-import { InfluencersSection } from "@/app/shared/InfluencersSection";
-import { ComoParticipar } from "@/app/shared/ComoParticipar";
-import { SistemaPontuacao } from "@/app/shared/SistemaPontuacao";
-import { RankingAtual } from "@/app/shared/RankingAtual";
-import { PremiacaoBolao } from "@/app/shared/PremiacaoBolao";
+import { BarChart3, Trophy, Users } from "lucide-react";
+import bgHeroDesktop from "@/app/assets/home-desk.png";
+import bgPixel from "@/app/assets/bg-hero-pixels.png";
+
+const HERO_STATS = [
+  {
+    icon: Users,
+    headline: "+100.000",
+    subline: "participantes",
+  },
+  {
+    icon: Trophy,
+    headline: "R$1.000.000",
+    subline: "em prêmios",
+  },
+  {
+    icon: BarChart3,
+    headline: "Ranking",
+    subline: "em tempo real",
+  },
+] as const;
 
 export default function HomePage() {
   return (
-    <div className="flex flex-col bg-background pt-16">
+    <HomePageContainer>
       <Header />
-
-      {/* Banner carousel */}
-
-      {/* Hero original */}
-      <section
-        className="relative flex items-center justify-center overflow-hidden bg-transparent">
-
-        <div className="relative z-10 w-full max-w-4xl md:max-w-full  px-5 sm:px-10 py-8 flex flex-col items-center text-center">
-
-          {/* Carousel dentro do container com bordas */}
-          <div className="w-full rounded-2xl overflow-hidden mb-8" style={{ border: "1px solid rgba(255,255,255,0.1)" }}>
-            <HeroCarousel />
-          </div>
-
-          <div className="flex items-center gap-3 mb-2">
-            <span className="h-px w-8 bg-[#DAB682]/70 md:w-15" />
-            <span
-              className="text-3xl sm:text-4xl lg:text-5xl font-extrabold md:font-black uppercase tracking-normal text-nowrap"
-              style={{
-                background: "linear-gradient(90deg, #D4AF37, #FFE8BA)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-              }}
+      <div className="relative w-full">
+        <div
+          style={{
+            backgroundImage: `url(${bgPixel.src})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center top",
+            backgroundRepeat: "no-repeat",
+          }}
+          className="font-helvetica-now-display grid w-full grid-cols-1 items-center gap-y-8 px-4 pt-5 text-white sm:px-6 md:px-8 lg:grid-cols-2 lg:gap-x-8 lg:gap-y-0 lg:px-10 xl:gap-x-12 xl:px-14 2xl:px-20"
+        >
+          <div className="mx-auto flex w-full max-w-lg flex-col items-center justify-center gap-2.5 text-center sm:max-w-xl sm:gap-3 lg:mx-0 lg:max-w-none lg:items-start lg:gap-3.5 lg:text-left">
+            <div className="hero-fluid-title font-black">
+              <span className="block text-primary">O MAIOR BOLÃO</span>
+              <span className="block text-white">DA COPA 2026</span>
+            </div>
+            <p className="hero-fluid-lead font-bold text-white">
+              + de <span className="text-primary">R$1.000.000</span> em
+              premiações
+            </p>
+            <p className="hero-fluid-body font-light text-white/95 lg:mx-0">
+              Dê seus palpites, fique entre os 10% melhores e concorra a prêmios
+              que podem mudar sua vida.
+            </p>
+            <button
+              type="button"
+              className="hero-fluid-cta animate-cta-pulse-glow relative mt-3 overflow-visible rounded-[14px] bg-primary px-7 py-3.5 font-bold text-[#0E141B] transition-[transform,box-shadow,background-color] duration-300 ease-out hover:-translate-y-0.5 hover:animate-none hover:bg-[#c4f43a] hover:shadow-[0_10px_40px_rgba(177,235,11,0.45)] active:translate-y-0 active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:mt-4 sm:px-10 sm:py-4 lg:mt-5"
             >
-              Bolão do Milhão
-            </span>
-            <span className="h-px w-8 bg-[#DAB682]/70 md:w-15" />
+              <span className="relative z-10">
+                GARANTIR MINHA COTA R$ 49,90
+              </span>
+            </button>
+            <div className="mt-6 flex w-full max-w-2xl flex-wrap justify-center gap-6 sm:mt-5 sm:flex-nowrap sm:gap-6 md:gap-8 lg:mt-8 lg:max-w-none lg:justify-start lg:gap-8 xl:gap-10">
+              {HERO_STATS.map(({ icon: Icon, headline, subline }) => (
+                <div
+                  key={subline}
+                  className="flex min-w-0 items-center gap-2.5"
+                >
+                  <div className="flex size-[clamp(2.75rem,4vw,3.25rem)] shrink-0 items-center justify-center rounded-full border border-primary/35 bg-black/50">
+                    <Icon
+                      className="size-[clamp(1.25rem,2.2vw,1.625rem)] text-primary"
+                      strokeWidth={1.35}
+                      aria-hidden
+                    />
+                  </div>
+                  <div className="min-w-0 text-left">
+                    <p className="hero-fluid-stat-head font-bold leading-tight text-primary">
+                      {headline}
+                    </p>
+                    <p className="hero-fluid-stat-sub font-light leading-tight text-white/90">
+                      {subline}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-
-          <h1 className="flex items-center justify-center gap-2 flex-wrap text-[20px] sm:text-3xl lg:text-5xl font-black text-white uppercase leading-tight tracking-tight md:mb-6">
-            <span>Copa do Mundo</span>
+          <div className="flex h-full w-full items-end justify-end">
             <img
-              src={TacaText.src}
-              alt="Troféu"
-              className="inline-block h-7 sm:h-9 lg:h-12 w-auto object-contain"
-              style={{ verticalAlign: "middle" }}
+              src={bgHeroDesktop.src}
+              alt="Bolão da Copa 2026 — premiação e ranking"
+              className="w-full"
             />
-            <span>2026</span>
-          </h1>
-
-          <p className="mt-5 text-base sm:text-lg text-white/75 max-w-md leading-relaxed md:hidden block">
-            Participe do maior bolão da copa e <br />{" "}
-            <strong className="text-white font-bold">concorra a milhões</strong>
-          </p>
-          <p className="mt-5 text-base sm:text-lg text-white/75 max-w-md leading-relaxed md:flex gap-2 hidden w-full text-nowrap">
-            Participe do maior bolão da copa e<strong className="text-white font-bold">concorra a milhões</strong>
-          </p>
-
-          <div
-            className="mt-8 flex flex-row items-center gap-[2px] sm:gap-4 text-sm sm:text-base text-white/70 rounded-sm"
-            style={{
-              padding: "6.6px 26.5px",
-              background: "linear-gradient(rgba(0,0,0,0.25), rgba(0,0,0,0.25)) padding-box, linear-gradient(90deg, transparent 0%, rgba(180,140,50,0.5) 50%, transparent 100%) border-box",
-              border: "1px solid transparent",
-            }}
-          >
-            <span className="whitespace-nowrap">
-              Participantes:{" "}
-              <strong className="font-bold" style={{ color: "#DAB682" }}>124.582</strong>
-            </span>
-            <span className="text-white/20 shrink-0">|</span>
-            <span className="whitespace-nowrap">
-              Premiações:{" "}
-              <strong className="font-bold" style={{ color: "#DAB682" }}>
-                + de R$ 1 Milhão
-              </strong>
-            </span>
-          </div>
-
-          <div
-            className="mt-8 flex items-center gap-2 rounded-full p-2 md:mt-14"
-            style={{ backgroundColor: "rgba(0,0,0,0.45)" }}
-          >
-            <Button asChild size="lg" className="rounded-full px-10 text-base font-bold h-13 shadow-lg shadow-amber-500/20">
-              <Link href="/tickets">Adquirir Ticket</Link>
-            </Button>
-            <Link
-              href="/tickets"
-              aria-label="Abrir em nova aba"
-              className="flex items-center justify-center h-13 w-13 rounded-full text-white/80 hover:text-white hover:bg-white/10 transition-colors shrink-0"
-            >
-              <ExternalLink className="w-5 h-5" />
-            </Link>
           </div>
         </div>
-      </section>
-      <FlagsMarquee />
-      <InfluencersSection />
-      <ComoParticipar />
-
-      {/* Divisória com gradiente dourado */}
-      <div className="flex justify-center px-5" style={{ backgroundColor: "#0E141B" }}>
         <div
-          className="w-full max-w-md h-px"
+          className="pointer-events-none absolute bottom-0 left-0 right-0 h-[324px] lg:left-1/2 lg:right-0"
           style={{
-            background: "linear-gradient(90deg, transparent 0%, rgba(254,197,84,0.5) 50%, transparent 100%)",
+            background:
+              "linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.81) 61%, #000 76%, #000 100%)",
           }}
+          aria-hidden
         />
       </div>
-
-      <SistemaPontuacao />
-      <RankingAtual />
-      <PremiacaoBolao />
       <Footer />
       <NavBottom />
-    </div>
+    </HomePageContainer>
   );
 }

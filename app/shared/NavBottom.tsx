@@ -78,7 +78,7 @@ export function NavBottom() {
     .split(/\s+/)
     .filter(Boolean)
     .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
+    .map((part: string) => part[0]?.toUpperCase() ?? "")
     .join("")
     .slice(0, 2) || "MC";
 
@@ -161,6 +161,9 @@ export function NavBottom() {
   }, []);
 
   if (!ready) return null;
+
+  const onHomeUnauthenticated = normalizedPath === "/" && !isLoggedIn;
+  if (onHomeUnauthenticated) return null;
 
   return (
     <>

@@ -9,12 +9,10 @@ import { useAuth } from "@/app/shared/AuthContext";
 import { useSidenav } from "@/app/shared/SidenavContext";
 
 const NAV_LINKS = [
-  { label: "Home", href: "/" },
-  { label: "Bolões", href: "/boloes" },
-  { label: "Ranking", href: "/ranking" },
-  { label: "Indique e ganhe", href: "/indique" },
-  { label: "Regulamento", href: "/regulamento" },
-  { label: "Termos", href: "/termos" },
+  { label: "Como funciona?", href: "#como-funciona" },
+  { label: "Sistema de pontos", href: "#sistema-de-pontos" },
+  { label: "Cotas", href: "#cotas" },
+  { label: "Criar conta gratuitamente", href: "/cadastrar" },
 ];
 
 const NAV_LINKS_LOGGED = [
@@ -38,11 +36,20 @@ export function Header() {
   if (isLoggedIn) {
     return (
       <header
-        className="fixed top-0 left-0 right-0 z-50 w-full flex items-center justify-between px-5 lg:px-10 h-16"
-        style={{ backgroundColor: "#060B18" }}
+        className="fixed top-0 left-0 right-0 z-50 w-full flex items-center justify-between px-5 lg:px-10 h-[86.5px]"
+        style={{ backgroundColor: "#000000" }}
       >
         <Link href="/" className="flex items-center shrink-0" aria-label="Início">
-          <Image src={logo} alt="Bolão do Milhão" height={44} priority />
+          <Image
+            src={logo}
+            alt="Bolão do Milhão"
+            width={106}
+            height={44}
+            quality={100}
+            sizes="106px"
+            priority
+            className="h-11 w-auto"
+          />
         </Link>
 
         <nav className="hidden lg:flex items-center gap-7">
@@ -61,7 +68,7 @@ export function Header() {
               <Link
                 key={label}
                 href={href}
-                className="text-sm font-semibold transition-colors hover:text-white"
+                className="text-sm font-medium transition-colors hover:text-white"
                 style={{ color: isActive ? "#D4AF37" : "rgba(255,255,255,0.58)" }}
               >
                 {label}
@@ -110,69 +117,43 @@ export function Header() {
     );
   }
 
+  const hideOnMobileGuestHome = (pathname ?? "") === "/";
+
   return (
     <header
-      className="fixed top-0 left-0 right-0 z-50 w-full flex items-center justify-between px-6 lg:px-10 h-16"
-      style={{ backgroundColor: "#060B18" }}
+      className={[
+        "fixed top-0 left-0 right-0 z-50 w-full items-center justify-center lg:justify-between px-6 lg:px-20 h-[86.5px]",
+        hideOnMobileGuestHome ? "hidden lg:flex" : "flex",
+      ].join(" ")}
+      style={{ backgroundColor: "#000000" }}
     >
-      {/* Logo */}
+      {/* Logo — centralizado no mobile sem login; à esquerda no lg */}
       <Link href="/" className="flex items-center shrink-0" aria-label="Início">
-        <Image src={logo} alt="Bolão do Milhão" height={44} priority />
+        <Image
+          src={logo}
+          alt="Bolão do Milhão"
+          width={106}
+          height={44}
+          quality={100}
+          sizes="106px"
+          priority
+          className="h-11 w-auto"
+        />
       </Link>
 
-      {/* Nav central — apenas desktop */}
-      <nav className="hidden lg:flex items-center gap-8">
-        {NAV_LINKS.map(({ label, href }) => {
-          const isActive =
-            href === "/"
-              ? pathname === "/"
-              : href === "/boloes"
-                ? pathname.startsWith("/boloes") || pathname.startsWith("/palpites") || pathname.startsWith("/meus-palpites")
-                : pathname.startsWith(href);
-          return (
+      <nav className="hidden lg:flex items-center gap-7">
+        {NAV_LINKS.map(({ label, href }, index) => (
+          <div key={label} className="flex items-center gap-7">
+            {index === 3 && <span className="h-3 w-px bg-white/42" aria-hidden="true" />}
             <Link
-              key={label}
               href={href}
-              className="text-sm font-medium transition-colors hover:text-white"
-              style={{ color: isActive ? "#D4AF37" : "rgba(255,255,255,0.55)" }}
+              className="text-[18px] font-normal leading-none text-white/72 transition-colors hover:text-white"
             >
               {label}
             </Link>
-          );
-        })}
+          </div>
+        ))}
       </nav>
-
-      {/* Direita — botões colados com inclinação */}
-      <div
-        className="flex items-stretch h-10 rounded-[14px] overflow-hidden"
-        style={{ border: "1px solid rgba(218,182,130,0.3)" }}
-      >
-        {/* Registre-se */}
-        <Link
-          href="/cadastrar"
-          className="flex items-center gap-2 pl-5 pr-5 font-bold text-sm relative z-10 whitespace-nowrap"
-          style={{
-            background: "linear-gradient(135deg, #D4AF37 0%, #F5E6A5 100%)",
-            color: "#0E141B",
-            clipPath: "polygon(0 0, 100% 0, calc(100% - 16px) 100%, 0 100%)",
-          }}
-        >
-          Registre-se
-        </Link>
-
-        {/* Entrar */}
-        <Link
-          href="/login"
-          className="flex items-center px-5 font-bold text-sm -ml-4 relative z-20 whitespace-nowrap"
-          style={{
-            background: "#060B18",
-            color: "#DAB682",
-            clipPath: "polygon(16px 0, 100% 0, 100% 100%, 0 100%)",
-          }}
-        >
-          Entrar
-        </Link>
-      </div>
     </header>
   );
 }

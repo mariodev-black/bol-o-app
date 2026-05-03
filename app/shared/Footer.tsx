@@ -128,7 +128,7 @@ export function Footer() {
   return (
     <footer
       className="w-full flex flex-col"
-      style={{ backgroundColor: "#060C18" }}
+      style={{ backgroundColor: "#004C3D" }}
     >
       {/* ── Corpo principal ─────────────────────────────────── */}
       <div className="w-full max-w-7xl mx-auto px-5 py-10 flex flex-col gap-10">

@@ -11,8 +11,8 @@
   --popover: #060B18;
   --popover-foreground: #e2d5b8;
 
-  /* Primary = dourado #DAB682 */
-  --primary: #DAB682;
+  /* Primary = dourado #B1EB0B */
+  --primary: #B1EB0B;
   --primary-foreground: #0E141B;
 
   --secondary: #1e2d3d;
@@ -22,14 +22,14 @@
   --muted-foreground: #8a9bb0;
 
   --accent: #1e2d3d;
-  --accent-foreground: #DAB682;
+  --accent-foreground: #B1EB0B;
 
   --destructive: #e05252;
   --destructive-foreground: #fff;
 
   --border: #2a3a4a;
-  --input: #DAB682;        /* borda dos inputs */
-  --ring: #DAB682;
+  --input: #B1EB0B;        /* borda dos inputs */
+  --ring: #B1EB0B;
 
   --radius: 0.5rem;
 }
@@ -63,6 +63,37 @@
 body {
   background-color: var(--background);
   color: var(--foreground);
+  font-family: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Helvetica Now Display — aplicar só onde precisar: className="font-helvetica-now-display" */
+.font-helvetica-now-display {
+  font-family: var(--font-helvetica-now-display), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Home hero — escala fluida (mobile → ultrawide) */
+.hero-fluid-title {
+  font-size: clamp(2rem, 4.5vw + 0.5rem, 3.125rem);
+  line-height: 1.09;
+  letter-spacing: -0.025em;
+}
+.hero-fluid-lead {
+  font-size: clamp(1.0625rem, 1.65vw + 0.55rem, 1.75rem);
+  line-height: 1.2;
+}
+.hero-fluid-body {
+  font-size: clamp(0.9375rem, 1.15vw + 0.45rem, 1.5rem);
+  line-height: 1.5;
+  max-width: 38ch;
+}
+.hero-fluid-cta {
+  font-size: clamp(0.8125rem, 0.95vw + 0.45rem, 1.25rem);
+}
+.hero-fluid-stat-head {
+  font-size: clamp(0.9375rem, 1.1vw + 0.5rem, 1.125rem);
+}
+.hero-fluid-stat-sub {
+  font-size: clamp(0.8125rem, 0.65vw + 0.55rem, 0.9375rem);
 }
 
 button, [role="button"] {
@@ -81,6 +112,35 @@ button, [role="button"] {
 
 .animate-float {
   animation: float 3s ease-in-out infinite;
+}
+
+/* Hero CTA — anel + sombra pulsando (infinito) */
+@keyframes cta-pulse-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 0 rgba(177, 235, 11, 0.55),
+      0 4px 18px rgba(177, 235, 11, 0.22);
+  }
+  50% {
+    box-shadow:
+      0 0 0 4px rgba(177, 235, 11, 0.35),
+      0 0 0 14px rgba(177, 235, 11, 0.12),
+      0 0 0 26px rgba(177, 235, 11, 0.04),
+      0 10px 42px rgba(177, 235, 11, 0.48),
+      0 4px 22px rgba(177, 235, 11, 0.35);
+  }
+}
+
+.animate-cta-pulse-glow {
+  animation: cta-pulse-glow 2.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-cta-pulse-glow {
+    animation: none;
+    box-shadow: 0 4px 18px rgba(177, 235, 11, 0.22);
+  }
 }
 
 @keyframes shimmer {

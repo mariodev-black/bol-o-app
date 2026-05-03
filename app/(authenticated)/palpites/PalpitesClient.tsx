@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ChevronDown, ChevronUp, BarChart2, Trophy, AlignJustify, Target, CircleCheck, Star, Bell, Coins, AlertTriangle, Disc, Pencil, Loader2 } from "lucide-react";
-import { TrophyGold, TrophySilver, TrophyBronze } from "@/app/shared/RankingAtual";
+import { TrophyGold, TrophySilver, TrophyBronze } from "@/app/shared/RankingTrophies";
 import bgPalpitesDesk from "@/app/assets/bg-palpites-desktop.png";
 import { StepsBreadcrumb } from "../boloes/_components/StepsBreadcrumb";
 import {
