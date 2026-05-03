@@ -124,7 +124,7 @@ export default function HomePage() {
           <div className="w-full flex justify-center items-center md:hidden py-8">
             <img src={LogoHome.src} alt="Bolão do Milhão" className="w-full max-w-[150px]" />
           </div>
-          <div className="font-helvetica-now-display grid w-full grid-cols-1 items-center gap-y-8 px-4 pt-5 text-white sm:px-6 md:px-8 lg:grid-cols-2 lg:gap-x-8 lg:gap-y-0 lg:px-10 xl:gap-x-12 xl:px-0 2xl:px-0 mx-auto max-w-[1500px]">
+          <div className="font-helvetica-now-display grid w-full grid-cols-1 items-center gap-y-8 px-4 pt-5 text-white sm:px-6 md:px-8 lg:grid-cols-2 lg:gap-x-8 lg:gap-y-0 lg:px-10 xl:gap-x-12 xl:px-14 2xl:px-0 mx-auto max-w-[1500px]">
             <div className="mx-auto flex w-full max-w-lg flex-col items-center justify-center gap-2.5 text-center sm:max-w-xl sm:gap-3 lg:mx-0 lg:max-w-none lg:items-start lg:gap-3.5 lg:text-left">
               <div className="hero-fluid-title font-black">
                 <span className="block text-primary">O MAIOR BOLÃO</span>
