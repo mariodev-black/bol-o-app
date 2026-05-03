@@ -2,8 +2,9 @@ import { Header } from "@/app/shared/Header";
 import { HomePageContainer } from "@/app/shared/HomePageContainer";
 import { Footer } from "@/app/shared/Footer";
 import { NavBottom } from "@/app/shared/NavBottom";
-import { ScoreRulesCards } from "@/app/shared/ScoreRulesCards";
-import type { ScoreRuleItem } from "@/app/shared/ScoreRulesCards";
+import { ScoreRulesCards } from "@/app/components/ScoreRulesCards";
+import type { ScoreRuleItem } from "@/app/components/ScoreRulesCards";
+import { RankingGaleraSection } from "@/app/components/RankingGaleraSection";
 import Image from "next/image";
 import {
   BarChart3,
@@ -60,7 +61,7 @@ const HOW_IT_WORKS_STEPS = [
   },
 ] as const;
 
-const SCORE_TICKER_SEGMENTS = Array.from({ length: 14 }, (_, i) => i);
+const SCORE_TICKER_SEGMENTS = Array.from({ length: 50 }, (_, i) => i);
 
 /** Barra lateral por índice — paleta verde coerente com o restante da seção */
 const SCORE_CARD_ACCENTS = [
@@ -305,44 +306,52 @@ export default function HomePage() {
 
         <div className="mx-auto max-w-[1600px] px-4 py-12 sm:px-6 md:py-16 lg:px-10 lg:py-20 xl:px-14 2xl:px-20">
           <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-2 lg:gap-14 xl:gap-20">
-            <div className="max-w-xl overflow-visible pt-4 sm:pt-6 lg:pt-2">
-              <h2 className="relative z-[1] w-full max-w-full pb-1 text-left text-[clamp(2.25rem,6.5vw,6.375rem)] font-bold leading-[1.02] tracking-tight text-[#021C1A]">
-                <span className="block">Cada acerto</span>
-                <div className="relative mt-0 inline-block w-max max-w-full">
-                  <span className="block leading-[1.02]">te aproxima</span>
-                  <span className="mt-0 block leading-[1.02]">do milhão!</span>
+            <div className="mx-auto max-w-xl overflow-visible pt-4 text-center sm:pt-6 lg:mx-0 lg:pt-2 lg:text-left">
+              <h2 className="relative z-[1] flex w-full max-w-full flex-col items-center pb-1 font-bold leading-[1.02] tracking-tight text-[#021C1A] lg:items-start">
+                <span className="block text-[62.13px] leading-[1.02] sm:text-[clamp(2.25rem,6.5vw,6.375rem)]">
+                  Cada acerto
+                </span>
+                <div className="relative mx-auto mt-0 inline-block w-max max-w-full lg:mx-0">
+                  <span className="block text-[62.13px] leading-[1.02] sm:text-[clamp(2.25rem,6.5vw,6.375rem)]">
+                    te aproxima
+                  </span>
+                  <span className="mt-0 block text-[62.13px] leading-[1.02] sm:text-[clamp(2.25rem,6.5vw,6.375rem)]">
+                    do milhão!
+                  </span>
+                  {/* Mobile: à direita, junto a “milhão”; sm+: canto superior direito do bloco */}
                   <span
-                    className="animate-cifrao-float pointer-events-none absolute -top-[8%] right-[8%] z-20 h-18 w-18"
+                    className="animate-cifrao-float pointer-events-none absolute z-20 max-sm:size-[48.335483302724136px] max-sm:right-[5%] max-sm:-top-[6%] sm:-top-[8%] sm:right-[8%] sm:h-18 sm:w-18"
                     aria-hidden
                   >
                     <Image
                       src={cifraoIcon}
                       alt=""
-                      width={80}
-                      height={80}
-                      className="h-full w-full object-contain -rotate-[190deg]"
+                      width={49}
+                      height={49}
+                      className="h-full w-full object-contain -rotate-[17deg] sm:-rotate-[190deg]"
                     />
                   </span>
+                  {/* Mobile: à esquerda, sobre “te aproxima”; sm+: esquerda do bloco */}
                   <span
-                    className="animate-cifrao-float pointer-events-none absolute top-[38%] left-[14%] z-20 h-18 w-18 [animation-delay:2.4s]"
+                    className="animate-cifrao-float pointer-events-none absolute z-20 max-sm:size-[48.335483302724136px] [animation-delay:2.4s] max-sm:left-[16%] max-sm:top-[40%] sm:top-[38%] sm:left-[14%] sm:h-18 sm:w-18"
                     aria-hidden
                   >
                     <Image
                       src={cifraoIcon}
                       alt=""
-                      width={80}
-                      height={80}
-                      className="h-full w-full object-contain -rotate-[130deg]"
+                      width={49}
+                      height={49}
+                      className="h-full w-full object-contain -rotate-[130deg] sm:-rotate-[130deg]"
                     />
                   </span>
                 </div>
               </h2>
-              <p className="mt-6 max-w-[510px] text-[28px] leading-relaxed font-[300] text-[#2d3436]">
+              <p className="mx-auto mt-6 max-w-[510px] text-[18px] leading-relaxed font-light text-[#2d3436] sm:text-[28px] sm:font-[300] lg:mx-0">
                 Nosso sistema de pontuação é{" "}
                 <strong className="font-bold text-[#0A1F1F]">
                   transparente e justo
                 </strong>
-                , recompensando sua precisão e conhecimento sobre futebol:
+                , recompensando sua precisão e conhecimento sobre futebol
               </p>
             </div>
 
@@ -354,6 +363,7 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+      <RankingGaleraSection />
       <Footer />
       <NavBottom />
     </HomePageContainer>
