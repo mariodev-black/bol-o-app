@@ -20,6 +20,7 @@ import bgHeroDesktop from "@/app/assets/home-desk.png";
 import bgPixel from "@/app/assets/bg-hero-pixels.png";
 import LogoHome from "@/app/assets/logo.svg";
 import { FlagsMarquee } from "./components/FlagsMarquee";
+import { WhyParticipateSection } from "@/app/components/WhyParticipateSection";
 
 const HERO_STATS = [
   {
@@ -366,6 +367,7 @@ export default function HomePage() {
       </section>
       <RankingGaleraSection />
       <FlagsMarquee />
+      <WhyParticipateSection />
       <Footer />
       <NavBottom />
     </HomePageContainer>
