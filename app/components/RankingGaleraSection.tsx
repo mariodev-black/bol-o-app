@@ -11,7 +11,7 @@ import {
   useState,
 } from "react";
 import Trofeu from "@/app/assets/icon-trofeu.svg";
-import bgRankStadium from "@/app/assets/bg-home-desk.png";
+import bgRankStadium from "@/app/assets/bg-home-rank.png";
 import avatarMatheus from "@/app/assets/fred.png";
 import avatarKauan from "@/app/assets/benjamin.png";
 import avatarGabriel from "@/app/assets/caze.png";
@@ -389,15 +389,15 @@ export function RankingGaleraSection() {
     <section
       ref={sectionRef}
       id="ranking-galera"
-      className="font-helvetica-now-display relative isolate overflow-hidden bg-[#040a08] py-14 text-white sm:py-16 lg:py-24"
+      className="font-helvetica-now-display relative isolate overflow-hidden bg-[#040a08]/50 py-14 text-white sm:py-16 lg:py-24"
     >
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-[0.32]"
+        className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-[100]"
         style={{
           backgroundImage: `url(${bgRankStadium.src})`,
-          filter: "blur(12px)",
-          transform: "scale(1.08)",
+            filter: "blur(3px)",
+            transform: "scale(1.02)",
         }}
       />
       <div
@@ -406,7 +406,7 @@ export function RankingGaleraSection() {
       />
 
       <div className="relative z-[1] mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-10 xl:px-14 2xl:px-20">
-        <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2 lg:gap-14 xl:gap-20">
+        <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2 lg:gap-14 xl:gap-x-20">
           {/* Coluna estreita (fundo escuro); cards “saltam” pra fora nas laterais — como no mockup */}
           {/* Base (#368F5B) mais estreita; cards saltam mais para os lados */}
           {/* Base do painel (#368F5B) mais larga no desktop; largura das linhas de info segue só com -mx-9 / sm:-mx-11 */}
@@ -531,7 +531,7 @@ export function RankingGaleraSection() {
           <div className="order-3 col-span-full flex w-full justify-center lg:order-3 lg:col-span-1 lg:col-start-2 lg:row-start-2 lg:justify-center">
             <button
               type="button"
-              className="mx-auto mt-10 w-full rounded-[10px] bg-primary px-6 py-4 text-center text-[13px] font-bold uppercase leading-snug tracking-wide text-[#0E141B] shadow-[0_14px_44px_rgba(177,235,11,0.28)] transition hover:brightness-110 active:scale-[0.99] sm:mt-12 sm:max-w-none sm:py-[1.125rem] sm:text-[14px] lg:mt-0 lg:w-8/12 lg:rounded-2xl lg:text-[15px]"
+              className="mx-auto mt-2 w-full rounded-[10px] bg-primary px-6 py-4 text-center text-[13px] font-bold uppercase leading-snug tracking-wide text-[#0E141B] shadow-[0_14px_44px_rgba(177,235,11,0.28)] transition hover:brightness-110 active:scale-[0.99] sm:mt-5 sm:max-w-none sm:py-[1.125rem] sm:text-[14px] lg:mt-0 lg:w-8/12 lg:rounded-2xl lg:text-[15px]"
             >
               PRÊMIOS MILIONÁRIOS PARA OS 10 PRIMEIROS
             </button>
