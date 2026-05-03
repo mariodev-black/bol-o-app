@@ -1,6 +1,10 @@
+"use client";
+
 import Image from "next/image";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Star, Trophy } from "lucide-react";
 import overlaySection from "@/app/assets/overlay-section.png";
+import { cn } from "@/app/lib/utils";
 
 const SECONDARY_PRIZES = [
   { label: "2º Lugar", value: "R$ 200.000" },
@@ -9,12 +13,20 @@ const SECONDARY_PRIZES = [
   { label: "5º - 10º", value: "R$ 1.500.000" },
 ] as const;
 
+/** Alturas finais (px): mobile / sm — barras mais altas; gradiente Figma nas colunas */
 const CHART_BARS = [
-  { topLabel: "50K", heightClass: "h-[72px] sm:h-[88px]" },
-  { topLabel: "60K", heightClass: "h-[96px] sm:h-[118px]" },
-  { topLabel: "50K", heightClass: "h-[120px] sm:h-[148px]" },
-  { topLabel: "50K", heightClass: "h-[144px] sm:h-[178px]" },
+  { topLabel: "50K", tall: "h-[104px] sm:h-[128px]" as const },
+  { topLabel: "60K", tall: "h-[140px] sm:h-[172px]" as const },
+  { topLabel: "50K", tall: "h-[176px] sm:h-[216px]" as const },
+  { topLabel: "50K", tall: "h-[208px] sm:h-[248px]" as const },
 ] as const;
+
+/** Linear do card direito (Figma): esquerda #B1EB0B (0%) → direita #004C3D (100%) */
+const BAR_GRADIENT =
+  "bg-linear-to-r from-[#B1EB0B] to-[#B1EB0B] rounded-t-[9.72px]";
+
+const CARD_SHELL =
+  "flex flex-col rounded-[22px] border border-white/10 bg-black p-5 sm:p-6";
 
 const TESTIMONIALS = [
   {
@@ -33,6 +45,73 @@ const TESTIMONIALS = [
       "É entretenimento de qualidade e ainda tem a chance de mudar de vida. Tô dentro!",
   },
 ] as const;
+
+function AnimatedPremiacaoBars() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+
+  useLayoutEffect(() => {
+    if (
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      setVisible(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) setVisible(true);
+        });
+      },
+      { threshold: 0.22, rootMargin: "0px 0px -6% 0px" }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      className="mt-8 flex flex-1 items-end justify-center gap-3 sm:mt-10 sm:gap-5 lg:mt-12 lg:justify-between lg:px-2"
+    >
+      {CHART_BARS.map(({ topLabel, tall }, i) => (
+        <div
+          key={`${topLabel}-${i}`}
+          className="flex w-[22%] max-w-[5.5rem] flex-col items-center gap-2 sm:max-w-none sm:gap-3"
+        >
+          <span className="text-[11px] font-semibold tabular-nums text-white/75 sm:text-xs">
+            {topLabel}
+          </span>
+          <div
+            className={cn(
+              "w-full overflow-hidden rounded-t-md bg-linear-to-t from-emerald-950 via-emerald-600 to-primary",
+              "motion-reduce:transition-none",
+              "transition-[height] duration-[900ms] ease-[cubic-bezier(0.22,1,0.36,1)]",
+              visible ? tall : "h-0"
+            )}
+            style={{
+              transitionDelay: visible ? `${70 + i * 110}ms` : "0ms",
+            }}
+          />
+          <span className="text-[10px] font-bold text-white sm:text-xs">
+            R$ 500k
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function SideOverlays() {
   /** Caixa fixa: o flip fica dentro dela (não some com overflow / origin). */
@@ -77,17 +156,18 @@ export function PrizesTestimonialsSection() {
     >
       <SideOverlays />
 
-      <div className="relative z-10 mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-10 xl:px-14 2xl:px-20">
+      <div className="relative z-10 mx-auto max-w-[1500px] px-4 sm:px-6 lg:px-14 xl:px-20 2xl:px-32">
         {/* Topo — dois cards */}
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-8">
           {/* O que você está disputando */}
-          <div className="flex flex-col rounded-[22px] border border-white/[0.08] bg-[#050b09]/95 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-sm sm:p-6 lg:min-h-[280px]">
+          <div className={`${CARD_SHELL} lg:min-h-[280px]`}>
             <h3 className="mb-5 text-center text-[15px] font-bold uppercase tracking-wide text-white sm:text-base lg:mb-6">
               O que você está disputando
             </h3>
 
-            <div className="flex flex-1 flex-col gap-5 lg:flex-row lg:items-stretch lg:gap-8">
-              <div className="mx-auto flex w-full max-w-[200px] flex-col items-center justify-center rounded-2xl border-2 border-primary/50 bg-[#061510] px-4 py-5 sm:max-w-[220px] lg:mx-0 lg:shrink-0">
+            <div className="grid min-h-0 flex-1 grid-cols-1 gap-5 lg:min-h-[17.5rem] lg:grid-cols-[minmax(0,260px)_minmax(0,1fr)] lg:items-stretch lg:gap-8">
+              {/* Largura fixa moderada: não rouba espaço da lista (evita quebra dos valores) */}
+              <div className="mx-auto flex w-full max-w-[260px] shrink-0 flex-col items-center justify-center justify-self-center rounded-2xl border-2 border-primary/55 bg-black px-5 py-6 sm:max-w-[280px] lg:mx-0 lg:w-full lg:max-w-none lg:justify-self-stretch lg:self-stretch lg:py-8">
                 <Trophy
                   className="mb-3 size-10 text-white sm:size-11"
                   strokeWidth={1.25}
@@ -101,16 +181,16 @@ export function PrizesTestimonialsSection() {
                 </p>
               </div>
 
-              <div className="flex min-w-0 flex-1 flex-col gap-2.5">
+              <div className="flex min-h-0 min-w-0 flex-col gap-2.5 lg:h-full lg:justify-between">
                 {SECONDARY_PRIZES.map(({ label, value }) => (
                   <div
                     key={label}
-                    className="flex items-center justify-between gap-3 rounded-full border border-white/[0.06] bg-[#0a1512] px-4 py-2.5 sm:px-5 sm:py-3"
+                    className="flex min-w-0 w-full flex-nowrap items-center justify-between gap-2 rounded-full border border-white/10 bg-black px-3 py-2.5 sm:gap-4 sm:px-5 sm:py-3 lg:min-h-0 lg:flex-1"
                   >
-                    <span className="text-[12px] font-semibold uppercase tracking-wide text-white/85 sm:text-sm">
+                    <span className="shrink-0 whitespace-nowrap text-[12px] font-semibold uppercase tracking-wide text-white/85 sm:text-sm">
                       {label}
                     </span>
-                    <span className="shrink-0 text-right text-[12px] font-bold tabular-nums text-primary sm:text-sm">
+                    <span className="shrink-0 whitespace-nowrap text-right text-[12px] font-bold tabular-nums text-primary sm:text-sm">
                       {value}
                     </span>
                   </div>
@@ -120,7 +200,9 @@ export function PrizesTestimonialsSection() {
           </div>
 
           {/* A premiação aumenta */}
-          <div className="flex flex-col rounded-[22px] border border-white/[0.08] bg-[#050b09]/95 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-sm sm:p-6 lg:min-h-[280px]">
+          <div
+            className={`${CARD_SHELL} min-h-[300px] sm:min-h-[360px] lg:min-h-[420px]`}
+          >
             <h3 className="text-center text-[15px] font-bold uppercase leading-snug tracking-wide sm:text-lg lg:text-left">
               <span className="text-white">A premiação </span>
               <span className="text-primary">aumenta!</span>
@@ -129,24 +211,7 @@ export function PrizesTestimonialsSection() {
               Quanto mais cotas vendidas, maior o prêmio final.
             </p>
 
-            <div className="mt-8 flex flex-1 items-end justify-center gap-3 sm:mt-10 sm:gap-5 lg:mt-12 lg:justify-between lg:px-2">
-              {CHART_BARS.map(({ topLabel, heightClass }, i) => (
-                <div
-                  key={`bar-${topLabel}-${i}`}
-                  className="flex w-[22%] max-w-[5.5rem] flex-col items-center gap-2 sm:max-w-none sm:gap-3"
-                >
-                  <span className="text-[11px] font-semibold tabular-nums text-white/75 sm:text-xs">
-                    {topLabel}
-                  </span>
-                  <div
-                    className={`w-full rounded-t-md bg-linear-to-t from-emerald-950 via-emerald-600 to-primary shadow-[0_0_24px_rgba(177,235,11,0.18)] ${heightClass}`}
-                  />
-                  <span className="text-[10px] font-bold text-white sm:text-xs">
-                    R$ 500k
-                  </span>
-                </div>
-              ))}
-            </div>
+            <AnimatedPremiacaoBars />
           </div>
         </div>
 
@@ -161,7 +226,7 @@ export function PrizesTestimonialsSection() {
           {TESTIMONIALS.map(({ name, quote }) => (
             <article
               key={name}
-              className="flex flex-col rounded-2xl border border-emerald-900/40 bg-[#071410] px-5 py-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:px-6 sm:py-6"
+              className="flex flex-col rounded-2xl border border-white/10 bg-[#000] px-5 py-5 sm:px-6 sm:py-6"
             >
               <p className="flex-1 text-[14px] leading-relaxed text-white/92 sm:text-[15px]">
                 {quote}
