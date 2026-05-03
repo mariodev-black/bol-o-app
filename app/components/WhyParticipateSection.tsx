@@ -76,10 +76,10 @@ export function WhyParticipateSection() {
                 strokeWidth={1.35}
                 aria-hidden
               />
-              <h3 className="mt-4 text-[13px] font-bold uppercase leading-snug tracking-wide text-white sm:text-sm">
+              <h3 className="mt-4 text-[20px] font-[700] uppercase leading-snug tracking-wide text-white sm:text-[20px]">
                 {title}
               </h3>
-              <p className="mt-2 text-[13px] leading-relaxed font-light text-[#a1a1aa] sm:text-[14px]">
+              <p className="mt-2 text-[14px] leading-relaxed font-[300] text-[#a1a1aa] sm:text-[14px]">
                 {body}
               </p>
             </article>
