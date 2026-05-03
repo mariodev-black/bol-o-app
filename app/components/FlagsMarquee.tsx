@@ -89,11 +89,11 @@ export function FlagsMarquee() {
     <section className="py-0 overflow-hidden">
       <div
         className="h-px w-full mb-5"
-        style={{ background: "linear-gradient(90deg, transparent, #DAB682 30%, #DAB682 70%, transparent)" }}
+        style={{ background: "linear-gradient(90deg, transparent, #C6FF00 30%, #C6FF00 70%, transparent)" }}
       />
 
       <div className="flex overflow-hidden mask-[linear-gradient(to_right,transparent,black_8%,black_92%,transparent)]">
-        <div className="flex animate-marquee">
+        <div className="flex animate-flags-marquee">
           {doubled.map((team, i) => (
             <FlagItem key={i} code={team.code} name={team.name} />
           ))}

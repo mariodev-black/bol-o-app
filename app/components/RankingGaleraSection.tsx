@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Minus, Triangle } from "lucide-react";
+import { Triangle } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -17,19 +17,12 @@ import avatarKauan from "@/app/assets/benjamin.png";
 import avatarGabriel from "@/app/assets/caze.png";
 import avatarLucas from "@/app/assets/dest.png";
 
-/** Variação de pontos no último passo — todos os badges mostram ícone. */
+/** Mudança de posição no ranking após cada atualização — todos os badges têm ícone. */
 type PointsTrend = "up" | "down" | "stable";
-
-function trendFromPointDelta(prev: number, next: number): PointsTrend {
-  if (next > prev) return "up";
-  if (next < prev) return "down";
-  return "stable";
-}
 
 const STABLE_TRENDS: PointsTrend[] = ["stable", "stable", "stable", "stable"];
 
-const RANK_CARD_BG =
-  "rounded-[999px] border-emerald-950/20 bg-[#004C3D] shadow-[0_6px_22px_rgba(0,0,0,0.22)]";
+const RANK_CARD_BG = "rounded-[9px] lg:rounded-[13.93px] bg-[#368F5B]";
 
 const PLAYERS = [
   {
@@ -73,6 +66,21 @@ function rankByPoints(pts: readonly number[]): number[] {
     const d = pts[b]! - pts[a]!;
     if (d !== 0) return d;
     return a - b;
+  });
+}
+
+function trendsFromRankings(
+  prevPoints: readonly number[],
+  nextPoints: readonly number[],
+): PointsTrend[] {
+  const prevOrder = rankByPoints(prevPoints);
+  const nextOrder = rankByPoints(nextPoints);
+  return [0, 1, 2, 3].map((pid) => {
+    const pr = prevOrder.indexOf(pid);
+    const nr = nextOrder.indexOf(pid);
+    if (nr < pr) return "up";
+    if (nr > pr) return "down";
+    return "stable";
   });
 }
 
@@ -128,18 +136,18 @@ function PointsBadge({
   const trendIcon =
     trend === "up" ? (
       <Triangle
-        className={`size-3 shrink-0 fill-primary text-primary sm:size-[14px] ${flash ? "animate-bounce" : ""}`}
+        className={`size-3 shrink-0 fill-primary text-primary sm:size-[14px] [stroke-width:0] ${flash ? "animate-bounce" : ""}`}
         style={{ animationDuration: "0.6s" }}
         aria-hidden
       />
     ) : trend === "down" ? (
       <Triangle
-        className="size-3 shrink-0 rotate-180 fill-red-400 text-red-400 sm:size-[14px]"
+        className="size-3 shrink-0 rotate-180 fill-red-500 text-red-500 sm:size-[14px] [stroke-width:0]"
         aria-hidden
       />
     ) : (
-      <Minus
-        className="size-3 shrink-0 stroke-[2.5px] text-white/55 sm:size-[14px]"
+      <span
+        className="inline-block h-[3px] w-[11px] shrink-0 rounded-full bg-white/70 sm:w-[13px]"
         aria-hidden
       />
     );
@@ -177,12 +185,7 @@ export function RankingGaleraSection() {
   const shuffleTimersRef = useRef<number[]>([]);
   const hasPlayedInViewRef = useRef(false);
   /** Refs por jogador (0–3) para FLIP — mesma identidade, slot muda. */
-  const rowRefs = useRef<(HTMLDivElement | null)[]>([
-    null,
-    null,
-    null,
-    null,
-  ]);
+  const rowRefs = useRef<(HTMLDivElement | null)[]>([null, null, null, null]);
   /** Rects antes de atualizar pontos (capturados no mesmo tick). */
   const flipBeforeRef = useRef<Map<number, DOMRect> | null>(null);
 
@@ -318,9 +321,7 @@ export function RankingGaleraSection() {
               number,
               number,
             ];
-            setBadgeTrends(
-              next.map((p, i) => trendFromPointDelta(prev[i]!, p)),
-            );
+            setBadgeTrends(trendsFromRankings(prev, next));
             return next;
           });
           flashTopAfterPoints(POINTS_AFTER_STEP_1);
@@ -336,9 +337,7 @@ export function RankingGaleraSection() {
               number,
               number,
             ];
-            setBadgeTrends(
-              next.map((p, i) => trendFromPointDelta(prev[i]!, p)),
-            );
+            setBadgeTrends(trendsFromRankings(prev, next));
             return next;
           });
           flashTopAfterPoints(POINTS_AFTER_STEP_2);
@@ -354,9 +353,7 @@ export function RankingGaleraSection() {
               number,
               number,
             ];
-            setBadgeTrends(
-              next.map((p, i) => trendFromPointDelta(prev[i]!, p)),
-            );
+            setBadgeTrends(trendsFromRankings(prev, next));
             return next;
           });
           flashTopAfterPoints(POINTS_AFTER_STEP_3);
@@ -372,9 +369,7 @@ export function RankingGaleraSection() {
               number,
               number,
             ];
-            setBadgeTrends(
-              next.map((p, i) => trendFromPointDelta(prev[i]!, p)),
-            );
+            setBadgeTrends(trendsFromRankings(prev, next));
             return next;
           });
           flashTopAfterPoints(POINTS_AFTER_STEP_4);
@@ -414,7 +409,8 @@ export function RankingGaleraSection() {
         <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2 lg:gap-14 xl:gap-20">
           {/* Coluna estreita (fundo escuro); cards “saltam” pra fora nas laterais — como no mockup */}
           {/* Base (#368F5B) mais estreita; cards saltam mais para os lados */}
-          <div className="relative isolate mx-auto w-full max-w-[min(100%,268px)] lg:mx-0 lg:max-w-[min(100%,288px)]">
+          {/* Base do painel (#368F5B) mais larga no desktop; largura das linhas de info segue só com -mx-9 / sm:-mx-11 */}
+          <div className="relative isolate order-2 mx-auto w-full max-w-[min(100%,360px)] lg:order-1 lg:mx-0 lg:max-w-[min(100%,440px)]">
             {/* Troféu acima de tudo no bloco */}
             <div className="pointer-events-none absolute left-1/2 top-0 z-40 -translate-x-1/2 -translate-y-[40%]">
               <Image
@@ -429,17 +425,19 @@ export function RankingGaleraSection() {
             <div className="relative overflow-visible rounded-[18px] border border-emerald-950/25 shadow-[0_28px_80px_rgba(0,0,0,0.45)] sm:rounded-[22px]">
               {/* Base verde atrás; conteúdo e cards na frente (destaque nas laterais) */}
               <div
-                className="pointer-events-none absolute inset-0 z-0 rounded-[inherit] bg-[#368F5B]"
+                className="pointer-events-none absolute inset-0 z-0 rounded-[inherit] bg-[#004C3D]"
                 aria-hidden
               />
               <div className="relative z-10 px-3 pb-5 pt-[5.25rem] sm:px-4 sm:pb-6 sm:pt-24">
-                <div className="grid w-full grid-cols-[minmax(0,2.75rem)_1fr_auto] items-end gap-x-1 border-b border-white/[0.07] pb-2.5 text-[9px] font-semibold uppercase leading-tight tracking-wide text-white/70 sm:grid-cols-[minmax(0,3.25rem)_1fr_auto] sm:gap-x-2 sm:pb-3 sm:text-[10px]">
-                  <span className="text-left">Classificação</span>
-                  <span className="text-center">Investidor</span>
-                  <span className="text-right">Pontuação</span>
+                <div className="flex w-full items-end justify-between gap-x-2 border-b border-white/[0.07] pb-2.5 text-[12px] font-medium uppercase leading-tight tracking-wide text-white sm:gap-x-3 sm:pb-3 sm:text-[16px]">
+                  <span className="min-w-0 shrink text-left">
+                    Classificação
+                  </span>
+                  <span className="min-w-0 shrink text-center">Investidor</span>
+                  <span className="min-w-0 shrink text-right">Pontuação</span>
                 </div>
 
-                <div className="relative z-20 -mx-9 mt-4 sm:-mx-11 sm:mt-5">
+                <div className="relative z-20 -mx-5 mt-4 sm:-mx-11 sm:mt-5">
                   <div className="relative flex flex-col gap-2.5 sm:gap-3">
                     {rankedPlayerIds.map((playerIdx, slotIdx) => {
                       const row = PLAYERS[playerIdx]!;
@@ -450,17 +448,17 @@ export function RankingGaleraSection() {
                           ref={(el) => {
                             rowRefs.current[playerIdx] = el;
                           }}
-                          className={`relative flex shrink-0 items-center gap-2 overflow-hidden border px-3 py-2.5 transition-[box-shadow] duration-300 sm:gap-3 sm:px-4 sm:py-3 ${RANK_CARD_BG} ${
+                          className={`relative flex w-full shrink-0 items-center justify-between gap-2 overflow-hidden px-3 py-3 transition-[box-shadow] duration-300 sm:gap-3 sm:px-6 sm:py-4 ${RANK_CARD_BG} ${
                             flashRow === playerIdx
-                              ? "z-[1] shadow-[0_12px_36px_rgba(177,235,11,0.22)] ring-2 ring-primary/35"
+                              ? "z-[1] ring-2 ring-primary/35"
                               : ""
                           }`}
                         >
-                          <span className="relative z-[1] w-9 shrink-0 text-center text-lg font-black tabular-nums leading-none text-white sm:w-11 sm:text-xl">
+                          <span className="relative z-[1] w-9 shrink-0 text-center text-lg font-[700] tabular-nums leading-none text-white sm:w-11 sm:text-[38px]">
                             {slotIdx + 1}º
                           </span>
-                          <div className="relative z-[1] flex min-w-0 flex-1 items-center gap-2.5 sm:gap-3">
-                            <span className="relative block size-10 shrink-0 overflow-hidden rounded-full ring-[1.5px] ring-white/35 ring-offset-[3px] ring-offset-[#004C3D] sm:size-11">
+                          <div className="relative z-[1] flex min-w-0 flex-1 items-center justify-center gap-2.5 px-1 sm:gap-3 sm:px-2">
+                            <span className="relative block size-10 shrink-0 overflow-hidden rounded-full sm:size-11">
                               <Image
                                 src={row.avatar}
                                 alt=""
@@ -469,7 +467,7 @@ export function RankingGaleraSection() {
                                 className="object-cover"
                               />
                             </span>
-                            <span className="truncate text-[13px] font-bold tracking-tight text-white sm:text-[15px]">
+                            <span className="truncate text-[16px] font-[500] tracking-tight text-white sm:text-[18px]">
                               {row.name}
                             </span>
                           </div>
@@ -495,21 +493,16 @@ export function RankingGaleraSection() {
             </div>
           </div>
 
-          <div className="flex flex-col justify-center text-center lg:text-left">
-            <div className="inline-flex items-center justify-center gap-2 lg:justify-start">
-              <span className="rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
-                Tempo real
-              </span>
-            </div>
-            <h2 className="mt-4 text-[clamp(2rem,5vw,3.75rem)] font-bold leading-[1.05] tracking-tight">
+          <div className="order-1 flex flex-col justify-center text-center lg:order-2 lg:text-center">
+            <h2 className="mt-0 text-[72px] font-[900] leading-[1.05] tracking-tight lg:mt-4">
               <span className="text-primary">Ranking</span>
               <span className="text-white"> da Galera</span>
             </h2>
 
-            <p className="mx-auto mt-6 max-w-xl text-[17px] leading-relaxed text-white/88 sm:text-[20px] lg:mx-0 lg:max-w-[520px] lg:text-[22px]">
+            <p className="mx-auto mt-6 max-w-xl text-[17px] leading-relaxed text-white/88 sm:text-[20px] lg:text-[26px] text-center">
               <span className="font-light">
-                Acompanhe em tempo real quem está no topo do bolão. Cada
-                palpite conta para sua posição na classificação geral.{" "}
+                Acompanhe em tempo real quem está no topo do bolão. Cada palpite
+                conta para sua posição na classificação geral.{" "}
               </span>
               <strong className="font-bold text-white">
                 Sua posição no ranking é a prova do seu conhecimento e da sua
@@ -517,11 +510,11 @@ export function RankingGaleraSection() {
               </strong>
             </p>
 
-            <div className="mx-auto mt-10 grid w-full max-w-xl grid-cols-1 gap-3 sm:mx-0 sm:mt-12 sm:max-w-none sm:grid-cols-3 sm:gap-4 lg:mt-14">
-              {STAT_BOXES.map(({ headline, sub }) => (
+            <div className="mx-auto mt-10 grid w-full max-w-xl grid-cols-2 gap-3 sm:mx-0 sm:mt-12 sm:max-w-none sm:grid-cols-3 sm:gap-4 lg:mt-14">
+              {STAT_BOXES.map(({ headline, sub }, index) => (
                 <div
                   key={sub}
-                  className="rounded-2xl border border-white/[0.09] bg-black/30 px-4 py-4 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-sm transition hover:border-white/15 sm:px-5 sm:py-5"
+                  className={`rounded-2xl border border-white/[0.09] bg-black/30 px-4 py-4 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-sm transition hover:border-white/15 sm:px-5 sm:py-5 ${index === 2 ? "col-span-2 sm:col-span-1" : ""}`}
                 >
                   <p className="text-xl font-bold tabular-nums text-primary sm:text-2xl">
                     {headline}
@@ -532,10 +525,13 @@ export function RankingGaleraSection() {
                 </div>
               ))}
             </div>
+          </div>
 
+          {/* Último no mobile: abaixo do ranking; no desktop: coluna da direita, linha de baixo */}
+          <div className="order-3 col-span-full flex w-full justify-center lg:order-3 lg:col-span-1 lg:col-start-2 lg:row-start-2 lg:justify-center">
             <button
               type="button"
-              className="mx-auto mt-10 w-full max-w-xl rounded-2xl bg-primary px-6 py-4 text-center text-[13px] font-bold uppercase leading-snug tracking-wide text-[#0E141B] shadow-[0_14px_44px_rgba(177,235,11,0.28)] transition hover:brightness-110 active:scale-[0.99] sm:mx-0 sm:mt-12 sm:max-w-none sm:py-[1.125rem] sm:text-[14px] lg:mt-14 lg:text-[15px]"
+              className="mx-auto mt-10 w-full rounded-[10px] bg-primary px-6 py-4 text-center text-[13px] font-bold uppercase leading-snug tracking-wide text-[#0E141B] shadow-[0_14px_44px_rgba(177,235,11,0.28)] transition hover:brightness-110 active:scale-[0.99] sm:mt-12 sm:max-w-none sm:py-[1.125rem] sm:text-[14px] lg:mt-0 lg:w-8/12 lg:rounded-2xl lg:text-[15px]"
             >
               PRÊMIOS MILIONÁRIOS PARA OS 10 PRIMEIROS
             </button>

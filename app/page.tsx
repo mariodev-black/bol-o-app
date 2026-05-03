@@ -19,6 +19,7 @@ import cifraoIcon from "@/app/assets/cifrao.svg";
 import bgHeroDesktop from "@/app/assets/home-desk.png";
 import bgPixel from "@/app/assets/bg-hero-pixels.png";
 import LogoHome from "@/app/assets/logo.svg";
+import { FlagsMarquee } from "./components/FlagsMarquee";
 
 const HERO_STATS = [
   {
@@ -364,6 +365,7 @@ export default function HomePage() {
         </div>
       </section>
       <RankingGaleraSection />
+      <FlagsMarquee />
       <Footer />
       <NavBottom />
     </HomePageContainer>

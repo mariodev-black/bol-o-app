@@ -267,6 +267,15 @@ button, [role="button"] {
   animation-play-state: paused;
 }
 
+/* Bandeiras — mais devagar que o ticker genérico */
+.animate-flags-marquee {
+  animation: marquee 26s linear infinite;
+}
+
+.animate-flags-marquee:hover {
+  animation-play-state: paused;
+}
+
 /* Seção pontuação — cards unificados + entrada em cascata */
 @keyframes score-card-in {
   from {
