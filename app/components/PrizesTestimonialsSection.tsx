@@ -121,7 +121,7 @@ function SideOverlays() {
   return (
     <div
       aria-hidden
-      className="pointer-events-none absolute inset-0 z-0 overflow-visible"
+      className="pointer-events-none absolute inset-0 z-0 overflow-visible hidden lg:block"
     >
       {/* Direita + topo: reta do PNG à direita do arquivo */}
       <div className={`${box} right-0 top-0`}>
@@ -152,7 +152,7 @@ export function PrizesTestimonialsSection() {
   return (
     <section
       id="premios-depoimentos"
-      className="font-helvetica-now-display relative isolate overflow-hidden bg-transparent py-16 text-white sm:py-20 lg:py-24 w-full"
+      className="font-helvetica-now-display relative isolate overflow-hidden bg-transparent py-16 text-white sm:py-20 lg:py-24 w-full "
     >
       <SideOverlays />
 

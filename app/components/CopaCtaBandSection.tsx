@@ -54,15 +54,15 @@ export function CopaCtaBandSection() {
       <div className="relative z-10 mx-auto max-w-[1500px] px-4 py-14 sm:px-6 sm:py-16 md:py-20 lg:px-10 lg:py-24 xl:px-14 2xl:px-16">
         <div className="mx-auto grid w-full max-w-[980px] grid-cols-1 items-center gap-8 lg:grid-cols-[minmax(0,520px)_372px] lg:gap-10 xl:gap-12">
           <div className="max-w-xl text-center lg:mx-0 lg:max-w-none lg:text-left">
-            <p className="text-sm font-light leading-snug text-white/85 sm:text-base">
+            <p className="text-sm font-light leading-snug text-white/85 sm:text-[20px]">
               A copa acontece a cada 4 anos. O dinheiro vai circular.
             </p>
-            <p className="mt-3 text-lg font-bold text-white sm:text-xl">
-              A pergunta é:
+            <p className="mt-3 text-lg font-bold text-white sm:text-[36px]">
+              A pergunta é
             </p>
             <h2
               id="copa-cta-heading"
-              className="mt-4 text-[clamp(1.85rem,5vw,3.25rem)] font-black leading-[1.08] tracking-tight sm:mt-5"
+              className="mt-4 text-[clamp(1.85rem,5vw,3.4rem)] font-black leading-[1.08] tracking-tight sm:mt-5"
             >
               <span className="block text-primary">Você vai entrar</span>
               <span className="block text-white">ou só assistir?</span>
@@ -70,33 +70,29 @@ export function CopaCtaBandSection() {
           </div>
 
           <div className="mx-auto w-full max-w-[372px] lg:mx-0 lg:justify-self-start">
-            <div className="relative flex min-h-[420px] flex-col items-center overflow-hidden rounded-[22px] border border-primary bg-[#00251f] px-7 pb-8 pt-8 shadow-[0_0_0_1px_rgba(177,235,11,0.08),0_22px_70px_rgba(0,0,0,0.35)] sm:px-9 sm:pt-9">
+            <div className="relative flex flex-col items-center overflow-hidden rounded-[22px] border border-primary bg-[#00251f] px-4 pb-8 pt-8 shadow-[0_0_0_1px_rgba(177,235,11,0.08),0_22px_70px_rgba(0,0,0,0.35)] sm:px-9 sm:pt-9">
               <div
                 className="pointer-events-none absolute inset-x-8 bottom-[96px] h-28 bg-[radial-gradient(ellipse_at_center,rgba(177,235,11,0.16)_0%,rgba(0,158,111,0.12)_36%,rgba(0,0,0,0)_74%)] blur-xl"
                 aria-hidden
               />
-              <p className="relative text-center text-[20px] font-black uppercase leading-tight tracking-[-0.04em] text-white sm:text-[21px]">
+              <p className="relative text-center text-[22px] font-black uppercase leading-tight tracking-[-0.04em] text-white sm:text-[21px]">
                 Garanta sua cota agora!
               </p>
-              <p className="relative mt-7 text-center text-[12px] font-light leading-none text-white/90">
+              <p className="relative mt-7 text-center text-[14px] font-light leading-none text-white/90">
                 Por apenas
               </p>
-              <p className="relative mt-5 bg-linear-to-r from-[#F7FFD9] via-[#DFFF76] to-primary bg-clip-text text-center text-[56px] font-black tabular-nums leading-none tracking-[-0.06em] text-transparent sm:text-[58px]">
+              <p className="relative mt-5 mb-4 bg-linear-to-r from-[#F7FFD9] via-[#DFFF76] to-primary bg-clip-text text-center text-[56px] font-black tabular-nums leading-none tracking-[-0.06em] text-transparent sm:text-[58px]">
                 R$ 49,90
               </p>
               <button
                 type="button"
-                className="group relative mt-6 w-full max-w-[300px] rounded-full border border-white/25 bg-[#0b1512] p-[8px] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08),0_0_24px_rgba(177,235,11,0.14)] transition hover:border-primary/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                className="cta-pulse-ring w-full relative  overflow-visible rounded-xl bg-primary px-4 py-4 text-[15px] font-bold leading-tight tracking-tight text-[#0E141B] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:mt-2.5 sm:px-5 sm:py-4 sm:text-[15px]"
               >
-                <span className="relative flex h-[38px] items-center justify-center overflow-hidden rounded-full bg-[linear-gradient(90deg,#064A35_0%,#0A7D50_45%,#2DFF62_82%,#FFF8D9_100%)] px-5 text-[12px] font-black uppercase tracking-[-0.02em] text-white shadow-[inset_0_0_16px_rgba(255,255,255,0.22)]">
-                  <span
-                    className="absolute inset-y-0 right-0 w-20 bg-[radial-gradient(circle_at_center,rgba(255,255,230,0.95)_0%,rgba(177,235,11,0.55)_36%,rgba(177,235,11,0)_72%)] blur-[2px] transition group-hover:scale-110"
-                    aria-hidden
-                  />
-                  <span className="relative z-10">Quero entrar agora!</span>
+                <span className="relative z-10">
+                  GARANTIR MINHA COTA R$ 49,90
                 </span>
               </button>
-              <div className="relative mt-6 flex items-center gap-3 text-[12px] font-black uppercase leading-none tracking-[-0.02em] text-white">
+              <div className="relative mt-6 flex items-center gap-3 text-[14px] font-bold uppercase leading-none tracking-[-0.02em] text-white">
                 <ShieldCheck
                   className="size-5 shrink-0 text-primary"
                   strokeWidth={1.8}
