@@ -22,6 +22,7 @@ import LogoHome from "@/app/assets/logo.svg";
 import { FlagsMarquee } from "./components/FlagsMarquee";
 import { WhyParticipateSection } from "@/app/components/WhyParticipateSection";
 import { PrizesTestimonialsSection } from "@/app/components/PrizesTestimonialsSection";
+import { CopaCtaBandSection } from "@/app/components/CopaCtaBandSection";
 
 const HERO_STATS = [
   {
@@ -370,6 +371,7 @@ export default function HomePage() {
       <FlagsMarquee />
       <WhyParticipateSection />
       <PrizesTestimonialsSection />
+      <CopaCtaBandSection />
       <Footer />
       <NavBottom />
     </HomePageContainer>

@@ -23,7 +23,7 @@ const CHART_BARS = [
 
 /** Linear do card direito (Figma): esquerda #B1EB0B (0%) → direita #004C3D (100%) */
 const BAR_GRADIENT =
-  "bg-linear-to-r from-[#B1EB0B] to-[#B1EB0B] rounded-t-[9.72px]";
+  "bg-linear-to-r from-[#B1EB0B] to-[#004C3D] rounded-t-[9.72px]";
 
 const CARD_SHELL =
   "flex flex-col rounded-[22px] border border-white/10 bg-black p-5 sm:p-6";
