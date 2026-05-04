@@ -46,6 +46,14 @@ const TESTIMONIALS = [
   },
 ] as const;
 
+const TESTIMONIAL_CAROUSEL_ITEMS = [
+  ...TESTIMONIALS,
+  ...TESTIMONIALS,
+  ...TESTIMONIALS,
+] as const;
+const TESTIMONIAL_START_INDEX = TESTIMONIALS.length;
+const TESTIMONIAL_RESET_INDEX = TESTIMONIALS.length * 2;
+
 function AnimatedPremiacaoBars() {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
@@ -113,6 +121,131 @@ function AnimatedPremiacaoBars() {
   );
 }
 
+function TestimonialsCarousel() {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [activeIndex, setActiveIndex] = useState<number>(
+    TESTIMONIAL_START_INDEX
+  );
+  const [isTransitioning, setIsTransitioning] = useState(true);
+  const [metrics, setMetrics] = useState({ cardStep: 0, cardWidth: 0 });
+
+  useLayoutEffect(() => {
+    const updateMetrics = () => {
+      const track = trackRef.current;
+      const firstCard = track?.children[0] as HTMLElement | undefined;
+      const secondCard = track?.children[1] as HTMLElement | undefined;
+
+      if (!firstCard || !secondCard) return;
+
+      const firstRect = firstCard.getBoundingClientRect();
+      const secondRect = secondCard.getBoundingClientRect();
+
+      setMetrics({
+        cardStep: secondRect.left - firstRect.left,
+        cardWidth: firstRect.width,
+      });
+    };
+
+    updateMetrics();
+
+    const observer =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(updateMetrics)
+        : null;
+
+    if (trackRef.current) observer?.observe(trackRef.current);
+    window.addEventListener("resize", updateMetrics);
+
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", updateMetrics);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      setActiveIndex((current) => current + 1);
+    }, 3300);
+
+    return () => window.clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (isTransitioning) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      setIsTransitioning(true);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [isTransitioning]);
+
+  const translateX =
+    metrics.cardWidth > 0
+      ? `calc(50vw - ${metrics.cardWidth / 2}px - ${
+          activeIndex * metrics.cardStep
+        }px)`
+      : "0px";
+
+  return (
+    <div className="relative left-1/2 mt-10 w-screen -translate-x-1/2 overflow-hidden sm:mt-12 lg:mt-30">
+      <div
+        ref={trackRef}
+        className={cn(
+          "flex gap-5 sm:gap-7 lg:gap-12",
+          "motion-reduce:transition-none",
+          isTransitioning
+            ? "transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]"
+            : "transition-none"
+        )}
+        style={{ transform: `translateX(${translateX})` }}
+        onTransitionEnd={(event) => {
+          if (event.currentTarget !== event.target) return;
+          if (activeIndex < TESTIMONIAL_RESET_INDEX) return;
+
+          setIsTransitioning(false);
+          setActiveIndex(TESTIMONIAL_START_INDEX);
+        }}
+      >
+        {TESTIMONIAL_CAROUSEL_ITEMS.map(({ name, quote }, index) => (
+          <article
+            key={`${name}-${index}`}
+            className="flex min-h-[190px] w-[78vw] max-w-[672px] shrink-0 flex-col justify-between rounded-[22px] bg-[#005848] px-7 py-7 shadow-[0_18px_55px_rgba(0,0,0,0.28)] sm:min-h-[230px] sm:px-10 sm:py-9"
+            aria-hidden={
+              index < TESTIMONIAL_START_INDEX ||
+              index >= TESTIMONIAL_RESET_INDEX
+            }
+          >
+            <p className="text-[clamp(1.05rem,3.1vw,2rem)] font-bold leading-tight tracking-[-0.04em] text-white">
+              “{quote}”
+            </p>
+            <div className="mt-8 flex items-end justify-between gap-5">
+              <span className="text-base font-bold text-primary sm:text-[22px]">
+                {name}
+              </span>
+              <div className="flex shrink-0 gap-1" aria-hidden>
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Star
+                    key={i}
+                    className="size-4 fill-amber-300 text-amber-300 sm:size-[22px]"
+                  />
+                ))}
+              </div>
+            </div>
+          </article>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function SideOverlays() {
   /** Caixa fixa: o flip fica dentro dela (não some com overflow / origin). */
   const box =
@@ -152,7 +285,7 @@ export function PrizesTestimonialsSection() {
   return (
     <section
       id="premios-depoimentos"
-      className="font-helvetica-now-display relative isolate overflow-hidden bg-transparent py-16 text-white sm:py-20 lg:py-24 w-full "
+      className="font-helvetica-now-display relative isolate overflow-hidden bg-transparent py-0 text-white sm:py-20 lg:py-24 w-full "
     >
       <SideOverlays />
 
@@ -222,31 +355,7 @@ export function PrizesTestimonialsSection() {
         </h2>
 
         {/* Depoimentos */}
-        <div className="mx-auto mt-10 grid max-w-[1200px] grid-cols-1 gap-4 sm:mt-12 sm:gap-5 lg:mt-30 lg:grid-cols-3 ">
-          {TESTIMONIALS.map(({ name, quote }) => (
-            <article
-              key={name}
-              className="flex flex-col rounded-2xl border border-white/10 bg-[#000] px-5 py-5 sm:px-6 sm:py-6"
-            >
-              <p className="flex-1 text-[14px] leading-relaxed text-white/92 sm:text-[16px] font-[500]">
-                {quote}
-              </p>
-              <div className="mt-5 flex items-end justify-between gap-3 border-t border-white/[0.06] pt-4">
-                <span className="text-sm font-bold text-primary sm:text-[16px] font-[500]">
-                  {name}
-                </span>
-                <div className="flex shrink-0 gap-0.5" aria-hidden>
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Star
-                      key={i}
-                      className="size-4 fill-amber-400 text-amber-400 sm:size-[18px]"
-                    />
-                  ))}
-                </div>
-              </div>
-            </article>
-          ))}
-        </div>
+        <TestimonialsCarousel />
       </div>
     </section>
   );
