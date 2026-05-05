@@ -6,8 +6,8 @@ import Link from "next/link";
 import { ArrowRight, BarChart2, ChevronDown } from "lucide-react";
 import { StepsBreadcrumb } from "../_components/StepsBreadcrumb";
 
-const GOLD = "#D4AF37";
-const GOLD_LIGHT = "#FFE8BA";
+const GOLD = "#B1EB0B";
+const GOLD_LIGHT = "#E8FF8A";
 const CARD = "#0A0E19";
 
 type TicketItem = {
@@ -30,8 +30,8 @@ function BrandTicketIcon() {
     <div
       className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
       style={{
-        background: "linear-gradient(150deg, rgba(255,232,186,0.16) 0%, rgba(212,175,55,0.06) 100%)",
-        border: "1px solid rgba(212,175,55,0.34)",
+        background: "linear-gradient(150deg, rgba(217,255,89,0.16) 0%, rgba(177,235,11,0.06) 100%)",
+        border: "1px solid rgba(177,235,11,0.34)",
       }}
       aria-hidden
     >
@@ -148,7 +148,7 @@ function TicketExtraRow({ label, value }: { label: string; value: string }) {
 const PAGE_BG = "var(--background)";
 
 function TicketPerforation({ tone = "gold" as "gold" | "red" }) {
-  const line = tone === "red" ? "rgba(248,113,113,0.45)" : "rgba(212,175,55,0.35)";
+  const line = tone === "red" ? "rgba(248,113,113,0.45)" : "rgba(177,235,11,0.35)";
   return (
     <div className="relative h-4 shrink-0 w-full" aria-hidden>
       <div
@@ -169,7 +169,7 @@ function TicketPerforation({ tone = "gold" as "gold" | "red" }) {
 
 /** Entalhes laterais no meio do bilhete (efeito “mordida” na borda) */
 function TicketSideNotches({ tone = "gold" as "gold" | "red" }) {
-  const ring = tone === "red" ? "rgba(248,113,113,0.4)" : "rgba(212,175,55,0.4)";
+  const ring = tone === "red" ? "rgba(248,113,113,0.4)" : "rgba(177,235,11,0.4)";
   return (
     <>
       <div
@@ -202,7 +202,7 @@ function TicketsBoloesPageContent() {
       <div className="mx-auto w-full max-w-3xl">
         <StepsBreadcrumb backHref="/boloes" items={["Bolões", "Tickets"]} />
 
-        <section className="rounded-2xl border p-4 sm:p-5 mb-4" style={{ background: CARD, borderColor: "rgba(212,175,55,0.24)" }}>
+        <section className="rounded-2xl border p-4 sm:p-5 mb-4" style={{ background: CARD, borderColor: "rgba(177,235,11,0.24)" }}>
           <div className="flex items-start gap-3">
             <BrandTicketIcon />
             <div>
@@ -221,7 +221,7 @@ function TicketsBoloesPageContent() {
                 className="relative rounded-[14px]"
                 style={{
                   opacity: t.status === "expired" ? 0.88 : 1,
-                  border: `1px solid ${t.status === "expired" ? "rgba(239,68,68,0.45)" : "rgba(212,175,55,0.45)"}`,
+                  border: `1px solid ${t.status === "expired" ? "rgba(239,68,68,0.45)" : "rgba(177,235,11,0.45)"}`,
                   boxShadow: "0 16px 48px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)",
                   background: `linear-gradient(165deg, #121a2a 0%, ${CARD} 42%, #060912 100%), repeating-linear-gradient(-50deg, rgba(255,255,255,0.028) 0, rgba(255,255,255,0.028) 1px, transparent 1px, transparent 8px)`,
                 }}
@@ -242,8 +242,8 @@ function TicketsBoloesPageContent() {
                     <span
                       className="inline-flex shrink-0 items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-bold"
                       style={{
-                        background: "rgba(212,175,55,0.08)",
-                        border: "1px solid rgba(212,175,55,0.45)",
+                        background: "rgba(177,235,11,0.08)",
+                        border: "1px solid rgba(177,235,11,0.45)",
                         color: GOLD_LIGHT,
                         boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06)",
                       }}
@@ -270,7 +270,7 @@ function TicketsBoloesPageContent() {
 
                   <div
                     className="mt-4 flex rounded-[10px] px-4 py-3 gap-0"
-                    style={{ background: "rgba(0,0,0,0.35)", border: "1px dashed rgba(212,175,55,0.28)" }}
+                    style={{ background: "rgba(0,0,0,0.35)", border: "1px dashed rgba(177,235,11,0.28)" }}
                   >
                     <div className="min-w-0 flex-1 text-center sm:text-left">
                       <p className="text-[9px] uppercase tracking-[0.18em] font-bold text-white/38">Ranking</p>
@@ -346,7 +346,7 @@ function TicketsBoloesPageContent() {
                         style={{
                           background: `linear-gradient(180deg, ${GOLD_LIGHT} 0%, ${GOLD} 100%)`,
                           color: "#0E141B",
-                          boxShadow: "0 4px 20px rgba(212,175,55,0.25)",
+                          boxShadow: "0 4px 20px rgba(177,235,11,0.25)",
                         }}
                       >
                         Continuar com ticket

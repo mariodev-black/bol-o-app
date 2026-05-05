@@ -367,7 +367,7 @@ function JogoCard({
           <p className="text-white/40 text-[12px] mt-0.5">VS {jogo.timeVisitante}</p>
         </div>
         <div className="flex flex-col items-end gap-1.5">
-          <span className="text-[#FFE8BA] text-[12px] font-medium">
+          <span className="text-[#E8FF8A] text-[12px] font-medium">
             {formatData(jogo.dataBR, jogo.kickoffAt)}, {safeHourLabel(jogo.hora)}
           </span>
           {readOnly && (
@@ -394,8 +394,8 @@ function JogoCard({
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-full"
               style={{ background: "rgba(254,197,84,0.12)", border: "1px solid rgba(254,197,84,0.25)" }}
             >
-              <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#FEC554" }} />
-              <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "#FEC554" }}>Salvo</span>
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#C8F23A" }} />
+              <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "#C8F23A" }}>Salvo</span>
             </div>
           )}
           {jogo.status === "encerrado" && (
@@ -440,7 +440,7 @@ function JogoCard({
                 className="w-9 h-9 rounded-xl flex items-center justify-center transition-opacity bg-[#252F42]"
                 style={{ opacity: disabled ? 0.3 : 1 }}
               >
-                <ChevronUp className="w-4 h-4 text-[#FFE8BA]" />
+                <ChevronUp className="w-4 h-4 text-[#E8FF8A]" />
               </button>
               <ScoreDisplay value={scoreCasa} dir={dirCasa} />
               <button
@@ -449,7 +449,7 @@ function JogoCard({
                 className="w-9 h-9 rounded-xl flex items-center justify-center transition-opacity bg-[#252F42]"
                 style={{ opacity: disabled ? 0.3 : 1 }}
               >
-                <ChevronDown className="w-4 h-4 text-[#FFE8BA]" />
+                <ChevronDown className="w-4 h-4 text-[#E8FF8A]" />
               </button>
             </div>
 
@@ -462,7 +462,7 @@ function JogoCard({
                 className="w-9 h-9 rounded-xl flex items-center justify-center transition-opacity bg-[#252F42]"
                 style={{ opacity: disabled ? 0.3 : 1 }}
               >
-                <ChevronUp className="w-4 h-4 text-[#FFE8BA]" />
+                <ChevronUp className="w-4 h-4 text-[#E8FF8A]" />
               </button>
               <ScoreDisplay value={scoreVisitante} dir={dirVisitante} />
               <button
@@ -471,7 +471,7 @@ function JogoCard({
                 className="w-9 h-9 rounded-xl flex items-center justify-center transition-opacity bg-[#252F42]"
                 style={{ opacity: disabled ? 0.3 : 1 }}
               >
-                <ChevronDown className="w-4 h-4 text-[#FFE8BA]" />
+                <ChevronDown className="w-4 h-4 text-[#E8FF8A]" />
               </button>
             </div>
           </>
@@ -646,7 +646,7 @@ function TabelaView({
                 className="w-5 h-5 rounded-[6px] flex items-center justify-center text-[11px] font-bold shrink-0"
                 style={{
                   background: i === 0 ? "rgba(254,197,84,0.15)" : "rgba(255,255,255,0.06)",
-                  color: i === 0 ? "#FEC554" : "rgba(255,255,255,0.4)",
+                  color: i === 0 ? "#C8F23A" : "rgba(255,255,255,0.4)",
                 }}
               >
                 {t.posicao}
@@ -703,15 +703,15 @@ function TabelaView({
                       onClick={() => onGrupo(letra)}
                       className="flex-1 flex items-center gap-2.5 px-3 py-3 rounded-xl text-left transition-all duration-150"
                       style={{
-                        background: ativo ? "rgba(255,175,47,0.08)" : "#0A0E19",
-                        border: ativo ? "1px solid rgba(255,175,47,0.25)" : "1px solid rgba(255,255,255,0.05)",
+                        background: ativo ? "rgba(177,235,11,0.08)" : "#0A0E19",
+                        border: ativo ? "1px solid rgba(177,235,11,0.25)" : "1px solid rgba(255,255,255,0.05)",
                       }}
                     >
                       <span
                         className="w-6 h-6 rounded-lg flex items-center justify-center text-[12px] font-black shrink-0"
                         style={{
-                          background: ativo ? "rgba(255,175,47,0.2)" : "rgba(255,255,255,0.07)",
-                          color: ativo ? "#D4AF37" : "rgba(255,255,255,0.5)",
+                          background: ativo ? "rgba(177,235,11,0.2)" : "rgba(255,255,255,0.07)",
+                          color: ativo ? "#B1EB0B" : "rgba(255,255,255,0.5)",
                         }}
                       >
                         {letra}
@@ -723,8 +723,8 @@ function TabelaView({
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={lider.time.escudo} alt={lider.time.sigla} className="w-5 h-5 object-contain" />
                       </div>
-                      <span className="font-bold text-[12px] flex-1 truncate" style={{ color: ativo ? "#FFE8BA" : "#fff" }}>{lider.time.sigla}</span>
-                      <span className="text-[11px] font-light" style={{ color: ativo ? "#D4AF37" : "rgba(255,255,255,0.35)" }}>Lidera</span>
+                      <span className="font-bold text-[12px] flex-1 truncate" style={{ color: ativo ? "#E8FF8A" : "#fff" }}>{lider.time.sigla}</span>
+                      <span className="text-[11px] font-light" style={{ color: ativo ? "#B1EB0B" : "rgba(255,255,255,0.35)" }}>Lidera</span>
                     </button>
                   );
                 })}
@@ -804,7 +804,7 @@ function RankingAvatar({ iniciais, isMe, size = 32 }: { iniciais: string; isMe?:
         height: size,
         fontSize: size * 0.38,
         background: isMe ? "rgba(218,182,130,0.15)" : "rgba(255,255,255,0.07)",
-        color: isMe ? "#DAB682" : "rgba(255,255,255,0.5)",
+        color: isMe ? "#D7FF59" : "rgba(255,255,255,0.5)",
         border: isMe ? "1px solid rgba(218,182,130,0.25)" : "1px solid rgba(255,255,255,0.08)",
       }}
     >
@@ -833,7 +833,7 @@ function RankingView({ rows, stats }: { rows: RankingRowView[]; stats: ResumoSta
               <RankingAvatar iniciais={MEU.iniciais} isMe size={44} />
               <div
                 className="absolute -bottom-1 -right-1 w-[18px] h-[18px] rounded-full flex items-center justify-center"
-                style={{ background: "#D4AF37" }}
+                style={{ background: "#B1EB0B" }}
               >
                 <Coins className="w-2.5 h-2.5" style={{ color: "#0E141B" }} strokeWidth={2.5} />
               </div>
@@ -855,9 +855,9 @@ function RankingView({ rows, stats }: { rows: RankingRowView[]; stats: ResumoSta
       {/* Stats */}
       <div className="grid grid-cols-3 gap-2">
         {[
-          { Icon: Target, val: stats.palpites, label: "Palpites", color: "#D4AF37" },
+          { Icon: Target, val: stats.palpites, label: "Palpites", color: "#B1EB0B" },
           { Icon: CircleCheck, val: stats.acertos, label: "Acertos", color: "#34D399" },
-          { Icon: Star, val: stats.pontos, label: "Pontos", color: "#DAB682" },
+          { Icon: Star, val: stats.pontos, label: "Pontos", color: "#D7FF59" },
         ].map(({ Icon, val, label, color }) => (
           <div
             key={label}
@@ -911,7 +911,7 @@ function RankingView({ rows, stats }: { rows: RankingRowView[]; stats: ResumoSta
             <div className="shrink-0 flex items-baseline gap-0.5">
               <span
                 className="font-black text-[16px]"
-                style={{ color: r.isMe ? "#D4AF37" : "#fff" }}
+                style={{ color: r.isMe ? "#B1EB0B" : "#fff" }}
               >
                 {r.pts}
               </span>
@@ -926,9 +926,9 @@ function RankingView({ rows, stats }: { rows: RankingRowView[]; stats: ResumoSta
         className="rounded-2xl px-4 py-4 flex items-start gap-3"
         style={{ background: "rgba(218,182,130,0.06)", border: "1px solid rgba(218,182,130,0.18)" }}
       >
-        <Bell className="w-5 h-5 shrink-0 mt-0.5" style={{ color: "#DAB682" }} strokeWidth={2} />
+        <Bell className="w-5 h-5 shrink-0 mt-0.5" style={{ color: "#D7FF59" }} strokeWidth={2} />
         <div>
-          <p className="font-bold text-[13px]" style={{ color: "#DAB682" }}>Prazo para palpitar</p>
+          <p className="font-bold text-[13px]" style={{ color: "#D7FF59" }}>Prazo para palpitar</p>
           <p className="text-[12px] mt-1 leading-relaxed" style={{ color: "rgba(218,182,130,0.5)" }}>
             Os palpites são bloqueados 1 hora antes do início de cada partida. Não esqueça de salvar!
           </p>
@@ -946,14 +946,14 @@ function TicketPerforationLine() {
         className="absolute left-0 top-1/2 z-1 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full"
         style={{
           background: "var(--background)",
-          boxShadow: "inset 0 0 0 1px rgba(212,175,55,0.28)",
+          boxShadow: "inset 0 0 0 1px rgba(177,235,11,0.28)",
         }}
       />
       <div
         className="absolute right-0 top-1/2 z-1 h-3 w-3 translate-x-1/2 -translate-y-1/2 rounded-full"
         style={{
           background: "var(--background)",
-          boxShadow: "inset 0 0 0 1px rgba(212,175,55,0.28)",
+          boxShadow: "inset 0 0 0 1px rgba(177,235,11,0.28)",
         }}
       />
       <div className="absolute left-6 right-6 top-1/2 -translate-y-1/2 border-t border-dashed border-white/14" />
@@ -983,7 +983,7 @@ function HistoricoSkeletonRows() {
         <div
           key={i}
           className="rounded-lg px-3.5 py-3.5 animate-pulse"
-          style={{ background: "rgba(0,0,0,0.2)", border: "1px dashed rgba(212,175,55,0.2)" }}
+          style={{ background: "rgba(0,0,0,0.2)", border: "1px dashed rgba(177,235,11,0.2)" }}
         >
           <div className="flex items-start justify-between gap-2 mb-3">
             <div className="flex items-center gap-2 min-w-0">
@@ -1029,7 +1029,7 @@ function TicketResumoView({
     <div
       className="relative rounded-[14px]"
       style={{
-        border: "1px solid rgba(212,175,55,0.45)",
+        border: "1px solid rgba(177,235,11,0.45)",
         boxShadow: "0 16px 48px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)",
         background: "linear-gradient(165deg, #121a2a 0%, #0A0E19 42%, #060912 100%)",
       }}
@@ -1047,13 +1047,13 @@ function TicketResumoView({
       <div className="relative z-1 px-4 pb-3 sm:px-5 sm:pb-3 -mt-0.5">
         <div className="mt-2 grid grid-cols-2 lg:grid-cols-4 gap-2">
           {ticketId && (
-            <div className="rounded-md px-2.5 py-2 text-[12px]" style={{ background: "rgba(0,0,0,0.25)", border: "1px dashed rgba(212,175,55,0.22)" }}>
+            <div className="rounded-md px-2.5 py-2 text-[12px]" style={{ background: "rgba(0,0,0,0.25)", border: "1px dashed rgba(177,235,11,0.22)" }}>
               Ticket
               <p className="text-white font-semibold mt-0.5 truncate font-mono" title={ticketId}>{ticketId}</p>
             </div>
           )}
           {rankingPos != null && (
-            <div className="rounded-md px-2.5 py-2 text-[12px]" style={{ background: "rgba(0,0,0,0.25)", border: "1px dashed rgba(212,175,55,0.22)" }}>
+            <div className="rounded-md px-2.5 py-2 text-[12px]" style={{ background: "rgba(0,0,0,0.25)", border: "1px dashed rgba(177,235,11,0.22)" }}>
               Ranking
               <p className="text-white font-semibold mt-0.5 font-mono">#{rankingPos}</p>
             </div>
@@ -1062,15 +1062,15 @@ function TicketResumoView({
             Pontos
             <p className="text-[#4ADE80] font-semibold mt-0.5 font-mono">{stats.pontos} pts</p>
           </div>
-          <div className="rounded-md px-2.5 py-2 text-[12px]" style={{ background: "rgba(0,0,0,0.25)", border: "1px dashed rgba(212,175,55,0.22)" }}>
+          <div className="rounded-md px-2.5 py-2 text-[12px]" style={{ background: "rgba(0,0,0,0.25)", border: "1px dashed rgba(177,235,11,0.22)" }}>
             Acertos
             <p className="text-white font-semibold mt-0.5 font-mono">{stats.acertos}</p>
           </div>
-          <div className="rounded-md px-2.5 py-2 text-[12px]" style={{ background: "rgba(0,0,0,0.25)", border: "1px dashed rgba(212,175,55,0.22)" }}>
+          <div className="rounded-md px-2.5 py-2 text-[12px]" style={{ background: "rgba(0,0,0,0.25)", border: "1px dashed rgba(177,235,11,0.22)" }}>
             Placar exato
             <p className="text-white font-semibold mt-0.5 font-mono">{stats.exatos}</p>
           </div>
-          <div className="rounded-md px-2.5 py-2 text-[12px]" style={{ background: "rgba(0,0,0,0.25)", border: "1px dashed rgba(212,175,55,0.22)" }}>
+          <div className="rounded-md px-2.5 py-2 text-[12px]" style={{ background: "rgba(0,0,0,0.25)", border: "1px dashed rgba(177,235,11,0.22)" }}>
             Palpites
             <p className="text-white font-semibold mt-0.5 font-mono">{stats.palpites}</p>
           </div>
@@ -1085,8 +1085,8 @@ function TicketResumoView({
           onClick={() => setResumoSecao("geral")}
           className="flex-1 py-3.5 px-2 text-[11px] font-bold font-mono uppercase tracking-wide transition-colors border-r border-dashed border-white/15"
           style={{
-            background: resumoSecao === "geral" ? "rgba(212,175,55,0.1)" : "transparent",
-            color: resumoSecao === "geral" ? "#FFE8BA" : "rgba(255,255,255,0.4)",
+            background: resumoSecao === "geral" ? "rgba(177,235,11,0.1)" : "transparent",
+            color: resumoSecao === "geral" ? "#E8FF8A" : "rgba(255,255,255,0.4)",
           }}
         >
           Resumo
@@ -1096,8 +1096,8 @@ function TicketResumoView({
           onClick={() => setResumoSecao("historico")}
           className="flex-1 py-3.5 px-2 text-[11px] font-bold font-mono uppercase tracking-wide transition-colors"
           style={{
-            background: resumoSecao === "historico" ? "rgba(212,175,55,0.1)" : "transparent",
-            color: resumoSecao === "historico" ? "#FFE8BA" : "rgba(255,255,255,0.4)",
+            background: resumoSecao === "historico" ? "rgba(177,235,11,0.1)" : "transparent",
+            color: resumoSecao === "historico" ? "#E8FF8A" : "rgba(255,255,255,0.4)",
           }}
         >
           Histórico
@@ -1152,7 +1152,7 @@ function TicketResumoView({
               <div
                 key={`${item.matchId}-${item.submittedAt}`}
                 className="rounded-lg px-3.5 py-3.5"
-                style={{ background: "rgba(0,0,0,0.2)", border: "1px dashed rgba(212,175,55,0.2)" }}
+                style={{ background: "rgba(0,0,0,0.2)", border: "1px dashed rgba(177,235,11,0.2)" }}
               >
                 <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
                   <div className="min-w-0">
@@ -1264,9 +1264,9 @@ function DesktopSidebar({ grupo, tabela, grupos, onGrupo, rankingRows, stats }: 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-2">
         {[
-          { Icon: Target, val: stats.palpites, label: "Palpites", color: "#D4AF37" },
+          { Icon: Target, val: stats.palpites, label: "Palpites", color: "#B1EB0B" },
           { Icon: CircleCheck, val: stats.acertos, label: "Acertos", color: "#34D399" },
-          { Icon: Star, val: stats.pontos, label: "Pontos", color: "#DAB682" },
+          { Icon: Star, val: stats.pontos, label: "Pontos", color: "#D7FF59" },
         ].map(({ Icon, val, label, color }) => (
           <div
             key={label}
@@ -1339,7 +1339,7 @@ function DesktopSidebar({ grupo, tabela, grupos, onGrupo, rankingRows, stats }: 
               className="w-5 h-5 rounded-[5px] flex items-center justify-center text-[10px] font-bold shrink-0"
               style={{
                 background: i === 0 ? "rgba(254,197,84,0.15)" : "rgba(255,255,255,0.06)",
-                color: i === 0 ? "#FEC554" : "rgba(255,255,255,0.4)",
+                color: i === 0 ? "#C8F23A" : "rgba(255,255,255,0.4)",
               }}
             >
               {t.posicao}
@@ -1404,7 +1404,7 @@ function DesktopSidebar({ grupo, tabela, grupos, onGrupo, rankingRows, stats }: 
               <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.3)" }}>{r.acertos} acertos</p>
             </div>
             <div className="shrink-0 flex items-baseline gap-0.5">
-              <span className="font-black text-[14px]" style={{ color: r.isMe ? "#D4AF37" : "#fff" }}>{r.pts}</span>
+              <span className="font-black text-[14px]" style={{ color: r.isMe ? "#B1EB0B" : "#fff" }}>{r.pts}</span>
               <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.2)" }}>pts</span>
             </div>
           </div>
@@ -1416,9 +1416,9 @@ function DesktopSidebar({ grupo, tabela, grupos, onGrupo, rankingRows, stats }: 
         className="rounded-2xl px-4 py-4 flex items-start gap-3"
         style={{ background: "rgba(218,182,130,0.06)", border: "1px solid rgba(218,182,130,0.18)" }}
       >
-        <Bell className="w-4 h-4 shrink-0 mt-0.5" style={{ color: "#DAB682" }} strokeWidth={2} />
+        <Bell className="w-4 h-4 shrink-0 mt-0.5" style={{ color: "#D7FF59" }} strokeWidth={2} />
         <div>
-          <p className="font-bold text-[12px]" style={{ color: "#DAB682" }}>Prazo para palpitar</p>
+          <p className="font-bold text-[12px]" style={{ color: "#D7FF59" }}>Prazo para palpitar</p>
           <p className="text-[11px] mt-1 leading-relaxed" style={{ color: "rgba(218,182,130,0.5)" }}>
             Os palpites são bloqueados 1 hora antes do início de cada partida. Não esqueça de salvar!
           </p>
@@ -1733,9 +1733,9 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                 onClick={() => setGrupo(g)}
                 className="flex-1 h-9 rounded-lg text-[13px] font-bold transition-all duration-200"
                 style={{
-                  background: grupo === g ? "linear-gradient(180deg, #FFE8BA 0%, #D4AF37 100%)" : "#0A0E19",
+                  background: grupo === g ? "linear-gradient(180deg, #E8FF8A 0%, #B1EB0B 100%)" : "#0A0E19",
                   color: grupo === g ? "#0E141B" : "rgba(255,255,255,0.4)",
-                  boxShadow: grupo === g ? "0 0 14px rgba(255,175,47,0.45)" : "none",
+                  boxShadow: grupo === g ? "0 0 14px rgba(177,235,11,0.45)" : "none",
                 }}
               >{g}</button>
             ))}
@@ -1750,9 +1750,9 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
             onClick={() => setGrupo(g)}
             className="w-9 h-9 rounded-lg text-[13px] font-bold transition-all duration-200"
             style={{
-              background: grupo === g ? "linear-gradient(180deg, #FFE8BA 0%, #D4AF37 100%)" : "#0A0E19",
+              background: grupo === g ? "linear-gradient(180deg, #E8FF8A 0%, #B1EB0B 100%)" : "#0A0E19",
               color: grupo === g ? "#0E141B" : "rgba(255,255,255,0.4)",
-              boxShadow: grupo === g ? "0 0 14px rgba(255,175,47,0.45)" : "none",
+              boxShadow: grupo === g ? "0 0 14px rgba(177,235,11,0.45)" : "none",
             }}
           >{g}</button>
         ))}
@@ -1873,9 +1873,9 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                       onClick={() => scrollToGroup(g)}
                       className="h-10 min-w-[40px] shrink-0 rounded-xl px-3 inline-flex items-center justify-center font-bold text-[13px] transition-all"
                       style={{
-                        background: active ? "linear-gradient(180deg, #FFE8BA 0%, #FEC554 100%)" : "rgba(255,255,255,0.02)",
+                        background: active ? "linear-gradient(180deg, #E8FF8A 0%, #C8F23A 100%)" : "rgba(255,255,255,0.02)",
                         color: active ? "#0E141B" : "rgba(255,255,255,0.72)",
-                        border: active ? "1px solid rgba(255,232,186,0.55)" : "1px solid rgba(255,255,255,0.1)",
+                        border: active ? "1px solid rgba(217,255,89,0.55)" : "1px solid rgba(255,255,255,0.1)",
                         boxShadow: active ? "0 1.85px 9.23px rgba(246,202,59,0.4)" : "none",
                       }}
                     >

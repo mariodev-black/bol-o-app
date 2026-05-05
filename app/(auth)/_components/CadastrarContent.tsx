@@ -261,7 +261,7 @@ function CountrySelector({ selected, onChange }: { selected: Country; onChange: 
                 >
                   <Flag iso={c.iso} />
                   <span style={{ flex: 1, fontSize: 13, color: "rgba(255,255,255,0.8)" }}>{c.name}</span>
-                  <span style={{ fontSize: 12, color: "#DAB682", fontWeight: 700 }}>{c.code}</span>
+                  <span style={{ fontSize: 12, color: "#D7FF59", fontWeight: 700 }}>{c.code}</span>
                 </button>
               );
             })}
@@ -394,7 +394,7 @@ export function CadastrarContent() {
       {/* ── Headline ── */}
       <div style={{ textAlign: "center", marginBottom: 28 }}>
         <p style={{ fontSize: 18, fontWeight: 900, color: "white", textTransform: "uppercase", letterSpacing: "0.02em", lineHeight: 1.2 }}>AQUI TEM</p>
-        <p style={{ fontSize: 46, fontWeight: 900, textTransform: "uppercase", lineHeight: 1.0, background: "linear-gradient(90deg, #D4AF37 0%, #FFE085 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>CASHBACK</p>
+        <p style={{ fontSize: 46, fontWeight: 900, textTransform: "uppercase", lineHeight: 1.0, background: "linear-gradient(90deg, #B1EB0B 0%, #DFFF76 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>CASHBACK</p>
         <p style={{ fontSize: 15, fontWeight: 900, color: "white", textTransform: "uppercase", marginTop: 2 }}>DE ATÉ 25% TODOS OS DIAS</p>
       </div>
 
@@ -481,7 +481,7 @@ export function CadastrarContent() {
                     onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
                   >
                     <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 13 }}>{local}</span>
-                    <span style={{ color: "#DAB682", fontWeight: 700 }}>@{domain}</span>
+                    <span style={{ color: "#D7FF59", fontWeight: 700 }}>@{domain}</span>
                   </button>
                 );
               })}
@@ -520,13 +520,13 @@ export function CadastrarContent() {
 
         {/* Checkbox */}
         <div onClick={() => setAccepted(!accepted)} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 14px", borderRadius: 8, cursor: "pointer", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
-          <div style={{ width: 20, height: 20, borderRadius: 4, flexShrink: 0, marginTop: 1, border: accepted ? "2px solid #D4AF37" : "2px solid rgba(255,255,255,0.2)", background: accepted ? "rgba(255,175,47,0.15)" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s" }}>
-            {accepted && <svg width="11" height="9" viewBox="0 0 11 9" fill="none"><path d="M1 4.5L4 7.5L10 1" stroke="#D4AF37" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+          <div style={{ width: 20, height: 20, borderRadius: 4, flexShrink: 0, marginTop: 1, border: accepted ? "2px solid #B1EB0B" : "2px solid rgba(255,255,255,0.2)", background: accepted ? "rgba(177,235,11,0.15)" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s" }}>
+            {accepted && <svg width="11" height="9" viewBox="0 0 11 9" fill="none"><path d="M1 4.5L4 7.5L10 1" stroke="#B1EB0B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
           </div>
           <p style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", lineHeight: 1.6, margin: 0 }}>
             Confirmo que tenho mais de 18 anos e aceito os{" "}
-            <Link href="/termos" style={{ color: "#DAB682", textDecoration: "underline" }} onClick={(e) => e.stopPropagation()}>Termos e Condições</Link>{" "}e a{" "}
-            <Link href="/privacidade" style={{ color: "#DAB682", textDecoration: "underline" }} onClick={(e) => e.stopPropagation()}>Política de Privacidade</Link>.
+            <Link href="/termos" style={{ color: "#D7FF59", textDecoration: "underline" }} onClick={(e) => e.stopPropagation()}>Termos e Condições</Link>{" "}e a{" "}
+            <Link href="/privacidade" style={{ color: "#D7FF59", textDecoration: "underline" }} onClick={(e) => e.stopPropagation()}>Política de Privacidade</Link>.
           </p>
         </div>
 
@@ -537,7 +537,7 @@ export function CadastrarContent() {
           style={{
             width: "100%", height: 56, borderRadius: 8, border: "none",
             cursor: loading ? "wait" : "pointer", opacity: loading ? 0.75 : 1,
-            background: "linear-gradient(90deg, #D4AF37 0%, #FFD96A 100%)", color: "#0E141B", fontSize: 16, fontWeight: 900, letterSpacing: "0.14em", textTransform: "uppercase", marginTop: 4,
+            background: "linear-gradient(90deg, #B1EB0B 0%, #DFFF76 100%)", color: "#0E141B", fontSize: 16, fontWeight: 900, letterSpacing: "0.14em", textTransform: "uppercase", marginTop: 4,
           }}
         >
           {loading ? "CRIANDO…" : "CRIAR CONTA"}
@@ -546,7 +546,7 @@ export function CadastrarContent() {
 
       <p style={{ textAlign: "center", marginTop: 22, fontSize: 13, color: "rgba(255,255,255,0.3)" }}>
         JÁ POSSUI CONTA?{" "}
-        <Link href="/login" style={{ color: "#DAB682", fontWeight: 900, textDecoration: "none", letterSpacing: "0.03em" }}>CLIQUE AQUI</Link>
+        <Link href="/login" style={{ color: "#D7FF59", fontWeight: 900, textDecoration: "none", letterSpacing: "0.03em" }}>CLIQUE AQUI</Link>
       </p>
     </form>
   );

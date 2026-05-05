@@ -22,12 +22,12 @@ import type { LucideIcon } from "lucide-react";
 const BG = "#020617";
 const CARD = "#0f172a";
 const CARD_HEADER = "#0c1322";
-const GOLD = "#D4AF37";
-const GOLD_MID = "#FFE8BA";
+const GOLD = "#B1EB0B";
+const GOLD_MID = "#E8FF8A";
 const TEXT_MUTED = "#94a3b8";
 const TEXT_INDEX_INACTIVE = "#9CA3AF";
-const BRAND_GOLD = "#D4AF37";
-const BRAND_GOLD_LIGHT = "#FFE8BA";
+const BRAND_GOLD = "#B1EB0B";
+const BRAND_GOLD_LIGHT = "#E8FF8A";
 
 /** Metadados do cabeçalho (alinhados ao layout de referência). */
 const HEADER_META =
@@ -36,15 +36,15 @@ const HEADER_META =
 type Accent = { bg: string; border: string; bullet: string; icon: string };
 
 const ACCENTS: Accent[] = [
-  { bg: "rgba(212, 175, 55, 0.16)", border: "rgba(212, 175, 55, 0.34)", bullet: "#D4AF37", icon: "#FFE8BA" },
-  { bg: "rgba(255, 232, 186, 0.12)", border: "rgba(255, 232, 186, 0.28)", bullet: "#FFE8BA", icon: "#FFE8BA" },
-  { bg: "rgba(212, 175, 55, 0.13)", border: "rgba(212, 175, 55, 0.3)", bullet: "#D4AF37", icon: "#FFE8BA" },
-  { bg: "rgba(255, 232, 186, 0.1)", border: "rgba(255, 232, 186, 0.24)", bullet: "#FFE8BA", icon: "#FFE8BA" },
-  { bg: "rgba(212, 175, 55, 0.11)", border: "rgba(212, 175, 55, 0.26)", bullet: "#D4AF37", icon: "#FFE8BA" },
-  { bg: "rgba(255, 232, 186, 0.15)", border: "rgba(255, 232, 186, 0.32)", bullet: "#FFE8BA", icon: "#FFE8BA" },
-  { bg: "rgba(212, 175, 55, 0.14)", border: "rgba(212, 175, 55, 0.3)", bullet: "#D4AF37", icon: "#FFE8BA" },
-  { bg: "rgba(255, 232, 186, 0.13)", border: "rgba(255, 232, 186, 0.3)", bullet: "#FFE8BA", icon: "#FFE8BA" },
-  { bg: "rgba(212, 175, 55, 0.12)", border: "rgba(212, 175, 55, 0.28)", bullet: "#D4AF37", icon: "#FFE8BA" },
+  { bg: "rgba(177, 235, 11, 0.16)", border: "rgba(177, 235, 11, 0.34)", bullet: "#B1EB0B", icon: "#E8FF8A" },
+  { bg: "rgba(217, 255, 89, 0.12)", border: "rgba(217, 255, 89, 0.28)", bullet: "#E8FF8A", icon: "#E8FF8A" },
+  { bg: "rgba(177, 235, 11, 0.13)", border: "rgba(177, 235, 11, 0.3)", bullet: "#B1EB0B", icon: "#E8FF8A" },
+  { bg: "rgba(217, 255, 89, 0.1)", border: "rgba(217, 255, 89, 0.24)", bullet: "#E8FF8A", icon: "#E8FF8A" },
+  { bg: "rgba(177, 235, 11, 0.11)", border: "rgba(177, 235, 11, 0.26)", bullet: "#B1EB0B", icon: "#E8FF8A" },
+  { bg: "rgba(217, 255, 89, 0.15)", border: "rgba(217, 255, 89, 0.32)", bullet: "#E8FF8A", icon: "#E8FF8A" },
+  { bg: "rgba(177, 235, 11, 0.14)", border: "rgba(177, 235, 11, 0.3)", bullet: "#B1EB0B", icon: "#E8FF8A" },
+  { bg: "rgba(217, 255, 89, 0.13)", border: "rgba(217, 255, 89, 0.3)", bullet: "#E8FF8A", icon: "#E8FF8A" },
+  { bg: "rgba(177, 235, 11, 0.12)", border: "rgba(177, 235, 11, 0.28)", bullet: "#B1EB0B", icon: "#E8FF8A" },
 ];
 
 const INDEX_ITEMS: { id: string; label: string; Icon: LucideIcon }[] = [
@@ -404,7 +404,7 @@ export default function PrivacidadePage() {
           className="absolute -top-1/4 -right-1/4 w-[72%] h-[58%]"
           style={{
             background:
-              "radial-gradient(ellipse 75% 65% at 78% 18%, rgba(255, 232, 186, 0.1) 0%, transparent 68%)",
+              "radial-gradient(ellipse 75% 65% at 78% 18%, rgba(217, 255, 89, 0.1) 0%, transparent 68%)",
           }}
         />
         <div
@@ -431,8 +431,8 @@ export default function PrivacidadePage() {
             <div
               className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
               style={{
-                background: "rgba(212, 175, 55, 0.08)",
-                border: `1px solid rgba(212, 175, 55, 0.45)`,
+                background: "rgba(177, 235, 11, 0.08)",
+                border: `1px solid rgba(177, 235, 11, 0.45)`,
               }}
             >
               <FileText className="w-6 h-6" style={{ color: GOLD }} strokeWidth={2} />
@@ -483,14 +483,14 @@ export default function PrivacidadePage() {
                       onClick={() => scrollTo(item.id)}
                       className="group flex items-start gap-3 w-full text-left rounded-lg py-2.5 pl-2.5 pr-2 transition-colors relative"
                       style={{
-                        background: active ? "rgba(212, 175, 55, 0.16)" : "transparent",
-                        borderLeft: active ? "3px solid #D4AF37" : "3px solid transparent",
+                        background: active ? "rgba(177, 235, 11, 0.16)" : "transparent",
+                        borderLeft: active ? "3px solid #B1EB0B" : "3px solid transparent",
                         color: active ? "#ffffff" : TEXT_INDEX_INACTIVE,
                       }}
                     >
                       <Icon
                         className="w-4 h-4 shrink-0 mt-0.5"
-                        style={{ color: active ? "#FFE8BA" : "rgba(148, 163, 184, 0.55)" }}
+                        style={{ color: active ? "#E8FF8A" : "rgba(148, 163, 184, 0.55)" }}
                         strokeWidth={2}
                       />
                       <span
@@ -529,14 +529,14 @@ export default function PrivacidadePage() {
               className="lg:hidden rounded-2xl p-4 mb-4 flex items-center gap-3"
               style={{
                 background: CARD,
-                border: `1px solid rgba(212, 175, 55, 0.35)`,
+                border: `1px solid rgba(177, 235, 11, 0.35)`,
               }}
             >
               <div
                 className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
                 style={{
-                  background: "rgba(212, 175, 55, 0.15)",
-                  border: "1px solid rgba(212, 175, 55, 0.3)",
+                  background: "rgba(177, 235, 11, 0.15)",
+                  border: "1px solid rgba(177, 235, 11, 0.3)",
                 }}
               >
                 <FileText className="w-5 h-5" style={{ color: GOLD_MID }} />
@@ -550,8 +550,8 @@ export default function PrivacidadePage() {
               <span
                 className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase"
                 style={{
-                  background: "rgba(212, 175, 55, 0.15)",
-                  border: "1px solid rgba(212, 175, 55, 0.35)",
+                  background: "rgba(177, 235, 11, 0.15)",
+                  border: "1px solid rgba(177, 235, 11, 0.35)",
                   color: BRAND_GOLD_LIGHT,
                 }}
               >
@@ -703,7 +703,7 @@ export default function PrivacidadePage() {
             className="w-full flex items-center justify-center gap-2 min-h-[52px] rounded-xl text-[15px] font-black text-[#0E141B]"
             style={{
               background: `linear-gradient(90deg, ${BRAND_GOLD_LIGHT} 0%, ${BRAND_GOLD} 100%)`,
-              boxShadow: "0 6px 28px rgba(212, 175, 55, 0.35)",
+              boxShadow: "0 6px 28px rgba(177, 235, 11, 0.35)",
             }}
           >
             <Check className="w-5 h-5" strokeWidth={2.5} />

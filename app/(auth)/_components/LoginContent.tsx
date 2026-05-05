@@ -91,7 +91,7 @@ export function LoginContent() {
           fontWeight: 900,
           textTransform: "uppercase",
           lineHeight: 1.1,
-          background: "linear-gradient(90deg, #D4AF37 0%, #FFE085 100%)",
+          background: "linear-gradient(90deg, #B1EB0B 0%, #DFFF76 100%)",
           WebkitBackgroundClip: "text",
           WebkitTextFillColor: "transparent",
           backgroundClip: "text",
@@ -103,11 +103,11 @@ export function LoginContent() {
           marginTop: 10,
           padding: "5px 12px",
           borderRadius: 4,
-          background: "rgba(255,175,47,0.12)",
+          background: "rgba(177,235,11,0.12)",
           border: "1px solid rgba(218,182,130,0.2)",
           fontSize: 10,
           fontWeight: 700,
-          color: "#DAB682",
+          color: "#D7FF59",
           letterSpacing: "0.04em",
         }}>
           RESGATE R$50,00 SEMPRE QUE INDICAR UM AMIGO
@@ -186,7 +186,7 @@ export function LoginContent() {
           style={{
             width: "100%", height: 56, borderRadius: 8, border: "none", cursor: loading ? "wait" : "pointer",
             opacity: loading ? 0.75 : 1,
-            background: "linear-gradient(90deg, #D4AF37 0%, #FFD96A 100%)",
+            background: "linear-gradient(90deg, #B1EB0B 0%, #DFFF76 100%)",
             color: "#0E141B", fontSize: 16, fontWeight: 900, letterSpacing: "0.14em",
             textTransform: "uppercase", marginTop: 4,
           }}
@@ -196,7 +196,7 @@ export function LoginContent() {
 
         {/* Links */}
         <div style={{ display: "flex", justifyContent: "space-between", marginTop: 2 }}>
-          <Link href="/recuperar-senha" style={{ fontSize: 11, fontWeight: 700, color: "#DAB682", textDecoration: "none", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+          <Link href="/recuperar-senha" style={{ fontSize: 11, fontWeight: 700, color: "#D7FF59", textDecoration: "none", letterSpacing: "0.05em", textTransform: "uppercase" }}>
             ESQUECEU A SENHA?
           </Link>
           <Link
@@ -205,7 +205,7 @@ export function LoginContent() {
                 ? `/cadastrar?ref=${encodeURIComponent(searchParams.get("ref")!.trim())}`
                 : "/cadastrar"
             }
-            style={{ fontSize: 11, fontWeight: 700, color: "#DAB682", textDecoration: "none", letterSpacing: "0.05em", textTransform: "uppercase" }}
+            style={{ fontSize: 11, fontWeight: 700, color: "#D7FF59", textDecoration: "none", letterSpacing: "0.05em", textTransform: "uppercase" }}
           >
             CRIAR CONTA
           </Link>
@@ -248,9 +248,9 @@ export function LoginContent() {
       {/* ── Disclaimer ── */}
       <p style={{ fontSize: 11, color: "rgba(255,255,255,0.22)", textAlign: "center", marginTop: 20, lineHeight: 1.7 }}>
         Ao fazer login, estou de acordo com os nossos{" "}
-        <Link href="/termos" style={{ color: "#DAB682", textDecoration: "underline" }}>Termos e Condições</Link>.
+        <Link href="/termos" style={{ color: "#D7FF59", textDecoration: "underline" }}>Termos e Condições</Link>.
         {" "}Esteja atento aos riscos de dependência. Em caso de dúvidas, acesse a nossa{" "}
-        <Link href="/jogo-responsavel" style={{ color: "#DAB682", textDecoration: "underline" }}>Central de Jogo Responsável</Link>.
+        <Link href="/jogo-responsavel" style={{ color: "#D7FF59", textDecoration: "underline" }}>Central de Jogo Responsável</Link>.
       </p>
 
       <p style={{ fontSize: 11, color: "rgba(255,255,255,0.18)", textAlign: "center", marginTop: 12, lineHeight: 1.65 }}>

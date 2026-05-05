@@ -6,7 +6,7 @@ export default function BoloesLoading() {
       <div className="mx-auto w-full max-w-3xl space-y-4">
         <section
           className="rounded-2xl border p-4 sm:p-5"
-          style={{ background: CARD, borderColor: "rgba(212,175,55,0.25)" }}
+          style={{ background: CARD, borderColor: "rgba(177,235,11,0.25)" }}
         >
           <div className="h-3 w-24 rounded bg-white/10" />
           <div className="h-8 w-52 rounded bg-white/10 mt-3" />

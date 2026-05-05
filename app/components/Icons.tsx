@@ -5,8 +5,8 @@ export const IconsTicket = () => {
             <path d="M18.5734 0.129772C18.379 0.203808 18.0644 0.370388 17.87 0.49995C17.2685 0.916401 13.8258 4.46086 13.5945 4.90507C13.3816 5.31227 13.3724 5.39556 13.3261 8.14413C13.2798 10.939 13.2706 10.976 13.0392 11.4757C12.6968 12.2068 12.2896 12.6325 11.5863 12.975L10.9662 13.2804L8.1436 13.3266C5.45981 13.3729 5.30248 13.3822 4.90454 13.5765C4.34927 13.8541 0.573456 17.6485 0.268059 18.2315C0.110733 18.5369 0.0459523 18.8515 0.0181889 19.4438C-0.0558467 20.9153 -1.24042 19.6011 13.178 34.0381C27.6705 48.5491 26.4397 47.4385 27.9204 47.3645C28.5219 47.3367 28.8458 47.272 29.1512 47.1146C29.7065 46.8278 33.4916 43.0519 33.7877 42.4782C34.0005 42.071 34.0098 41.9784 34.0561 39.2391L34.1023 36.4165L34.4077 35.7964C34.7502 35.0931 35.1759 34.6859 35.907 34.3435C36.4067 34.1121 36.4437 34.1029 39.2386 34.0566C41.9224 34.0103 42.0797 34.0011 42.4776 33.8067C43.0329 33.5291 46.8087 29.7348 47.1141 29.1517C47.2714 28.8463 47.3362 28.5317 47.364 27.9394C47.438 26.4402 48.6041 27.7358 34.1209 13.2526C19.869 -0.990013 20.9518 0.000209808 19.6191 0.00946426C19.2397 0.00946426 18.7677 0.064991 18.5734 0.129772ZM29.3178 17.1117C30.3728 17.6577 30.817 18.8515 30.345 19.8973C30.1044 20.4433 20.6094 29.9569 20.0171 30.253C18.6752 30.9193 16.9909 29.8366 16.9909 28.3188C16.9909 27.9764 17.0556 27.6895 17.1852 27.4397C17.4628 26.9307 27.1523 17.269 27.578 17.0839C28.0407 16.8803 28.9013 16.8988 29.3178 17.1117Z" fill="url(#paint0_linear_2105_256)" />
             <defs>
                 <linearGradient id="paint0_linear_2105_256" x1="23.6903" y1="-0.00832367" x2="23.6903" y2="36.5728" gradientUnits="userSpaceOnUse">
-                    <stop stopColor="#FEC554" />
-                    <stop offset="1" stopColor="#FFE8BA" />
+                    <stop stopColor="#C8F23A" />
+                    <stop offset="1" stopColor="#E8FF8A" />
                 </linearGradient>
             </defs>
         </svg>
@@ -40,48 +40,48 @@ export const BollIcon = () => {
             <path d="M24.3425 23.2375L11.7406 26.9425L10.5706 37.8056L20.1581 46.1094L31.4356 42.8269L34.4825 30.9481L24.3425 23.2375Z" fill="url(#paint10_linear_2105_262)" />
             <defs>
                 <linearGradient id="paint0_linear_2105_262" x1="25.1916" y1="50.375" x2="25.1916" y2="11.5143" gradientUnits="userSpaceOnUse">
-                    <stop stopColor="#FEC554" />
-                    <stop offset="1" stopColor="#FFE8BA" />
+                    <stop stopColor="#C8F23A" />
+                    <stop offset="1" stopColor="#E8FF8A" />
                 </linearGradient>
                 <linearGradient id="paint1_linear_2105_262" x1="25.1916" y1="50.375" x2="25.1916" y2="11.5143" gradientUnits="userSpaceOnUse">
-                    <stop stopColor="#FEC554" />
-                    <stop offset="1" stopColor="#FFE8BA" />
+                    <stop stopColor="#C8F23A" />
+                    <stop offset="1" stopColor="#E8FF8A" />
                 </linearGradient>
                 <linearGradient id="paint2_linear_2105_262" x1="25.1916" y1="50.375" x2="25.1916" y2="11.5143" gradientUnits="userSpaceOnUse">
-                    <stop stopColor="#FEC554" />
-                    <stop offset="1" stopColor="#FFE8BA" />
+                    <stop stopColor="#C8F23A" />
+                    <stop offset="1" stopColor="#E8FF8A" />
                 </linearGradient>
                 <linearGradient id="paint3_linear_2105_262" x1="25.1916" y1="50.375" x2="25.1916" y2="11.5143" gradientUnits="userSpaceOnUse">
-                    <stop stopColor="#FEC554" />
-                    <stop offset="1" stopColor="#FFE8BA" />
+                    <stop stopColor="#C8F23A" />
+                    <stop offset="1" stopColor="#E8FF8A" />
                 </linearGradient>
                 <linearGradient id="paint4_linear_2105_262" x1="25.1916" y1="50.375" x2="25.1916" y2="11.5143" gradientUnits="userSpaceOnUse">
-                    <stop stopColor="#FEC554" />
-                    <stop offset="1" stopColor="#FFE8BA" />
+                    <stop stopColor="#C8F23A" />
+                    <stop offset="1" stopColor="#E8FF8A" />
                 </linearGradient>
                 <linearGradient id="paint5_linear_2105_262" x1="25.1916" y1="50.375" x2="25.1916" y2="11.5143" gradientUnits="userSpaceOnUse">
-                    <stop stopColor="#FEC554" />
-                    <stop offset="1" stopColor="#FFE8BA" />
+                    <stop stopColor="#C8F23A" />
+                    <stop offset="1" stopColor="#E8FF8A" />
                 </linearGradient>
                 <linearGradient id="paint6_linear_2105_262" x1="25.1916" y1="50.375" x2="25.1916" y2="11.5143" gradientUnits="userSpaceOnUse">
-                    <stop stopColor="#FEC554" />
-                    <stop offset="1" stopColor="#FFE8BA" />
+                    <stop stopColor="#C8F23A" />
+                    <stop offset="1" stopColor="#E8FF8A" />
                 </linearGradient>
                 <linearGradient id="paint7_linear_2105_262" x1="25.1916" y1="50.375" x2="25.1916" y2="11.5143" gradientUnits="userSpaceOnUse">
-                    <stop stopColor="#FEC554" />
-                    <stop offset="1" stopColor="#FFE8BA" />
+                    <stop stopColor="#C8F23A" />
+                    <stop offset="1" stopColor="#E8FF8A" />
                 </linearGradient>
                 <linearGradient id="paint8_linear_2105_262" x1="25.1916" y1="50.375" x2="25.1916" y2="11.5143" gradientUnits="userSpaceOnUse">
-                    <stop stopColor="#FEC554" />
-                    <stop offset="1" stopColor="#FFE8BA" />
+                    <stop stopColor="#C8F23A" />
+                    <stop offset="1" stopColor="#E8FF8A" />
                 </linearGradient>
                 <linearGradient id="paint9_linear_2105_262" x1="25.1916" y1="50.375" x2="25.1916" y2="11.5143" gradientUnits="userSpaceOnUse">
-                    <stop stopColor="#FEC554" />
-                    <stop offset="1" stopColor="#FFE8BA" />
+                    <stop stopColor="#C8F23A" />
+                    <stop offset="1" stopColor="#E8FF8A" />
                 </linearGradient>
                 <linearGradient id="paint10_linear_2105_262" x1="25.1916" y1="50.375" x2="25.1916" y2="11.5143" gradientUnits="userSpaceOnUse">
-                    <stop stopColor="#FEC554" />
-                    <stop offset="1" stopColor="#FFE8BA" />
+                    <stop stopColor="#C8F23A" />
+                    <stop offset="1" stopColor="#E8FF8A" />
                 </linearGradient>
             </defs>
         </svg>
@@ -99,16 +99,16 @@ export const IconGrafic = () => {
             <path d="M0.586744 30.0446L0.0862858 30.5623L0.0345143 44.7995L0 59.0194H9.31887H18.6377L18.6032 44.7995L18.5515 30.5623L18.051 30.0446L17.5333 29.5097H9.31887H1.10446L0.586744 30.0446Z" fill="url(#paint2_linear_2105_267)" />
             <defs>
                 <linearGradient id="paint0_linear_2105_267" x1="32.6162" y1="3.05176e-05" x2="32.6162" y2="45.5294" gradientUnits="userSpaceOnUse">
-                    <stop stopColor="#FEC554" />
-                    <stop offset="1" stopColor="#FFE8BA" />
+                    <stop stopColor="#C8F23A" />
+                    <stop offset="1" stopColor="#E8FF8A" />
                 </linearGradient>
                 <linearGradient id="paint1_linear_2105_267" x1="55.9145" y1="14.6449" x2="55.9145" y2="48.8767" gradientUnits="userSpaceOnUse">
-                    <stop stopColor="#FEC554" />
-                    <stop offset="1" stopColor="#FFE8BA" />
+                    <stop stopColor="#C8F23A" />
+                    <stop offset="1" stopColor="#E8FF8A" />
                 </linearGradient>
                 <linearGradient id="paint2_linear_2105_267" x1="9.31887" y1="29.5097" x2="9.31887" y2="52.2743" gradientUnits="userSpaceOnUse">
-                    <stop stopColor="#FEC554" />
-                    <stop offset="1" stopColor="#FFE8BA" />
+                    <stop stopColor="#C8F23A" />
+                    <stop offset="1" stopColor="#E8FF8A" />
                 </linearGradient>
             </defs>
         </svg>

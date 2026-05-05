@@ -8,8 +8,8 @@ const C = {
   card: "#0A0E19",
   cardSoft: "rgba(255,255,255,0.02)",
   border: "rgba(255,255,255,0.08)",
-  gold: "#D4AF37",
-  goldLight: "#FFE8BA",
+  gold: "#B1EB0B",
+  goldLight: "#E8FF8A",
 } as const;
 
 type HistoricoRow = {
@@ -104,7 +104,7 @@ function HeroGlow() {
           width: "95%",
           height: "85%",
           background:
-            "radial-gradient(ellipse 75% 68% at 84% 10%, rgba(255,232,186,0.30) 0%, rgba(255,232,186,0.09) 44%, transparent 72%)",
+            "radial-gradient(ellipse 75% 68% at 84% 10%, rgba(217,255,89,0.30) 0%, rgba(217,255,89,0.09) 44%, transparent 72%)",
         }}
       />
       <div
@@ -115,7 +115,7 @@ function HeroGlow() {
           width: "92%",
           height: "78%",
           background:
-            "radial-gradient(ellipse 72% 60% at 12% 90%, rgba(212,175,55,0.22) 0%, rgba(212,175,55,0.08) 42%, transparent 72%)",
+            "radial-gradient(ellipse 72% 60% at 12% 90%, rgba(177,235,11,0.22) 0%, rgba(177,235,11,0.08) 42%, transparent 72%)",
         }}
       />
     </div>
@@ -190,9 +190,9 @@ function PickCard({ pick }: { pick: Pick }) {
               background: neutral
                 ? "rgba(148,163,184,0.15)"
                 : pick.hit
-                  ? "linear-gradient(180deg, #FFE8BA 0%, #D4AF37 100%)"
+                  ? "linear-gradient(180deg, #E8FF8A 0%, #B1EB0B 100%)"
                   : "linear-gradient(180deg, rgba(127,29,29,0.35) 0%, rgba(69,10,10,0.5) 100%)",
-              border: neutral ? "1px solid rgba(148,163,184,0.25)" : pick.hit ? "1px solid rgba(212,175,55,0.5)" : "1px solid rgba(239,68,68,0.28)",
+              border: neutral ? "1px solid rgba(148,163,184,0.25)" : pick.hit ? "1px solid rgba(177,235,11,0.5)" : "1px solid rgba(239,68,68,0.28)",
             }}
           >
             {pick.points}
@@ -209,7 +209,7 @@ function PickCard({ pick }: { pick: Pick }) {
           <p className="text-[10px] text-white/35 mt-0.5 truncate">{pick.homeName}</p>
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <div className="rounded-lg border px-3 py-1.5 text-center" style={{ borderColor: "rgba(212,175,55,0.3)", background: "rgba(212,175,55,0.08)" }}>
+          <div className="rounded-lg border px-3 py-1.5 text-center" style={{ borderColor: "rgba(177,235,11,0.3)", background: "rgba(177,235,11,0.08)" }}>
             <p className="text-[9px] uppercase tracking-[0.08em] text-white/45">Meu palpite</p>
             <p className="text-[24px] leading-none font-black" style={{ color: C.goldLight }}>{pick.guess}</p>
           </div>
@@ -341,7 +341,7 @@ export default function MeusPalpitesPage() {
         <div className="relative space-y-4">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-[11px] font-black uppercase tracking-[0.14em]" style={{ color: "rgba(255,232,186,0.68)" }}>
+              <p className="text-[11px] font-black uppercase tracking-[0.14em]" style={{ color: "rgba(217,255,89,0.68)" }}>
                 Copa do Mundo 2026
               </p>
               <h3 className="text-[20px] font-black text-white leading-tight mt-1">Performance dos seus palpites</h3>
@@ -354,8 +354,8 @@ export default function MeusPalpitesPage() {
               className="shrink-0 px-3 py-1.5 rounded-lg text-[11px] font-black"
               style={{
                 color: C.goldLight,
-                background: "rgba(212,175,55,0.12)",
-                border: "1px solid rgba(212,175,55,0.3)",
+                background: "rgba(177,235,11,0.12)",
+                border: "1px solid rgba(177,235,11,0.3)",
               }}
             >
               {loading ? "…" : `${totalPts} pts`}
@@ -363,7 +363,7 @@ export default function MeusPalpitesPage() {
           </div>
 
           {error ? (
-            <div className="flex items-center gap-2 text-amber-200/90 text-sm py-2">
+            <div className="flex items-center gap-2 text-primary/90 text-sm py-2">
               <TriangleAlert className="w-4 h-4 shrink-0" />
               Não foi possível carregar. Tente novamente.
               <button type="button" onClick={() => void load()} className="underline font-bold">
@@ -373,13 +373,13 @@ export default function MeusPalpitesPage() {
           ) : null}
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <StatCard label="Exatos" value={stats.exatos} tone={C.gold} icon={Target} soft="rgba(212,175,55,0.12)" />
+            <StatCard label="Exatos" value={stats.exatos} tone={C.gold} icon={Target} soft="rgba(177,235,11,0.12)" />
             <StatCard label="Certos" value={stats.certos} tone="#34D399" icon={CircleCheck} soft="rgba(52,211,153,0.12)" />
             <StatCard label="Errados" value={stats.errados} tone="#FB7185" icon={XCircle} soft="rgba(251,113,133,0.12)" />
             <StatCard label="Pendentes" value={stats.pendentes} tone="#94A3B8" icon={Clock3} soft="rgba(148,163,184,0.12)" />
           </div>
 
-          <div className="rounded-xl px-3 py-2.5 border" style={{ borderColor: "rgba(212,175,55,0.25)", background: "rgba(212,175,55,0.08)" }}>
+          <div className="rounded-xl px-3 py-2.5 border" style={{ borderColor: "rgba(177,235,11,0.25)", background: "rgba(177,235,11,0.08)" }}>
             <div className="flex items-center justify-between text-[12px] mb-2">
               <span style={{ color: "rgba(255,255,255,0.55)" }}>Taxa de acerto (partidas com resultado)</span>
               <div className="flex items-center gap-2">
@@ -390,7 +390,7 @@ export default function MeusPalpitesPage() {
               </div>
             </div>
             <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.09)" }}>
-              <div className="h-full rounded-full transition-all" style={{ width: `${taxa}%`, background: "linear-gradient(90deg, #B8860B 0%, #D4AF37 55%, #FFE8BA 100%)" }} />
+              <div className="h-full rounded-full transition-all" style={{ width: `${taxa}%`, background: "linear-gradient(90deg, #5F7F06 0%, #B1EB0B 55%, #E8FF8A 100%)" }} />
             </div>
           </div>
         </div>
@@ -410,8 +410,8 @@ export default function MeusPalpitesPage() {
               onClick={() => setFilter(item.key)}
               className="shrink-0 rounded-xl px-3 py-2 text-[12px] font-bold border"
               style={{
-                background: filter === item.key ? "rgba(212,175,55,0.16)" : "rgba(255,255,255,0.03)",
-                borderColor: filter === item.key ? "rgba(212,175,55,0.38)" : "rgba(255,255,255,0.08)",
+                background: filter === item.key ? "rgba(177,235,11,0.16)" : "rgba(255,255,255,0.03)",
+                borderColor: filter === item.key ? "rgba(177,235,11,0.38)" : "rgba(255,255,255,0.08)",
                 color: filter === item.key ? C.goldLight : "rgba(255,255,255,0.55)",
               }}
             >
@@ -427,7 +427,7 @@ export default function MeusPalpitesPage() {
           ) : filteredPicks.length === 0 ? (
             <p className="text-center text-sm text-white/35 py-10">
               Nenhum palpite neste filtro. Faça palpites em{" "}
-              <Link href="/boloes" className="font-bold text-amber-200 underline">
+              <Link href="/boloes" className="font-bold text-primary underline">
                 Meus bolões
               </Link>
               .

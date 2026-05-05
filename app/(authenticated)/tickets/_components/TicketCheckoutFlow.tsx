@@ -10,8 +10,8 @@ import ticketGold from "@/app/assets/ticket-gold.png";
 import ticketBlue from "@/app/assets/Ticket-Blue.png";
 import { appendTicketsFromPurchase } from "../lib/ownedTicketsStorage";
 
-const GOLD = "#D4AF37";
-const GOLD_LIGHT = "#FFE8BA";
+const GOLD = "#B1EB0B";
+const GOLD_LIGHT = "#E8FF8A";
 const CARD = "#0A0E19";
 const DEFAULT_PRINCIPAL_CENTS = 5000;
 const DEFAULT_DIARIO_CENTS = 2500;
@@ -273,7 +273,7 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
                 className="rounded-xl p-3 sm:p-4"
                 style={{
                   background: `linear-gradient(178deg, rgba(18,22,34,0.98) 0%, ${CARD} 100%)`,
-                  border: "1px solid rgba(212,175,55,0.2)",
+                  border: "1px solid rgba(177,235,11,0.2)",
                 }}
               >
                 <div className="flex items-baseline justify-between gap-3 mb-2">
@@ -332,9 +332,9 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
                     fontFamily: montserrat,
                     color: "#0E141B",
                     background: hasSelection
-                      ? `linear-gradient(180deg, ${GOLD_LIGHT} 0%, ${GOLD} 50%, #B8860B 100%)`
+                      ? `linear-gradient(180deg, ${GOLD_LIGHT} 0%, ${GOLD} 50%, #5F7F06 100%)`
                       : "rgba(255,255,255,0.1)",
-                    boxShadow: hasSelection ? "0 6px 24px rgba(212,175,55,0.22)" : "none",
+                    boxShadow: hasSelection ? "0 6px 24px rgba(177,235,11,0.22)" : "none",
                   }}
                 >
                   <Ticket className="w-[18px] h-[18px]" strokeWidth={2.2} />
@@ -353,7 +353,7 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
             <div
               className="flex flex-col items-center justify-center py-20 px-6 rounded-2xl"
               style={{
-                border: "1px solid rgba(212,175,55,0.18)",
+                border: "1px solid rgba(177,235,11,0.18)",
                 background: `linear-gradient(180deg, rgba(14,20,32,0.96) 0%, ${CARD} 100%)`,
               }}
             >
@@ -482,8 +482,8 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
                     disabled={pixExpired}
                     className="mt-3 w-full py-4 rounded-xl text-[15px] font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-35"
                     style={{
-                      background: copied ? "rgba(34,197,94,0.18)" : "rgba(212,175,55,0.12)",
-                      border: `1px solid ${copied ? "rgba(34,197,94,0.4)" : "rgba(212,175,55,0.32)"}`,
+                      background: copied ? "rgba(34,197,94,0.18)" : "rgba(177,235,11,0.12)",
+                      border: `1px solid ${copied ? "rgba(34,197,94,0.4)" : "rgba(177,235,11,0.32)"}`,
                       color: copied ? "#86EFAC" : GOLD_LIGHT,
                     }}
                   >
@@ -530,8 +530,8 @@ function TicketTypeCard({
 }) {
   const active = qty > 0;
   const iconWrap = {
-    background: "rgba(212,175,55,0.11)",
-    border: "1px solid rgba(212,175,55,0.32)",
+    background: "rgba(177,235,11,0.11)",
+    border: "1px solid rgba(177,235,11,0.32)",
   } as const;
 
   return (
@@ -541,7 +541,7 @@ function TicketTypeCard({
         background: `linear-gradient(168deg, rgba(11,15,26,0.99) 0%, ${CARD} 100%)`,
         border: active ? `2px solid ${GOLD}` : "1px solid rgba(255,255,255,0.07)",
         boxShadow: active
-          ? `0 14px 44px rgba(0,0,0,0.48), 0 0 36px rgba(212,175,55,0.1)`
+          ? `0 14px 44px rgba(0,0,0,0.48), 0 0 36px rgba(177,235,11,0.1)`
           : "0 6px 24px rgba(0,0,0,0.28)",
       }}
     >
@@ -549,9 +549,9 @@ function TicketTypeCard({
         <span
           className="absolute top-3 right-3 text-[9px] font-bold uppercase tracking-[0.12em] px-2 py-0.5 rounded"
           style={{
-            background: "rgba(212,175,55,0.14)",
-            border: "1px solid rgba(212,175,55,0.32)",
-            color: "rgba(255,232,186,0.88)",
+            background: "rgba(177,235,11,0.14)",
+            border: "1px solid rgba(177,235,11,0.32)",
+            color: "rgba(217,255,89,0.88)",
           }}
         >
           {chip}
@@ -592,7 +592,7 @@ function TicketTypeCard({
         <div
           className="inline-flex items-stretch rounded-lg overflow-hidden"
           style={{
-            border: `1px solid ${active ? "rgba(212,175,55,0.42)" : "rgba(255,255,255,0.09)"}`,
+            border: `1px solid ${active ? "rgba(177,235,11,0.42)" : "rgba(255,255,255,0.09)"}`,
             background: "rgba(0,0,0,0.38)",
           }}
         >

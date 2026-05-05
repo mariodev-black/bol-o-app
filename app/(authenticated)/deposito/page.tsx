@@ -109,12 +109,12 @@ export default function DepositoPage() {
         <div
           className="w-10 h-10 rounded-2xl flex items-center justify-center border"
           style={{
-            background: "rgba(212,175,55,0.10)",
-            borderColor: "rgba(212,175,55,0.28)",
+            background: "rgba(177,235,11,0.10)",
+            borderColor: "rgba(177,235,11,0.28)",
           }}
           aria-hidden="true"
         >
-          <Wallet className="w-5 h-5" style={{ color: "#D4AF37" }} />
+          <Wallet className="w-5 h-5" style={{ color: "#B1EB0B" }} />
         </div>
         <h1 className="text-[26px] md:text-3xl font-black text-white tracking-tight">Depositar via PIX</h1>
       </div>
@@ -132,8 +132,8 @@ export default function DepositoPage() {
             className="h-11 rounded-xl text-[13px] font-bold"
             style={{
               border: "1px solid rgba(255,255,255,0.12)",
-              background: ticketType === "general" ? "rgba(212,175,55,0.18)" : "rgba(255,255,255,0.04)",
-              color: ticketType === "general" ? "#FFE8BA" : "rgba(255,255,255,0.7)",
+              background: ticketType === "general" ? "rgba(177,235,11,0.18)" : "rgba(255,255,255,0.04)",
+              color: ticketType === "general" ? "#E8FF8A" : "rgba(255,255,255,0.7)",
             }}
           >
             Geral ({centsToBRL(prices.general)})
@@ -144,8 +144,8 @@ export default function DepositoPage() {
             className="h-11 rounded-xl text-[13px] font-bold"
             style={{
               border: "1px solid rgba(255,255,255,0.12)",
-              background: ticketType === "daily" ? "rgba(212,175,55,0.18)" : "rgba(255,255,255,0.04)",
-              color: ticketType === "daily" ? "#FFE8BA" : "rgba(255,255,255,0.7)",
+              background: ticketType === "daily" ? "rgba(177,235,11,0.18)" : "rgba(255,255,255,0.04)",
+              color: ticketType === "daily" ? "#E8FF8A" : "rgba(255,255,255,0.7)",
             }}
           >
             Diario ({centsToBRL(prices.daily)})
@@ -163,7 +163,7 @@ export default function DepositoPage() {
           disabled={loading}
           className="mt-4 w-full h-11 rounded-xl font-black text-[13px] disabled:opacity-50"
           style={{
-            background: "linear-gradient(135deg, #E89520, #FFE8BA)",
+            background: "linear-gradient(135deg, #8FC900, #E8FF8A)",
             color: "#0E141B",
           }}
         >

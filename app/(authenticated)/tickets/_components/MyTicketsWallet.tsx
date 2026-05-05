@@ -15,8 +15,8 @@ import {
   type StoredTicketGeral,
 } from "../lib/ownedTicketsStorage";
 
-const GOLD = "#D4AF37";
-const GOLD_LIGHT = "#FFE8BA";
+const GOLD = "#B1EB0B";
+const GOLD_LIGHT = "#E8FF8A";
 const CARD = "#0A0E19";
 const montserrat = "var(--font-montserrat), ui-sans-serif, system-ui, sans-serif";
 
@@ -101,7 +101,7 @@ function WalletRow({ children }: { children: React.ReactNode }) {
       className="flex flex-col sm:flex-row sm:items-center gap-3 p-3.5 rounded-xl"
       style={{
         background: `linear-gradient(165deg, rgba(12,16,26,0.95) 0%, ${CARD} 100%)`,
-        border: "1px solid rgba(212,175,55,0.18)",
+        border: "1px solid rgba(177,235,11,0.18)",
       }}
     >
       {children}
@@ -180,7 +180,7 @@ function DiarioTicketRow({
               min={todayIso}
               value={isoDate}
               onChange={(e) => setIsoDate(e.target.value)}
-              className="rounded-lg px-3 py-2.5 text-[14px] text-white bg-black/40 border border-white/15 outline-none focus:border-amber-500/50"
+              className="rounded-lg px-3 py-2.5 text-[14px] text-white bg-black/40 border border-white/15 outline-none focus:border-primary/50"
             />
           </label>
           <button

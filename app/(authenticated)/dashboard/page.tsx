@@ -3,7 +3,7 @@ export default function DashboardPage() {
     <div className="flex flex-1 flex-col px-4 sm:px-6 py-8">
       <h1
         className="text-2xl font-bold mb-4"
-        style={{ color: "#C9A96E" }}
+        style={{ color: "#B1EB0B" }}
       >
         Dashboard
       </h1>

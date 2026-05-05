@@ -234,7 +234,7 @@ function TestimonialsCarousel() {
                 {Array.from({ length: 5 }).map((_, i) => (
                   <Star
                     key={i}
-                    className="size-4 fill-amber-300 text-amber-300 sm:size-[22px]"
+                    className="size-4 fill-primary text-primary sm:size-[22px]"
                   />
                 ))}
               </div>
@@ -373,7 +373,7 @@ export function PrizesTestimonialsSection() {
                   {Array.from({ length: 5 }).map((_, i) => (
                     <Star
                       key={i}
-                      className="size-4 fill-amber-400 text-amber-400 sm:size-[18px]"
+                      className="size-4 fill-primary text-primary sm:size-[18px]"
                     />
                   ))}
                 </div>

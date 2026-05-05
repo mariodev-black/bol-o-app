@@ -107,7 +107,7 @@ export default function SaquesPage() {
           style={{ background: "#0A0E19" }}
         >
           <p className="text-[11px] font-bold uppercase tracking-wider text-white/35">Saldo disponível</p>
-          <p className="text-3xl font-black text-amber-200 mt-1">{formatBRLFromCents(available)}</p>
+          <p className="text-3xl font-black text-primary mt-1">{formatBRLFromCents(available)}</p>
           {summary && summary.balances.pendingWithdrawalCents > 0 ? (
             <p className="text-[12px] mt-2 text-white/40">
               Em análise: {formatBRLFromCents(summary.balances.pendingWithdrawalCents)}
@@ -161,7 +161,7 @@ export default function SaquesPage() {
         <button
           type="submit"
           disabled={submitting || loading || available < minCents}
-          className="w-full py-3.5 rounded-xl font-black text-[15px] bg-gradient-to-r from-amber-600 to-amber-400 text-black disabled:opacity-40 flex items-center justify-center gap-2"
+          className="w-full py-3.5 rounded-xl font-black text-[15px] bg-gradient-to-r from-[#8FC900] to-primary text-black disabled:opacity-40 flex items-center justify-center gap-2"
         >
           {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
           Solicitar saque

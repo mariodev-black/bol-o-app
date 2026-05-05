@@ -69,7 +69,7 @@ export function Header() {
                 key={label}
                 href={href}
                 className="text-sm font-medium transition-colors hover:text-white"
-                style={{ color: isActive ? "#D4AF37" : "rgba(255,255,255,0.58)" }}
+                style={{ color: isActive ? "#B1EB0B" : "rgba(255,255,255,0.58)" }}
               >
                 {label}
               </Link>

@@ -173,19 +173,19 @@ export function NavBottom() {
             @keyframes navCtaPingBorder {
               0% {
                 box-shadow:
-                  0 0 0 0 rgba(255, 232, 186, 0.0),
-                  0 0 0 1px rgba(255, 232, 186, 0.26) inset;
+                  0 0 0 0 rgba(217, 255, 89, 0.0),
+                  0 0 0 1px rgba(217, 255, 89, 0.26) inset;
               }
               60% {
                 box-shadow:
-                  0 0 0 5px rgba(255, 232, 186, 0.12),
-                  0 0 0 1px rgba(212, 175, 55, 0.36) inset;
+                  0 0 0 5px rgba(217, 255, 89, 0.12),
+                  0 0 0 1px rgba(177, 235, 11, 0.36) inset;
               }
               75%,
               100% {
                 box-shadow:
-                  0 0 0 10px rgba(255, 232, 186, 0.0),
-                  0 0 0 1px rgba(255, 232, 186, 0.26) inset;
+                  0 0 0 10px rgba(217, 255, 89, 0.0),
+                  0 0 0 1px rgba(217, 255, 89, 0.26) inset;
               }
             }
           `}</style>
@@ -198,7 +198,7 @@ export function NavBottom() {
             ].join(" ")}
             style={{
               background:
-                "radial-gradient(120% 85% at 100% 0%, rgba(212,175,55,0.15) 0%, rgba(0,0,0,0.74) 58%), rgba(0,0,0,0.76)",
+                "radial-gradient(120% 85% at 100% 0%, rgba(177,235,11,0.15) 0%, rgba(0,0,0,0.74) 58%), rgba(0,0,0,0.76)",
               backdropFilter: "blur(4px)",
             }}
             aria-label="Fechar menu"
@@ -213,8 +213,8 @@ export function NavBottom() {
             ].join(" ")}
             style={{
               background:
-                "radial-gradient(120% 72% at 5% 0%, rgba(255,232,186,0.14) 0%, rgba(255,232,186,0) 55%), radial-gradient(85% 70% at 100% 100%, rgba(212,175,55,0.16) 0%, rgba(212,175,55,0) 60%), linear-gradient(180deg, #060B18 0%, #040913 72%, #03070F 100%)",
-              boxShadow: "rgba(0,0,0,0.78) 0px 30px 90px -22px, rgba(212,175,55,0.18) 0px 0px 0px 1px inset",
+                "radial-gradient(120% 72% at 5% 0%, rgba(217,255,89,0.14) 0%, rgba(217,255,89,0) 55%), radial-gradient(85% 70% at 100% 100%, rgba(177,235,11,0.16) 0%, rgba(177,235,11,0) 60%), linear-gradient(180deg, #060B18 0%, #040913 72%, #03070F 100%)",
+              boxShadow: "rgba(0,0,0,0.78) 0px 30px 90px -22px, rgba(177,235,11,0.18) 0px 0px 0px 1px inset",
             }}
           >
 
@@ -223,9 +223,9 @@ export function NavBottom() {
                 <div
                   className="rounded-3xl border p-4"
                   style={{
-                    borderColor: "rgba(212,175,55,0.32)",
+                    borderColor: "rgba(177,235,11,0.32)",
                     background:
-                      "linear-gradient(180deg, rgba(255,232,186,0.09) 0%, rgba(255,232,186,0.03) 100%), rgba(8,14,27,0.82)",
+                      "linear-gradient(180deg, rgba(217,255,89,0.09) 0%, rgba(217,255,89,0.03) 100%), rgba(8,14,27,0.82)",
                     boxShadow: "0 12px 32px rgba(0,0,0,0.36), 0 0 0 1px rgba(255,255,255,0.04) inset",
                   }}
                 >
@@ -234,13 +234,13 @@ export function NavBottom() {
                       <div
                         className="w-12 h-12 rounded-2xl flex items-center justify-center border"
                         style={{
-                          background: "linear-gradient(180deg, rgba(255,232,186,0.25) 0%, rgba(212,175,55,0.10) 100%)",
-                          borderColor: "rgba(212,175,55,0.35)",
-                          boxShadow: "0 0 26px rgba(255,175,47,0.2)",
+                          background: "linear-gradient(180deg, rgba(217,255,89,0.25) 0%, rgba(177,235,11,0.10) 100%)",
+                          borderColor: "rgba(177,235,11,0.35)",
+                          boxShadow: "0 0 26px rgba(177,235,11,0.2)",
                         }}
                         aria-hidden="true"
                       >
-                        <span className="text-[13px] font-black" style={{ color: "#FFE8BA" }}>
+                        <span className="text-[13px] font-black" style={{ color: "#E8FF8A" }}>
                           {initials}
                         </span>
                       </div>
@@ -259,19 +259,19 @@ export function NavBottom() {
                       onClick={closeMenu}
                       className="w-10 h-10 rounded-xl flex items-center justify-center border transition-all duration-200"
                       style={{
-                        background: "rgba(212,175,55,0.08)",
-                        borderColor: "rgba(212,175,55,0.24)",
+                        background: "rgba(177,235,11,0.08)",
+                        borderColor: "rgba(177,235,11,0.24)",
                       }}
                       aria-label="Fechar menu lateral"
                     >
-                      <X className="w-5 h-5 text-[#FFE8BA]" />
+                      <X className="w-5 h-5 text-[#E8FF8A]" />
                     </button>
                   </div>
 
                   <div className="mt-4 grid grid-cols-3 gap-2">
                     {[
-                      { value: "32", label: "PTS", color: "#DAB682" },
-                      { value: "#6", label: "POSIÇÃO", color: "#FFE8BA" },
+                      { value: "32", label: "PTS", color: "#D7FF59" },
+                      { value: "#6", label: "POSIÇÃO", color: "#E8FF8A" },
                       { value: "68%", label: "ACERTOS", color: "#86EFAC" },
                     ].map((stat) => (
                       <div
@@ -299,11 +299,11 @@ export function NavBottom() {
                   {MENU_SECTIONS.map((section) => (
                     <section key={section.title}>
                       <div className="flex items-center gap-2.5 px-1">
-                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: "rgba(255,232,186,0.72)" }} />
-                        <h3 className="text-[10px] font-black tracking-[0.22em] uppercase" style={{ color: "rgba(255,232,186,0.62)" }}>
+                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: "rgba(217,255,89,0.72)" }} />
+                        <h3 className="text-[10px] font-black tracking-[0.22em] uppercase" style={{ color: "rgba(217,255,89,0.62)" }}>
                           {section.title}
                         </h3>
-                        <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, rgba(212,175,55,0.35) 0%, rgba(212,175,55,0) 100%)" }} />
+                        <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, rgba(177,235,11,0.35) 0%, rgba(177,235,11,0) 100%)" }} />
                       </div>
 
                       <div className="mt-3 flex flex-col gap-2.5">
@@ -313,7 +313,7 @@ export function NavBottom() {
                           const Icon = item.icon;
                           const isCta = item.variant === "cta";
 
-                          const labelColor = isCta ? "#0E141B" : active ? "#FFE8BA" : "rgba(255,255,255,0.94)";
+                          const labelColor = isCta ? "#0E141B" : active ? "#E8FF8A" : "rgba(255,255,255,0.94)";
                           const subtitleColor = isCta ? "rgba(14,20,27,0.65)" : active ? "rgba(255,255,255,0.68)" : "rgba(255,255,255,0.45)";
 
                           return (
@@ -327,12 +327,12 @@ export function NavBottom() {
                               ].join(" ")}
                               style={{
                                 background: isCta
-                                  ? "linear-gradient(180deg, rgba(255,232,186,1) 0%, rgba(212,175,55,1) 100%)"
+                                  ? "linear-gradient(180deg, rgba(217,255,89,1) 0%, rgba(177,235,11,1) 100%)"
                                   : active
-                                    ? "linear-gradient(120deg, rgba(255,232,186,0.18) 0%, rgba(212,175,55,0.08) 50%, rgba(255,255,255,0.02) 100%)"
+                                    ? "linear-gradient(120deg, rgba(217,255,89,0.18) 0%, rgba(177,235,11,0.08) 50%, rgba(255,255,255,0.02) 100%)"
                                     : "linear-gradient(120deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)",
-                                borderColor: isCta ? "rgba(0,0,0,0.12)" : active ? "rgba(212,175,55,0.45)" : "rgba(255,255,255,0.14)",
-                                boxShadow: isCta ? "0 0 0 1px rgba(255,232,186,0.22) inset" : active ? "0 8px 28px rgba(255,175,47,0.14)" : "none",
+                                borderColor: isCta ? "rgba(0,0,0,0.12)" : active ? "rgba(177,235,11,0.45)" : "rgba(255,255,255,0.14)",
+                                boxShadow: isCta ? "0 0 0 1px rgba(217,255,89,0.22) inset" : active ? "0 8px 28px rgba(177,235,11,0.14)" : "none",
                                 animation: isCta ? "navCtaPingBorder 1.35s cubic-bezier(0,0,.2,1) infinite" : undefined,
                               }}
                             >
@@ -350,14 +350,14 @@ export function NavBottom() {
                                 <div
                                   className="w-10 h-10 rounded-xl flex items-center justify-center border transition-all duration-200"
                                   style={{
-                                    background: isCta ? "rgba(14,20,27,0.12)" : active ? "rgba(212,175,55,0.14)" : "rgba(8,14,27,0.75)",
-                                    borderColor: isCta ? "rgba(0,0,0,0.12)" : active ? "rgba(212,175,55,0.4)" : "rgba(255,255,255,0.14)",
+                                    background: isCta ? "rgba(14,20,27,0.12)" : active ? "rgba(177,235,11,0.14)" : "rgba(8,14,27,0.75)",
+                                    borderColor: isCta ? "rgba(0,0,0,0.12)" : active ? "rgba(177,235,11,0.4)" : "rgba(255,255,255,0.14)",
                                   }}
                                   aria-hidden="true"
                                 >
                                   <Icon
                                     className="w-5 h-5"
-                                    style={{ color: isCta ? "#0E141B" : active ? "#FFE8BA" : "rgba(255,255,255,0.64)" }}
+                                    style={{ color: isCta ? "#0E141B" : active ? "#E8FF8A" : "rgba(255,255,255,0.64)" }}
                                     strokeWidth={active ? 2.4 : 1.8}
                                   />
                                 </div>
@@ -374,7 +374,7 @@ export function NavBottom() {
 
                               <ArrowRight
                                 className="relative w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5"
-                                style={{ color: isCta ? "rgba(14,20,27,0.65)" : active ? "#FFE8BA" : "rgba(255,255,255,0.45)" }}
+                                style={{ color: isCta ? "rgba(14,20,27,0.65)" : active ? "#E8FF8A" : "rgba(255,255,255,0.45)" }}
                               />
                             </Link>
                           );
@@ -453,13 +453,13 @@ export function NavBottom() {
               <div
                 className={[
                   "flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-200 border",
-                  active ? "border-[#D4AF37]" : "border-white/10",
+                  active ? "border-[#B1EB0B]" : "border-white/10",
                 ].join(" ")}
                 style={
                   active
                     ? {
-                        background: "linear-gradient(180deg, #FFE8BA 0%, #D4AF37 100%)",
-                        boxShadow: "0 0 18px rgba(255,175,47,0.55), 0 0 34px rgba(255,175,47,0.22)",
+                        background: "linear-gradient(180deg, #E8FF8A 0%, #B1EB0B 100%)",
+                        boxShadow: "0 0 18px rgba(177,235,11,0.55), 0 0 34px rgba(177,235,11,0.22)",
                       }
                     : { background: "rgba(255,255,255,0.03)" }
                 }
@@ -474,7 +474,7 @@ export function NavBottom() {
               <span
                 className="text-[10px] font-medium leading-none text-center"
                 style={{
-                  color: active ? "#D4AF37" : "rgba(255,232,186,0.45)",
+                  color: active ? "#B1EB0B" : "rgba(217,255,89,0.45)",
                 }}
               >
                 {label}

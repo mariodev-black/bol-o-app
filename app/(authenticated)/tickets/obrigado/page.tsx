@@ -5,8 +5,8 @@ import { Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { CheckCircle2, ArrowRight } from "lucide-react";
 
-const GOLD = "#D4AF37";
-const GOLD_LIGHT = "#FFE8BA";
+const GOLD = "#B1EB0B";
+const GOLD_LIGHT = "#E8FF8A";
 const CARD = "#0A0E19";
 
 function TicketObrigadoContent() {
@@ -27,7 +27,7 @@ function TicketObrigadoContent() {
       <div className="mx-auto max-w-lg">
         <section
           className="rounded-2xl border p-6 sm:p-7"
-          style={{ background: CARD, borderColor: "rgba(212,175,55,0.3)" }}
+          style={{ background: CARD, borderColor: "rgba(177,235,11,0.3)" }}
         >
           <div className="flex justify-center mb-4">
             <div
@@ -86,7 +86,7 @@ function TicketObrigadoFallback() {
       <div className="mx-auto max-w-lg">
         <section
           className="rounded-2xl border p-6 sm:p-7 animate-pulse"
-          style={{ background: CARD, borderColor: "rgba(212,175,55,0.3)" }}
+          style={{ background: CARD, borderColor: "rgba(177,235,11,0.3)" }}
         >
           <div className="h-14 w-14 rounded-full mx-auto mb-4 bg-white/10" />
           <div className="h-3 w-32 mx-auto rounded bg-white/10 mb-2" />

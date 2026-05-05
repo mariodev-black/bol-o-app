@@ -34,17 +34,17 @@ const C = {
   card: "#0A0E19",
   nested: "rgba(255,255,255,0.04)",
   deep: "#020509",
-  gold: "#D4AF37",
-  goldMid: "#FFE8BA",
-  goldLight: "#FFE8BA",
-  /** Platina / “Diamante” sem azul — identidade dourada + neutro premium */
+  gold: "#B1EB0B",
+  goldMid: "#E8FF8A",
+  goldLight: "#E8FF8A",
+  /** Platina / “Diamante” sem azul — identidade verde + neutro premium */
   platinum: "#C5D0E0",
   platinumMuted: "rgba(197,208,224,0.55)",
-  /** Valores monetários / crédito — sempre ouro âmbar (identidade única, sem verdes misturados) */
-  value: "#E8CF6A",
-  valueMuted: "#C9A96E",
-  valueSoft: "rgba(212, 175, 55, 0.10)",
-  valueBorder: "rgba(212, 175, 55, 0.28)",
+  /** Valores monetários / crédito — seguem o verde da marca. */
+  value: "#B1EB0B",
+  valueMuted: "#D7FF59",
+  valueSoft: "rgba(177, 235, 11, 0.10)",
+  valueBorder: "rgba(177, 235, 11, 0.28)",
   /** WhatsApp: cor oficial só no ícone; superfície neutra como o resto do app */
   wa: "#25D366",
 } as const;
@@ -438,7 +438,7 @@ export default function IndiqueGanhePage() {
 
               <div
                 className="flex items-center gap-2 px-3 py-2.5 rounded-[10px]"
-                style={{ background: "rgba(255,232,186,0.08)", border: "1px solid rgba(212,175,55,0.22)" }}
+                style={{ background: "rgba(217,255,89,0.08)", border: "1px solid rgba(177,235,11,0.22)" }}
               >
                 <Zap size={13} style={{ color: C.gold }} className="shrink-0" />
                 <p className="text-[11px] leading-[1.55]" style={{ color: "rgba(255,255,255,0.45)" }}>
@@ -475,7 +475,7 @@ export default function IndiqueGanhePage() {
                 <div className="mb-5">
                   <span
                     className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full"
-                    style={{ background: "rgba(212,175,55,0.08)", border: `1px solid rgba(212,175,55,0.42)` }}
+                    style={{ background: "rgba(177,235,11,0.08)", border: `1px solid rgba(177,235,11,0.42)` }}
                   >
                     <Sparkles size={13} style={{ color: C.gold }} strokeWidth={2.2} />
                     <span className="text-[10px] font-extrabold uppercase tracking-[0.14em]" style={{ color: C.goldMid }}>
@@ -498,8 +498,8 @@ export default function IndiqueGanhePage() {
                   <div
                     className="rounded-2xl p-4 flex flex-col gap-3"
                     style={{
-                      background: "rgba(212,175,55,0.06)",
-                      border: `1px solid rgba(212,175,55,0.35)`,
+                      background: "rgba(177,235,11,0.06)",
+                      border: `1px solid rgba(177,235,11,0.35)`,
                     }}
                   >
                     <p className="text-[9px] font-bold uppercase tracking-[0.12em]" style={{ color: "rgba(255,255,255,0.38)" }}>
@@ -508,7 +508,7 @@ export default function IndiqueGanhePage() {
                     <div className="flex items-center gap-2.5 mt-auto">
                       <div
                         className="w-11 h-11 rounded-xl flex items-center justify-center"
-                        style={{ background: "rgba(212,175,55,0.12)", border: "1px solid rgba(212,175,55,0.25)" }}
+                        style={{ background: "rgba(177,235,11,0.12)", border: "1px solid rgba(177,235,11,0.25)" }}
                       >
                         <Medal size={22} style={{ color: C.gold }} strokeWidth={2} />
                       </div>
@@ -602,7 +602,7 @@ export default function IndiqueGanhePage() {
                 <div
                   className="flex-1 flex flex-col items-center justify-center gap-1 py-4 px-3 min-w-0"
                   style={{
-                    background: "rgba(212,175,55,0.05)",
+                    background: "rgba(177,235,11,0.05)",
                     borderLeft: `1px solid ${C.valueBorder}`,
                   }}
                 >
@@ -657,7 +657,7 @@ export default function IndiqueGanhePage() {
                     className="h-9 px-3 rounded-[10px] text-[11px] font-black shrink-0 disabled:opacity-40"
                     style={{
                       background: codeCopied
-                        ? `linear-gradient(135deg, #8B6914, ${C.gold} 55%, #FFE8BA)`
+                        ? `linear-gradient(135deg, #5F7F06, ${C.gold} 55%, #E8FF8A)`
                         : "rgba(255,255,255,0.06)",
                       color: codeCopied ? "#0E141B" : C.goldMid,
                       border: "1px solid rgba(255,255,255,0.10)",
@@ -679,8 +679,8 @@ export default function IndiqueGanhePage() {
                     className="flex-1 h-10 rounded-[10px] text-[12px] font-black flex items-center justify-center gap-1.5"
                     style={{
                       background: copied
-                        ? `linear-gradient(135deg, #8B6914, ${C.gold} 55%, #FFE8BA)`
-                        : `linear-gradient(135deg, #E89520, ${C.goldMid} 50%, #FFD96A)`,
+                        ? `linear-gradient(135deg, #5F7F06, ${C.gold} 55%, #E8FF8A)`
+                        : `linear-gradient(135deg, #8FC900, ${C.goldMid} 50%, #DFFF76)`,
                       color: "#0E141B",
                     }}
                   >
@@ -720,7 +720,7 @@ export default function IndiqueGanhePage() {
                   </span>
                   <div
                     className="flex items-center gap-2 rounded-[10px] px-3 py-2 min-w-0"
-                    style={{ background: "rgba(212,175,55,0.08)", border: `1px solid ${C.valueBorder}` }}
+                    style={{ background: "rgba(177,235,11,0.08)", border: `1px solid ${C.valueBorder}` }}
                   >
                     <span
                       className="font-mono text-[15px] font-black tracking-[0.12em] text-white truncate"
@@ -735,7 +735,7 @@ export default function IndiqueGanhePage() {
                       className="h-8 px-3 rounded-lg text-[11px] font-black tracking-wide shrink-0 disabled:opacity-40"
                       style={{
                         background: codeCopied
-                          ? `linear-gradient(135deg, #8B6914, ${C.gold} 55%, #FFE8BA)`
+                          ? `linear-gradient(135deg, #5F7F06, ${C.gold} 55%, #E8FF8A)`
                           : "rgba(255,255,255,0.08)",
                         color: codeCopied ? "#0E141B" : C.goldMid,
                         border: `1px solid ${codeCopied ? "transparent" : "rgba(255,255,255,0.12)"}`,
@@ -767,8 +767,8 @@ export default function IndiqueGanhePage() {
                   style={{
                     transition: "transform 0.1s ease, background 0.3s ease",
                     ...(copied
-                      ? { background: `linear-gradient(135deg, #8B6914, ${C.gold} 55%, #FFE8BA)`, color: "#0E141B" }
-                      : { background: `linear-gradient(135deg, #E89520, ${C.goldMid} 50%, #FFD96A)`, color: "#0E141B" }
+                      ? { background: `linear-gradient(135deg, #5F7F06, ${C.gold} 55%, #E8FF8A)`, color: "#0E141B" }
+                      : { background: `linear-gradient(135deg, #8FC900, ${C.goldMid} 50%, #DFFF76)`, color: "#0E141B" }
                     ),
                   }}
                 >
@@ -796,8 +796,8 @@ export default function IndiqueGanhePage() {
                     onClick={() => void handleShareInvite()}
                     className="flex px-3 items-center justify-center gap-1.5 h-9 rounded-[10px] text-[11px] font-bold whitespace-nowrap"
                     style={{
-                      background: "rgba(255,232,186,0.08)",
-                      border: "1px solid rgba(212,175,55,0.22)",
+                      background: "rgba(217,255,89,0.08)",
+                      border: "1px solid rgba(177,235,11,0.22)",
                       color: C.goldMid,
                     }}
                   >
@@ -887,7 +887,7 @@ export default function IndiqueGanhePage() {
                   style={{
                     width: "calc(66.67% - 10px)",
                     background: `linear-gradient(90deg, ${C.gold}, ${C.goldMid})`,
-                    boxShadow: "0 0 10px rgba(212,175,55,0.2)",
+                    boxShadow: "0 0 10px rgba(177,235,11,0.2)",
                   }}
                 />
                 {tierRows.map((tier) => {
@@ -898,7 +898,7 @@ export default function IndiqueGanhePage() {
                         className="flex items-center justify-center rounded-full"
                         style={
                           tier.active
-                            ? { width: 44, height: 44, background: "#1A1200", outline: `2px solid ${C.gold}`, outlineOffset: 2, boxShadow: "0 0 14px rgba(212,175,55,0.22)" }
+                            ? { width: 44, height: 44, background: "#111F00", outline: `2px solid ${C.gold}`, outlineOffset: 2, boxShadow: "0 0 14px rgba(177,235,11,0.22)" }
                             : { width: 40, height: 40, background: "#0D1425", border: "1px solid rgba(255,255,255,0.08)" }
                         }
                       >
@@ -1019,8 +1019,8 @@ export default function IndiqueGanhePage() {
                 <div
                   className="rounded-[14px] px-5 pt-5 pb-4 mb-4 text-center"
                   style={{
-                    background: "linear-gradient(135deg, rgba(212,175,55,0.08) 0%, rgba(255,232,186,0.06) 100%)",
-                    border: "1px solid #FFE8BA33",
+                    background: "linear-gradient(135deg, rgba(177,235,11,0.08) 0%, rgba(217,255,89,0.06) 100%)",
+                    border: "1px solid #E8FF8A33",
                   }}
                 >
                   <p className="text-[14px] mb-3" style={{ color: "#FFFFFF59" }}>
@@ -1033,7 +1033,7 @@ export default function IndiqueGanhePage() {
                     className="text-[56px] sm:text-[72px] font-black leading-none tracking-[-0.03em] block mb-4"
                     style={{
                       animation: "indiqueFade 0.2s ease forwards",
-                      background: `linear-gradient(180deg, #FFF9F3 0%, ${C.goldLight} 28%, ${C.goldMid} 62%, #FEC554 100%)`,
+                      background: `linear-gradient(180deg, #F7FFD9 0%, ${C.goldLight} 28%, ${C.goldMid} 62%, #C8F23A 100%)`,
                       WebkitBackgroundClip: "text",
                       WebkitTextFillColor: "transparent",
                       backgroundClip: "text",
@@ -1060,8 +1060,8 @@ export default function IndiqueGanhePage() {
                     transition: "transform 0.1s ease, background 0.3s ease",
                     border: "none",
                     ...(copied
-                      ? { background: `linear-gradient(135deg, #8B6914, ${C.gold} 55%, #FFE8BA)`, color: "#0E141B" }
-                      : { background: `linear-gradient(135deg, #E89520, ${C.goldMid} 50%, #FFD96A)`, color: "#0E141B", boxShadow: "0 2px 12px rgba(0,0,0,0.35)" }
+                      ? { background: `linear-gradient(135deg, #5F7F06, ${C.gold} 55%, #E8FF8A)`, color: "#0E141B" }
+                      : { background: `linear-gradient(135deg, #8FC900, ${C.goldMid} 50%, #DFFF76)`, color: "#0E141B", boxShadow: "0 2px 12px rgba(0,0,0,0.35)" }
                     ),
                   }}
                 >
@@ -1089,8 +1089,8 @@ export default function IndiqueGanhePage() {
                     onClick={() => void handleShareInvite()}
                     className="flex h-12 items-center justify-center gap-2 rounded-[10px] text-[12px] font-bold"
                     style={{
-                      background: "rgba(255,232,186,0.08)",
-                      border: "1px solid rgba(212,175,55,0.25)",
+                      background: "rgba(217,255,89,0.08)",
+                      border: "1px solid rgba(177,235,11,0.25)",
                       color: C.goldMid,
                     }}
                   >
@@ -1182,7 +1182,7 @@ export default function IndiqueGanhePage() {
 
 /* ─── Componentes ─────────────────────────────────────────── */
 
-/** Brilho interno do hero: #FFE8BA (topo direita) + #F97316 (base esquerda), recortado ao raio do card */
+/** Brilho interno do hero: #E8FF8A (topo direita) + #F97316 (base esquerda), recortado ao raio do card */
 function HeroCardAmbientGlow({ radiusClass }: { radiusClass: string }) {
   return (
     <div
@@ -1197,7 +1197,7 @@ function HeroCardAmbientGlow({ radiusClass }: { radiusClass: string }) {
           width: "100%",
           height: "88%",
           background:
-            "radial-gradient(ellipse 78% 68% at 84% 10%, rgba(255, 232, 186, 0.34) 0%, rgba(255, 232, 186, 0.11) 40%, transparent 70%)",
+            "radial-gradient(ellipse 78% 68% at 84% 10%, rgba(217, 255, 89, 0.34) 0%, rgba(217, 255, 89, 0.11) 40%, transparent 70%)",
         }}
       />
       <div
@@ -1292,7 +1292,7 @@ function StatCard({
     <div
       className="rounded-2xl p-4 flex flex-col items-center gap-2.5"
       style={{
-        background: highlight ? "rgba(212,175,55,0.07)" : C.card,
+        background: highlight ? "rgba(177,235,11,0.07)" : C.card,
         border: highlight ? `1px solid ${C.valueBorder}` : "1px solid rgba(255,255,255,0.07)",
       }}
     >
@@ -1322,7 +1322,7 @@ function StatCardInline({
     <div
       className="flex-1 flex items-center gap-3 rounded-xl px-4 py-3"
       style={{
-        background: highlight ? "rgba(212,175,55,0.07)" : "rgba(255,255,255,0.03)",
+        background: highlight ? "rgba(177,235,11,0.07)" : "rgba(255,255,255,0.03)",
         border: highlight ? `1px solid ${C.valueBorder}` : "1px solid rgba(255,255,255,0.07)",
       }}
     >

@@ -13,13 +13,13 @@ import {
   type StoredTicketGeral,
 } from "@/app/(authenticated)/tickets/lib/ownedTicketsStorage";
 
-const GOLD = "#D4AF37";
-const GOLD_LIGHT = "#FFE8BA";
+const GOLD = "#B1EB0B";
+const GOLD_LIGHT = "#E8FF8A";
 const CARD = "#0A0E19";
 const PAGE_BG = "var(--background)";
 
 function TicketPerforation({ tone = "gold" as "gold" | "red" }) {
-  const line = tone === "red" ? "rgba(248,113,113,0.45)" : "rgba(212,175,55,0.35)";
+  const line = tone === "red" ? "rgba(248,113,113,0.45)" : "rgba(177,235,11,0.35)";
   return (
     <div className="relative h-4 shrink-0 w-full" aria-hidden>
       <div
@@ -39,7 +39,7 @@ function TicketPerforation({ tone = "gold" as "gold" | "red" }) {
 }
 
 function TicketSideNotches({ tone = "gold" as "gold" | "red" }) {
-  const ring = tone === "red" ? "rgba(248,113,113,0.4)" : "rgba(212,175,55,0.4)";
+  const ring = tone === "red" ? "rgba(248,113,113,0.4)" : "rgba(177,235,11,0.4)";
   return (
     <>
       <div
@@ -74,7 +74,7 @@ export function BoloesClient({ tickets }: { tickets: StoredTicket[] }) {
       <div className="mx-auto w-full max-w-3xl">
         <section
           className="rounded-2xl border p-4 sm:p-5 mb-4"
-          style={{ background: CARD, borderColor: "rgba(212, 175, 55, 0.25)" }}
+          style={{ background: CARD, borderColor: "rgba(177, 235, 11, 0.25)" }}
         >
           <p className="text-[10px] font-bold uppercase tracking-[0.16em] mb-2" style={{ color: "rgba(255,255,255,0.45)" }}>
             Meus Bolões
@@ -93,9 +93,9 @@ export function BoloesClient({ tickets }: { tickets: StoredTicket[] }) {
             <div className="flex items-start gap-3">
               <div
                 className="w-14 h-14 rounded-xl flex items-center justify-center shrink-0"
-                style={{ background: "rgba(212,175,55,0.08)", border: "1px solid rgba(212,175,55,0.24)" }}
+                style={{ background: "rgba(177,235,11,0.08)", border: "1px solid rgba(177,235,11,0.24)" }}
               >
-                <Image src={ticketGold} alt="Ticket dourado" width={34} height={34} className="object-contain" />
+                <Image src={ticketGold} alt="Ticket" width={34} height={34} className="object-contain" />
               </div>
               <div className="min-w-0">
                 <p className="text-[17px] font-bold text-white">Você ainda não tem tickets</p>
@@ -136,7 +136,7 @@ export function BoloesClient({ tickets }: { tickets: StoredTicket[] }) {
                       key={t.id}
                       className={`relative rounded-[14px] ${gerais.length > 1 ? "snap-start shrink-0 w-[calc(100%-28px)] sm:w-[calc(100%-52px)]" : ""}`}
                       style={{
-                        border: "1px solid rgba(212,175,55,0.45)",
+                        border: "1px solid rgba(177,235,11,0.45)",
                         boxShadow: "0 16px 48px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)",
                         background:
                           "linear-gradient(165deg, #121a2a 0%, #0A0E19 42%, #060912 100%), repeating-linear-gradient(-50deg, rgba(255,255,255,0.028) 0, rgba(255,255,255,0.028) 1px, transparent 1px, transparent 8px)",
@@ -164,7 +164,7 @@ export function BoloesClient({ tickets }: { tickets: StoredTicket[] }) {
                         </div>
                         <div
                           className="mt-4 flex rounded-[10px] px-4 py-3 gap-0"
-                          style={{ background: "rgba(0,0,0,0.35)", border: "1px dashed rgba(212,175,55,0.28)" }}
+                          style={{ background: "rgba(0,0,0,0.35)", border: "1px dashed rgba(177,235,11,0.28)" }}
                         >
                           <div className="min-w-0 flex-1 text-center sm:text-left">
                             <p className="text-[9px] uppercase tracking-[0.18em] font-bold text-white/38">Ranking</p>
@@ -218,7 +218,7 @@ export function BoloesClient({ tickets }: { tickets: StoredTicket[] }) {
                             style={{
                               background: `linear-gradient(180deg, ${GOLD_LIGHT} 0%, ${GOLD} 100%)`,
                               color: "#0E141B",
-                              boxShadow: "0 4px 20px rgba(212,175,55,0.25)",
+                              boxShadow: "0 4px 20px rgba(177,235,11,0.25)",
                             }}
                           >
                             Continuar com ticket
@@ -265,7 +265,7 @@ export function BoloesClient({ tickets }: { tickets: StoredTicket[] }) {
                       key={t.id}
                       className={`relative rounded-[14px] ${diarios.length > 1 ? "snap-start shrink-0 w-[calc(100%-28px)] sm:w-[calc(100%-52px)]" : ""}`}
                       style={{
-                        border: "1px solid rgba(212,175,55,0.45)",
+                        border: "1px solid rgba(177,235,11,0.45)",
                         boxShadow: "0 16px 48px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)",
                         background:
                           "linear-gradient(165deg, #121a2a 0%, #0A0E19 42%, #060912 100%), repeating-linear-gradient(-50deg, rgba(255,255,255,0.028) 0, rgba(255,255,255,0.028) 1px, transparent 1px, transparent 8px)",
@@ -293,7 +293,7 @@ export function BoloesClient({ tickets }: { tickets: StoredTicket[] }) {
                         </div>
                         <div
                           className="mt-4 flex rounded-[10px] px-4 py-3 gap-0"
-                          style={{ background: "rgba(0,0,0,0.35)", border: "1px dashed rgba(212,175,55,0.28)" }}
+                          style={{ background: "rgba(0,0,0,0.35)", border: "1px dashed rgba(177,235,11,0.28)" }}
                         >
                           <div className="min-w-0 flex-1 text-center sm:text-left">
                             <p className="text-[9px] uppercase tracking-[0.18em] font-bold text-white/38">Ranking</p>
@@ -347,7 +347,7 @@ export function BoloesClient({ tickets }: { tickets: StoredTicket[] }) {
                             style={{
                               background: `linear-gradient(180deg, ${GOLD_LIGHT} 0%, ${GOLD} 100%)`,
                               color: "#0E141B",
-                              boxShadow: "0 4px 20px rgba(212,175,55,0.25)",
+                              boxShadow: "0 4px 20px rgba(177,235,11,0.25)",
                             }}
                           >
                             {isDiario && dailyStatus === "usado"

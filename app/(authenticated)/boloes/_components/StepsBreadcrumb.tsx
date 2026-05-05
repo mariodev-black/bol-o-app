@@ -19,7 +19,7 @@ export function StepsBreadcrumb({ backHref, items }: StepsBreadcrumbProps) {
         <Link
           href={backHref}
           className="inline-flex items-center justify-center w-9 h-9 rounded-lg shrink-0"
-          style={{ background: "rgba(212,175,55,0.14)", border: "1px solid rgba(212,175,55,0.34)", color: "#FFE8BA" }}
+          style={{ background: "rgba(177,235,11,0.14)", border: "1px solid rgba(177,235,11,0.34)", color: "#E8FF8A" }}
           aria-label="Voltar"
         >
           <ArrowLeft className="w-4 h-4" />
@@ -30,7 +30,7 @@ export function StepsBreadcrumb({ backHref, items }: StepsBreadcrumbProps) {
             <div key={`${item}-${idx}`} className="inline-flex items-center gap-1 shrink-0">
               <span
                 className={`text-[12px] font-semibold ${idx === items.length - 1 ? "" : ""}`}
-                style={{ color: idx === items.length - 1 ? "#FFE8BA" : "rgba(255,255,255,0.7)" }}
+                style={{ color: idx === items.length - 1 ? "#E8FF8A" : "rgba(255,255,255,0.7)" }}
               >
                 {item}
               </span>

@@ -53,11 +53,11 @@ function userInitials(name: string | null, email: string): string {
 function SectionHeader({ title }: { title: string }) {
   return (
     <div className="flex items-center justify-between mb-2.5">
-      <div className="h-px flex-1 ml-3" style={{ background: "linear-gradient(90deg, rgba(212,175,55,0.5) 0%, rgba(212,175,55,0) 100%)" }} />
-      <h2 className="text-[18px] uppercase tracking-[0.12em] font-black" style={{ color: "rgba(255,232,186,0.82)" }}>
+      <div className="h-px flex-1 ml-3" style={{ background: "linear-gradient(90deg, rgba(177,235,11,0.5) 0%, rgba(177,235,11,0) 100%)" }} />
+      <h2 className="text-[18px] uppercase tracking-[0.12em] font-black" style={{ color: "rgba(217,255,89,0.82)" }}>
         {title}
       </h2>
-      <div className="h-px flex-1 ml-3" style={{ background: "linear-gradient(90deg, rgba(212,175,55,0.5) 0%, rgba(212,175,55,0) 100%)" }} />
+      <div className="h-px flex-1 ml-3" style={{ background: "linear-gradient(90deg, rgba(177,235,11,0.5) 0%, rgba(177,235,11,0) 100%)" }} />
     </div>
   );
 }
@@ -204,10 +204,10 @@ export default function PerfilPage() {
             <HeroCardAmbientGlow radiusClass="rounded-[18px]" />
             <div className="relative flex items-start justify-between gap-3">
               <div className="flex items-center gap-3.5 min-w-0">
-                <div className="relative w-[70px] h-[70px] rounded-2xl bg-[#D4AF37] text-[#0E141B] flex items-center justify-center text-[22px] font-black shadow-[0_12px_24px_rgba(212,175,55,0.35)]">
+                <div className="relative w-[70px] h-[70px] rounded-2xl bg-[#B1EB0B] text-[#0E141B] flex items-center justify-center text-[22px] font-black shadow-[0_12px_24px_rgba(177,235,11,0.35)]">
                   {ready ? initials : "…"}
-                  <span className="absolute -right-1 -bottom-1 w-6 h-6 rounded-full flex items-center justify-center border border-[#D4AF37] bg-[#0A0E19]">
-                    <Trophy className="w-3 h-3" style={{ color: "#D4AF37" }} />
+                  <span className="absolute -right-1 -bottom-1 w-6 h-6 rounded-full flex items-center justify-center border border-[#B1EB0B] bg-[#0A0E19]">
+                    <Trophy className="w-3 h-3" style={{ color: "#B1EB0B" }} />
                   </span>
                 </div>
                 <div className="min-w-0">
@@ -223,13 +223,13 @@ export default function PerfilPage() {
               <div className="flex flex-col items-end gap-1.5 shrink-0">
                 <span
                   className="px-3 py-1 rounded-lg text-[11px] font-black border"
-                  style={{ background: "rgba(212,175,55,0.12)", borderColor: "rgba(212,175,55,0.38)", color: "#D4AF37" }}
+                  style={{ background: "rgba(177,235,11,0.12)", borderColor: "rgba(177,235,11,0.38)", color: "#B1EB0B" }}
                 >
                   Afiliado: {nivelAfiliado}
                 </span>
                 <span
                   className="px-3 py-1 rounded-lg text-[11px] font-black border"
-                  style={{ background: "rgba(255,232,186,0.08)", borderColor: "rgba(212,175,55,0.28)", color: "#FFE8BA" }}
+                  style={{ background: "rgba(217,255,89,0.08)", borderColor: "rgba(177,235,11,0.28)", color: "#E8FF8A" }}
                 >
                   {affiliate ? `${affiliate.paidReferralsCount} ind. pagas` : "—"}
                 </span>
@@ -241,7 +241,7 @@ export default function PerfilPage() {
                 { label: "Palpites", value: String(resumo?.palpites ?? "—"), color: "white" },
                 { label: "Acertos", value: String(resumo?.acertos ?? "—"), color: "#22C55E" },
                 { label: "Pontos", value: String(resumo?.pontos ?? "—"), color: "#FACC15" },
-                { label: "Melhor bolão", value: bestTicketPts != null ? `${bestTicketPts} pts` : "—", color: "#FFE8BA" },
+                { label: "Melhor bolão", value: bestTicketPts != null ? `${bestTicketPts} pts` : "—", color: "#E8FF8A" },
               ].map((item) => (
                 <div
                   key={item.label}
@@ -268,7 +268,7 @@ export default function PerfilPage() {
           >
             <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
               <h2 className="text-[22px] font-black text-white">Últimos Palpites</h2>
-              <Link href="/meus-palpites" className="text-sm font-bold inline-flex items-center gap-1" style={{ color: "#D4AF37" }}>
+              <Link href="/meus-palpites" className="text-sm font-bold inline-flex items-center gap-1" style={{ color: "#B1EB0B" }}>
                 Ver todos <ChevronRight className="w-4 h-4" />
               </Link>
             </div>
@@ -285,7 +285,7 @@ export default function PerfilPage() {
               {recentPicks.length === 0 && ready ? (
                 <p className="text-center text-sm py-8" style={{ color: "rgba(255,255,255,0.35)" }}>
                   Nenhum palpite recente.{" "}
-                  <Link href="/boloes" className="font-bold underline" style={{ color: "#D4AF37" }}>
+                  <Link href="/boloes" className="font-bold underline" style={{ color: "#B1EB0B" }}>
                     Ver meus bolões
                   </Link>
                 </p>
@@ -357,11 +357,11 @@ export default function PerfilPage() {
                   <span style={{ color: "#EF4444" }}>●</span> {pickSummary.miss} erros
                 </span>
                 <span>
-                  Taxa: <span style={{ color: "#D4AF37", fontWeight: 700 }}>{pickSummary.rate}%</span>
+                  Taxa: <span style={{ color: "#B1EB0B", fontWeight: 700 }}>{pickSummary.rate}%</span>
                 </span>
               </div>
               <p className="text-[12px]">
-                Total: <span style={{ color: "#FFE8BA", fontWeight: 700 }}>{pickSummary.totalPts >= 0 ? "+" : ""}{pickSummary.totalPts} pts</span>
+                Total: <span style={{ color: "#E8FF8A", fontWeight: 700 }}>{pickSummary.totalPts >= 0 ? "+" : ""}{pickSummary.totalPts} pts</span>
               </p>
             </div>
           </section>
@@ -385,7 +385,7 @@ export default function PerfilPage() {
                 className="h-full rounded-full transition-all"
                 style={{
                   width: `${achievements.length ? (achievements.filter((a) => a.status === "obtida").length / achievements.length) * 100 : 0}%`,
-                  background: "linear-gradient(90deg, #D4AF37, #FFE8BA)",
+                  background: "linear-gradient(90deg, #B1EB0B, #E8FF8A)",
                 }}
               />
             </div>
@@ -396,7 +396,7 @@ export default function PerfilPage() {
                   key={badge.label}
                   className="rounded-xl border p-3"
                   style={{
-                    borderColor: badge.status === "bloqueada" ? "rgba(255,255,255,0.08)" : "rgba(212,175,55,0.28)",
+                    borderColor: badge.status === "bloqueada" ? "rgba(255,255,255,0.08)" : "rgba(177,235,11,0.28)",
                     background:
                       badge.status === "bloqueada"
                         ? "linear-gradient(180deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.01) 100%)"
@@ -408,11 +408,11 @@ export default function PerfilPage() {
                     <span
                       className="w-10 h-10 rounded-xl border flex items-center justify-center"
                       style={{
-                        borderColor: badge.status === "bloqueada" ? "rgba(255,255,255,0.12)" : "rgba(212,175,55,0.34)",
-                        background: badge.status === "bloqueada" ? "rgba(255,255,255,0.03)" : "rgba(212,175,55,0.12)",
+                        borderColor: badge.status === "bloqueada" ? "rgba(255,255,255,0.12)" : "rgba(177,235,11,0.34)",
+                        background: badge.status === "bloqueada" ? "rgba(255,255,255,0.03)" : "rgba(177,235,11,0.12)",
                       }}
                     >
-                      <badge.icon className="w-5 h-5" style={{ color: badge.status === "bloqueada" ? "rgba(255,255,255,0.4)" : "#D4AF37" }} />
+                      <badge.icon className="w-5 h-5" style={{ color: badge.status === "bloqueada" ? "rgba(255,255,255,0.4)" : "#B1EB0B" }} />
                     </span>
                     <span
                       className="px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-[0.08em]"
@@ -447,7 +447,7 @@ export default function PerfilPage() {
                 {affiliate ? `${affiliate.paidReferralsCount} indicações pagas · próx.: ${(affiliate.nextRewardCents / 100).toFixed(2).replace(".", ",")}` : "Programa de indicação"}
               </p>
               <div className="mt-3 h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.08)" }}>
-                <div className="h-full rounded-full transition-all" style={{ width: `${progressPct}%`, background: "linear-gradient(90deg, #D4AF37, #FFE8BA)" }} />
+                <div className="h-full rounded-full transition-all" style={{ width: `${progressPct}%`, background: "linear-gradient(90deg, #B1EB0B, #E8FF8A)" }} />
               </div>
               <p className="mt-2 text-[11px]" style={{ color: "rgba(255,255,255,0.42)" }}>
                 {affiliate
@@ -475,9 +475,9 @@ export default function PerfilPage() {
                     <div className="flex flex-col items-center gap-2">
                       <span
                         className="w-9 h-9 rounded-lg border flex items-center justify-center shrink-0"
-                        style={{ borderColor: "rgba(212,175,55,0.28)", background: "rgba(212,175,55,0.1)" }}
+                        style={{ borderColor: "rgba(177,235,11,0.28)", background: "rgba(177,235,11,0.1)" }}
                       >
-                        <Icon className="w-4 h-4" style={{ color: "#D4AF37" }} />
+                        <Icon className="w-4 h-4" style={{ color: "#B1EB0B" }} />
                       </span>
                       <p className="text-[12px] font-bold text-white leading-tight">{item.label}</p>
                       <p className="text-[10px] leading-tight" style={{ color: "rgba(255,255,255,0.58)" }}>
@@ -541,7 +541,7 @@ function HeroCardAmbientGlow({ radiusClass }: { radiusClass: string }) {
           width: "100%",
           height: "88%",
           background:
-            "radial-gradient(ellipse 78% 68% at 84% 10%, rgba(255, 232, 186, 0.34) 0%, rgba(255, 232, 186, 0.11) 40%, transparent 70%)",
+            "radial-gradient(ellipse 78% 68% at 84% 10%, rgba(217, 255, 89, 0.34) 0%, rgba(217, 255, 89, 0.11) 40%, transparent 70%)",
         }}
       />
       <div
@@ -552,7 +552,7 @@ function HeroCardAmbientGlow({ radiusClass }: { radiusClass: string }) {
           width: "95%",
           height: "82%",
           background:
-            "radial-gradient(ellipse 72% 62% at 12% 90%, rgba(212, 175, 55, 0.26) 0%, rgba(212, 175, 55, 0.08) 42%, transparent 74%)",
+            "radial-gradient(ellipse 72% 62% at 12% 90%, rgba(177, 235, 11, 0.26) 0%, rgba(177, 235, 11, 0.08) 42%, transparent 74%)",
         }}
       />
     </div>
