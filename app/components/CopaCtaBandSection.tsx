@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { CircleDollarSign, ShieldCheck, Users, Zap } from "lucide-react";
 import bgHeroDesktop from "@/app/assets/bg-bottom.png";
+import { TicketPurchaseLink } from "@/app/shared/TicketPurchaseLink";
 
 const BAND_STATS = [
   {
@@ -84,14 +85,14 @@ export function CopaCtaBandSection() {
               <p className="relative mt-5 mb-4 bg-linear-to-r from-[#F7FFD9] via-[#DFFF76] to-primary bg-clip-text text-center text-[56px] font-black tabular-nums leading-none tracking-[-0.06em] text-transparent sm:text-[58px]">
                 R$ 49,90
               </p>
-              <button
-                type="button"
+              <TicketPurchaseLink
+                ariaLabel="Garantir minha cota"
                 className="cta-pulse-ring w-full relative  overflow-visible rounded-xl bg-primary px-4 py-4 text-[15px] font-bold leading-tight tracking-tight text-[#0E141B] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:mt-2.5 sm:px-5 sm:py-4 sm:text-[15px]"
               >
                 <span className="relative z-10">
                   GARANTIR MINHA COTA R$ 49,90
                 </span>
-              </button>
+              </TicketPurchaseLink>
               <div className="relative mt-6 flex items-center gap-3 text-[14px] font-bold uppercase leading-none tracking-[-0.02em] text-white">
                 <ShieldCheck
                   className="size-5 shrink-0 text-primary"

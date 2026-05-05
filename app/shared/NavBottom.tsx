@@ -19,7 +19,7 @@ const BOTTOM_ITEMS_PUBLIC = [
   { label: "Indique", href: "/indique", icon: Gift },
   { label: "Meus Bolões", href: "/boloes", icon: Trophy },
   { label: "Início", href: "/", icon: Home },
-  { label: "Adquirir ticket", href: "/cadastrar", icon: Ticket },
+  { label: "Adquirir ticket", href: "/login?from=/tickets", icon: Ticket },
 ] as const;
 
 type MenuItem = {
