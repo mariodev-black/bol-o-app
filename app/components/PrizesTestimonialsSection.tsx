@@ -195,7 +195,7 @@ function TestimonialsCarousel() {
       : "0px";
 
   return (
-    <div className="relative left-1/2 mt-10 w-screen -translate-x-1/2 overflow-hidden sm:mt-12 lg:mt-30">
+    <div className="relative left-1/2 mt-10 w-screen -translate-x-1/2 overflow-hidden sm:mt-12 md:hidden">
       <div
         ref={trackRef}
         className={cn(
@@ -356,6 +356,31 @@ export function PrizesTestimonialsSection() {
 
         {/* Depoimentos */}
         <TestimonialsCarousel />
+        <div className="mx-auto mt-12 hidden max-w-[1200px] gap-4 sm:gap-5 md:grid md:grid-cols-3 lg:mt-30">
+          {TESTIMONIALS.map(({ name, quote }) => (
+            <article
+              key={name}
+              className="flex flex-col rounded-2xl border border-white/10 bg-[#000] px-5 py-5 sm:px-6 sm:py-6"
+            >
+              <p className="flex-1 text-[14px] leading-relaxed text-white/92 sm:text-[16px] font-[500]">
+                {quote}
+              </p>
+              <div className="mt-5 flex items-end justify-between gap-3 border-t border-white/[0.06] pt-4">
+                <span className="text-sm font-bold text-primary sm:text-[16px] font-[500]">
+                  {name}
+                </span>
+                <div className="flex shrink-0 gap-0.5" aria-hidden>
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Star
+                      key={i}
+                      className="size-4 fill-amber-400 text-amber-400 sm:size-[18px]"
+                    />
+                  ))}
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
       </div>
     </section>
   );
