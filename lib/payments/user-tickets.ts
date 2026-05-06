@@ -124,14 +124,6 @@ export async function listPaidTicketsForUser(userId: string): Promise<PaidTicket
       });
 
     const playableDate = resolveDiarioPlayableDate(matchMap);
-    console.log("[user-tickets] calc:start", {
-      userId,
-      tickets: mapped.length,
-      totalMatchesInCache: matchMap.size,
-      openMatches: openMatches.length,
-      playableDate,
-      today,
-    });
     const byTicket = new Map<string, typeof preds>();
     for (const p of preds) {
       const arr = byTicket.get(p.ticket_id) ?? [];
@@ -171,16 +163,6 @@ export async function listPaidTicketsForUser(userId: string): Promise<PaidTicket
         .reduce((acc, m) => (predictedIds.has(m.matchId) ? acc : acc + 1), 0);
       return { ...t, dailyStatus, playDate: targetDate, availableGames };
     });
-    console.log(
-      "[user-tickets] calc:result",
-      result.map((t) => ({
-        id: t.id,
-        type: t.ticketType,
-        dailyStatus: "dailyStatus" in t ? t.dailyStatus : undefined,
-        playDate: "playDate" in t ? t.playDate : undefined,
-        availableGames: t.availableGames ?? 0,
-      })),
-    );
     return result;
   } catch (e) {
     console.error("[user-tickets] listPaidTicketsForUser", e);

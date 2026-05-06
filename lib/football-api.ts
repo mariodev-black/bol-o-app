@@ -31,7 +31,7 @@ function debugEnabled(): boolean {
 
 function debugLog(...args: unknown[]) {
   if (!debugEnabled()) return;
-  console.log("[matches-sync]", ...args);
+  console.log(...args);
 }
 
 function parseKickoffISO(dataRealizacao: string | null | undefined, hora: string | null | undefined): string | null {
