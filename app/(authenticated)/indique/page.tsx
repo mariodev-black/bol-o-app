@@ -31,7 +31,7 @@ import { formatBRLFromCents, simulateTotalForNewPaidReferrals } from "./affiliat
 
 /* ─── Design tokens ─── */
 const C = {
-  card: "#0A0E19",
+  card: "#101010",
   nested: "rgba(255,255,255,0.04)",
   deep: "#020509",
   gold: "#B1EB0B",

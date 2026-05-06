@@ -123,7 +123,7 @@ export default function DepositoPage() {
         Selecione o tipo do ticket e gere seu PIX no gateway.
       </p>
 
-      <div className="rounded-2xl border p-5 mb-4" style={{ background: "#0A0E19", borderColor: "rgba(255,255,255,0.08)" }}>
+      <div className="rounded-2xl border p-5 mb-4" style={{ background: "#101010", borderColor: "rgba(255,255,255,0.08)" }}>
         <p className="text-[12px] mb-3" style={{ color: "rgba(255,255,255,0.45)" }}>Tipo de ticket</p>
         <div className="grid grid-cols-2 gap-2">
           <button
@@ -178,7 +178,7 @@ export default function DepositoPage() {
       </div>
 
       {tx?.pixQrcode && (
-        <div className="rounded-2xl border p-5" style={{ background: "#0A0E19", borderColor: "rgba(255,255,255,0.08)" }}>
+        <div className="rounded-2xl border p-5" style={{ background: "#101010", borderColor: "rgba(255,255,255,0.08)" }}>
           <p className="text-[12px] mb-3" style={{ color: "rgba(255,255,255,0.45)" }}>
             Status: <span className="font-semibold text-white">{tx.status}</span>
           </p>

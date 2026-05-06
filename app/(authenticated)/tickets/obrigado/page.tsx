@@ -7,7 +7,7 @@ import { CheckCircle2, ArrowRight } from "lucide-react";
 
 const GOLD = "#B1EB0B";
 const GOLD_LIGHT = "#E8FF8A";
-const CARD = "#0A0E19";
+const CARD = "#101010";
 
 function TicketObrigadoContent() {
   const params = useSearchParams();

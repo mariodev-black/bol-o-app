@@ -8,6 +8,8 @@ import { fetchMatchesMap } from "@/lib/football-api";
 import { getPool } from "@/lib/db";
 import { BoloesClient, type BoloesScreenData } from "@/app/(authenticated)/boloes/BoloesClient";
 
+export const dynamic = "force-dynamic";
+
 type MatchMap = Awaited<ReturnType<typeof fetchMatchesMap>>;
 type MatchInfo = MatchMap extends Map<number, infer T> ? T : never;
 
@@ -19,6 +21,10 @@ type TicketMetrics = {
   position: number | null;
   points: number;
 };
+
+function debugBoloes(label: string, payload: unknown) {
+  console.error(`[boloes/debug] ${label}`, JSON.stringify(payload, null, 2));
+}
 
 function isFinishedStatus(status: string): boolean {
   const s = String(status || "").toLowerCase();
@@ -178,6 +184,28 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
     listAllPredictions().catch(() => []),
   ]);
 
+  debugBoloes("load:start", {
+    userId,
+    ticketsCount: tickets.length,
+    matchesCount: matches.size,
+    userPredictionsCount: userPredictions.length,
+    allPredictionsCount: allPredictions.length,
+  });
+  debugBoloes(
+    "tickets",
+    tickets.map((ticket) => ({
+      id: ticket.id,
+      ticketType: ticket.ticketType,
+      quantity: ticket.quantity,
+      status: "paid",
+      paidAt: ticket.paidAt,
+      createdAt: ticket.createdAt,
+      dailyStatus: ticket.dailyStatus,
+      playDate: ticket.playDate,
+      availableGames: ticket.availableGames,
+    }))
+  );
+
   const ranking = buildRankingMap(allPredictions, matches);
   const predictionsByTicket = new Map<string, PredictionRow[]>();
   for (const prediction of userPredictions) {
@@ -201,6 +229,17 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
       points: ranked?.points ?? 0,
     });
   }
+
+  debugBoloes(
+    "metricsByTicket",
+    tickets.map((ticket) => ({
+      id: ticket.id,
+      ticketType: ticket.ticketType,
+      metrics: metricsByTicket.get(ticket.id) ?? null,
+      userPredictions: predictionsByTicket.get(ticket.id)?.length ?? 0,
+      ranking: ranking.get(ticket.id) ?? null,
+    }))
+  );
 
   const firstGeneral = tickets.find((ticket) => ticket.ticketType === "general") ?? null;
   const firstDaily = tickets.find((ticket) => ticket.ticketType === "daily") ?? null;
@@ -305,7 +344,7 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
     all: allActive,
   };
 
-  return {
+  const data: BoloesScreenData = {
     summary: {
       activeCount: tickets.length,
       pendingPredictions: pending,
@@ -326,11 +365,29 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
       },
     },
   };
+
+  debugBoloes("resolved", {
+    playableDate,
+    dailyMatchesCount,
+    dailyCloseAtMs,
+    generalOpenMatchesCount: generalOpenMatches.length,
+    generalCloseAtMs,
+    summary: data.summary,
+    activePrincipal: data.active.principal,
+    activeDiario: data.active.diario,
+    allActiveCount: data.active.all.length,
+    allActive: data.active.all,
+    upcoming: data.upcoming,
+  });
+
+  return data;
 }
 
 export default async function BoloesPage() {
   const token = (await cookies()).get(sessionCookieName())?.value;
   const userId = token ? await verifySessionToken(token).catch(() => null) : null;
+  debugBoloes("request", { hasToken: Boolean(token), userId });
   const data = userId ? await loadBoloesData(userId) : null;
+  if (!userId) debugBoloes("no authenticated user", {});
   return <BoloesClient data={data} />;
 }

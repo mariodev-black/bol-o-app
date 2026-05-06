@@ -17,7 +17,7 @@ import {
 
 const GOLD = "#B1EB0B";
 const GOLD_LIGHT = "#E8FF8A";
-const CARD = "#0A0E19";
+const CARD = "#101010";
 const montserrat = "var(--font-montserrat), ui-sans-serif, system-ui, sans-serif";
 
 type MyTicketsWalletProps = {

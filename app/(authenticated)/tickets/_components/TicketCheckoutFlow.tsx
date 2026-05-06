@@ -21,7 +21,7 @@ import { appendTicketsFromPurchase } from "../lib/ownedTicketsStorage";
 
 const GOLD = "#B1EB0B";
 const GOLD_LIGHT = "#E8FF8A";
-const CARD = "#0A0E19";
+const CARD = "#101010";
 const DEFAULT_PRINCIPAL_CENTS = 4990;
 const DEFAULT_DIARIO_CENTS = 2000;
 const DEFAULT_EXTRA_CENTS = 3990;
@@ -154,15 +154,14 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
   const mainSelected = principalQty >= 1;
   const extraSelected = principalQty >= 2;
   const dailySelected = diarioQty >= 1;
+  const selectedMode: TicketType = dailySelected ? "daily" : "general";
   const extraPrice = Math.min(prices.extra, prices.general);
   const principalLine = mainSelected ? prices.general + (extraSelected ? extraPrice : 0) : 0;
   const diarioLine = diarioQty * prices.daily;
   const totalCents = principalLine + diarioLine;
   const totalQty = principalQty + diarioQty;
   const hasSelection = totalCents > 0;
-  const selectedType: TicketType | null =
-    principalQty > 0 && diarioQty === 0 ? "general" : diarioQty > 0 && principalQty === 0 ? "daily" : null;
-  const selectedQty = selectedType === "general" ? principalQty : selectedType === "daily" ? diarioQty : 0;
+  const selectedQty = selectedMode === "general" ? principalQty : diarioQty;
   const reservationSecondsLeft = Math.max(0, Math.ceil((reservationDeadline - now) / 1000));
   const secondsLeft =
     step === "pix" && pixDeadline != null ? Math.max(0, Math.ceil((pixDeadline - now) / 1000)) : 0;
@@ -172,8 +171,8 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
 
   const goGenerate = useCallback(() => {
     if (!hasSelection) return;
-    if (!selectedType) {
-      setError("Para pagar com PIX agora, selecione somente um tipo de ticket por vez (Geral ou Diario).");
+    if (selectedQty <= 0) {
+      setError("Selecione uma cota para gerar o PIX.");
       return;
     }
     setError(null);
@@ -186,7 +185,7 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
           credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            ticketType: selectedType,
+            ticketType: selectedMode,
             quantity: selectedQty,
             amountCents: totalCents,
           }),
@@ -197,8 +196,8 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
           setStep("shop");
           return;
         }
-        purchasePrincipalRef.current = selectedType === "general" ? selectedQty : 0;
-        purchaseDiarioRef.current = selectedType === "daily" ? selectedQty : 0;
+        purchasePrincipalRef.current = selectedMode === "general" ? selectedQty : 0;
+        purchaseDiarioRef.current = selectedMode === "daily" ? selectedQty : 0;
         setTransactionId(d.transaction.id);
         setTxStatus(d.transaction.status);
         setPixPayload(d.transaction.pixQrcode);
@@ -210,7 +209,7 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
         setStep("shop");
       }
     })();
-  }, [hasSelection, selectedQty, selectedType, totalCents]);
+  }, [hasSelection, selectedMode, selectedQty, totalCents]);
 
   const copyPix = useCallback(() => {
     if (!pixPayload || pixExpired) return;
@@ -224,7 +223,7 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
       <div
         className={
           step === "shop"
-            ? "w-full max-w-[420px] mx-auto px-4 pb-10 pt-10 sm:px-6 sm:pt-10"
+            ? "w-full max-w-[420px] mx-auto px-4 pb-10 pt-4 sm:px-6 sm:pt-10"
             : "w-full max-w-md mx-auto px-4 py-8 sm:px-6 sm:py-10 flex-1 flex flex-col justify-start"
         }
       >
@@ -393,11 +392,11 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
                 <div className="border-t px-4 pb-5 pt-5" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
                   <button
                     type="button"
-                    disabled={!hasSelection || step === "generating"}
+                    disabled={!hasSelection}
                     onClick={goGenerate}
                     className="flex h-[67px] w-full items-center justify-center gap-3 rounded-[13px] bg-primary text-[14px] font-black uppercase tracking-[-0.02em] text-[#0E141B] shadow-[0_0_34px_rgba(177,235,11,0.45)] transition-transform hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45"
                   >
-                    {step === "generating" ? "Gerando Pix..." : "Gerar Pix e garantir minha cota"}
+                    Gerar Pix e garantir minha cota
                     <ArrowRight className="size-5" strokeWidth={3} />
                   </button>
                   <p className="mt-4 flex items-start justify-center gap-2 text-center text-[11px] font-medium leading-[1.55] text-white/36">

@@ -55,9 +55,15 @@ export async function POST(request: NextRequest) {
       ticketType === "general" && quantity === 2
         ? getTicketPriceCents("general") + getExtraTicketPriceCents()
         : getTicketPriceCents(ticketType) * quantity;
-    const amountCents =
-      parsed.data.amountCents === expectedAmount ? parsed.data.amountCents : undefined;
-    const transaction = await createDepositTransaction({ userId, ticketType, quantity, amountCentsOverride: amountCents });
+    if (parsed.data.amountCents != null && parsed.data.amountCents !== expectedAmount) {
+      return NextResponse.json({ error: "Valor do pedido invalido" }, { status: 400 });
+    }
+    const transaction = await createDepositTransaction({
+      userId,
+      ticketType,
+      quantity,
+      amountCentsOverride: expectedAmount,
+    });
     return NextResponse.json({ transaction }, { status: 201 });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Nao foi possivel criar a transacao";

@@ -12,7 +12,11 @@ function TicketsPageContent() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <TicketCheckoutFlow initialPrincipalQty={initialPrincipalQty} initialDiarioQty={initialDiarioQty} />
+      <TicketCheckoutFlow
+        key={bolao}
+        initialPrincipalQty={initialPrincipalQty}
+        initialDiarioQty={initialDiarioQty}
+      />
     </div>
   );
 }

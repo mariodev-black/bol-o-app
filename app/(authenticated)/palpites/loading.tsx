@@ -1,4 +1,4 @@
-const CARD = "#0A0E19";
+const CARD = "#101010";
 
 export default function PalpitesLoading() {
   return (

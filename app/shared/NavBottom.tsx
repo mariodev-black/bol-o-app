@@ -1,26 +1,40 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ElementType } from "react";
+import Image, { type StaticImageData } from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowRight, BarChart2, CalendarClock, Gift, Home, LogOut, Menu, Ticket, Trophy, User, UserPlus, Wallet, X } from "lucide-react";
+import { ArrowRight, BarChart2, CalendarClock, Gift, Home, LogOut, Ticket, Trophy, User, Wallet, X } from "lucide-react";
 import { useAuth } from "@/app/shared/AuthContext";
 import { useSidenav } from "@/app/shared/SidenavContext";
+import homeIcon from "@/app/assets/navbottom/home.svg";
+import dailyIcon from "@/app/assets/navbottom/bolao.svg";
+import myBoloesIcon from "@/app/assets/navbottom/meus-bolao.svg";
+import rankingIcon from "@/app/assets/navbottom/ranking.svg";
+import profileIcon from "@/app/assets/navbottom/perfil.svg";
 
 const BOTTOM_ITEMS_PROFILE = [
-  { label: "Indique", href: "/indique", icon: Gift },
-  { label: "Meus Bolões", href: "/boloes", icon: Trophy },
-  { label: "Início", href: "/", icon: Home },
-  { label: "Adquirir ticket", href: "/tickets", icon: Ticket },
-  { label: "Perfil", href: "/perfil", icon: User },
+  { label: "Início", href: "/", icon: homeIcon, iconSize: 21 },
+  { label: "Bolão do Dia", href: "/tickets?bolao=diario", icon: dailyIcon, iconSize: 22 },
+  { label: "Meus Bolões", href: "/boloes", icon: myBoloesIcon, iconSize: 25 },
+  { label: "Ranking", href: "/meus-palpites", icon: rankingIcon, iconSize: 21 },
+  { label: "Perfil", href: "/perfil", icon: profileIcon, iconSize: 21 },
 ] as const;
 
 const BOTTOM_ITEMS_PUBLIC = [
-  { label: "Indique", href: "/indique", icon: Gift },
-  { label: "Meus Bolões", href: "/boloes", icon: Trophy },
-  { label: "Início", href: "/", icon: Home },
-  { label: "Adquirir ticket", href: "/login?from=/tickets", icon: Ticket },
+  { label: "Início", href: "/", icon: homeIcon, iconSize: 21 },
+  { label: "Bolão do Dia", href: "/login?from=/tickets%3Fbolao%3Ddiario", icon: dailyIcon, iconSize: 22 },
+  { label: "Meus Bolões", href: "/boloes", icon: myBoloesIcon, iconSize: 25 },
+  { label: "Ranking", href: "/meus-palpites", icon: rankingIcon, iconSize: 21 },
+  { label: "Perfil", href: "/login", icon: profileIcon, iconSize: 21 },
 ] as const;
+
+type BottomItem = {
+  label: string;
+  href: string;
+  icon: StaticImageData;
+  iconSize: number;
+};
 
 type MenuItem = {
   label: string;
@@ -83,13 +97,20 @@ export function NavBottom() {
     .slice(0, 2) || "MC";
 
   const isItemActive = (href: string) => {
+    const baseHref = href.split("?")[0] ?? href;
     if (href === "/") {
       return normalizedPath === "/";
     }
-    if (href === "/boloes") {
-      return normalizedPath.startsWith("/boloes") || normalizedPath.startsWith("/palpites") || normalizedPath.startsWith("/meus-palpites");
+    if (baseHref === "/boloes") {
+      return normalizedPath.startsWith("/boloes") || normalizedPath.startsWith("/palpites");
     }
-    return normalizedPath === href || normalizedPath.startsWith(`${href}/`);
+    if (baseHref === "/meus-palpites") {
+      return normalizedPath.startsWith("/meus-palpites");
+    }
+    if (baseHref === "/tickets") {
+      return normalizedPath.startsWith("/tickets");
+    }
+    return normalizedPath === baseHref || normalizedPath.startsWith(`${baseHref}/`);
   };
 
   const closeMenu = () => closeSidenav();
@@ -437,47 +458,57 @@ export function NavBottom() {
       )}
 
       <nav
-        className="fixed bottom-0 left-1/2 -translate-x-1/2 z-60 flex items-center gap-1 w-full justify-between bg-card border-t border-white/10 md:hidden px-2"
-        style={{ background: "rgba(6,11,24,0.78)", backdropFilter: "blur(10px)" }}
+        className="fixed bottom-0 left-0 right-0 z-60 mx-auto flex h-[58px] w-full items-end overflow-visible rounded-t-[13px] border border-[#2A2A2A] bg-[#101010] md:hidden"
+        style={{
+          boxShadow: "0 -12px 26px rgba(0,0,0,0.36), inset 0 1px 0 rgba(255,255,255,0.04)",
+        }}
+        aria-label="Navegação inferior"
       >
-        {(isLoggedIn ? BOTTOM_ITEMS_PROFILE : BOTTOM_ITEMS_PUBLIC).map(({ label, href, icon: Icon }) => {
+        {((isLoggedIn ? BOTTOM_ITEMS_PROFILE : BOTTOM_ITEMS_PUBLIC) as readonly BottomItem[]).map(({ label, href, icon, iconSize }) => {
           const active = isItemActive(href);
 
           return (
             <Link
               key={href + label}
               href={href}
-              className="flex flex-col items-center justify-center gap-1 px-2 py-1.5 rounded-xl transition-all duration-200"
-              style={{ minWidth: 64 }}
+              aria-current={active ? "page" : undefined}
+              className="relative flex h-[58px] min-w-0 flex-1 items-end justify-center overflow-visible"
             >
-              <div
-                className={[
-                  "flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-200 border",
-                  active ? "border-[#B1EB0B]" : "border-white/10",
-                ].join(" ")}
-                style={
-                  active
-                    ? {
-                        background: "linear-gradient(180deg, #E8FF8A 0%, #B1EB0B 100%)",
-                        boxShadow: "0 0 18px rgba(177,235,11,0.55), 0 0 34px rgba(177,235,11,0.22)",
-                      }
-                    : { background: "rgba(255,255,255,0.03)" }
-                }
-              >
-                <Icon
-                  className="w-5 h-5"
-                  style={{ color: active ? "#0E141B" : "rgba(255,255,255,0.55)" }}
-                  strokeWidth={active ? 2.5 : 1.8}
+              {active ? (
+                <span
+                  aria-hidden="true"
+                  className="absolute -top-[6px] bottom-0 left-1/2 w-[59px] -translate-x-1/2"
+                  style={{
+                    background: "linear-gradient(180deg, #173006 0%, #102903 100%)",
+                    clipPath: "polygon(12px 0, calc(100% - 12px) 0, 100% 8px, 100% 100%, 0 100%, 0 8px)",
+                    boxShadow: "inset 0 1px 0 rgba(177,235,11,0.18), 0 0 20px rgba(177,235,11,0.12)",
+                  }}
                 />
-              </div>
+              ) : null}
 
-              <span
-                className="text-[10px] font-medium leading-none text-center"
-                style={{
-                  color: active ? "#B1EB0B" : "rgba(217,255,89,0.45)",
-                }}
-              >
-                {label}
+              <span className="relative z-1 flex h-[54px] w-full flex-col items-center justify-center gap-[3px]">
+                <Image
+                  src={icon}
+                  alt=""
+                  width={iconSize}
+                  height={iconSize}
+                  className="h-auto w-auto transition-all duration-200"
+                  style={{
+                    filter: active
+                      ? "brightness(0) saturate(100%) invert(78%) sepia(77%) saturate(833%) hue-rotate(21deg) brightness(101%) contrast(93%)"
+                      : "brightness(0) saturate(100%) invert(61%) sepia(0%) saturate(0%) hue-rotate(180deg) brightness(95%) contrast(88%)",
+                  }}
+                  aria-hidden="true"
+                />
+                <span
+                  className={[
+                    "block max-w-full truncate text-center leading-none",
+                    active ? "text-[10px] font-black" : "text-[10px] font-semibold",
+                  ].join(" ")}
+                  style={{ color: active ? "#B1EB0B" : "#929292" }}
+                >
+                  {label}
+                </span>
               </span>
             </Link>
           );

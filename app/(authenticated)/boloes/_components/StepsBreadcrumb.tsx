@@ -13,7 +13,7 @@ export function StepsBreadcrumb({ backHref, items }: StepsBreadcrumbProps) {
     <nav
       aria-label="Breadcrumb"
       className="rounded-xl px-2.5 py-2 mb-4"
-      style={{ background: "#0A0E19" }}
+      style={{ background: "#101010" }}
     >
       <div className="flex items-center gap-2 min-w-0">
         <Link

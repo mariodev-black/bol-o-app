@@ -197,7 +197,7 @@ export default function PerfilPage() {
             className="rounded-[18px] p-5 border relative overflow-hidden"
             style={{
               borderColor: "rgba(255,255,255,0.07)",
-              background: "#0A0E19",
+              background: "#101010",
               boxShadow: "0 12px 30px rgba(0,0,0,0.3)",
             }}
           >
@@ -206,7 +206,7 @@ export default function PerfilPage() {
               <div className="flex items-center gap-3.5 min-w-0">
                 <div className="relative w-[70px] h-[70px] rounded-2xl bg-[#B1EB0B] text-[#0E141B] flex items-center justify-center text-[22px] font-black shadow-[0_12px_24px_rgba(177,235,11,0.35)]">
                   {ready ? initials : "…"}
-                  <span className="absolute -right-1 -bottom-1 w-6 h-6 rounded-full flex items-center justify-center border border-[#B1EB0B] bg-[#0A0E19]">
+                  <span className="absolute -right-1 -bottom-1 w-6 h-6 rounded-full flex items-center justify-center border border-[#B1EB0B] bg-[#101010]">
                     <Trophy className="w-3 h-3" style={{ color: "#B1EB0B" }} />
                   </span>
                 </div>
@@ -264,7 +264,7 @@ export default function PerfilPage() {
 
           <section
             className="rounded-2xl border overflow-hidden"
-            style={{ borderColor: "rgba(255,255,255,0.08)", background: "linear-gradient(180deg, #0D1628 0%, #0A0E19 100%)" }}
+            style={{ borderColor: "rgba(255,255,255,0.08)", background: "linear-gradient(180deg, #0D1628 0%, #101010 100%)" }}
           >
             <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
               <h2 className="text-[22px] font-black text-white">Últimos Palpites</h2>

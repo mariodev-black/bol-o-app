@@ -36,19 +36,28 @@ export function Header() {
   if (isLoggedIn) {
     return (
       <header
-        className="fixed top-0 left-0 right-0 z-50 w-full flex items-center justify-between px-5 lg:px-10 h-[86.5px]"
+        className="fixed top-0 left-0 right-0 z-50 w-full grid grid-cols-[48px_1fr_48px] items-center px-5 h-[86.5px] lg:flex lg:justify-between lg:px-10"
         style={{ backgroundColor: "#000000" }}
       >
-        <Link href="/" className="flex items-center shrink-0" aria-label="Início">
+        <button
+          type="button"
+          className="flex h-10 w-10 items-center justify-start lg:hidden"
+          aria-label="Abrir menu"
+          onClick={openSidenav}
+        >
+          <MenuIcon className="h-6 w-6 text-white" strokeWidth={2.25} />
+        </button>
+
+        <Link href="/" className="flex items-center justify-center justify-self-center shrink-0 lg:justify-self-auto" aria-label="Início">
           <Image
             src={logo}
             alt="Bolão do Milhão"
-            width={106}
+            width={168}
             height={44}
             quality={100}
-            sizes="106px"
+            sizes="(max-width: 1023px) 168px, 106px"
             priority
-            className="h-11 w-auto"
+            className="h-[40px] w-auto lg:h-11"
           />
         </Link>
 
@@ -77,36 +86,24 @@ export function Header() {
           })}
         </nav>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center justify-end gap-3">
           {/* Notificações */}
           <button
             type="button"
-            className="relative w-10 h-10 rounded-xl flex items-center justify-center"
-            style={{
-              background: "#13181F",
-            }}
+            className="relative flex h-10 w-10 items-center justify-end rounded-xl lg:h-10 lg:w-10 lg:justify-center lg:bg-[#13181F]"
             aria-label="Notificações"
           >
-            <Bell className="w-5 h-5" style={{ color: "rgba(255,255,255,0.65)" }} strokeWidth={2} />
+            <Bell className="h-6 w-6 text-white lg:h-5 lg:w-5 lg:text-white/65" strokeWidth={2} />
             <span
               aria-hidden="true"
-              style={{
-                position: "absolute",
-                top: 10,
-                right: 10,
-                width: 8,
-                height: 8,
-                borderRadius: 999,
-                background: "#FF3B3B",
-                boxShadow: "0 0 0 3px rgba(255,59,59,0.12)",
-              }}
+              className="absolute right-0 top-1.5 h-2 w-2 rounded-full bg-primary shadow-[0_0_0_3px_rgba(177,235,11,0.12)] lg:right-2.5 lg:top-2.5 lg:h-2 lg:w-2"
             />
           </button>
 
           {/* Menu (sidenav) - a ação será conectada na camada acima */}
           <button
             type="button"
-            className="w-10 h-10 rounded-xl flex items-center justify-center"
+            className="hidden w-10 h-10 rounded-xl lg:flex items-center justify-center"
             aria-label="Abrir menu"
             onClick={openSidenav}
           >
@@ -122,24 +119,45 @@ export function Header() {
   return (
     <header
       className={[
-        "fixed top-0 left-0 right-0 z-50 w-full items-center justify-center lg:justify-between px-6 lg:px-20 h-[86.5px]",
-        hideOnMobileGuestHome ? "hidden lg:flex" : "flex",
+        "fixed top-0 left-0 right-0 z-50 w-full grid-cols-[48px_1fr_48px] items-center px-5 lg:justify-between lg:px-20 h-[86.5px]",
+        hideOnMobileGuestHome ? "hidden lg:flex" : "grid lg:flex",
       ].join(" ")}
       style={{ backgroundColor: "#000000" }}
     >
-      {/* Logo — centralizado no mobile sem login; à esquerda no lg */}
-      <Link href="/" className="flex items-center shrink-0" aria-label="Início">
+      <button
+        type="button"
+        className="flex h-10 w-10 items-center justify-start lg:hidden"
+        aria-label="Abrir menu"
+        onClick={openSidenav}
+      >
+        <MenuIcon className="h-6 w-6 text-white" strokeWidth={2.25} />
+      </button>
+
+      {/* Logo — centralizada no mobile; à esquerda no lg */}
+      <Link href="/" className="flex items-center justify-center justify-self-center shrink-0 lg:justify-self-auto" aria-label="Início">
         <Image
           src={logo}
           alt="Bolão do Milhão"
-          width={106}
+          width={168}
           height={44}
           quality={100}
-          sizes="106px"
+          sizes="(max-width: 1023px) 168px, 106px"
           priority
-          className="h-11 w-auto"
+          className="h-[40px] w-auto lg:h-11"
         />
       </Link>
+
+      <button
+        type="button"
+        className="relative flex h-10 w-10 items-center justify-end rounded-xl lg:hidden"
+        aria-label="Notificações"
+      >
+        <Bell className="h-6 w-6 text-white" strokeWidth={2} />
+        <span
+          aria-hidden="true"
+          className="absolute right-0 top-1.5 h-2 w-2 rounded-full bg-primary shadow-[0_0_0_3px_rgba(177,235,11,0.12)]"
+        />
+      </button>
 
       <nav className="hidden lg:flex items-center gap-7">
         {NAV_LINKS.map(({ label, href }, index) => (

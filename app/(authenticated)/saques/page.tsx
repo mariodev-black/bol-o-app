@@ -104,7 +104,7 @@ export default function SaquesPage() {
       ) : (
         <div
           className="rounded-2xl p-5 border border-white/8 mb-6"
-          style={{ background: "#0A0E19" }}
+          style={{ background: "#101010" }}
         >
           <p className="text-[11px] font-bold uppercase tracking-wider text-white/35">Saldo disponível</p>
           <p className="text-3xl font-black text-primary mt-1">{formatBRLFromCents(available)}</p>
@@ -119,7 +119,7 @@ export default function SaquesPage() {
         </div>
       )}
 
-      <form onSubmit={onSubmit} className="rounded-2xl p-6 border border-white/8 space-y-4" style={{ background: "#0A0E19" }}>
+      <form onSubmit={onSubmit} className="rounded-2xl p-6 border border-white/8 space-y-4" style={{ background: "#101010" }}>
         <div>
           <label className="block text-[12px] font-semibold text-white/50 mb-1.5">Valor (R$)</label>
           <input

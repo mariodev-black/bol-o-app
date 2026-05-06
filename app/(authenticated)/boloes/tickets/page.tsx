@@ -8,7 +8,7 @@ import { StepsBreadcrumb } from "../_components/StepsBreadcrumb";
 
 const GOLD = "#B1EB0B";
 const GOLD_LIGHT = "#E8FF8A";
-const CARD = "#0A0E19";
+const CARD = "#101010";
 
 type TicketItem = {
   id: string;

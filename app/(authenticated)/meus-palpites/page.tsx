@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, CircleCheck, Clock3, Target, TriangleAlert, XCircle } from "lucide-react";
 
 const C = {
-  card: "#0A0E19",
+  card: "#101010",
   cardSoft: "rgba(255,255,255,0.02)",
   border: "rgba(255,255,255,0.08)",
   gold: "#B1EB0B",

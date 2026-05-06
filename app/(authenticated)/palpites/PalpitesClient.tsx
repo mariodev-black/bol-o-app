@@ -242,7 +242,7 @@ function Escudo({ url, alt }: { url: string; alt: string }) {
 // ── Skeleton ─────────────────────────────────────────────────
 function CardSkeleton() {
   return (
-    <div className="rounded-2xl overflow-hidden mb-3 bg-[#0A0E19] border border-white/[0.07] animate-pulse">
+    <div className="rounded-2xl overflow-hidden mb-3 bg-[#0B0D0C] border border-primary/15 animate-pulse">
       <div className="flex items-start justify-between px-5 pt-5 pb-4">
         <div className="space-y-2">
           <div className="h-4 w-28 bg-white/10 rounded" />
@@ -355,8 +355,13 @@ function JogoCard({
 
   return (
     <div
-      className="rounded-2xl overflow-hidden mb-3 bg-[#0A0E19]"
-      style={{ border: "1px solid rgba(255,255,255,0.07)" }}
+      className="rounded-2xl overflow-hidden mb-3 bg-[#0B0D0C]"
+      style={{
+        border: `1px solid ${palpiteSalvo ? "rgba(177,235,11,0.75)" : "rgba(177,235,11,0.18)"}`,
+        boxShadow: palpiteSalvo
+          ? "0 0 0 1px rgba(177,235,11,0.16), 0 18px 42px rgba(0,0,0,0.42), 0 0 28px rgba(177,235,11,0.16)"
+          : "0 18px 42px rgba(0,0,0,0.38)",
+      }}
     >
       {/* Topo */}
       <div className="flex items-start justify-between px-5 pt-5 pb-4">
@@ -367,24 +372,24 @@ function JogoCard({
           <p className="text-white/40 text-[12px] mt-0.5">VS {jogo.timeVisitante}</p>
         </div>
         <div className="flex flex-col items-end gap-1.5">
-          <span className="text-[#E8FF8A] text-[12px] font-medium">
+          <span className="text-primary text-[12px] font-medium">
             {formatData(jogo.dataBR, jogo.kickoffAt)}, {safeHourLabel(jogo.hora)}
           </span>
           {readOnly && (
             <div
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-full"
-              style={{ background: "rgba(59,130,246,0.12)", border: "1px solid rgba(59,130,246,0.35)" }}
+              style={{ background: "rgba(177,235,11,0.10)", border: "1px solid rgba(177,235,11,0.30)" }}
             >
-              <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "#93C5FD" }}>Resultado</span>
+              <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "#B1EB0B" }}>Resultado</span>
             </div>
           )}
           {!readOnly && jogo.status === "aberto" && !palpiteSalvo && (
             <div
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-full"
-              style={{ background: "#22C55E1A", border: "2px solid #22C55E33" }}
+              style={{ background: "rgba(177,235,11,0.10)", border: "1px solid rgba(177,235,11,0.34)" }}
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E] animate-pulse" />
-              <span className="text-[11px] font-bold text-[#22C55E] uppercase tracking-wide">
+              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+              <span className="text-[11px] font-bold text-primary uppercase tracking-wide">
                 {isLockedByTime ? "Fechado (1h)" : "Aberto"}
               </span>
             </div>
@@ -392,16 +397,16 @@ function JogoCard({
           {!readOnly && palpiteSalvo && (
             <div
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-full"
-              style={{ background: "rgba(254,197,84,0.12)", border: "1px solid rgba(254,197,84,0.25)" }}
+              style={{ background: "rgba(177,235,11,0.10)", border: "1px solid rgba(177,235,11,0.34)" }}
             >
-              <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#C8F23A" }} />
-              <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "#C8F23A" }}>Salvo</span>
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#B1EB0B" }} />
+              <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "#B1EB0B" }}>Salvo</span>
             </div>
           )}
           {jogo.status === "encerrado" && (
             <div
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-full"
-              style={{ background: "#0A0E19", border: "1px solid rgba(255,255,255,0.1)" }}
+              style={{ background: "#0B0D0C", border: "1px solid rgba(255,255,255,0.08)" }}
             >
               <span className="text-[11px] font-bold text-white/30 uppercase tracking-wide">Encerrado</span>
             </div>
@@ -409,7 +414,7 @@ function JogoCard({
         </div>
       </div>
 
-      <div className="mx-5 h-px bg-[#ffffff31]" />
+      <div className="mx-5 h-px bg-white/8" />
 
       {/* Área de palpite */}
       <div className="flex items-center justify-between px-5 py-5 gap-2">
@@ -437,19 +442,19 @@ function JogoCard({
               <button
                 onClick={() => increment("casa")}
                 disabled={disabled}
-                className="w-9 h-9 rounded-xl flex items-center justify-center transition-opacity bg-[#252F42]"
-                style={{ opacity: disabled ? 0.3 : 1 }}
+                className="w-9 h-9 rounded-[7px] flex items-center justify-center transition-opacity"
+                style={{ opacity: disabled ? 0.3 : 1, background: "#111411", border: "1px solid rgba(177,235,11,0.14)" }}
               >
-                <ChevronUp className="w-4 h-4 text-[#E8FF8A]" />
+                <ChevronUp className="w-4 h-4 text-primary" />
               </button>
               <ScoreDisplay value={scoreCasa} dir={dirCasa} />
               <button
                 onClick={() => decrement("casa")}
                 disabled={disabled}
-                className="w-9 h-9 rounded-xl flex items-center justify-center transition-opacity bg-[#252F42]"
-                style={{ opacity: disabled ? 0.3 : 1 }}
+                className="w-9 h-9 rounded-[7px] flex items-center justify-center transition-opacity"
+                style={{ opacity: disabled ? 0.3 : 1, background: "#111411", border: "1px solid rgba(177,235,11,0.14)" }}
               >
-                <ChevronDown className="w-4 h-4 text-[#E8FF8A]" />
+                <ChevronDown className="w-4 h-4 text-primary" />
               </button>
             </div>
 
@@ -459,19 +464,19 @@ function JogoCard({
               <button
                 onClick={() => increment("visitante")}
                 disabled={disabled}
-                className="w-9 h-9 rounded-xl flex items-center justify-center transition-opacity bg-[#252F42]"
-                style={{ opacity: disabled ? 0.3 : 1 }}
+                className="w-9 h-9 rounded-[7px] flex items-center justify-center transition-opacity"
+                style={{ opacity: disabled ? 0.3 : 1, background: "#111411", border: "1px solid rgba(177,235,11,0.14)" }}
               >
-                <ChevronUp className="w-4 h-4 text-[#E8FF8A]" />
+                <ChevronUp className="w-4 h-4 text-primary" />
               </button>
               <ScoreDisplay value={scoreVisitante} dir={dirVisitante} />
               <button
                 onClick={() => decrement("visitante")}
                 disabled={disabled}
-                className="w-9 h-9 rounded-xl flex items-center justify-center transition-opacity bg-[#252F42]"
-                style={{ opacity: disabled ? 0.3 : 1 }}
+                className="w-9 h-9 rounded-[7px] flex items-center justify-center transition-opacity"
+                style={{ opacity: disabled ? 0.3 : 1, background: "#111411", border: "1px solid rgba(177,235,11,0.14)" }}
               >
-                <ChevronDown className="w-4 h-4 text-[#E8FF8A]" />
+                <ChevronDown className="w-4 h-4 text-primary" />
               </button>
             </div>
           </>
@@ -480,7 +485,7 @@ function JogoCard({
         <Escudo url={jogo.escudoVisitante} alt={jogo.timeVisitante} />
       </div>
 
-      <div className="mx-5 h-px bg-[#ffffff31] mb-5" />
+      <div className="mx-5 h-px bg-white/8 mb-5" />
 
       {/* Botão */}
       <div className="px-4 pb-4">
@@ -488,13 +493,13 @@ function JogoCard({
           <div
             className="w-full py-3.5 rounded-xl flex items-center justify-center gap-2"
             style={{
-              background: review && review.points > 0 ? "rgba(34,197,94,0.12)" : "rgba(255,255,255,0.06)",
-              border: review && review.points > 0 ? "1px solid rgba(34,197,94,0.35)" : "1px solid rgba(255,255,255,0.14)",
+              background: review && review.points > 0 ? "rgba(177,235,11,0.12)" : "rgba(255,255,255,0.05)",
+              border: review && review.points > 0 ? "1px solid rgba(177,235,11,0.35)" : "1px solid rgba(255,255,255,0.10)",
             }}
           >
             <span
               className="font-black text-[14px]"
-              style={{ color: review && review.points > 0 ? "#4ADE80" : "rgba(255,255,255,0.72)" }}
+              style={{ color: review && review.points > 0 ? "#B1EB0B" : "rgba(255,255,255,0.72)" }}
             >
               {review && review.points > 0
                 ? `Voce ganhou ${review.points} pts nesta partida`
@@ -513,10 +518,10 @@ function JogoCard({
           <div className="flex items-center gap-2">
             <div
               className="flex-1 py-3.5 rounded-xl flex items-center justify-center gap-2"
-              style={{ background: "rgba(52,211,153,0.12)", border: "1px solid rgba(52,211,153,0.25)" }}
+              style={{ background: "rgba(177,235,11,0.12)", border: "1px solid rgba(177,235,11,0.30)" }}
             >
-              <CircleCheck className="w-4 h-4" style={{ color: "#34D399" }} strokeWidth={2.5} />
-              <span className="font-black text-[15px]" style={{ color: "#34D399" }}>Palpite salvo</span>
+              <CircleCheck className="w-4 h-4" style={{ color: "#B1EB0B" }} strokeWidth={2.5} />
+              <span className="font-black text-[15px]" style={{ color: "#B1EB0B" }}>Palpite salvo</span>
             </div>
             {canEdit && (
               <button
@@ -555,8 +560,9 @@ function JogoCard({
             disabled={!canEdit || !ticketId || isSubmitting}
             className="w-full py-3.5 rounded-xl font-black text-[16px] transition-all duration-200"
             style={{
-              background: !canEdit || !ticketId || isSubmitting ? "#0A0E19" : "#fff",
-              color: !canEdit || !ticketId || isSubmitting ? "rgba(255,255,255,0.2)" : "#0A0E19",
+              background: !canEdit || !ticketId || isSubmitting ? "#1A1A1A" : hasInitialPrediction ? "#B1EB0B" : "#E6E6E6",
+              color: !canEdit || !ticketId || isSubmitting ? "rgba(255,255,255,0.22)" : "#0E141B",
+              boxShadow: !canEdit || !ticketId || isSubmitting || !hasInitialPrediction ? "none" : "0 0 22px rgba(177,235,11,0.22)",
             }}
           >
             <span className="inline-flex items-center justify-center gap-2">
@@ -617,7 +623,7 @@ function TabelaView({
       {/* Classificação do grupo selecionado */}
       <div
         className="rounded-2xl overflow-hidden mb-5"
-        style={{ background: "#0A0E19", border: "1px solid #FFFFFF12" }}
+        style={{ background: "#0B0D0C", border: "1px solid rgba(177,235,11,0.16)" }}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
@@ -637,7 +643,7 @@ function TabelaView({
             key={t.time.time_id}
             className="flex items-center justify-between px-4 py-3"
             style={{
-              background: i < 2 ? "#5AADFF08" : "transparent",
+              background: i < 2 ? "rgba(177,235,11,0.04)" : "transparent",
               borderBottom: i < times.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none",
             }}
           >
@@ -645,8 +651,8 @@ function TabelaView({
               <span
                 className="w-5 h-5 rounded-[6px] flex items-center justify-center text-[11px] font-bold shrink-0"
                 style={{
-                  background: i === 0 ? "rgba(254,197,84,0.15)" : "rgba(255,255,255,0.06)",
-                  color: i === 0 ? "#C8F23A" : "rgba(255,255,255,0.4)",
+                  background: i === 0 ? "rgba(177,235,11,0.14)" : "rgba(255,255,255,0.06)",
+                  color: i === 0 ? "#B1EB0B" : "rgba(255,255,255,0.4)",
                 }}
               >
                 {t.posicao}
@@ -703,7 +709,7 @@ function TabelaView({
                       onClick={() => onGrupo(letra)}
                       className="flex-1 flex items-center gap-2.5 px-3 py-3 rounded-xl text-left transition-all duration-150"
                       style={{
-                        background: ativo ? "rgba(177,235,11,0.08)" : "#0A0E19",
+                        background: ativo ? "rgba(177,235,11,0.08)" : "#0B0D0C",
                         border: ativo ? "1px solid rgba(177,235,11,0.25)" : "1px solid rgba(255,255,255,0.05)",
                       }}
                     >
@@ -840,13 +846,13 @@ function RankingView({ rows, stats }: { rows: RankingRowView[]; stats: ResumoSta
             </div>
             <div>
               <p className="text-white font-black text-[18px] leading-tight">#{MEU.pos} no Ranking</p>
-              <p className="text-[12px] mt-0.5 text-[#FDF293]">
+              <p className="text-[12px] mt-0.5 text-[#E8FF8A]">
                 {MEU.acertos} acertos · {MEU.pts} pontos
               </p>
             </div>
           </div>
           <div className="text-right">
-            <p className="font-black text-[34px] leading-none" style={{ color: "#FEE1A7" }}>{MEU.pts}</p>
+            <p className="font-black text-[34px] leading-none" style={{ color: "#E8FF8A" }}>{MEU.pts}</p>
             <p className="text-[10px] mt-0.5 text-[#FFFFFF59]">pontos</p>
           </div>
         </div>
@@ -856,13 +862,13 @@ function RankingView({ rows, stats }: { rows: RankingRowView[]; stats: ResumoSta
       <div className="grid grid-cols-3 gap-2">
         {[
           { Icon: Target, val: stats.palpites, label: "Palpites", color: "#B1EB0B" },
-          { Icon: CircleCheck, val: stats.acertos, label: "Acertos", color: "#34D399" },
+          { Icon: CircleCheck, val: stats.acertos, label: "Acertos", color: "#B1EB0B" },
           { Icon: Star, val: stats.pontos, label: "Pontos", color: "#D7FF59" },
         ].map(({ Icon, val, label, color }) => (
           <div
             key={label}
             className="rounded-2xl py-4 flex flex-col items-center gap-1"
-            style={{ background: "#0A0E19", border: "1px solid rgba(255,255,255,0.06)" }}
+            style={{ background: "#0B0D0C", border: "1px solid rgba(177,235,11,0.12)" }}
           >
             <Icon className="w-5 h-5 mb-1" style={{ color }} strokeWidth={2} />
             <span className="text-white font-black text-[22px] leading-none">{val}</span>
@@ -874,14 +880,14 @@ function RankingView({ rows, stats }: { rows: RankingRowView[]; stats: ResumoSta
       {/* Top Palpiteiros */}
       <div
         className="rounded-2xl overflow-hidden"
-        style={{ background: "#0A0E19", border: "1px solid rgba(255,255,255,0.07)" }}
+        style={{ background: "#0B0D0C", border: "1px solid rgba(177,235,11,0.14)" }}
       >
         <div
           className="flex items-center justify-between px-4 py-3"
           style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
         >
           <span className="text-white font-bold text-[14px]">Top Palpiteiros</span>
-          <button className="text-[13px] font-semibold" style={{ color: "#5AADFF" }}>Ver todos</button>
+          <button className="text-[13px] font-semibold" style={{ color: "#B1EB0B" }}>Ver todos</button>
         </div>
 
         {rows.map((r, i) => (
@@ -889,7 +895,7 @@ function RankingView({ rows, stats }: { rows: RankingRowView[]; stats: ResumoSta
             key={r.pos}
             className="flex items-center gap-3 px-4 py-3"
             style={{
-              background: r.isMe ? "rgba(90,173,255,0.06)" : "transparent",
+              background: r.isMe ? "rgba(177,235,11,0.06)" : "transparent",
               borderBottom: i < rows.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none",
             }}
           >
@@ -1031,7 +1037,7 @@ function TicketResumoView({
       style={{
         border: "1px solid rgba(177,235,11,0.45)",
         boxShadow: "0 16px 48px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)",
-        background: "linear-gradient(165deg, #121a2a 0%, #0A0E19 42%, #060912 100%)",
+        background: "linear-gradient(165deg, #101710 0%, #0B0D0C 42%, #050605 100%)",
       }}
     >
 
@@ -1265,13 +1271,13 @@ function DesktopSidebar({ grupo, tabela, grupos, onGrupo, rankingRows, stats }: 
       <div className="grid grid-cols-3 gap-2">
         {[
           { Icon: Target, val: stats.palpites, label: "Palpites", color: "#B1EB0B" },
-          { Icon: CircleCheck, val: stats.acertos, label: "Acertos", color: "#34D399" },
+          { Icon: CircleCheck, val: stats.acertos, label: "Acertos", color: "#B1EB0B" },
           { Icon: Star, val: stats.pontos, label: "Pontos", color: "#D7FF59" },
         ].map(({ Icon, val, label, color }) => (
           <div
             key={label}
             className="rounded-xl py-3 flex flex-col items-center gap-0.5"
-            style={{ background: "#0A0E19", border: "1px solid rgba(255,255,255,0.06)" }}
+            style={{ background: "#0B0D0C", border: "1px solid rgba(177,235,11,0.12)" }}
           >
             <Icon className="w-4 h-4 mb-0.5" style={{ color }} strokeWidth={2} />
             <span className="text-white font-black text-[20px] leading-none">{val}</span>
@@ -1281,7 +1287,7 @@ function DesktopSidebar({ grupo, tabela, grupos, onGrupo, rankingRows, stats }: 
       </div>
 
       {/* Classificação */}
-      <div className="rounded-2xl overflow-hidden" style={{ background: "#0A0E19", border: "1px solid #FFFFFF12" }}>
+      <div className="rounded-2xl overflow-hidden" style={{ background: "#0B0D0C", border: "1px solid rgba(177,235,11,0.16)" }}>
         <div
           className="flex items-center justify-between px-4 py-3 gap-2"
           style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
@@ -1330,7 +1336,7 @@ function DesktopSidebar({ grupo, tabela, grupos, onGrupo, rankingRows, stats }: 
             key={t.time.time_id}
             className="flex items-center px-4 py-2.5 gap-2"
             style={{
-              background: i < 2 ? "#5AADFF08" : "transparent",
+              background: i < 2 ? "rgba(177,235,11,0.04)" : "transparent",
               borderBottom: i < times.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none",
             }}
           >
@@ -1338,8 +1344,8 @@ function DesktopSidebar({ grupo, tabela, grupos, onGrupo, rankingRows, stats }: 
             <span
               className="w-5 h-5 rounded-[5px] flex items-center justify-center text-[10px] font-bold shrink-0"
               style={{
-                background: i === 0 ? "rgba(254,197,84,0.15)" : "rgba(255,255,255,0.06)",
-                color: i === 0 ? "#C8F23A" : "rgba(255,255,255,0.4)",
+                background: i === 0 ? "rgba(177,235,11,0.14)" : "rgba(255,255,255,0.06)",
+                color: i === 0 ? "#B1EB0B" : "rgba(255,255,255,0.4)",
               }}
             >
               {t.posicao}
@@ -1371,20 +1377,20 @@ function DesktopSidebar({ grupo, tabela, grupos, onGrupo, rankingRows, stats }: 
       </div>
 
       {/* Top Palpiteiros */}
-      <div className="rounded-2xl overflow-hidden" style={{ background: "#0A0E19", border: "1px solid rgba(255,255,255,0.07)" }}>
+      <div className="rounded-2xl overflow-hidden" style={{ background: "#0B0D0C", border: "1px solid rgba(177,235,11,0.14)" }}>
         <div
           className="flex items-center justify-between px-4 py-3"
           style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
         >
           <span className="text-white font-bold text-[13px]">Top Palpiteiros</span>
-          <button className="text-[12px] font-semibold" style={{ color: "#5AADFF" }}>Ver todos</button>
+          <button className="text-[12px] font-semibold" style={{ color: "#B1EB0B" }}>Ver todos</button>
         </div>
         {rankingRows.map((r, i) => (
           <div
             key={r.pos}
             className="flex items-center gap-2.5 px-3 py-2.5"
             style={{
-              background: r.isMe ? "rgba(90,173,255,0.07)" : "transparent",
+              background: r.isMe ? "rgba(177,235,11,0.07)" : "transparent",
               borderBottom: i < rankingRows.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none",
             }}
           >
@@ -1733,7 +1739,7 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                 onClick={() => setGrupo(g)}
                 className="flex-1 h-9 rounded-lg text-[13px] font-bold transition-all duration-200"
                 style={{
-                  background: grupo === g ? "linear-gradient(180deg, #E8FF8A 0%, #B1EB0B 100%)" : "#0A0E19",
+                  background: grupo === g ? "linear-gradient(180deg, #E8FF8A 0%, #B1EB0B 100%)" : "#0B0D0C",
                   color: grupo === g ? "#0E141B" : "rgba(255,255,255,0.4)",
                   boxShadow: grupo === g ? "0 0 14px rgba(177,235,11,0.45)" : "none",
                 }}
@@ -1750,7 +1756,7 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
             onClick={() => setGrupo(g)}
             className="w-9 h-9 rounded-lg text-[13px] font-bold transition-all duration-200"
             style={{
-              background: grupo === g ? "linear-gradient(180deg, #E8FF8A 0%, #B1EB0B 100%)" : "#0A0E19",
+              background: grupo === g ? "linear-gradient(180deg, #E8FF8A 0%, #B1EB0B 100%)" : "#0B0D0C",
               color: grupo === g ? "#0E141B" : "rgba(255,255,255,0.4)",
               boxShadow: grupo === g ? "0 0 14px rgba(177,235,11,0.45)" : "none",
             }}
@@ -1762,6 +1768,22 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
 
   return (
     <div className="w-full max-w-lg mx-auto px-4 pt-6 pb-8 lg:max-w-7xl">
+      <div
+        className="fixed inset-0 pointer-events-none -z-20"
+        style={{
+          background:
+            "radial-gradient(circle at 50% 0%, rgba(177,235,11,0.06) 0%, transparent 24%), linear-gradient(180deg, #090A09 0%, #050605 52%, #020302 100%)",
+        }}
+      />
+      <div
+        className="fixed inset-0 pointer-events-none -z-10 opacity-[0.16]"
+        style={{
+          backgroundImage:
+            "linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px)",
+          backgroundSize: "18px 18px",
+          maskImage: "linear-gradient(180deg, #000 0%, rgba(0,0,0,0.7) 48%, transparent 100%)",
+        }}
+      />
       {hasBoloesFlow && (
         <div className="mb-4">
           <StepsBreadcrumb
@@ -1803,7 +1825,7 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
 
           {/* Mobile: tabs */}
           {readOnlyMode ? (
-            <div className="lg:hidden flex items-center gap-1 mb-5 p-1 rounded-xl bg-[#0A0E19]">
+            <div className="lg:hidden flex items-center gap-1 mb-5 p-1 rounded-xl bg-[#0B0D0C] border border-white/8">
               {([
                 { key: "jogos", label: "Jogos", icon: AlignJustify },
                 { key: "ranking", label: "Ranking", icon: Trophy },
@@ -1814,8 +1836,8 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                   onClick={() => setResultTab(key)}
                   className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[13px] font-semibold transition-all duration-200"
                   style={{
-                    background: resultTab === key ? "#161D2D" : "transparent",
-                    color: resultTab === key ? "#fff" : "rgba(255,255,255,0.35)",
+                    background: resultTab === key ? "#B1EB0B" : "transparent",
+                    color: resultTab === key ? "#0E141B" : "rgba(255,255,255,0.45)",
                   }}
                 >
                   <Icon className="w-3.5 h-3.5" />
@@ -1824,7 +1846,7 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
               ))}
             </div>
           ) : (
-            <div className="lg:hidden flex items-center gap-1 mb-5 p-1 rounded-xl bg-[#0A0E19]">
+            <div className="lg:hidden flex items-center gap-1 mb-5 p-1 rounded-xl bg-[#0B0D0C] border border-white/8">
               {([
                 { key: "jogos", label: "Jogos", icon: AlignJustify },
                 { key: "tabela", label: "Tabela", icon: BarChart2 },
@@ -1836,8 +1858,8 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                   onClick={() => setTab(key)}
                   className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[13px] font-semibold transition-all duration-200"
                   style={{
-                    background: tab === key ? "#161D2D" : "transparent",
-                    color: tab === key ? "#fff" : "rgba(255,255,255,0.35)",
+                    background: tab === key ? "#B1EB0B" : "transparent",
+                    color: tab === key ? "#0E141B" : "rgba(255,255,255,0.45)",
                   }}
                 >
                   <Icon className="w-3.5 h-3.5" />
@@ -1858,8 +1880,8 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
             <div
               className="sticky top-[60px] lg:top-[60px] z-30 mb-5 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2 border-y border-x-0"
               style={{
-                background: "linear-gradient(180deg, rgba(10,14,25,0.96) 0%, rgba(10,14,25,0.92) 100%)",
-                borderColor: "rgba(255,255,255,0.08)",
+                background: "linear-gradient(180deg, rgba(7,8,7,0.96) 0%, rgba(5,6,5,0.92) 100%)",
+                borderColor: "rgba(177,235,11,0.12)",
                 backdropFilter: "blur(8px)",
               }}
             >
@@ -1873,10 +1895,10 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                       onClick={() => scrollToGroup(g)}
                       className="h-10 min-w-[40px] shrink-0 rounded-xl px-3 inline-flex items-center justify-center font-bold text-[13px] transition-all"
                       style={{
-                        background: active ? "linear-gradient(180deg, #E8FF8A 0%, #C8F23A 100%)" : "rgba(255,255,255,0.02)",
+                        background: active ? "linear-gradient(180deg, #E8FF8A 0%, #B1EB0B 100%)" : "rgba(255,255,255,0.025)",
                         color: active ? "#0E141B" : "rgba(255,255,255,0.72)",
-                        border: active ? "1px solid rgba(217,255,89,0.55)" : "1px solid rgba(255,255,255,0.1)",
-                        boxShadow: active ? "0 1.85px 9.23px rgba(246,202,59,0.4)" : "none",
+                        border: active ? "1px solid rgba(177,235,11,0.65)" : "1px solid rgba(255,255,255,0.1)",
+                        boxShadow: active ? "0 0 14px rgba(177,235,11,0.34)" : "none",
                       }}
                     >
                       {g}
@@ -1988,7 +2010,7 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
           {/* Desktop: grid 2 colunas de cards por rodada */}
           <div className="hidden lg:block">
             {readOnlyMode && (
-              <div className="flex items-center gap-1 mb-5 p-1 rounded-xl bg-[#0A0E19] w-[280px]">
+              <div className="flex items-center gap-1 mb-5 p-1 rounded-xl bg-[#0B0D0C] border border-white/8 w-[280px]">
                 {([
                   { key: "jogos", label: "Jogos", icon: AlignJustify },
                   { key: "ranking", label: "Ranking", icon: Trophy },
@@ -1999,8 +2021,8 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                     onClick={() => setResultTab(key)}
                     className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[13px] font-semibold transition-all duration-200"
                     style={{
-                      background: resultTab === key ? "#161D2D" : "transparent",
-                      color: resultTab === key ? "#fff" : "rgba(255,255,255,0.35)",
+                      background: resultTab === key ? "#B1EB0B" : "transparent",
+                      color: resultTab === key ? "#0E141B" : "rgba(255,255,255,0.45)",
                     }}
                   >
                     <Icon className="w-3.5 h-3.5" />
@@ -2134,7 +2156,7 @@ function PalpitesPageShell() {
         <div className="h-10 w-64 rounded-xl bg-white/10" />
         <div className="h-4 w-40 rounded mt-2 bg-white/10" />
       </div>
-      <div className="lg:hidden flex items-center gap-1 mb-5 p-1 rounded-xl bg-[#0A0E19]">
+      <div className="lg:hidden flex items-center gap-1 mb-5 p-1 rounded-xl bg-[#0B0D0C] border border-white/8">
         <div className="h-9 flex-1 rounded-lg bg-white/10" />
         <div className="h-9 flex-1 rounded-lg bg-white/10" />
         <div className="h-9 flex-1 rounded-lg bg-white/10" />
