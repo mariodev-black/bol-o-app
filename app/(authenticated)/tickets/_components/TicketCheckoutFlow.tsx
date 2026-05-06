@@ -1,20 +1,31 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import QRCode from "react-qr-code";
-import { TicketPurchaseBanner } from "./TicketPurchaseBanner";
-import { Check, Copy, Loader2, Minus, Plus, Ticket } from "lucide-react";
-import Image, { type StaticImageData } from "next/image";
+import {
+  ArrowRight,
+  Check,
+  Clock3,
+  Copy,
+  Flame,
+  Headphones,
+  Loader2,
+  Lock,
+  ShieldCheck,
+  Ticket,
+  Trophy,
+  Zap,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
-import ticketGold from "@/app/assets/ticket-gold.png";
-import ticketBlue from "@/app/assets/Ticket-Blue.png";
 import { appendTicketsFromPurchase } from "../lib/ownedTicketsStorage";
 
 const GOLD = "#B1EB0B";
 const GOLD_LIGHT = "#E8FF8A";
 const CARD = "#0A0E19";
-const DEFAULT_PRINCIPAL_CENTS = 5000;
-const DEFAULT_DIARIO_CENTS = 2500;
+const DEFAULT_PRINCIPAL_CENTS = 4990;
+const DEFAULT_DIARIO_CENTS = 2000;
+const DEFAULT_EXTRA_CENTS = 3990;
+const RESERVATION_WINDOW_MS = 10 * 60 * 1000;
 const PIX_WINDOW_MS = 5 * 60 * 1000;
 const PIX_TOTAL_SEC = 5 * 60;
 const montserrat = "var(--font-montserrat), ui-sans-serif, system-ui, sans-serif";
@@ -61,7 +72,11 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
   const router = useRouter();
   const [principalQty, setPrincipalQty] = useState(initialPrincipalQty);
   const [diarioQty, setDiarioQty] = useState(initialDiarioQty);
-  const [prices, setPrices] = useState({ general: DEFAULT_PRINCIPAL_CENTS, daily: DEFAULT_DIARIO_CENTS });
+  const [prices, setPrices] = useState({
+    general: DEFAULT_PRINCIPAL_CENTS,
+    daily: DEFAULT_DIARIO_CENTS,
+    extra: DEFAULT_EXTRA_CENTS,
+  });
   const [step, setStep] = useState<FlowStep>("shop");
   const [orderRef, setOrderRef] = useState("");
   const [transactionId, setTransactionId] = useState<string | null>(null);
@@ -69,16 +84,12 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
   const [pixPayload, setPixPayload] = useState("");
   const [copied, setCopied] = useState(false);
   const [pixDeadline, setPixDeadline] = useState<number | null>(null);
-  const [, setTick] = useState(0);
+  const [reservationDeadline] = useState(() => Date.now() + RESERVATION_WINDOW_MS);
+  const [now, setNow] = useState(() => Date.now());
   const [error, setError] = useState<string | null>(null);
   const paidHandledRef = useRef(false);
   const purchasePrincipalRef = useRef(0);
   const purchaseDiarioRef = useRef(0);
-
-  useEffect(() => {
-    setPrincipalQty(initialPrincipalQty);
-    setDiarioQty(initialDiarioQty);
-  }, [initialPrincipalQty, initialDiarioQty]);
 
   useEffect(() => {
     if (step === "generating" || step === "pix") {
@@ -87,18 +98,22 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
   }, [step]);
 
   useEffect(() => {
-    if (step !== "pix" || !pixDeadline) return;
-    const id = window.setInterval(() => setTick((t) => t + 1), 1000);
+    if (step !== "shop" && step !== "pix") return;
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(id);
-  }, [step, pixDeadline]);
+  }, [step]);
 
   useEffect(() => {
     (async () => {
       try {
         const r = await fetch("/api/deposits/transactions", { credentials: "include" });
-        const d = (await r.json()) as { prices?: { general: number; daily: number } };
+        const d = (await r.json()) as { prices?: { general: number; daily: number; extra?: number } };
         if (r.ok && d.prices) {
-          setPrices({ general: d.prices.general, daily: d.prices.daily });
+          setPrices({
+            general: d.prices.general,
+            daily: d.prices.daily,
+            extra: d.prices.extra ?? DEFAULT_EXTRA_CENTS,
+          });
         }
       } catch {
         // fallback nos valores default locais
@@ -136,7 +151,11 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
     return () => es.close();
   }, [step, transactionId, router]);
 
-  const principalLine = principalQty * prices.general;
+  const mainSelected = principalQty >= 1;
+  const extraSelected = principalQty >= 2;
+  const dailySelected = diarioQty >= 1;
+  const extraPrice = Math.min(prices.extra, prices.general);
+  const principalLine = mainSelected ? prices.general + (extraSelected ? extraPrice : 0) : 0;
   const diarioLine = diarioQty * prices.daily;
   const totalCents = principalLine + diarioLine;
   const totalQty = principalQty + diarioQty;
@@ -144,20 +163,12 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
   const selectedType: TicketType | null =
     principalQty > 0 && diarioQty === 0 ? "general" : diarioQty > 0 && principalQty === 0 ? "daily" : null;
   const selectedQty = selectedType === "general" ? principalQty : selectedType === "daily" ? diarioQty : 0;
-  const purchasePrincipalQty = selectedType === "general" ? selectedQty : 0;
-  const purchaseDiarioQty = selectedType === "daily" ? selectedQty : 0;
-
+  const reservationSecondsLeft = Math.max(0, Math.ceil((reservationDeadline - now) / 1000));
   const secondsLeft =
-    step === "pix" && pixDeadline != null ? Math.max(0, Math.ceil((pixDeadline - Date.now()) / 1000)) : 0;
+    step === "pix" && pixDeadline != null ? Math.max(0, Math.ceil((pixDeadline - now) / 1000)) : 0;
   const pixExpired = step === "pix" && pixDeadline != null && secondsLeft === 0;
   const pixProgressPct =
     step === "pix" && pixDeadline != null ? Math.min(100, Math.max(0, (secondsLeft / PIX_TOTAL_SEC) * 100)) : 0;
-
-  const bump = (which: "p" | "d", delta: number) => {
-    setError(null);
-    if (which === "p") setPrincipalQty((q) => Math.max(0, Math.min(20, q + delta)));
-    else setDiarioQty((q) => Math.max(0, Math.min(20, q + delta)));
-  };
 
   const goGenerate = useCallback(() => {
     if (!hasSelection) return;
@@ -177,6 +188,7 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
           body: JSON.stringify({
             ticketType: selectedType,
             quantity: selectedQty,
+            amountCents: totalCents,
           }),
         });
         const d = (await r.json()) as { error?: string; transaction?: DepositTransaction };
@@ -198,7 +210,7 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
         setStep("shop");
       }
     })();
-  }, [hasSelection, selectedQty, selectedType]);
+  }, [hasSelection, selectedQty, selectedType, totalCents]);
 
   const copyPix = useCallback(() => {
     if (!pixPayload || pixExpired) return;
@@ -207,144 +219,214 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
     window.setTimeout(() => setCopied(false), 2200);
   }, [pixPayload, pixExpired]);
 
-  const resetFlow = () => {
-    paidHandledRef.current = false;
-    purchasePrincipalRef.current = 0;
-    purchaseDiarioRef.current = 0;
-    setStep("shop");
-    setPixPayload("");
-    setOrderRef("");
-    setTransactionId(null);
-    setTxStatus("");
-    setCopied(false);
-    setPixDeadline(null);
-  };
-
-
   return (
     <>
-      {step === "shop" && <TicketPurchaseBanner />}
-
       <div
         className={
           step === "shop"
-            ? "w-full max-w-2xl mx-auto px-4 pb-10 pt-0 sm:px-6"
+            ? "w-full max-w-[420px] mx-auto px-4 pb-10 pt-10 sm:px-6 sm:pt-10"
             : "w-full max-w-md mx-auto px-4 py-8 sm:px-6 sm:py-10 flex-1 flex flex-col justify-start"
         }
       >
         <section className="w-full">
           {step === "shop" && (
-            <div className="space-y-5">
-              <div className="relative pl-3 sm:pl-4" style={{ borderLeft: `2px solid ${GOLD}` }}>
-                <p className="text-[11px] font-bold uppercase tracking-[0.24em] mb-1" style={{ color: "rgba(218,182,130,0.8)" }}>
-                  Palpites
-                </p>
-                <h2 className="text-2xl sm:text-3xl font-extrabold text-white leading-tight" style={{ fontFamily: montserrat }}>
-                  Tickets
-                </h2>
-                <p className="text-[14px] sm:text-[15px] mt-2 max-w-md leading-relaxed" style={{ color: "rgba(226,213,184,0.5)" }}>
-                  Compre com PIX. Geral = palpites em toda a Copa. Diário = você escolhe o dia na hora de palpitar.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <TicketTypeCard
-                  productLabel="Copa inteira"
-                  title="Geral"
-                  description="Palpites em todas as rodadas. Conta para o ranking principal."
-                  priceCents={prices.general}
-                  qty={principalQty}
-                  onDelta={(d) => bump("p", d)}
-                  chip="Principal"
-                  iconSrc={ticketGold}
-                />
-                <TicketTypeCard
-                  productLabel="Um dia"
-                  title="Diário"
-                  description="Válido só no dia que você escolher ao abrir os palpites."
-                  priceCents={prices.daily}
-                  qty={diarioQty}
-                  onDelta={(d) => bump("d", d)}
-                  iconSrc={ticketBlue}
-                />
-              </div>
-
+            <div className="space-y-[18px]">
               <div
-                className="rounded-xl p-3 sm:p-4"
+                className="flex items-center justify-between gap-3 rounded-[13px] border px-4 py-3 shadow-[0_0_26px_rgba(194,48,12,0.18)]"
                 style={{
-                  background: `linear-gradient(178deg, rgba(18,22,34,0.98) 0%, ${CARD} 100%)`,
-                  border: "1px solid rgba(177,235,11,0.2)",
+                  background: "linear-gradient(180deg, rgba(91,23,13,0.58) 0%, rgba(21,13,10,0.94) 100%)",
+                  borderColor: "rgba(255,80,42,0.36)",
                 }}
               >
-                <div className="flex items-baseline justify-between gap-3 mb-2">
-                  <span className="text-[12px] font-bold uppercase tracking-wider text-white/40">Resumo · PIX</span>
-                  <span className="text-2xl font-black tabular-nums" style={{ color: GOLD_LIGHT }}>
-                    {formatBRL(totalCents)}
+                <div className="flex min-w-0 items-center gap-3">
+                  <Flame className="size-[18px] shrink-0 text-[#F55B32]" strokeWidth={2.2} />
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-black uppercase leading-none tracking-[-0.02em] text-white">
+                      Cotas sendo reservadas agora!
+                    </p>
+                    <p className="mt-1 text-[10px] font-bold leading-none text-[#E89B85]">
+                      Sua reserva expira em:
+                    </p>
+                  </div>
+                </div>
+                <div className="rounded-[9px] bg-[#D82A0B] px-3.5 py-2 shadow-[0_10px_28px_rgba(216,42,11,0.4)]">
+                  <span className="font-mono text-[24px] font-black leading-none tracking-[-0.08em] text-white">
+                    {formatCountdown(reservationSecondsLeft)}
                   </span>
                 </div>
+              </div>
 
-                <p className="text-[13px] leading-relaxed mb-3" style={{ color: "rgba(226,213,184,0.48)" }}>
-                  Geral {formatBRL(prices.general)} · Diário {formatBRL(prices.daily)} · à vista no PIX. Os tickets
-                  aparecem na sua conta e você gasta ao palpitar.
-                </p>
+              <section
+                className="overflow-hidden rounded-[16px] border shadow-[0_18px_40px_rgba(0,0,0,0.38)]"
+                style={{ background: "#101010", borderColor: "rgba(255,255,255,0.08)" }}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError(null);
+                    setDiarioQty(0);
+                    setPrincipalQty((qty) => Math.max(1, qty));
+                  }}
+                  className="grid w-full grid-cols-[50px_minmax(0,1fr)_auto] items-center gap-3 px-4 py-4 text-left transition-colors hover:bg-white/3 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-primary active:bg-white/5"
+                >
+                  <div className="flex size-[48px] items-center justify-center rounded-[11px] border" style={{ background: "rgba(177,235,11,0.09)", borderColor: "rgba(177,235,11,0.22)" }}>
+                    <Trophy className="size-[23px] text-primary" strokeWidth={2.1} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[15px] font-black leading-tight text-white">Cota Bolão da Copa 2026</p>
+                    <p className="mt-1.5 flex items-center gap-1.5 text-[11px] font-medium leading-none text-white/50">
+                      <ShieldCheck className="size-3.5 text-[#0AC96B]" /> Acesso a todos os jogos
+                    </p>
+                    <p className="mt-1.5 flex items-center gap-1.5 text-[11px] font-medium leading-none text-white/50">
+                      <ShieldCheck className="size-3.5 text-[#0AC96B]" /> Top 10% premiados
+                    </p>
+                  </div>
+                  <p className="text-[16px] font-black tabular-nums text-white">{formatBRL(prices.general)}</p>
+                </button>
 
-                <div className="space-y-2 text-[14px]">
-                  {principalQty > 0 && (
-                    <div className="flex justify-between gap-2 text-white/65">
-                      <span>
-                        <span className="font-mono text-white">{principalQty}×</span> Geral
-                        <span className="text-white/35 font-normal"> @ {formatBRL(prices.general)}</span>
-                      </span>
-                      <span className="tabular-nums font-semibold" style={{ color: GOLD_LIGHT }}>
-                        {formatBRL(principalLine)}
-                      </span>
-                    </div>
-                  )}
-                  {diarioQty > 0 && (
-                    <div className="flex justify-between gap-2 text-white/65">
-                      <span>
-                        <span className="font-mono text-white">{diarioQty}×</span> Diário
-                        <span className="text-white/35 font-normal"> @ {formatBRL(prices.daily)}</span>
-                      </span>
-                      <span className="tabular-nums font-semibold" style={{ color: GOLD_LIGHT }}>
-                        {formatBRL(diarioLine)}
-                      </span>
-                    </div>
-                  )}
-                  {!hasSelection && (
-                    <p className="text-[14px] py-0.5" style={{ color: "rgba(226,213,184,0.45)" }}>
-                      Escolha quantidades nos cards acima.
-                    </p>
-                  )}
-                  {hasSelection && (
-                    <p className="text-[13px] pt-0.5" style={{ color: "rgba(218,182,130,0.5)" }}>
-                      {totalQty} ticket{totalQty === 1 ? "" : "s"} no pedido
-                    </p>
-                  )}
-                </div>
+                <div className="mx-4 h-px bg-white/7" />
 
                 <button
                   type="button"
-                  disabled={!hasSelection}
-                  onClick={goGenerate}
-                  className="mt-4 w-full py-3.5 rounded-lg text-xs sm:text-sm font-bold uppercase tracking-[0.12em] flex items-center justify-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed active:scale-[0.99] transition-transform"
-                  style={{
-                    fontFamily: montserrat,
-                    color: "#0E141B",
-                    background: hasSelection
-                      ? `linear-gradient(180deg, ${GOLD_LIGHT} 0%, ${GOLD} 50%, #5F7F06 100%)`
-                      : "rgba(255,255,255,0.1)",
-                    boxShadow: hasSelection ? "0 6px 24px rgba(177,235,11,0.22)" : "none",
+                  onClick={() => {
+                    setError(null);
+                    setDiarioQty(0);
+                    setPrincipalQty(extraSelected ? 1 : 2);
                   }}
+                  className="grid w-full grid-cols-[50px_minmax(0,1fr)_40px] items-center gap-3 px-4 py-4 text-left transition-colors hover:bg-white/3 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-primary active:bg-white/5"
+                  aria-pressed={extraSelected}
                 >
-                  <Ticket className="w-[18px] h-[18px]" strokeWidth={2.2} />
-                  {hasSelection ? `Pagar ${totalQty} ticket${totalQty === 1 ? "" : "s"}` : "Escolha tickets"}
+                  <div className="flex size-[48px] items-center justify-center rounded-[11px] border" style={{ background: "rgba(177,235,11,0.08)", borderColor: "rgba(177,235,11,0.18)" }}>
+                    <Ticket className="size-[23px] text-primary" strokeWidth={2.1} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-[15px] font-black leading-none text-white">+1 Cota extra</p>
+                      <span className="inline-flex h-[19px] items-center gap-1 rounded-[4px] bg-[#E33B20] px-2 text-[8px] font-black uppercase tracking-widest text-white">
+                        <Flame className="size-2.5 fill-white" /> Mais vendido
+                      </span>
+                    </div>
+                    <p className="mt-2 text-[11px] font-medium leading-none text-white/42">Segunda combinação de palpites</p>
+                    <p className="mt-2 text-[15px] font-black leading-none text-white">
+                      <span className="mr-2 text-[11px] font-bold text-white/25 line-through">R$ 69,90</span>
+                      {formatBRL(extraPrice)}
+                    </p>
+                  </div>
+                  <span
+                    className="flex size-[40px] items-center justify-center rounded-[9px] border transition-transform active:scale-95"
+                    style={{
+                      background: extraSelected ? GOLD : "rgba(255,255,255,0.02)",
+                      borderColor: extraSelected ? "rgba(177,235,11,0.45)" : "rgba(177,235,11,0.24)",
+                      boxShadow: extraSelected ? "0 0 22px rgba(177,235,11,0.45)" : "none",
+                    }}
+                  >
+                    <Check className="size-5" style={{ color: extraSelected ? "#0E141B" : "rgba(177,235,11,0.22)" }} strokeWidth={3} />
+                  </span>
                 </button>
-                {error && (
-                  <p className="mt-3 text-[12px] font-medium" style={{ color: "#FCA5A5" }}>
-                    {error}
+
+                <div className="mx-4 h-px bg-white/7" />
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError(null);
+                    if (dailySelected) {
+                      setDiarioQty(0);
+                      setPrincipalQty(2);
+                    } else {
+                      setPrincipalQty(0);
+                      setDiarioQty(1);
+                    }
+                  }}
+                  className="grid w-full grid-cols-[50px_minmax(0,1fr)_40px] items-center gap-3 px-4 py-4 text-left transition-colors hover:bg-white/3 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-primary active:bg-white/5"
+                  aria-pressed={dailySelected}
+                >
+                  <div className="flex size-[48px] items-center justify-center rounded-[11px] border" style={{ background: "rgba(59,130,246,0.08)", borderColor: "rgba(59,130,246,0.22)" }}>
+                    <CalendarIcon />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[15px] font-black leading-none text-white">Bolão do Dia</p>
+                    <p className="mt-2 text-[11px] font-medium leading-none text-white/42">Prêmios extras todo dia da Copa</p>
+                    <p className="mt-2 text-[15px] font-black leading-none text-white">
+                      <span className="mr-2 text-[11px] font-bold text-white/25 line-through">R$ 29,90</span>
+                      {formatBRL(prices.daily)}
+                    </p>
+                  </div>
+                  <span
+                    className="flex size-[40px] items-center justify-center rounded-[9px] border transition-transform active:scale-95"
+                    style={{
+                      background: dailySelected ? GOLD : "rgba(255,255,255,0.02)",
+                      borderColor: dailySelected ? "rgba(177,235,11,0.45)" : "rgba(177,235,11,0.24)",
+                      boxShadow: dailySelected ? "0 0 22px rgba(177,235,11,0.45)" : "none",
+                    }}
+                  >
+                    <Check className="size-5" style={{ color: dailySelected ? "#0E141B" : "rgba(177,235,11,0.22)" }} strokeWidth={3} />
+                  </span>
+                </button>
+
+                <div className="flex items-center justify-between border-t px-4 py-4" style={{ borderColor: "rgba(177,235,11,0.12)" }}>
+                  <span className="text-[14px] font-black uppercase tracking-[0.18em] text-white/38">Total</span>
+                  <span className="text-[28px] font-black leading-none tracking-[-0.08em] text-primary drop-shadow-[0_0_18px_rgba(177,235,11,0.35)]">
+                    {formatBRL(totalCents)}
+                  </span>
+                </div>
+              </section>
+
+              <div className="grid grid-cols-4 gap-2">
+                <TrustCard icon={Lock} title="Pagamento" subtitle="100% seguro" />
+                <TrustCard icon={ShieldCheck} title="Confirmação" subtitle="automática" />
+                <TrustCard icon={Zap} title="Acesso" subtitle="imediato" />
+                <TrustCard icon={Headphones} title="Suporte" subtitle="WhatsApp" />
+              </div>
+
+              <section className="overflow-hidden rounded-[15px] border" style={{ background: "#101010", borderColor: "rgba(255,255,255,0.08)" }}>
+                <div className="border-b px-4 py-4" style={{ borderColor: "rgba(177,235,11,0.1)" }}>
+                  <p className="text-[12px] font-black uppercase tracking-[0.2em] text-white/38">5. Forma de pagamento</p>
+                </div>
+                <div className="flex items-center gap-4 px-4 py-6">
+                  <PixMark />
+                  <div>
+                    <p className="text-[18px] font-black uppercase leading-none text-white">Pague com Pix</p>
+                    <p className="mt-2 text-[13px] font-semibold leading-none text-white/45">Aprovação imediata!</p>
+                  </div>
+                </div>
+                <div className="border-t px-4 pb-5 pt-5" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+                  <button
+                    type="button"
+                    disabled={!hasSelection || step === "generating"}
+                    onClick={goGenerate}
+                    className="flex h-[67px] w-full items-center justify-center gap-3 rounded-[13px] bg-primary text-[14px] font-black uppercase tracking-[-0.02em] text-[#0E141B] shadow-[0_0_34px_rgba(177,235,11,0.45)] transition-transform hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45"
+                  >
+                    {step === "generating" ? "Gerando Pix..." : "Gerar Pix e garantir minha cota"}
+                    <ArrowRight className="size-5" strokeWidth={3} />
+                  </button>
+                  <p className="mt-4 flex items-start justify-center gap-2 text-center text-[11px] font-medium leading-[1.55] text-white/36">
+                    <Lock className="mt-0.5 size-3.5 shrink-0" />
+                    Seu acesso será liberado automaticamente após a confirmação do pagamento.
                   </p>
-                )}
+                  {error && <p className="mt-3 text-center text-[12px] font-semibold text-red-300">{error}</p>}
+                </div>
+              </section>
+
+              <div className="grid grid-cols-2 overflow-hidden rounded-[10px] border" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+                <div className="flex items-center gap-3 px-4 py-4" style={{ background: "linear-gradient(90deg, rgba(13,82,50,0.58), rgba(5,33,24,0.96))" }}>
+                  <div className="flex size-[38px] items-center justify-center rounded-[9px] border" style={{ background: "rgba(177,235,11,0.08)", borderColor: "rgba(177,235,11,0.2)" }}>
+                    <UsersIcon />
+                  </div>
+                  <div>
+                    <p className="text-[18px] font-black leading-none text-primary">+125 MIL</p>
+                    <p className="mt-1 text-[9px] font-black uppercase tracking-[0.2em] text-white/35">Cotas vendidas</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 px-4 py-4" style={{ background: "linear-gradient(90deg, rgba(20,18,10,0.96), rgba(35,23,5,0.85))" }}>
+                  <div className="flex size-[38px] items-center justify-center rounded-[9px] border" style={{ background: "rgba(230,183,38,0.08)", borderColor: "rgba(230,183,38,0.22)" }}>
+                    <Clock3 className="size-[18px] text-[#E6B726]" />
+                  </div>
+                  <div>
+                    <p className="text-[13px] font-black uppercase leading-none text-[#E6B726]">Últimas vagas</p>
+                    <p className="mt-1 text-[9px] font-black uppercase tracking-[0.18em] text-[#E6B726]/70">Não fique de fora!</p>
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -509,114 +591,54 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
   );
 }
 
-function TicketTypeCard({
-  productLabel,
-  title,
-  description,
-  priceCents,
-  qty,
-  onDelta,
-  iconSrc,
-  chip,
-}: {
-  productLabel: string;
-  title: string;
-  description: string;
-  priceCents: number;
-  qty: number;
-  onDelta: (d: number) => void;
-  iconSrc: StaticImageData;
-  chip?: string;
-}) {
-  const active = qty > 0;
-  const iconWrap = {
-    background: "rgba(177,235,11,0.11)",
-    border: "1px solid rgba(177,235,11,0.32)",
-  } as const;
 
+type TrustCardProps = {
+  icon: typeof Lock;
+  title: string;
+  subtitle: string;
+};
+
+function TrustCard({ icon: Icon, title, subtitle }: TrustCardProps) {
   return (
     <div
-      className="relative rounded-2xl p-5 sm:p-6 flex flex-col h-full min-h-[250px] transition-all duration-200"
-      style={{
-        background: `linear-gradient(168deg, rgba(11,15,26,0.99) 0%, ${CARD} 100%)`,
-        border: active ? `2px solid ${GOLD}` : "1px solid rgba(255,255,255,0.07)",
-        boxShadow: active
-          ? `0 14px 44px rgba(0,0,0,0.48), 0 0 36px rgba(177,235,11,0.1)`
-          : "0 6px 24px rgba(0,0,0,0.28)",
-      }}
+      className="flex h-[92px] flex-col items-center justify-center rounded-[9px] border text-center shadow-[0_12px_24px_rgba(0,0,0,0.24)]"
+      style={{ background: "#101010", borderColor: "rgba(255,255,255,0.08)" }}
     >
-      {chip && (
-        <span
-          className="absolute top-3 right-3 text-[9px] font-bold uppercase tracking-[0.12em] px-2 py-0.5 rounded"
-          style={{
-            background: "rgba(177,235,11,0.14)",
-            border: "1px solid rgba(177,235,11,0.32)",
-            color: "rgba(217,255,89,0.88)",
-          }}
-        >
-          {chip}
-        </span>
-      )}
-
-      <p
-        className="text-[10px] font-bold uppercase tracking-[0.18em] mb-2"
-        style={{ color: "rgba(218,182,130,0.75)" }}
+      <div
+        className="mb-2 flex size-[31px] items-center justify-center rounded-[8px] border"
+        style={{ background: "rgba(177,235,11,0.08)", borderColor: "rgba(177,235,11,0.2)" }}
+        aria-hidden
       >
-        {productLabel}
-      </p>
-
-      <div className="flex gap-4 pr-12">
-        <div className="w-[76px] h-[76px] rounded-xl flex items-center justify-center shrink-0" style={iconWrap}>
-          <Image src={iconSrc} alt="" aria-hidden className="w-[82px] h-auto max-w-none drop-shadow-[0_14px_26px_rgba(0,0,0,0.4)]" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <h3 className="font-bold text-white text-[18px] leading-tight" style={{ fontFamily: montserrat }}>
-            {title}
-          </h3>
-          <p className="text-[13px] sm:text-[14px] mt-2 leading-relaxed" style={{ color: "rgba(226,213,184,0.55)" }}>
-            {description}
-          </p>
-          <p className="text-[17px] font-bold mt-3 tabular-nums" style={{ color: GOLD_LIGHT }}>
-            {formatBRL(priceCents)}
-            <span className="text-[11px] font-medium ml-1" style={{ color: "rgba(226,213,184,0.42)" }}>
-              cada
-            </span>
-          </p>
-        </div>
+        <Icon className="size-[15px] text-primary" strokeWidth={2.1} />
       </div>
-
-      <div className="mt-auto pt-4 flex items-center justify-between border-t border-white/8">
-        <span className="text-[13px] font-medium" style={{ color: "rgba(226,213,184,0.5)" }}>
-          Quantidade
-        </span>
-        <div
-          className="inline-flex items-stretch rounded-lg overflow-hidden"
-          style={{
-            border: `1px solid ${active ? "rgba(177,235,11,0.42)" : "rgba(255,255,255,0.09)"}`,
-            background: "rgba(0,0,0,0.38)",
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => onDelta(-1)}
-            className="w-10 h-10 flex items-center justify-center text-white/65 hover:bg-white/6 transition-colors"
-            aria-label={`Menos ${title}`}
-          >
-            <Minus className="w-4 h-4" strokeWidth={2.5} />
-          </button>
-          <span className="min-w-[40px] flex items-center justify-center font-mono text-base font-bold text-white border-x border-white/10">
-            {qty}
-          </span>
-          <button
-            type="button"
-            onClick={() => onDelta(1)}
-            className="w-10 h-10 flex items-center justify-center text-white/65 hover:bg-white/6 transition-colors"
-            aria-label={`Mais ${title}`}
-          >
-            <Plus className="w-4 h-4" strokeWidth={2.5} />
-          </button>
-        </div>
-      </div>
+      <p className="text-[10px] font-black leading-none text-white">{title}</p>
+      <p className="mt-1 text-[9px] font-semibold leading-none text-white/35">{subtitle}</p>
     </div>
+  );
+}
+
+function CalendarIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-[23px]" aria-hidden>
+      <rect x="4" y="5.5" width="16" height="14" rx="2.5" fill="none" stroke="#83B7FF" strokeWidth="1.8" />
+      <path d="M8 3.8v4M16 3.8v4M4.5 10h15" stroke="#83B7FF" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function PixMark() {
+  return (
+    <div className="relative size-[45px] shrink-0 rotate-45 rounded-[10px] bg-[#38D6C6] shadow-[0_0_20px_rgba(56,214,198,0.18)]" aria-hidden>
+      <div className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-black/35" />
+      <div className="absolute left-0 top-1/2 h-px w-full -translate-y-1/2 bg-black/35" />
+    </div>
+  );
+}
+
+function UsersIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-[19px] text-primary" fill="none" aria-hidden>
+      <path d="M8.5 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM15.5 10a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5ZM3.5 19c.4-3.2 2.2-5 5-5s4.6 1.8 5 5M12.5 14.5c.7-.5 1.7-.8 3-.8 2.5 0 4.1 1.5 4.5 4.4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }

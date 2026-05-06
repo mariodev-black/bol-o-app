@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 import { createDepositTransaction, parseTicketTypeOrThrow } from "@/lib/payments/transactions";
-import { getTicketPriceCents } from "@/lib/payments/ticket-config";
+import { getExtraTicketPriceCents, getTicketPriceCents } from "@/lib/payments/ticket-config";
 
 export const runtime = "nodejs";
 
 const createSchema = z.object({
   ticketType: z.enum(["general", "daily"]),
   quantity: z.number().int().min(1).max(20).default(1),
+  amountCents: z.number().int().positive().optional(),
 });
 
 export async function GET() {
@@ -16,6 +17,7 @@ export async function GET() {
     prices: {
       general: getTicketPriceCents("general"),
       daily: getTicketPriceCents("daily"),
+      extra: getExtraTicketPriceCents(),
     },
   });
 }
@@ -49,7 +51,13 @@ export async function POST(request: NextRequest) {
   try {
     const ticketType = parseTicketTypeOrThrow(parsed.data.ticketType);
     const quantity = parsed.data.quantity;
-    const transaction = await createDepositTransaction({ userId, ticketType, quantity });
+    const expectedAmount =
+      ticketType === "general" && quantity === 2
+        ? getTicketPriceCents("general") + getExtraTicketPriceCents()
+        : getTicketPriceCents(ticketType) * quantity;
+    const amountCents =
+      parsed.data.amountCents === expectedAmount ? parsed.data.amountCents : undefined;
+    const transaction = await createDepositTransaction({ userId, ticketType, quantity, amountCentsOverride: amountCents });
     return NextResponse.json({ transaction }, { status: 201 });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Nao foi possivel criar a transacao";

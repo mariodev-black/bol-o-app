@@ -13,9 +13,13 @@ function parsePositiveInt(value: string, fallback: number): number {
 
 export function getTicketPriceCents(type: TicketType): number {
   if (type === "daily") {
-    return parsePositiveInt(env("TICKET_PRICE_DAILY_CENTS"), 2500);
+    return parsePositiveInt(env("TICKET_PRICE_DAILY_CENTS"), 2000);
   }
-  return parsePositiveInt(env("TICKET_PRICE_GENERAL_CENTS"), 5000);
+  return parsePositiveInt(env("TICKET_PRICE_GENERAL_CENTS"), 4990);
+}
+
+export function getExtraTicketPriceCents(): number {
+  return parsePositiveInt(env("TICKET_PRICE_EXTRA_CENTS"), 3990);
 }
 
 export function ticketTypeLabel(type: TicketType): string {

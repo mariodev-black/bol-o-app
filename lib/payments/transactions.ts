@@ -89,6 +89,7 @@ export async function createDepositTransaction(input: {
   userId: string;
   ticketType: TicketType;
   quantity: number;
+  amountCentsOverride?: number;
 }): Promise<DepositTransactionView> {
   const pool = getPool();
   const billingUser = await findBillingUserById(input.userId);
@@ -105,7 +106,10 @@ export async function createDepositTransaction(input: {
 
   const quantity = Math.max(1, Math.min(20, Math.trunc(input.quantity || 1)));
   const unitPriceCents = getTicketPriceCents(input.ticketType);
-  const amountCents = unitPriceCents * quantity;
+  const amountCents =
+    input.amountCentsOverride && input.amountCentsOverride > 0
+      ? Math.trunc(input.amountCentsOverride)
+      : unitPriceCents * quantity;
   const externalRef = `ticket_${randomUUID()}`;
 
   const ticketInsert = await pool.query<{ id: string }>(
