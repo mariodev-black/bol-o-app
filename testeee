@@ -46,7 +46,7 @@ SKALE_API_URL=https://api.skalepayments.com.br
 SKALE_API_KEY=sk_1c2d9314823c395249930682c40c69b3cd140e4aba9e1579b4582e24318993b0
 
 # Webhook recebido apos atualizacao de status no gateway
-SKALE_POSTBACK_URL=http://localhost:3000/api/webhooks/skale
+SKALE_POSTBACK_URL=https://api.skalepayments.com.br/api/webhooks/skale
 # Opcional: se preencher, enviar o mesmo valor no header x-webhook-secret do webhook
 SKALE_WEBHOOK_SECRET=
 
