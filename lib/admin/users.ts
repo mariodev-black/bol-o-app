@@ -235,30 +235,174 @@ export async function getAdminUserDetail(userId: string): Promise<AdminUserDetai
   };
 }
 
-export async function getAdminDashboardStats(): Promise<{
+export type AdminDashboardSeriesPoint = {
+  date: string;
+  label: string;
+  usersCount: number;
+  transactionsCount: number;
+  paidTransactionsCount: number;
+  revenueCents: number;
+};
+
+export type AdminDashboardBreakdownItem = {
+  label: string;
+  value: number;
+};
+
+export type AdminDashboardRecentTransaction = {
+  id: string;
+  userName: string | null;
+  userEmail: string;
+  status: string;
+  amountCents: number;
+  createdAt: string;
+};
+
+export type AdminDashboardData = {
   usersCount: number;
   adminsCount: number;
+  ticketsCount: number;
   paidTicketsCount: number;
+  transactionsCount: number;
+  paidTransactionsCount: number;
+  pendingTransactionsCount: number;
+  failedTransactionsCount: number;
   revenueCents: number;
-}> {
+  usersTodayCount: number;
+  conversionRate: number;
+  dailySeries: AdminDashboardSeriesPoint[];
+  ticketTypeBreakdown: AdminDashboardBreakdownItem[];
+  transactionStatusBreakdown: AdminDashboardBreakdownItem[];
+  recentTransactions: AdminDashboardRecentTransaction[];
+};
+
+export async function getAdminDashboardStats(): Promise<AdminDashboardData> {
   const pool = getPool();
-  const { rows } = await pool.query<{
+  const [summary, series, ticketTypes, statuses, recentTransactions] = await Promise.all([
+    pool.query<{
     users_count: string | number;
     admins_count: string | number;
+    tickets_count: string | number;
     paid_tickets_count: string | number;
+    transactions_count: string | number;
+    paid_transactions_count: string | number;
+    pending_transactions_count: string | number;
+    failed_transactions_count: string | number;
     revenue_cents: string | number | null;
+    users_today_count: string | number;
   }>(
-    `SELECT
-       (SELECT COUNT(*) FROM users) AS users_count,
-       (SELECT COUNT(*) FROM users WHERE role IN ('admin', 'super_admin')) AS admins_count,
-       (SELECT COUNT(*) FROM tickets WHERE status = 'paid') AS paid_tickets_count,
-       (SELECT COALESCE(SUM(amount_cents), 0) FROM transactions WHERE status IN ('paid', 'approved')) AS revenue_cents`
-  );
-  const row = rows[0];
+      `SELECT
+         (SELECT COUNT(*) FROM users) AS users_count,
+         (SELECT COUNT(*) FROM users WHERE role IN ('admin', 'super_admin')) AS admins_count,
+         (SELECT COUNT(*) FROM tickets) AS tickets_count,
+         (SELECT COUNT(*) FROM tickets WHERE status = 'paid') AS paid_tickets_count,
+         (SELECT COUNT(*) FROM transactions) AS transactions_count,
+         (SELECT COUNT(*) FROM transactions WHERE status IN ('paid', 'approved')) AS paid_transactions_count,
+         (SELECT COUNT(*) FROM transactions WHERE status IN ('pending_payment', 'pending', 'creating', 'waiting_payment')) AS pending_transactions_count,
+         (SELECT COUNT(*) FROM transactions WHERE status IN ('failed', 'canceled', 'cancelled', 'refused', 'expired')) AS failed_transactions_count,
+         (SELECT COALESCE(SUM(amount_cents), 0) FROM transactions WHERE status IN ('paid', 'approved')) AS revenue_cents,
+         (SELECT COUNT(*) FROM users WHERE created_at >= (now() AT TIME ZONE 'America/Sao_Paulo')::date) AS users_today_count`
+    ),
+    pool.query<{
+      day: Date;
+      label: string;
+      users_count: string | number;
+      transactions_count: string | number;
+      paid_transactions_count: string | number;
+      revenue_cents: string | number | null;
+    }>(
+      `WITH days AS (
+         SELECT generate_series(
+           (now() AT TIME ZONE 'America/Sao_Paulo')::date - interval '13 days',
+           (now() AT TIME ZONE 'America/Sao_Paulo')::date,
+           interval '1 day'
+         )::date AS day
+       )
+       SELECT
+         days.day,
+         to_char(days.day, 'DD/MM') AS label,
+         COUNT(DISTINCT u.id) AS users_count,
+         COUNT(DISTINCT tx.id) AS transactions_count,
+         COUNT(DISTINCT tx.id) FILTER (WHERE tx.status IN ('paid', 'approved')) AS paid_transactions_count,
+         COALESCE(SUM(tx.amount_cents) FILTER (WHERE tx.status IN ('paid', 'approved')), 0) AS revenue_cents
+       FROM days
+       LEFT JOIN users u ON u.created_at::date = days.day
+       LEFT JOIN transactions tx ON tx.created_at::date = days.day
+       GROUP BY days.day
+       ORDER BY days.day ASC`
+    ),
+    pool.query<{ label: string; value: string | number }>(
+      `SELECT ticket_type AS label, COUNT(*) AS value
+       FROM tickets
+       GROUP BY ticket_type
+       ORDER BY value DESC`
+    ),
+    pool.query<{ label: string; value: string | number }>(
+      `SELECT status AS label, COUNT(*) AS value
+       FROM transactions
+       GROUP BY status
+       ORDER BY value DESC`
+    ),
+    pool.query<{
+      id: string;
+      user_name: string | null;
+      user_email: string;
+      status: string;
+      amount_cents: number;
+      created_at: Date;
+    }>(
+      `SELECT
+         tx.id,
+         u.name AS user_name,
+         u.email AS user_email,
+         tx.status,
+         tx.amount_cents,
+         tx.created_at
+       FROM transactions tx
+       LEFT JOIN users u ON u.id::text = tx.user_id::text
+       ORDER BY tx.created_at DESC
+       LIMIT 6`
+    ),
+  ]);
+  const row = summary.rows[0];
+  const transactionsCount = Number(row?.transactions_count ?? 0);
+  const paidTransactionsCount = Number(row?.paid_transactions_count ?? 0);
+
   return {
     usersCount: Number(row?.users_count ?? 0),
     adminsCount: Number(row?.admins_count ?? 0),
+    ticketsCount: Number(row?.tickets_count ?? 0),
     paidTicketsCount: Number(row?.paid_tickets_count ?? 0),
+    transactionsCount,
+    paidTransactionsCount,
+    pendingTransactionsCount: Number(row?.pending_transactions_count ?? 0),
+    failedTransactionsCount: Number(row?.failed_transactions_count ?? 0),
     revenueCents: Number(row?.revenue_cents ?? 0),
+    usersTodayCount: Number(row?.users_today_count ?? 0),
+    conversionRate: transactionsCount > 0 ? Math.round((paidTransactionsCount / transactionsCount) * 100) : 0,
+    dailySeries: series.rows.map((point) => ({
+      date: point.day.toISOString(),
+      label: point.label,
+      usersCount: Number(point.users_count ?? 0),
+      transactionsCount: Number(point.transactions_count ?? 0),
+      paidTransactionsCount: Number(point.paid_transactions_count ?? 0),
+      revenueCents: Number(point.revenue_cents ?? 0),
+    })),
+    ticketTypeBreakdown: ticketTypes.rows.map((item) => ({
+      label: item.label,
+      value: Number(item.value ?? 0),
+    })),
+    transactionStatusBreakdown: statuses.rows.map((item) => ({
+      label: item.label,
+      value: Number(item.value ?? 0),
+    })),
+    recentTransactions: recentTransactions.rows.map((transaction) => ({
+      id: transaction.id,
+      userName: transaction.user_name,
+      userEmail: transaction.user_email,
+      status: transaction.status,
+      amountCents: transaction.amount_cents,
+      createdAt: transaction.created_at.toISOString(),
+    })),
   };
 }
