@@ -1,19 +1,10 @@
 import { AdminPageTitle } from "@/app/admin/_components/AdminShell";
 import { formatAdminTicketType } from "@/lib/admin/format";
 import { getAdminDashboardStats } from "@/lib/admin/users";
-import Link from "next/link";
+import { AdminDateRangePicker } from "./AdminDateRangePicker";
 
 function formatBRL(cents: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
-}
-
-function formatCompactBRL(cents: number) {
-  return new Intl.NumberFormat("pt-BR", {
-    notation: "compact",
-    style: "currency",
-    currency: "BRL",
-    maximumFractionDigits: 1,
-  }).format(cents / 100);
 }
 
 function formatStatus(status: string) {
@@ -24,22 +15,35 @@ function formatStatus(status: string) {
   return status || "Nao informado";
 }
 
-function statusClassName(status: string) {
-  const label = formatStatus(status);
-  if (label === "Pago") return "border-primary/20 bg-primary/10 text-primary";
-  if (label === "Pendente") return "border-orange-400/25 bg-orange-400/10 text-orange-200";
-  if (label === "Falhou") return "border-red-400/25 bg-red-400/10 text-red-200";
-  return "border-white/10 bg-white/5 text-white/55";
+function toInputDate(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function isInputDate(value: unknown): value is string {
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function defaultDateRange() {
+  const now = new Date();
+  return {
+    startDate: toInputDate(new Date(now.getFullYear(), now.getMonth(), 1)),
+    endDate: toInputDate(new Date(now.getFullYear(), now.getMonth() + 1, 0)),
+  };
 }
 
 function AreaChart({
   title,
   subtitle,
   points,
+  valueFormatter,
 }: {
   title: string;
   subtitle: string;
   points: Array<{ label: string; value: number }>;
+  valueFormatter?: (value: number) => string;
 }) {
   const width = 640;
   const height = 240;
@@ -56,6 +60,8 @@ function AreaChart({
   });
   const line = coords.map((point) => `${point.x},${point.y}`).join(" ");
   const area = `${paddingX},${height - paddingBottom} ${line} ${width - paddingX},${height - paddingBottom}`;
+  const gradientId = `adminChartFill-${title.replace(/\W+/g, "-")}`;
+  const formatValue = valueFormatter ?? ((value: number) => value.toLocaleString("pt-BR"));
 
   return (
     <section className="rounded-[22px] border border-white/8 bg-[#101010] p-5 shadow-[0_18px_50px_rgba(0,0,0,0.25)]">
@@ -65,13 +71,13 @@ function AreaChart({
           <p className="mt-1 text-[12px] font-medium text-white/38">{subtitle}</p>
         </div>
         <span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-black uppercase text-primary">
-          14 dias
+          Período
         </span>
       </div>
       <div className="overflow-hidden rounded-[18px] border border-white/6 bg-black/30">
         <svg viewBox={`0 0 ${width} ${height}`} className="h-[260px] w-full">
           <defs>
-            <linearGradient id="adminChartFill" x1="0" x2="0" y1="0" y2="1">
+            <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
               <stop offset="0%" stopColor="#B1EB0B" stopOpacity="0.38" />
               <stop offset="100%" stopColor="#B1EB0B" stopOpacity="0.02" />
             </linearGradient>
@@ -80,11 +86,34 @@ function AreaChart({
             const y = paddingTop + (lineIndex / 3) * usableHeight;
             return <line key={lineIndex} x1={paddingX} x2={width - paddingX} y1={y} y2={y} stroke="rgba(255,255,255,0.06)" />;
           })}
-          <polygon points={area} fill="url(#adminChartFill)" />
+          <polygon points={area} fill={`url(#${gradientId})`} />
           <polyline points={line} fill="none" stroke="#B1EB0B" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
           {coords.map((point) => (
-            <g key={`${point.label}-${point.x}`}>
+            <g key={`${point.label}-${point.x}`} className="group">
+              <line
+                x1={point.x}
+                x2={point.x}
+                y1={paddingTop}
+                y2={height - paddingBottom}
+                stroke="rgba(177,235,11,0.28)"
+                strokeDasharray="4 6"
+                className="opacity-0 transition-opacity group-hover:opacity-100"
+              />
+              <circle cx={point.x} cy={point.y} r="10" fill="#B1EB0B" opacity="0" className="transition-opacity group-hover:opacity-20" />
               <circle cx={point.x} cy={point.y} r="5" fill="#B1EB0B" stroke="#081000" strokeWidth="3" />
+              <circle cx={point.x} cy={point.y} r="18" fill="transparent" />
+              <foreignObject
+                x={Math.min(width - 150, Math.max(10, point.x - 70))}
+                y={Math.max(8, point.y - 52)}
+                width="140"
+                height="42"
+                className="pointer-events-none opacity-0 transition-opacity group-hover:opacity-100"
+              >
+                <div className="rounded-[10px] border border-primary/20 bg-[#080B0F] px-3 py-2 text-center shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
+                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/38">{point.label}</p>
+                  <p className="mt-0.5 text-[12px] font-black text-primary">{formatValue(point.value)}</p>
+                </div>
+              </foreignObject>
               <text x={point.x} y={height - 18} textAnchor="middle" fill="rgba(255,255,255,0.36)" fontSize="12" fontWeight="700">
                 {point.label}
               </text>
@@ -112,14 +141,16 @@ function HorizontalBars({
       <p className="mt-1 text-[12px] font-medium text-white/38">{subtitle}</p>
       <div className="mt-5 grid gap-4">
         {items.length ? items.map((item) => (
-          <div key={item.label}>
+          <div key={item.label} className="group rounded-[14px] p-2 transition-colors hover:bg-white/3">
             <div className="mb-2 flex items-center justify-between gap-3">
-              <span className="text-[12px] font-black uppercase tracking-[0.12em] text-white/58">{item.label}</span>
-              <span className="text-[12px] font-black text-primary">{item.value.toLocaleString("pt-BR")}</span>
+              <span className="text-[12px] font-black uppercase tracking-[0.12em] text-white/58 group-hover:text-white/82">{item.label}</span>
+              <span className="rounded-full border border-primary/0 px-2 py-1 text-[12px] font-black text-primary transition-colors group-hover:border-primary/20 group-hover:bg-primary/10">
+                {item.value.toLocaleString("pt-BR")}
+              </span>
             </div>
             <div className="h-2.5 overflow-hidden rounded-full bg-white/6">
               <div
-                className="h-full rounded-full bg-primary shadow-[0_0_18px_rgba(177,235,11,0.28)]"
+                className="h-full rounded-full bg-primary shadow-[0_0_18px_rgba(177,235,11,0.28)] transition-all group-hover:shadow-[0_0_26px_rgba(177,235,11,0.48)]"
                 style={{ width: `${Math.max(4, (item.value / max) * 100)}%` }}
               />
             </div>
@@ -132,16 +163,26 @@ function HorizontalBars({
   );
 }
 
-export default async function AdminDashboardPage() {
-  const stats = await getAdminDashboardStats();
+export default async function AdminDashboardPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ start?: string; end?: string }>;
+}) {
+  const params = await searchParams;
+  const fallback = defaultDateRange();
+  const startDate = isInputDate(params?.start) ? params.start : fallback.startDate;
+  const endDate = isInputDate(params?.end) && params.end >= startDate ? params.end : fallback.endDate;
+  const stats = await getAdminDashboardStats({ startDate, endDate });
   const cards = [
-    { label: "Usuários", value: stats.usersCount.toLocaleString("pt-BR"), hint: `+${stats.usersTodayCount} hoje` },
+    { label: "Usuários", value: stats.usersCount.toLocaleString("pt-BR"), hint: `${stats.usersTodayCount} no período` },
     { label: "Receita confirmada", value: formatBRL(stats.revenueCents), hint: `${stats.paidTransactionsCount} transações pagas` },
     { label: "Cotas pagas", value: stats.paidTicketsCount.toLocaleString("pt-BR"), hint: `${stats.ticketsCount} cotas totais` },
     { label: "Conversão PIX", value: `${stats.conversionRate}%`, hint: `${stats.pendingTransactionsCount} pendentes` },
   ];
   const revenuePoints = stats.dailySeries.map((point) => ({ label: point.label, value: point.revenueCents }));
   const transactionPoints = stats.dailySeries.map((point) => ({ label: point.label, value: point.paidTransactionsCount }));
+  const singleDay = startDate === endDate;
+  const periodSubtitle = singleDay ? "Agrupado em blocos de 4 horas." : "Agrupado por dia no período selecionado.";
   const ticketTypeItems = stats.ticketTypeBreakdown.map((item) => ({
     label: formatAdminTicketType(item.label),
     value: item.value,
@@ -153,7 +194,10 @@ export default async function AdminDashboardPage() {
 
   return (
     <>
-      <AdminPageTitle title="Dashboard" subtitle="Visão geral segura da operação do Bolão do Milhão." />
+      <div className="mb-7 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <AdminPageTitle title="Dashboard" subtitle="Visão geral segura da operação do Bolão do Milhão." />
+        <AdminDateRangePicker startDate={startDate} endDate={endDate} />
+      </div>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {cards.map((card) => (
           <article key={card.label} className="rounded-[18px] border border-white/8 bg-[#101010] p-5 shadow-[0_18px_40px_rgba(0,0,0,0.28)]">
@@ -164,57 +208,13 @@ export default async function AdminDashboardPage() {
         ))}
       </div>
       <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(360px,0.75fr)]">
-        <AreaChart title="Receita confirmada" subtitle="Volume pago por dia, sem sair da identidade verde." points={revenuePoints} />
+        <AreaChart title="Receita confirmada" subtitle={`Volume pago. ${periodSubtitle}`} points={revenuePoints} valueFormatter={formatBRL} />
         <HorizontalBars title="Status das transações" subtitle="Distribuição operacional dos pagamentos." items={statusItems} />
       </div>
       <div className="mt-5 grid gap-5 xl:grid-cols-2">
-        <AreaChart title="Pagamentos aprovados" subtitle="Quantidade de transações pagas por dia." points={transactionPoints} />
+        <AreaChart title="Pagamentos aprovados" subtitle={`Quantidade de transações pagas. ${periodSubtitle}`} points={transactionPoints} />
         <HorizontalBars title="Cotas por tipo" subtitle="Principal e diário na base atual." items={ticketTypeItems} />
       </div>
-      <section className="mt-5 overflow-hidden rounded-[22px] border border-white/8 bg-[#101010]">
-        <div className="border-b border-white/8 px-5 py-4">
-          <h2 className="text-[15px] font-black text-white">Últimas transações</h2>
-          <p className="mt-1 text-[12px] font-medium text-white/38">
-            Acompanhamento rápido dos pagamentos mais recentes.
-          </p>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-[760px] w-full text-left">
-            <thead className="border-b border-white/8 bg-white/2.5">
-              <tr className="text-[11px] font-black uppercase tracking-[0.16em] text-white/35">
-                <th className="px-4 py-4">Usuário</th>
-                <th className="px-4 py-4">Status</th>
-                <th className="px-4 py-4">Valor</th>
-                <th className="px-4 py-4">Data</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/6">
-              {stats.recentTransactions.map((transaction) => (
-                <tr key={transaction.id} className="text-[13px] text-white/72">
-                  <td className="px-4 py-4">
-                    <p className="font-black text-white">{transaction.userName ?? "Sem nome"}</p>
-                    <p className="mt-1 text-white/35">{transaction.userEmail}</p>
-                  </td>
-                  <td className="px-4 py-4">
-                    <span className={`rounded-full border px-3 py-1 text-[11px] font-black uppercase ${statusClassName(transaction.status)}`}>
-                      {formatStatus(transaction.status)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-4 font-black text-primary">{formatCompactBRL(transaction.amountCents)}</td>
-                  <td className="px-4 py-4 text-white/45">
-                    {new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(transaction.createdAt))}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="border-t border-white/8 px-5 py-4">
-          <Link href="/admin/transactions" className="text-[12px] font-black uppercase tracking-[0.14em] text-primary">
-            Ver todas as transações
-          </Link>
-        </div>
-      </section>
     </>
   );
 }

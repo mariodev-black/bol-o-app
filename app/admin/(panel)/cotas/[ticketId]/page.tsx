@@ -19,6 +19,14 @@ function formatDate(value: string | null) {
   }).format(new Date(value));
 }
 
+function formatCotaStatus(status: string | null) {
+  const normalized = String(status ?? "").toLowerCase();
+  if (normalized === "paid" || normalized === "approved") return "Paga";
+  if (["pending_payment", "pending", "creating", "waiting_payment"].includes(normalized)) return "Pendente";
+  if (["failed", "canceled", "cancelled", "refused", "expired"].includes(normalized)) return "Falhou";
+  return status || "Nao informado";
+}
+
 function maskCpf(value: string | null) {
   const digits = (value ?? "").replace(/\D/g, "");
   if (digits.length !== 11) return value ?? "Nao informado";
@@ -57,7 +65,7 @@ export default async function AdminCotaDetailPage({
       <div className="mb-6 grid gap-4 md:grid-cols-4">
         <InfoCard label="Palpites enviados" value={`${ticket.predictionsCount}/${ticket.totalMatchesCount}`} />
         <InfoCard label="Palpites pendentes" value={ticket.pendingPredictionsCount.toLocaleString("pt-BR")} />
-        <InfoCard label="Status da cota" value={<span className="uppercase text-primary">{ticket.status}</span>} />
+        <InfoCard label="Status da cota" value={<span className="uppercase text-primary">{formatCotaStatus(ticket.status)}</span>} />
         <InfoCard label="Valor da cota" value={formatBRL(ticket.totalAmountCents)} />
       </div>
 
@@ -69,7 +77,7 @@ export default async function AdminCotaDetailPage({
             <InfoCard label="Referencia" value={<span className="font-mono text-[11px]">{ticket.externalRef ?? "Nao informado"}</span>} />
             <InfoCard label="Tipo" value={<span className="uppercase">{formatAdminTicketType(ticket.ticketType)}</span>} />
             <InfoCard label="Quantidade" value={ticket.quantity.toLocaleString("pt-BR")} />
-            <InfoCard label="Preco unitario" value={formatBRL(ticket.unitPriceCents)} />
+            <InfoCard label="Preço unitário" value={formatBRL(ticket.unitPriceCents)} />
             <InfoCard label="Criada em" value={formatDate(ticket.createdAt)} />
             <InfoCard label="Paga em" value={formatDate(ticket.paidAt)} />
             <InfoCard label="Ultimo palpite" value={formatDate(ticket.lastPredictionAt)} />
@@ -77,15 +85,15 @@ export default async function AdminCotaDetailPage({
         </section>
 
         <section className="rounded-[18px] border border-white/8 bg-[#101010] p-5">
-          <h2 className="text-[15px] font-black text-white">Usuario e pagamento</h2>
+          <h2 className="text-[15px] font-black text-white">Usuário e pagamento</h2>
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
             <InfoCard label="Nome" value={ticket.userName ?? "Sem nome"} />
             <InfoCard label="E-mail" value={ticket.userEmail} />
             <InfoCard label="CPF" value={maskCpf(ticket.userCpf)} />
             <InfoCard label="Telefone" value={ticket.userPhone ?? "Nao informado"} />
-            <InfoCard label="Transacao" value={<span className="font-mono text-[11px]">{ticket.transactionId ?? "Nao informado"}</span>} />
+            <InfoCard label="Transação" value={<span className="font-mono text-[11px]">{ticket.transactionId ?? "Nao informado"}</span>} />
             <InfoCard label="ID provedor" value={<span className="font-mono text-[11px]">{ticket.providerTransactionId ?? "Nao informado"}</span>} />
-            <InfoCard label="Status pagamento" value={<span className="uppercase text-primary">{ticket.transactionStatus ?? "Nao informado"}</span>} />
+            <InfoCard label="Status pagamento" value={<span className="uppercase text-primary">{formatCotaStatus(ticket.transactionStatus)}</span>} />
             <InfoCard label="Valor pago" value={formatBRL(ticket.transactionAmountCents)} />
           </div>
         </section>
@@ -94,7 +102,7 @@ export default async function AdminCotaDetailPage({
       <section className="overflow-hidden rounded-[18px] border border-white/8 bg-[#101010]">
         <div className="border-b border-white/8 px-5 py-4">
           <h2 className="text-[15px] font-black text-white">Palpites desta cota</h2>
-          <p className="mt-1 text-[12px] font-medium text-white/38">Todos os jogos preenchidos pelo usuario nesta cota.</p>
+          <p className="mt-1 text-[12px] font-medium text-white/38">Todos os jogos preenchidos pelo usuário nesta cota.</p>
         </div>
         {ticket.predictions.length ? (
           <div className="overflow-x-auto">

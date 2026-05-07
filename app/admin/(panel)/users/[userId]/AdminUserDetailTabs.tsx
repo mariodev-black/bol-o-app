@@ -3,12 +3,13 @@
 import { formatAdminTicketType } from "@/lib/admin/format";
 import type { AdminUserDetail, AdminUserListItem } from "@/lib/admin/users";
 import Link from "next/link";
-import { useState } from "react";
-import type { ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode, RefObject } from "react";
 import { AdminUserPasswordForm } from "./AdminUserPasswordForm";
 
 type Tab = "cadastro" | "cotas" | "afiliados" | "seguranca";
 type Role = AdminUserListItem["role"];
+const PAGE_SIZE = 50;
 
 const ROLE_LABELS: Record<Role, string> = {
   user: "Usuário",
@@ -88,6 +89,19 @@ export function AdminUserDetailTabs({
   const [roleMessage, setRoleMessage] = useState<string | null>(null);
   const [roleError, setRoleError] = useState<string | null>(null);
   const referredUsers = user.referredUsers ?? [];
+  const [visible, setVisible] = useState({
+    cotas: PAGE_SIZE,
+    afiliados: PAGE_SIZE,
+  });
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const visibleTickets = useMemo(() => user.tickets.slice(0, visible.cotas), [user.tickets, visible.cotas]);
+  const visibleReferredUsers = useMemo(() => referredUsers.slice(0, visible.afiliados), [referredUsers, visible.afiliados]);
+  const paginatedTab = tab === "cotas" || tab === "afiliados" ? tab : null;
+  const totalByTab = {
+    cotas: user.tickets.length,
+    afiliados: referredUsers.length,
+  };
+  const hasMore = paginatedTab ? visible[paginatedTab] < totalByTab[paginatedTab] : false;
 
   const tabs = [
     { id: "cadastro" as const, label: "Cadastro" },
@@ -125,6 +139,24 @@ export function AdminUserDetailTabs({
     setRoleMessage(null);
     setConfirmRoleOpen(true);
   }
+
+  useEffect(() => {
+    if (!paginatedTab) return;
+    const node = loadMoreRef.current;
+    if (!node || !hasMore) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) return;
+        setVisible((current) => ({
+          ...current,
+          [paginatedTab]: Math.min(current[paginatedTab] + PAGE_SIZE, totalByTab[paginatedTab]),
+        }));
+      },
+      { rootMargin: "240px 0px" }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasMore, paginatedTab, totalByTab.afiliados, totalByTab.cotas, visible.afiliados, visible.cotas]);
 
   return (
     <section className="rounded-[18px] border border-white/8 bg-[#080808]">
@@ -189,7 +221,7 @@ export function AdminUserDetailTabs({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/6">
-                      {referredUsers.map((referred) => (
+                      {visibleReferredUsers.map((referred) => (
                         <tr key={referred.id} className="group text-[13px] text-white/72 transition-colors hover:bg-white/2.5">
                           <td className="px-4 py-4">
                             <Link href={`/admin/users/${referred.id}`} className="block">
@@ -209,6 +241,13 @@ export function AdminUserDetailTabs({
                       ))}
                     </tbody>
                   </table>
+                  <ScrollFooter
+                    refEl={loadMoreRef}
+                    hasMore={hasMore}
+                    visible={visibleReferredUsers.length}
+                    total={referredUsers.length}
+                    label="usuários indicados"
+                  />
                 </div>
               ) : (
                 <div className="px-5 py-12 text-center">
@@ -264,7 +303,7 @@ export function AdminUserDetailTabs({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/6">
-                    {user.tickets.map((ticket) => (
+                    {visibleTickets.map((ticket) => (
                       <tr key={ticket.id} className="group text-[13px] text-white/72 transition-colors hover:bg-white/2.5">
                         <td className="px-4 py-4">
                           <Link href={`/admin/cotas/${ticket.id}`} className="block font-mono text-[11px] text-white/45 group-hover:text-primary">
@@ -294,6 +333,13 @@ export function AdminUserDetailTabs({
                     ))}
                   </tbody>
                 </table>
+                <ScrollFooter
+                  refEl={loadMoreRef}
+                  hasMore={hasMore}
+                  visible={visibleTickets.length}
+                  total={user.tickets.length}
+                  label="cotas"
+                />
               </div>
             ) : (
               <div className="px-5 py-12 text-center">
@@ -358,5 +404,28 @@ export function AdminUserDetailTabs({
         </div>
       ) : null}
     </section>
+  );
+}
+
+function ScrollFooter({
+  refEl,
+  hasMore,
+  visible,
+  total,
+  label,
+}: {
+  refEl: RefObject<HTMLDivElement | null>;
+  hasMore: boolean;
+  visible: number;
+  total: number;
+  label: string;
+}) {
+  if (total === 0) return null;
+  return (
+    <div ref={refEl} className="border-t border-white/8 px-5 py-5 text-center">
+      <p className="text-[12px] font-bold text-white/38">
+        {hasMore ? `Carregando mais ${label} de ${PAGE_SIZE} em ${PAGE_SIZE}...` : `Todos os registros foram exibidos. (${visible}/${total})`}
+      </p>
+    </div>
   );
 }

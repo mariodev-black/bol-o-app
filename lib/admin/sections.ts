@@ -56,6 +56,30 @@ export type AdminPredictionStats = {
   ticketsCount: number;
 };
 
+export type AdminPredictionListItem = {
+  id: string;
+  userId: string;
+  userName: string | null;
+  userEmail: string;
+  ticketId: string;
+  ticketType: string | null;
+  bolaoType: string;
+  matchId: number;
+  homeName: string;
+  homeLogo: string | null;
+  awayName: string;
+  awayLogo: string | null;
+  matchDateBR: string | null;
+  matchHourBR: string | null;
+  matchStatus: string | null;
+  scoreCasa: number;
+  scoreVisitante: number;
+  resultCasa: number | null;
+  resultVisitante: number | null;
+  submittedAt: string;
+  updatedAt: string;
+};
+
 export type AdminTransactionStats = {
   totalCount: number;
   paidCount: number;
@@ -300,6 +324,85 @@ export async function getAdminPredictionStats(): Promise<AdminPredictionStats> {
     playersCount: Number(row?.players_count ?? 0),
     ticketsCount: Number(row?.tickets_count ?? 0),
   };
+}
+
+export async function listAdminPredictions(): Promise<AdminPredictionListItem[]> {
+  const pool = getPool();
+  const { rows } = await pool.query<{
+    id: string;
+    user_id: string;
+    user_name: string | null;
+    user_email: string;
+    ticket_id: string;
+    ticket_type: string | null;
+    bolao_type: string;
+    match_id: number;
+    home_name: string | null;
+    home_logo: string | null;
+    away_name: string | null;
+    away_logo: string | null;
+    date_br: string | null;
+    hour_br: string | null;
+    match_status: string | null;
+    score_casa: number;
+    score_visitante: number;
+    result_casa: number | null;
+    result_visitante: number | null;
+    submitted_at: Date;
+    updated_at: Date;
+  }>(
+    `SELECT
+       p.id,
+       p.user_id,
+       u.name AS user_name,
+       u.email AS user_email,
+       p.ticket_id,
+       t.ticket_type,
+       p.bolao_type,
+       p.match_id,
+       mc.home_name,
+       mc.home_logo,
+       mc.away_name,
+       mc.away_logo,
+       mc.date_br,
+       mc.hour_br,
+       mc.status AS match_status,
+       p.score_casa,
+       p.score_visitante,
+       mc.result_casa,
+       mc.result_visitante,
+       p.submitted_at,
+       p.updated_at
+     FROM predictions p
+     LEFT JOIN users u ON u.id::text = p.user_id::text
+     LEFT JOIN tickets t ON t.id::text = p.ticket_id::text
+     LEFT JOIN matches_cache mc ON mc.match_id = p.match_id
+     ORDER BY p.submitted_at DESC`
+  );
+
+  return rows.map((row) => ({
+    id: row.id,
+    userId: row.user_id,
+    userName: row.user_name,
+    userEmail: row.user_email,
+    ticketId: row.ticket_id,
+    ticketType: row.ticket_type,
+    bolaoType: row.bolao_type,
+    matchId: Number(row.match_id),
+    homeName: row.home_name ?? "Time casa",
+    homeLogo: row.home_logo,
+    awayName: row.away_name ?? "Time visitante",
+    awayLogo: row.away_logo,
+    matchDateBR: row.date_br,
+    matchHourBR: row.hour_br,
+    matchStatus: row.match_status,
+    scoreCasa: row.score_casa,
+    scoreVisitante: row.score_visitante,
+    resultCasa: row.result_casa,
+    resultVisitante: row.result_visitante,
+    submittedAt: row.submitted_at.toISOString(),
+    updatedAt: row.updated_at.toISOString(),
+  }));
 }
 
 export async function getAdminTransactionStats(): Promise<AdminTransactionStats> {

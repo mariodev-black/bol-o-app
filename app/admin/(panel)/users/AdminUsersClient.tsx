@@ -107,14 +107,13 @@ export function AdminUsersClient({ users }: { users: AdminUserListItem[] }) {
     );
     observer.observe(node);
     return () => observer.disconnect();
-  }, [filteredUsers.length, hasMoreUsers]);
+  }, [filteredUsers.length, hasMoreUsers, visibleCount]);
 
   return (
     <>
       <div className="mb-5 grid gap-4 md:grid-cols-4">
         {[
           { label: "Usuários", value: stats.totalUsers.toLocaleString("pt-BR") },
-          { label: "Exibindo", value: `${visibleUsers.length}/${stats.filteredUsers}` },
           { label: "Cotas totais", value: stats.totalTickets.toLocaleString("pt-BR") },
           { label: "Cotas pagas", value: stats.paidTickets.toLocaleString("pt-BR") },
         ].map((card) => (

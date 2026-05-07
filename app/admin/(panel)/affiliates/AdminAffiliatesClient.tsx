@@ -2,7 +2,8 @@
 
 import type { AdminAffiliateDashboardData } from "@/lib/admin/sections";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { RefObject } from "react";
 
 type Tab = "affiliates" | "referred" | "commissions";
 const PAGE_SIZE = 50;
@@ -28,6 +29,7 @@ export function AdminAffiliatesClient({ data }: { data: AdminAffiliateDashboardD
     referred: PAGE_SIZE,
     commissions: PAGE_SIZE,
   });
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   const cards = [
     { label: "Afiliados", value: data.affiliates.length.toLocaleString("pt-BR") },
@@ -40,10 +42,41 @@ export function AdminAffiliatesClient({ data }: { data: AdminAffiliateDashboardD
   const visibleReferred = useMemo(() => data.referredUsers.slice(0, visible.referred), [data.referredUsers, visible.referred]);
   const visibleCommissions = useMemo(() => data.commissions.slice(0, visible.commissions), [data.commissions, visible.commissions]);
 
-  function loadMore(currentTab: Tab, total: number) {
+  const totalByTab = {
+    affiliates: data.affiliates.length,
+    referred: data.referredUsers.length,
+    commissions: data.commissions.length,
+  };
+  const visibleByTab = {
+    affiliates: visibleAffiliates.length,
+    referred: visibleReferred.length,
+    commissions: visibleCommissions.length,
+  };
+  const activeVisible = visible[tab];
+  const hasMore = activeVisible < totalByTab[tab];
+
+  useEffect(() => {
+    const node = loadMoreRef.current;
+    if (!node || !hasMore) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) return;
+        setVisible((current) => ({
+          ...current,
+          [tab]: Math.min(current[tab] + PAGE_SIZE, totalByTab[tab]),
+        }));
+      },
+      { rootMargin: "240px 0px" }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [activeVisible, hasMore, tab, totalByTab.affiliates, totalByTab.commissions, totalByTab.referred]);
+
+  function resetTab(currentTab: Tab) {
+    setTab(currentTab);
     setVisible((current) => ({
       ...current,
-      [currentTab]: Math.min(current[currentTab] + PAGE_SIZE, total),
+      [currentTab]: Math.max(current[currentTab], PAGE_SIZE),
     }));
   }
 
@@ -68,7 +101,7 @@ export function AdminAffiliatesClient({ data }: { data: AdminAffiliateDashboardD
             <button
               key={item.id}
               type="button"
-              onClick={() => setTab(item.id)}
+              onClick={() => resetTab(item.id)}
               className={[
                 "h-10 rounded-full px-4 text-[12px] font-black uppercase tracking-[0.12em] transition-colors",
                 tab === item.id
@@ -115,9 +148,7 @@ export function AdminAffiliatesClient({ data }: { data: AdminAffiliateDashboardD
                 ))}
               </tbody>
             </table>
-            {visibleAffiliates.length < data.affiliates.length ? (
-              <LoadMore onClick={() => loadMore("affiliates", data.affiliates.length)} />
-            ) : null}
+            <ScrollFooter refEl={loadMoreRef} hasMore={hasMore} visible={visibleByTab.affiliates} total={totalByTab.affiliates} label="afiliados" />
           </div>
         ) : null}
 
@@ -155,9 +186,7 @@ export function AdminAffiliatesClient({ data }: { data: AdminAffiliateDashboardD
                 ))}
               </tbody>
             </table>
-            {visibleReferred.length < data.referredUsers.length ? (
-              <LoadMore onClick={() => loadMore("referred", data.referredUsers.length)} />
-            ) : null}
+            <ScrollFooter refEl={loadMoreRef} hasMore={hasMore} visible={visibleByTab.referred} total={totalByTab.referred} label="usuários indicados" />
           </div>
         ) : null}
 
@@ -191,9 +220,7 @@ export function AdminAffiliatesClient({ data }: { data: AdminAffiliateDashboardD
                 ))}
               </tbody>
             </table>
-            {visibleCommissions.length < data.commissions.length ? (
-              <LoadMore onClick={() => loadMore("commissions", data.commissions.length)} />
-            ) : null}
+            <ScrollFooter refEl={loadMoreRef} hasMore={hasMore} visible={visibleByTab.commissions} total={totalByTab.commissions} label="comissões" />
           </div>
         ) : null}
       </section>
@@ -201,16 +228,25 @@ export function AdminAffiliatesClient({ data }: { data: AdminAffiliateDashboardD
   );
 }
 
-function LoadMore({ onClick }: { onClick: () => void }) {
+function ScrollFooter({
+  refEl,
+  hasMore,
+  visible,
+  total,
+  label,
+}: {
+  refEl: RefObject<HTMLDivElement | null>;
+  hasMore: boolean;
+  visible: number;
+  total: number;
+  label: string;
+}) {
+  if (total === 0) return null;
   return (
-    <div className="border-t border-white/8 px-5 py-5 text-center">
-      <button
-        type="button"
-        onClick={onClick}
-        className="rounded-full border border-primary/25 bg-primary/10 px-5 py-3 text-[11px] font-black uppercase tracking-[0.14em] text-primary hover:bg-primary/15"
-      >
-        Carregar mais 50
-      </button>
+    <div ref={refEl} className="border-t border-white/8 px-5 py-5 text-center">
+      <p className="text-[12px] font-bold text-white/38">
+        {hasMore ? `Carregando mais ${label} de ${PAGE_SIZE} em ${PAGE_SIZE}...` : `Todos os ${label} foram exibidos. (${visible}/${total})`}
+      </p>
     </div>
   );
 }

@@ -1,8 +1,12 @@
 import { AdminPageTitle } from "@/app/admin/_components/AdminShell";
-import { getAdminPredictionStats } from "@/lib/admin/sections";
+import { getAdminPredictionStats, listAdminPredictions } from "@/lib/admin/sections";
+import { AdminPalpitesClient } from "./AdminPalpitesClient";
 
 export default async function AdminPalpitesPage() {
-  const stats = await getAdminPredictionStats();
+  const [stats, predictions] = await Promise.all([
+    getAdminPredictionStats(),
+    listAdminPredictions(),
+  ]);
   const cards = [
     { label: "Palpites enviados", value: stats.predictionsCount.toLocaleString("pt-BR") },
     { label: "Jogadores únicos", value: stats.playersCount.toLocaleString("pt-BR") },
@@ -20,6 +24,7 @@ export default async function AdminPalpitesPage() {
           </article>
         ))}
       </div>
+      <AdminPalpitesClient predictions={predictions} />
     </>
   );
 }
