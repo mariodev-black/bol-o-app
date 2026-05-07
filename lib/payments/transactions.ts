@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto";
 import { getPool } from "@/lib/db";
 import { createSkalePixTransaction } from "@/lib/payments/skale";
-import { getTicketPriceCents, parseTicketType, type TicketType } from "@/lib/payments/ticket-config";
+import { getExtraTicketPriceCents, getTicketPriceCents, parseTicketType, type TicketType } from "@/lib/payments/ticket-config";
 import { publishTransactionEvent } from "@/lib/payments/transaction-events";
 import { recordReferralCommissionIfApplicable } from "@/lib/referrals/commissions";
 
@@ -111,14 +111,24 @@ export async function createDepositTransaction(input: {
       ? Math.trunc(input.amountCentsOverride)
       : unitPriceCents * quantity;
   const externalRef = `ticket_${randomUUID()}`;
+  const ticketAmounts = Array.from({ length: quantity }, (_, index) => {
+    if (input.ticketType === "general" && quantity === 2 && input.amountCentsOverride) {
+      return index === 0 ? getTicketPriceCents("general") : getExtraTicketPriceCents();
+    }
+    return unitPriceCents;
+  });
 
-  const ticketInsert = await pool.query<{ id: string }>(
-    `INSERT INTO tickets (user_id, ticket_type, unit_price_cents, quantity, total_amount_cents, status, external_ref)
-     VALUES ($1, $2, $3, $4, $5, 'pending_payment', $6)
-     RETURNING id`,
-    [input.userId, input.ticketType, unitPriceCents, quantity, amountCents, externalRef]
-  );
-  const ticketId = ticketInsert.rows[0]!.id;
+  const ticketIds: string[] = [];
+  for (const ticketAmountCents of ticketAmounts) {
+    const ticketInsert = await pool.query<{ id: string }>(
+      `INSERT INTO tickets (user_id, ticket_type, unit_price_cents, quantity, total_amount_cents, status, external_ref)
+       VALUES ($1, $2, $3, 1, $4, 'pending_payment', $5)
+       RETURNING id`,
+      [input.userId, input.ticketType, ticketAmountCents, ticketAmountCents, externalRef]
+    );
+    ticketIds.push(ticketInsert.rows[0]!.id);
+  }
+  const ticketId = ticketIds[0]!;
 
   const txInsert = await pool.query<{ id: string }>(
     `INSERT INTO transactions (
@@ -181,8 +191,8 @@ export async function createDepositTransaction(input: {
     await pool.query(
       `UPDATE tickets
        SET transaction_id = $2, updated_at = now()
-       WHERE id = $1`,
-      [ticketId, transactionId]
+       WHERE external_ref = $1`,
+      [externalRef, transactionId]
     );
 
     return mapRowToView(rows[0]!);
@@ -196,8 +206,8 @@ export async function createDepositTransaction(input: {
       [transactionId, error instanceof Error ? error.message : "Erro ao criar transacao"]
     );
     await pool.query(
-      `UPDATE tickets SET status = 'failed', updated_at = now() WHERE id = $1`,
-      [ticketId]
+      `UPDATE tickets SET status = 'failed', updated_at = now() WHERE external_ref = $1`,
+      [externalRef]
     );
     throw error;
   }
@@ -237,7 +247,7 @@ export async function updateTransactionStatusByProviderId(input: {
   const pool = getPool();
   const safeStatus = String(input.status || "").trim() || "unknown";
 
-  const updateTx = await pool.query<{ id: string; user_id: string; ticket_id: string; pix_qrcode: string | null; provider_transaction_id: string }>(
+  const updateTx = await pool.query<{ id: string; user_id: string; ticket_id: string; external_ref: string; pix_qrcode: string | null; provider_transaction_id: string }>(
     `UPDATE transactions
      SET status = $2,
          pix_qrcode = COALESCE($3, pix_qrcode),
@@ -245,7 +255,7 @@ export async function updateTransactionStatusByProviderId(input: {
          raw_webhook = COALESCE($5::jsonb, raw_webhook),
          updated_at = now()
      WHERE provider_transaction_id = $1 OR id::text = $1
-     RETURNING id, user_id, ticket_id, pix_qrcode, provider_transaction_id`,
+     RETURNING id, user_id, ticket_id, external_ref, pix_qrcode, provider_transaction_id`,
     [
       input.providerTransactionId,
       safeStatus,
@@ -255,8 +265,8 @@ export async function updateTransactionStatusByProviderId(input: {
     ]
   );
 
-  const ticketId = updateTx.rows[0]?.ticket_id;
-  if (!ticketId) return null;
+  const row = updateTx.rows[0];
+  if (!row?.ticket_id) return null;
 
   const ticketStatus =
     safeStatus === "paid" || safeStatus === "approved"
@@ -272,11 +282,9 @@ export async function updateTransactionStatusByProviderId(input: {
      SET status = $2,
          paid_at = CASE WHEN $2 = 'paid' THEN COALESCE(paid_at, now()) ELSE paid_at END,
          updated_at = now()
-     WHERE id = $1`,
-    [ticketId, ticketStatus]
+     WHERE external_ref = $1`,
+    [row.external_ref, ticketStatus]
   );
-
-  const row = updateTx.rows[0]!;
 
   if (ticketStatus === "paid") {
     try {

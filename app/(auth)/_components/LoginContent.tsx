@@ -29,6 +29,14 @@ export function LoginContent() {
   const { loginWithPassword, refresh, isLoggedIn, ready } = useAuth();
   const fromParam = useMemo(() => searchParams.get("from"), [searchParams]);
   const errorParam = useMemo(() => searchParams.get("error"), [searchParams]);
+  const signupHref = useMemo(() => {
+    const params = new URLSearchParams();
+    const ref = searchParams.get("ref")?.trim();
+    if (ref) params.set("ref", ref);
+    if (fromParam) params.set("from", fromParam);
+    const query = params.toString();
+    return query ? `/cadastrar?${query}` : "/cadastrar";
+  }, [fromParam, searchParams]);
 
   function safeReturnPath(from: string | null): string | null {
     if (!from || !from.startsWith("/") || from.startsWith("//")) return null;
@@ -189,11 +197,7 @@ export function LoginContent() {
       <p className="mt-[29px] text-center text-[13px] font-medium text-white/25 lg:mt-7 lg:text-[12px]">
         Não tem uma conta?{" "}
         <Link
-          href={
-            searchParams.get("ref")?.trim()
-              ? `/cadastrar?ref=${encodeURIComponent(searchParams.get("ref")!.trim())}`
-              : "/cadastrar"
-          }
+          href={signupHref}
           className="font-black text-primary hover:underline"
         >
           Criar conta grátis

@@ -12,6 +12,13 @@ export const runtime = "nodejs";
 
 const STATE_COOKIE = "bolao_oauth_state";
 const REFERRAL_COOKIE = "bolao_oauth_referral";
+const RETURN_COOKIE = "bolao_oauth_return";
+
+function safeReturnPath(from: string | undefined): string | null {
+  if (!from || !from.startsWith("/") || from.startsWith("//")) return null;
+  if (from.startsWith("/login") || from.startsWith("/cadastrar")) return null;
+  return from;
+}
 
 function appBase(): string | null {
   const u = process.env.APP_URL?.replace(/\/$/, "");
@@ -144,7 +151,8 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const res = NextResponse.redirect(`${base}/boloes`);
+    const returnTo = safeReturnPath(request.cookies.get(RETURN_COOKIE)?.value);
+    const res = NextResponse.redirect(`${base}${returnTo ?? "/boloes"}`);
     res.cookies.set(STATE_COOKIE, "", {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -153,6 +161,13 @@ export async function GET(request: NextRequest) {
       maxAge: 0,
     });
     res.cookies.set(REFERRAL_COOKIE, "", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 0,
+    });
+    res.cookies.set(RETURN_COOKIE, "", {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",

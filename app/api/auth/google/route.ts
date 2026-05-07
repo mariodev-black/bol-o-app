@@ -6,6 +6,13 @@ export const runtime = "nodejs";
 
 const STATE_COOKIE = "bolao_oauth_state";
 const REFERRAL_COOKIE = "bolao_oauth_referral";
+const RETURN_COOKIE = "bolao_oauth_return";
+
+function safeReturnPath(from: string | null): string | null {
+  if (!from || !from.startsWith("/") || from.startsWith("//")) return null;
+  if (from.startsWith("/login") || from.startsWith("/cadastrar")) return null;
+  return from;
+}
 
 function oauthStateCookieOptions() {
   return {
@@ -46,6 +53,10 @@ export async function GET(request: NextRequest) {
   const refNorm = normalizeReferralCodeInput(refRaw ?? undefined);
   if (refNorm) {
     res.cookies.set(REFERRAL_COOKIE, refNorm, oauthStateCookieOptions());
+  }
+  const returnTo = safeReturnPath(request.nextUrl.searchParams.get("from"));
+  if (returnTo) {
+    res.cookies.set(RETURN_COOKIE, returnTo, oauthStateCookieOptions());
   }
 
   return res;

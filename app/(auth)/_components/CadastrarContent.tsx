@@ -304,6 +304,21 @@ export function CadastrarContent() {
     const norm = ref.trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12);
     return norm.length > 0 ? norm : null;
   }, [searchParams]);
+  const fromParam = useMemo(() => searchParams.get("from"), [searchParams]);
+  const loginHref = useMemo(() => {
+    const params = new URLSearchParams();
+    if (fromParam) params.set("from", fromParam);
+    const ref = searchParams.get("ref")?.trim();
+    if (ref) params.set("ref", ref);
+    const query = params.toString();
+    return query ? `/login?${query}` : "/login";
+  }, [fromParam, searchParams]);
+
+  function safeReturnPath(from: string | null): string | null {
+    if (!from || !from.startsWith("/") || from.startsWith("//")) return null;
+    if (from.startsWith("/login") || from.startsWith("/cadastrar")) return null;
+    return from;
+  }
 
   useEffect(() => {
     function outside(e: MouseEvent) {
@@ -333,9 +348,11 @@ export function CadastrarContent() {
   }
 
   function handleGoogleSignup() {
-    window.location.href = referralFromUrl
-      ? `/api/auth/google?ref=${encodeURIComponent(referralFromUrl)}`
-      : "/api/auth/google";
+    const params = new URLSearchParams();
+    if (referralFromUrl) params.set("ref", referralFromUrl);
+    if (fromParam) params.set("from", fromParam);
+    const query = params.toString();
+    window.location.href = query ? `/api/auth/google?${query}` : "/api/auth/google";
   }
 
   function goToNextStep() {
@@ -421,7 +438,7 @@ export function CadastrarContent() {
         setNotice(data.referralWarning);
         await new Promise((resolve) => setTimeout(resolve, 2200));
       }
-      router.replace("/boloes");
+      router.replace(safeReturnPath(fromParam) ?? "/boloes");
     } catch {
       setError("Erro de rede. Tente novamente.");
     } finally {
@@ -432,7 +449,7 @@ export function CadastrarContent() {
   return (
     <form onSubmit={handleSubmit} className="w-full py-8 lg:py-0">
       <div className="mb-6 flex items-center justify-between">
-        <Link href="/login" className="inline-flex items-center gap-1.5 text-[11px] font-bold text-white/35 transition-colors hover:text-white/70">
+        <Link href={loginHref} className="inline-flex items-center gap-1.5 text-[11px] font-bold text-white/35 transition-colors hover:text-white/70">
           <ArrowLeft className="h-3.5 w-3.5" />
           Ir para login
         </Link>
@@ -680,7 +697,7 @@ export function CadastrarContent() {
 
       <p className="mt-[18px] text-center text-[12px] font-medium text-white/25">
         Já tem uma conta?{" "}
-        <Link href="/login" className="font-black text-primary hover:underline">Entrar agora</Link>
+        <Link href={loginHref} className="font-black text-primary hover:underline">Entrar agora</Link>
       </p>
     </form>
   );

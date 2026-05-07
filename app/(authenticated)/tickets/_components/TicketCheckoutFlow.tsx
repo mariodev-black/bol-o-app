@@ -331,7 +331,7 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
                     setError(null);
                     if (dailySelected) {
                       setDiarioQty(0);
-                      setPrincipalQty(2);
+                      setPrincipalQty(1);
                     } else {
                       setPrincipalQty(0);
                       setDiarioQty(1);
