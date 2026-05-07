@@ -24,7 +24,7 @@ A autenticação, hoje, é **simplificada para desenvolvimento** (`AuthContext` 
 
 ```bash
 npm install
-npm run dev      # desenvolvimento — http://localhost:3000
+npm run dev      # desenvolvimento — https://bolaodomilhao.com.br
 npm run build    # build de produção
 npm run start    # servidor após build
 npm run lint     # ESLint (eslint-config-next)

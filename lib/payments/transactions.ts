@@ -27,7 +27,7 @@ export type DepositTransactionView = {
 };
 
 function appUrl(): string {
-  return (process.env.APP_URL || "http://localhost:3000").trim().replace(/\/+$/, "");
+  return (process.env.APP_URL || "https://bolaodomilhao.com.br").trim().replace(/\/+$/, "");
 }
 
 function webhookUrl(): string {
