@@ -19,9 +19,9 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-const BG = "#020617";
-const CARD = "#0f172a";
-const CARD_HEADER = "#0c1322";
+const BG = "#000000";
+const CARD = "#111111";
+const CARD_HEADER = "#0F0F0F";
 const GOLD = "#B1EB0B";
 const GOLD_MID = "#E8FF8A";
 const TEXT_MUTED = "#94a3b8";
@@ -398,20 +398,20 @@ export default function PrivacidadePage() {
   }, []);
 
   return (
-    <div className="min-h-screen pb-32 lg:pb-16">
+    <div className="min-h-screen bg-black pb-32 lg:pb-16">
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0" aria-hidden>
         <div
           className="absolute -top-1/4 -right-1/4 w-[72%] h-[58%]"
           style={{
             background:
-              "radial-gradient(ellipse 75% 65% at 78% 18%, rgba(217, 255, 89, 0.1) 0%, transparent 68%)",
+              "radial-gradient(ellipse 75% 65% at 78% 18%, rgba(177, 235, 11, 0.08) 0%, transparent 68%)",
           }}
         />
         <div
           className="absolute -bottom-1/4 -left-1/4 w-[68%] h-[52%]"
           style={{
             background:
-              "radial-gradient(ellipse 70% 58% at 18% 82%, rgba(249, 115, 22, 0.09) 0%, transparent 70%)",
+              "radial-gradient(ellipse 70% 58% at 18% 82%, rgba(177, 235, 11, 0.05) 0%, transparent 70%)",
           }}
         />
       </div>
@@ -464,7 +464,7 @@ export default function PrivacidadePage() {
           <aside className="hidden lg:flex flex-col gap-5">
             <div
               className="rounded-2xl p-4"
-              style={{ background: CARD, border: "1px solid rgba(148, 163, 184, 0.12)" }}
+              style={{ background: CARD, border: "1px solid rgba(255,255,255,0.06)" }}
             >
               <p
                 className="text-[10px] font-bold uppercase tracking-[0.18em] mb-3.5"
@@ -508,7 +508,7 @@ export default function PrivacidadePage() {
               className="rounded-2xl p-4"
               style={{
                 background: CARD,
-                border: "1px solid rgba(148, 163, 184, 0.12)",
+                border: "1px solid rgba(255,255,255,0.06)",
               }}
             >
               <div className="flex items-center gap-2 mb-2">
@@ -563,7 +563,7 @@ export default function PrivacidadePage() {
             {/* Intro card */}
             <div
               className="rounded-2xl p-5 mb-6 lg:mb-8"
-              style={{ background: CARD, border: "1px solid rgba(148, 163, 184, 0.12)" }}
+              style={{ background: CARD, border: "1px solid rgba(255,255,255,0.06)" }}
             >
               <p className="text-[14px] lg:text-[15px] leading-relaxed" style={{ color: TEXT_MUTED }}>
                 A sua privacidade é importante para nós. Esta Política de Privacidade explica como o{" "}
@@ -583,7 +583,7 @@ export default function PrivacidadePage() {
                   <div
                     key={sec.id}
                     className="rounded-2xl overflow-hidden"
-                    style={{ background: CARD, border: "1px solid rgba(148, 163, 184, 0.1)" }}
+                    style={{ background: CARD, border: "1px solid rgba(255,255,255,0.06)" }}
                   >
                     <button
                       type="button"
@@ -633,7 +633,7 @@ export default function PrivacidadePage() {
                     id={sec.id}
                     key={sec.id}
                     className="rounded-2xl overflow-hidden scroll-mt-28"
-                    style={{ background: CARD, border: "1px solid rgba(148, 163, 184, 0.12)" }}
+                    style={{ background: CARD, border: "1px solid rgba(255,255,255,0.06)" }}
                   >
                     <div
                       className="flex items-center gap-4 px-6 py-4 border-b border-white/5"
@@ -660,8 +660,8 @@ export default function PrivacidadePage() {
             <div
               className="hidden lg:flex mt-10 rounded-2xl px-8 py-6 items-center justify-between gap-6"
               style={{
-                background: "rgba(15, 23, 42, 0.8)",
-                border: "1px solid rgba(148, 163, 184, 0.12)",
+                background: CARD_HEADER,
+                border: "1px solid rgba(255,255,255,0.06)",
               }}
             >
               <p className="text-[14px]" style={{ color: TEXT_MUTED }}>
@@ -690,7 +690,7 @@ export default function PrivacidadePage() {
         >
           <div
             className="rounded-2xl p-4 mb-3"
-            style={{ background: CARD, border: "1px solid rgba(148, 163, 184, 0.1)" }}
+            style={{ background: CARD, border: "1px solid rgba(255,255,255,0.06)" }}
           >
             <p className="text-[15px] font-bold text-white mb-1">Você leu esta política?</p>
             <p className="text-[12px] leading-relaxed" style={{ color: TEXT_MUTED }}>

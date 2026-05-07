@@ -5,11 +5,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, CircleCheck, Clock3, Target, TriangleAlert, XCircle } from "lucide-react";
 
 const C = {
-  card: "#101010",
-  cardSoft: "rgba(255,255,255,0.02)",
-  border: "rgba(255,255,255,0.08)",
+  card: "#111111",
+  cardAlt: "#0F0F0F",
+  cardSoft: "rgba(255,255,255,0.03)",
+  border: "rgba(255,255,255,0.06)",
   gold: "#B1EB0B",
   goldLight: "#E8FF8A",
+  greenSoft: "#0AC96B",
 } as const;
 
 type HistoricoRow = {
@@ -104,7 +106,7 @@ function HeroGlow() {
           width: "95%",
           height: "85%",
           background:
-            "radial-gradient(ellipse 75% 68% at 84% 10%, rgba(217,255,89,0.30) 0%, rgba(217,255,89,0.09) 44%, transparent 72%)",
+            "radial-gradient(ellipse 75% 68% at 84% 10%, rgba(177,235,11,0.18) 0%, rgba(177,235,11,0.07) 44%, transparent 72%)",
         }}
       />
       <div
@@ -115,7 +117,7 @@ function HeroGlow() {
           width: "92%",
           height: "78%",
           background:
-            "radial-gradient(ellipse 72% 60% at 12% 90%, rgba(177,235,11,0.22) 0%, rgba(177,235,11,0.08) 42%, transparent 72%)",
+            "radial-gradient(ellipse 72% 60% at 12% 90%, rgba(177,235,11,0.14) 0%, rgba(177,235,11,0.06) 42%, transparent 72%)",
         }}
       />
     </div>
@@ -158,8 +160,8 @@ function PickCard({ pick }: { pick: Pick }) {
     <article
       className="rounded-2xl border p-3.5 relative overflow-hidden"
       style={{
-        borderColor: "rgba(255,255,255,0.09)",
-        background: "linear-gradient(180deg, rgba(11,16,29,0.97) 0%, rgba(8,12,22,0.97) 100%)",
+        borderColor: C.border,
+        background: C.cardAlt,
       }}
     >
       <span
@@ -174,7 +176,7 @@ function PickCard({ pick }: { pick: Pick }) {
         <span
           className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-[0.08em]"
           style={{
-            color: neutral ? "#94A3B8" : pick.hit ? "#34D399" : "#F87171",
+            color: neutral ? "#94A3B8" : pick.hit ? C.greenSoft : "#F87171",
             background: neutral ? "rgba(148,163,184,0.12)" : pick.hit ? "rgba(34,197,94,0.10)" : "rgba(127,29,29,0.20)",
             border: neutral ? "1px solid rgba(148,163,184,0.2)" : pick.hit ? "1px solid rgba(34,197,94,0.24)" : "1px solid rgba(239,68,68,0.24)",
           }}
@@ -318,7 +320,8 @@ export default function MeusPalpitesPage() {
   ];
 
   return (
-    <div className="w-full max-w-xl lg:max-w-5xl mx-auto px-4 pt-6 pb-8 space-y-4">
+    <div className="min-h-screen w-full bg-black text-white">
+      <div className="mx-auto w-full max-w-xl space-y-4 px-4 pb-8 pt-6 lg:max-w-5xl">
       <header className="space-y-2">
         <Link
           href="/perfil"
@@ -335,7 +338,7 @@ export default function MeusPalpitesPage() {
 
       <section
         className="rounded-[20px] border p-4 relative overflow-hidden"
-        style={{ background: C.card, borderColor: "rgba(255,255,255,0.07)" }}
+        style={{ background: C.card, borderColor: C.border }}
       >
         <HeroGlow />
         <div className="relative space-y-4">
@@ -374,7 +377,7 @@ export default function MeusPalpitesPage() {
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <StatCard label="Exatos" value={stats.exatos} tone={C.gold} icon={Target} soft="rgba(177,235,11,0.12)" />
-            <StatCard label="Certos" value={stats.certos} tone="#34D399" icon={CircleCheck} soft="rgba(52,211,153,0.12)" />
+            <StatCard label="Certos" value={stats.certos} tone={C.greenSoft} icon={CircleCheck} soft="rgba(10,201,107,0.12)" />
             <StatCard label="Errados" value={stats.errados} tone="#FB7185" icon={XCircle} soft="rgba(251,113,133,0.12)" />
             <StatCard label="Pendentes" value={stats.pendentes} tone="#94A3B8" icon={Clock3} soft="rgba(148,163,184,0.12)" />
           </div>
@@ -437,6 +440,7 @@ export default function MeusPalpitesPage() {
           )}
         </div>
       </section>
+      </div>
     </div>
   );
 }

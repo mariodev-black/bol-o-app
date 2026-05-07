@@ -29,7 +29,7 @@ const BAND_STATS = [
 export function CopaCtaBandSection() {
   return (
     <section
-      id="copa-cta"
+      id="cotas"
       aria-labelledby="copa-cta-heading"
       className="font-helvetica-now-display relative isolate w-full overflow-hidden text-white"
     >

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth, type AuthUser } from "@/app/shared/AuthContext";
 import { useState, useRef, useEffect, useMemo, type FormEvent } from "react";
-import { Eye, EyeOff, ChevronDown, Search } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ChevronDown, Eye, EyeOff, FileText, Lock, Mail, Phone, Search, User } from "lucide-react";
 import * as Flags from "country-flag-icons/react/3x2";
 
 /* ── Lista completa de países ──────────────────────────────────── */
@@ -213,8 +213,8 @@ function CountrySelector({ selected, onChange }: { selected: Country; onChange: 
         onClick={() => { setOpen(!open); setQuery(""); }}
         style={{
           height: 52, padding: "0 12px", borderRadius: 8,
-          background: "#0D1E30",
-          border: open ? "2px solid rgba(218,182,130,0.85)" : "2px solid rgba(218,182,130,0.3)",
+          background: "#050505",
+          border: open ? "1px solid rgba(177,235,11,0.55)" : "1px solid rgba(255,255,255,0.08)",
           display: "flex", alignItems: "center", gap: 8, cursor: "pointer",
           color: "rgba(255,255,255,0.85)", fontSize: 14, fontWeight: 600,
           whiteSpace: "nowrap", transition: "border-color 0.15s",
@@ -229,7 +229,7 @@ function CountrySelector({ selected, onChange }: { selected: Country; onChange: 
         <div style={{
           position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 50,
           width: 260, borderRadius: 10, overflow: "hidden",
-          background: "#0D1E30", border: "1px solid rgba(218,182,130,0.25)",
+          background: "#0A0A0A", border: "1px solid rgba(177,235,11,0.22)",
           boxShadow: "0 16px 48px rgba(0,0,0,0.55)",
         }}>
           <div style={{ padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", gap: 8 }}>
@@ -252,7 +252,7 @@ function CountrySelector({ selected, onChange }: { selected: Country; onChange: 
                   onMouseDown={(e) => { e.preventDefault(); onChange(c); setOpen(false); setQuery(""); }}
                   style={{
                     width: "100%", padding: "9px 14px", textAlign: "left", cursor: "pointer",
-                    background: sel ? "rgba(218,182,130,0.1)" : "none", border: "none",
+                    background: sel ? "rgba(177,235,11,0.1)" : "none", border: "none",
                     display: "flex", alignItems: "center", gap: 10,
                     borderBottom: "1px solid rgba(255,255,255,0.04)",
                   }}
@@ -294,6 +294,7 @@ export function CadastrarContent() {
   const [error, setError]         = useState<string | null>(null);
   const [notice, setNotice]       = useState<string | null>(null);
   const [loading, setLoading]     = useState(false);
+  const [step, setStep]           = useState(1);
   const emailRef = useRef<HTMLDivElement>(null);
 
   /** Código de indicação vindo só da URL (`/cadastrar?ref=...`) — enviado no body, sem campo no formulário. */
@@ -331,6 +332,31 @@ export function CadastrarContent() {
     setSuggestions([]);
   }
 
+  function handleGoogleSignup() {
+    window.location.href = referralFromUrl
+      ? `/api/auth/google?ref=${encodeURIComponent(referralFromUrl)}`
+      : "/api/auth/google";
+  }
+
+  function goToNextStep() {
+    setError(null);
+    if (step === 1) {
+      if (fullName.trim().length < 2) {
+        setError("Informe seu nome completo.");
+        return;
+      }
+      if (!email.trim()) {
+        setError("Informe seu e-mail.");
+        return;
+      }
+    }
+    if (step === 2 && cpf.replace(/\D/g, "").length !== 11) {
+      setError("Informe um CPF válido.");
+      return;
+    }
+    setStep((current) => Math.min(current + 1, 3));
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -341,6 +367,21 @@ export function CadastrarContent() {
     const nameTrim = fullName.trim();
     if (nameTrim.length < 2) {
       setError("Informe seu nome completo.");
+      return;
+    }
+    if (!email.trim()) {
+      setError("Informe seu e-mail.");
+      setStep(1);
+      return;
+    }
+    if (cpf.replace(/\D/g, "").length !== 11) {
+      setError("Informe um CPF válido.");
+      setStep(2);
+      return;
+    }
+    if (password.length < 8) {
+      setError("Crie uma senha com pelo menos 8 caracteres.");
+      setStep(3);
       return;
     }
     const digits = phone.replace(/\D/g, "");
@@ -389,164 +430,257 @@ export function CadastrarContent() {
   }
 
   return (
-    <form onSubmit={handleSubmit} style={{ padding: "32px 24px 28px" }}>
+    <form onSubmit={handleSubmit} className="w-full py-8 lg:py-0">
+      <div className="mb-6 flex items-center justify-between">
+        <Link href="/login" className="inline-flex items-center gap-1.5 text-[11px] font-bold text-white/35 transition-colors hover:text-white/70">
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Ir para login
+        </Link>
+        <div className="flex items-center gap-2">
+          {[1, 2, 3].map((item) => (
+            <div key={item} className="flex items-center gap-2">
+              <span
+                className={`flex h-[26px] min-w-[26px] items-center justify-center rounded-full border text-[11px] font-black ${
+                  step === item
+                    ? "border-primary bg-primary/20 text-primary shadow-[0_0_18px_rgba(177,235,11,0.22)]"
+                    : step > item
+                      ? "border-primary/45 bg-primary/10 text-primary"
+                      : "border-white/10 bg-white/3 text-white/22"
+                }`}
+              >
+                {step > item ? <Check className="h-3.5 w-3.5" /> : item}
+              </span>
+              {item < 3 && <span className="h-px w-5 bg-white/10" />}
+            </div>
+          ))}
+        </div>
+      </div>
 
-      {/* ── Headline ── */}
-      <div style={{ textAlign: "center", marginBottom: 28 }}>
-        <p style={{ fontSize: 18, fontWeight: 900, color: "white", textTransform: "uppercase", letterSpacing: "0.02em", lineHeight: 1.2 }}>AQUI TEM</p>
-        <p style={{ fontSize: 46, fontWeight: 900, textTransform: "uppercase", lineHeight: 1.0, background: "linear-gradient(90deg, #B1EB0B 0%, #DFFF76 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>CASHBACK</p>
-        <p style={{ fontSize: 15, fontWeight: 900, color: "white", textTransform: "uppercase", marginTop: 2 }}>DE ATÉ 25% TODOS OS DIAS</p>
+      <div className="mb-[18px]">
+        <h1 className="text-[28px] font-black leading-none tracking-[-0.035em] text-white">
+          {step === 1 ? "Crie sua conta" : step === 2 ? "Complete seus dados" : "Finalize o cadastro"}
+        </h1>
+        <p className="mt-3 text-[13px] font-medium text-white/34">
+          {step === 1 ? "Preencha seus dados básicos para começar" : step === 2 ? "Precisamos desses dados para validar sua conta" : "Crie sua senha e aceite os termos para jogar"}
+        </p>
       </div>
 
       {error && (
-        <p
-          role="alert"
-          style={{
-            marginBottom: 16,
-            padding: "12px 14px",
-            borderRadius: 8,
-            fontSize: 13,
-            fontWeight: 600,
-            color: "#FCA5A5",
-            background: "rgba(127,29,29,0.25)",
-            border: "1px solid rgba(248,113,113,0.25)",
-          }}
-        >
+        <p role="alert" className="mb-4 rounded-[8px] border border-red-400/25 bg-red-950/25 px-3.5 py-3 text-[13px] font-semibold text-red-200">
           {error}
         </p>
       )}
 
       {notice && (
-        <p
-          role="status"
-          style={{
-            marginBottom: 16,
-            padding: "12px 14px",
-            borderRadius: 8,
-            fontSize: 13,
-            fontWeight: 600,
-            color: "#FDE68A",
-            background: "rgba(120, 53, 15, 0.35)",
-            border: "1px solid rgba(252, 211, 77, 0.35)",
-          }}
-        >
+        <p role="status" className="mb-4 rounded-[8px] border border-yellow-300/30 bg-yellow-950/30 px-3.5 py-3 text-[13px] font-semibold text-yellow-100">
           {notice}
         </p>
       )}
 
-      {/* ── Form ── */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-
-        {/* Nome */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <label style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.55)" }}>
-            Nome completo
-          </label>
-          <input
-            className="auth-input"
-            type="text"
-            name="name"
-            autoComplete="name"
-            placeholder="Como no documento"
-            required
-            minLength={2}
-            maxLength={120}
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            disabled={loading}
-          />
-        </div>
-
-        {/* CPF */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <label style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.55)" }}>CPF</label>
-          <input className="auth-input" type="text" inputMode="numeric" placeholder="123.456.789-00"
-            value={cpf} onChange={(e) => setCpf(maskCPF(e.target.value))} />
-        </div>
-
-        {/* E-mail */}
-        <div ref={emailRef} style={{ display: "flex", flexDirection: "column", gap: 6, position: "relative" }}>
-          <label style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.55)" }}>E-mail</label>
-          <input className="auth-input" type="email" placeholder="exemplo@email.com" autoComplete="off"
-            value={email} onChange={(e) => handleEmailChange(e.target.value)} />
-          {suggestions.length > 0 && (
-            <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 20, marginTop: 4, borderRadius: 10, overflow: "hidden", background: "#0D1E30", border: "1px solid rgba(218,182,130,0.25)", boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>
-              {suggestions.map((domain) => {
-                const local = email.includes("@") ? email.slice(0, email.indexOf("@")) : email;
-                return (
-                  <button key={domain} type="button"
-                    onMouseDown={(e) => { e.preventDefault(); applySuggestion(domain); }}
-                    style={{ width: "100%", padding: "11px 16px", textAlign: "left", background: "none", border: "none", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", gap: 4, borderBottom: "1px solid rgba(255,255,255,0.05)" }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(218,182,130,0.08)")}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
-                  >
-                    <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 13 }}>{local}</span>
-                    <span style={{ color: "#D7FF59", fontWeight: 700 }}>@{domain}</span>
-                  </button>
-                );
-              })}
+      <div className="rounded-[16px] border border-white/8 bg-[#151515] p-[22px] shadow-[0_18px_42px_rgba(0,0,0,0.28)]">
+        {step === 1 && (
+          <div className="flex flex-col gap-[18px]">
+            <div className="flex flex-col gap-[10px]">
+              <label className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">Nome completo</label>
+              <div className="relative">
+                <User className="pointer-events-none absolute left-[17px] top-1/2 h-[15px] w-[15px] -translate-y-1/2 text-white/32" />
+                <input
+                  className="auth-input"
+                  style={{ paddingLeft: 46 }}
+                  type="text"
+                  name="name"
+                  autoComplete="name"
+                  placeholder="João Silva"
+                  minLength={2}
+                  maxLength={120}
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  disabled={loading}
+                />
+              </div>
             </div>
-          )}
-        </div>
 
-        {/* Telefone */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <label style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.55)" }}>Telefone</label>
-          <div style={{ display: "flex", gap: 8 }}>
-            <CountrySelector selected={country} onChange={handleCountryChange} />
-            <input className="auth-input" type="tel" placeholder={country.code === "+55" ? "(11) 99999-9999" : "Telefone"}
-              value={phone} onChange={(e) => setPhone(maskPhone(e.target.value, country.code))}
-              style={{ flex: 1, width: "auto" }} />
-          </div>
-        </div>
+            <div ref={emailRef} className="relative flex flex-col gap-[10px]">
+              <label className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">E-mail</label>
+              <div className="relative">
+                <Mail className="pointer-events-none absolute left-[17px] top-1/2 h-[15px] w-[15px] -translate-y-1/2 text-white/32" />
+                <input
+                  className="auth-input"
+                  style={{ paddingLeft: 46 }}
+                  type="email"
+                  placeholder="seu@email.com"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => handleEmailChange(e.target.value)}
+                  disabled={loading}
+                />
+              </div>
+              {suggestions.length > 0 && (
+                <div className="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-[10px] border border-primary/20 bg-[#0A0A0A] shadow-[0_8px_24px_rgba(0,0,0,0.4)]">
+                  {suggestions.map((domain) => {
+                    const local = email.includes("@") ? email.slice(0, email.indexOf("@")) : email;
+                    return (
+                      <button
+                        key={domain}
+                        type="button"
+                        onMouseDown={(e) => { e.preventDefault(); applySuggestion(domain); }}
+                        className="flex w-full items-center gap-1 border-b border-white/5 px-4 py-3 text-left text-[13px] transition-colors hover:bg-primary/8"
+                      >
+                        <span className="text-white/40">{local}</span>
+                        <span className="font-bold text-[#D7FF59]">@{domain}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
 
-        {/* Senha */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <label style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.55)" }}>Senha</label>
-          <div style={{ position: "relative" }}>
-            <input className="auth-input" type={showPw ? "text" : "password"} placeholder="••••••••"
-              style={{ paddingRight: 46 }}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="new-password"
+            <div className="flex items-center gap-3">
+              <div className="h-px flex-1 bg-white/7" />
+              <span className="text-[10px] font-semibold uppercase text-white/18">ou</span>
+              <div className="h-px flex-1 bg-white/7" />
+            </div>
+
+            <button
+              type="button"
               disabled={loading}
-            />
-            <button type="button" onClick={() => setShowPw(!showPw)}
-              style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.45)", display: "flex", alignItems: "center", padding: 0 }}>
-              {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
+              onClick={handleGoogleSignup}
+              className="flex h-[40px] w-full items-center justify-center gap-3 rounded-[9px] border border-white/8 bg-white/4.5 text-[12px] font-bold text-white/68 transition-colors hover:bg-white/7 disabled:cursor-wait"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05" />
+                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+              </svg>
+              Cadastrar com Google
             </button>
           </div>
-        </div>
+        )}
 
-        {/* Checkbox */}
-        <div onClick={() => setAccepted(!accepted)} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 14px", borderRadius: 8, cursor: "pointer", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
-          <div style={{ width: 20, height: 20, borderRadius: 4, flexShrink: 0, marginTop: 1, border: accepted ? "2px solid #B1EB0B" : "2px solid rgba(255,255,255,0.2)", background: accepted ? "rgba(177,235,11,0.15)" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s" }}>
-            {accepted && <svg width="11" height="9" viewBox="0 0 11 9" fill="none"><path d="M1 4.5L4 7.5L10 1" stroke="#B1EB0B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+        {step === 2 && (
+          <div className="flex flex-col gap-[18px]">
+            <div className="flex flex-col gap-[10px]">
+              <label className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">CPF</label>
+              <div className="relative">
+                <FileText className="pointer-events-none absolute left-[17px] top-1/2 h-[15px] w-[15px] -translate-y-1/2 text-white/32" />
+                <input
+                  className="auth-input"
+                  style={{ paddingLeft: 46 }}
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="123.456.789-00"
+                  value={cpf}
+                  onChange={(e) => setCpf(maskCPF(e.target.value))}
+                  disabled={loading}
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-[10px]">
+              <label className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">Telefone</label>
+              <div className="flex gap-2">
+                <CountrySelector selected={country} onChange={handleCountryChange} />
+                <div className="relative flex-1">
+                  <Phone className="pointer-events-none absolute left-[17px] top-1/2 h-[15px] w-[15px] -translate-y-1/2 text-white/32" />
+                  <input
+                    className="auth-input"
+                    style={{ paddingLeft: 46 }}
+                    type="tel"
+                    placeholder={country.code === "+55" ? "(11) 99999-9999" : "Telefone"}
+                    value={phone}
+                    onChange={(e) => setPhone(maskPhone(e.target.value, country.code))}
+                    disabled={loading}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
-          <p style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", lineHeight: 1.6, margin: 0 }}>
-            Confirmo que tenho mais de 18 anos e aceito os{" "}
-            <Link href="/termos" style={{ color: "#D7FF59", textDecoration: "underline" }} onClick={(e) => e.stopPropagation()}>Termos e Condições</Link>{" "}e a{" "}
-            <Link href="/privacidade" style={{ color: "#D7FF59", textDecoration: "underline" }} onClick={(e) => e.stopPropagation()}>Política de Privacidade</Link>.
-          </p>
-        </div>
+        )}
 
-        {/* CTA */}
-        <button
-          type="submit"
-          disabled={loading}
-          style={{
-            width: "100%", height: 56, borderRadius: 8, border: "none",
-            cursor: loading ? "wait" : "pointer", opacity: loading ? 0.75 : 1,
-            background: "linear-gradient(90deg, #B1EB0B 0%, #DFFF76 100%)", color: "#0E141B", fontSize: 16, fontWeight: 900, letterSpacing: "0.14em", textTransform: "uppercase", marginTop: 4,
-          }}
-        >
-          {loading ? "CRIANDO…" : "CRIAR CONTA"}
-        </button>
+        {step === 3 && (
+          <div className="flex flex-col gap-[18px]">
+            <div className="flex flex-col gap-[10px]">
+              <label className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">Senha</label>
+              <div className="relative">
+                <Lock className="pointer-events-none absolute left-[17px] top-1/2 h-[15px] w-[15px] -translate-y-1/2 text-white/32" />
+                <input
+                  className="auth-input"
+                  style={{ paddingLeft: 46, paddingRight: 46 }}
+                  type={showPw ? "text" : "password"}
+                  placeholder="Sua senha"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="new-password"
+                  disabled={loading}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPw(!showPw)}
+                  className="absolute right-[15px] top-1/2 flex -translate-y-1/2 text-white/36 transition-colors hover:text-white/65"
+                  aria-label={showPw ? "Ocultar senha" : "Mostrar senha"}
+                >
+                  {showPw ? <EyeOff size={17} /> : <Eye size={17} />}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setAccepted(!accepted)}
+              className="flex items-start gap-3 rounded-[10px] border border-white/8 bg-white/3.5 px-3.5 py-3 text-left transition-colors hover:bg-white/5.5"
+            >
+              <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-[5px] border transition-colors ${accepted ? "border-primary bg-primary/15" : "border-white/20 bg-transparent"}`}>
+                {accepted && <Check className="h-3.5 w-3.5 text-primary" strokeWidth={3} />}
+              </span>
+              <span className="text-[12px] font-medium leading-relaxed text-white/45">
+                Confirmo que tenho mais de 18 anos e aceito os{" "}
+                <Link href="/termos" className="font-bold text-[#D7FF59] underline" onClick={(e) => e.stopPropagation()}>Termos e Condições</Link>{" "}
+                e a{" "}
+                <Link href="/privacidade" className="font-bold text-[#D7FF59] underline" onClick={(e) => e.stopPropagation()}>Política de Privacidade</Link>.
+              </span>
+            </button>
+          </div>
+        )}
       </div>
 
-      <p style={{ textAlign: "center", marginTop: 22, fontSize: 13, color: "rgba(255,255,255,0.3)" }}>
-        JÁ POSSUI CONTA?{" "}
-        <Link href="/login" style={{ color: "#D7FF59", fontWeight: 900, textDecoration: "none", letterSpacing: "0.03em" }}>CLIQUE AQUI</Link>
+      <div className="mt-[14px] flex gap-3">
+        {step > 1 && (
+          <button
+            type="button"
+            onClick={() => { setError(null); setStep((current) => current - 1); }}
+            disabled={loading}
+            className="flex h-[48px] w-[76px] items-center justify-center rounded-[10px] border border-white/8 bg-white/4 text-white/58 transition-colors hover:bg-white/7 disabled:opacity-60"
+            aria-label="Voltar etapa"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </button>
+        )}
+        {step < 3 ? (
+          <button
+            type="button"
+            onClick={goToNextStep}
+            disabled={loading}
+            className="flex h-[48px] flex-1 items-center justify-center gap-2 rounded-[10px] bg-primary text-[13px] font-black text-[#0E141B] shadow-[0_0_24px_rgba(177,235,11,0.42)] transition-transform active:scale-[0.99] disabled:cursor-wait disabled:opacity-75"
+          >
+            Continuar para o próximo passo
+            <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
+          </button>
+        ) : (
+          <button
+            type="submit"
+            disabled={loading}
+            className="flex h-[48px] flex-1 items-center justify-center gap-2 rounded-[10px] bg-primary text-[13px] font-black text-[#0E141B] shadow-[0_0_24px_rgba(177,235,11,0.42)] transition-transform active:scale-[0.99] disabled:cursor-wait disabled:opacity-75"
+          >
+            {loading ? "Criando..." : "Criar conta"}
+            <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
+          </button>
+        )}
+      </div>
+
+      <p className="mt-[18px] text-center text-[12px] font-medium text-white/25">
+        Já tem uma conta?{" "}
+        <Link href="/login" className="font-black text-primary hover:underline">Entrar agora</Link>
       </p>
     </form>
   );

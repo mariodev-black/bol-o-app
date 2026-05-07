@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useEffect, useState, type FormEvent } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { useAuth } from "@/app/shared/AuthContext";
 
 const GOOGLE_ERRORS: Record<string, string> = {
@@ -79,92 +79,58 @@ export function LoginContent() {
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{ padding: "32px 24px 28px" }}>
-
-      {/* ── Headline ── */}
-      <div style={{ textAlign: "center", marginBottom: 28 }}>
-        <p style={{ fontSize: 20, fontWeight: 900, color: "white", textTransform: "uppercase", letterSpacing: "0.02em", lineHeight: 1.2 }}>
-          INDIQUE E
+    <form onSubmit={handleSubmit} className="w-full">
+      <div className="mb-[31px] text-center lg:mb-8 lg:text-left">
+        <h1 className="text-[24px] font-black leading-none tracking-[-0.035em] text-white lg:text-[28px]">
+          <span className="lg:hidden">Bem-vindo!</span>
+          <span className="hidden lg:inline">Bem-vindo de volta!</span>
+        </h1>
+        <p className="mt-4 text-[14px] font-medium text-white/34 lg:mt-3 lg:text-[13px]">
+          <span className="lg:hidden">Entre na sua conta e dispute o milhão</span>
+          <span className="hidden lg:inline">Entre na sua conta para continuar jogando</span>
         </p>
-        <p style={{
-          fontSize: 36,
-          fontWeight: 900,
-          textTransform: "uppercase",
-          lineHeight: 1.1,
-          background: "linear-gradient(90deg, #B1EB0B 0%, #DFFF76 100%)",
-          WebkitBackgroundClip: "text",
-          WebkitTextFillColor: "transparent",
-          backgroundClip: "text",
-        }}>
-          GANHE R$50,00
-        </p>
-        <div style={{
-          display: "inline-block",
-          marginTop: 10,
-          padding: "5px 12px",
-          borderRadius: 4,
-          background: "rgba(177,235,11,0.12)",
-          border: "1px solid rgba(218,182,130,0.2)",
-          fontSize: 10,
-          fontWeight: 700,
-          color: "#D7FF59",
-          letterSpacing: "0.04em",
-        }}>
-          RESGATE R$50,00 SEMPRE QUE INDICAR UM AMIGO
-        </div>
       </div>
 
       {error && (
         <p
           role="alert"
-          style={{
-            marginBottom: 16,
-            padding: "12px 14px",
-            borderRadius: 8,
-            fontSize: 13,
-            fontWeight: 600,
-            color: "#FCA5A5",
-            background: "rgba(127,29,29,0.25)",
-            border: "1px solid rgba(248,113,113,0.25)",
-          }}
+          className="mb-4 rounded-[8px] border border-red-400/25 bg-red-950/25 px-3.5 py-3 text-[13px] font-semibold text-red-200"
         >
           {error}
         </p>
       )}
 
-      {/* ── Formulário ── */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-
-        {/* E-mail ou CPF */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <label style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.55)" }}>
-            E-mail ou CPF
-          </label>
-          <input
-            className="auth-input"
-            type="text"
-            name="identifier"
-            autoComplete="username"
-            placeholder="exemplo@email.com ou CPF"
-            value={identifier}
-            onChange={(e) => setIdentifier(e.target.value)}
-            disabled={loading}
-          />
-        </div>
-
-        {/* Senha */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <label style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.55)" }}>
-            Senha
-          </label>
-          <div style={{ position: "relative" }}>
+      <div className="rounded-[20px] border border-white/10 bg-[#050505]/70 px-5 py-[27px] shadow-[0_16px_40px_rgba(0,0,0,0.28)] lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none">
+      <div className="flex flex-col gap-[17px] lg:gap-5">
+        <div className="flex flex-col gap-[10px]">
+          <label className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">E-mail</label>
+          <div className="relative">
+            <Mail className="pointer-events-none absolute left-[17px] top-1/2 h-[15px] w-[15px] -translate-y-1/2 text-white/32" />
             <input
               className="auth-input"
+              style={{ paddingLeft: 46 }}
+              type="text"
+              name="identifier"
+              autoComplete="username"
+              placeholder="seu@email.com"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+              disabled={loading}
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-[10px]">
+          <label className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">Senha</label>
+          <div className="relative">
+            <Lock className="pointer-events-none absolute left-[17px] top-1/2 h-[15px] w-[15px] -translate-y-1/2 text-white/32" />
+            <input
+              className="auth-input"
+              style={{ paddingLeft: 46, paddingRight: 46 }}
               type={showPw ? "text" : "password"}
               name="password"
               autoComplete="current-password"
-              placeholder="••••••••"
-              style={{ paddingRight: 46 }}
+              placeholder="Sua senha"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={loading}
@@ -172,54 +138,33 @@ export function LoginContent() {
             <button
               type="button"
               onClick={() => setShowPw(!showPw)}
-              style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.35)", display: "flex", padding: 0 }}
+              className="absolute right-[15px] top-1/2 flex -translate-y-1/2 text-white/36 transition-colors hover:text-white/65"
+              aria-label={showPw ? "Ocultar senha" : "Mostrar senha"}
             >
               {showPw ? <EyeOff size={17} /> : <Eye size={17} />}
             </button>
           </div>
+          <Link href="/recuperar-senha" className="self-end text-[11px] font-bold text-primary hover:underline">
+            Esqueceu a senha?
+          </Link>
         </div>
 
-        {/* Botão */}
         <button
           type="submit"
           disabled={loading}
-          style={{
-            width: "100%", height: 56, borderRadius: 8, border: "none", cursor: loading ? "wait" : "pointer",
-            opacity: loading ? 0.75 : 1,
-            background: "linear-gradient(90deg, #B1EB0B 0%, #DFFF76 100%)",
-            color: "#0E141B", fontSize: 16, fontWeight: 900, letterSpacing: "0.14em",
-            textTransform: "uppercase", marginTop: 4,
-          }}
+          className="mt-[15px] flex h-[52px] w-full items-center justify-center gap-2 rounded-[13px] bg-primary text-[18px] font-black text-[#0E141B] shadow-[0_0_24px_rgba(177,235,11,0.45)] transition-transform active:scale-[0.99] disabled:cursor-wait disabled:opacity-75 lg:mt-2 lg:h-[51px] lg:rounded-[9px] lg:text-[13px]"
         >
-          {loading ? "ENTRANDO…" : "ENTRAR"}
+          {loading ? "Entrando..." : <><span className="lg:hidden">Entrar</span><span className="hidden lg:inline">Entrar na conta</span></>}
+          <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
         </button>
-
-        {/* Links */}
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 2 }}>
-          <Link href="/recuperar-senha" style={{ fontSize: 11, fontWeight: 700, color: "#D7FF59", textDecoration: "none", letterSpacing: "0.05em", textTransform: "uppercase" }}>
-            ESQUECEU A SENHA?
-          </Link>
-          <Link
-            href={
-              searchParams.get("ref")?.trim()
-                ? `/cadastrar?ref=${encodeURIComponent(searchParams.get("ref")!.trim())}`
-                : "/cadastrar"
-            }
-            style={{ fontSize: 11, fontWeight: 700, color: "#D7FF59", textDecoration: "none", letterSpacing: "0.05em", textTransform: "uppercase" }}
-          >
-            CRIAR CONTA
-          </Link>
-        </div>
       </div>
 
-      {/* ── Divider ── */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "22px 0" }}>
-        <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.07)" }} />
-        <span style={{ fontSize: 12, color: "rgba(255,255,255,0.25)" }}>ou</span>
-        <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.07)" }} />
+      <div className="my-[18px] flex items-center gap-3 lg:my-5">
+        <div className="h-px flex-1 bg-white/8 lg:bg-white/6" />
+        <span className="text-[12px] font-semibold uppercase text-white/20 lg:text-[10px]">ou</span>
+        <div className="h-px flex-1 bg-white/8 lg:bg-white/6" />
       </div>
 
-      {/* ── Google ── */}
       <button
         type="button"
         disabled={loading}
@@ -229,12 +174,7 @@ export function LoginContent() {
             ? `/api/auth/google?ref=${encodeURIComponent(r)}`
             : "/api/auth/google";
         }}
-        style={{
-          width: "100%", height: 52, borderRadius: 8, cursor: loading ? "wait" : "pointer",
-          background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)",
-          color: "rgba(255,255,255,0.8)", fontSize: 14, fontWeight: 600,
-          display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-        }}
+        className="flex h-[48px] w-full items-center justify-center gap-3 rounded-[12px] border border-white/10 bg-white/5 text-[14px] font-semibold text-white/68 transition-colors hover:bg-white/7 disabled:cursor-wait lg:h-[46px] lg:rounded-[9px] lg:text-[13px]"
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
           <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
@@ -244,19 +184,20 @@ export function LoginContent() {
         </svg>
         Entrar com Google
       </button>
+      </div>
 
-      {/* ── Disclaimer ── */}
-      <p style={{ fontSize: 11, color: "rgba(255,255,255,0.22)", textAlign: "center", marginTop: 20, lineHeight: 1.7 }}>
-        Ao fazer login, estou de acordo com os nossos{" "}
-        <Link href="/termos" style={{ color: "#D7FF59", textDecoration: "underline" }}>Termos e Condições</Link>.
-        {" "}Esteja atento aos riscos de dependência. Em caso de dúvidas, acesse a nossa{" "}
-        <Link href="/jogo-responsavel" style={{ color: "#D7FF59", textDecoration: "underline" }}>Central de Jogo Responsável</Link>.
-      </p>
-
-      <p style={{ fontSize: 11, color: "rgba(255,255,255,0.18)", textAlign: "center", marginTop: 12, lineHeight: 1.65 }}>
-        *Para ativar seu bônus, indique amigos que realizem{" "}
-        <span style={{ color: "rgba(255,255,255,0.35)", fontWeight: 600 }}>R$150,00 ou mais</span>
-        {" "}em apostas nos jogos selecionados.
+      <p className="mt-[29px] text-center text-[13px] font-medium text-white/25 lg:mt-7 lg:text-[12px]">
+        Não tem uma conta?{" "}
+        <Link
+          href={
+            searchParams.get("ref")?.trim()
+              ? `/cadastrar?ref=${encodeURIComponent(searchParams.get("ref")!.trim())}`
+              : "/cadastrar"
+          }
+          className="font-black text-primary hover:underline"
+        >
+          Criar conta grátis
+        </Link>
       </p>
     </form>
   );

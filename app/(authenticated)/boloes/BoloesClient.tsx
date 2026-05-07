@@ -230,12 +230,12 @@ function StatusPill({ status, label }: { status: ActiveDailyBolao["status"] | "a
 
 function RankingPanel({ position, points }: { position: number | null; points: number }) {
   return (
-    <div className="flex flex-col items-center justify-center border-l px-2 text-center" style={{ borderColor: BORDER }}>
-      <p className="text-[8px] font-black uppercase leading-[0.95] tracking-[0.06em] text-white/45">Sua<br />posição</p>
-      <p className="mt-1 text-[14px] font-black leading-none text-white">{positionLabel(position)}</p>
+    <div className="flex min-w-0 flex-col items-center justify-center border-l px-1.5 text-center" style={{ borderColor: BORDER }}>
+      <p className="text-[7px] font-black uppercase leading-[0.95] tracking-[0.06em] text-white/45 min-[380px]:text-[8px]">Sua<br />posição</p>
+      <p className="mt-1 text-[13px] font-black leading-none text-white min-[380px]:text-[14px]">{positionLabel(position)}</p>
       <div className="my-3 h-px w-full bg-white/6" />
-      <p className="text-[8px] font-black uppercase leading-none tracking-[0.06em] text-white/45">Pontos</p>
-      <p className="mt-1 text-[13px] font-black leading-none" style={{ color: GREEN }}>{pointsLabel(points)}</p>
+      <p className="text-[7px] font-black uppercase leading-none tracking-[0.06em] text-white/45 min-[380px]:text-[8px]">Pontos</p>
+      <p className="mt-1 whitespace-nowrap text-[12px] font-black leading-none min-[380px]:text-[13px]" style={{ color: GREEN }}>{pointsLabel(points)}</p>
     </div>
   );
 }
@@ -354,31 +354,31 @@ function ActiveBoloesList({ items, now }: { items: ActiveBolaoListItem[]; now: n
 
         return (
           <div key={item.id}>
-            <div className="grid grid-cols-[88px_minmax(0,1fr)_72px]">
+            <div className="grid grid-cols-[68px_minmax(0,1fr)_58px] min-[380px]:grid-cols-[74px_minmax(0,1fr)_64px]">
               <div className="flex items-center justify-center border-r" style={{ borderColor: BORDER }}>
                 <BolaoIcon type={isPrincipal ? "copa" : "dia"} />
               </div>
 
               <Link
                 href={item.href}
-                className="min-w-0 px-4 py-[18px] transition-colors hover:bg-white/3 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-primary active:bg-white/5"
+                className="min-w-0 px-3 py-[16px] transition-colors hover:bg-white/3 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-primary active:bg-white/5 min-[380px]:px-4"
               >
-                <p className="text-[19px] font-black uppercase leading-none text-white">{item.title}</p>
-                <p className="mt-2 font-mono text-[13px] font-semibold leading-none text-white/52" title={item.id}>
+                <p className="max-w-[190px] text-[17px] font-black uppercase leading-[0.98] tracking-[-0.03em] text-white min-[380px]:text-[18px]">{item.title}</p>
+                <p className="mt-2 truncate font-mono text-[12px] font-semibold leading-none text-white/52 min-[380px]:text-[13px]" title={item.id}>
                   {item.cotaLabel.replace("Cota #", "Cota #")}
                 </p>
 
-                <div className="mt-7">
+                <div className="mt-5">
                   <StatusPill status={item.status} label={item.statusLabel} />
                 </div>
 
                 {isPrincipal ? (
-                  <div className="mt-5">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-[14px] font-semibold leading-none text-white/55">Palpites enviados</span>
-                      <span className="text-[14px] font-black leading-none text-white">{item.sent ?? 0} / {item.total ?? 0}</span>
+                  <div className="mt-4">
+                    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2">
+                      <span className="text-[13px] font-semibold leading-[1.02] text-white/55 min-[380px]:text-[14px]">Palpites enviados</span>
+                      <span className="whitespace-nowrap text-[15px] font-black leading-none text-white min-[380px]:text-[16px]">{item.sent ?? 0} / {item.total ?? 0}</span>
                     </div>
-                    <div className="mt-2 h-[7px] overflow-hidden rounded-full bg-white/8">
+                    <div className="mt-2 h-[6px] overflow-hidden rounded-full bg-white/8">
                       <div className="h-full rounded-full" style={{ width: `${progress}%`, background: GREEN }} />
                     </div>
                   </div>

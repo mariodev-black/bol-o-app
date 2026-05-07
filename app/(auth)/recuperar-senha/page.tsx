@@ -3,11 +3,11 @@ import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { X } from "lucide-react";
-import { CadastrarContent } from "@/app/(auth)/_components/CadastrarContent";
 import { AuthDesktopShell } from "@/app/(auth)/_components/AuthDesktopShell";
+import { RecuperarSenhaContent } from "@/app/(auth)/_components/RecuperarSenhaContent";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 
-export default async function CadastrarPage() {
+export default async function RecuperarSenhaPage() {
   const token = (await cookies()).get(sessionCookieName())?.value;
   if (token) {
     const userId = await verifySessionToken(token).catch(() => null);
@@ -17,7 +17,7 @@ export default async function CadastrarPage() {
   return (
     <AuthDesktopShell variant="centered">
       <Suspense fallback={null}>
-        <CadastrarContent />
+        <RecuperarSenhaContent />
       </Suspense>
     </AuthDesktopShell>
   );

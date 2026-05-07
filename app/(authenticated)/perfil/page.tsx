@@ -19,6 +19,13 @@ import {
   User2,
 } from "lucide-react";
 
+const GREEN = "#B1EB0B";
+const GREEN_LIGHT = "#E8FF8A";
+const GREEN_SOFT = "#0AC96B";
+const CARD = "#111111";
+const CARD_ALT = "#0F0F0F";
+const BORDER = "rgba(255,255,255,0.06)";
+
 type RecentPick = {
   id: string;
   home: string;
@@ -62,6 +69,10 @@ function SectionHeader({ title }: { title: string }) {
   );
 }
 
+function SkeletonBlock({ className }: { className: string }) {
+  return <div className={`animate-pulse rounded-md bg-white/10 ${className}`} />;
+}
+
 export default function PerfilPage() {
   const { user, ready } = useAuth();
   const [recentPicks, setRecentPicks] = useState<RecentPick[]>([]);
@@ -69,15 +80,30 @@ export default function PerfilPage() {
   const [affiliate, setAffiliate] = useState<AffiliateSummary | null>(null);
   const [bestTicketPts, setBestTicketPts] = useState<number | null>(null);
   const [ticketCount, setTicketCount] = useState(0);
+  const [ticketsLoading, setTicketsLoading] = useState(true);
+  const [profileDataLoading, setProfileDataLoading] = useState(true);
 
   useEffect(() => {
     if (!ready) return;
-    void loadOwnedTicketsMerged().then((list) => setTicketCount(list.length));
+    let cancelled = false;
+    setTicketsLoading(true);
+    void loadOwnedTicketsMerged()
+      .then((list) => {
+        if (!cancelled) setTicketCount(list.length);
+      })
+      .finally(() => {
+        if (!cancelled) setTicketsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [ready, user?.id]);
 
   useEffect(() => {
     if (!ready) return;
+    let cancelled = false;
     (async () => {
+      setProfileDataLoading(true);
       try {
         const [hRes, rRes, aRes, rankRes] = await Promise.all([
           fetch("/api/palpites/historico?limit=10", { credentials: "include", cache: "no-store" }),
@@ -102,8 +128,7 @@ export default function PerfilPage() {
           }>;
         };
         if (hRes.ok && Array.isArray(hJson.historico)) {
-          setRecentPicks(
-            hJson.historico.map((h) => ({
+          const mapped = hJson.historico.map((h) => ({
               id: String(h.matchId),
               home: h.mandante,
               away: h.visitante,
@@ -118,21 +143,34 @@ export default function PerfilPage() {
               matchInfo: `${h.jogoData}${h.jogoHora ? ` · ${h.jogoHora}` : ""} · Copa 2026`,
               points: h.pontos > 0 ? `+${h.pontos} pts` : "0 pts",
               pointsNum: h.pontos,
-            }))
-          );
+            }));
+          if (!cancelled) setRecentPicks(mapped);
         }
         const rJson = (await rRes.json()) as { resumo?: typeof resumo };
-        if (rRes.ok && rJson.resumo) setResumo(rJson.resumo);
+        if (!cancelled && rRes.ok && rJson.resumo) setResumo(rJson.resumo);
         if (aRes?.ok) {
           const aj = (await aRes.json()) as { summary?: AffiliateSummary };
-          if (aj.summary) setAffiliate(aj.summary);
+          if (!cancelled && aj.summary) setAffiliate(aj.summary);
         }
         const rk = (await rankRes.json()) as { ranking?: Array<{ totalPoints: number }> };
+        if (cancelled) return;
         if (rankRes.ok && Array.isArray(rk.ranking) && rk.ranking.length > 0) {
           setBestTicketPts(rk.ranking[0]!.totalPoints);
         } else setBestTicketPts(null);
-      } catch {}
+      } catch {
+        if (!cancelled) {
+          setRecentPicks([]);
+          setResumo(null);
+          setAffiliate(null);
+          setBestTicketPts(null);
+        }
+      } finally {
+        if (!cancelled) setProfileDataLoading(false);
+      }
     })();
+    return () => {
+      cancelled = true;
+    };
   }, [ready]);
 
   const pickSummary = useMemo(() => {
@@ -178,11 +216,16 @@ export default function PerfilPage() {
   const metaIndicacoes = affiliate?.config.tierDiamondMinCommissions ?? 50;
   const progressPct =
     affiliate && metaIndicacoes > 0 ? Math.min(100, (affiliate.paidReferralsCount / metaIndicacoes) * 100) : 0;
+  const sessionLoading = !ready;
+  const statsLoading = sessionLoading || profileDataLoading;
+  const affiliateLoading = sessionLoading || profileDataLoading;
+  const overviewLoading = statsLoading || ticketsLoading;
 
   return (
-    <div className="flex flex-1 flex-col px-4 sm:px-6 py-6 w-full max-w-7xl mx-auto gap-4 lg:gap-5">
+    <div className="min-h-screen w-full bg-black text-white">
+      <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 px-4 py-6 sm:px-6 lg:gap-5">
       <header className="pt-1">
-        <p className="text-[11px] font-black uppercase tracking-[0.2em]" style={{ color: "rgba(218,182,130,0.85)" }}>
+        <p className="text-[11px] font-black uppercase tracking-[0.2em]" style={{ color: GREEN }}>
           Centro do Jogador
         </p>
         <h1 className="mt-1 text-[34px] sm:text-[38px] leading-none font-black text-white tracking-tight">Perfil Elite</h1>
@@ -196,8 +239,8 @@ export default function PerfilPage() {
           <section
             className="rounded-[18px] p-5 border relative overflow-hidden"
             style={{
-              borderColor: "rgba(255,255,255,0.07)",
-              background: "#101010",
+              borderColor: BORDER,
+              background: CARD,
               boxShadow: "0 12px 30px rgba(0,0,0,0.3)",
             }}
           >
@@ -205,17 +248,17 @@ export default function PerfilPage() {
             <div className="relative flex items-start justify-between gap-3">
               <div className="flex items-center gap-3.5 min-w-0">
                 <div className="relative w-[70px] h-[70px] rounded-2xl bg-[#B1EB0B] text-[#0E141B] flex items-center justify-center text-[22px] font-black shadow-[0_12px_24px_rgba(177,235,11,0.35)]">
-                  {ready ? initials : "…"}
-                  <span className="absolute -right-1 -bottom-1 w-6 h-6 rounded-full flex items-center justify-center border border-[#B1EB0B] bg-[#101010]">
-                    <Trophy className="w-3 h-3" style={{ color: "#B1EB0B" }} />
+                  {sessionLoading ? <SkeletonBlock className="h-7 w-8 bg-black/15" /> : initials}
+                  <span className="absolute -right-1 -bottom-1 w-6 h-6 rounded-full flex items-center justify-center border border-[#B1EB0B] bg-[#111111]">
+                    <Trophy className="w-3 h-3" style={{ color: GREEN }} />
                   </span>
                 </div>
                 <div className="min-w-0">
                   <p className="text-[30px] sm:text-[32px] font-black text-white leading-[0.95] truncate">
-                    {ready ? displayName : "Carregando…"}
+                    {sessionLoading ? <SkeletonBlock className="h-8 w-44" /> : displayName}
                   </p>
                   <p className="text-[13px] mt-1 truncate" style={{ color: "rgba(255,255,255,0.62)" }}>
-                    {ready && user ? user.email : " "}
+                    {sessionLoading ? <SkeletonBlock className="h-4 w-52" /> : user?.email}
                   </p>
                 </div>
               </div>
@@ -223,15 +266,15 @@ export default function PerfilPage() {
               <div className="flex flex-col items-end gap-1.5 shrink-0">
                 <span
                   className="px-3 py-1 rounded-lg text-[11px] font-black border"
-                  style={{ background: "rgba(177,235,11,0.12)", borderColor: "rgba(177,235,11,0.38)", color: "#B1EB0B" }}
+                  style={{ background: "rgba(177,235,11,0.12)", borderColor: "rgba(177,235,11,0.38)", color: GREEN }}
                 >
-                  Afiliado: {nivelAfiliado}
+                  {affiliateLoading ? <SkeletonBlock className="h-3 w-20" /> : `Afiliado: ${nivelAfiliado}`}
                 </span>
                 <span
                   className="px-3 py-1 rounded-lg text-[11px] font-black border"
-                  style={{ background: "rgba(217,255,89,0.08)", borderColor: "rgba(177,235,11,0.28)", color: "#E8FF8A" }}
+                  style={{ background: "rgba(177,235,11,0.08)", borderColor: "rgba(177,235,11,0.28)", color: GREEN_LIGHT }}
                 >
-                  {affiliate ? `${affiliate.paidReferralsCount} ind. pagas` : "—"}
+                  {affiliateLoading ? <SkeletonBlock className="h-3 w-16" /> : affiliate ? `${affiliate.paidReferralsCount} ind. pagas` : "—"}
                 </span>
               </div>
             </div>
@@ -239,21 +282,25 @@ export default function PerfilPage() {
             <div className="relative mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
               {[
                 { label: "Palpites", value: String(resumo?.palpites ?? "—"), color: "white" },
-                { label: "Acertos", value: String(resumo?.acertos ?? "—"), color: "#22C55E" },
-                { label: "Pontos", value: String(resumo?.pontos ?? "—"), color: "#FACC15" },
-                { label: "Melhor bolão", value: bestTicketPts != null ? `${bestTicketPts} pts` : "—", color: "#E8FF8A" },
+                { label: "Acertos", value: String(resumo?.acertos ?? "—"), color: GREEN_SOFT },
+                { label: "Pontos", value: String(resumo?.pontos ?? "—"), color: GREEN },
+                { label: "Melhor bolão", value: bestTicketPts != null ? `${bestTicketPts} pts` : "—", color: GREEN_LIGHT },
               ].map((item) => (
                 <div
                   key={item.label}
                   className="rounded-xl px-3 py-2.5 border"
                   style={{
-                    borderColor: "rgba(255,255,255,0.1)",
+                    borderColor: BORDER,
                     background: "rgba(255,255,255,0.03)",
                   }}
                 >
-                  <p className="text-[26px] leading-none font-black" style={{ color: item.color }}>
-                    {item.value}
-                  </p>
+                  {statsLoading ? (
+                    <SkeletonBlock className="h-7 w-14" />
+                  ) : (
+                    <p className="text-[26px] leading-none font-black" style={{ color: item.color }}>
+                      {item.value}
+                    </p>
+                  )}
                   <p className="text-[11px] mt-1 uppercase tracking-[0.08em]" style={{ color: "rgba(255,255,255,0.48)" }}>
                     {item.label}
                   </p>
@@ -264,7 +311,7 @@ export default function PerfilPage() {
 
           <section
             className="rounded-2xl border overflow-hidden"
-            style={{ borderColor: "rgba(255,255,255,0.08)", background: "linear-gradient(180deg, #0D1628 0%, #101010 100%)" }}
+            style={{ borderColor: BORDER, background: CARD_ALT }}
           >
             <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
               <h2 className="text-[22px] font-black text-white">Últimos Palpites</h2>
@@ -282,7 +329,25 @@ export default function PerfilPage() {
               <span className="text-right">Pontos</span>
             </div>
             <div className="px-3 py-2">
-              {recentPicks.length === 0 && ready ? (
+              {profileDataLoading ? (
+                <div className="space-y-2 py-2">
+                  {Array.from({ length: 4 }).map((_, index) => (
+                    <div
+                      key={index}
+                      className="grid grid-cols-[24px_1fr_auto_auto] items-center gap-3 px-2 py-2.5 border-b last:border-b-0"
+                      style={{ borderColor: "rgba(255,255,255,0.06)" }}
+                    >
+                      <SkeletonBlock className="h-4 w-4 rounded-full" />
+                      <div className="space-y-1.5">
+                        <SkeletonBlock className="h-4 w-40" />
+                        <SkeletonBlock className="hidden h-3 w-56 lg:block" />
+                      </div>
+                      <SkeletonBlock className="h-4 w-8" />
+                      <SkeletonBlock className="h-4 w-8" />
+                    </div>
+                  ))}
+                </div>
+              ) : recentPicks.length === 0 && ready ? (
                 <p className="text-center text-sm py-8" style={{ color: "rgba(255,255,255,0.35)" }}>
                   Nenhum palpite recente.{" "}
                   <Link href="/boloes" className="font-bold underline" style={{ color: "#B1EB0B" }}>
@@ -290,7 +355,7 @@ export default function PerfilPage() {
                   </Link>
                 </p>
               ) : null}
-              {recentPicks.map((pick) => (
+              {!profileDataLoading && recentPicks.map((pick) => (
                 <div
                   key={pick.id}
                   className="grid grid-cols-[24px_1fr_auto_auto] lg:grid-cols-[24px_1fr_120px_120px_120px] items-center gap-3 px-2 lg:px-3 py-2.5 border-b border-l-2 last:border-b-0"
@@ -349,34 +414,43 @@ export default function PerfilPage() {
               className="hidden lg:flex items-center justify-between px-4 py-2.5 border-t"
               style={{ borderColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.42)" }}
             >
-              <div className="flex items-center gap-4 text-[12px]">
-                <span>
-                  <span style={{ color: "#22C55E" }}>●</span> {pickSummary.hits} acertos
-                </span>
-                <span>
-                  <span style={{ color: "#EF4444" }}>●</span> {pickSummary.miss} erros
-                </span>
-                <span>
-                  Taxa: <span style={{ color: "#B1EB0B", fontWeight: 700 }}>{pickSummary.rate}%</span>
-                </span>
-              </div>
-              <p className="text-[12px]">
-                Total: <span style={{ color: "#E8FF8A", fontWeight: 700 }}>{pickSummary.totalPts >= 0 ? "+" : ""}{pickSummary.totalPts} pts</span>
-              </p>
+              {profileDataLoading ? (
+                <>
+                  <SkeletonBlock className="h-4 w-72" />
+                  <SkeletonBlock className="h-4 w-24" />
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center gap-4 text-[12px]">
+                    <span>
+                      <span style={{ color: "#22C55E" }}>●</span> {pickSummary.hits} acertos
+                    </span>
+                    <span>
+                      <span style={{ color: "#EF4444" }}>●</span> {pickSummary.miss} erros
+                    </span>
+                    <span>
+                      Taxa: <span style={{ color: "#B1EB0B", fontWeight: 700 }}>{pickSummary.rate}%</span>
+                    </span>
+                  </div>
+                  <p className="text-[12px]">
+                    Total: <span style={{ color: "#E8FF8A", fontWeight: 700 }}>{pickSummary.totalPts >= 0 ? "+" : ""}{pickSummary.totalPts} pts</span>
+                  </p>
+                </>
+              )}
             </div>
           </section>
 
           <section
             className="rounded-2xl border p-3 lg:p-4"
-            style={{ borderColor: "rgba(255,255,255,0.08)", background: "linear-gradient(180deg, rgba(11,16,29,0.94) 0%, rgba(9,14,25,0.95) 100%)" }}
+            style={{ borderColor: BORDER, background: CARD }}
           >
             <div className="flex items-center justify-between mb-3">
               <SectionHeader title="Conquistas" />
               <span
                 className="px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-[0.08em]"
-                style={{ color: "#22C55E", background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.28)" }}
+                style={{ color: GREEN, background: "rgba(177,235,11,0.12)", border: "1px solid rgba(177,235,11,0.28)" }}
               >
-                {achievements.filter((a) => a.status === "obtida").length} / {achievements.length} desbloqueadas
+                {statsLoading ? <SkeletonBlock className="h-3 w-24" /> : `${achievements.filter((a) => a.status === "obtida").length} / ${achievements.length} desbloqueadas`}
               </span>
             </div>
 
@@ -384,14 +458,27 @@ export default function PerfilPage() {
               <div
                 className="h-full rounded-full transition-all"
                 style={{
-                  width: `${achievements.length ? (achievements.filter((a) => a.status === "obtida").length / achievements.length) * 100 : 0}%`,
+                  width: statsLoading ? "18%" : `${achievements.length ? (achievements.filter((a) => a.status === "obtida").length / achievements.length) * 100 : 0}%`,
                   background: "linear-gradient(90deg, #B1EB0B, #E8FF8A)",
                 }}
               />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2.5">
-              {achievements.map((badge) => (
+              {statsLoading ? Array.from({ length: 6 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="rounded-xl border p-3"
+                  style={{ borderColor: "rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.02)" }}
+                >
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <SkeletonBlock className="h-10 w-10 rounded-xl" />
+                    <SkeletonBlock className="h-5 w-16" />
+                  </div>
+                  <SkeletonBlock className="h-4 w-28" />
+                  <SkeletonBlock className="mt-2 h-3 w-full" />
+                </div>
+              )) : achievements.map((badge) => (
                 <div
                   key={badge.label}
                   className="rounded-xl border p-3"
@@ -399,8 +486,8 @@ export default function PerfilPage() {
                     borderColor: badge.status === "bloqueada" ? "rgba(255,255,255,0.08)" : "rgba(177,235,11,0.28)",
                     background:
                       badge.status === "bloqueada"
-                        ? "linear-gradient(180deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.01) 100%)"
-                        : "linear-gradient(180deg, rgba(14,20,35,0.96) 0%, rgba(9,14,25,0.96) 100%)",
+                        ? "rgba(255,255,255,0.02)"
+                        : CARD_ALT,
                     opacity: badge.status === "bloqueada" ? 0.65 : 1,
                   }}
                 >
@@ -417,9 +504,9 @@ export default function PerfilPage() {
                     <span
                       className="px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-[0.08em]"
                       style={{
-                        color: badge.status === "bloqueada" ? "rgba(255,255,255,0.55)" : "#86EFAC",
-                        background: badge.status === "bloqueada" ? "rgba(255,255,255,0.06)" : "rgba(34,197,94,0.14)",
-                        border: badge.status === "bloqueada" ? "1px solid rgba(255,255,255,0.12)" : "1px solid rgba(34,197,94,0.3)",
+                        color: badge.status === "bloqueada" ? "rgba(255,255,255,0.55)" : GREEN,
+                        background: badge.status === "bloqueada" ? "rgba(255,255,255,0.06)" : "rgba(177,235,11,0.14)",
+                        border: badge.status === "bloqueada" ? "1px solid rgba(255,255,255,0.12)" : "1px solid rgba(177,235,11,0.3)",
                       }}
                     >
                       {badge.status === "bloqueada" ? "Bloqueada" : "Obtida"}
@@ -438,19 +525,30 @@ export default function PerfilPage() {
         <aside className="space-y-4 lg:space-y-5 lg:sticky lg:top-20">
           <section
             className="rounded-2xl border p-4"
-            style={{ borderColor: "rgba(255,255,255,0.08)", background: "rgba(10,14,25,0.96)" }}
+            style={{ borderColor: BORDER, background: CARD }}
           >
             <SectionHeader title="Nível & Progresso" />
             <div className="mt-3">
-              <p className="text-sm font-bold text-white">{nivelAfiliado}</p>
-              <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.5)" }}>
-                {affiliate ? `${affiliate.paidReferralsCount} indicações pagas · próx.: ${(affiliate.nextRewardCents / 100).toFixed(2).replace(".", ",")}` : "Programa de indicação"}
-              </p>
+              {affiliateLoading ? (
+                <>
+                  <SkeletonBlock className="h-4 w-28" />
+                  <SkeletonBlock className="mt-2 h-3 w-full" />
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-bold text-white">{nivelAfiliado}</p>
+                  <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.5)" }}>
+                    {affiliate ? `${affiliate.paidReferralsCount} indicações pagas · próx.: ${(affiliate.nextRewardCents / 100).toFixed(2).replace(".", ",")}` : "Programa de indicação"}
+                  </p>
+                </>
+              )}
               <div className="mt-3 h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.08)" }}>
-                <div className="h-full rounded-full transition-all" style={{ width: `${progressPct}%`, background: "linear-gradient(90deg, #B1EB0B, #E8FF8A)" }} />
+                <div className="h-full rounded-full transition-all" style={{ width: affiliateLoading ? "20%" : `${progressPct}%`, background: "linear-gradient(90deg, #B1EB0B, #E8FF8A)" }} />
               </div>
               <p className="mt-2 text-[11px]" style={{ color: "rgba(255,255,255,0.42)" }}>
-                {affiliate
+                {affiliateLoading
+                  ? "Carregando progresso..."
+                  : affiliate
                   ? `${affiliate.paidReferralsCount}/${metaIndicacoes} até meta Diamante (config.)`
                   : "Carregue a página com sessão para ver progresso."}
               </p>
@@ -468,8 +566,8 @@ export default function PerfilPage() {
                     href={item.href}
                     className="rounded-xl border p-3 lg:p-4 transition-all duration-200 hover:-translate-y-px text-center min-h-[108px] flex flex-col items-center justify-center"
                     style={{
-                      borderColor: "rgba(255,255,255,0.1)",
-                      background: "linear-gradient(180deg, rgba(11,17,30,0.96) 0%, rgba(8,12,22,0.96) 100%)",
+                      borderColor: BORDER,
+                      background: CARD,
                     }}
                   >
                     <div className="flex flex-col items-center gap-2">
@@ -481,7 +579,7 @@ export default function PerfilPage() {
                       </span>
                       <p className="text-[12px] font-bold text-white leading-tight">{item.label}</p>
                       <p className="text-[10px] leading-tight" style={{ color: "rgba(255,255,255,0.58)" }}>
-                        {item.value}
+                        {overviewLoading ? <SkeletonBlock className="mx-auto h-3 w-16" /> : item.value}
                       </p>
                     </div>
                   </Link>
@@ -492,7 +590,7 @@ export default function PerfilPage() {
 
           <section
             className="rounded-2xl border overflow-hidden"
-            style={{ borderColor: "rgba(255,255,255,0.08)", background: "rgba(9,14,26,0.96)" }}
+            style={{ borderColor: BORDER, background: CARD }}
           >
             <h2 className="px-4 py-3 border-b text-[18px] font-black text-white" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
               Configurações
@@ -525,6 +623,7 @@ export default function PerfilPage() {
 
           <LogoutAccountButton />
         </aside>
+      </div>
       </div>
     </div>
   );

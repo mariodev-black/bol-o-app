@@ -80,8 +80,8 @@ const SOCIAL_LINKS = [
 ] as const;
 
 const APOSTE_LINKS = [
-  { label: "Como Participar",  href: "/#como-participar" },
-  { label: "Comprar Ticket",   href: "/cadastrar" },
+  { label: "Como Participar",  href: "/#como-funciona" },
+  { label: "Comprar Ticket",   href: "/login?from=/tickets" },
   { label: "Meus Bolões",      href: "/boloes" },
   { label: "Ranking",          href: "/ranking" },
 ];
