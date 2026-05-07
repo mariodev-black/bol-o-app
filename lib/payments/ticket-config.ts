@@ -15,7 +15,7 @@ export function getTicketPriceCents(type: TicketType): number {
   if (type === "daily") {
     return parsePositiveInt(env("TICKET_PRICE_DAILY_CENTS"), 2000);
   }
-  return parsePositiveInt(env("TICKET_PRICE_GENERAL_CENTS"), 4990);
+  return parsePositiveInt(env("TICKET_PRICE_GENERAL_CENTS"), 3990);
 }
 
 export function getExtraTicketPriceCents(): number {

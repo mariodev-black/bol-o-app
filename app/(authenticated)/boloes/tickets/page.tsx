@@ -65,7 +65,7 @@ const TICKETS = {
     {
       id: "CP-2026-001",
       label: "Ticket Copa #001",
-      value: "R$ 49,00",
+      value: "R$ 39,90",
       valid: "Válido até a final",
       status: "active",
       statusLabel: "Ativo e elegível",
@@ -79,7 +79,7 @@ const TICKETS = {
     {
       id: "CP-2026-002",
       label: "Ticket Copa #002",
-      value: "R$ 49,00",
+      value: "R$ 39,90",
       valid: "Válido até a final",
       status: "active",
       statusLabel: "Ativo e elegível",

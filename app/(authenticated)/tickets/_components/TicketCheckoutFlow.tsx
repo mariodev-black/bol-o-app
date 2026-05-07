@@ -22,7 +22,7 @@ import { appendTicketsFromPurchase } from "../lib/ownedTicketsStorage";
 const GOLD = "#B1EB0B";
 const GOLD_LIGHT = "#E8FF8A";
 const CARD = "#101010";
-const DEFAULT_PRINCIPAL_CENTS = 4990;
+const DEFAULT_PRINCIPAL_CENTS = 3990;
 const DEFAULT_DIARIO_CENTS = 2000;
 const DEFAULT_EXTRA_CENTS = 3990;
 const RESERVATION_WINDOW_MS = 10 * 60 * 1000;

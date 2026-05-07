@@ -7,8 +7,8 @@ import { TicketCheckoutFlow } from "./_components/TicketCheckoutFlow";
 function TicketsPageContent() {
   const search = useSearchParams();
   const bolao = search.get("bolao") === "diario" ? "diario" : "principal";
-  const initialPrincipalQty = bolao === "diario" ? 0 : 1;
-  const initialDiarioQty = bolao === "diario" ? 1 : 0;
+  const initialPrincipalQty = 0;
+  const initialDiarioQty = 0;
 
   return (
     <div className="min-h-screen flex flex-col">

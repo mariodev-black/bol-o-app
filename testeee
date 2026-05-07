@@ -38,7 +38,7 @@ GOOGLE_CLIENT_SECRET=
 
 # ─── Ticket / Deposito (PIX - Skale) ─────────────────────────────────────────
 # Preco em centavos
-TICKET_PRICE_GENERAL_CENTS=5000
+TICKET_PRICE_GENERAL_CENTS=3990
 TICKET_PRICE_DAILY_CENTS=2500
 
 # Gateway
