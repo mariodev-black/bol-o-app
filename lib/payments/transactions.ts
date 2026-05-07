@@ -246,6 +246,9 @@ export async function updateTransactionStatusByProviderId(input: {
 }): Promise<{ transactionId: string; userId: string; status: string; pixQrcode: string | null; providerTransactionId: string } | null> {
   const pool = getPool();
   const safeStatus = String(input.status || "").trim() || "unknown";
+  const providerTransactionId = input.providerTransactionId.trim();
+  const pixEnd2EndId = input.pixEnd2EndId?.trim() || null;
+  const pixQrcode = input.pixQrcode?.trim() || null;
 
   const updateTx = await pool.query<{ id: string; user_id: string; ticket_id: string; external_ref: string; pix_qrcode: string | null; provider_transaction_id: string }>(
     `UPDATE transactions
@@ -254,19 +257,30 @@ export async function updateTransactionStatusByProviderId(input: {
          pix_end2end_id = COALESCE($4, pix_end2end_id),
          raw_webhook = COALESCE($5::jsonb, raw_webhook),
          updated_at = now()
-     WHERE provider_transaction_id = $1 OR id::text = $1
+     WHERE provider_transaction_id = $1
+        OR id::text = $1
+        OR ($4::text IS NOT NULL AND pix_end2end_id = $4)
+        OR ($3::text IS NOT NULL AND pix_qrcode = $3)
      RETURNING id, user_id, ticket_id, external_ref, pix_qrcode, provider_transaction_id`,
     [
-      input.providerTransactionId,
+      providerTransactionId,
       safeStatus,
-      input.pixQrcode ?? null,
-      input.pixEnd2EndId ?? null,
+      pixQrcode,
+      pixEnd2EndId,
       input.rawWebhook ? JSON.stringify(input.rawWebhook) : null,
     ]
   );
 
   const row = updateTx.rows[0];
-  if (!row?.ticket_id) return null;
+  if (!row?.ticket_id) {
+    console.error("[skale/webhook] transaction not found", {
+      providerTransactionId,
+      pixEnd2EndId,
+      hasPixQrcode: Boolean(pixQrcode),
+      status: safeStatus,
+    });
+    return null;
+  }
 
   const ticketStatus =
     safeStatus === "paid" || safeStatus === "approved"
@@ -277,14 +291,24 @@ export async function updateTransactionStatusByProviderId(input: {
           ? "expired"
           : "pending_payment";
 
-  await pool.query(
+  const updatedTickets = await pool.query<{ id: string }>(
     `UPDATE tickets
      SET status = $2,
          paid_at = CASE WHEN $2 = 'paid' THEN COALESCE(paid_at, now()) ELSE paid_at END,
          updated_at = now()
-     WHERE external_ref = $1`,
+     WHERE external_ref = $1
+     RETURNING id`,
     [row.external_ref, ticketStatus]
   );
+
+  console.error("[skale/webhook] transaction processed", {
+    transactionId: row.id,
+    providerTransactionId: row.provider_transaction_id,
+    externalRef: row.external_ref,
+    incomingStatus: safeStatus,
+    ticketStatus,
+    updatedTickets: updatedTickets.rowCount ?? updatedTickets.rows.length,
+  });
 
   if (ticketStatus === "paid") {
     try {

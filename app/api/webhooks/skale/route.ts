@@ -78,13 +78,30 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Payload sem id/status" }, { status: 400 });
   }
 
-  await updateTransactionStatusByProviderId({
+  console.error("[skale/webhook] received", {
+    providerTransactionId,
+    status,
+    hasPixQrcode: Boolean(pickPixQrcode(json)),
+    pixEnd2EndId: pickPixEnd2EndId(json),
+  });
+
+  const processed = await updateTransactionStatusByProviderId({
     providerTransactionId,
     status,
     pixQrcode: pickPixQrcode(json),
     pixEnd2EndId: pickPixEnd2EndId(json),
     rawWebhook: json,
   });
+  if (!processed) {
+    return NextResponse.json(
+      {
+        error: "Transacao nao encontrada para processar webhook",
+        providerTransactionId,
+        status,
+      },
+      { status: 404 }
+    );
+  }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, transactionId: processed.transactionId, status: processed.status });
 }

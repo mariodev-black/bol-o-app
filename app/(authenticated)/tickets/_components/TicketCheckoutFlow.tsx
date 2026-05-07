@@ -63,6 +63,12 @@ type DepositTransaction = {
   createdAt: string;
 };
 
+type TransactionUpdatePayload = {
+  status?: string;
+  pixQrcode?: string | null;
+  providerTransactionId?: string | null;
+};
+
 type TicketCheckoutFlowProps = {
   initialPrincipalQty: number;
   initialDiarioQty: number;
@@ -90,6 +96,29 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
   const paidHandledRef = useRef(false);
   const purchasePrincipalRef = useRef(0);
   const purchaseDiarioRef = useRef(0);
+
+  const handleTransactionUpdate = useCallback(
+    (payload: TransactionUpdatePayload) => {
+      if (payload.status) setTxStatus(payload.status);
+      if (payload.pixQrcode) setPixPayload(payload.pixQrcode);
+      if (payload.providerTransactionId) setOrderRef(payload.providerTransactionId);
+      if (
+        transactionId &&
+        (payload.status === "paid" || payload.status === "approved") &&
+        !paidHandledRef.current
+      ) {
+        paidHandledRef.current = true;
+        appendTicketsFromPurchase(purchasePrincipalRef.current, purchaseDiarioRef.current);
+        const q = new URLSearchParams({
+          tx: transactionId,
+          principal: String(purchasePrincipalRef.current),
+          diario: String(purchaseDiarioRef.current),
+        });
+        router.replace(`/tickets/obrigado?${q.toString()}`);
+      }
+    },
+    [router, transactionId]
+  );
 
   useEffect(() => {
     if (step === "generating" || step === "pix") {
@@ -131,25 +160,43 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
           pixQrcode?: string | null;
           providerTransactionId?: string | null;
         };
-        if (payload.status) setTxStatus(payload.status);
-        if (payload.pixQrcode) setPixPayload(payload.pixQrcode);
-        if (payload.providerTransactionId) setOrderRef(payload.providerTransactionId);
-        if ((payload.status === "paid" || payload.status === "approved") && !paidHandledRef.current) {
-          paidHandledRef.current = true;
-          appendTicketsFromPurchase(purchasePrincipalRef.current, purchaseDiarioRef.current);
-          const q = new URLSearchParams({
-            tx: transactionId,
-            principal: String(purchasePrincipalRef.current),
-            diario: String(purchaseDiarioRef.current),
-          });
-          router.replace(`/tickets/obrigado?${q.toString()}`);
-        }
+        handleTransactionUpdate(payload);
       } catch {
         // ignora payload invalido
       }
     });
     return () => es.close();
-  }, [step, transactionId, router]);
+  }, [step, transactionId, handleTransactionUpdate]);
+
+  useEffect(() => {
+    if (step !== "pix" || !transactionId) return;
+    let cancelled = false;
+
+    async function pollTransaction() {
+      try {
+        const r = await fetch(`/api/deposits/transactions/${transactionId}`, {
+          credentials: "include",
+          cache: "no-store",
+        });
+        const data = (await r.json()) as { transaction?: DepositTransaction };
+        if (cancelled || !r.ok || !data.transaction) return;
+        handleTransactionUpdate({
+          status: data.transaction.status,
+          pixQrcode: data.transaction.pixQrcode,
+          providerTransactionId: data.transaction.providerTransactionId,
+        });
+      } catch {
+        // Mantem o SSE como canal principal e tenta novamente no proximo ciclo.
+      }
+    }
+
+    void pollTransaction();
+    const id = window.setInterval(pollTransaction, 4000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [step, transactionId, handleTransactionUpdate]);
 
   const mainSelected = principalQty >= 1;
   const extraSelected = principalQty >= 2;
