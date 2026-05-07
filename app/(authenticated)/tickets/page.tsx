@@ -7,7 +7,7 @@ import { TicketCheckoutFlow } from "./_components/TicketCheckoutFlow";
 function TicketsPageContent() {
   const search = useSearchParams();
   const bolao = search.get("bolao") === "diario" ? "diario" : "principal";
-  const initialPrincipalQty = 0;
+  const initialPrincipalQty = 1;
   const initialDiarioQty = 0;
 
   return (

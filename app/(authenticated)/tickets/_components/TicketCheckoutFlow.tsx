@@ -231,24 +231,24 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
           {step === "shop" && (
             <div className="space-y-[18px]">
               <div
-                className="flex items-center justify-between gap-3 rounded-[13px] border px-4 py-3 shadow-[0_0_26px_rgba(194,48,12,0.18)]"
+                className="flex items-center justify-between gap-3 rounded-[13px] border px-4 py-3 shadow-[0_0_26px_rgba(249,115,22,0.18)]"
                 style={{
-                  background: "linear-gradient(180deg, rgba(91,23,13,0.58) 0%, rgba(21,13,10,0.94) 100%)",
-                  borderColor: "rgba(255,80,42,0.36)",
+                  background: "linear-gradient(180deg, rgba(120,53,15,0.58) 0%, rgba(29,18,8,0.94) 100%)",
+                  borderColor: "rgba(249,115,22,0.42)",
                 }}
               >
                 <div className="flex min-w-0 items-center gap-3">
-                  <Flame className="size-[18px] shrink-0 text-[#F55B32]" strokeWidth={2.2} />
+                  <Flame className="size-[18px] shrink-0 text-[#FB923C]" strokeWidth={2.2} />
                   <div className="min-w-0">
                     <p className="text-[13px] font-black uppercase leading-none tracking-[-0.02em] text-white">
                       Cotas sendo reservadas agora!
                     </p>
-                    <p className="mt-1 text-[10px] font-bold leading-none text-[#E89B85]">
+                    <p className="mt-1 text-[10px] font-bold leading-none text-[#FDBA74]">
                       Sua reserva expira em:
                     </p>
                   </div>
                 </div>
-                <div className="rounded-[9px] bg-[#D82A0B] px-3.5 py-2 shadow-[0_10px_28px_rgba(216,42,11,0.4)]">
+                <div className="rounded-[9px] bg-[#F97316] px-3.5 py-2 shadow-[0_10px_28px_rgba(249,115,22,0.42)]">
                   <span className="font-mono text-[24px] font-black leading-none tracking-[-0.08em] text-white">
                     {formatCountdown(reservationSecondsLeft)}
                   </span>
