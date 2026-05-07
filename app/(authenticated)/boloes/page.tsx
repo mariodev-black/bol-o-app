@@ -22,7 +22,7 @@ type TicketMetrics = {
   points: number;
 };
 
-type ActiveDailyStatus = BoloesScreenData["active"]["diario"] extends { status: infer T } ? T : never;
+type ActiveDailyStatus = NonNullable<BoloesScreenData["active"]["diario"]>["status"];
 
 function debugBoloes(label: string, payload: unknown) {
   console.error(`[boloes/debug] ${label}`, JSON.stringify(payload, null, 2));

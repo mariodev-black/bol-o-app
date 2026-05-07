@@ -1,5 +1,6 @@
 import { NavBottom } from "@/app/shared/NavBottom";
 import { Header } from "../shared/Header";
+import { Suspense } from "react";
 
 export default function AuthenticatedLayout({
   children,
@@ -12,7 +13,9 @@ export default function AuthenticatedLayout({
       <div className="flex flex-1 pt-24 md:pt-16">
         <main className="flex flex-1 flex-col pb-24 md:pb-8 min-w-0">{children}</main>
       </div>
-      <NavBottom />
+      <Suspense fallback={null}>
+        <NavBottom />
+      </Suspense>
     </div>
   );
 }

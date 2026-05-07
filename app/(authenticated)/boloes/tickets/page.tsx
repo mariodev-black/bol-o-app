@@ -1,10 +1,11 @@
 "use client";
 
-import { Suspense, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, BarChart2, ChevronDown } from "lucide-react";
 import { StepsBreadcrumb } from "../_components/StepsBreadcrumb";
+
+export const dynamic = "force-dynamic";
 
 const GOLD = "#B1EB0B";
 const GOLD_LIGHT = "#E8FF8A";
@@ -187,8 +188,12 @@ function TicketSideNotches({ tone = "gold" as "gold" | "red" }) {
 }
 
 function TicketsBoloesPageContent() {
-  const search = useSearchParams();
-  const bolao = search.get("bolao") === "diario" ? "diario" : "principal";
+  const [bolao, setBolao] = useState<"principal" | "diario">("principal");
+
+  useEffect(() => {
+    setBolao(new URLSearchParams(window.location.search).get("bolao") === "diario" ? "diario" : "principal");
+  }, []);
+
   const tickets = TICKETS[bolao];
   const [detailsOpen, setDetailsOpen] = useState<Record<string, boolean>>({});
   const title = bolao === "principal" ? "Bolão Principal" : "Bolão Diário";

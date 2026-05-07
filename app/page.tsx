@@ -23,6 +23,7 @@ import { WhyParticipateSection } from "@/app/components/WhyParticipateSection";
 import { PrizesTestimonialsSection } from "@/app/components/PrizesTestimonialsSection";
 import { CopaCtaBandSection } from "@/app/components/CopaCtaBandSection";
 import { TicketPurchaseLink } from "@/app/shared/TicketPurchaseLink";
+import { Suspense } from "react";
 
 const HERO_STATS = [
   {
@@ -370,7 +371,9 @@ export default function HomePage() {
       <PrizesTestimonialsSection />
       <CopaCtaBandSection />
       <Footer />
-      <NavBottom />
+      <Suspense fallback={null}>
+        <NavBottom />
+      </Suspense>
     </HomePageContainer>
   );
 }
