@@ -212,12 +212,12 @@ function CountrySelector({ selected, onChange }: { selected: Country; onChange: 
         type="button"
         onClick={() => { setOpen(!open); setQuery(""); }}
         style={{
-          height: 52, padding: "0 12px", borderRadius: 8,
+          height: 44, padding: "0 12px", borderRadius: 9,
           background: "#050505",
           border: open ? "1px solid rgba(177,235,11,0.55)" : "1px solid rgba(255,255,255,0.08)",
           display: "flex", alignItems: "center", gap: 8, cursor: "pointer",
           color: "rgba(255,255,255,0.85)", fontSize: 14, fontWeight: 600,
-          whiteSpace: "nowrap", transition: "border-color 0.15s",
+          whiteSpace: "nowrap", transition: "border-color 0.15s", boxSizing: "border-box",
         }}
       >
         <Flag iso={selected.iso} />
@@ -477,7 +477,7 @@ export function CadastrarContent() {
         </p>
       )}
 
-      <div className="rounded-[16px] border border-white/8 bg-[#151515] p-[22px] shadow-[0_18px_42px_rgba(0,0,0,0.28)]">
+      <div className="min-h-[206px] rounded-[16px] border border-white/8 bg-[#151515] p-[22px] shadow-[0_18px_42px_rgba(0,0,0,0.28)]">
         {step === 1 && (
           <div className="flex flex-col gap-[18px]">
             <div className="flex flex-col gap-[10px]">
@@ -579,9 +579,9 @@ export function CadastrarContent() {
 
             <div className="flex flex-col gap-[10px]">
               <label className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">Telefone</label>
-              <div className="flex gap-2">
+              <div className="flex w-full gap-2">
                 <CountrySelector selected={country} onChange={handleCountryChange} />
-                <div className="relative flex-1">
+                <div className="relative min-w-0 flex-1">
                   <Phone className="pointer-events-none absolute left-[17px] top-1/2 h-[15px] w-[15px] -translate-y-1/2 text-white/32" />
                   <input
                     className="auth-input"
