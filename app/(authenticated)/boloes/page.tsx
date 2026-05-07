@@ -22,6 +22,8 @@ type TicketMetrics = {
   points: number;
 };
 
+type ActiveDailyStatus = BoloesScreenData["active"]["diario"] extends { status: infer T } ? T : never;
+
 function debugBoloes(label: string, payload: unknown) {
   console.error(`[boloes/debug] ${label}`, JSON.stringify(payload, null, 2));
 }
@@ -283,7 +285,7 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
     const date = ticket.playDate || playableDate;
     const dateMatches = Array.from(matches.values()).filter((match) => match.dateBR === date);
     const closeAt = nextLockMs(dateMatches.filter((match) => isOpenMatch(match)));
-    const status = ticket.dailyStatus === "usado" ? "usado" : ticket.dailyStatus === "em_uso" ? "ativo" : "aguardando";
+    const status: ActiveDailyStatus = ticket.dailyStatus === "usado" ? "usado" : ticket.dailyStatus === "em_uso" ? "ativo" : "aguardando";
     return {
       id: ticket.id,
       type: "diario",
@@ -325,7 +327,7 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
           const date = firstDaily.playDate || playableDate;
           const dateMatches = Array.from(matches.values()).filter((match) => match.dateBR === date);
           const closeAt = nextLockMs(dateMatches.filter((match) => isOpenMatch(match)));
-          const status = firstDaily.dailyStatus === "usado" ? "usado" : firstDaily.dailyStatus === "em_uso" ? "ativo" : "aguardando";
+          const status: ActiveDailyStatus = firstDaily.dailyStatus === "usado" ? "usado" : firstDaily.dailyStatus === "em_uso" ? "ativo" : "aguardando";
           return {
             id: firstDaily.id,
             title: "Bolão do Dia",
