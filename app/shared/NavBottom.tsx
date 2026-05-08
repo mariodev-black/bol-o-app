@@ -18,7 +18,7 @@ const BOTTOM_ITEMS_PROFILE = [
   { label: "Início", href: "/", icon: homeIcon, iconSize: 21 },
   { label: "Afiliado", href: "/indique", icon: afiliadoIcon, iconSize: 22 },
   { label: "Meus Bolões", href: "/boloes", icon: myBoloesIcon, iconSize: 25 },
-  { label: "Ranking", href: "/meus-palpites", icon: rankingIcon, iconSize: 21 },
+  { label: "Ranking", href: "/ranking", icon: rankingIcon, iconSize: 21 },
   { label: "Perfil", href: "/perfil", icon: profileIcon, iconSize: 21 },
 ] as const;
 
@@ -26,7 +26,7 @@ const BOTTOM_ITEMS_PUBLIC = [
   { label: "Início", href: "/", icon: homeIcon, iconSize: 21 },
   { label: "Afiliado", href: "/cadastrar?from=%2Findique", icon: afiliadoIcon, iconSize: 22 },
   { label: "Meus Bolões", href: "/boloes", icon: myBoloesIcon, iconSize: 25 },
-  { label: "Ranking", href: "/meus-palpites", icon: rankingIcon, iconSize: 21 },
+  { label: "Ranking", href: "/ranking", icon: rankingIcon, iconSize: 21 },
   { label: "Perfil", href: "/login", icon: profileIcon, iconSize: 21 },
 ] as const;
 
@@ -126,8 +126,8 @@ export function NavBottom() {
     if (baseHref === "/boloes") {
       return (normalizedPath.startsWith("/boloes") && !normalizedPath.startsWith("/boloes/tickets")) || normalizedPath.startsWith("/palpites");
     }
-    if (baseHref === "/meus-palpites") {
-      return normalizedPath.startsWith("/meus-palpites");
+    if (baseHref === "/ranking") {
+      return normalizedPath.startsWith("/ranking");
     }
     return normalizedPath === baseHref || normalizedPath.startsWith(`${baseHref}/`);
   };
