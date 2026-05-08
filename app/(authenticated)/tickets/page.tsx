@@ -7,16 +7,10 @@ import { TicketCheckoutFlow } from "./_components/TicketCheckoutFlow";
 function TicketsPageContent() {
   const search = useSearchParams();
   const bolao = search.get("bolao") === "diario" ? "diario" : "principal";
-  const initialPrincipalQty = 1;
-  const initialDiarioQty = 0;
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <TicketCheckoutFlow
-        key={bolao}
-        initialPrincipalQty={initialPrincipalQty}
-        initialDiarioQty={initialDiarioQty}
-      />
+    <div className="min-h-screen flex flex-col bg-black">
+      <TicketCheckoutFlow key={bolao} initialTicketKind={bolao === "diario" ? "daily" : "general"} />
     </div>
   );
 }

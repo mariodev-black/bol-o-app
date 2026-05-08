@@ -16,7 +16,7 @@ export default async function CadastrarPage(props: { searchParams?: Promise<{ fr
   const token = (await cookies()).get(sessionCookieName())?.value;
   if (token) {
     const userId = await verifySessionToken(token).catch(() => null);
-    if (userId) redirect(safeReturnPath(searchParams?.from) ?? "/boloes");
+    if (userId) redirect(safeReturnPath(searchParams?.from) ?? "/tickets");
   }
 
   return (

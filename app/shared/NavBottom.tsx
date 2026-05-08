@@ -24,7 +24,7 @@ const BOTTOM_ITEMS_PROFILE = [
 
 const BOTTOM_ITEMS_PUBLIC = [
   { label: "Início", href: "/", icon: homeIcon, iconSize: 21 },
-  { label: "Bolão do Dia", href: "/login?from=/tickets%3Fbolao%3Ddiario", icon: dailyIcon, iconSize: 22 },
+  { label: "Bolão do Dia", href: "/cadastrar?from=%2Ftickets%3Fbolao%3Ddiario", icon: dailyIcon, iconSize: 22 },
   { label: "Meus Bolões", href: "/boloes", icon: myBoloesIcon, iconSize: 25 },
   { label: "Ranking", href: "/meus-palpites", icon: rankingIcon, iconSize: 21 },
   { label: "Perfil", href: "/login", icon: profileIcon, iconSize: 21 },

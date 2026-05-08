@@ -283,11 +283,13 @@ export function CadastrarContent() {
   const searchParams = useSearchParams();
   const { refresh, applySessionUser } = useAuth();
   const [showPw, setShowPw]       = useState(false);
+  const [showPwConfirm, setShowPwConfirm] = useState(false);
   const [accepted, setAccepted]   = useState(false);
   const [fullName, setFullName]   = useState("");
   const [cpf, setCpf]             = useState("");
   const [email, setEmail]         = useState("");
   const [password, setPassword]   = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [phone, setPhone]         = useState("");
   const [country, setCountry]     = useState<Country>(COUNTRIES[0]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -296,6 +298,7 @@ export function CadastrarContent() {
   const [loading, setLoading]     = useState(false);
   const [step, setStep]           = useState(1);
   const emailRef = useRef<HTMLDivElement>(null);
+  const errorAlertRef = useRef<HTMLParagraphElement>(null);
 
   /** Código de indicação vindo só da URL (`/cadastrar?ref=...`) — enviado no body, sem campo no formulário. */
   const referralFromUrl = useMemo(() => {
@@ -327,6 +330,11 @@ export function CadastrarContent() {
     document.addEventListener("mousedown", outside);
     return () => document.removeEventListener("mousedown", outside);
   }, []);
+
+  useEffect(() => {
+    if (!error) return;
+    errorAlertRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [error]);
 
   function handleCountryChange(c: Country) {
     setCountry(c);
@@ -401,6 +409,11 @@ export function CadastrarContent() {
       setStep(3);
       return;
     }
+    if (password !== confirmPassword) {
+      setError("As senhas não coincidem. Digite a mesma senha nos dois campos.");
+      setStep(3);
+      return;
+    }
     const digits = phone.replace(/\D/g, "");
     const phoneFull = digits.length > 0 ? `${country.code}${digits}` : null;
 
@@ -420,13 +433,20 @@ export function CadastrarContent() {
           acceptTerms: true,
         }),
       });
-      const data = (await r.json()) as {
-        error?: string;
-        user?: AuthUser;
-        referralWarning?: string;
-      };
+      const raw = await r.text();
+      let data: { error?: string; user?: AuthUser; referralWarning?: string } = {};
+      try {
+        data = raw ? (JSON.parse(raw) as typeof data) : {};
+      } catch {
+        setError("Não foi possível ler a resposta do servidor. Tente novamente.");
+        return;
+      }
       if (!r.ok) {
-        setError(data.error ?? "Não foi possível criar a conta.");
+        setError(
+          typeof data.error === "string" && data.error.trim().length > 0
+            ? data.error
+            : "Não foi possível criar a conta."
+        );
         return;
       }
       if (data.user) {
@@ -438,7 +458,7 @@ export function CadastrarContent() {
         setNotice(data.referralWarning);
         await new Promise((resolve) => setTimeout(resolve, 2200));
       }
-      router.replace(safeReturnPath(fromParam) ?? "/boloes");
+      router.replace(safeReturnPath(fromParam) ?? "/tickets");
     } catch {
       setError("Erro de rede. Tente novamente.");
     } finally {
@@ -483,7 +503,12 @@ export function CadastrarContent() {
       </div>
 
       {error && (
-        <p role="alert" className="mb-4 rounded-[8px] border border-red-400/25 bg-red-950/25 px-3.5 py-3 text-[13px] font-semibold text-red-200">
+        <p
+          ref={errorAlertRef}
+          role="alert"
+          aria-live="assertive"
+          className="mb-4 rounded-[8px] border border-red-400/25 bg-red-950/25 px-3.5 py-3 text-[13px] font-semibold text-red-200"
+        >
           {error}
         </p>
       )}
@@ -625,11 +650,13 @@ export function CadastrarContent() {
                   className="auth-input"
                   style={{ paddingLeft: 46, paddingRight: 46 }}
                   type={showPw ? "text" : "password"}
+                  name="password"
                   placeholder="Sua senha"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="new-password"
                   disabled={loading}
+                  minLength={8}
                 />
                 <button
                   type="button"
@@ -638,6 +665,34 @@ export function CadastrarContent() {
                   aria-label={showPw ? "Ocultar senha" : "Mostrar senha"}
                 >
                   {showPw ? <EyeOff size={17} /> : <Eye size={17} />}
+                </button>
+              </div>
+              <p className="text-[11px] font-medium text-white/28">Mínimo de 8 caracteres.</p>
+            </div>
+
+            <div className="flex flex-col gap-[10px]">
+              <label className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">Confirmar senha</label>
+              <div className="relative">
+                <Lock className="pointer-events-none absolute left-[17px] top-1/2 h-[15px] w-[15px] -translate-y-1/2 text-white/32" />
+                <input
+                  className="auth-input"
+                  style={{ paddingLeft: 46, paddingRight: 46 }}
+                  type={showPwConfirm ? "text" : "password"}
+                  name="passwordConfirm"
+                  placeholder="Repita a senha"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  autoComplete="new-password"
+                  disabled={loading}
+                  minLength={8}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPwConfirm(!showPwConfirm)}
+                  className="absolute right-[15px] top-1/2 flex -translate-y-1/2 text-white/36 transition-colors hover:text-white/65"
+                  aria-label={showPwConfirm ? "Ocultar confirmação de senha" : "Mostrar confirmação de senha"}
+                >
+                  {showPwConfirm ? <EyeOff size={17} /> : <Eye size={17} />}
                 </button>
               </div>
             </div>
@@ -665,7 +720,11 @@ export function CadastrarContent() {
         {step > 1 && (
           <button
             type="button"
-            onClick={() => { setError(null); setStep((current) => current - 1); }}
+            onClick={() => {
+              setError(null);
+              if (step === 3) setConfirmPassword("");
+              setStep((current) => current - 1);
+            }}
             disabled={loading}
             className="flex h-[48px] w-[76px] items-center justify-center rounded-[10px] border border-white/8 bg-white/4 text-white/58 transition-colors hover:bg-white/7 disabled:opacity-60"
             aria-label="Voltar etapa"

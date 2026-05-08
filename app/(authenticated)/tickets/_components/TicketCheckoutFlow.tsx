@@ -1,22 +1,26 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import QRCode from "react-qr-code";
 import {
   ArrowRight,
   Check,
-  Clock3,
+  ChevronDown,
+  ChevronUp,
   Copy,
   Flame,
-  Headphones,
   Loader2,
   Lock,
-  ShieldCheck,
+  Shield,
   Ticket,
-  Trophy,
+  Wallet,
   Zap,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import bannerCheckout from "@/app/assets/banner-chekout.png";
+import ticketBlue from "@/app/assets/Ticket-Blue.png";
+import ticketGold from "@/app/assets/ticket-gold.png";
 import { appendTicketsFromPurchase } from "../lib/ownedTicketsStorage";
 
 const GOLD = "#B1EB0B";
@@ -25,7 +29,6 @@ const CARD = "#101010";
 const DEFAULT_PRINCIPAL_CENTS = 3990;
 const DEFAULT_DIARIO_CENTS = 2000;
 const DEFAULT_EXTRA_CENTS = 3990;
-const RESERVATION_WINDOW_MS = 10 * 60 * 1000;
 const PIX_WINDOW_MS = 5 * 60 * 1000;
 const PIX_TOTAL_SEC = 5 * 60;
 const montserrat = "var(--font-montserrat), ui-sans-serif, system-ui, sans-serif";
@@ -70,14 +73,17 @@ type TransactionUpdatePayload = {
 };
 
 type TicketCheckoutFlowProps = {
-  initialPrincipalQty: number;
-  initialDiarioQty: number;
+  initialTicketKind?: "general" | "daily";
 };
 
-export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: TicketCheckoutFlowProps) {
+const MAX_QTY = 20;
+
+export function TicketCheckoutFlow({ initialTicketKind = "general" }: TicketCheckoutFlowProps) {
   const router = useRouter();
-  const [principalQty, setPrincipalQty] = useState(initialPrincipalQty);
-  const [diarioQty, setDiarioQty] = useState(initialDiarioQty);
+  const [ticketKind, setTicketKind] = useState<"general" | "daily">(
+    initialTicketKind === "daily" ? "daily" : "general"
+  );
+  const [qty, setQty] = useState(1);
   const [prices, setPrices] = useState({
     general: DEFAULT_PRINCIPAL_CENTS,
     daily: DEFAULT_DIARIO_CENTS,
@@ -90,9 +96,11 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
   const [pixPayload, setPixPayload] = useState("");
   const [copied, setCopied] = useState(false);
   const [pixDeadline, setPixDeadline] = useState<number | null>(null);
-  const [reservationDeadline] = useState(() => Date.now() + RESERVATION_WINDOW_MS);
   const [now, setNow] = useState(() => Date.now());
   const [error, setError] = useState<string | null>(null);
+  const [couponOpen, setCouponOpen] = useState(false);
+  const [couponCode, setCouponCode] = useState("");
+  const [couponHint, setCouponHint] = useState<string | null>(null);
   const paidHandledRef = useRef(false);
   const purchasePrincipalRef = useRef(0);
   const purchaseDiarioRef = useRef(0);
@@ -198,23 +206,35 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
     };
   }, [step, transactionId, handleTransactionUpdate]);
 
-  const mainSelected = principalQty >= 1;
-  const extraSelected = principalQty >= 2;
-  const dailySelected = diarioQty >= 1;
-  const selectedMode: TicketType = dailySelected ? "daily" : "general";
   const extraPrice = Math.min(prices.extra, prices.general);
-  const principalLine = mainSelected ? prices.general + (extraSelected ? extraPrice : 0) : 0;
-  const diarioLine = diarioQty * prices.daily;
+  const principalLine =
+    ticketKind === "general" ? (qty === 2 ? prices.general + extraPrice : qty * prices.general) : 0;
+  const diarioLine = ticketKind === "daily" ? qty * prices.daily : 0;
   const totalCents = principalLine + diarioLine;
-  const totalQty = principalQty + diarioQty;
-  const hasSelection = totalCents > 0;
-  const selectedQty = selectedMode === "general" ? principalQty : diarioQty;
-  const reservationSecondsLeft = Math.max(0, Math.ceil((reservationDeadline - now) / 1000));
+  const principalQty = ticketKind === "general" ? qty : 0;
+  const diarioQty = ticketKind === "daily" ? qty : 0;
+  const totalQty = qty;
+  const hasSelection = totalCents > 0 && qty >= 1;
+  const selectedMode: TicketType = ticketKind;
+  const selectedQty = qty;
   const secondsLeft =
     step === "pix" && pixDeadline != null ? Math.max(0, Math.ceil((pixDeadline - now) / 1000)) : 0;
   const pixExpired = step === "pix" && pixDeadline != null && secondsLeft === 0;
   const pixProgressPct =
     step === "pix" && pixDeadline != null ? Math.min(100, Math.max(0, (secondsLeft / PIX_TOTAL_SEC) * 100)) : 0;
+
+  const summaryTitle =
+    ticketKind === "general"
+      ? qty === 1
+        ? "1 Ticket Geral"
+        : `${qty} Tickets Gerais`
+      : qty === 1
+        ? "1 Ticket Diário"
+        : `${qty} Tickets Diários`;
+  const summarySubtitle =
+    ticketKind === "general"
+      ? "Todos os bolões da Copa do Milhão"
+      : "Acesso exclusivo ao Bolão do dia.";
 
   const goGenerate = useCallback(() => {
     if (!hasSelection) return;
@@ -223,6 +243,7 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
       return;
     }
     setError(null);
+    setCouponHint(null);
     setCopied(false);
     setStep("generating");
     void (async () => {
@@ -267,215 +288,271 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
 
   return (
     <>
-      <div
-        className={
-          step === "shop"
-            ? "w-full max-w-[420px] mx-auto px-4 pb-10 pt-4 sm:px-6 sm:pt-10"
-            : "w-full max-w-md mx-auto px-4 py-8 sm:px-6 sm:py-10 flex-1 flex flex-col justify-start"
-        }
-      >
-        <section className="w-full">
-          {step === "shop" && (
-            <div className="space-y-[18px]">
-              <div
-                className="flex items-center justify-between gap-3 rounded-[13px] border px-4 py-3 shadow-[0_0_26px_rgba(249,115,22,0.18)]"
-                style={{
-                  background: "linear-gradient(180deg, rgba(120,53,15,0.58) 0%, rgba(29,18,8,0.94) 100%)",
-                  borderColor: "rgba(249,115,22,0.42)",
-                }}
-              >
-                <div className="flex min-w-0 items-center gap-3">
-                  <Flame className="size-[18px] shrink-0 text-[#FB923C]" strokeWidth={2.2} />
-                  <div className="min-w-0">
-                    <p className="text-[13px] font-black uppercase leading-none tracking-[-0.02em] text-white">
-                      Cotas sendo reservadas agora!
-                    </p>
-                    <p className="mt-1 text-[10px] font-bold leading-none text-[#FDBA74]">
-                      Sua reserva expira em:
-                    </p>
-                  </div>
+      {step === "shop" ? (
+        <div className="min-h-screen w-full bg-black pb-10">
+          <div className="relative w-full overflow-hidden rounded-b-[22px]">
+            <Image
+              src={bannerCheckout}
+              alt="Checkout — Bolão do Milhão"
+              className="h-auto w-full object-cover object-center"
+              priority
+              sizes="100vw"
+            />
+            <div
+              className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black to-transparent"
+              aria-hidden
+            />
+          </div>
+
+          <div className="mx-auto w-full max-w-[430px] space-y-5 px-4 pt-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex min-w-0 items-start gap-3">
+                <div className="flex size-11 shrink-0 items-center justify-center rounded-[10px] border border-primary/35 bg-primary/10">
+                  <Wallet className="size-[22px] text-primary" strokeWidth={2.2} />
                 </div>
-                <div className="rounded-[9px] bg-[#F97316] px-3.5 py-2 shadow-[0_10px_28px_rgba(249,115,22,0.42)]">
-                  <span className="font-mono text-[24px] font-black leading-none tracking-[-0.08em] text-white">
-                    {formatCountdown(reservationSecondsLeft)}
-                  </span>
-                </div>
-              </div>
-
-              <section
-                className="overflow-hidden rounded-[16px] border shadow-[0_18px_40px_rgba(0,0,0,0.38)]"
-                style={{ background: "#101010", borderColor: "rgba(255,255,255,0.08)" }}
-              >
-                <button
-                  type="button"
-                  onClick={() => {
-                    setError(null);
-                    setDiarioQty(0);
-                    setPrincipalQty((qty) => Math.max(1, qty));
-                  }}
-                  className="grid w-full grid-cols-[50px_minmax(0,1fr)_auto] items-center gap-3 px-4 py-4 text-left transition-colors hover:bg-white/3 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-primary active:bg-white/5"
-                >
-                  <div className="flex size-[48px] items-center justify-center rounded-[11px] border" style={{ background: "rgba(177,235,11,0.09)", borderColor: "rgba(177,235,11,0.22)" }}>
-                    <Trophy className="size-[23px] text-primary" strokeWidth={2.1} />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[15px] font-black leading-tight text-white">Cota Bolão da Copa 2026</p>
-                    <p className="mt-1.5 flex items-center gap-1.5 text-[11px] font-medium leading-none text-white/50">
-                      <ShieldCheck className="size-3.5 text-[#0AC96B]" /> Acesso a todos os jogos
-                    </p>
-                    <p className="mt-1.5 flex items-center gap-1.5 text-[11px] font-medium leading-none text-white/50">
-                      <ShieldCheck className="size-3.5 text-[#0AC96B]" /> Top 10% premiados
-                    </p>
-                  </div>
-                  <p className="text-[16px] font-black tabular-nums text-white">{formatBRL(prices.general)}</p>
-                </button>
-
-                <div className="mx-4 h-px bg-white/7" />
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setError(null);
-                    setDiarioQty(0);
-                    setPrincipalQty(extraSelected ? 1 : 2);
-                  }}
-                  className="grid w-full grid-cols-[50px_minmax(0,1fr)_40px] items-center gap-3 px-4 py-4 text-left transition-colors hover:bg-white/3 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-primary active:bg-white/5"
-                  aria-pressed={extraSelected}
-                >
-                  <div className="flex size-[48px] items-center justify-center rounded-[11px] border" style={{ background: "rgba(177,235,11,0.08)", borderColor: "rgba(177,235,11,0.18)" }}>
-                    <Ticket className="size-[23px] text-primary" strokeWidth={2.1} />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-[15px] font-black leading-none text-white">+1 Cota extra</p>
-                      <span className="inline-flex h-[19px] items-center gap-1 rounded-[4px] bg-[#E33B20] px-2 text-[8px] font-black uppercase tracking-widest text-white">
-                        <Flame className="size-2.5 fill-white" /> Mais vendido
-                      </span>
-                    </div>
-                    <p className="mt-2 text-[11px] font-medium leading-none text-white/42">Segunda combinação de palpites</p>
-                    <p className="mt-2 text-[15px] font-black leading-none text-white">
-                      <span className="mr-2 text-[11px] font-bold text-white/25 line-through">R$ 69,90</span>
-                      {formatBRL(extraPrice)}
-                    </p>
-                  </div>
-                  <span
-                    className="flex size-[40px] items-center justify-center rounded-[9px] border transition-transform active:scale-95"
-                    style={{
-                      background: extraSelected ? GOLD : "rgba(255,255,255,0.02)",
-                      borderColor: extraSelected ? "rgba(177,235,11,0.45)" : "rgba(177,235,11,0.24)",
-                      boxShadow: extraSelected ? "0 0 22px rgba(177,235,11,0.45)" : "none",
-                    }}
-                  >
-                    <Check className="size-5" style={{ color: extraSelected ? "#0E141B" : "rgba(177,235,11,0.22)" }} strokeWidth={3} />
-                  </span>
-                </button>
-
-                <div className="mx-4 h-px bg-white/7" />
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setError(null);
-                    if (dailySelected) {
-                      setDiarioQty(0);
-                      setPrincipalQty(1);
-                    } else {
-                      setPrincipalQty(0);
-                      setDiarioQty(1);
-                    }
-                  }}
-                  className="grid w-full grid-cols-[50px_minmax(0,1fr)_40px] items-center gap-3 px-4 py-4 text-left transition-colors hover:bg-white/3 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-primary active:bg-white/5"
-                  aria-pressed={dailySelected}
-                >
-                  <div className="flex size-[48px] items-center justify-center rounded-[11px] border" style={{ background: "rgba(59,130,246,0.08)", borderColor: "rgba(59,130,246,0.22)" }}>
-                    <CalendarIcon />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[15px] font-black leading-none text-white">Bolão do Dia</p>
-                    <p className="mt-2 text-[11px] font-medium leading-none text-white/42">Prêmios extras todo dia da Copa</p>
-                    <p className="mt-2 text-[15px] font-black leading-none text-white">
-                      <span className="mr-2 text-[11px] font-bold text-white/25 line-through">R$ 29,90</span>
-                      {formatBRL(prices.daily)}
-                    </p>
-                  </div>
-                  <span
-                    className="flex size-[40px] items-center justify-center rounded-[9px] border transition-transform active:scale-95"
-                    style={{
-                      background: dailySelected ? GOLD : "rgba(255,255,255,0.02)",
-                      borderColor: dailySelected ? "rgba(177,235,11,0.45)" : "rgba(177,235,11,0.24)",
-                      boxShadow: dailySelected ? "0 0 22px rgba(177,235,11,0.45)" : "none",
-                    }}
-                  >
-                    <Check className="size-5" style={{ color: dailySelected ? "#0E141B" : "rgba(177,235,11,0.22)" }} strokeWidth={3} />
-                  </span>
-                </button>
-
-                <div className="flex items-center justify-between border-t px-4 py-4" style={{ borderColor: "rgba(177,235,11,0.12)" }}>
-                  <span className="text-[14px] font-black uppercase tracking-[0.18em] text-white/38">Total</span>
-                  <span className="text-[28px] font-black leading-none tracking-[-0.08em] text-primary drop-shadow-[0_0_18px_rgba(177,235,11,0.35)]">
-                    {formatBRL(totalCents)}
-                  </span>
-                </div>
-              </section>
-
-              <div className="grid grid-cols-4 gap-2">
-                <TrustCard icon={Lock} title="Pagamento" subtitle="100% seguro" />
-                <TrustCard icon={ShieldCheck} title="Confirmação" subtitle="automática" />
-                <TrustCard icon={Zap} title="Acesso" subtitle="imediato" />
-                <TrustCard icon={Headphones} title="Suporte" subtitle="WhatsApp" />
-              </div>
-
-              <section className="overflow-hidden rounded-[15px] border" style={{ background: "#101010", borderColor: "rgba(255,255,255,0.08)" }}>
-                <div className="border-b px-4 py-4" style={{ borderColor: "rgba(177,235,11,0.1)" }}>
-                  <p className="text-[12px] font-black uppercase tracking-[0.2em] text-white/38">5. Forma de pagamento</p>
-                </div>
-                <div className="flex items-center gap-4 px-4 py-6">
-                  <PixMark />
-                  <div>
-                    <p className="text-[18px] font-black uppercase leading-none text-white">Pague com Pix</p>
-                    <p className="mt-2 text-[13px] font-semibold leading-none text-white/45">Aprovação imediata!</p>
-                  </div>
-                </div>
-                <div className="border-t px-4 pb-5 pt-5" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-                  <button
-                    type="button"
-                    disabled={!hasSelection}
-                    onClick={goGenerate}
-                    className="flex h-[67px] w-full items-center justify-center gap-3 rounded-[13px] bg-primary text-[14px] font-black uppercase tracking-[-0.02em] text-[#0E141B] shadow-[0_0_34px_rgba(177,235,11,0.45)] transition-transform hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45"
-                  >
-                    Gerar Pix e garantir minha cota
-                    <ArrowRight className="size-5" strokeWidth={3} />
-                  </button>
-                  <p className="mt-4 flex items-start justify-center gap-2 text-center text-[11px] font-medium leading-[1.55] text-white/36">
-                    <Lock className="mt-0.5 size-3.5 shrink-0" />
-                    Seu acesso será liberado automaticamente após a confirmação do pagamento.
+                <div className="min-w-0">
+                  <h2 className="text-[18px] font-black leading-tight text-white">Comprar tickets</h2>
+                  <p className="mt-1 text-[12px] font-medium leading-snug text-white/45">
+                    Escolha quantos tickets deseja adquirir.
                   </p>
-                  {error && <p className="mt-3 text-center text-[12px] font-semibold text-red-300">{error}</p>}
                 </div>
-              </section>
-
-              <div className="grid grid-cols-2 overflow-hidden rounded-[10px] border" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-                <div className="flex items-center gap-3 px-4 py-4" style={{ background: "linear-gradient(90deg, rgba(13,82,50,0.58), rgba(5,33,24,0.96))" }}>
-                  <div className="flex size-[38px] items-center justify-center rounded-[9px] border" style={{ background: "rgba(177,235,11,0.08)", borderColor: "rgba(177,235,11,0.2)" }}>
-                    <UsersIcon />
-                  </div>
-                  <div>
-                    <p className="text-[18px] font-black leading-none text-primary">+125 MIL</p>
-                    <p className="mt-1 text-[9px] font-black uppercase tracking-[0.2em] text-white/35">Cotas vendidas</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 px-4 py-4" style={{ background: "linear-gradient(90deg, rgba(20,18,10,0.96), rgba(35,23,5,0.85))" }}>
-                  <div className="flex size-[38px] items-center justify-center rounded-[9px] border" style={{ background: "rgba(230,183,38,0.08)", borderColor: "rgba(230,183,38,0.22)" }}>
-                    <Clock3 className="size-[18px] text-[#E6B726]" />
-                  </div>
-                  <div>
-                    <p className="text-[13px] font-black uppercase leading-none text-[#E6B726]">Últimas vagas</p>
-                    <p className="mt-1 text-[9px] font-black uppercase tracking-[0.18em] text-[#E6B726]/70">Não fique de fora!</p>
-                  </div>
-                </div>
+              </div>
+              <div className="flex shrink-0 items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-2.5 py-1">
+                <Shield className="size-3.5 text-primary" strokeWidth={2.2} />
+                <span className="text-[10px] font-black uppercase tracking-wide text-primary">Seguro</span>
               </div>
             </div>
-          )}
+
+            <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setError(null);
+                  setCouponHint(null);
+                  if (ticketKind !== "general") setQty(1);
+                  setTicketKind("general");
+                }}
+                className={
+                  ticketKind === "general"
+                    ? "relative flex min-h-[104px] w-full min-w-0 flex-col overflow-hidden rounded-[14px] border-2 border-primary bg-[#121212]/95 p-2.5 text-left shadow-[0_0_22px_rgba(177,235,11,0.2)] outline-none ring-1 ring-primary/20 backdrop-blur-[2px] transition-transform active:scale-[0.99] sm:min-h-[112px] sm:rounded-[16px] sm:p-3"
+                    : "relative flex min-h-[104px] w-full min-w-0 flex-col overflow-hidden rounded-[14px] border border-white/10 bg-[#121212] p-2.5 text-left outline-none transition-transform active:scale-[0.99] sm:min-h-[112px] sm:rounded-[16px] sm:p-3"
+                }
+              >
+                {ticketKind === "general" && (
+                  <span className="absolute right-1.5 top-1.5 z-10 flex size-5 items-center justify-center rounded-full bg-primary text-[#0E141B] shadow-lg sm:right-2 sm:top-2 sm:size-6">
+                    <Check className="size-3" strokeWidth={3} />
+                  </span>
+                )}
+                <div className="flex w-full min-w-0 flex-row items-center gap-2 pt-5 sm:gap-2.5 sm:pt-6">
+                  <img
+                    src={ticketGold.src}
+                    alt=""
+                    className="h-[65px] w-[48px] shrink-0 object-contain drop-shadow-[0_8px_24px_rgba(177,235,11,0.35)] sm:h-[88px] sm:w-[64px]"
+                  />
+                  <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5 pr-5 sm:gap-1 sm:pr-7">
+                    <p
+                      className={
+                        ticketKind === "general"
+                          ? "text-[14px] font-black whitespace-nowrap leading-tight text-primary sm:text-[13px]"
+                          : "text-[14px] font-black whitespace-nowrap leading-tight text-white sm:text-[13px]"
+                      }
+                    >
+                      Ticket Geral
+                    </p>
+                    <p className="text-[10px] font-medium leading-snug text-white/40 sm:text-[10px]">
+                      Acesso a todas as rodadas da Copa do Milhão
+                    </p>
+                  </div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setError(null);
+                  setCouponHint(null);
+                  if (ticketKind !== "daily") setQty(1);
+                  setTicketKind("daily");
+                }}
+                className={
+                  ticketKind === "daily"
+                    ? "relative flex min-h-[104px] w-full min-w-0 flex-col overflow-hidden rounded-[14px] border-2 border-primary bg-[#121212]/95 p-2.5 text-left shadow-[0_0_22px_rgba(177,235,11,0.2)] outline-none ring-1 ring-primary/20 backdrop-blur-[2px] transition-transform active:scale-[0.99] sm:min-h-[112px] sm:rounded-[16px] sm:p-3"
+                    : "relative flex min-h-[104px] w-full min-w-0 flex-col overflow-hidden rounded-[14px] border border-white/10 bg-[#121212] p-2.5 text-left outline-none transition-transform active:scale-[0.99] sm:min-h-[112px] sm:rounded-[16px] sm:p-3"
+                }
+              >
+                {ticketKind === "daily" && (
+                  <span className="absolute right-1.5 top-1.5 z-10 flex size-5 items-center justify-center rounded-full bg-primary text-[#0E141B] shadow-lg sm:right-2 sm:top-2 sm:size-6">
+                    <Check className="size-3" strokeWidth={3} />
+                  </span>
+                )}
+                <div className="flex w-full min-w-0 flex-row items-center gap-2 pt-5 sm:gap-2.5 sm:pt-6">
+                  <img
+                    src={ticketBlue.src}
+                    alt=""
+                    className={
+                      ticketKind === "daily"
+                        ? "h-[65px] w-[48px] shrink-0 object-contain drop-shadow-[0_8px_24px_rgba(59,130,246,0.45)] sm:h-[88px] sm:w-[64px]"
+                        : "h-[65px] w-[48px] shrink-0 object-contain opacity-55 grayscale sm:h-[88px] sm:w-[64px]"
+                    }
+                  />
+                  <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5 pr-5 sm:gap-1 sm:pr-7">
+                    <p
+                      className={
+                        ticketKind === "daily"
+                          ? "text-[14px] font-black whitespace-nowrap leading-tight text-primary sm:text-[13px]"
+                          : "text-[14px] font-black whitespace-nowrap leading-tight text-white sm:text-[13px]"
+                      }
+                    >
+                      Ticket Diário
+                    </p>
+                    <p className="text-[10px] font-medium leading-snug text-white/40 sm:text-[10px]">
+                      Acesso exclusivo ao Bolão do dia.
+                    </p>
+                  </div>
+                </div>
+              </button>
+            </div>
+
+            {/* ── Resumo da compra ─────────────────────────────── */}
+            <div>
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="h-[18px] w-[3px] rounded-full bg-primary" aria-hidden />
+                  <h3 className="text-[15px] font-black tracking-tight text-white">Resumo da compra</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setCouponOpen((o) => !o); setCouponHint(null); }}
+                  className="inline-flex items-center gap-1.5 text-[13px] font-bold text-primary hover:underline"
+                >
+                  <Ticket className="size-3.5" strokeWidth={2.2} />
+                  Possui cupom?
+                </button>
+              </div>
+
+              {couponOpen && (
+                <div className="mb-3 flex flex-col gap-2 rounded-[12px] border border-white/10 bg-[#121212] p-3">
+                  <input
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value)}
+                    placeholder="Código do cupom"
+                    className="h-10 w-full rounded-[9px] border border-white/10 bg-black/60 px-3 text-[13px] text-white outline-none placeholder:text-white/30 focus:border-primary/50"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const t = couponCode.trim();
+                      if (!t) { setCouponHint("Digite um código."); return; }
+                      setCouponHint("Cupons em breve — fique de olho nas promoções.");
+                      setCouponCode("");
+                    }}
+                    className="h-9 rounded-[9px] bg-white/10 text-[12px] font-bold text-white transition-colors hover:bg-white/15"
+                  >
+                    Aplicar
+                  </button>
+                  {couponHint && <p className="text-[11px] font-medium text-primary/90">{couponHint}</p>}
+                </div>
+              )}
+
+              {/* card do stepper */}
+              <div className="flex items-center gap-4 rounded-[16px] border border-white/8 bg-[#171717] px-2 py-2">
+                {/* stepper horizontal */}
+                <div className="flex shrink-0 items-center gap-1 rounded-[12px] border border-white/10 bg-[#0f0f0f] p-1.5">
+                  <button
+                    type="button"
+                    aria-label="Diminuir quantidade"
+                    disabled={qty <= 1}
+                    onClick={() => setQty((q) => Math.max(1, q - 1))}
+                    className="flex h-9 w-9 items-center justify-center rounded-[9px] bg-white/6 text-white/60 transition-colors hover:bg-white/12 hover:text-white disabled:opacity-30"
+                  >
+                    <ChevronDown className="size-[18px]" strokeWidth={2.5} />
+                  </button>
+                  <span className="w-8 text-center text-[20px] font-black tabular-nums text-white">{qty}</span>
+                  <button
+                    type="button"
+                    aria-label="Aumentar quantidade"
+                    disabled={qty >= MAX_QTY}
+                    onClick={() => setQty((q) => Math.min(MAX_QTY, q + 1))}
+                    className="flex h-9 w-9 items-center justify-center rounded-[9px] bg-white/6 text-white/60 transition-colors hover:bg-white/12 hover:text-white disabled:opacity-30"
+                  >
+                    <ChevronUp className="size-[18px]" strokeWidth={2.5} />
+                  </button>
+                </div>
+
+                {/* título + subtítulo */}
+                <div className="min-w-0 flex-1">
+                  <p className="text-[12px] font-black leading-tight text-white">{summaryTitle}</p>
+                  <p className="mt-1 text-[10px] font-medium leading-snug text-white/40">{summarySubtitle}</p>
+                </div>
+
+                {/* preço */}
+                <span className="shrink-0 text-[14px] font-black tabular-nums text-primary">
+                  {formatBRL(totalCents)}
+                </span>
+              </div>
+            </div>
+
+            {/* ── Benefícios ───────────────────────────────────── */}
+            <div className="space-y-[14px] rounded-[16px] border border-white/8 bg-[#171717] px-4 py-4">
+              <div className="flex items-start gap-3">
+                <span className="mt-px flex size-[22px] shrink-0 items-center justify-center rounded-full border border-primary/40 bg-primary/10">
+                  <Check className="size-3.5 text-primary" strokeWidth={3} />
+                </span>
+                <p className="text-[11px] leading-snug text-white/80">
+                  <span className="font-black text-white">Oferta exclusiva!</span>{" "}
+                  Use os tickets nos melhores bolões
+                </p>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="mt-px flex size-[22px] shrink-0 items-center justify-center rounded-full border border-primary/40 bg-primary/10">
+                  <Check className="size-3.5 text-primary" strokeWidth={3} />
+                </span>
+                <p className="text-[11px] leading-snug text-white/80">
+                  <span className="font-black text-white">Aproveite e concorra</span>{" "}
+                  a prêmios de até R$ 1.000.000
+                </p>
+              </div>
+            </div>
+
+            {/* ── Trust bar ────────────────────────────────────── */}
+            <div className="flex items-center justify-center gap-6 py-1">
+              <span className="flex items-center gap-1.5 text-[11px] font-semibold text-white/35">
+                <Shield className="size-[12px] shrink-0" strokeWidth={1.8} />
+                100% Seguro
+              </span>
+              <span className="h-3 w-px bg-white/12" aria-hidden />
+              <span className="flex items-center gap-1.5 text-[11px] font-semibold text-white/35">
+                <Zap className="size-[12px] shrink-0" strokeWidth={1.8} />
+                Instantâneo
+              </span>
+              <span className="h-3 w-px bg-white/12" aria-hidden />
+              <span className="flex items-center gap-1.5 text-[11px] font-semibold text-white/35">
+                <Check className="size-[12px] shrink-0" strokeWidth={2.4} />
+                Sem taxas
+              </span>
+            </div>
+
+            {/* ── Botão depositar ──────────────────────────────── */}
+            <button
+              type="button"
+              disabled={!hasSelection}
+              onClick={goGenerate}
+              className="flex h-[62px] w-full items-center justify-center gap-3 rounded-[16px] bg-primary px-5 text-[15px] font-black uppercase tracking-[0.04em] text-[#0E141B] shadow-[0_4px_32px_rgba(177,235,11,0.55)] transition-[transform,filter] hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              <Wallet className="size-5 shrink-0" strokeWidth={2.2} />
+              <span>Depositar {formatBRL(totalCents)}</span>
+              <ArrowRight className="size-5 shrink-0" strokeWidth={2.8} />
+            </button>
+            {error && <p className="text-center text-[12px] font-semibold text-red-300">{error}</p>}
+            <p className="flex items-center justify-center gap-2 text-center text-[11px] font-medium text-white/25">
+              <Lock className="size-3 shrink-0" strokeWidth={2} />
+              Transação protegida por criptografia SSL 256-bit
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="mx-auto flex min-h-screen w-full max-w-md flex-1 flex-col justify-start bg-black px-4 py-8 sm:px-6 sm:py-10">
+          <section className="w-full">
 
           {step === "generating" && (
             <div
@@ -633,58 +710,8 @@ export function TicketCheckoutFlow({ initialPrincipalQty, initialDiarioQty }: Ti
           )}
         </section>
       </div>
+      )}
     </>
   );
 }
 
-
-type TrustCardProps = {
-  icon: typeof Lock;
-  title: string;
-  subtitle: string;
-};
-
-function TrustCard({ icon: Icon, title, subtitle }: TrustCardProps) {
-  return (
-    <div
-      className="flex h-[92px] flex-col items-center justify-center rounded-[9px] border text-center shadow-[0_12px_24px_rgba(0,0,0,0.24)]"
-      style={{ background: "#101010", borderColor: "rgba(255,255,255,0.08)" }}
-    >
-      <div
-        className="mb-2 flex size-[31px] items-center justify-center rounded-[8px] border"
-        style={{ background: "rgba(177,235,11,0.08)", borderColor: "rgba(177,235,11,0.2)" }}
-        aria-hidden
-      >
-        <Icon className="size-[15px] text-primary" strokeWidth={2.1} />
-      </div>
-      <p className="text-[10px] font-black leading-none text-white">{title}</p>
-      <p className="mt-1 text-[9px] font-semibold leading-none text-white/35">{subtitle}</p>
-    </div>
-  );
-}
-
-function CalendarIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="size-[23px]" aria-hidden>
-      <rect x="4" y="5.5" width="16" height="14" rx="2.5" fill="none" stroke="#83B7FF" strokeWidth="1.8" />
-      <path d="M8 3.8v4M16 3.8v4M4.5 10h15" stroke="#83B7FF" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function PixMark() {
-  return (
-    <div className="relative size-[45px] shrink-0 rotate-45 rounded-[10px] bg-[#38D6C6] shadow-[0_0_20px_rgba(56,214,198,0.18)]" aria-hidden>
-      <div className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-black/35" />
-      <div className="absolute left-0 top-1/2 h-px w-full -translate-y-1/2 bg-black/35" />
-    </div>
-  );
-}
-
-function UsersIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="size-[19px] text-primary" fill="none" aria-hidden>
-      <path d="M8.5 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM15.5 10a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5ZM3.5 19c.4-3.2 2.2-5 5-5s4.6 1.8 5 5M12.5 14.5c.7-.5 1.7-.8 3-.8 2.5 0 4.1 1.5 4.5 4.4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
