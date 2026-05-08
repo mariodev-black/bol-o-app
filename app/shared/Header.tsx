@@ -18,7 +18,7 @@ const NAV_LINKS = [
 const NAV_LINKS_LOGGED = [
   { label: "Home", href: "/" },
   { label: "Palpites", href: "/meus-palpites" },
-  { label: "Ranking", href: "/meus-palpites" },
+  { label: "Ranking", href: "/ranking" },
   { label: "Indique e ganhe", href: "/indique" },
   { label: "Regulamento", href: "/privacidade" },
 ];

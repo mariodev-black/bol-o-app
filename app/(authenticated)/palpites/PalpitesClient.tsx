@@ -5,7 +5,6 @@ import { useSearchParams } from "next/navigation";
 import { ChevronDown, ChevronUp, BarChart2, Trophy, AlignJustify, Target, CircleCheck, Star, Bell, Coins, AlertTriangle, Disc, Pencil, Loader2, ChevronLeft, ChevronRight, Check } from "lucide-react";
 import { TrophyGold, TrophySilver, TrophyBronze } from "@/app/components/RankingTrophies";
 import bgPalpitesDesk from "@/app/assets/bg-palpites-desktop.png";
-import { StepsBreadcrumb } from "../boloes/_components/StepsBreadcrumb";
 import {
   calcPredictionPoints,
 } from "./lib/predictionsStorage";
