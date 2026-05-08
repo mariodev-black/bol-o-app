@@ -9,14 +9,14 @@ import { useAuth } from "@/app/shared/AuthContext";
 import { useSidenav } from "@/app/shared/SidenavContext";
 import logo from "@/app/assets/logo.svg";
 import homeIcon from "@/app/assets/navbottom/home.svg";
-import dailyIcon from "@/app/assets/navbottom/bolao.svg";
+import afiliadoIcon from "@/app/assets/navbottom/afiliado.svg";
 import myBoloesIcon from "@/app/assets/navbottom/meus-bolao.svg";
 import rankingIcon from "@/app/assets/navbottom/ranking.svg";
 import profileIcon from "@/app/assets/navbottom/perfil.svg";
 
 const BOTTOM_ITEMS_PROFILE = [
   { label: "Início", href: "/", icon: homeIcon, iconSize: 21 },
-  { label: "Bolão do Dia", href: "/tickets?bolao=diario", icon: dailyIcon, iconSize: 22 },
+  { label: "Afiliado", href: "/indique", icon: afiliadoIcon, iconSize: 22 },
   { label: "Meus Bolões", href: "/boloes", icon: myBoloesIcon, iconSize: 25 },
   { label: "Ranking", href: "/meus-palpites", icon: rankingIcon, iconSize: 21 },
   { label: "Perfil", href: "/perfil", icon: profileIcon, iconSize: 21 },
@@ -24,7 +24,7 @@ const BOTTOM_ITEMS_PROFILE = [
 
 const BOTTOM_ITEMS_PUBLIC = [
   { label: "Início", href: "/", icon: homeIcon, iconSize: 21 },
-  { label: "Bolão do Dia", href: "/cadastrar?from=%2Ftickets%3Fbolao%3Ddiario", icon: dailyIcon, iconSize: 22 },
+  { label: "Afiliado", href: "/cadastrar?from=%2Findique", icon: afiliadoIcon, iconSize: 22 },
   { label: "Meus Bolões", href: "/boloes", icon: myBoloesIcon, iconSize: 25 },
   { label: "Ranking", href: "/meus-palpites", icon: rankingIcon, iconSize: 21 },
   { label: "Perfil", href: "/login", icon: profileIcon, iconSize: 21 },

@@ -70,7 +70,9 @@ export function simulateTotalForNewPaidReferrals(
 ): number {
   let total = 0;
   for (let i = 1; i <= extraCount; i++) {
-    total += rewardCentsForCommissionIndex(cfg, currentPaidCount + i);
+    // Use the count BEFORE this commission to determine the tier
+    // (the tier upgrade only applies to the NEXT commission after reaching the threshold)
+    total += rewardCentsForCommissionIndex(cfg, currentPaidCount + i - 1);
   }
   return total;
 }

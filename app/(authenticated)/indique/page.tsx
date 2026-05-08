@@ -234,21 +234,60 @@ export default function IndiqueGanhePage() {
   const porIndicacaoFmt = isInfluencer ? cpaFmt : cfg ? formatBRLFromCents(affiliateSummary?.nextRewardCents ?? cfg.rewardBronzeCents) : "—";
   const currentTierLabel = isInfluencer ? "Influencer CPA" : affiliateSummary?.currentTierLabel ?? "Bronze";
   const goalDiamond = cfg?.tierDiamondMinCommissions ?? 50;
-  const remainingToDiamond = isInfluencer ? 0 : Math.max(0, goalDiamond - paidIndicacoes);
-  const tierBarPct = goalDiamond > 0 ? Math.min(100, (paidIndicacoes / goalDiamond) * 100) : 0;
   const diamondPerFmt = isInfluencer ? cpaFmt : cfg ? formatBRLFromCents(cfg.rewardDiamondCents) : "—";
+
+  // ── Lógica por etapas (Bronze → Prata → Ouro → Diamante) ──────────────
+  const TIER_ORDER: ReferralTierId[] = ["bronze", "silver", "gold", "diamond"];
+  const TIER_LABELS: Record<ReferralTierId, string> = { bronze: "Bronze", silver: "Prata", gold: "Ouro", diamond: "Diamante" };
+
+  const currentTierId: ReferralTierId = isInfluencer ? "diamond" : (affiliateSummary?.currentTier ?? "bronze");
+  const currentTierIdx = TIER_ORDER.indexOf(currentTierId);
+  const atMaxTier = currentTierIdx >= TIER_ORDER.length - 1;
+  const nextTierId: ReferralTierId = atMaxTier ? "diamond" : TIER_ORDER[currentTierIdx + 1]!;
+
+  const tierMinByCfg: Record<ReferralTierId, number> = cfg
+    ? { bronze: 0, silver: cfg.tierSilverMinCommissions, gold: cfg.tierGoldMinCommissions, diamond: cfg.tierDiamondMinCommissions }
+    : { bronze: 0, silver: 10, gold: 25, diamond: 50 };
+  const tierRewardByCfg: Record<ReferralTierId, number> = cfg
+    ? { bronze: cfg.rewardBronzeCents, silver: cfg.rewardSilverCents, gold: cfg.rewardGoldCents, diamond: cfg.rewardDiamondCents }
+    : { bronze: 0, silver: 0, gold: 0, diamond: 0 };
+
+  const currentTierMin = tierMinByCfg[currentTierId];
+  const nextTierMin = tierMinByCfg[nextTierId];
+  const nextTierRewardFmt = isInfluencer ? cpaFmt : formatBRLFromCents(tierRewardByCfg[nextTierId]);
+  const nextTierLabelStr = TIER_LABELS[nextTierId];
+
+  // Progresso apenas até a próxima etapa (não até Diamante)
+  const remainingToNext = atMaxTier ? 0 : Math.max(0, nextTierMin - paidIndicacoes);
+  const tierBarRange = nextTierMin - currentTierMin;
+  const tierBarPct = atMaxTier
+    ? 100
+    : tierBarRange > 0
+      ? Math.min(100, ((paidIndicacoes - currentTierMin) / tierBarRange) * 100)
+      : 100;
+
+  // Progresso visual da linha no "Jornada de Níveis"
+  // Formula: (tierIdx + fractionWithinTier) / (totalTiers - 1) * 100
+  const TOTAL_TIERS = TIER_ORDER.length; // 4
+  const lineProgressPct = isInfluencer || atMaxTier
+    ? 100
+    : ((currentTierIdx + tierBarPct / 100) / (TOTAL_TIERS - 1)) * 100;
+
+  // mantido para referência no hero (meta final = Diamante)
+  const remainingToDiamond = isInfluencer ? 0 : Math.max(0, goalDiamond - paidIndicacoes);
 
   const tierRows = useMemo(() => {
     if (!cfg) {
       return [
-        { label: "Bronze", threshold: "—", active: true, color: "#CD7F32", Icon: Medal },
-        { label: "Prata", threshold: "—", active: false, color: "#A8A9AD", Icon: Medal },
-        { label: "Ouro", threshold: "—", active: false, color: C.gold, Icon: Trophy },
-        { label: "Diamante", threshold: "—", active: false, color: C.platinum, Icon: Gem },
+        { label: "Bronze", threshold: "—", active: true,  completed: false, color: "#CD7F32",  Icon: Medal },
+        { label: "Prata",  threshold: "—", active: false, completed: false, color: "#A8A9AD",  Icon: Medal },
+        { label: "Ouro",   threshold: "—", active: false, completed: false, color: C.gold,     Icon: Trophy },
+        { label: "Diamante", threshold: "—", active: false, completed: false, color: C.platinum, Icon: Gem },
       ];
     }
     const cur = affiliateSummary?.currentTier ?? "bronze";
     const order: ReferralTierId[] = ["bronze", "silver", "gold", "diamond"];
+    const curIdx = order.indexOf(cur);
     const labels = { bronze: "Bronze", silver: "Prata", gold: "Ouro", diamond: "Diamante" };
     const thresholds: Record<ReferralTierId, string> = {
       bronze: `1–${cfg.tierSilverMinCommissions - 1}`,
@@ -256,10 +295,11 @@ export default function IndiqueGanhePage() {
       gold: `${cfg.tierGoldMinCommissions}–${cfg.tierDiamondMinCommissions - 1}`,
       diamond: `${cfg.tierDiamondMinCommissions}+`,
     };
-    return order.map((tid) => ({
+    return order.map((tid, idx) => ({
       label: labels[tid],
       threshold: thresholds[tid],
       active: cur === tid,
+      completed: idx < curIdx,
       color: tid === "bronze" ? "#CD7F32" : tid === "silver" ? "#A8A9AD" : tid === "gold" ? C.gold : C.platinum,
       Icon: tid === "gold" ? Trophy : tid === "diamond" ? Gem : Medal,
     }));
@@ -292,9 +332,11 @@ export default function IndiqueGanhePage() {
   }, [cfg, cpaFmt, isInfluencer]);
 
   const simTotalCents = useMemo(() => {
-    if (!cfg) return 0;
-    return simulateTotalForNewPaidReferrals(cfg, paidIndicacoes, simExtraPaid);
-  }, [cfg, paidIndicacoes, simExtraPaid]);
+    // Usa a taxa ATUAL flat (taxa vigente × quantidade)
+    // O usuário quer ver: "se eu fizer X indicações ao meu preço atual, quanto ganho?"
+    const currentRateCents = affiliateSummary?.nextRewardCents ?? cfg?.rewardBronzeCents ?? 0;
+    return currentRateCents * simExtraPaid;
+  }, [affiliateSummary?.nextRewardCents, cfg?.rewardBronzeCents, simExtraPaid]);
 
   const copyText = useCallback(async (text: string): Promise<boolean> => {
     if (!text) return false;
@@ -453,19 +495,25 @@ export default function IndiqueGanhePage() {
               >
                 <Zap size={13} style={{ color: C.gold }} className="shrink-0" />
                 <p className="text-[11px] leading-[1.55]" style={{ color: "rgba(255,255,255,0.45)" }}>
-                  {remainingToDiamond > 0 ? (
+                  {atMaxTier ? (
                     <>
-                      Faltam <span className="font-bold text-white">{remainingToDiamond} indicações</span> para{" "}
-                      <span className="font-bold" style={{ color: C.platinum }}>Diamante</span>
-                      {" — "}
-                      <span className="font-bold" style={{ color: C.goldMid }}>ganhe {diamondPerFmt}/ind.</span>
-                    </>
-                  ) : (
-                    <>
-                      Você atingiu a meta de <span className="font-bold text-white">{goalDiamond} indicações</span> para{" "}
+                      Você está no nível{" "}
                       <span className="font-bold" style={{ color: C.platinum }}>Diamante</span>
                       {" — "}
                       <span className="font-bold" style={{ color: C.goldMid }}>{diamondPerFmt}/ind.</span>
+                    </>
+                  ) : remainingToNext > 0 ? (
+                    <>
+                      Faltam <span className="font-bold text-white">{remainingToNext} indicações</span> para{" "}
+                      <span className="font-bold" style={{ color: C.platinum }}>{nextTierLabelStr}</span>
+                      {" — "}
+                      <span className="font-bold" style={{ color: C.goldMid }}>ganhe {nextTierRewardFmt}/ind.</span>
+                    </>
+                  ) : (
+                    <>
+                      Você atingiu o nível <span className="font-bold" style={{ color: C.platinum }}>{nextTierLabelStr}</span>
+                      {" — "}
+                      <span className="font-bold" style={{ color: C.goldMid }}>{nextTierRewardFmt}/ind.</span>
                     </>
                   )}
                 </p>
@@ -558,27 +606,34 @@ export default function IndiqueGanhePage() {
                     <div className="flex items-start gap-2.5">
                       <Zap size={18} style={{ color: C.gold }} className="shrink-0 mt-0.5" />
                       <p className="text-[13px] font-semibold leading-[1.45]" style={{ color: "rgba(255,255,255,0.45)" }}>
-                        {remainingToDiamond > 0 ? (
+                        {atMaxTier ? (
                           <>
-                            <span className="text-white font-bold">+ {remainingToDiamond} ind.</span>
+                            <span className="inline-flex items-center gap-0.5 text-white font-bold">
+                              <Gem size={14} style={{ color: C.platinum }} className="inline shrink-0" strokeWidth={2} />
+                              <span style={{ color: C.platinum }}>Nível Diamante</span>
+                            </span>
+                            {" — "}
+                            <span className="font-bold" style={{ color: C.goldMid }}>{diamondPerFmt}/ind.</span>
+                          </>
+                        ) : remainingToNext > 0 ? (
+                          <>
+                            <span className="text-white font-bold">+ {remainingToNext} ind.</span>
                             {" "}para{" "}
                             <span className="inline-flex items-center gap-0.5 text-white font-bold">
                               <Gem size={14} style={{ color: C.platinum }} className="inline shrink-0" strokeWidth={2} />
-                              <span style={{ color: C.platinum }}>Diamante</span>
+                              <span style={{ color: C.platinum }}>{nextTierLabelStr}</span>
                             </span>
                             {" "}
-                            <span className="font-bold" style={{ color: C.goldMid }}>{diamondPerFmt}/ind.</span>
+                            <span className="font-bold" style={{ color: C.goldMid }}>{nextTierRewardFmt}/ind.</span>
                           </>
                         ) : (
                           <>
-                            <span className="text-white font-bold">Meta Diamante</span>
-                            {" — "}
                             <span className="inline-flex items-center gap-0.5 text-white font-bold">
                               <Gem size={14} style={{ color: C.platinum }} className="inline shrink-0" strokeWidth={2} />
-                              <span style={{ color: C.platinum }}>50+ indicações</span>
+                              <span style={{ color: C.platinum }}>Meta {nextTierLabelStr} ✓</span>
                             </span>
                             {" "}
-                            <span className="font-bold" style={{ color: C.goldMid }}>{diamondPerFmt}/ind.</span>
+                            <span className="font-bold" style={{ color: C.goldMid }}>{nextTierRewardFmt}/ind.</span>
                           </>
                         )}
                       </p>
@@ -892,30 +947,41 @@ export default function IndiqueGanhePage() {
               <SmallLabel className="mb-7">Jornada de Níveis</SmallLabel>
 
               <div className="relative flex justify-between items-start mb-6 px-1">
-                <div className="absolute top-5 left-5 right-5 h-[2px] rounded-full" style={{ background: "rgba(255,255,255,0.07)" }} />
-                <div
-                  className="absolute top-5 left-5 h-[2px] rounded-full"
-                  style={{
-                    width: "calc(66.67% - 10px)",
-                    background: `linear-gradient(90deg, ${C.gold}, ${C.goldMid})`,
-                    boxShadow: "0 0 10px rgba(177,235,11,0.2)",
-                  }}
-                />
+                {/* track base */}
+                <div className="absolute top-5 left-5 right-5 h-[2px] overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.07)" }}>
+                  {/* fill — largura baseada no tier atual + progresso dentro do tier */}
+                  <div
+                    className="h-full rounded-full transition-[width] duration-500"
+                    style={{
+                      width: `${lineProgressPct}%`,
+                      background: `linear-gradient(90deg, ${C.gold}, ${C.goldMid})`,
+                      boxShadow: "0 0 10px rgba(177,235,11,0.2)",
+                    }}
+                  />
+                </div>
+
                 {tierRows.map((tier) => {
                   const Icon = tier.Icon;
+                  const isActive = tier.active;
+                  const isCompleted = tier.completed;
                   return (
                     <div key={tier.label} className="flex flex-col items-center gap-1.5 z-10">
                       <div
-                        className="flex items-center justify-center rounded-full"
+                        className="flex items-center justify-center rounded-full transition-all duration-300"
                         style={
-                          tier.active
+                          isActive
                             ? { width: 44, height: 44, background: "#111F00", outline: `2px solid ${C.gold}`, outlineOffset: 2, boxShadow: "0 0 14px rgba(177,235,11,0.22)" }
-                            : { width: 40, height: 40, background: "#0D1425", border: "1px solid rgba(255,255,255,0.08)" }
+                            : isCompleted
+                              ? { width: 40, height: 40, background: "rgba(177,235,11,0.12)", border: `1px solid ${C.gold}55` }
+                              : { width: 40, height: 40, background: "#0D1425", border: "1px solid rgba(255,255,255,0.08)" }
                         }
                       >
-                        <Icon size={tier.active ? 21 : 17} style={{ color: tier.color }} />
+                        <Icon
+                          size={isActive ? 21 : 17}
+                          style={{ color: isCompleted ? C.goldMid : tier.color, opacity: (!isActive && !isCompleted) ? 0.4 : 1 }}
+                        />
                       </div>
-                      <span className="text-[11px] font-bold" style={{ color: tier.active ? "#fff" : "rgba(255,255,255,0.30)" }}>
+                      <span className="text-[11px] font-bold" style={{ color: isActive ? "#fff" : isCompleted ? C.goldMid : "rgba(255,255,255,0.30)" }}>
                         {tier.label}
                       </span>
                       <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.20)" }}>{tier.threshold}</span>
@@ -925,26 +991,28 @@ export default function IndiqueGanhePage() {
               </div>
 
               <div
-                className="flex items-center justify-between rounded-[14px] p-4 mb-5"
+                className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-[14px] p-3.5 mb-5"
                 style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
               >
-                <div>
+                <div className="min-w-0">
                   <p className="text-[9px] font-bold uppercase tracking-[0.12em] mb-1.5" style={{ color: "rgba(255,255,255,0.30)" }}>Agora</p>
-                  <p className="text-[36px] font-black leading-none tracking-[-0.02em]" style={{ color: C.goldLight }}>{porIndicacaoFmt}</p>
-                  <p className="text-[11px] mt-1.5" style={{ color: "rgba(255,255,255,0.28)" }}>por indic.</p>
+                  <p className="text-[24px] font-black leading-none tracking-[-0.02em]" style={{ color: C.goldLight }}>{porIndicacaoFmt}</p>
+                  <p className="text-[10px] mt-1.5" style={{ color: "rgba(255,255,255,0.28)" }}>por indic.</p>
                 </div>
                 <div className="flex flex-col items-center gap-2">
-                  <ArrowRight size={15} style={{ color: "rgba(255,255,255,0.18)" }} />
-                  <span className="text-[13px] font-extrabold px-3 py-1.5 rounded-[8px]" style={{ background: C.valueSoft, border: `1px solid ${C.valueBorder}`, color: C.value }}>
+                  <ArrowRight size={14} style={{ color: "rgba(255,255,255,0.18)" }} />
+                  <span className="whitespace-nowrap rounded-[7px] px-2.5 py-1 text-[11px] font-extrabold" style={{ background: C.valueSoft, border: `1px solid ${C.valueBorder}`, color: C.value }}>
                     próximo
                   </span>
                 </div>
-                <div className="text-right">
-                  <p className="text-[9px] font-bold uppercase tracking-[0.12em] mb-1.5" style={{ color: "rgba(255,255,255,0.30)" }}>No Diamante</p>
-                  <p className="text-[36px] font-black leading-none tracking-[-0.02em]" style={{ background: `linear-gradient(135deg, #F8FAFC, ${C.platinum} 45%, ${C.goldLight} 95%)`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
-                    {diamondPerFmt}
+                <div className="min-w-0 text-right">
+                  <p className="text-[9px] font-bold uppercase tracking-[0.12em] mb-1.5" style={{ color: "rgba(255,255,255,0.30)" }}>
+                    {atMaxTier ? "Diamante ✓" : `No ${nextTierLabelStr}`}
                   </p>
-                  <p className="text-[11px] mt-1.5" style={{ color: "rgba(255,255,255,0.28)" }}>por indic.</p>
+                  <p className="text-[24px] font-black leading-none tracking-[-0.02em]" style={{ background: `linear-gradient(135deg, #F8FAFC, ${C.platinum} 45%, ${C.goldLight} 95%)`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
+                    {nextTierRewardFmt}
+                  </p>
+                  <p className="text-[10px] mt-1.5" style={{ color: "rgba(255,255,255,0.28)" }}>por indic.</p>
                 </div>
               </div>
 
@@ -959,12 +1027,17 @@ export default function IndiqueGanhePage() {
               </div>
               <div className="flex items-center justify-between">
                 <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.38)" }}>
-                  <span className="font-bold text-white">{paidIndicacoes}</span> de {goalDiamond} indicações pagas
+                  <span className="font-bold text-white">{paidIndicacoes}</span>
+                  {" "}de {atMaxTier ? goalDiamond : nextTierMin} indicações pagas
                 </p>
                 <div className="flex items-center gap-1">
                   <Gem size={10} style={{ color: C.platinum }} />
                   <span className="text-[12px] font-bold" style={{ color: C.platinum }}>
-                    {remainingToDiamond > 0 ? `+${remainingToDiamond} para Diamante` : "Meta Diamante"}
+                    {atMaxTier
+                      ? "Nível máximo ✓"
+                      : remainingToNext > 0
+                        ? `+${remainingToNext} para ${nextTierLabelStr}`
+                        : `Meta ${nextTierLabelStr} ✓`}
                   </span>
                 </div>
               </div>
