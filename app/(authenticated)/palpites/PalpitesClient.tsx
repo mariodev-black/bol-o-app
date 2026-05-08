@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { ChevronDown, ChevronUp, BarChart2, Trophy, AlignJustify, Target, CircleCheck, Star, Bell, Coins, AlertTriangle, Disc, Pencil, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronUp, BarChart2, Trophy, AlignJustify, Target, CircleCheck, Star, Bell, Coins, AlertTriangle, Disc, Pencil, Loader2, ChevronLeft, ChevronRight, Check } from "lucide-react";
 import { TrophyGold, TrophySilver, TrophyBronze } from "@/app/components/RankingTrophies";
 import bgPalpitesDesk from "@/app/assets/bg-palpites-desktop.png";
 import { StepsBreadcrumb } from "../boloes/_components/StepsBreadcrumb";
@@ -1435,6 +1435,200 @@ function DesktopSidebar({ grupo, tabela, grupos, onGrupo, rankingRows, stats }: 
   );
 }
 
+// ── Helpers de data para o RoundPhaseNav ─────────────────────
+const DIAS_SEMANA_PT = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
+function parseDatePill(dataBR: string) {
+  const parts = dataBR.split("/");
+  const d = Number(parts[0]);
+  const m = Number(parts[1]);
+  const y = Number(parts[2]);
+  if (!d || !m || !y) return null;
+  const dateObj = new Date(y, m - 1, d);
+  return {
+    diaSemana: DIAS_SEMANA_PT[dateObj.getDay()] ?? "--",
+    dia: String(d).padStart(2, "0"),
+    mes: MESES[m - 1] ?? "---",
+  };
+}
+
+// ── Round / Phase Navigation ──────────────────────────────────
+function RoundPhaseNav({
+  jogos,
+  predictionsMap,
+  selectedRodada,
+  onRodada,
+  selectedDate,
+  onDate,
+  grupo,
+  grupos,
+  onGrupo,
+}: {
+  jogos: Jogo[];
+  predictionsMap: Record<number, { scoreCasa: number; scoreVisitante: number }>;
+  selectedRodada: number;
+  onRodada: (r: number) => void;
+  selectedDate: string | null;
+  onDate: (d: string | null) => void;
+  grupo: string;
+  grupos: string[];
+  onGrupo: (g: string) => void;
+}) {
+  const rodadas = useMemo(
+    () => Array.from(new Set(jogos.map((j) => j.rodada))).sort((a, b) => a - b),
+    [jogos]
+  );
+  const rodadaIdx = rodadas.indexOf(selectedRodada);
+  const canPrev = rodadaIdx > 0;
+  const canNext = rodadaIdx < rodadas.length - 1;
+
+  const jogosNaRodada = useMemo(
+    () => jogos.filter((j) => j.rodada === selectedRodada),
+    [jogos, selectedRodada]
+  );
+
+  const datas = useMemo(
+    () =>
+      Array.from(new Set(jogosNaRodada.map((j) => j.dataBR)))
+        .filter(Boolean)
+        .sort((a, b) => (brDateToUtcMs(a) ?? 0) - (brDateToUtcMs(b) ?? 0)),
+    [jogosNaRodada]
+  );
+
+  // Progress always reflects the full round so users see overall completion
+  const totalJogos = jogosNaRodada.length;
+  const jogosPalpitados = jogosNaRodada.filter((j) => Boolean(predictionsMap[j.id])).length;
+  const pct = totalJogos > 0 ? Math.round((jogosPalpitados / totalJogos) * 100) : 0;
+
+  function dateStatus(d: string): "done" | "partial" | "pending" {
+    const jd = jogosNaRodada.filter((j) => j.dataBR === d);
+    const p = jd.filter((j) => Boolean(predictionsMap[j.id])).length;
+    if (p === 0) return "pending";
+    if (p === jd.length) return "done";
+    return "partial";
+  }
+
+  return (
+    <div
+      className="mb-4 overflow-hidden rounded-[16px]"
+      style={{ background: "#0B0D0C", border: "1px solid rgba(177,235,11,0.14)" }}
+    >
+      {/* ── Navegação de fase / rodada ── */}
+      <div
+        className="flex items-center justify-between px-4 py-3"
+        style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}
+      >
+        <button
+          type="button"
+          onClick={() => canPrev && onRodada(rodadas[rodadaIdx - 1]!)}
+          disabled={!canPrev}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-opacity"
+          style={{ background: "rgba(255,255,255,0.06)", opacity: canPrev ? 1 : 0.25 }}
+        >
+          <ChevronLeft className="h-4 w-4 text-white/70" strokeWidth={2.2} />
+        </button>
+        <span className="text-[15px] font-black text-white">
+          Fase de Grupos — {rodadaIdx + 1}
+        </span>
+        <button
+          type="button"
+          onClick={() => canNext && onRodada(rodadas[rodadaIdx + 1]!)}
+          disabled={!canNext}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-opacity"
+          style={{ background: "rgba(255,255,255,0.06)", opacity: canNext ? 1 : 0.25 }}
+        >
+          <ChevronRight className="h-4 w-4 text-white/70" strokeWidth={2.2} />
+        </button>
+      </div>
+
+      {/* ── Date strip ── */}
+      {datas.length > 0 && (
+        <div
+          className="flex gap-2 overflow-x-auto px-4 py-3 scrollbar-hide"
+          style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}
+        >
+          {datas.map((d) => {
+            const fmt = parseDatePill(d);
+            if (!fmt) return null;
+            const status = dateStatus(d);
+            const isSelected = selectedDate === d;
+            return (
+              <button
+                key={d}
+                type="button"
+                onClick={() => onDate(isSelected ? null : d)}
+                className="flex shrink-0 flex-col items-center gap-0.5 rounded-[10px] px-3 py-2 transition-all active:scale-95"
+                style={
+                  isSelected
+                    ? { background: "rgba(177,235,11,0.18)", border: "1px solid rgba(177,235,11,0.55)", minWidth: 62 }
+                    : { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", minWidth: 62 }
+                }
+              >
+                {/* status dot / check */}
+                <span className="mb-0.5 flex h-4 items-center justify-center">
+                  {status === "done" ? (
+                    <span
+                      className="flex h-4 w-4 items-center justify-center rounded-full"
+                      style={{ background: "rgba(177,235,11,0.25)" }}
+                    >
+                      <Check className="h-2.5 w-2.5 text-primary" strokeWidth={3} />
+                    </span>
+                  ) : (
+                    <span
+                      className="h-[7px] w-[7px] rounded-full animate-pulse"
+                      style={{ background: "#E6C220" }}
+                    />
+                  )}
+                </span>
+                <span
+                  className="text-[9px] font-black uppercase tracking-wider"
+                  style={{ color: isSelected ? "#B1EB0B" : "rgba(255,255,255,0.45)" }}
+                >
+                  {fmt.diaSemana}
+                </span>
+                <span
+                  className="text-[13px] font-black leading-none"
+                  style={{ color: isSelected ? "#fff" : "rgba(255,255,255,0.80)" }}
+                >
+                  {fmt.dia}
+                </span>
+                <span
+                  className="text-[9px] font-semibold uppercase"
+                  style={{ color: isSelected ? "#B1EB0B" : "rgba(255,255,255,0.35)" }}
+                >
+                  {fmt.mes}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── Progress bar ── */}
+      <div className="px-4 py-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+        <div className="mb-1.5 flex items-center justify-between">
+          <span className="text-[12px] font-semibold" style={{ color: "rgba(255,255,255,0.55)" }}>
+            <span className="font-black text-white">{jogosPalpitados}</span> / {totalJogos} palpites feitos
+          </span>
+          <span className="text-[12px] font-black" style={{ color: pct === 100 ? "#B1EB0B" : "rgba(255,255,255,0.45)" }}>
+            {pct}%
+          </span>
+        </div>
+        <div className="h-[5px] overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.08)" }}>
+          <div
+            className="h-full rounded-full transition-[width] duration-300"
+            style={{
+              width: `${pct}%`,
+              background: pct === 100
+                ? "linear-gradient(90deg, #B1EB0B, #E8FF8A)"
+                : "linear-gradient(90deg, #B1EB0B, #D4F040)",
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Página ───────────────────────────────────────────────────
 function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData | null }) {
   const searchParams = useSearchParams();
@@ -1457,6 +1651,13 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
   const [predictionsMap, setPredictionsMap] = useState<Record<number, { scoreCasa: number; scoreVisitante: number }>>(initialData?.predictionsMap ?? {});
   const [loadingPredictions, setLoadingPredictions] = useState(false);
   const [loadingResumo, setLoadingResumo] = useState(false);
+  const [selectedRodada, setSelectedRodada] = useState<number | null>(() => {
+    if (!initialData?.jogos?.length) return null;
+    const todayStr = todayBR();
+    const rodadas = Array.from(new Set(initialData.jogos.map((j: Jogo) => j.rodada))).sort((a: number, b: number) => a - b);
+    return rodadas.find((r: number) => initialData.jogos.some((j: Jogo) => j.rodada === r && j.dataBR === todayStr)) ?? rodadas[0] ?? null;
+  });
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const showJogos = resultMode ? resultTab === "jogos" : tab === "jogos";
   const showRanking = resultMode ? resultTab === "ranking" : tab === "ranking";
   const showResumo = resultMode ? resultTab === "resumo" : tab === "resumo";
@@ -1510,6 +1711,13 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
         setGrupos(letras);
         setGrupo(letras[0] ?? "GERAL");
         setErro(false);
+        // initialize the round to the one containing today's games
+        const todayDateStr = todayBR();
+        const rodadasDispAll = Array.from(new Set(parsed.map((j) => j.rodada))).sort((a, b) => a - b);
+        const rodadaContemHoje = rodadasDispAll.find((r) =>
+          parsed.filter((j) => j.rodada === r).some((j) => j.dataBR === todayDateStr)
+        );
+        setSelectedRodada(rodadaContemHoje ?? rodadasDispAll[0] ?? 0);
       })
       .catch(() => setErro(true))
       .finally(() => setLoading(false));
@@ -1695,14 +1903,42 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
     };
   });
   const showGroupedByGroup = hasBoloesFlow && bolaoType === "principal";
+
+  // Auto-select the nearest date with pending predictions in the current round.
+  // Runs when the round changes OR when predictions first load (from empty → non-empty).
+  const predictionsLoadedOnce = Object.keys(predictionsMap).length > 0;
+  useEffect(() => {
+    if (!showGroupedByGroup) return;
+    if (selectedRodada === null) return;
+    const jogosNaRodadaAtual = jogosDisplayBase.filter((j) => j.rodada === selectedRodada);
+    const datas = Array.from(new Set(jogosNaRodadaAtual.map((j) => j.dataBR)))
+      .filter(Boolean)
+      .sort((a, b) => (brDateToUtcMs(a) ?? 0) - (brDateToUtcMs(b) ?? 0));
+    // Pick the first date that still has at least one game without a prediction
+    const nextPending = datas.find((d) =>
+      jogosNaRodadaAtual.filter((j) => j.dataBR === d).some((j) => !predictionsMap[j.id])
+    );
+    setSelectedDate(nextPending ?? datas[0] ?? null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedRodada, predictionsLoadedOnce, showGroupedByGroup]);
+
   const gruposComJogos = Array.from(new Set(jogosDisplayBase.map((j) => j.grupo).filter(Boolean))).sort();
-  const jogosPorGrupoRodada = gruposComJogos.map((groupKey) => {
-    const rodadasDoGrupo = Array.from(new Set(jogosDisplayBase.filter((j) => j.grupo === groupKey).map((j) => j.rodada))).sort((a, b) => a - b);
+  // When showGroupedByGroup, filter by selected round and date
+  const jogosFiltradosParaGrupos = showGroupedByGroup
+    ? jogosDisplayBase.filter((j) => {
+        if (selectedRodada !== null && j.rodada !== selectedRodada) return false;
+        if (selectedDate && j.dataBR !== selectedDate) return false;
+        return true;
+      })
+    : jogosDisplayBase;
+  const gruposComJogosFiltrados = Array.from(new Set(jogosFiltradosParaGrupos.map((j) => j.grupo).filter(Boolean))).sort();
+  const jogosPorGrupoRodada = gruposComJogosFiltrados.map((groupKey) => {
+    const rodadasDoGrupo = Array.from(new Set(jogosFiltradosParaGrupos.filter((j) => j.grupo === groupKey).map((j) => j.rodada))).sort((a, b) => a - b);
     return {
       groupKey,
       rodadas: rodadasDoGrupo.map((idx) => ({
         label: rodadaLabel(idx),
-        jogos: jogosDisplayBase.filter((j) => j.grupo === groupKey && j.rodada === idx),
+        jogos: jogosFiltradosParaGrupos.filter((j) => j.grupo === groupKey && j.rodada === idx),
       })),
     };
   });
@@ -1713,7 +1949,8 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
     const targetId = window.matchMedia("(min-width: 1024px)").matches ? `desk-group-${groupKey}` : `mob-group-${groupKey}`;
     const el = document.getElementById(targetId);
     if (!el) return;
-    el.scrollIntoView({ behavior: "smooth", block: "start" });
+    // small delay so render happens first when filtering by date/round
+    setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
   };
   const jogosById = useMemo(
     () =>
@@ -1767,7 +2004,7 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
   );
 
   return (
-    <div className="w-full max-w-lg mx-auto px-4 pt-6 pb-8 lg:max-w-7xl">
+    <div className="w-full max-w-lg mx-auto px-4 pb-8 lg:max-w-7xl">
       <div
         className="fixed inset-0 pointer-events-none -z-20"
         style={{
@@ -1784,14 +2021,6 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
           maskImage: "linear-gradient(180deg, #000 0%, rgba(0,0,0,0.7) 48%, transparent 100%)",
         }}
       />
-      {hasBoloesFlow && (
-        <div className="mb-4">
-          <StepsBreadcrumb
-            backHref={`/boloes`}
-            items={["Bolões", "Tickets", "Palpites"]}
-          />
-        </div>
-      )}
 
       {/* Background desktop — cobre a tela inteira */}
       <div
@@ -1877,36 +2106,17 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
           )}
 
           {showGroupedByGroup && showJogos && (
-            <div
-              className="sticky top-[60px] lg:top-[60px] z-30 mb-5 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2 border-y border-x-0"
-              style={{
-                background: "linear-gradient(180deg, rgba(7,8,7,0.96) 0%, rgba(5,6,5,0.92) 100%)",
-                borderColor: "rgba(177,235,11,0.12)",
-                backdropFilter: "blur(8px)",
-              }}
-            >
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/35 shrink-0 pr-1">Grupo</span>
-                {gruposComJogos.map((g) => {
-                  const active = grupo === g;
-                  return (
-                    <button
-                      key={`tray-${g}`}
-                      onClick={() => scrollToGroup(g)}
-                      className="h-10 min-w-[40px] shrink-0 rounded-xl px-3 inline-flex items-center justify-center font-bold text-[13px] transition-all"
-                      style={{
-                        background: active ? "linear-gradient(180deg, #E8FF8A 0%, #B1EB0B 100%)" : "rgba(255,255,255,0.025)",
-                        color: active ? "#0E141B" : "rgba(255,255,255,0.72)",
-                        border: active ? "1px solid rgba(177,235,11,0.65)" : "1px solid rgba(255,255,255,0.1)",
-                        boxShadow: active ? "0 0 14px rgba(177,235,11,0.34)" : "none",
-                      }}
-                    >
-                      {g}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            <RoundPhaseNav
+              jogos={jogosDisplayBase}
+              predictionsMap={predictionsMap}
+              selectedRodada={selectedRodada ?? 0}
+              onRodada={(r) => { setSelectedRodada(r); setSelectedDate(null); }}
+              selectedDate={selectedDate}
+              onDate={setSelectedDate}
+              grupo={grupo}
+              grupos={gruposComJogos}
+              onGrupo={scrollToGroup}
+            />
           )}
 
           {/* Desktop: filtro de grupos */}
@@ -1941,10 +2151,6 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                 ) : showGroupedByGroup ? (
                   jogosPorGrupoRodada.map(({ groupKey, rodadas }) => (
                     <div key={`group-${groupKey}`} id={`mob-group-${groupKey}`} className="scroll-mt-28">
-                      <div className="flex items-center gap-3 mb-3 mt-2">
-                        <span className="text-[11px] font-bold text-white/35 tracking-widest uppercase shrink-0">{`Grupo ${groupKey}`}</span>
-                        <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.08)" }} />
-                      </div>
                       {rodadas.map(({ label, jogos: rJogos }) => (
                         <div key={`${groupKey}-${label}`}>
                           <div className="flex items-center gap-3 mb-3 mt-1">
@@ -2009,6 +2215,19 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
 
           {/* Desktop: grid 2 colunas de cards por rodada */}
           <div className="hidden lg:block">
+            {showGroupedByGroup && showJogos && (
+              <RoundPhaseNav
+                jogos={jogosDisplayBase}
+                predictionsMap={predictionsMap}
+                selectedRodada={selectedRodada ?? 0}
+                onRodada={(r) => { setSelectedRodada(r); setSelectedDate(null); }}
+                selectedDate={selectedDate}
+                onDate={setSelectedDate}
+                grupo={grupo}
+                grupos={gruposComJogos}
+                onGrupo={scrollToGroup}
+              />
+            )}
             {readOnlyMode && (
               <div className="flex items-center gap-1 mb-5 p-1 rounded-xl bg-[#0B0D0C] border border-white/8 w-[280px]">
                 {([
@@ -2068,10 +2287,6 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
             ) : showGroupedByGroup ? (
               jogosPorGrupoRodada.map(({ groupKey, rodadas }) => (
                 <div key={`desk-group-${groupKey}`} id={`desk-group-${groupKey}`} className="mb-6 scroll-mt-28">
-                  <div className="flex items-center gap-3 mb-4 mt-1">
-                    <span className="text-[11px] font-bold text-white/35 tracking-widest uppercase shrink-0">{`Grupo ${groupKey}`}</span>
-                    <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.08)" }} />
-                  </div>
                   {rodadas.map(({ label, jogos: rJogos }) => (
                     <div key={`desk-${groupKey}-${label}`} className="mb-5">
                       <div className="flex items-center gap-3 mb-4">
