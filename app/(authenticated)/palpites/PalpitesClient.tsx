@@ -227,14 +227,16 @@ function parsePartidas(faseData: Record<string, any>): Jogo[] {
 }
 
 // ── Escudo do time ────────────────────────────────────────────
-function Escudo({ url, alt }: { url: string; alt: string }) {
+function Escudo({ url, alt, size = "md" }: { url: string; alt: string; size?: "sm" | "md" }) {
+  const outer = size === "sm" ? "w-11 h-11 rounded-xl" : "w-14 h-14 rounded-2xl";
+  const inner = size === "sm" ? "w-8 h-8" : "w-10 h-10";
   return (
     <div
-      className="w-14 h-14 rounded-2xl flex items-center justify-center overflow-hidden"
-      style={{ background: "rgba(255,255,255,0.95)", boxShadow: "0 2px 12px rgba(0,0,0,0.3)" }}
+      className={`${outer} flex items-center justify-center overflow-hidden shrink-0`}
+      style={{ background: "rgba(255,255,255,0.95)", boxShadow: "0 2px 10px rgba(0,0,0,0.28)" }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={url} alt={alt} className="w-10 h-10 object-contain" />
+      <img src={url} alt={alt} className={`${inner} object-contain`} />
     </div>
   );
 }
@@ -277,10 +279,10 @@ function CardSkeleton() {
 // ── Score animado ─────────────────────────────────────────────
 function ScoreDisplay({ value, dir }: { value: number; dir: "up" | "down" }) {
   return (
-    <div className="h-11 w-10 overflow-hidden relative flex items-center justify-center">
+    <div className="h-9 w-9 overflow-hidden relative flex items-center justify-center">
       <span
         key={value}
-        className={`text-white font-black text-4xl leading-none absolute ${dir === "up" ? "animate-score-up" : "animate-score-down"}`}
+        className={`text-white font-black text-[32px] leading-none absolute ${dir === "up" ? "animate-score-up" : "animate-score-down"}`}
       >
         {value}
       </span>
@@ -355,82 +357,82 @@ function JogoCard({
 
   return (
     <div
-      className="rounded-2xl overflow-hidden mb-3 bg-[#0B0D0C]"
+      className="rounded-xl overflow-hidden mb-2.5 bg-[#0B0D0C]"
       style={{
         border: `1px solid ${palpiteSalvo ? "rgba(177,235,11,0.75)" : "rgba(177,235,11,0.18)"}`,
         boxShadow: palpiteSalvo
-          ? "0 0 0 1px rgba(177,235,11,0.16), 0 18px 42px rgba(0,0,0,0.42), 0 0 28px rgba(177,235,11,0.16)"
-          : "0 18px 42px rgba(0,0,0,0.38)",
+          ? "0 0 0 1px rgba(177,235,11,0.16), 0 8px 24px rgba(0,0,0,0.42), 0 0 18px rgba(177,235,11,0.14)"
+          : "0 8px 24px rgba(0,0,0,0.30)",
       }}
     >
       {/* Topo */}
-      <div className="flex items-start justify-between px-5 pt-5 pb-4">
+      <div className="flex items-center justify-between px-4 pt-3 pb-2">
         <div>
-          <p className="text-white font-extrabold text-[15px] tracking-wide">
+          <p className="text-white font-extrabold text-[13px] tracking-wide leading-tight">
             {jogo.timeCasa}
           </p>
-          <p className="text-white/40 text-[12px] mt-0.5">VS {jogo.timeVisitante}</p>
+          <p className="text-white/40 text-[11px] mt-0.5">VS {jogo.timeVisitante}</p>
         </div>
-        <div className="flex flex-col items-end gap-1.5">
-          <span className="text-primary text-[12px] font-medium">
+        <div className="flex flex-col items-end gap-1">
+          <span className="text-primary text-[11px] font-medium">
             {formatData(jogo.dataBR, jogo.kickoffAt)}, {safeHourLabel(jogo.hora)}
           </span>
           {readOnly && (
             <div
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full"
+              className="flex items-center gap-1 px-2 py-0.5 rounded-full"
               style={{ background: "rgba(177,235,11,0.10)", border: "1px solid rgba(177,235,11,0.30)" }}
             >
-              <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "#B1EB0B" }}>Resultado</span>
+              <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: "#B1EB0B" }}>Resultado</span>
             </div>
           )}
           {!readOnly && jogo.status === "aberto" && !palpiteSalvo && (
             <div
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full"
+              className="flex items-center gap-1 px-2 py-0.5 rounded-full"
               style={{ background: "rgba(177,235,11,0.10)", border: "1px solid rgba(177,235,11,0.34)" }}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-              <span className="text-[11px] font-bold text-primary uppercase tracking-wide">
+              <span className="text-[10px] font-bold text-primary uppercase tracking-wide">
                 {isLockedByTime ? "Fechado (1h)" : "Aberto"}
               </span>
             </div>
           )}
           {!readOnly && palpiteSalvo && (
             <div
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full"
+              className="flex items-center gap-1 px-2 py-0.5 rounded-full"
               style={{ background: "rgba(177,235,11,0.10)", border: "1px solid rgba(177,235,11,0.34)" }}
             >
               <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#B1EB0B" }} />
-              <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "#B1EB0B" }}>Salvo</span>
+              <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: "#B1EB0B" }}>Salvo</span>
             </div>
           )}
           {jogo.status === "encerrado" && (
             <div
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full"
+              className="flex items-center gap-1 px-2 py-0.5 rounded-full"
               style={{ background: "#0B0D0C", border: "1px solid rgba(255,255,255,0.08)" }}
             >
-              <span className="text-[11px] font-bold text-white/30 uppercase tracking-wide">Encerrado</span>
+              <span className="text-[10px] font-bold text-white/30 uppercase tracking-wide">Encerrado</span>
             </div>
           )}
         </div>
       </div>
 
-      <div className="mx-5 h-px bg-white/8" />
+      <div className="mx-4 h-px bg-white/8" />
 
       {/* Área de palpite */}
-      <div className="flex items-center justify-between px-5 py-5 gap-2">
-        <Escudo url={jogo.escudoCasa} alt={jogo.timeCasa} />
+      <div className="flex items-center justify-between px-4 py-3 gap-2">
+        <Escudo url={jogo.escudoCasa} alt={jogo.timeCasa} size="sm" />
 
         {readOnly ? (
           <div className="flex items-center gap-2">
             <div
-              className="w-12 h-12 rounded-xl flex items-center justify-center text-[26px] font-black"
+              className="w-10 h-10 rounded-lg flex items-center justify-center text-[22px] font-black"
               style={{ background: "rgba(255,255,255,0.08)", color: "#fff" }}
             >
               {scoreCasa}
             </div>
-            <span className="text-white/25 font-light text-2xl">×</span>
+            <span className="text-white/25 font-light text-xl">×</span>
             <div
-              className="w-12 h-12 rounded-xl flex items-center justify-center text-[26px] font-black"
+              className="w-10 h-10 rounded-lg flex items-center justify-center text-[22px] font-black"
               style={{ background: "rgba(255,255,255,0.08)", color: "#fff" }}
             >
               {scoreVisitante}
@@ -438,67 +440,67 @@ function JogoCard({
           </div>
         ) : (
           <>
-            <div className="flex flex-col items-center gap-2">
+            <div className="flex flex-col items-center gap-1.5">
               <button
                 onClick={() => increment("casa")}
                 disabled={disabled}
-                className="w-9 h-9 rounded-[7px] flex items-center justify-center transition-opacity"
+                className="w-8 h-8 rounded-[6px] flex items-center justify-center transition-opacity"
                 style={{ opacity: disabled ? 0.3 : 1, background: "#111411", border: "1px solid rgba(177,235,11,0.14)" }}
               >
-                <ChevronUp className="w-4 h-4 text-primary" />
+                <ChevronUp className="w-3.5 h-3.5 text-primary" />
               </button>
               <ScoreDisplay value={scoreCasa} dir={dirCasa} />
               <button
                 onClick={() => decrement("casa")}
                 disabled={disabled}
-                className="w-9 h-9 rounded-[7px] flex items-center justify-center transition-opacity"
+                className="w-8 h-8 rounded-[6px] flex items-center justify-center transition-opacity"
                 style={{ opacity: disabled ? 0.3 : 1, background: "#111411", border: "1px solid rgba(177,235,11,0.14)" }}
               >
-                <ChevronDown className="w-4 h-4 text-primary" />
+                <ChevronDown className="w-3.5 h-3.5 text-primary" />
               </button>
             </div>
 
-            <span className="text-white/20 font-light text-2xl mb-1">×</span>
+            <span className="text-white/20 font-light text-xl">×</span>
 
-            <div className="flex flex-col items-center gap-2">
+            <div className="flex flex-col items-center gap-1.5">
               <button
                 onClick={() => increment("visitante")}
                 disabled={disabled}
-                className="w-9 h-9 rounded-[7px] flex items-center justify-center transition-opacity"
+                className="w-8 h-8 rounded-[6px] flex items-center justify-center transition-opacity"
                 style={{ opacity: disabled ? 0.3 : 1, background: "#111411", border: "1px solid rgba(177,235,11,0.14)" }}
               >
-                <ChevronUp className="w-4 h-4 text-primary" />
+                <ChevronUp className="w-3.5 h-3.5 text-primary" />
               </button>
               <ScoreDisplay value={scoreVisitante} dir={dirVisitante} />
               <button
                 onClick={() => decrement("visitante")}
                 disabled={disabled}
-                className="w-9 h-9 rounded-[7px] flex items-center justify-center transition-opacity"
+                className="w-8 h-8 rounded-[6px] flex items-center justify-center transition-opacity"
                 style={{ opacity: disabled ? 0.3 : 1, background: "#111411", border: "1px solid rgba(177,235,11,0.14)" }}
               >
-                <ChevronDown className="w-4 h-4 text-primary" />
+                <ChevronDown className="w-3.5 h-3.5 text-primary" />
               </button>
             </div>
           </>
         )}
 
-        <Escudo url={jogo.escudoVisitante} alt={jogo.timeVisitante} />
+        <Escudo url={jogo.escudoVisitante} alt={jogo.timeVisitante} size="sm" />
       </div>
 
-      <div className="mx-5 h-px bg-white/8 mb-5" />
+      <div className="mx-4 h-px bg-white/8 mb-3" />
 
       {/* Botão */}
-      <div className="px-4 pb-4">
+      <div className="px-3 pb-3">
         {readOnly ? (
           <div
-            className="w-full py-3.5 rounded-xl flex items-center justify-center gap-2"
+            className="w-full py-2.5 rounded-lg flex items-center justify-center gap-2"
             style={{
               background: review && review.points > 0 ? "rgba(177,235,11,0.12)" : "rgba(255,255,255,0.05)",
               border: review && review.points > 0 ? "1px solid rgba(177,235,11,0.35)" : "1px solid rgba(255,255,255,0.10)",
             }}
           >
             <span
-              className="font-black text-[14px]"
+              className="font-black text-[13px]"
               style={{ color: review && review.points > 0 ? "#B1EB0B" : "rgba(255,255,255,0.72)" }}
             >
               {review && review.points > 0
@@ -508,20 +510,20 @@ function JogoCard({
           </div>
         ) : predictionsLoading ? (
           <div
-            className="w-full py-3.5 rounded-xl flex items-center justify-center gap-2"
+            className="w-full py-2.5 rounded-lg flex items-center justify-center gap-2"
             style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.14)" }}
           >
             <Loader2 className="w-4 h-4 animate-spin text-white/70" />
-            <span className="font-bold text-[14px] text-white/70">Carregando palpite...</span>
+            <span className="font-bold text-[13px] text-white/70">Carregando palpite...</span>
           </div>
         ) : palpiteSalvo ? (
           <div className="flex items-center gap-2">
             <div
-              className="flex-1 py-3.5 rounded-xl flex items-center justify-center gap-2"
+              className="flex-1 py-2.5 rounded-lg flex items-center justify-center gap-2"
               style={{ background: "rgba(177,235,11,0.12)", border: "1px solid rgba(177,235,11,0.30)" }}
             >
-              <CircleCheck className="w-4 h-4" style={{ color: "#B1EB0B" }} strokeWidth={2.5} />
-              <span className="font-black text-[15px]" style={{ color: "#B1EB0B" }}>Palpite salvo</span>
+              <CircleCheck className="w-3.5 h-3.5" style={{ color: "#B1EB0B" }} strokeWidth={2.5} />
+              <span className="font-black text-[13px]" style={{ color: "#B1EB0B" }}>Palpite salvo</span>
             </div>
             {canEdit && (
               <button
@@ -530,11 +532,11 @@ function JogoCard({
                   setPalpiteSalvo(false);
                 }}
                 disabled={isSubmitting}
-                className="h-[50px] px-4 rounded-xl flex items-center gap-1.5 transition-all duration-200 disabled:opacity-40"
+                className="h-[42px] px-3 rounded-lg flex items-center gap-1.5 transition-all duration-200 disabled:opacity-40"
                 style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
               >
-                <Pencil className="w-3.5 h-3.5 text-white/50" strokeWidth={2} />
-                <span className="text-[13px] font-semibold text-white/50">Editar</span>
+                <Pencil className="w-3 h-3 text-white/50" strokeWidth={2} />
+                <span className="text-[12px] font-semibold text-white/50">Editar</span>
               </button>
             )}
           </div>
@@ -558,11 +560,11 @@ function JogoCard({
               }
             }}
             disabled={!canEdit || !ticketId || isSubmitting}
-            className="w-full py-3.5 rounded-xl font-black text-[16px] transition-all duration-200"
+            className="w-full py-2.5 rounded-lg font-black text-[14px] transition-all duration-200"
             style={{
               background: !canEdit || !ticketId || isSubmitting ? "#1A1A1A" : hasInitialPrediction ? "#B1EB0B" : "#E6E6E6",
               color: !canEdit || !ticketId || isSubmitting ? "rgba(255,255,255,0.22)" : "#0E141B",
-              boxShadow: !canEdit || !ticketId || isSubmitting || !hasInitialPrediction ? "none" : "0 0 22px rgba(177,235,11,0.22)",
+              boxShadow: !canEdit || !ticketId || isSubmitting || !hasInitialPrediction ? "none" : "0 0 16px rgba(177,235,11,0.22)",
             }}
           >
             <span className="inline-flex items-center justify-center gap-2">
@@ -577,7 +579,7 @@ function JogoCard({
             </span>
           </button>
         )}
-        {saveError ? <p className="mt-2 text-[12px] text-red-300">{saveError}</p> : null}
+        {saveError ? <p className="mt-2 text-[11px] text-red-300">{saveError}</p> : null}
       </div>
     </div>
   );
