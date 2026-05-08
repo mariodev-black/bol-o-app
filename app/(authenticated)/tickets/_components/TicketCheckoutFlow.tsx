@@ -43,6 +43,11 @@ function formatCountdown(totalSeconds: number) {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
+function isPaidStatus(s: string): boolean {
+  const v = (s || "").toLowerCase().trim();
+  return v === "paid" || v === "approved" || v === "success" || v === "completed" || v === "confirmed";
+}
+
 function statusLabelPt(status: string): string {
   const s = (status || "").toLowerCase();
   if (s === "waiting_payment" || s === "pending_payment" || s === "creating") return "Aguardando pagamento";
@@ -101,28 +106,35 @@ export function TicketCheckoutFlow({ initialTicketKind = "general" }: TicketChec
   const [couponOpen, setCouponOpen] = useState(false);
   const [couponCode, setCouponCode] = useState("");
   const [couponHint, setCouponHint] = useState<string | null>(null);
+  const [checkingManually, setCheckingManually] = useState(false);
+  const [confirmedPaid, setConfirmedPaid] = useState(false);
   const paidHandledRef = useRef(false);
   const purchasePrincipalRef = useRef(0);
   const purchaseDiarioRef = useRef(0);
 
   const handleTransactionUpdate = useCallback(
-    (payload: TransactionUpdatePayload) => {
-      if (payload.status) setTxStatus(payload.status);
+    (payload: TransactionUpdatePayload, source?: string) => {
+      if (payload.status) {
+        console.log("[PIX] status update", { source, status: payload.status, transactionId });
+        setTxStatus(payload.status);
+      }
       if (payload.pixQrcode) setPixPayload(payload.pixQrcode);
       if (payload.providerTransactionId) setOrderRef(payload.providerTransactionId);
-      if (
-        transactionId &&
-        (payload.status === "paid" || payload.status === "approved") &&
-        !paidHandledRef.current
-      ) {
+
+      if (transactionId && payload.status && isPaidStatus(payload.status) && !paidHandledRef.current) {
+        console.log("[PIX] PAGAMENTO CONFIRMADO — redirecionando", { source, status: payload.status });
         paidHandledRef.current = true;
+        setConfirmedPaid(true);
         appendTicketsFromPurchase(purchasePrincipalRef.current, purchaseDiarioRef.current);
         const q = new URLSearchParams({
           tx: transactionId,
           principal: String(purchasePrincipalRef.current),
           diario: String(purchaseDiarioRef.current),
         });
-        router.replace(`/tickets/obrigado?${q.toString()}`);
+        // Pequeno delay para o usuário ver o feedback "Pagamento confirmado!"
+        window.setTimeout(() => {
+          router.replace(`/tickets/obrigado?${q.toString()}`);
+        }, 1500);
       }
     },
     [router, transactionId]
@@ -158,29 +170,35 @@ export function TicketCheckoutFlow({ initialTicketKind = "general" }: TicketChec
     })();
   }, []);
 
+  // SSE — canal primário (funciona em dev; pode não funcionar em serverless multi-instância)
   useEffect(() => {
     if (step !== "pix" || !transactionId) return;
+    console.log("[PIX] abrindo SSE para", transactionId);
     const es = new EventSource(`/api/deposits/transactions/${transactionId}/events`);
+    es.onopen = () => console.log("[PIX] SSE conectado");
+    es.onerror = (e) => console.warn("[PIX] SSE erro", e);
     es.addEventListener("transaction", (evt) => {
       try {
-        const payload = JSON.parse((evt as MessageEvent).data) as {
-          status?: string;
-          pixQrcode?: string | null;
-          providerTransactionId?: string | null;
-        };
-        handleTransactionUpdate(payload);
+        const payload = JSON.parse((evt as MessageEvent).data) as TransactionUpdatePayload;
+        handleTransactionUpdate(payload, "sse");
       } catch {
-        // ignora payload invalido
+        console.warn("[PIX] SSE payload inválido", (evt as MessageEvent).data);
       }
     });
-    return () => es.close();
+    return () => {
+      console.log("[PIX] fechando SSE");
+      es.close();
+    };
   }, [step, transactionId, handleTransactionUpdate]);
 
+  // Polling — canal de fallback (funciona sempre, inclusive em serverless)
   useEffect(() => {
     if (step !== "pix" || !transactionId) return;
     let cancelled = false;
+    let pollCount = 0;
 
     async function pollTransaction() {
+      if (paidHandledRef.current) return; // já redirecionando
       try {
         const r = await fetch(`/api/deposits/transactions/${transactionId}`, {
           credentials: "include",
@@ -188,21 +206,42 @@ export function TicketCheckoutFlow({ initialTicketKind = "general" }: TicketChec
         });
         const data = (await r.json()) as { transaction?: DepositTransaction };
         if (cancelled || !r.ok || !data.transaction) return;
-        handleTransactionUpdate({
-          status: data.transaction.status,
-          pixQrcode: data.transaction.pixQrcode,
-          providerTransactionId: data.transaction.providerTransactionId,
-        });
-      } catch {
-        // Mantem o SSE como canal principal e tenta novamente no proximo ciclo.
+        pollCount++;
+        console.log("[PIX] poll #" + pollCount, data.transaction.status);
+        handleTransactionUpdate(
+          {
+            status: data.transaction.status,
+            pixQrcode: data.transaction.pixQrcode,
+            providerTransactionId: data.transaction.providerTransactionId,
+          },
+          "poll"
+        );
+      } catch (err) {
+        console.warn("[PIX] poll erro", err);
       }
     }
 
+    // Poll imediato + intervalo de 2 s nos primeiros 30 s, depois 4 s
     void pollTransaction();
-    const id = window.setInterval(pollTransaction, 4000);
+    let interval = 2000;
+    let id = window.setInterval(() => {
+      void pollTransaction();
+    }, interval);
+
+    const slowDown = window.setTimeout(() => {
+      window.clearInterval(id);
+      if (!cancelled && !paidHandledRef.current) {
+        interval = 4000;
+        id = window.setInterval(() => {
+          void pollTransaction();
+        }, interval);
+      }
+    }, 30_000);
+
     return () => {
       cancelled = true;
       window.clearInterval(id);
+      window.clearTimeout(slowDown);
     };
   }, [step, transactionId, handleTransactionUpdate]);
 
@@ -575,17 +614,38 @@ export function TicketCheckoutFlow({ initialTicketKind = "general" }: TicketChec
           {step === "pix" && pixPayload && (
             <div className="space-y-4">
 
+              {/* overlay de confirmação */}
+              {confirmedPaid && (
+                <div className="flex flex-col items-center gap-3 rounded-2xl border border-[#0AC96B]/40 bg-[#0AC96B]/10 px-6 py-8 text-center">
+                  <span className="flex size-14 items-center justify-center rounded-full bg-[#0AC96B]/20 border border-[#0AC96B]/40">
+                    <Check className="size-7 text-[#0AC96B]" strokeWidth={2.5} />
+                  </span>
+                  <p className="text-[18px] font-black text-white">Pagamento confirmado!</p>
+                  <p className="text-[13px] text-white/55">Redirecionando para seus tickets…</p>
+                  <Loader2 className="size-5 animate-spin text-[#0AC96B]/70" />
+                </div>
+              )}
+
               <div>
                 <div className="flex items-center justify-between gap-2 mb-1.5">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-white/45">PIX</span>
-                  <span className="text-[12px] font-mono text-white/55">{orderRef}</span>
+                  <span className="text-[12px] font-mono text-white/55 truncate max-w-[55%]">{orderRef}</span>
                 </div>
-                <div className="flex items-center justify-between text-[13px] mb-1.5" style={{ color: "rgba(226,213,184,0.55)" }}>
+                <div className="flex items-center justify-between text-[13px] mb-1" style={{ color: "rgba(226,213,184,0.55)" }}>
                   <span>{pixExpired ? "Expirado" : "Válido 5 min"}</span>
                   <span className="font-mono tabular-nums text-white/65">{pixExpired ? "0:00" : formatCountdown(secondsLeft)}</span>
                 </div>
-                <p className="text-[12px] text-white/50 mt-1">
-                  Status: <span className="text-white/80 font-semibold">{statusLabelPt(txStatus || "waiting_payment")}</span>
+                <p className="text-[12px] text-white/50 mt-0.5 mb-1">
+                  Status:{" "}
+                  <span
+                    className={
+                      isPaidStatus(txStatus || "")
+                        ? "font-bold text-[#0AC96B]"
+                        : "font-semibold text-white/80"
+                    }
+                  >
+                    {statusLabelPt(txStatus || "waiting_payment")}
+                  </span>
                 </p>
                 <div
                   className="h-1.5 rounded-full overflow-hidden"
@@ -706,6 +766,61 @@ export function TicketCheckoutFlow({ initialTicketKind = "general" }: TicketChec
                   </button>
                 </div>
               </div>
+
+              {/* Botão de verificação manual */}
+              {!confirmedPaid && !pixExpired && (
+                <button
+                  type="button"
+                  disabled={checkingManually}
+                  onClick={async () => {
+                    if (!transactionId || checkingManually) return;
+                    setCheckingManually(true);
+                    try {
+                      const r = await fetch(`/api/deposits/transactions/${transactionId}`, {
+                        credentials: "include",
+                        cache: "no-store",
+                      });
+                      const data = (await r.json()) as { transaction?: DepositTransaction };
+                      if (r.ok && data.transaction) {
+                        console.log("[PIX] verificação manual status:", data.transaction.status);
+                        handleTransactionUpdate(
+                          {
+                            status: data.transaction.status,
+                            pixQrcode: data.transaction.pixQrcode,
+                            providerTransactionId: data.transaction.providerTransactionId,
+                          },
+                          "manual"
+                        );
+                        if (!isPaidStatus(data.transaction.status)) {
+                          setError("Pagamento ainda não confirmado. Aguarde ou tente novamente.");
+                          window.setTimeout(() => setError(null), 4000);
+                        }
+                      }
+                    } catch {
+                      setError("Erro ao verificar. Tente novamente.");
+                      window.setTimeout(() => setError(null), 3000);
+                    } finally {
+                      setCheckingManually(false);
+                    }
+                  }}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 py-3.5 text-[13px] font-bold text-white/70 transition-colors hover:bg-white/8 disabled:opacity-50"
+                >
+                  {checkingManually ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" />
+                      Verificando…
+                    </>
+                  ) : (
+                    <>
+                      <Check className="size-4" strokeWidth={2.5} />
+                      Já paguei — verificar agora
+                    </>
+                  )}
+                </button>
+              )}
+              {error && (
+                <p className="text-center text-[12px] font-semibold text-red-300">{error}</p>
+              )}
             </div>
           )}
         </section>

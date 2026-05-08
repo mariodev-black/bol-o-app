@@ -2,8 +2,20 @@
 "use client";
 
 import Link from "next/link";
-import { CalendarDays, ChevronRight, ClipboardList, Trophy } from "lucide-react";
+import Image from "next/image";
+import {
+  ArrowRight,
+  CalendarDays,
+  Check,
+  ChevronRight,
+  ClipboardList,
+  Lock,
+  Shield,
+  Trophy,
+  Users,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import trofeuBoloes from "@/app/assets/trofeu-boloes.png";
 
 export type ActivePrincipalBolao = {
   id: string;
@@ -477,15 +489,315 @@ function AvailableCard({
   );
 }
 
+/* ─────────────────────────────────────────────────────
+   Estado vazio — usuário sem cotas
+   ───────────────────────────────────────────────────── */
+
+const INCLUDED = [
+  "Ranking nacional com + de 124 mil participantes",
+  "Top 10% premiado — do 1° ao 20.000° lugar",
+  "Mais de R$ 1 milhão em prêmios no total",
+  "Palpites em todos os jogos da Copa 2026",
+  "Placar exato vale pontos extras no ranking",
+];
+
+const STATS = [
+  { icon: Users, value: "+124.562", label: "Participantes" },
+  { icon: Trophy, value: "+R$ 900K", label: "Já pagos em prêmios" },
+  { icon: Shield, value: "TOP 10%", label: "Participantes premiados" },
+  { icon: Check, value: "100%", label: "Seguro e verificado" },
+];
+
+const PACKAGES = [
+  { qty: 1 as const, label: "1 COTA",  priceMain: "R$39",  priceDec: ",90", unit: "Por cota",       saving: null },
+  { qty: 3 as const, label: "3 COTAS", priceMain: "R$99",  priceDec: ",00", unit: "R$33,00 / cota", saving: "-R$21" },
+  { qty: 5 as const, label: "5 COTAS", priceMain: "R$159", priceDec: ",00", unit: "R$31,80 / cota", saving: "-R$40" },
+];
+
+function NoTicketsState({ priceLabel }: { priceLabel: string }) {
+  const [selectedPkg, setSelectedPkg] = useState<1 | 3 | 5>(1);
+  const currentPkg = PACKAGES.find((p) => p.qty === selectedPkg)!;
+
+  return (
+    <div className="min-h-screen bg-black pb-10 text-white">
+
+      {/* ── Banner ──────────────────────────────────── */}
+      <div className="w-full bg-black">
+        {/* text block */}
+        <div className="px-5 pb-2 text-center">
+          <span
+            className="inline-flex items-center rounded-[8px] px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.22em] text-primary bg-primary/20 border border-primary/60"
+          >
+            Valendo
+          </span>
+          <h1 className="mt-5 text-[36px] font-black uppercase leading-[0.9] tracking-[-0.02em] text-white">
+            +R$ 1 Milhão<br />
+            <span className="text-primary">em Prêmios!</span>
+          </h1>
+          <p className="mx-auto mt-4 max-w-[300px] text-[13px] font-medium leading-normal text-white/55">
+            Entre agora no maior bolão da Copa do Brasil.
+          </p>
+          <p className="mt-1 text-[13px] font-bold text-primary">
+            1 em cada 10 participantes será premiado.
+          </p>
+        </div>
+
+        {/* trophy image — standalone, full width */}
+        <Image
+          src={trofeuBoloes}
+          alt="Troféu Copa do Mundo"
+          className="h-auto w-full object-contain"
+          priority
+        />
+      </div>
+
+      {/* ── Body ──────────────────────────────────── */}
+      <div className="relative z-10 mx-auto w-full max-w-[430px] -mt-10 space-y-8 px-4">
+
+        {/* Pricing card */}
+        <div
+          className="rounded-[16px] px-5 py-5 text-center"
+          style={{
+            background: "#111",
+            border: "1px solid rgba(177,235,11,0.18)",
+            boxShadow: "0 0 32px rgba(177,235,11,0.06) inset",
+          }}
+        >
+          <p className="text-[11px] font-black uppercase tracking-[0.2em] text-white">
+            Cota Oficial Copa 2026
+          </p>
+          <p className="mt-3 text-[14px] font-semibold text-white/35 line-through">
+            R$ 59,90
+          </p>
+          <p className="mt-1 text-[44px] font-black leading-none tracking-[-0.03em] text-primary">
+            R$ 39,90
+          </p>
+          <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">
+            Por Cota
+          </p>
+        </div>
+
+        {/* CTA principal */}
+        <Link
+          href="/tickets"
+          className="flex h-[58px] w-full items-center justify-center gap-2.5 rounded-[14px] bg-primary text-[14px] font-black uppercase tracking-[0.04em] text-[#0E141B] shadow-[0_4px_28px_rgba(177,235,11,0.55)] transition-[filter] hover:brightness-105 active:scale-[0.98]"
+        >
+          Quero disputar o milhão
+          <ArrowRight className="size-[18px]" strokeWidth={2.8} />
+        </Link>
+
+        {/* Trust badges */}
+        <div className="flex items-center justify-center gap-6">
+          <span className="flex items-center gap-1.5 text-[11px] font-semibold text-white/35">
+            <Shield className="size-3.5 shrink-0" strokeWidth={1.8} />
+            Pagamento seguro
+          </span>
+          <span className="h-3 w-px bg-white/12" aria-hidden />
+          <span className="flex items-center gap-1.5 text-[11px] font-semibold text-white/35">
+            <Lock className="size-3.5 shrink-0" strokeWidth={1.8} />
+            Dados protegidos
+          </span>
+        </div>
+
+        {/* Stats 2×2 */}
+        <div className="grid grid-cols-2 gap-2.5">
+          {STATS.map(({ icon: Icon, value, label }) => (
+            <div
+              key={label}
+              className="flex items-center gap-3 rounded-[13px] border border-white/7 px-4 py-3.5"
+              style={{ background: "#111" }}
+            >
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-primary/10 border border-primary/20">
+                <Icon className="size-[17px] text-primary" strokeWidth={2} />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[16px] font-black leading-none text-white">{value}</p>
+                <p className="mt-1 text-[9px] font-semibold leading-tight text-white/42">{label}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* O que está incluído */}
+        <div>
+          <p className="mb-3 text-[11px] font-black uppercase tracking-[0.2em] text-white/35">
+            O que está incluído
+          </p>
+          <div
+            className="overflow-hidden rounded-[16px] border border-white/8"
+            style={{ background: "#111" }}
+          >
+            {/* header do card */}
+            <div className="flex items-center gap-3 border-b border-white/7 px-4 py-3.5">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-primary/10 border border-primary/20">
+                <Trophy className="size-[17px] text-primary" strokeWidth={2} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[14px] font-black uppercase leading-none text-white">
+                  Bolão Principal
+                </p>
+                <span className="mt-1.5 inline-flex items-center rounded-[5px] bg-primary/15 px-2 py-0.5 text-[8px] font-black uppercase tracking-wider text-primary">
+                  Cota Oficial Copa 2026
+                </span>
+              </div>
+            </div>
+
+            {/* itens */}
+            <div className="space-y-0 px-4 py-3">
+              {INCLUDED.map((item) => (
+                <div key={item} className="flex items-start gap-2.5 py-2.5 border-b border-white/5 last:border-0">
+                  <span className="mt-px flex size-[18px] shrink-0 items-center justify-center rounded-full border border-primary/35 bg-primary/10">
+                    <Check className="size-3 text-primary" strokeWidth={3} />
+                  </span>
+                  <p className="text-[12px] font-medium leading-snug text-white/75">{item}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* footer */}
+            <div className="flex items-start gap-2.5 border-t border-white/7 px-4 py-3.5">
+              <ArrowRight className="mt-0.5 size-3.5 shrink-0 text-primary" strokeWidth={2.5} />
+              <p className="text-[11px] font-medium leading-snug text-white/50">
+                Você concorre ao ranking geral e pode ser um dos{" "}
+                <span className="font-bold text-white/80">+20.000 premiados</span>.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Escolha seu pacote */}
+        <div>
+          <p className="mb-3 text-[11px] font-black uppercase tracking-[0.2em] text-white/35">
+            Escolha seu pacote
+          </p>
+
+          {/* card wrapper */}
+          <div
+            className="overflow-hidden rounded-[18px] border border-white/8"
+            style={{ background: "#141414" }}
+          >
+            {/* header */}
+            <div className="px-4 pb-4 pt-5">
+              <p className="text-[17px] font-black leading-tight text-white">Aumente suas chances</p>
+              <p className="mt-1.5 text-[12px] font-medium leading-snug text-white/45">
+                Mais cotas = mais posições no ranking = mais chances de ganhar
+              </p>
+            </div>
+
+            <div className="mx-4 h-px bg-white/8" />
+
+            {/* packages grid */}
+            <div className="grid grid-cols-3 gap-2 p-4">
+              {PACKAGES.map((pkg) => {
+                const active = selectedPkg === pkg.qty;
+                return (
+                  <button
+                    key={pkg.qty}
+                    type="button"
+                    onClick={() => setSelectedPkg(pkg.qty)}
+                    className={[
+                      "relative flex flex-col rounded-[12px] border p-2.5 text-left transition-all active:scale-[0.97]",
+                      active
+                        ? "border-primary bg-primary/10 shadow-[0_0_18px_rgba(177,235,11,0.15)]"
+                        : "border-white/10 bg-white/3",
+                    ].join(" ")}
+                  >
+                    {/* top row: radio + badge */}
+                    <div className="flex items-center justify-between">
+                      {/* radio circle */}
+                      <span
+                        className={[
+                          "flex size-[18px] shrink-0 items-center justify-center rounded-full border-2",
+                          active ? "border-primary" : "border-white/25",
+                        ].join(" ")}
+                      >
+                        {active && (
+                          <span className="size-[8px] rounded-full bg-primary" />
+                        )}
+                      </span>
+                      {/* savings badge */}
+                      {pkg.saving && (
+                        <span className="rounded-full bg-primary/20 px-1.5 py-0.5 text-[8px] font-black text-primary">
+                          {pkg.saving}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* label */}
+                    <p className={`mt-2 text-[9px] font-black uppercase tracking-wide ${active ? "text-primary" : "text-white/45"}`}>
+                      {pkg.label}
+                    </p>
+
+                    {/* price */}
+                    <p className={`mt-1 tabular-nums leading-none ${active ? "text-white" : "text-white/65"}`}>
+                      <span className="text-[16px] font-black">{pkg.priceMain}</span>
+                      <span className="text-[11px] font-bold">{pkg.priceDec}</span>
+                    </p>
+
+                    {/* per-unit */}
+                    <p className="mt-1 text-[8px] font-medium leading-tight text-white/35">
+                      {pkg.unit}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* CTA button inside the card */}
+            <div className="px-4 pb-2">
+              <Link
+                href="/tickets"
+                className="flex h-[56px] w-full items-center justify-center gap-2.5 rounded-[14px] bg-primary text-[13px] font-black uppercase tracking-[0.05em] text-[#0E141B] shadow-[0_4px_24px_rgba(177,235,11,0.45)] transition-[filter] hover:brightness-105 active:scale-[0.98]"
+              >
+                Garantir {currentPkg.label.toLowerCase()} — {currentPkg.priceMain}{currentPkg.priceDec}
+                <ChevronRight className="size-5 shrink-0" strokeWidth={2.8} />
+              </Link>
+            </div>
+
+            {/* trust bar inside the card */}
+            <div className="flex items-center justify-around px-4 py-4">
+              <span className="flex items-center gap-1.5 text-[10px] font-semibold text-white/30">
+                <Lock className="size-3 shrink-0" strokeWidth={1.8} />
+                100% Seguro
+              </span>
+              <span className="h-3 w-px bg-white/12" aria-hidden />
+              <span className="flex items-center gap-1.5 text-[10px] font-semibold text-white/30">
+                <Shield className="size-3 shrink-0" strokeWidth={1.8} />
+                Dados protegidos
+              </span>
+              <span className="h-3 w-px bg-white/12" aria-hidden />
+              <span className="flex items-center gap-1.5 text-[10px] font-semibold text-white/30">
+                <Check className="size-3 shrink-0" strokeWidth={2.2} />
+                Oficial
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────
+   Componente principal
+   ───────────────────────────────────────────────────── */
 export function BoloesClient({ data }: { data: BoloesScreenData | null }) {
   const now = useNow();
   const [showAllActive, setShowAllActive] = useState(false);
+  const hasTickets = (data?.active.all.length ?? 0) > 0;
+
   const summary = data?.summary ?? { activeCount: 0, pendingPredictions: 0, bestPosition: null };
   const bestPosition = summary.bestPosition == null ? "--" : `#${summary.bestPosition}`;
   const dailyCountdown = useMemo(
     () => formatCountdown(data?.upcoming.daily.closesAtMs ?? null, now),
     [data?.upcoming.daily.closesAtMs, now]
   );
+
+  if (!hasTickets) {
+    return <NoTicketsState priceLabel={data?.upcoming.principal.priceLabel ?? "R$ 39,90"} />;
+  }
 
   if (showAllActive) {
     return (
