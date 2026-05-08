@@ -228,16 +228,10 @@ function parsePartidas(faseData: Record<string, any>): Jogo[] {
 
 // ── Escudo do time ────────────────────────────────────────────
 function Escudo({ url, alt, size = "md" }: { url: string; alt: string; size?: "sm" | "md" }) {
-  const outer = size === "sm" ? "w-11 h-11 rounded-xl" : "w-14 h-14 rounded-2xl";
-  const inner = size === "sm" ? "w-8 h-8" : "w-10 h-10";
+  const imgSize = size === "sm" ? "w-12 h-12" : "w-14 h-14";
   return (
-    <div
-      className={`${outer} flex items-center justify-center overflow-hidden shrink-0`}
-      style={{ background: "rgba(255,255,255,0.95)", boxShadow: "0 2px 10px rgba(0,0,0,0.28)" }}
-    >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={url} alt={alt} className={`${inner} object-contain`} />
-    </div>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={url} alt={alt} className={`${imgSize} object-contain shrink-0 drop-shadow-sm`} />
   );
 }
 
@@ -323,8 +317,37 @@ function JogoCard({
   }, [initialPrediction]);
 
   const lockAtMs = jogo.kickoffAt ? new Date(jogo.kickoffAt).getTime() - 60 * 60 * 1000 : null;
-  const isLockedByTime = lockAtMs != null ? Date.now() >= lockAtMs : false;
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    if (!lockAtMs) return;
+    // Update every minute when far away, every second when under 2 minutes
+    const tick = () => setNowMs(Date.now());
+    const msUntilLock = lockAtMs - Date.now();
+    const interval = msUntilLock < 2 * 60 * 1000 ? 1000 : 30_000;
+    const id = setInterval(tick, interval);
+    return () => clearInterval(id);
+  }, [lockAtMs]);
+  const isLockedByTime = lockAtMs != null ? nowMs >= lockAtMs : false;
   const canEdit = !readOnly && jogo.status === "aberto" && !isLockedByTime;
+
+  function formatTimeUntilLock(): string {
+    if (!lockAtMs) return "Aberto";
+    const diff = lockAtMs - nowMs;
+    if (diff <= 0) return "Fechado";
+    const totalSecs = Math.floor(diff / 1000);
+    const mins = Math.floor(totalSecs / 60);
+    const hours = Math.floor(mins / 60);
+    const days = Math.floor(hours / 24);
+    if (days >= 2) return `Fecha em ${days}d`;
+    if (days === 1) return `Fecha em 1 dia`;
+    if (hours >= 2) return `Fecha em ${hours}h`;
+    if (mins >= 1) {
+      const remMins = mins % 60;
+      if (hours >= 1) return `Fecha em ${hours}h ${remMins}m`;
+      return `Fecha em ${mins}m`;
+    }
+    return `Fecha em ${totalSecs}s`;
+  }
 
   function increment(side: "casa" | "visitante") {
     setSaveError(null);
@@ -355,141 +378,131 @@ function JogoCard({
       ? calcPredictionPoints(scoreCasa, scoreVisitante, jogo.resultCasa, jogo.resultVisitante)
       : null;
 
+  // Status badge label/style
+  const statusBadge = readOnly
+    ? { label: "Resultado", color: "#B1EB0B", bg: "rgba(177,235,11,0.10)", border: "rgba(177,235,11,0.30)", dot: false }
+    : jogo.status === "encerrado"
+    ? { label: "Encerrado", color: "rgba(255,255,255,0.30)", bg: "transparent", border: "rgba(255,255,255,0.08)", dot: false }
+    : palpiteSalvo
+    ? { label: "Salvo", color: "#B1EB0B", bg: "rgba(177,235,11,0.10)", border: "rgba(177,235,11,0.34)", dot: true }
+    : isLockedByTime
+    ? { label: "Fechado", color: "rgba(255,255,255,0.40)", bg: "rgba(255,255,255,0.06)", border: "rgba(255,255,255,0.10)", dot: false }
+    : { label: formatTimeUntilLock(), color: "#B1EB0B", bg: "rgba(177,235,11,0.10)", border: "rgba(177,235,11,0.34)", dot: true };
+
+  // Horizontal stepper — square chevron buttons
+  const HorizStepper = ({
+    value, onInc, onDec,
+  }: { value: number; onInc: () => void; onDec: () => void }) => (
+    <div className="mt-2 flex items-center gap-2">
+      <button
+        type="button"
+        onClick={onDec}
+        disabled={disabled}
+        className="w-8 h-8 rounded-[6px] flex items-center justify-center transition-opacity"
+        style={{ opacity: disabled ? 0.3 : 1, background: "#111411", border: "1px solid rgba(177,235,11,0.14)" }}
+      >
+        <ChevronDown className="w-3.5 h-3.5 text-primary" />
+      </button>
+      <span className="w-7 text-center text-[22px] font-black text-white tabular-nums">{value}</span>
+      <button
+        type="button"
+        onClick={onInc}
+        disabled={disabled}
+        className="w-8 h-8 rounded-[6px] flex items-center justify-center transition-opacity"
+        style={{ opacity: disabled ? 0.3 : 1, background: "#111411", border: "1px solid rgba(177,235,11,0.14)" }}
+      >
+        <ChevronUp className="w-3.5 h-3.5 text-primary" />
+      </button>
+    </div>
+  );
+
   return (
     <div
       className="rounded-xl overflow-hidden mb-2.5 bg-[#0B0D0C]"
       style={{
-        border: `1px solid ${palpiteSalvo ? "rgba(177,235,11,0.75)" : "rgba(177,235,11,0.18)"}`,
+        border: `1px solid ${palpiteSalvo ? "rgba(177,235,11,0.60)" : "rgba(177,235,11,0.15)"}`,
         boxShadow: palpiteSalvo
-          ? "0 0 0 1px rgba(177,235,11,0.16), 0 8px 24px rgba(0,0,0,0.42), 0 0 18px rgba(177,235,11,0.14)"
-          : "0 8px 24px rgba(0,0,0,0.30)",
+          ? "0 0 0 1px rgba(177,235,11,0.12), 0 8px 24px rgba(0,0,0,0.40), 0 0 18px rgba(177,235,11,0.12)"
+          : "0 4px 16px rgba(0,0,0,0.28)",
       }}
     >
-      {/* Topo */}
-      <div className="flex items-center justify-between px-4 pt-3 pb-2">
-        <div>
-          <p className="text-white font-extrabold text-[13px] tracking-wide leading-tight">
-            {jogo.timeCasa}
-          </p>
-          <p className="text-white/40 text-[11px] mt-0.5">VS {jogo.timeVisitante}</p>
-        </div>
-        <div className="flex flex-col items-end gap-1">
-          <span className="text-primary text-[11px] font-medium">
-            {formatData(jogo.dataBR, jogo.kickoffAt)}, {safeHourLabel(jogo.hora)}
+      {/* ── Top bar: status + date ── */}
+      <div className="flex items-center justify-between px-4 pt-3 pb-0">
+        {/* Status badge */}
+        <div
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-full"
+          style={{ background: statusBadge.bg, border: `1px solid ${statusBadge.border}` }}
+        >
+          {statusBadge.dot && (
+            <span
+              className="w-1.5 h-1.5 rounded-full animate-pulse"
+              style={{ background: statusBadge.color }}
+            />
+          )}
+          <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: statusBadge.color }}>
+            {statusBadge.label}
           </span>
-          {readOnly && (
-            <div
-              className="flex items-center gap-1 px-2 py-0.5 rounded-full"
-              style={{ background: "rgba(177,235,11,0.10)", border: "1px solid rgba(177,235,11,0.30)" }}
-            >
-              <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: "#B1EB0B" }}>Resultado</span>
-            </div>
-          )}
-          {!readOnly && jogo.status === "aberto" && !palpiteSalvo && (
-            <div
-              className="flex items-center gap-1 px-2 py-0.5 rounded-full"
-              style={{ background: "rgba(177,235,11,0.10)", border: "1px solid rgba(177,235,11,0.34)" }}
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-              <span className="text-[10px] font-bold text-primary uppercase tracking-wide">
-                {isLockedByTime ? "Fechado (1h)" : "Aberto"}
-              </span>
-            </div>
-          )}
-          {!readOnly && palpiteSalvo && (
-            <div
-              className="flex items-center gap-1 px-2 py-0.5 rounded-full"
-              style={{ background: "rgba(177,235,11,0.10)", border: "1px solid rgba(177,235,11,0.34)" }}
-            >
-              <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#B1EB0B" }} />
-              <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: "#B1EB0B" }}>Salvo</span>
-            </div>
-          )}
-          {jogo.status === "encerrado" && (
-            <div
-              className="flex items-center gap-1 px-2 py-0.5 rounded-full"
-              style={{ background: "#0B0D0C", border: "1px solid rgba(255,255,255,0.08)" }}
-            >
-              <span className="text-[10px] font-bold text-white/30 uppercase tracking-wide">Encerrado</span>
-            </div>
-          )}
         </div>
+        {/* Date / time */}
+        <span className="text-[11px] font-medium" style={{ color: "rgba(255,255,255,0.35)" }}>
+          {formatData(jogo.dataBR, jogo.kickoffAt)}, {safeHourLabel(jogo.hora)}
+        </span>
       </div>
 
-      <div className="mx-4 h-px bg-white/8" />
+      {/* ── Teams + score: two columns with × between ── */}
+      <div className="flex items-center px-4 py-3 gap-2">
 
-      {/* Área de palpite */}
-      <div className="flex items-center justify-between px-4 py-3 gap-2">
-        <Escudo url={jogo.escudoCasa} alt={jogo.timeCasa} size="sm" />
-
-        {readOnly ? (
-          <div className="flex items-center gap-2">
+        {/* Casa column */}
+        <div className="flex flex-1 flex-col items-center">
+          <Escudo url={jogo.escudoCasa} alt={jogo.timeCasa} size="sm" />
+          <p className="mt-2 text-[12px] font-semibold text-white text-center leading-tight line-clamp-2">
+            {jogo.timeCasa}
+          </p>
+          {readOnly ? (
             <div
-              className="w-10 h-10 rounded-lg flex items-center justify-center text-[22px] font-black"
+              className="mt-2 w-10 h-10 rounded-lg flex items-center justify-center text-[22px] font-black"
               style={{ background: "rgba(255,255,255,0.08)", color: "#fff" }}
             >
               {scoreCasa}
             </div>
-            <span className="text-white/25 font-light text-xl">×</span>
+          ) : predictionsLoading ? (
+            <div className="mt-3 h-8 w-24 rounded-full animate-pulse" style={{ background: "rgba(255,255,255,0.06)" }} />
+          ) : (
+            <HorizStepper value={scoreCasa} onInc={() => increment("casa")} onDec={() => decrement("casa")} />
+          )}
+        </div>
+
+        {/* × separator — aligned with score row */}
+        <svg className="mb-1 shrink-0 opacity-90" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+
+        {/* Visitante column */}
+        <div className="flex flex-1 flex-col items-center">
+          <Escudo url={jogo.escudoVisitante} alt={jogo.timeVisitante} size="sm" />
+          <p className="mt-2 text-[12px] font-semibold text-white text-center leading-tight line-clamp-2">
+            {jogo.timeVisitante}
+          </p>
+          {readOnly ? (
             <div
-              className="w-10 h-10 rounded-lg flex items-center justify-center text-[22px] font-black"
+              className="mt-2 w-10 h-10 rounded-lg flex items-center justify-center text-[22px] font-black"
               style={{ background: "rgba(255,255,255,0.08)", color: "#fff" }}
             >
               {scoreVisitante}
             </div>
-          </div>
-        ) : (
-          <>
-            <div className="flex flex-col items-center gap-1.5">
-              <button
-                onClick={() => increment("casa")}
-                disabled={disabled}
-                className="w-8 h-8 rounded-[6px] flex items-center justify-center transition-opacity"
-                style={{ opacity: disabled ? 0.3 : 1, background: "#111411", border: "1px solid rgba(177,235,11,0.14)" }}
-              >
-                <ChevronUp className="w-3.5 h-3.5 text-primary" />
-              </button>
-              <ScoreDisplay value={scoreCasa} dir={dirCasa} />
-              <button
-                onClick={() => decrement("casa")}
-                disabled={disabled}
-                className="w-8 h-8 rounded-[6px] flex items-center justify-center transition-opacity"
-                style={{ opacity: disabled ? 0.3 : 1, background: "#111411", border: "1px solid rgba(177,235,11,0.14)" }}
-              >
-                <ChevronDown className="w-3.5 h-3.5 text-primary" />
-              </button>
-            </div>
+          ) : predictionsLoading ? (
+            <div className="mt-3 h-8 w-24 rounded-full animate-pulse" style={{ background: "rgba(255,255,255,0.06)" }} />
+          ) : (
+            <HorizStepper value={scoreVisitante} onInc={() => increment("visitante")} onDec={() => decrement("visitante")} />
+          )}
+        </div>
 
-            <span className="text-white/20 font-light text-xl">×</span>
-
-            <div className="flex flex-col items-center gap-1.5">
-              <button
-                onClick={() => increment("visitante")}
-                disabled={disabled}
-                className="w-8 h-8 rounded-[6px] flex items-center justify-center transition-opacity"
-                style={{ opacity: disabled ? 0.3 : 1, background: "#111411", border: "1px solid rgba(177,235,11,0.14)" }}
-              >
-                <ChevronUp className="w-3.5 h-3.5 text-primary" />
-              </button>
-              <ScoreDisplay value={scoreVisitante} dir={dirVisitante} />
-              <button
-                onClick={() => decrement("visitante")}
-                disabled={disabled}
-                className="w-8 h-8 rounded-[6px] flex items-center justify-center transition-opacity"
-                style={{ opacity: disabled ? 0.3 : 1, background: "#111411", border: "1px solid rgba(177,235,11,0.14)" }}
-              >
-                <ChevronDown className="w-3.5 h-3.5 text-primary" />
-              </button>
-            </div>
-          </>
-        )}
-
-        <Escudo url={jogo.escudoVisitante} alt={jogo.timeVisitante} size="sm" />
       </div>
 
       <div className="mx-4 h-px bg-white/8 mb-3" />
 
-      {/* Botão */}
+      {/* ── Action button ── */}
       <div className="px-3 pb-3">
         {readOnly ? (
           <div
@@ -508,14 +521,6 @@ function JogoCard({
                 : "Sem pontuacao nesta partida"}
             </span>
           </div>
-        ) : predictionsLoading ? (
-          <div
-            className="w-full py-2.5 rounded-lg flex items-center justify-center gap-2"
-            style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.14)" }}
-          >
-            <Loader2 className="w-4 h-4 animate-spin text-white/70" />
-            <span className="font-bold text-[13px] text-white/70">Carregando palpite...</span>
-          </div>
         ) : palpiteSalvo ? (
           <div className="flex items-center gap-2">
             <div
@@ -527,10 +532,7 @@ function JogoCard({
             </div>
             {canEdit && (
               <button
-                onClick={() => {
-                  setSaveError(null);
-                  setPalpiteSalvo(false);
-                }}
+                onClick={() => { setSaveError(null); setPalpiteSalvo(false); }}
                 disabled={isSubmitting}
                 className="h-[42px] px-3 rounded-lg flex items-center gap-1.5 transition-all duration-200 disabled:opacity-40"
                 style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
@@ -547,11 +549,7 @@ function JogoCard({
               setSaveError(null);
               setIsSubmitting(true);
               try {
-                await onSavePrediction({
-                  matchId: jogo.id,
-                  scoreCasa,
-                  scoreVisitante,
-                });
+                await onSavePrediction({ matchId: jogo.id, scoreCasa, scoreVisitante });
                 setPalpiteSalvo(true);
               } catch (error) {
                 setSaveError(error instanceof Error ? error.message : "Erro ao salvar palpite");
@@ -569,13 +567,10 @@ function JogoCard({
           >
             <span className="inline-flex items-center justify-center gap-2">
               {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-              {isSubmitting
-                ? "Salvando palpite..."
-                : isLockedByTime
-                  ? "Apostas encerradas (1h antes)"
-                  : hasInitialPrediction
-                    ? "Atualizar palpite"
-                    : "Fazer Palpite"}
+              {isSubmitting ? "Salvando palpite..."
+                : isLockedByTime ? "Apostas encerradas (1h antes)"
+                : hasInitialPrediction ? "Atualizar palpite"
+                : "Fazer Palpite"}
             </span>
           </button>
         )}
@@ -1643,63 +1638,6 @@ function RoundPhaseNav({
           />
         </div>
       </div>
-
-      {/* ── 4. Group selector ── */}
-      {grupos.length > 0 && (
-        <div
-          className="rounded-[14px] px-4 pb-4 pt-3"
-          style={{ background: "#0B0D0C", border: "1px solid rgba(255,255,255,0.08)" }}
-        >
-          <span
-            className="mb-2 block text-[10px] font-black uppercase tracking-[0.18em]"
-            style={{ color: "rgba(255,255,255,0.28)" }}
-          >
-            Grupo
-          </span>
-          <div className="grid grid-cols-6 gap-1.5">
-            {grupos.map((g) => {
-              const isActive = grupo === g;
-              const jogosGrupo = jogosNaRodada.filter(
-                (j) => j.grupo === g && (!selectedDate || j.dataBR === selectedDate)
-              );
-              const allDone = jogosGrupo.length > 0 && jogosGrupo.every((j) => Boolean(predictionsMap[j.id]));
-              return (
-                <button
-                  key={g}
-                  type="button"
-                  onClick={() => onGrupo(g)}
-                  className="relative flex h-10 items-center justify-center rounded-[10px] text-[14px] font-black transition-all active:scale-95"
-                  style={
-                    isActive
-                      ? {
-                          background: "linear-gradient(180deg, #E8FF8A 0%, #B1EB0B 100%)",
-                          color: "#0E141B",
-                          boxShadow: "0 0 14px rgba(177,235,11,0.45)",
-                        }
-                      : {
-                          background: allDone ? "rgba(177,235,11,0.10)" : "rgba(255,255,255,0.04)",
-                          color: allDone ? "#B1EB0B" : "rgba(255,255,255,0.55)",
-                          border: allDone
-                            ? "1px solid rgba(177,235,11,0.25)"
-                            : "1px solid rgba(255,255,255,0.07)",
-                        }
-                  }
-                >
-                  {g}
-                  {allDone && !isActive && (
-                    <span
-                      className="absolute -right-0.5 -top-0.5 flex h-3 w-3 items-center justify-center rounded-full"
-                      style={{ background: "#B1EB0B" }}
-                    >
-                      <Check className="h-2 w-2" style={{ color: "#0E141B" }} strokeWidth={3} />
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -2229,7 +2167,8 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                       {rodadas.map(({ label, jogos: rJogos }) => (
                         <div key={`${groupKey}-${label}`}>
                           <div className="flex items-center gap-3 mb-3 mt-1">
-                            <span className="text-[11px] font-bold text-white/30 tracking-widest uppercase shrink-0">{label}</span>
+                            <span className="text-[11px] font-bold tracking-widest uppercase shrink-0" style={{ color: "rgba(255,255,255,0.45)" }}>{label}</span>
+                            <span className="text-[11px] font-bold tracking-widest uppercase shrink-0" style={{ color: "rgba(177,235,11,0.55)" }}>· Grupo {groupKey}</span>
                             <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.06)" }} />
                           </div>
                           {rJogos.map((jogo) => (
@@ -2365,7 +2304,8 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                   {rodadas.map(({ label, jogos: rJogos }) => (
                     <div key={`desk-${groupKey}-${label}`} className="mb-5">
                       <div className="flex items-center gap-3 mb-4">
-                        <span className="text-[11px] font-bold text-white/30 tracking-widest uppercase shrink-0">{label}</span>
+                        <span className="text-[11px] font-bold tracking-widest uppercase shrink-0" style={{ color: "rgba(255,255,255,0.45)" }}>{label}</span>
+                        <span className="text-[11px] font-bold tracking-widest uppercase shrink-0" style={{ color: "rgba(177,235,11,0.55)" }}>· Grupo {groupKey}</span>
                         <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.06)" }} />
                       </div>
                       <div className="grid grid-cols-2 gap-4">
