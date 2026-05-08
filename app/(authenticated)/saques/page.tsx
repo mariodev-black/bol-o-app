@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ChevronLeft, Loader2 } from "lucide-react";
 import type { AffiliateSummary } from "../indique/affiliate-types";
 import { formatBRLFromCents } from "../indique/affiliate-types";
+import type { WithdrawalBalanceSource } from "@/lib/referrals/withdrawSource";
 
 function parseMoneyToCents(raw: string): number | null {
   const t = raw.trim().replace(/\./g, "").replace(",", ".");
@@ -16,7 +17,9 @@ function parseMoneyToCents(raw: string): number | null {
 export default function SaquesPage() {
   const [summary, setSummary] = useState<AffiliateSummary | null>(null);
   const [minCents, setMinCents] = useState(2000);
+  const [maxCents, setMaxCents] = useState(50_000_000);
   const [loading, setLoading] = useState(true);
+  const [balanceSource, setBalanceSource] = useState<WithdrawalBalanceSource>("affiliate");
   const [amountStr, setAmountStr] = useState("");
   const [pixKeyType, setPixKeyType] = useState<"cpf" | "email" | "phone" | "random">("cpf");
   const [pixKey, setPixKey] = useState("");
@@ -31,6 +34,7 @@ export default function SaquesPage() {
       if (r.ok && d.summary) {
         setSummary(d.summary);
         setMinCents(d.summary.minWithdrawalCents);
+        setMaxCents(d.summary.maxWithdrawalCents ?? 50_000_000);
       } else setSummary(null);
     } catch {
       setSummary(null);
@@ -43,7 +47,11 @@ export default function SaquesPage() {
     void load();
   }, [load]);
 
-  const available = summary?.balances.availableCents ?? 0;
+  const affiliateAvail = summary?.balances.availableCents ?? 0;
+  const walletAvail = summary?.balances.walletBalanceCents ?? 0;
+  const available = balanceSource === "affiliate" ? affiliateAvail : walletAvail;
+  const pendingAffiliate = summary?.balances.pendingWithdrawalCents ?? 0;
+  const pendingWallet = summary?.balances.pendingWalletWithdrawalCents ?? 0;
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,16 +61,38 @@ export default function SaquesPage() {
       setMessage({ type: "err", text: "Informe um valor válido (ex.: 50,00)." });
       return;
     }
+    if (!Number.isInteger(cents) || cents <= 0) {
+      setMessage({ type: "err", text: "Valor inválido." });
+      return;
+    }
+    if (cents < minCents) {
+      setMessage({ type: "err", text: `O mínimo é ${formatBRLFromCents(minCents)}.` });
+      return;
+    }
+    if (cents > maxCents) {
+      setMessage({ type: "err", text: `O máximo por solicitação é ${formatBRLFromCents(maxCents)}.` });
+      return;
+    }
+    if (cents > available) {
+      setMessage({ type: "err", text: "Valor maior que o saldo disponível nesta origem." });
+      return;
+    }
     setSubmitting(true);
     try {
       const r = await fetch("/api/affiliate/withdraw", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amountCents: cents, pixKeyType, pixKey: pixKey.trim() }),
+        body: JSON.stringify({ amountCents: cents, pixKeyType, pixKey: pixKey.trim(), balanceSource }),
       });
-      const d = (await r.json()) as { error?: string; minWithdrawalCents?: number; ok?: boolean };
+      const d = (await r.json()) as {
+        error?: string;
+        minWithdrawalCents?: number;
+        maxWithdrawalCents?: number;
+        ok?: boolean;
+      };
       if (typeof d.minWithdrawalCents === "number") setMinCents(d.minWithdrawalCents);
+      if (typeof d.maxWithdrawalCents === "number") setMaxCents(d.maxWithdrawalCents);
       if (!r.ok) {
         setMessage({ type: "err", text: d.error || "Não foi possível enviar o pedido." });
         return;
@@ -93,7 +123,8 @@ export default function SaquesPage() {
         Sacar ganhos
       </h1>
       <p className="text-[14px] leading-relaxed mb-6" style={{ color: "rgba(255,255,255,0.42)" }}>
-        Solicite o resgate do saldo de comissões por indicação. O pagamento será feito após aprovação de um administrador.
+        Escolha se o valor sai do saldo de comissões (afiliado) ou do saldo da conta (bolão / prêmios). O valor fica
+        reservado até a equipe aprovar ou recusar — se recusarem, o saldo volta automaticamente.
       </p>
 
       {loading ? (
@@ -102,19 +133,38 @@ export default function SaquesPage() {
           Carregando saldo…
         </div>
       ) : (
-        <div
-          className="rounded-2xl p-5 border border-white/8 mb-6"
-          style={{ background: "#101010" }}
-        >
-          <p className="text-[11px] font-bold uppercase tracking-wider text-white/35">Saldo disponível</p>
-          <p className="text-3xl font-black text-primary mt-1">{formatBRLFromCents(available)}</p>
-          {summary && summary.balances.pendingWithdrawalCents > 0 ? (
-            <p className="text-[12px] mt-2 text-white/40">
-              Em análise: {formatBRLFromCents(summary.balances.pendingWithdrawalCents)}
-            </p>
-          ) : null}
-          <p className="text-[12px] mt-3 text-white/35">
-            Valor mínimo por solicitação: {formatBRLFromCents(minCents)}
+        <div className="space-y-4 mb-6">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-white/35">Origem do saque</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => setBalanceSource("affiliate")}
+              className={`rounded-2xl p-4 border text-left transition-colors ${
+                balanceSource === "affiliate" ? "border-primary bg-primary/10" : "border-white/8 bg-[#101010]"
+              }`}
+            >
+              <p className="text-[12px] font-semibold text-white/50">Saldo afiliado</p>
+              <p className="text-2xl font-black text-primary mt-1">{formatBRLFromCents(affiliateAvail)}</p>
+              {pendingAffiliate > 0 ? (
+                <p className="text-[12px] mt-2 text-white/40">Em análise: {formatBRLFromCents(pendingAffiliate)}</p>
+              ) : null}
+            </button>
+            <button
+              type="button"
+              onClick={() => setBalanceSource("wallet")}
+              className={`rounded-2xl p-4 border text-left transition-colors ${
+                balanceSource === "wallet" ? "border-primary bg-primary/10" : "border-white/8 bg-[#101010]"
+              }`}
+            >
+              <p className="text-[12px] font-semibold text-white/50">Saldo conta</p>
+              <p className="text-2xl font-black text-emerald-300 mt-1">{formatBRLFromCents(walletAvail)}</p>
+              {pendingWallet > 0 ? (
+                <p className="text-[12px] mt-2 text-white/40">Em análise: {formatBRLFromCents(pendingWallet)}</p>
+              ) : null}
+            </button>
+          </div>
+          <p className="text-[12px] text-white/35">
+            Mínimo por solicitação: {formatBRLFromCents(minCents)} · máximo: {formatBRLFromCents(maxCents)}
           </p>
         </div>
       )}
@@ -167,7 +217,7 @@ export default function SaquesPage() {
           Solicitar saque
         </button>
         {available < minCents && !loading ? (
-          <p className="text-[12px] text-white/35 text-center">Saldo abaixo do mínimo para solicitar saque.</p>
+          <p className="text-[12px] text-white/35 text-center">Saldo desta origem abaixo do mínimo para solicitar saque.</p>
         ) : null}
       </form>
     </div>

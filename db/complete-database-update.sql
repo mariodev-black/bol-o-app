@@ -1,3 +1,44 @@
+-- =============================================================================
+-- Bolão do Milhão — atualização completa do banco (PostgreSQL)
+-- =============================================================================
+-- Aplique em um banco que já tenha as tabelas core (ex.: users, referral_commissions).
+-- É idempotente na maior parte: IF NOT EXISTS / ADD COLUMN IF NOT EXISTS / DO $$.
+--
+-- Ordem: (1) tabela de saques se ainda não existir  (2) admin / afiliados / saques
+-- =============================================================================
+
+-- -----------------------------------------------------------------------------
+-- affiliate_withdrawal_requests — criação apenas se não existir
+-- (ajuste tipos se o seu projeto já tiver esta tabela com outro layout)
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS affiliate_withdrawal_requests (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  amount_cents integer NOT NULL,
+  pix_key_type text NOT NULL,
+  pix_key text NOT NULL,
+  status text NOT NULL DEFAULT 'pending',
+  balance_source text NOT NULL DEFAULT 'affiliate',
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS affiliate_withdrawal_requests_user_id_idx
+  ON affiliate_withdrawal_requests (user_id);
+
+CREATE INDEX IF NOT EXISTS affiliate_withdrawal_requests_status_idx
+  ON affiliate_withdrawal_requests (status);
+
+CREATE INDEX IF NOT EXISTS affiliate_withdrawal_requests_pending_idx
+  ON affiliate_withdrawal_requests (status)
+  WHERE status = 'pending';
+
+-- Garantir coluna balance_source em bases antigas (antes de constraints abaixo)
+ALTER TABLE affiliate_withdrawal_requests
+  ADD COLUMN IF NOT EXISTS balance_source text NOT NULL DEFAULT 'affiliate';
+
+-- -----------------------------------------------------------------------------
+-- Trecho igual a db/admin-schema.sql — admin, saldos, comissões, saques
+-- -----------------------------------------------------------------------------
 -- Admin security schema.
 -- Execute once in production before enabling /admin.
 
@@ -123,9 +164,6 @@ WHERE u.id::text = earned.referrer_user_id::text
 -- Promote the first admin manually, then configure 2FA at /admin/2fa:
 -- UPDATE users SET role = 'super_admin' WHERE lower(email) = lower('seu-email@dominio.com');
 
-ALTER TABLE affiliate_withdrawal_requests
-  ADD COLUMN IF NOT EXISTS balance_source text NOT NULL DEFAULT 'affiliate';
-
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -138,3 +176,8 @@ BEGIN
       CHECK (balance_source IN ('affiliate', 'wallet'));
   END IF;
 END $$;
+
+-- =============================================================================
+-- Fim. Opcional: revisar CHECK de status em affiliate_withdrawal_requests
+-- (valores usados pelo app: pending, approved, paid, rejected)
+-- =============================================================================

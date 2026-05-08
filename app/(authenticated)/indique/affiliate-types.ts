@@ -3,6 +3,8 @@
 export type ReferralTierId = "bronze" | "silver" | "gold" | "diamond";
 
 export type AffiliateSummary = {
+  affiliateMode: "standard" | "influencer";
+  influencerCpaBps: number;
   config: {
     rewardBronzeCents: number;
     rewardSilverCents: number;
@@ -22,17 +24,25 @@ export type AffiliateSummary = {
     pendingWithdrawalCents: number;
     completedWithdrawalCents: number;
     availableCents: number;
+    walletBalanceCents: number;
+    pendingWalletWithdrawalCents: number;
+    completedWalletWithdrawalCents: number;
   };
   pendingSignupReferrals: Array<{ id: string; name: string | null; createdAt: string }>;
   /** Mínimo para solicitar saque (centavos), do servidor. */
   minWithdrawalCents: number;
+  /** Máximo por solicitação (centavos), do servidor. */
+  maxWithdrawalCents: number;
   commissionActivity: Array<{
     id: string;
     referredUserId: string;
     referredName: string | null;
     amountCents: number;
-    tier: ReferralTierId;
+    tier: ReferralTierId | "influencer";
     commissionIndex: number;
+    commissionModel: "standard" | "influencer";
+    cpaBps: number | null;
+    baseAmountCents: number | null;
     createdAt: string;
   }>;
 };

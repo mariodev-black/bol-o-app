@@ -28,6 +28,7 @@ import {
 import bgPalpitesDesk from "@/app/assets/bg-palpites-desktop.png";
 import type { AffiliateSummary, ReferralTierId } from "./affiliate-types";
 import { formatBRLFromCents, simulateTotalForNewPaidReferrals } from "./affiliate-types";
+import { WithdrawGanhosModal } from "./WithdrawGanhosModal";
 
 /* ─── Design tokens ─── */
 const C = {
@@ -181,6 +182,25 @@ export default function IndiqueGanhePage() {
   const [origin, setOrigin] = useState("");
   const [affiliateSummary, setAffiliateSummary] = useState<AffiliateSummary | null>(null);
   const [affiliateLoading, setAffiliateLoading] = useState(false);
+  const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
+
+  const reloadAffiliateSummary = useCallback(async () => {
+    if (!ready || !user) {
+      setAffiliateSummary(null);
+      return;
+    }
+    setAffiliateLoading(true);
+    try {
+      const r = await fetch("/api/affiliate/summary", { credentials: "include", cache: "no-store" });
+      const d = (await r.json()) as { summary?: AffiliateSummary };
+      if (r.ok && d.summary) setAffiliateSummary(d.summary);
+      else setAffiliateSummary(null);
+    } catch {
+      setAffiliateSummary(null);
+    } finally {
+      setAffiliateLoading(false);
+    }
+  }, [ready, user?.id]);
 
   useEffect(() => {
     setOrigin(typeof window !== "undefined" ? window.location.origin : "");
@@ -191,24 +211,8 @@ export default function IndiqueGanhePage() {
       setAffiliateSummary(null);
       return;
     }
-    let cancelled = false;
-    (async () => {
-      setAffiliateLoading(true);
-      try {
-        const r = await fetch("/api/affiliate/summary", { credentials: "include", cache: "no-store" });
-        const d = (await r.json()) as { summary?: AffiliateSummary };
-        if (!cancelled && r.ok && d.summary) setAffiliateSummary(d.summary);
-        else if (!cancelled) setAffiliateSummary(null);
-      } catch {
-        if (!cancelled) setAffiliateSummary(null);
-      } finally {
-        if (!cancelled) setAffiliateLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [ready, user?.id]);
+    void reloadAffiliateSummary();
+  }, [ready, user?.id, reloadAffiliateSummary]);
 
   const code = user?.referralCode?.trim() ?? "";
   const signupLink =
@@ -221,13 +225,18 @@ export default function IndiqueGanhePage() {
 
   const cfg = affiliateSummary?.config;
   const paidIndicacoes = affiliateSummary?.paidReferralsCount ?? 0;
+  const isInfluencer = affiliateSummary?.affiliateMode === "influencer";
+  const cpaFmt = `${((affiliateSummary?.influencerCpaBps ?? 0) / 100).toLocaleString("pt-BR", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  })}% CPA`;
   const totalRecebidoFmt = formatBRLFromCents(affiliateSummary?.balances.totalEarnedCents ?? 0);
-  const porIndicacaoFmt = cfg ? formatBRLFromCents(affiliateSummary?.nextRewardCents ?? cfg.rewardBronzeCents) : "—";
-  const currentTierLabel = affiliateSummary?.currentTierLabel ?? "Bronze";
+  const porIndicacaoFmt = isInfluencer ? cpaFmt : cfg ? formatBRLFromCents(affiliateSummary?.nextRewardCents ?? cfg.rewardBronzeCents) : "—";
+  const currentTierLabel = isInfluencer ? "Influencer CPA" : affiliateSummary?.currentTierLabel ?? "Bronze";
   const goalDiamond = cfg?.tierDiamondMinCommissions ?? 50;
-  const remainingToDiamond = Math.max(0, goalDiamond - paidIndicacoes);
+  const remainingToDiamond = isInfluencer ? 0 : Math.max(0, goalDiamond - paidIndicacoes);
   const tierBarPct = goalDiamond > 0 ? Math.min(100, (paidIndicacoes / goalDiamond) * 100) : 0;
-  const diamondPerFmt = cfg ? formatBRLFromCents(cfg.rewardDiamondCents) : "—";
+  const diamondPerFmt = isInfluencer ? cpaFmt : cfg ? formatBRLFromCents(cfg.rewardDiamondCents) : "—";
 
   const tierRows = useMemo(() => {
     if (!cfg) {
@@ -275,10 +284,12 @@ export default function IndiqueGanhePage() {
         Icon: Zap,
         color: C.goldMid,
         title: "Você recebe na hora",
-        desc: `${bronzeFmt} ou mais creditados após confirmação do pagamento, conforme seu nível.`,
+        desc: isInfluencer
+          ? `${cpaFmt} do valor pago creditado após confirmação do pagamento.`
+          : `${bronzeFmt} ou mais creditados após confirmação do pagamento, conforme seu nível.`,
       },
     ];
-  }, [cfg]);
+  }, [cfg, cpaFmt, isInfluencer]);
 
   const simTotalCents = useMemo(() => {
     if (!cfg) return 0;
@@ -621,7 +632,7 @@ export default function IndiqueGanhePage() {
                 <p className="text-[12px] leading-snug max-w-md hidden lg:block" style={{ color: "rgba(255,255,255,0.38)" }}>
                   Use seu saldo de indicações quando quiser — solicite o saque em poucos passos.
                 </p>
-                <SacarGanhosLink className="shrink-0 w-full sm:w-auto justify-center" />
+                <SacarGanhosLink onOpen={() => setWithdrawModalOpen(true)} className="shrink-0 w-full sm:w-auto justify-center" />
               </div>
             </div>
 
@@ -633,7 +644,7 @@ export default function IndiqueGanhePage() {
                 <StatCard Icon={UserPlus} iconColor={C.gold} value={String(paidIndicacoes)} label="Pagas" valueColor={C.gold} />
                 <StatCard Icon={Wallet} iconColor={C.valueMuted} value={totalRecebidoFmt} label="Ganhos" valueColor={C.value} highlight />
               </div>
-              <SacarGanhosLink variant="pill" className="mt-3" />
+              <SacarGanhosLink onOpen={() => setWithdrawModalOpen(true)} variant="pill" className="mt-3" />
             </div>
 
             {/* ── CÓDIGO + LINK — mobile only ── */}
@@ -715,7 +726,7 @@ export default function IndiqueGanhePage() {
 
               <div className="flex flex-col gap-2.5 mt-4">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[10px] font-bold uppercase tracking-[0.1em]" style={{ color: "rgba(255,255,255,0.35)" }}>
+                  <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.35)" }}>
                     Seu código
                   </span>
                   <div
@@ -755,7 +766,7 @@ export default function IndiqueGanhePage() {
                     <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: C.valueMuted }} aria-hidden />
                     <span className="truncate">{signupLink || (ready ? "Carregando…" : "…")}</span>
                   </div>
-                  <p className="text-[11px] leading-[1.5] pl-0.5" style={{ color: "rgba(255,255,255,0.38)" }}>
+                  <p className="text-[11px] leading-normal pl-0.5" style={{ color: "rgba(255,255,255,0.38)" }}>
                     Envie o <span className="font-semibold text-white/80">link</span> ou o{" "}
                     <span className="font-semibold text-white/80">código</span> — na página de cadastro seu amigo pode colar o código no campo de indicação.
                   </p>
@@ -1068,7 +1079,7 @@ export default function IndiqueGanhePage() {
                   {copied ? <Check size={16} strokeWidth={3} /> : <Copy size={16} strokeWidth={2.5} />}
                   {copied ? "Link Copiado!" : "Copiar Link Agora"}
                 </button>
-                <div className="grid grid-cols-2 gap-2 md:block hidden">
+                <div className="hidden grid-cols-2 gap-2 md:block">
                   <button
                     type="button"
                     onClick={openWhatsAppInvite}
@@ -1176,6 +1187,13 @@ export default function IndiqueGanhePage() {
         </div>
 
       </div>
+      <WithdrawGanhosModal
+        open={withdrawModalOpen}
+        onOpenChange={setWithdrawModalOpen}
+        summary={affiliateSummary}
+        summaryLoading={affiliateLoading}
+        onReloadSummary={reloadAffiliateSummary}
+      />
     </div>
   );
 }
@@ -1216,17 +1234,20 @@ function HeroCardAmbientGlow({ radiusClass }: { radiusClass: string }) {
 }
 
 function SacarGanhosLink({
+  onOpen,
   className = "",
   variant = "default",
 }: {
+  onOpen: () => void;
   className?: string;
   /** Mobile: uma linha limpa, largura total, sem “caixa” extra no ícone */
   variant?: "default" | "pill";
 }) {
   if (variant === "pill") {
     return (
-      <Link
-        href="/saques"
+      <button
+        type="button"
+        onClick={onOpen}
         className={`flex w-full min-h-[48px] items-center justify-center gap-2.5 rounded-xl px-4 py-3 text-[14px] font-bold transition-all active:scale-[0.99] ${className}`}
         style={{
           background: "rgba(255,255,255,0.04)",
@@ -1236,13 +1257,14 @@ function SacarGanhosLink({
       >
         <CircleDollarSign size={22} strokeWidth={2.25} className="shrink-0" style={{ color: C.value }} aria-hidden />
         Sacar ganhos
-      </Link>
+      </button>
     );
   }
 
   return (
-    <Link
-      href="/saques"
+    <button
+      type="button"
+      onClick={onOpen}
       className={`inline-flex items-center gap-3 rounded-xl pl-2.5 pr-5 py-2 text-[13px] font-bold tracking-wide transition-all active:scale-[0.98] hover:opacity-95 ${className}`}
       style={{
         background: "rgba(255,255,255,0.05)",
@@ -1260,7 +1282,7 @@ function SacarGanhosLink({
         <CircleDollarSign size={22} strokeWidth={2.25} style={{ color: C.value }} aria-hidden />
       </span>
       <span>Sacar ganhos</span>
-    </Link>
+    </button>
   );
 }
 

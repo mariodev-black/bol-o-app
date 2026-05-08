@@ -4,8 +4,10 @@ import Link from "next/link";
 import { LogoutAccountButton } from "@/app/(authenticated)/perfil/LogoutAccountButton";
 import { loadOwnedTicketsMerged } from "@/app/(authenticated)/tickets/lib/ownedTicketsStorage";
 import type { AffiliateSummary } from "@/app/(authenticated)/indique/affiliate-types";
+import { formatBRLFromCents } from "@/app/(authenticated)/indique/affiliate-types";
+import { WithdrawGanhosModal } from "@/app/(authenticated)/indique/WithdrawGanhosModal";
 import { useAuth } from "@/app/shared/AuthContext";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ChevronRight,
   CircleHelp,
@@ -17,6 +19,7 @@ import {
   Ticket,
   Trophy,
   User2,
+  Banknote,
 } from "lucide-react";
 
 const GREEN = "#B1EB0B";
@@ -82,6 +85,18 @@ export default function PerfilPage() {
   const [ticketCount, setTicketCount] = useState(0);
   const [ticketsLoading, setTicketsLoading] = useState(true);
   const [profileDataLoading, setProfileDataLoading] = useState(true);
+  const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
+
+  const reloadAffiliateSummary = useCallback(async () => {
+    if (!ready) return;
+    try {
+      const aRes = await fetch("/api/affiliate/summary", { credentials: "include", cache: "no-store" });
+      const aj = (await aRes.json()) as { summary?: AffiliateSummary };
+      if (aRes.ok && aj.summary) setAffiliate(aj.summary);
+    } catch {
+      /* ignore */
+    }
+  }, [ready]);
 
   useEffect(() => {
     if (!ready) return;
@@ -556,6 +571,59 @@ export default function PerfilPage() {
           </section>
 
           <section>
+            <SectionHeader title="Saldos e saque" />
+            <div
+              className="rounded-2xl border p-4 mt-2 space-y-3"
+              style={{ borderColor: BORDER, background: CARD }}
+            >
+              {affiliateLoading ? (
+                <SkeletonBlock className="h-16 w-full" />
+              ) : (
+                <>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span
+                        className="w-9 h-9 rounded-xl border flex items-center justify-center shrink-0"
+                        style={{ borderColor: "rgba(177,235,11,0.28)", background: "rgba(177,235,11,0.1)" }}
+                      >
+                        <Banknote className="w-4 h-4" style={{ color: GREEN }} />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-black uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.38)" }}>
+                          Afiliado
+                        </p>
+                        <p className="text-lg font-black text-white truncate">{formatBRLFromCents(affiliate?.balances.availableCents ?? 0)}</p>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-[11px] font-black uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.38)" }}>
+                        Conta
+                      </p>
+                      <p className="text-lg font-black" style={{ color: GREEN_SOFT }}>
+                        {formatBRLFromCents(affiliate?.balances.walletBalanceCents ?? 0)}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setWithdrawModalOpen(true)}
+                    className="w-full py-3 rounded-xl text-[13px] font-black uppercase tracking-wide transition-opacity hover:opacity-95"
+                    style={{
+                      background: "linear-gradient(90deg, rgba(177,235,11,0.95), rgba(232,255,138,0.95))",
+                      color: "#0E141B",
+                    }}
+                  >
+                    Sacar
+                  </button>
+                  <Link href="/saques" className="block text-center text-[11px] font-bold" style={{ color: "rgba(255,255,255,0.35)" }}>
+                    Abrir página de saques
+                  </Link>
+                </>
+              )}
+            </div>
+          </section>
+
+          <section>
             <SectionHeader title="Visão Geral" />
             <div className="grid grid-cols-3 gap-2.5">
               {highlights.map((item) => {
@@ -625,6 +693,13 @@ export default function PerfilPage() {
         </aside>
       </div>
       </div>
+      <WithdrawGanhosModal
+        open={withdrawModalOpen}
+        onOpenChange={setWithdrawModalOpen}
+        summary={affiliate}
+        summaryLoading={affiliateLoading}
+        onReloadSummary={reloadAffiliateSummary}
+      />
     </div>
   );
 }

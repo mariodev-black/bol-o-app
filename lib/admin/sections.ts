@@ -5,6 +5,7 @@ export type AdminAffiliateStats = {
   commissionsCount: number;
   commissionTotalCents: number;
   pendingWithdrawalsCents: number;
+  influencersCount: number;
 };
 
 export type AdminAffiliateRow = {
@@ -12,6 +13,8 @@ export type AdminAffiliateRow = {
   name: string | null;
   email: string;
   referralCode: string | null;
+  affiliateMode: "standard" | "influencer";
+  influencerCpaBps: number;
   referredUsersCount: number;
   paidReferralsCount: number;
   commissionsCount: number;
@@ -40,6 +43,9 @@ export type AdminAffiliateCommissionRow = {
   amountCents: number;
   tier: string;
   commissionIndex: number;
+  commissionModel: "standard" | "influencer";
+  cpaBps: number | null;
+  baseAmountCents: number | null;
   createdAt: string;
 };
 
@@ -207,12 +213,14 @@ export async function getAdminAffiliateStats(): Promise<AdminAffiliateStats> {
     commissions_count: string | number;
     commission_total_cents: string | number | null;
     pending_withdrawals_cents: string | number | null;
+    influencers_count: string | number;
   }>(
     `SELECT
        (SELECT COUNT(*) FROM users WHERE referred_by_user_id IS NOT NULL) AS referred_users_count,
        (SELECT COUNT(*) FROM referral_commissions) AS commissions_count,
        (SELECT COALESCE(SUM(amount_cents), 0) FROM referral_commissions) AS commission_total_cents,
-       (SELECT COALESCE(SUM(amount_cents), 0) FROM affiliate_withdrawal_requests WHERE status = 'pending') AS pending_withdrawals_cents`
+       (SELECT COALESCE(SUM(amount_cents), 0) FROM affiliate_withdrawal_requests WHERE status = 'pending') AS pending_withdrawals_cents,
+       (SELECT COUNT(*) FROM users WHERE affiliate_mode = 'influencer') AS influencers_count`
   );
   const row = rows[0];
   return {
@@ -220,6 +228,7 @@ export async function getAdminAffiliateStats(): Promise<AdminAffiliateStats> {
     commissionsCount: Number(row?.commissions_count ?? 0),
     commissionTotalCents: Number(row?.commission_total_cents ?? 0),
     pendingWithdrawalsCents: Number(row?.pending_withdrawals_cents ?? 0),
+    influencersCount: Number(row?.influencers_count ?? 0),
   };
 }
 
@@ -425,6 +434,8 @@ export async function getAdminAffiliateDashboardData(): Promise<AdminAffiliateDa
       name: string | null;
       email: string;
       referral_code: string | null;
+      affiliate_mode: string | null;
+      influencer_cpa_bps: number | null;
       referred_users_count: string | number;
       paid_referrals_count: string | number;
       commissions_count: string | number;
@@ -436,6 +447,8 @@ export async function getAdminAffiliateDashboardData(): Promise<AdminAffiliateDa
          u.name,
          u.email,
          u.referral_code,
+         COALESCE(u.affiliate_mode, 'standard') AS affiliate_mode,
+         COALESCE(u.influencer_cpa_bps, 0) AS influencer_cpa_bps,
          (SELECT COUNT(*) FROM users referred WHERE referred.referred_by_user_id::text = u.id::text) AS referred_users_count,
          (
            SELECT COUNT(DISTINCT referred.id)
@@ -489,6 +502,9 @@ export async function getAdminAffiliateDashboardData(): Promise<AdminAffiliateDa
       amount_cents: number;
       tier: string;
       commission_index: number;
+      commission_model: "standard" | "influencer";
+      cpa_bps: number | null;
+      base_amount_cents: number | null;
       created_at: Date;
     }>(
       `SELECT
@@ -500,6 +516,9 @@ export async function getAdminAffiliateDashboardData(): Promise<AdminAffiliateDa
          c.amount_cents,
          c.tier,
          c.commission_index,
+         COALESCE(c.commission_model, 'standard') AS commission_model,
+         c.cpa_bps,
+         c.base_amount_cents,
          c.created_at
        FROM referral_commissions c
        JOIN users referrer ON referrer.id::text = c.referrer_user_id::text
@@ -515,6 +534,8 @@ export async function getAdminAffiliateDashboardData(): Promise<AdminAffiliateDa
       name: row.name,
       email: row.email,
       referralCode: row.referral_code,
+      affiliateMode: row.affiliate_mode === "influencer" ? "influencer" : "standard",
+      influencerCpaBps: Number(row.influencer_cpa_bps ?? 0),
       referredUsersCount: Number(row.referred_users_count ?? 0),
       paidReferralsCount: Number(row.paid_referrals_count ?? 0),
       commissionsCount: Number(row.commissions_count ?? 0),
@@ -541,6 +562,9 @@ export async function getAdminAffiliateDashboardData(): Promise<AdminAffiliateDa
       amountCents: row.amount_cents,
       tier: row.tier,
       commissionIndex: row.commission_index,
+      commissionModel: row.commission_model,
+      cpaBps: row.cpa_bps,
+      baseAmountCents: row.base_amount_cents,
       createdAt: row.created_at.toISOString(),
     })),
   };

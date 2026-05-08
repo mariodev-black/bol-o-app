@@ -29,12 +29,17 @@ export function admin2faCookieName(): string {
   return ADMIN_2FA_COOKIE;
 }
 
+/**
+ * Path deve ser `/` para o cookie ir também em `fetch` para `/api/admin/*`.
+ * Com `path: "/admin"`, o browser não envia o cookie em `/api/...` e as rotas de API
+ * falham em `hasValidAdmin2fa` mesmo com super admin autenticado.
+ */
 export function admin2faCookieOptions() {
   return {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax" as const,
-    path: "/admin",
+    path: "/",
     maxAge: ADMIN_2FA_MAX_AGE,
   };
 }

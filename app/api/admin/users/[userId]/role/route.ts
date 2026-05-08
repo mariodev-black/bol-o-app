@@ -14,12 +14,16 @@ export async function POST(
   { params }: { params: Promise<{ userId: string }> }
 ) {
   const admin = await getCurrentAdminUser();
-  if (
-    !admin ||
-    admin.role !== "super_admin" ||
-    !admin.twoFactorEnabled ||
-    !(await hasValidAdmin2fa(admin.id))
-  ) {
+  if (!admin) {
+    return NextResponse.json({ error: "Nao autenticado" }, { status: 401 });
+  }
+  if (!admin.twoFactorEnabled || !(await hasValidAdmin2fa(admin.id))) {
+    return NextResponse.json(
+      { error: "2FA admin obrigatorio. Abra /admin/2fa neste navegador e conclua a verificacao." },
+      { status: 403 }
+    );
+  }
+  if (admin.role !== "super_admin") {
     return NextResponse.json({ error: "Apenas super admin pode alterar role de usuario" }, { status: 403 });
   }
 
@@ -46,13 +50,15 @@ export async function POST(
     }
   }
 
-  await pool.query(
+  const { rows } = await pool.query<{ id: string }>(
     `UPDATE users
      SET role = $2,
          updated_at = now()
-     WHERE id::text = $1::text`,
+     WHERE id::text = $1::text
+     RETURNING id`,
     [userId, parsed.data.role]
   );
+  if (!rows[0]) return NextResponse.json({ error: "Usuario nao encontrado" }, { status: 404 });
 
   return NextResponse.json({ ok: true, role: parsed.data.role });
 }

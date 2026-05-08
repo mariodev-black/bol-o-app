@@ -11,6 +11,10 @@ export type AdminUserListItem = {
   ticketsCount: number;
   paidTicketsCount: number;
   scorePoints: number;
+  affiliateMode: "standard" | "influencer";
+  influencerCpaBps: number;
+  balanceCents: number;
+  affiliateBalanceCents: number;
   createdAt: string;
 };
 
@@ -58,6 +62,10 @@ export async function listAdminUsers(): Promise<AdminUserListItem[]> {
     cpf: string | null;
     role: string | null;
     admin_2fa_enabled: boolean | null;
+    affiliate_mode: string | null;
+    influencer_cpa_bps: number | null;
+    balance_cents: number | null;
+    affiliate_balance_cents: number | null;
     tickets_count: string | number;
     paid_tickets_count: string | number;
     score_points: string | number | null;
@@ -93,6 +101,10 @@ export async function listAdminUsers(): Promise<AdminUserListItem[]> {
        u.cpf,
        COALESCE(u.role, 'user') AS role,
        COALESCE(u.admin_2fa_enabled, false) AS admin_2fa_enabled,
+       COALESCE(u.affiliate_mode, 'standard') AS affiliate_mode,
+       COALESCE(u.influencer_cpa_bps, 0) AS influencer_cpa_bps,
+       COALESCE(u.balance_cents, 0) AS balance_cents,
+       COALESCE(u.affiliate_balance_cents, 0) AS affiliate_balance_cents,
        COUNT(t.id) AS tickets_count,
        COUNT(t.id) FILTER (WHERE t.status = 'paid') AS paid_tickets_count,
        COALESCE(us.score_points, 0) AS score_points,
@@ -112,6 +124,10 @@ export async function listAdminUsers(): Promise<AdminUserListItem[]> {
     cpf: row.cpf,
     role: row.role === "super_admin" || row.role === "admin" ? row.role : "user",
     twoFactorEnabled: Boolean(row.admin_2fa_enabled),
+    affiliateMode: row.affiliate_mode === "influencer" ? "influencer" : "standard",
+    influencerCpaBps: Number(row.influencer_cpa_bps ?? 0),
+    balanceCents: Number(row.balance_cents ?? 0),
+    affiliateBalanceCents: Number(row.affiliate_balance_cents ?? 0),
     ticketsCount: Number(row.tickets_count ?? 0),
     paidTicketsCount: Number(row.paid_tickets_count ?? 0),
     scorePoints: Number(row.score_points ?? 0),
@@ -129,6 +145,10 @@ export async function getAdminUserDetail(userId: string): Promise<AdminUserDetai
     cpf: string | null;
     role: string | null;
     admin_2fa_enabled: boolean | null;
+    affiliate_mode: string | null;
+    influencer_cpa_bps: number | null;
+    balance_cents: number | null;
+    affiliate_balance_cents: number | null;
     referral_code: string | null;
     referred_by_user_id: string | null;
     email_verified_at: Date | null;
@@ -151,6 +171,10 @@ export async function getAdminUserDetail(userId: string): Promise<AdminUserDetai
        u.cpf,
        COALESCE(u.role, 'user') AS role,
        COALESCE(u.admin_2fa_enabled, false) AS admin_2fa_enabled,
+       COALESCE(u.affiliate_mode, 'standard') AS affiliate_mode,
+       COALESCE(u.influencer_cpa_bps, 0) AS influencer_cpa_bps,
+       COALESCE(u.balance_cents, 0) AS balance_cents,
+       COALESCE(u.affiliate_balance_cents, 0) AS affiliate_balance_cents,
        u.referral_code,
        u.referred_by_user_id,
        u.email_verified_at,
@@ -191,7 +215,8 @@ export async function getAdminUserDetail(userId: string): Promise<AdminUserDetai
   const row = rows[0];
   if (!row) return null;
 
-  const { rows: ticketRows } = await pool.query<{
+  const [ticketRowsResult, referredRowsResult] = await Promise.all([
+    pool.query<{
     id: string;
     ticket_type: string;
     status: string;
@@ -215,9 +240,8 @@ export async function getAdminUserDetail(userId: string): Promise<AdminUserDetai
      ORDER BY t.created_at DESC
      LIMIT 80`,
     [userId]
-  );
-
-  const { rows: referredRows } = await pool.query<{
+    ),
+    pool.query<{
     id: string;
     name: string | null;
     email: string;
@@ -240,7 +264,11 @@ export async function getAdminUserDetail(userId: string): Promise<AdminUserDetai
      GROUP BY referred.id
      ORDER BY referred.created_at DESC`,
     [userId]
-  );
+    ),
+  ]);
+
+  const ticketRows = ticketRowsResult.rows;
+  const referredRows = referredRowsResult.rows;
 
   return {
     id: row.id,
@@ -250,6 +278,10 @@ export async function getAdminUserDetail(userId: string): Promise<AdminUserDetai
     cpf: row.cpf,
     role: row.role === "super_admin" || row.role === "admin" ? row.role : "user",
     twoFactorEnabled: Boolean(row.admin_2fa_enabled),
+    affiliateMode: row.affiliate_mode === "influencer" ? "influencer" : "standard",
+    influencerCpaBps: Number(row.influencer_cpa_bps ?? 0),
+    balanceCents: Number(row.balance_cents ?? 0),
+    affiliateBalanceCents: Number(row.affiliate_balance_cents ?? 0),
     ticketsCount: Number(row.tickets_count ?? 0),
     paidTicketsCount: Number(row.paid_tickets_count ?? 0),
     scorePoints: Number(row.score_points ?? 0),

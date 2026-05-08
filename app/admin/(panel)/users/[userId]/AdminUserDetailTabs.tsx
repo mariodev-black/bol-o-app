@@ -7,8 +7,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode, RefObject } from "react";
 import { AdminUserPasswordForm } from "./AdminUserPasswordForm";
 
-type Tab = "cadastro" | "cotas" | "afiliados" | "seguranca";
+type Tab = "cadastro" | "cotas" | "afiliados" | "influencer" | "seguranca";
 type Role = AdminUserListItem["role"];
+type AffiliateMode = AdminUserListItem["affiliateMode"];
 const PAGE_SIZE = 50;
 
 const ROLE_LABELS: Record<Role, string> = {
@@ -33,6 +34,20 @@ function maskCpf(value: string | null) {
   const digits = (value ?? "").replace(/\D/g, "");
   if (digits.length !== 11) return value ?? "Nao informado";
   return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
+}
+
+function cpaPercentFromBps(value: number) {
+  return (value / 100).toLocaleString("pt-BR", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
+}
+
+function cpaBpsFromInput(value: string) {
+  const normalized = value.replace(",", ".").replace(/[^\d.]/g, "");
+  const parsed = Number.parseFloat(normalized);
+  if (!Number.isFinite(parsed)) return 0;
+  return Math.max(0, Math.min(10000, Math.round(parsed * 100)));
 }
 
 function InfoCard({ label, value }: { label: string; value: ReactNode }) {
@@ -77,9 +92,12 @@ function PermissionCard({
 export function AdminUserDetailTabs({
   user,
   canManageRole,
+  canManageInfluencer = canManageRole,
 }: {
   user: AdminUserDetail;
   canManageRole: boolean;
+  /** Super admin: alterar modo influencer / CPA (mesma política que a API). */
+  canManageInfluencer?: boolean;
 }) {
   const [tab, setTab] = useState<Tab>("cadastro");
   const [currentRole, setCurrentRole] = useState<Role>(user.role);
@@ -88,6 +106,13 @@ export function AdminUserDetailTabs({
   const [savingRole, setSavingRole] = useState(false);
   const [roleMessage, setRoleMessage] = useState<string | null>(null);
   const [roleError, setRoleError] = useState<string | null>(null);
+  const [affiliateMode, setAffiliateMode] = useState<AffiliateMode>(user.affiliateMode);
+  const [selectedAffiliateMode, setSelectedAffiliateMode] = useState<AffiliateMode>(user.affiliateMode);
+  const [influencerCpaBps, setInfluencerCpaBps] = useState(user.influencerCpaBps);
+  const [cpaInput, setCpaInput] = useState(cpaPercentFromBps(user.influencerCpaBps));
+  const [savingInfluencer, setSavingInfluencer] = useState(false);
+  const [influencerMessage, setInfluencerMessage] = useState<string | null>(null);
+  const [influencerError, setInfluencerError] = useState<string | null>(null);
   const referredUsers = user.referredUsers ?? [];
   const [visible, setVisible] = useState({
     cotas: PAGE_SIZE,
@@ -107,6 +132,7 @@ export function AdminUserDetailTabs({
     { id: "cadastro" as const, label: "Cadastro" },
     { id: "cotas" as const, label: "Cotas" },
     { id: "afiliados" as const, label: "Afiliados" },
+    { id: "influencer" as const, label: "Influencer" },
     { id: "seguranca" as const, label: "Segurança" },
   ];
 
@@ -138,6 +164,41 @@ export function AdminUserDetailTabs({
     setRoleError(null);
     setRoleMessage(null);
     setConfirmRoleOpen(true);
+  }
+
+  async function saveInfluencerConfig() {
+    setSavingInfluencer(true);
+    setInfluencerError(null);
+    setInfluencerMessage(null);
+    const nextCpaBps = cpaBpsFromInput(cpaInput);
+    try {
+      const response = await fetch(`/api/admin/users/${user.id}/influencer`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          affiliateMode: selectedAffiliateMode,
+          influencerCpaBps: nextCpaBps,
+        }),
+      });
+      const data = (await response.json().catch(() => null)) as {
+        error?: string;
+        affiliateMode?: AffiliateMode;
+        influencerCpaBps?: number;
+      } | null;
+      if (!response.ok) throw new Error(data?.error ?? "Nao foi possivel salvar influencer.");
+      const mode = data?.affiliateMode ?? selectedAffiliateMode;
+      const cpa = data?.influencerCpaBps ?? nextCpaBps;
+      setAffiliateMode(mode);
+      setSelectedAffiliateMode(mode);
+      setInfluencerCpaBps(cpa);
+      setCpaInput(cpaPercentFromBps(cpa));
+      setInfluencerMessage("Configuracao influencer salva com sucesso.");
+    } catch (error) {
+      setInfluencerError(error instanceof Error ? error.message : "Nao foi possivel salvar influencer.");
+    } finally {
+      setSavingInfluencer(false);
+    }
   }
 
   useEffect(() => {
@@ -188,7 +249,17 @@ export function AdminUserDetailTabs({
             <InfoCard label="CPF" value={maskCpf(user.cpf)} />
             <InfoCard label="Criado em" value={formatDate(user.createdAt)} />
             <InfoCard label="E-mail verificado" value={formatDate(user.emailVerifiedAt)} />
+            <InfoCard label="Balance usuário" value={<span className="text-primary">{formatBRL(user.balanceCents)}</span>} />
+            <InfoCard label="Balance afiliado" value={<span className="text-primary">{formatBRL(user.affiliateBalanceCents)}</span>} />
             <InfoCard label="Role" value={<span className="uppercase text-primary">{ROLE_LABELS[currentRole]}</span>} />
+            <InfoCard
+              label="Modo afiliado"
+              value={
+                <span className={affiliateMode === "influencer" ? "text-primary" : "text-white/72"}>
+                  {affiliateMode === "influencer" ? `Influencer (${cpaPercentFromBps(influencerCpaBps)}% CPA)` : "Afiliado padrão"}
+                </span>
+              }
+            />
           </div>
         ) : null}
 
@@ -196,6 +267,8 @@ export function AdminUserDetailTabs({
           <div className="grid gap-5">
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               <InfoCard label="Código afiliado" value={user.referralCode ?? "Nao informado"} />
+              <InfoCard label="Modelo" value={affiliateMode === "influencer" ? `Influencer - ${cpaPercentFromBps(influencerCpaBps)}% CPA` : "Afiliado padrão"} />
+              <InfoCard label="Balance afiliado" value={<span className="text-primary">{formatBRL(user.affiliateBalanceCents)}</span>} />
               <InfoCard label="Indicado por" value={<span className="font-mono text-[11px]">{user.referredByUserId ?? "Nao informado"}</span>} />
               <InfoCard label="Usuários indicados" value={user.referredUsersCount.toLocaleString("pt-BR")} />
               <InfoCard label="Comissões geradas" value={formatBRL(user.commissionsCents)} />
@@ -255,6 +328,79 @@ export function AdminUserDetailTabs({
                   <p className="mt-2 text-[13px] text-white/38">Quando alguém entrar pelo link deste usuário, aparece aqui.</p>
                 </div>
               )}
+            </section>
+          </div>
+        ) : null}
+
+        {tab === "influencer" ? (
+          <div className="grid gap-5">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <InfoCard label="Modo atual" value={affiliateMode === "influencer" ? "Influencer" : "Afiliado padrão"} />
+              <InfoCard label="CPA atual" value={`${cpaPercentFromBps(influencerCpaBps)}%`} />
+              <InfoCard label="Balance afiliado" value={formatBRL(user.affiliateBalanceCents)} />
+              <InfoCard label="Comissões geradas" value={formatBRL(user.commissionsCents)} />
+            </div>
+
+            <section className="rounded-[18px] border border-white/8 bg-[#101010] p-5">
+              <div className="mb-5">
+                <h2 className="text-[15px] font-black text-white">Configuração influencer</h2>
+                <p className="mt-1 text-[12px] font-medium text-white/38">
+                  Influencer recebe comissão por CPA, calculada como porcentagem do valor da transação paga.
+                </p>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px]">
+                <label className="block">
+                  <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-white/35">
+                    Modelo do afiliado
+                  </span>
+                  <select
+                    value={selectedAffiliateMode}
+                    onChange={(event) => setSelectedAffiliateMode(event.target.value as AffiliateMode)}
+                    disabled={!canManageInfluencer || savingInfluencer}
+                    className="h-12 w-full rounded-[12px] border border-white/10 bg-black/40 px-4 text-[14px] font-bold text-white outline-none transition-colors focus:border-primary/45 disabled:opacity-50"
+                  >
+                    <option value="standard">Afiliado padrão</option>
+                    <option value="influencer">Influencer CPA</option>
+                  </select>
+                </label>
+
+                <label className="block">
+                  <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-white/35">
+                    CPA (%)
+                  </span>
+                  <input
+                    value={cpaInput}
+                    onChange={(event) => setCpaInput(event.target.value)}
+                    disabled={!canManageInfluencer || savingInfluencer || selectedAffiliateMode !== "influencer"}
+                    placeholder="Ex: 20"
+                    inputMode="decimal"
+                    className="h-12 w-full rounded-[12px] border border-white/10 bg-black/40 px-4 text-[14px] font-bold text-white outline-none transition-colors placeholder:text-white/25 focus:border-primary/45 disabled:opacity-50"
+                  />
+                </label>
+              </div>
+
+              <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  {influencerError ? <p className="text-[12px] font-bold text-red-300">{influencerError}</p> : null}
+                  {influencerMessage ? <p className="text-[12px] font-bold text-primary">{influencerMessage}</p> : null}
+                  {!canManageInfluencer ? (
+                    <p className="text-[12px] font-bold text-white/35">Apenas super admin pode alterar o modo influencer.</p>
+                  ) : (
+                    <p className="text-[12px] font-bold text-white/35">
+                      Requer 2FA ativo e verificação em /admin/2fa neste navegador para salvar.
+                    </p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={saveInfluencerConfig}
+                  disabled={!canManageInfluencer || savingInfluencer}
+                  className="h-11 rounded-full bg-primary px-5 text-[12px] font-black uppercase tracking-[0.14em] text-black transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {savingInfluencer ? "Salvando..." : "Salvar influencer"}
+                </button>
+              </div>
             </section>
           </div>
         ) : null}

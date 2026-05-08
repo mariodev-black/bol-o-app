@@ -53,6 +53,7 @@ export default async function AdminUserDetailPage({
       <AdminUserDetailTabs
         user={user}
         canManageRole={admin.role === "super_admin"}
+        canManageInfluencer={admin.role === "super_admin"}
       />
     </>
   );

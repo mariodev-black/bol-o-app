@@ -28,6 +28,20 @@ function stripEnvQuotes(value: string): string {
   return t;
 }
 
+function intEnv(name: string, fallback: number): number {
+  const raw = process.env[name]?.trim();
+  if (!raw) return fallback;
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+function intEnvNonNeg(name: string, fallback: number): number {
+  const raw = process.env[name]?.trim();
+  if (raw === "" || raw == null) return fallback;
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) && n >= 0 ? n : fallback;
+}
+
 /**
  * Use `DATABASE_HOST` + `DATABASE_USER` + `DATABASE_PASSWORD` + `DATABASE_NAME`
  * quando a senha tiver @, #, /, +, %, etc. — igual ao DBeaver, sem codificar na URL.
@@ -74,9 +88,24 @@ function poolConfigFromEnv(): PoolConfig {
   };
 }
 
+function poolScalingOptions(): Pick<PoolConfig, "max" | "min" | "idleTimeoutMillis" | "connectionTimeoutMillis"> {
+  const max = Math.max(1, intEnv("DATABASE_POOL_MAX", 20));
+  const min = Math.min(intEnvNonNeg("DATABASE_POOL_MIN", 0), max);
+  return {
+    max,
+    min,
+    idleTimeoutMillis: intEnv("DATABASE_POOL_IDLE_MS", 30_000),
+    connectionTimeoutMillis: intEnv("DATABASE_POOL_CONN_TIMEOUT_MS", 10_000),
+  };
+}
+
 export function getPool(): Pool {
   if (!pool) {
-    pool = new Pool(poolConfigFromEnv());
+    pool = new Pool({
+      ...poolConfigFromEnv(),
+      ...poolScalingOptions(),
+      allowExitOnIdle: process.env.DATABASE_POOL_ALLOW_EXIT_ON_IDLE === "1",
+    });
   }
   return pool;
 }
