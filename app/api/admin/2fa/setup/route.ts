@@ -8,6 +8,7 @@ export const runtime = "nodejs";
 export async function POST() {
   const admin = await getCurrentAdminUser();
   if (!admin) return NextResponse.json({ error: "Admin nao autorizado" }, { status: 403 });
+  if (admin.twoFactorEnabled) return NextResponse.json({ enabled: true });
 
   const secret = admin.twoFactorSecret ?? generateTotpSecret();
   if (!admin.twoFactorSecret) {

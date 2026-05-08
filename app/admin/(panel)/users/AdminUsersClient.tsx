@@ -4,7 +4,7 @@ import type { AdminUserListItem } from "@/lib/admin/users";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-type SortOption = "recent" | "oldest" | "most_tickets" | "least_tickets";
+type SortOption = "recent" | "oldest" | "most_tickets" | "least_tickets" | "most_points";
 const PAGE_SIZE = 50;
 
 const SORT_LABELS: Record<SortOption, string> = {
@@ -12,6 +12,7 @@ const SORT_LABELS: Record<SortOption, string> = {
   oldest: "Mais antigos",
   most_tickets: "Mais cotas",
   least_tickets: "Menos cotas",
+  most_points: "Mais pontos",
 };
 
 function onlyDigits(value: string) {
@@ -71,6 +72,7 @@ export function AdminUsersClient({ users }: { users: AdminUserListItem[] }) {
       if (sortBy === "oldest") return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
       if (sortBy === "most_tickets") return b.ticketsCount - a.ticketsCount || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       if (sortBy === "least_tickets") return a.ticketsCount - b.ticketsCount || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      if (sortBy === "most_points") return b.scorePoints - a.scorePoints || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
   }, [query, sortBy, users]);
@@ -81,6 +83,7 @@ export function AdminUsersClient({ users }: { users: AdminUserListItem[] }) {
       filteredUsers: filteredUsers.length,
       totalTickets: users.reduce((acc, user) => acc + user.ticketsCount, 0),
       paidTickets: users.reduce((acc, user) => acc + user.paidTicketsCount, 0),
+      scorePoints: users.reduce((acc, user) => acc + user.scorePoints, 0),
     };
   }, [filteredUsers.length, users]);
 
@@ -116,6 +119,7 @@ export function AdminUsersClient({ users }: { users: AdminUserListItem[] }) {
           { label: "Usuários", value: stats.totalUsers.toLocaleString("pt-BR") },
           { label: "Cotas totais", value: stats.totalTickets.toLocaleString("pt-BR") },
           { label: "Cotas pagas", value: stats.paidTickets.toLocaleString("pt-BR") },
+          { label: "Pontos totais", value: stats.scorePoints.toLocaleString("pt-BR") },
         ].map((card) => (
           <article key={card.label} className="rounded-[16px] border border-white/8 bg-[#101010] p-4">
             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/35">{card.label}</p>
@@ -161,7 +165,7 @@ export function AdminUsersClient({ users }: { users: AdminUserListItem[] }) {
 
       <section className="overflow-hidden rounded-[18px] border border-white/8 bg-[#101010]">
         <div className="overflow-x-auto">
-          <table className="min-w-[980px] w-full text-left">
+          <table className="min-w-[1120px] w-full text-left">
             <thead className="border-b border-white/8 bg-white/2.5">
               <tr className="text-[11px] font-black uppercase tracking-[0.16em] text-white/35">
                 <th className="px-4 py-4">Usuário</th>
@@ -169,6 +173,7 @@ export function AdminUsersClient({ users }: { users: AdminUserListItem[] }) {
                 <th className="px-4 py-4">CPF</th>
                 <th className="px-4 py-4">Role</th>
                 <th className="px-4 py-4">Nº de cotas</th>
+                <th className="px-4 py-4">Pontos</th>
                 <th className="px-4 py-4">Criado em</th>
               </tr>
             </thead>
@@ -201,6 +206,12 @@ export function AdminUsersClient({ users }: { users: AdminUserListItem[] }) {
                     <Link href={`/admin/users/${user.id}`} className="block">
                       <p className="text-[18px] font-black leading-none text-white">{user.ticketsCount.toLocaleString("pt-BR")}</p>
                       <p className="mt-1 text-[11px] font-bold text-white/35">{user.paidTicketsCount.toLocaleString("pt-BR")} pagas</p>
+                    </Link>
+                  </td>
+                  <td className="px-4 py-4">
+                    <Link href={`/admin/users/${user.id}`} className="block">
+                      <p className="text-[18px] font-black leading-none text-primary">{user.scorePoints.toLocaleString("pt-BR")}</p>
+                      <p className="mt-1 text-[11px] font-bold text-white/35">pontos nas cotas</p>
                     </Link>
                   </td>
                   <td className="px-4 py-4 text-white/45">

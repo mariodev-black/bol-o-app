@@ -76,6 +76,7 @@ export type AdminPredictionListItem = {
   scoreVisitante: number;
   resultCasa: number | null;
   resultVisitante: number | null;
+  points: number;
   submittedAt: string;
   updatedAt: string;
 };
@@ -121,6 +122,8 @@ export type AdminTicketListItem = {
   predictionsCount: number;
   pendingPredictionsCount: number;
   totalMatchesCount: number;
+  scorePoints: number;
+  rankingPosition: number | null;
   lastPredictionAt: string | null;
 };
 
@@ -129,6 +132,8 @@ export type AdminTicketPredictionItem = {
   matchId: number;
   homeName: string;
   awayName: string;
+  homeLogo: string | null;
+  awayLogo: string | null;
   dateBR: string | null;
   hourBR: string | null;
   status: string | null;
@@ -136,6 +141,7 @@ export type AdminTicketPredictionItem = {
   scoreVisitante: number;
   resultCasa: number | null;
   resultVisitante: number | null;
+  points: number;
   submittedAt: string;
   updatedAt: string;
 };
@@ -150,6 +156,48 @@ export type AdminTicketDetail = AdminTicketListItem & {
   transactionAmountCents: number | null;
   transactionCreatedAt: string | null;
   predictions: AdminTicketPredictionItem[];
+};
+
+export type AdminBolaoRankingRow = {
+  position: number;
+  ticketId: string;
+  userId: string;
+  userName: string | null;
+  userEmail: string;
+  ticketType: string;
+  groupDate: string | null;
+  scorePoints: number;
+  exactCount: number;
+  outcomeCount: number;
+  goalsCount: number;
+  predictionsCount: number;
+  pendingPredictionsCount: number;
+  totalMatchesCount: number;
+  paidAt: string | null;
+  createdAt: string;
+};
+
+export type AdminDailyBolaoCard = {
+  date: string;
+  ticketsCount: number;
+  playersCount: number;
+  totalPoints: number;
+  availableCount: number;
+  inUseCount: number;
+  finishedCount: number;
+  topRows: AdminBolaoRankingRow[];
+};
+
+export type AdminBoloesDashboardData = {
+  principal: {
+    ticketsCount: number;
+    playersCount: number;
+    totalPoints: number;
+    ranking: AdminBolaoRankingRow[];
+  };
+  dailyCards: AdminDailyBolaoCard[];
+  selectedDailyDate: string | null;
+  selectedDailyRanking: AdminBolaoRankingRow[];
 };
 
 export async function getAdminAffiliateStats(): Promise<AdminAffiliateStats> {
@@ -172,6 +220,199 @@ export async function getAdminAffiliateStats(): Promise<AdminAffiliateStats> {
     commissionsCount: Number(row?.commissions_count ?? 0),
     commissionTotalCents: Number(row?.commission_total_cents ?? 0),
     pendingWithdrawalsCents: Number(row?.pending_withdrawals_cents ?? 0),
+  };
+}
+
+function rankBolaoRows(rows: Omit<AdminBolaoRankingRow, "position">[]): AdminBolaoRankingRow[] {
+  return [...rows]
+    .sort((a, b) => {
+      if (b.scorePoints !== a.scorePoints) return b.scorePoints - a.scorePoints;
+      if (b.exactCount !== a.exactCount) return b.exactCount - a.exactCount;
+      if (b.outcomeCount !== a.outcomeCount) return b.outcomeCount - a.outcomeCount;
+      if (b.goalsCount !== a.goalsCount) return b.goalsCount - a.goalsCount;
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    })
+    .map((row, index) => ({ ...row, position: index + 1 }));
+}
+
+function bolaoUsageStatus(row: Pick<AdminBolaoRankingRow, "predictionsCount" | "pendingPredictionsCount">) {
+  if (row.predictionsCount <= 0) return "available";
+  if (row.pendingPredictionsCount > 0) return "in_use";
+  return "finished";
+}
+
+export async function getAdminBoloesDashboardData(selectedDailyDate?: string | null): Promise<AdminBoloesDashboardData> {
+  const pool = getPool();
+  const { rows } = await pool.query<{
+    ticket_id: string;
+    user_id: string;
+    user_name: string | null;
+    user_email: string;
+    ticket_type: string;
+    group_date: string | null;
+    score_points: string | number | null;
+    exact_count: string | number | null;
+    outcome_count: string | number | null;
+    goals_count: string | number | null;
+    predictions_count: string | number;
+    total_matches_count: string | number;
+    paid_at: Date | null;
+    created_at: Date;
+  }>(
+    `WITH prediction_counts AS (
+       SELECT ticket_id, COUNT(*) AS predictions_count
+       FROM predictions
+       GROUP BY ticket_id
+     ),
+     first_prediction_dates AS (
+       SELECT DISTINCT ON (p.ticket_id) p.ticket_id, mc.date_br
+       FROM predictions p
+       LEFT JOIN matches_cache mc ON mc.match_id = p.match_id
+       WHERE mc.date_br IS NOT NULL
+       ORDER BY p.ticket_id, p.submitted_at ASC
+     ),
+     ticket_groups AS (
+       SELECT
+         t.id,
+         CASE
+           WHEN t.ticket_type = 'daily' THEN COALESCE(fpd.date_br, to_char(COALESCE(t.paid_at, t.created_at), 'DD/MM/YYYY'))
+           ELSE 'GERAL'
+         END AS group_date
+       FROM tickets t
+       LEFT JOIN first_prediction_dates fpd ON fpd.ticket_id::text = t.id::text
+       WHERE t.status IN ('paid', 'approved')
+     ),
+     prediction_scores AS (
+       SELECT
+         p.ticket_id,
+         SUM(
+           CASE
+             WHEN mc.result_casa IS NULL OR mc.result_visitante IS NULL THEN 0
+             WHEN p.score_casa = mc.result_casa AND p.score_visitante = mc.result_visitante THEN 6
+             ELSE
+               CASE
+                 WHEN (p.score_casa - p.score_visitante = 0 AND mc.result_casa - mc.result_visitante = 0)
+                   OR (p.score_casa - p.score_visitante > 0 AND mc.result_casa - mc.result_visitante > 0)
+                   OR (p.score_casa - p.score_visitante < 0 AND mc.result_casa - mc.result_visitante < 0)
+                 THEN 3 ELSE 0
+               END
+               + CASE WHEN p.score_casa = mc.result_casa THEN 1 ELSE 0 END
+               + CASE WHEN p.score_visitante = mc.result_visitante THEN 1 ELSE 0 END
+           END
+         ) AS score_points,
+         COUNT(*) FILTER (WHERE mc.result_casa IS NOT NULL AND mc.result_visitante IS NOT NULL AND p.score_casa = mc.result_casa AND p.score_visitante = mc.result_visitante) AS exact_count,
+         COUNT(*) FILTER (
+           WHERE mc.result_casa IS NOT NULL
+             AND mc.result_visitante IS NOT NULL
+             AND (
+               (p.score_casa - p.score_visitante = 0 AND mc.result_casa - mc.result_visitante = 0)
+               OR (p.score_casa - p.score_visitante > 0 AND mc.result_casa - mc.result_visitante > 0)
+               OR (p.score_casa - p.score_visitante < 0 AND mc.result_casa - mc.result_visitante < 0)
+             )
+         ) AS outcome_count,
+         SUM(
+           CASE WHEN mc.result_casa IS NOT NULL AND p.score_casa = mc.result_casa THEN 1 ELSE 0 END
+           + CASE WHEN mc.result_visitante IS NOT NULL AND p.score_visitante = mc.result_visitante THEN 1 ELSE 0 END
+         ) AS goals_count
+       FROM predictions p
+       LEFT JOIN matches_cache mc ON mc.match_id = p.match_id
+       GROUP BY p.ticket_id
+     )
+     SELECT
+       t.id AS ticket_id,
+       t.user_id,
+       u.name AS user_name,
+       u.email AS user_email,
+       t.ticket_type,
+       tg.group_date,
+       COALESCE(ps.score_points, 0) AS score_points,
+       COALESCE(ps.exact_count, 0) AS exact_count,
+       COALESCE(ps.outcome_count, 0) AS outcome_count,
+       COALESCE(ps.goals_count, 0) AS goals_count,
+       COALESCE(pc.predictions_count, 0) AS predictions_count,
+       CASE
+         WHEN t.ticket_type = 'daily' THEN (SELECT COUNT(*) FROM matches_cache mc WHERE mc.date_br = tg.group_date)
+         ELSE (SELECT COUNT(*) FROM matches_cache)
+       END AS total_matches_count,
+       t.paid_at,
+       t.created_at
+     FROM tickets t
+     JOIN users u ON u.id::text = t.user_id::text
+     JOIN ticket_groups tg ON tg.id::text = t.id::text
+     LEFT JOIN prediction_counts pc ON pc.ticket_id::text = t.id::text
+     LEFT JOIN prediction_scores ps ON ps.ticket_id::text = t.id::text
+     WHERE t.status IN ('paid', 'approved')
+     ORDER BY t.created_at DESC`
+  );
+
+  const baseRows = rows.map<Omit<AdminBolaoRankingRow, "position">>((row) => {
+    const predictionsCount = Number(row.predictions_count ?? 0);
+    const totalMatchesCount = Number(row.total_matches_count ?? 0);
+    return {
+      ticketId: row.ticket_id,
+      userId: row.user_id,
+      userName: row.user_name,
+      userEmail: row.user_email,
+      ticketType: row.ticket_type,
+      groupDate: row.group_date,
+      scorePoints: Number(row.score_points ?? 0),
+      exactCount: Number(row.exact_count ?? 0),
+      outcomeCount: Number(row.outcome_count ?? 0),
+      goalsCount: Number(row.goals_count ?? 0),
+      predictionsCount,
+      pendingPredictionsCount: Math.max(totalMatchesCount - predictionsCount, 0),
+      totalMatchesCount,
+      paidAt: row.paid_at ? row.paid_at.toISOString() : null,
+      createdAt: row.created_at.toISOString(),
+    };
+  });
+
+  const principalRanking = rankBolaoRows(baseRows.filter((row) => row.ticketType === "general"));
+  const dailyGroups = new Map<string, Omit<AdminBolaoRankingRow, "position">[]>();
+  for (const row of baseRows) {
+    if (row.ticketType !== "daily" || !row.groupDate) continue;
+    const group = dailyGroups.get(row.groupDate) ?? [];
+    group.push(row);
+    dailyGroups.set(row.groupDate, group);
+  }
+
+  const dailyCards = Array.from(dailyGroups.entries())
+    .map(([date, groupRows]) => {
+      const ranked = rankBolaoRows(groupRows);
+      return {
+        date,
+        ticketsCount: groupRows.length,
+        playersCount: new Set(groupRows.map((row) => row.userId)).size,
+        totalPoints: groupRows.reduce((acc, row) => acc + row.scorePoints, 0),
+        availableCount: groupRows.filter((row) => bolaoUsageStatus(row) === "available").length,
+        inUseCount: groupRows.filter((row) => bolaoUsageStatus(row) === "in_use").length,
+        finishedCount: groupRows.filter((row) => bolaoUsageStatus(row) === "finished").length,
+        topRows: ranked.slice(0, 3),
+      };
+    })
+    .sort((a, b) => {
+      const [ad, am, ay] = a.date.split("/").map(Number);
+      const [bd, bm, by] = b.date.split("/").map(Number);
+      return Date.UTC(by, bm - 1, bd) - Date.UTC(ay, am - 1, ad);
+    });
+
+  const selectedDailyDateSafe = selectedDailyDate && dailyGroups.has(selectedDailyDate)
+    ? selectedDailyDate
+    : dailyCards[0]?.date ?? null;
+  const selectedDailyRanking = selectedDailyDateSafe
+    ? rankBolaoRows(dailyGroups.get(selectedDailyDateSafe) ?? [])
+    : [];
+
+  return {
+    principal: {
+      ticketsCount: principalRanking.length,
+      playersCount: new Set(principalRanking.map((row) => row.userId)).size,
+      totalPoints: principalRanking.reduce((acc, row) => acc + row.scorePoints, 0),
+      ranking: principalRanking,
+    },
+    dailyCards,
+    selectedDailyDate: selectedDailyDateSafe,
+    selectedDailyRanking,
   };
 }
 
@@ -348,6 +589,7 @@ export async function listAdminPredictions(): Promise<AdminPredictionListItem[]>
     score_visitante: number;
     result_casa: number | null;
     result_visitante: number | null;
+    points: string | number | null;
     submitted_at: Date;
     updated_at: Date;
   }>(
@@ -371,6 +613,19 @@ export async function listAdminPredictions(): Promise<AdminPredictionListItem[]>
        p.score_visitante,
        mc.result_casa,
        mc.result_visitante,
+       CASE
+         WHEN mc.result_casa IS NULL OR mc.result_visitante IS NULL THEN 0
+         WHEN p.score_casa = mc.result_casa AND p.score_visitante = mc.result_visitante THEN 6
+         ELSE
+           CASE
+             WHEN (p.score_casa - p.score_visitante = 0 AND mc.result_casa - mc.result_visitante = 0)
+               OR (p.score_casa - p.score_visitante > 0 AND mc.result_casa - mc.result_visitante > 0)
+               OR (p.score_casa - p.score_visitante < 0 AND mc.result_casa - mc.result_visitante < 0)
+             THEN 3 ELSE 0
+           END
+           + CASE WHEN p.score_casa = mc.result_casa THEN 1 ELSE 0 END
+           + CASE WHEN p.score_visitante = mc.result_visitante THEN 1 ELSE 0 END
+       END AS points,
        p.submitted_at,
        p.updated_at
      FROM predictions p
@@ -400,6 +655,7 @@ export async function listAdminPredictions(): Promise<AdminPredictionListItem[]>
     scoreVisitante: row.score_visitante,
     resultCasa: row.result_casa,
     resultVisitante: row.result_visitante,
+    points: Number(row.points ?? 0),
     submittedAt: row.submitted_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
   }));
@@ -510,6 +766,8 @@ export async function listAdminTickets(limit = 80): Promise<AdminTicketListItem[
     predictions_count: string | number;
     pending_predictions_count: string | number;
     total_matches_count: string | number;
+    score_points: string | number | null;
+    ranking_position: string | number | null;
     last_prediction_at: Date | null;
   }>(
     `WITH prediction_counts AS (
@@ -534,6 +792,67 @@ export async function listAdminTickets(limit = 80): Promise<AdminTicketListItem[
          END,
          to_date(date_br, 'DD/MM/YYYY') ASC
        LIMIT 1
+     ),
+     prediction_scores AS (
+       SELECT
+         p.ticket_id,
+         SUM(
+           CASE
+             WHEN mc.result_casa IS NULL OR mc.result_visitante IS NULL THEN 0
+             WHEN p.score_casa = mc.result_casa AND p.score_visitante = mc.result_visitante THEN 6
+             ELSE
+               CASE
+                 WHEN (p.score_casa - p.score_visitante = 0 AND mc.result_casa - mc.result_visitante = 0)
+                   OR (p.score_casa - p.score_visitante > 0 AND mc.result_casa - mc.result_visitante > 0)
+                   OR (p.score_casa - p.score_visitante < 0 AND mc.result_casa - mc.result_visitante < 0)
+                 THEN 3 ELSE 0
+               END
+               + CASE WHEN p.score_casa = mc.result_casa THEN 1 ELSE 0 END
+               + CASE WHEN p.score_visitante = mc.result_visitante THEN 1 ELSE 0 END
+           END
+         ) AS score_points,
+         COUNT(*) FILTER (WHERE mc.result_casa IS NOT NULL AND mc.result_visitante IS NOT NULL AND p.score_casa = mc.result_casa AND p.score_visitante = mc.result_visitante) AS exact_count,
+         COUNT(*) FILTER (
+           WHERE mc.result_casa IS NOT NULL
+             AND mc.result_visitante IS NOT NULL
+             AND (
+               (p.score_casa - p.score_visitante = 0 AND mc.result_casa - mc.result_visitante = 0)
+               OR (p.score_casa - p.score_visitante > 0 AND mc.result_casa - mc.result_visitante > 0)
+               OR (p.score_casa - p.score_visitante < 0 AND mc.result_casa - mc.result_visitante < 0)
+             )
+         ) AS outcome_count,
+         SUM(
+           CASE WHEN mc.result_casa IS NOT NULL AND p.score_casa = mc.result_casa THEN 1 ELSE 0 END
+           + CASE WHEN mc.result_visitante IS NOT NULL AND p.score_visitante = mc.result_visitante THEN 1 ELSE 0 END
+         ) AS goals_count,
+         MIN(p.submitted_at) AS first_submit_at
+       FROM predictions p
+       LEFT JOIN matches_cache mc ON mc.match_id = p.match_id
+       WHERE mc.result_casa IS NOT NULL AND mc.result_visitante IS NOT NULL
+       GROUP BY p.ticket_id
+     ),
+     ranking_positions AS (
+       SELECT
+         rb.id,
+         RANK() OVER (
+           PARTITION BY rb.ticket_type, rb.ranking_group
+           ORDER BY rb.score_points DESC, rb.exact_count DESC, rb.outcome_count DESC, rb.goals_count DESC, rb.first_submit_at ASC NULLS LAST
+         ) AS ranking_position
+       FROM (
+         SELECT
+           t.id,
+           t.ticket_type,
+           CASE WHEN t.ticket_type = 'daily' THEN COALESCE(fpd.date_br, 'SEM_DATA') ELSE 'GERAL' END AS ranking_group,
+           COALESCE(ps.score_points, 0) AS score_points,
+           COALESCE(ps.exact_count, 0) AS exact_count,
+           COALESCE(ps.outcome_count, 0) AS outcome_count,
+           COALESCE(ps.goals_count, 0) AS goals_count,
+           ps.first_submit_at
+         FROM tickets t
+         LEFT JOIN first_prediction_dates fpd ON fpd.ticket_id::text = t.id::text
+         JOIN prediction_scores ps ON ps.ticket_id::text = t.id::text
+         WHERE t.status IN ('paid', 'approved')
+       ) rb
      )
      SELECT
        t.id,
@@ -567,11 +886,16 @@ export async function listAdminTickets(limit = 80): Promise<AdminTicketListItem[
          )
          ELSE (SELECT COUNT(*) FROM matches_cache)
        END AS total_matches_count,
+       COALESCE(ps.score_points, 0) AS score_points,
+       rp.ranking_position,
        pc.last_prediction_at
      FROM tickets t
      JOIN users u ON u.id::text = t.user_id::text
      LEFT JOIN prediction_counts pc ON pc.ticket_id::text = t.id::text
      LEFT JOIN first_prediction_dates fpd ON fpd.ticket_id::text = t.id::text
+     LEFT JOIN prediction_scores ps ON ps.ticket_id::text = t.id::text
+     LEFT JOIN ranking_positions rp ON rp.id::text = t.id::text
+     WHERE t.status IN ('paid', 'approved')
      ORDER BY t.created_at DESC
      LIMIT $1`,
     [Math.max(1, Math.min(200, limit))]
@@ -591,6 +915,8 @@ export async function listAdminTickets(limit = 80): Promise<AdminTicketListItem[
     predictionsCount: Number(row.predictions_count ?? 0),
     pendingPredictionsCount: Number(row.pending_predictions_count ?? 0),
     totalMatchesCount: Number(row.total_matches_count ?? 0),
+    scorePoints: Number(row.score_points ?? 0),
+    rankingPosition: row.ranking_position == null ? null : Number(row.ranking_position),
     lastPredictionAt: row.last_prediction_at ? row.last_prediction_at.toISOString() : null,
   }));
 }
@@ -615,6 +941,8 @@ export async function getAdminTicketDetail(ticketId: string): Promise<AdminTicke
     predictions_count: string | number;
     pending_predictions_count: string | number;
     total_matches_count: string | number;
+    score_points: string | number | null;
+    ranking_position: string | number | null;
     last_prediction_at: Date | null;
     transaction_id: string | null;
     provider_transaction_id: string | null;
@@ -646,6 +974,74 @@ export async function getAdminTicketDetail(ticketId: string): Promise<AdminTicke
          END,
          to_date(date_br, 'DD/MM/YYYY') ASC
        LIMIT 1
+     ),
+     all_first_prediction_dates AS (
+       SELECT DISTINCT ON (p.ticket_id) p.ticket_id, mc.date_br
+       FROM predictions p
+       LEFT JOIN matches_cache mc ON mc.match_id = p.match_id
+       WHERE mc.date_br IS NOT NULL
+       ORDER BY p.ticket_id, p.submitted_at ASC
+     ),
+     prediction_scores AS (
+       SELECT
+         p.ticket_id,
+         SUM(
+           CASE
+             WHEN mc.result_casa IS NULL OR mc.result_visitante IS NULL THEN 0
+             WHEN p.score_casa = mc.result_casa AND p.score_visitante = mc.result_visitante THEN 6
+             ELSE
+               CASE
+                 WHEN (p.score_casa - p.score_visitante = 0 AND mc.result_casa - mc.result_visitante = 0)
+                   OR (p.score_casa - p.score_visitante > 0 AND mc.result_casa - mc.result_visitante > 0)
+                   OR (p.score_casa - p.score_visitante < 0 AND mc.result_casa - mc.result_visitante < 0)
+                 THEN 3 ELSE 0
+               END
+               + CASE WHEN p.score_casa = mc.result_casa THEN 1 ELSE 0 END
+               + CASE WHEN p.score_visitante = mc.result_visitante THEN 1 ELSE 0 END
+           END
+         ) AS score_points,
+         COUNT(*) FILTER (WHERE mc.result_casa IS NOT NULL AND mc.result_visitante IS NOT NULL AND p.score_casa = mc.result_casa AND p.score_visitante = mc.result_visitante) AS exact_count,
+         COUNT(*) FILTER (
+           WHERE mc.result_casa IS NOT NULL
+             AND mc.result_visitante IS NOT NULL
+             AND (
+               (p.score_casa - p.score_visitante = 0 AND mc.result_casa - mc.result_visitante = 0)
+               OR (p.score_casa - p.score_visitante > 0 AND mc.result_casa - mc.result_visitante > 0)
+               OR (p.score_casa - p.score_visitante < 0 AND mc.result_casa - mc.result_visitante < 0)
+             )
+         ) AS outcome_count,
+         SUM(
+           CASE WHEN mc.result_casa IS NOT NULL AND p.score_casa = mc.result_casa THEN 1 ELSE 0 END
+           + CASE WHEN mc.result_visitante IS NOT NULL AND p.score_visitante = mc.result_visitante THEN 1 ELSE 0 END
+         ) AS goals_count,
+         MIN(p.submitted_at) AS first_submit_at
+       FROM predictions p
+       LEFT JOIN matches_cache mc ON mc.match_id = p.match_id
+       WHERE mc.result_casa IS NOT NULL AND mc.result_visitante IS NOT NULL
+       GROUP BY p.ticket_id
+     ),
+     ranking_positions AS (
+       SELECT
+         rb.id,
+         RANK() OVER (
+           PARTITION BY rb.ticket_type, rb.ranking_group
+           ORDER BY rb.score_points DESC, rb.exact_count DESC, rb.outcome_count DESC, rb.goals_count DESC, rb.first_submit_at ASC NULLS LAST
+         ) AS ranking_position
+       FROM (
+         SELECT
+           t.id,
+           t.ticket_type,
+           CASE WHEN t.ticket_type = 'daily' THEN COALESCE(afpd.date_br, 'SEM_DATA') ELSE 'GERAL' END AS ranking_group,
+           COALESCE(ps.score_points, 0) AS score_points,
+           COALESCE(ps.exact_count, 0) AS exact_count,
+           COALESCE(ps.outcome_count, 0) AS outcome_count,
+           COALESCE(ps.goals_count, 0) AS goals_count,
+           ps.first_submit_at
+         FROM tickets t
+         LEFT JOIN all_first_prediction_dates afpd ON afpd.ticket_id::text = t.id::text
+         JOIN prediction_scores ps ON ps.ticket_id::text = t.id::text
+         WHERE t.status IN ('paid', 'approved')
+       ) rb
      )
      SELECT
        t.id,
@@ -682,6 +1078,8 @@ export async function getAdminTicketDetail(ticketId: string): Promise<AdminTicke
          )
          ELSE (SELECT COUNT(*) FROM matches_cache)
        END AS total_matches_count,
+       COALESCE(ps.score_points, 0) AS score_points,
+       rp.ranking_position,
        pc.last_prediction_at,
        tx.id AS transaction_id,
        tx.provider_transaction_id,
@@ -691,6 +1089,8 @@ export async function getAdminTicketDetail(ticketId: string): Promise<AdminTicke
      FROM tickets t
      JOIN users u ON u.id::text = t.user_id::text
      LEFT JOIN prediction_counts pc ON pc.ticket_id::text = t.id::text
+    LEFT JOIN prediction_scores ps ON ps.ticket_id::text = t.id::text
+    LEFT JOIN ranking_positions rp ON rp.id::text = t.id::text
      LEFT JOIN LATERAL (
        SELECT id, provider_transaction_id, status, amount_cents, created_at
        FROM transactions
@@ -709,7 +1109,9 @@ export async function getAdminTicketDetail(ticketId: string): Promise<AdminTicke
     id: string;
     match_id: number;
     home_name: string | null;
+    home_logo: string | null;
     away_name: string | null;
+    away_logo: string | null;
     date_br: string | null;
     hour_br: string | null;
     status: string | null;
@@ -717,6 +1119,7 @@ export async function getAdminTicketDetail(ticketId: string): Promise<AdminTicke
     score_visitante: number;
     result_casa: number | null;
     result_visitante: number | null;
+    points: string | number | null;
     submitted_at: Date;
     updated_at: Date;
   }>(
@@ -724,7 +1127,9 @@ export async function getAdminTicketDetail(ticketId: string): Promise<AdminTicke
        p.id,
        p.match_id,
        mc.home_name,
+       mc.home_logo,
        mc.away_name,
+       mc.away_logo,
        mc.date_br,
        mc.hour_br,
        mc.status,
@@ -732,6 +1137,19 @@ export async function getAdminTicketDetail(ticketId: string): Promise<AdminTicke
        p.score_visitante,
        mc.result_casa,
        mc.result_visitante,
+       CASE
+         WHEN mc.result_casa IS NULL OR mc.result_visitante IS NULL THEN 0
+         WHEN p.score_casa = mc.result_casa AND p.score_visitante = mc.result_visitante THEN 6
+         ELSE
+           CASE
+             WHEN (p.score_casa - p.score_visitante = 0 AND mc.result_casa - mc.result_visitante = 0)
+               OR (p.score_casa - p.score_visitante > 0 AND mc.result_casa - mc.result_visitante > 0)
+               OR (p.score_casa - p.score_visitante < 0 AND mc.result_casa - mc.result_visitante < 0)
+             THEN 3 ELSE 0
+           END
+           + CASE WHEN p.score_casa = mc.result_casa THEN 1 ELSE 0 END
+           + CASE WHEN p.score_visitante = mc.result_visitante THEN 1 ELSE 0 END
+       END AS points,
        p.submitted_at,
        p.updated_at
      FROM predictions p
@@ -759,6 +1177,8 @@ export async function getAdminTicketDetail(ticketId: string): Promise<AdminTicke
     predictionsCount: Number(row.predictions_count ?? 0),
     pendingPredictionsCount: Number(row.pending_predictions_count ?? 0),
     totalMatchesCount: Number(row.total_matches_count ?? 0),
+    scorePoints: Number(row.score_points ?? 0),
+    rankingPosition: row.ranking_position == null ? null : Number(row.ranking_position),
     lastPredictionAt: row.last_prediction_at ? row.last_prediction_at.toISOString() : null,
     transactionId: row.transaction_id,
     providerTransactionId: row.provider_transaction_id,
@@ -770,6 +1190,8 @@ export async function getAdminTicketDetail(ticketId: string): Promise<AdminTicke
       matchId: Number(prediction.match_id),
       homeName: prediction.home_name ?? "Time casa",
       awayName: prediction.away_name ?? "Time visitante",
+      homeLogo: prediction.home_logo,
+      awayLogo: prediction.away_logo,
       dateBR: prediction.date_br,
       hourBR: prediction.hour_br,
       status: prediction.status,
@@ -777,6 +1199,7 @@ export async function getAdminTicketDetail(ticketId: string): Promise<AdminTicke
       scoreVisitante: prediction.score_visitante,
       resultCasa: prediction.result_casa,
       resultVisitante: prediction.result_visitante,
+      points: Number(prediction.points ?? 0),
       submittedAt: prediction.submitted_at.toISOString(),
       updatedAt: prediction.updated_at.toISOString(),
     })),

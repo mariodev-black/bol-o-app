@@ -10,6 +10,7 @@ export type AdminUserListItem = {
   twoFactorEnabled: boolean;
   ticketsCount: number;
   paidTicketsCount: number;
+  scorePoints: number;
   createdAt: string;
 };
 
@@ -59,9 +60,32 @@ export async function listAdminUsers(): Promise<AdminUserListItem[]> {
     admin_2fa_enabled: boolean | null;
     tickets_count: string | number;
     paid_tickets_count: string | number;
+    score_points: string | number | null;
     created_at: Date;
   }>(
-    `SELECT
+    `WITH user_scores AS (
+       SELECT
+         p.user_id,
+         SUM(
+           CASE
+             WHEN mc.result_casa IS NULL OR mc.result_visitante IS NULL THEN 0
+             WHEN p.score_casa = mc.result_casa AND p.score_visitante = mc.result_visitante THEN 6
+             ELSE
+               CASE
+                 WHEN (p.score_casa - p.score_visitante = 0 AND mc.result_casa - mc.result_visitante = 0)
+                   OR (p.score_casa - p.score_visitante > 0 AND mc.result_casa - mc.result_visitante > 0)
+                   OR (p.score_casa - p.score_visitante < 0 AND mc.result_casa - mc.result_visitante < 0)
+                 THEN 3 ELSE 0
+               END
+               + CASE WHEN p.score_casa = mc.result_casa THEN 1 ELSE 0 END
+               + CASE WHEN p.score_visitante = mc.result_visitante THEN 1 ELSE 0 END
+           END
+         ) AS score_points
+       FROM predictions p
+       LEFT JOIN matches_cache mc ON mc.match_id = p.match_id
+       GROUP BY p.user_id
+     )
+     SELECT
        u.id,
        u.email,
        u.name,
@@ -71,10 +95,12 @@ export async function listAdminUsers(): Promise<AdminUserListItem[]> {
        COALESCE(u.admin_2fa_enabled, false) AS admin_2fa_enabled,
        COUNT(t.id) AS tickets_count,
        COUNT(t.id) FILTER (WHERE t.status = 'paid') AS paid_tickets_count,
+       COALESCE(us.score_points, 0) AS score_points,
        u.created_at
      FROM users u
      LEFT JOIN tickets t ON t.user_id::text = u.id::text
-     GROUP BY u.id
+     LEFT JOIN user_scores us ON us.user_id::text = u.id::text
+     GROUP BY u.id, us.score_points
      ORDER BY u.created_at DESC`
   );
 
@@ -88,6 +114,7 @@ export async function listAdminUsers(): Promise<AdminUserListItem[]> {
     twoFactorEnabled: Boolean(row.admin_2fa_enabled),
     ticketsCount: Number(row.tickets_count ?? 0),
     paidTicketsCount: Number(row.paid_tickets_count ?? 0),
+    scorePoints: Number(row.score_points ?? 0),
     createdAt: row.created_at.toISOString(),
   }));
 }
@@ -111,6 +138,7 @@ export async function getAdminUserDetail(userId: string): Promise<AdminUserDetai
     paid_transactions_count: string | number;
     revenue_cents: string | number | null;
     predictions_count: string | number;
+    score_points: string | number | null;
     referred_users_count: string | number;
     commissions_cents: string | number | null;
     created_at: Date;
@@ -132,6 +160,26 @@ export async function getAdminUserDetail(userId: string): Promise<AdminUserDetai
        (SELECT COUNT(*) FROM transactions tx WHERE tx.user_id::text = u.id::text AND tx.status IN ('paid', 'approved')) AS paid_transactions_count,
        (SELECT COALESCE(SUM(tx.amount_cents), 0) FROM transactions tx WHERE tx.user_id::text = u.id::text AND tx.status IN ('paid', 'approved')) AS revenue_cents,
        (SELECT COUNT(*) FROM predictions p WHERE p.user_id::text = u.id::text) AS predictions_count,
+       (
+         SELECT COALESCE(SUM(
+           CASE
+             WHEN mc.result_casa IS NULL OR mc.result_visitante IS NULL THEN 0
+             WHEN p.score_casa = mc.result_casa AND p.score_visitante = mc.result_visitante THEN 6
+             ELSE
+               CASE
+                 WHEN (p.score_casa - p.score_visitante = 0 AND mc.result_casa - mc.result_visitante = 0)
+                   OR (p.score_casa - p.score_visitante > 0 AND mc.result_casa - mc.result_visitante > 0)
+                   OR (p.score_casa - p.score_visitante < 0 AND mc.result_casa - mc.result_visitante < 0)
+                 THEN 3 ELSE 0
+               END
+               + CASE WHEN p.score_casa = mc.result_casa THEN 1 ELSE 0 END
+               + CASE WHEN p.score_visitante = mc.result_visitante THEN 1 ELSE 0 END
+           END
+         ), 0)
+         FROM predictions p
+         LEFT JOIN matches_cache mc ON mc.match_id = p.match_id
+         WHERE p.user_id::text = u.id::text
+       ) AS score_points,
        (SELECT COUNT(*) FROM users referred WHERE referred.referred_by_user_id::text = u.id::text) AS referred_users_count,
        (SELECT COALESCE(SUM(c.amount_cents), 0) FROM referral_commissions c WHERE c.referrer_user_id::text = u.id::text) AS commissions_cents,
        u.created_at
@@ -204,6 +252,7 @@ export async function getAdminUserDetail(userId: string): Promise<AdminUserDetai
     twoFactorEnabled: Boolean(row.admin_2fa_enabled),
     ticketsCount: Number(row.tickets_count ?? 0),
     paidTicketsCount: Number(row.paid_tickets_count ?? 0),
+    scorePoints: Number(row.score_points ?? 0),
     createdAt: row.created_at.toISOString(),
     referredByUserId: row.referred_by_user_id,
     referralCode: row.referral_code,
@@ -266,6 +315,14 @@ export type AdminDashboardData = {
   transactionStatusBreakdown: AdminDashboardBreakdownItem[];
 };
 
+function dashboardRangeDays(startDate: string, endDate: string) {
+  const [startYear, startMonth, startDay] = startDate.split("-").map(Number);
+  const [endYear, endMonth, endDay] = endDate.split("-").map(Number);
+  const start = Date.UTC(startYear, startMonth - 1, startDay);
+  const end = Date.UTC(endYear, endMonth - 1, endDay);
+  return Math.max(1, Math.floor((end - start) / 86_400_000) + 1);
+}
+
 export async function getAdminDashboardStats(input: {
   startDate: string;
   endDate: string;
@@ -273,6 +330,8 @@ export async function getAdminDashboardStats(input: {
   const pool = getPool();
   const params = [input.startDate, input.endDate];
   const sameDay = input.startDate === input.endDate;
+  const longRange = !sameDay && dashboardRangeDays(input.startDate, input.endDate) > 14;
+  const seriesParams = sameDay ? [input.startDate] : params;
   const seriesQuery = sameDay
     ? `WITH slots AS (
          SELECT generate_series(
@@ -290,6 +349,27 @@ export async function getAdminDashboardStats(input: {
          (SELECT COALESCE(SUM(tx.amount_cents), 0) FROM transactions tx WHERE tx.created_at >= slots.period_start AND tx.created_at < slots.period_start + interval '4 hours' AND tx.status IN ('paid', 'approved')) AS revenue_cents
        FROM slots
        ORDER BY slots.period_start ASC`
+    : longRange
+      ? `WITH buckets AS (
+           SELECT generate_series(
+             $1::date,
+             $2::date,
+             interval '4 days'
+           ) AS period_start
+         )
+         SELECT
+           buckets.period_start AS day,
+           CASE
+             WHEN LEAST(buckets.period_start + interval '3 days', $2::date)::date = buckets.period_start::date
+               THEN to_char(buckets.period_start, 'DD/MM')
+             ELSE to_char(buckets.period_start, 'DD/MM') || '-' || to_char(LEAST(buckets.period_start + interval '3 days', $2::date), 'DD/MM')
+           END AS label,
+           (SELECT COUNT(*) FROM users u WHERE u.created_at >= buckets.period_start AND u.created_at < LEAST(buckets.period_start + interval '4 days', $2::date + interval '1 day')) AS users_count,
+           (SELECT COUNT(*) FROM transactions tx WHERE tx.created_at >= buckets.period_start AND tx.created_at < LEAST(buckets.period_start + interval '4 days', $2::date + interval '1 day')) AS transactions_count,
+           (SELECT COUNT(*) FROM transactions tx WHERE tx.created_at >= buckets.period_start AND tx.created_at < LEAST(buckets.period_start + interval '4 days', $2::date + interval '1 day') AND tx.status IN ('paid', 'approved')) AS paid_transactions_count,
+           (SELECT COALESCE(SUM(tx.amount_cents), 0) FROM transactions tx WHERE tx.created_at >= buckets.period_start AND tx.created_at < LEAST(buckets.period_start + interval '4 days', $2::date + interval '1 day') AND tx.status IN ('paid', 'approved')) AS revenue_cents
+         FROM buckets
+         ORDER BY buckets.period_start ASC`
     : `WITH days AS (
          SELECT generate_series(
            $1::date,
@@ -340,7 +420,7 @@ export async function getAdminDashboardStats(input: {
       transactions_count: string | number;
       paid_transactions_count: string | number;
       revenue_cents: string | number | null;
-    }>(seriesQuery, params),
+    }>(seriesQuery, seriesParams),
     pool.query<{ label: string; value: string | number }>(
       `SELECT ticket_type AS label, COUNT(*) AS value
        FROM tickets

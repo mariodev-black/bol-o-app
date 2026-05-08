@@ -15,20 +15,16 @@ function shortId(id: string) {
   return id.slice(0, 8).toUpperCase();
 }
 
-function formatCotaStatus(status: string) {
-  const normalized = status.toLowerCase();
-  if (normalized === "paid" || normalized === "approved") return "Paga";
-  if (["pending_payment", "pending", "creating", "waiting_payment"].includes(normalized)) return "Pendente";
-  if (["failed", "canceled", "cancelled", "refused", "expired"].includes(normalized)) return "Falhou";
-  return status || "Nao informado";
+function cotaUsageStatus(ticket: AdminTicketListItem) {
+  if (ticket.predictionsCount <= 0) return "Disponível";
+  if (ticket.pendingPredictionsCount > 0) return "Em uso";
+  return "Finalizada";
 }
 
-function cotaStatusClassName(status: string) {
-  const label = formatCotaStatus(status);
-  if (label === "Paga") return "border-primary/20 bg-primary/10 text-primary";
-  if (label === "Pendente") return "border-orange-400/25 bg-orange-400/10 text-orange-200";
-  if (label === "Falhou") return "border-red-400/25 bg-red-400/10 text-red-200";
-  return "border-white/10 bg-white/5 text-white/55";
+function cotaUsageStatusClassName(status: string) {
+  if (status === "Disponível") return "border-white/10 bg-white/5 text-white/62";
+  if (status === "Em uso") return "border-orange-400/25 bg-orange-400/10 text-orange-200";
+  return "border-primary/20 bg-primary/10 text-primary";
 }
 
 export function AdminCotasClient({ tickets }: { tickets: AdminTicketListItem[] }) {
@@ -54,7 +50,7 @@ export function AdminCotasClient({ tickets }: { tickets: AdminTicketListItem[] }
   return (
     <section className="overflow-hidden rounded-[18px] border border-white/8 bg-[#101010]">
       <div className="overflow-x-auto">
-        <table className="min-w-[1040px] w-full table-fixed text-left">
+        <table className="min-w-[1240px] w-full table-fixed text-left">
           <thead className="border-b border-white/8 bg-white/2.5">
             <tr className="text-[11px] font-black uppercase tracking-[0.16em] text-white/35">
               <th className="w-[110px] px-4 py-4">Cota</th>
@@ -63,6 +59,8 @@ export function AdminCotasClient({ tickets }: { tickets: AdminTicketListItem[] }
               <th className="w-[120px] px-4 py-4">Status</th>
               <th className="w-[70px] px-4 py-4 text-center">Qtd.</th>
               <th className="w-[110px] px-4 py-4">Valor</th>
+              <th className="w-[110px] px-4 py-4">Pontuação</th>
+              <th className="w-[100px] px-4 py-4 text-center">Ranking mod.</th>
               <th className="w-[120px] px-4 py-4">Palpites</th>
               <th className="w-[100px] px-4 py-4 text-center">Pend.</th>
               <th className="w-[110px] px-4 py-4">Criada</th>
@@ -88,8 +86,8 @@ export function AdminCotasClient({ tickets }: { tickets: AdminTicketListItem[] }
                 </td>
                 <td className="px-4 py-4">
                   <Link href={`/admin/cotas/${ticket.id}`} className="block">
-                    <span className={`rounded-full border px-3 py-1 text-[11px] font-black uppercase ${cotaStatusClassName(ticket.status)}`}>
-                      {formatCotaStatus(ticket.status)}
+                    <span className={`rounded-full border px-3 py-1 text-[11px] font-black uppercase ${cotaUsageStatusClassName(cotaUsageStatus(ticket))}`}>
+                      {cotaUsageStatus(ticket)}
                     </span>
                   </Link>
                 </td>
@@ -98,6 +96,19 @@ export function AdminCotasClient({ tickets }: { tickets: AdminTicketListItem[] }
                 </td>
                 <td className="px-4 py-4 font-black text-white">
                   <Link href={`/admin/cotas/${ticket.id}`} className="block">{formatBRL(ticket.totalAmountCents)}</Link>
+                </td>
+                <td className="px-4 py-4">
+                  <Link href={`/admin/cotas/${ticket.id}`} className="block">
+                    <p className="text-[18px] font-black leading-none text-primary">{ticket.scorePoints.toLocaleString("pt-BR")}</p>
+                    <p className="mt-1 text-[11px] font-bold text-white/35">pontos</p>
+                  </Link>
+                </td>
+                <td className="px-4 py-4 text-center">
+                  <Link href={`/admin/cotas/${ticket.id}`} className="block">
+                    <span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-black uppercase text-primary">
+                      {ticket.rankingPosition ? `#${ticket.rankingPosition}` : "-"}
+                    </span>
+                  </Link>
                 </td>
                 <td className="px-4 py-4">
                   <Link href={`/admin/cotas/${ticket.id}`} className="block">

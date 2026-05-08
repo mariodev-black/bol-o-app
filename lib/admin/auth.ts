@@ -99,10 +99,10 @@ export async function hasValidAdmin2fa(userId: string): Promise<boolean> {
 
 export async function requireAdmin(options?: { require2fa?: boolean }): Promise<AdminUser> {
   const admin = await getCurrentAdminUser();
-  if (!admin) redirect("/login?from=/admin");
+  if (!admin) redirect("/admin/login");
   if (options?.require2fa !== false) {
     if (!admin.twoFactorEnabled) redirect("/admin/2fa");
-    if (!(await hasValidAdmin2fa(admin.id))) redirect("/login?from=/admin");
+    if (!(await hasValidAdmin2fa(admin.id))) redirect("/admin/2fa");
   }
   return admin;
 }
@@ -110,4 +110,11 @@ export async function requireAdmin(options?: { require2fa?: boolean }): Promise<
 export async function setAdmin2faCookie(res: NextResponse, userId: string): Promise<void> {
   const token = await signAdmin2faToken(userId);
   res.cookies.set(ADMIN_2FA_COOKIE, token, admin2faCookieOptions());
+}
+
+export function clearAdmin2faCookie(res: NextResponse): void {
+  res.cookies.set(ADMIN_2FA_COOKIE, "", {
+    ...admin2faCookieOptions(),
+    maxAge: 0,
+  });
 }

@@ -14,6 +14,7 @@ export function TwoFactorClient({ enabled }: { enabled: boolean }) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    if (enabled) return;
     void (async () => {
       const res = await fetch("/api/admin/2fa/setup", { method: "POST", credentials: "include" });
       const data = (await res.json()) as { secret?: string; otpauthUrl?: string; error?: string };
@@ -24,7 +25,7 @@ export function TwoFactorClient({ enabled }: { enabled: boolean }) {
       setSecret(data.secret ?? "");
       setOtpauthUrl(data.otpauthUrl ?? "");
     })();
-  }, []);
+  }, [enabled]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();

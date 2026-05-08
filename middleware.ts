@@ -9,12 +9,21 @@ import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 export async function middleware(request: NextRequest) {
   const name = sessionCookieName();
   const token = request.cookies.get(name)?.value;
+  const isAdminRoute = request.nextUrl.pathname.startsWith("/admin");
+  const isAdminLogin = request.nextUrl.pathname === "/admin/login";
 
   const redirectToLogin = () => {
+    if (isAdminRoute) {
+      return NextResponse.redirect(new URL("/admin/login", request.url));
+    }
     const login = new URL("/login", request.url);
     login.searchParams.set("from", request.nextUrl.pathname);
     return NextResponse.redirect(login);
   };
+
+  if (isAdminLogin) {
+    return NextResponse.next();
+  }
 
   if (!token) {
     return redirectToLogin();

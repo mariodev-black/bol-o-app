@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { BarChart3, ClipboardList, CreditCard, Handshake, Settings, Ticket, Users } from "lucide-react";
+import { BarChart3, ClipboardList, CreditCard, Handshake, Settings, Trophy, Ticket, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 
 const NAV = [
   { href: "/admin", label: "Dashboard", icon: BarChart3 },
   { href: "/admin/users", label: "Usuários", icon: Users },
+  { href: "/admin/boloes", label: "Bolões", icon: Trophy },
   { href: "/admin/affiliates", label: "Afiliados", icon: Handshake },
   { href: "/admin/palpites", label: "Palpites", icon: ClipboardList },
   { href: "/admin/cotas", label: "Cotas", icon: Ticket },

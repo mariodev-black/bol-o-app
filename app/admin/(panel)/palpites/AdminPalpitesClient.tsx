@@ -36,6 +36,10 @@ function resultLabel(prediction: AdminPredictionListItem) {
   return `${prediction.resultCasa} x ${prediction.resultVisitante}`;
 }
 
+function pointsLabel(prediction: AdminPredictionListItem) {
+  return `${prediction.points.toLocaleString("pt-BR")} pts`;
+}
+
 function bolaoLabel(value: string) {
   if (value === "principal") return "Principal";
   if (value === "diario") return "Diário";
@@ -131,7 +135,7 @@ export function AdminPalpitesClient({ predictions }: { predictions: AdminPredict
           </p>
         </div>
         <div className="overflow-x-auto">
-          <table className="min-w-[1180px] w-full table-fixed text-left">
+          <table className="min-w-[1300px] w-full table-fixed text-left">
             <thead className="border-b border-white/8 bg-white/2.5">
               <tr className="text-[11px] font-black uppercase tracking-[0.16em] text-white/35">
                 <th className="w-[210px] px-4 py-4">Usuário</th>
@@ -140,6 +144,7 @@ export function AdminPalpitesClient({ predictions }: { predictions: AdminPredict
                 <th className="w-[280px] px-4 py-4">Jogo</th>
                 <th className="w-[100px] px-4 py-4">Palpite</th>
                 <th className="w-[110px] px-4 py-4">Resultado</th>
+                <th className="w-[110px] px-4 py-4">Pontos</th>
                 <th className="w-[150px] px-4 py-4">Data do jogo</th>
                 <th className="w-[150px] px-4 py-4">Enviado em</th>
               </tr>
@@ -181,6 +186,20 @@ export function AdminPalpitesClient({ predictions }: { predictions: AdminPredict
                     {prediction.scoreCasa} x {prediction.scoreVisitante}
                   </td>
                   <td className="px-4 py-4 font-black text-white">{resultLabel(prediction)}</td>
+                  <td className="px-4 py-4">
+                    <span
+                      className={[
+                        "inline-flex rounded-full border px-3 py-1 text-[11px] font-black uppercase",
+                        prediction.resultCasa == null || prediction.resultVisitante == null
+                          ? "border-white/10 bg-white/5 text-white/38"
+                          : prediction.points > 0
+                            ? "border-primary/25 bg-primary/10 text-primary"
+                            : "border-white/10 bg-white/5 text-white/58",
+                      ].join(" ")}
+                    >
+                      {pointsLabel(prediction)}
+                    </span>
+                  </td>
                   <td className="px-4 py-4">
                     <p className="text-white/55">{formatMatchDate(prediction)}</p>
                     <p className="mt-1 text-[11px] text-white/30">{prediction.matchStatus ?? "Sem status"}</p>
