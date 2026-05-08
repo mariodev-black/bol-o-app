@@ -1508,14 +1508,12 @@ function RoundPhaseNav({
   }
 
   return (
-    <div
-      className="mb-4 overflow-hidden rounded-[16px]"
-      style={{ background: "#0B0D0C", border: "1px solid rgba(177,235,11,0.14)" }}
-    >
-      {/* ── Navegação de fase / rodada ── */}
+    <div className="mb-5 flex flex-col gap-2.5">
+
+      {/* ── 1. Navegação de fase / rodada ── */}
       <div
-        className="flex items-center justify-between px-4 py-3"
-        style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}
+        className="flex items-center justify-between rounded-[14px] px-4 py-3"
+        style={{ background: "#0B0D0C", border: "1px solid rgba(255,255,255,0.08)" }}
       >
         <button
           type="button"
@@ -1524,7 +1522,7 @@ function RoundPhaseNav({
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-opacity"
           style={{ background: "rgba(255,255,255,0.06)", opacity: canPrev ? 1 : 0.25 }}
         >
-          <ChevronLeft className="h-4 w-4 text-white/70" strokeWidth={2.2} />
+          <ChevronLeft className="h-4 w-4 text-white/70" strokeWidth={2.5} />
         </button>
         <span className="text-[15px] font-black text-white">
           Fase de Grupos — {rodadaIdx + 1}
@@ -1536,95 +1534,170 @@ function RoundPhaseNav({
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-opacity"
           style={{ background: "rgba(255,255,255,0.06)", opacity: canNext ? 1 : 0.25 }}
         >
-          <ChevronRight className="h-4 w-4 text-white/70" strokeWidth={2.2} />
+          <ChevronRight className="h-4 w-4 text-white/70" strokeWidth={2.5} />
         </button>
       </div>
 
-      {/* ── Date strip ── */}
+      {/* ── 2. Date strip ── */}
       {datas.length > 0 && (
         <div
-          className="flex gap-2 overflow-x-auto px-4 py-3 scrollbar-hide"
-          style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}
+          className="overflow-hidden rounded-[14px]"
+          style={{ background: "#0B0D0C", border: "1px solid rgba(255,255,255,0.08)" }}
         >
-          {datas.map((d) => {
-            const fmt = parseDatePill(d);
-            if (!fmt) return null;
-            const status = dateStatus(d);
-            const isSelected = selectedDate === d;
-            return (
-              <button
-                key={d}
-                type="button"
-                onClick={() => onDate(isSelected ? null : d)}
-                className="flex shrink-0 flex-col items-center gap-0.5 rounded-[10px] px-3 py-2 transition-all active:scale-95"
-                style={
-                  isSelected
-                    ? { background: "rgba(177,235,11,0.18)", border: "1px solid rgba(177,235,11,0.55)", minWidth: 62 }
-                    : { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", minWidth: 62 }
-                }
-              >
-                {/* status dot / check */}
-                <span className="mb-0.5 flex h-4 items-center justify-center">
-                  {status === "done" ? (
-                    <span
-                      className="flex h-4 w-4 items-center justify-center rounded-full"
-                      style={{ background: "rgba(177,235,11,0.25)" }}
-                    >
-                      <Check className="h-2.5 w-2.5 text-primary" strokeWidth={3} />
-                    </span>
-                  ) : (
-                    <span
-                      className="h-[7px] w-[7px] rounded-full animate-pulse"
-                      style={{ background: "#E6C220" }}
-                    />
-                  )}
-                </span>
-                <span
-                  className="text-[9px] font-black uppercase tracking-wider"
-                  style={{ color: isSelected ? "#B1EB0B" : "rgba(255,255,255,0.45)" }}
+          <div className="flex gap-2 overflow-x-auto px-3 py-3 scrollbar-hide">
+            {datas.map((d) => {
+              const fmt = parseDatePill(d);
+              if (!fmt) return null;
+              const status = dateStatus(d);
+              const isSelected = selectedDate === d;
+              return (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => onDate(isSelected ? null : d)}
+                  className="flex shrink-0 flex-col items-center gap-0.5 rounded-[10px] px-3 py-2.5 transition-all active:scale-95"
+                  style={
+                    isSelected
+                      ? {
+                          background: "rgba(177,235,11,0.15)",
+                          border: "1px solid rgba(177,235,11,0.50)",
+                          minWidth: 64,
+                          boxShadow: "0 0 12px rgba(177,235,11,0.18)",
+                        }
+                      : {
+                          background: "rgba(255,255,255,0.04)",
+                          border: "1px solid rgba(255,255,255,0.07)",
+                          minWidth: 64,
+                        }
+                  }
                 >
-                  {fmt.diaSemana}
-                </span>
-                <span
-                  className="text-[13px] font-black leading-none"
-                  style={{ color: isSelected ? "#fff" : "rgba(255,255,255,0.80)" }}
-                >
-                  {fmt.dia}
-                </span>
-                <span
-                  className="text-[9px] font-semibold uppercase"
-                  style={{ color: isSelected ? "#B1EB0B" : "rgba(255,255,255,0.35)" }}
-                >
-                  {fmt.mes}
-                </span>
-              </button>
-            );
-          })}
+                  {/* status dot / check */}
+                  <span className="mb-1 flex h-4 items-center justify-center">
+                    {status === "done" ? (
+                      <span
+                        className="flex h-4 w-4 items-center justify-center rounded-full"
+                        style={{ background: "rgba(177,235,11,0.25)" }}
+                      >
+                        <Check className="h-2.5 w-2.5 text-primary" strokeWidth={3} />
+                      </span>
+                    ) : (
+                      <span
+                        className="h-[7px] w-[7px] rounded-full animate-pulse"
+                        style={{ background: "#E6C220" }}
+                      />
+                    )}
+                  </span>
+                  <span
+                    className="text-[9px] font-black uppercase tracking-wider"
+                    style={{ color: isSelected ? "#B1EB0B" : "rgba(255,255,255,0.40)" }}
+                  >
+                    {fmt.diaSemana}
+                  </span>
+                  <span
+                    className="text-[14px] font-black leading-tight"
+                    style={{ color: isSelected ? "#fff" : "rgba(255,255,255,0.85)" }}
+                  >
+                    {fmt.dia}
+                  </span>
+                  <span
+                    className="text-[9px] font-semibold uppercase"
+                    style={{ color: isSelected ? "#B1EB0B" : "rgba(255,255,255,0.30)" }}
+                  >
+                    {fmt.mes}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
 
-      {/* ── Progress bar ── */}
-      <div className="px-4 py-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
-        <div className="mb-1.5 flex items-center justify-between">
-          <span className="text-[12px] font-semibold" style={{ color: "rgba(255,255,255,0.55)" }}>
+      {/* ── 3. Progress bar ── */}
+      <div
+        className="rounded-[14px] px-4 py-3"
+        style={{ background: "#0B0D0C", border: "1px solid rgba(255,255,255,0.08)" }}
+      >
+        <div className="mb-2 flex items-center justify-between">
+          <span className="text-[12px] font-semibold" style={{ color: "rgba(255,255,255,0.50)" }}>
             <span className="font-black text-white">{jogosPalpitados}</span> / {totalJogos} palpites feitos
           </span>
-          <span className="text-[12px] font-black" style={{ color: pct === 100 ? "#B1EB0B" : "rgba(255,255,255,0.45)" }}>
+          <span
+            className="text-[12px] font-black"
+            style={{ color: pct === 100 ? "#B1EB0B" : "rgba(255,255,255,0.40)" }}
+          >
             {pct}%
           </span>
         </div>
-        <div className="h-[5px] overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.08)" }}>
+        <div className="h-[5px] overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.07)" }}>
           <div
-            className="h-full rounded-full transition-[width] duration-300"
+            className="h-full rounded-full transition-[width] duration-500"
             style={{
               width: `${pct}%`,
-              background: pct === 100
-                ? "linear-gradient(90deg, #B1EB0B, #E8FF8A)"
-                : "linear-gradient(90deg, #B1EB0B, #D4F040)",
+              background:
+                pct === 100
+                  ? "linear-gradient(90deg, #B1EB0B, #E8FF8A)"
+                  : "linear-gradient(90deg, #B1EB0B, #D4F040)",
             }}
           />
         </div>
       </div>
+
+      {/* ── 4. Group selector ── */}
+      {grupos.length > 0 && (
+        <div
+          className="rounded-[14px] px-4 pb-4 pt-3"
+          style={{ background: "#0B0D0C", border: "1px solid rgba(255,255,255,0.08)" }}
+        >
+          <span
+            className="mb-2 block text-[10px] font-black uppercase tracking-[0.18em]"
+            style={{ color: "rgba(255,255,255,0.28)" }}
+          >
+            Grupo
+          </span>
+          <div className="grid grid-cols-6 gap-1.5">
+            {grupos.map((g) => {
+              const isActive = grupo === g;
+              const jogosGrupo = jogosNaRodada.filter(
+                (j) => j.grupo === g && (!selectedDate || j.dataBR === selectedDate)
+              );
+              const allDone = jogosGrupo.length > 0 && jogosGrupo.every((j) => Boolean(predictionsMap[j.id]));
+              return (
+                <button
+                  key={g}
+                  type="button"
+                  onClick={() => onGrupo(g)}
+                  className="relative flex h-10 items-center justify-center rounded-[10px] text-[14px] font-black transition-all active:scale-95"
+                  style={
+                    isActive
+                      ? {
+                          background: "linear-gradient(180deg, #E8FF8A 0%, #B1EB0B 100%)",
+                          color: "#0E141B",
+                          boxShadow: "0 0 14px rgba(177,235,11,0.45)",
+                        }
+                      : {
+                          background: allDone ? "rgba(177,235,11,0.10)" : "rgba(255,255,255,0.04)",
+                          color: allDone ? "#B1EB0B" : "rgba(255,255,255,0.55)",
+                          border: allDone
+                            ? "1px solid rgba(177,235,11,0.25)"
+                            : "1px solid rgba(255,255,255,0.07)",
+                        }
+                  }
+                >
+                  {g}
+                  {allDone && !isActive && (
+                    <span
+                      className="absolute -right-0.5 -top-0.5 flex h-3 w-3 items-center justify-center rounded-full"
+                      style={{ background: "#B1EB0B" }}
+                    >
+                      <Check className="h-2 w-2" style={{ color: "#0E141B" }} strokeWidth={3} />
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
