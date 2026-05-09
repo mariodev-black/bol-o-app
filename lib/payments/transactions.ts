@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto";
 import { getPool } from "@/lib/db";
-import { createSkalePixTransaction } from "@/lib/payments/skale";
-import { getExtraTicketPriceCents, getTicketPriceCents, parseTicketType, type TicketType } from "@/lib/payments/ticket-config";
+import { buildSkaleCartLineItems, createSkalePixTransaction } from "@/lib/payments/skale";
+import { buildPurchaseTicketLines, parseTicketType, type TicketType } from "@/lib/payments/ticket-config";
 import { publishTransactionEvent } from "@/lib/payments/transaction-events";
 import { recordReferralCommissionIfApplicable } from "@/lib/referrals/commissions";
 
@@ -85,12 +85,25 @@ function mapRowToView(row: {
   };
 }
 
-export async function createDepositTransaction(input: {
-  userId: string;
-  ticketType: TicketType;
-  quantity: number;
-  amountCentsOverride?: number;
-}): Promise<DepositTransactionView> {
+export type CreateDepositTransactionInput =
+  | { userId: string; ticketType: TicketType; quantity: number; amountCentsOverride?: number }
+  | { userId: string; generalQty: number; dailyQty: number; amountCentsOverride?: number };
+
+function resolvePurchaseQuantities(input: CreateDepositTransactionInput): { generalQty: number; dailyQty: number } {
+  if ("generalQty" in input && "dailyQty" in input) {
+    return {
+      generalQty: Math.max(0, Math.min(20, Math.trunc(input.generalQty))),
+      dailyQty: Math.max(0, Math.min(20, Math.trunc(input.dailyQty))),
+    };
+  }
+  const q = Math.max(1, Math.min(20, Math.trunc(input.quantity)));
+  return {
+    generalQty: input.ticketType === "general" ? q : 0,
+    dailyQty: input.ticketType === "daily" ? q : 0,
+  };
+}
+
+export async function createDepositTransaction(input: CreateDepositTransactionInput): Promise<DepositTransactionView> {
   const pool = getPool();
   const billingUser = await findBillingUserById(input.userId);
   if (!billingUser) throw new Error("Usuario nao encontrado");
@@ -104,27 +117,32 @@ export async function createDepositTransaction(input: {
     throw new Error("Telefone do usuario invalido para pagamento");
   }
 
-  const quantity = Math.max(1, Math.min(20, Math.trunc(input.quantity || 1)));
-  const unitPriceCents = getTicketPriceCents(input.ticketType);
-  const amountCents =
-    input.amountCentsOverride && input.amountCentsOverride > 0
-      ? Math.trunc(input.amountCentsOverride)
-      : unitPriceCents * quantity;
+  const { generalQty, dailyQty } = resolvePurchaseQuantities(input);
+  const lines = buildPurchaseTicketLines(generalQty, dailyQty);
+  if (lines.length === 0) {
+    throw new Error("Selecione pelo menos um ticket");
+  }
+
+  const amountCentsExpected = lines.reduce((s, l) => s + l.unitCents, 0);
+  if (
+    input.amountCentsOverride != null &&
+    input.amountCentsOverride > 0 &&
+    input.amountCentsOverride !== amountCentsExpected
+  ) {
+    throw new Error("Valor do pedido invalido");
+  }
+  const amountCents = amountCentsExpected;
+
+  const primaryTicketType = lines[0]!.ticketType;
   const externalRef = `ticket_${randomUUID()}`;
-  const ticketAmounts = Array.from({ length: quantity }, (_, index) => {
-    if (input.ticketType === "general" && quantity === 2 && input.amountCentsOverride) {
-      return index === 0 ? getTicketPriceCents("general") : getExtraTicketPriceCents();
-    }
-    return unitPriceCents;
-  });
 
   const ticketIds: string[] = [];
-  for (const ticketAmountCents of ticketAmounts) {
+  for (const line of lines) {
     const ticketInsert = await pool.query<{ id: string }>(
       `INSERT INTO tickets (user_id, ticket_type, unit_price_cents, quantity, total_amount_cents, status, external_ref)
        VALUES ($1, $2, $3, 1, $4, 'pending_payment', $5)
        RETURNING id`,
-      [input.userId, input.ticketType, ticketAmountCents, ticketAmountCents, externalRef]
+      [input.userId, line.ticketType, line.unitCents, line.unitCents, externalRef]
     );
     ticketIds.push(ticketInsert.rows[0]!.id);
   }
@@ -135,16 +153,15 @@ export async function createDepositTransaction(input: {
       user_id, ticket_id, ticket_type, provider, status, amount_cents, payment_method, external_ref, raw_request
     ) VALUES ($1, $2, $3, 'skale', 'creating', $4, 'pix', $5, '{}'::jsonb)
     RETURNING id`,
-    [input.userId, ticketId, input.ticketType, amountCents, externalRef]
+    [input.userId, ticketId, primaryTicketType, amountCents, externalRef]
   );
   const transactionId = txInsert.rows[0]!.id;
 
   try {
+    const skaleItems = buildSkaleCartLineItems(lines, externalRef);
     const skale = await createSkalePixTransaction({
       amountCents,
-      unitPriceCents,
-      quantity,
-      ticketType: input.ticketType,
+      items: skaleItems,
       externalRef,
       postbackUrl: webhookUrl(),
       customer: {

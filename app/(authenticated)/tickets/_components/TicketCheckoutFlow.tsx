@@ -9,11 +9,14 @@ import {
   ChevronDown,
   ChevronUp,
   Copy,
-  Flame,
   Loader2,
   Lock,
+  Percent,
   Shield,
+  ShoppingCart,
+  Tag,
   Ticket,
+  Trophy,
   Wallet,
   Zap,
 } from "lucide-react";
@@ -85,10 +88,10 @@ const MAX_QTY = 20;
 
 export function TicketCheckoutFlow({ initialTicketKind = "general" }: TicketCheckoutFlowProps) {
   const router = useRouter();
-  const [ticketKind, setTicketKind] = useState<"general" | "daily">(
-    initialTicketKind === "daily" ? "daily" : "general"
+  const [principalQty, setPrincipalQty] = useState(() =>
+    initialTicketKind === "daily" ? 0 : 1
   );
-  const [qty, setQty] = useState(1);
+  const [dailyQty, setDailyQty] = useState(() => (initialTicketKind === "daily" ? 1 : 0));
   const [prices, setPrices] = useState({
     general: DEFAULT_PRINCIPAL_CENTS,
     daily: DEFAULT_DIARIO_CENTS,
@@ -245,40 +248,35 @@ export function TicketCheckoutFlow({ initialTicketKind = "general" }: TicketChec
     };
   }, [step, transactionId, handleTransactionUpdate]);
 
-  const extraPrice = Math.min(prices.extra, prices.general);
-  const principalLine =
-    ticketKind === "general" ? (qty === 2 ? prices.general + extraPrice : qty * prices.general) : 0;
-  const diarioLine = ticketKind === "daily" ? qty * prices.daily : 0;
-  const totalCents = principalLine + diarioLine;
-  const principalQty = ticketKind === "general" ? qty : 0;
-  const diarioQty = ticketKind === "daily" ? qty : 0;
-  const totalQty = qty;
-  const hasSelection = totalCents > 0 && qty >= 1;
-  const selectedMode: TicketType = ticketKind;
-  const selectedQty = qty;
+  const principalLineCents =
+    principalQty <= 0
+      ? 0
+      : principalQty === 1
+        ? prices.general
+        : principalQty === 2
+          ? prices.general + prices.extra
+          : principalQty * prices.general;
+  const diarioLineCents = dailyQty * prices.daily;
+  const totalCents = principalLineCents + diarioLineCents;
+  const totalQty = principalQty + dailyQty;
+  const hasSelection = totalCents > 0 && totalQty >= 1;
+  const geralListCents = principalQty * prices.general;
+  const geralDiscountPct =
+    principalQty === 2 && geralListCents > principalLineCents
+      ? Math.round(((geralListCents - principalLineCents) / geralListCents) * 100)
+      : 0;
+  const geralEffectiveEachCents =
+    principalQty > 0 ? Math.round(principalLineCents / principalQty) : 0;
   const secondsLeft =
     step === "pix" && pixDeadline != null ? Math.max(0, Math.ceil((pixDeadline - now) / 1000)) : 0;
   const pixExpired = step === "pix" && pixDeadline != null && secondsLeft === 0;
   const pixProgressPct =
     step === "pix" && pixDeadline != null ? Math.min(100, Math.max(0, (secondsLeft / PIX_TOTAL_SEC) * 100)) : 0;
 
-  const summaryTitle =
-    ticketKind === "general"
-      ? qty === 1
-        ? "1 Ticket Geral"
-        : `${qty} Tickets Gerais`
-      : qty === 1
-        ? "1 Ticket Diário"
-        : `${qty} Tickets Diários`;
-  const summarySubtitle =
-    ticketKind === "general"
-      ? "Todos os bolões da Copa do Milhão"
-      : "Acesso exclusivo ao Bolão do dia.";
-
   const goGenerate = useCallback(() => {
     if (!hasSelection) return;
-    if (selectedQty <= 0) {
-      setError("Selecione uma cota para gerar o PIX.");
+    if (principalQty + dailyQty <= 0) {
+      setError("Selecione pelo menos um ticket.");
       return;
     }
     setError(null);
@@ -292,8 +290,8 @@ export function TicketCheckoutFlow({ initialTicketKind = "general" }: TicketChec
           credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            ticketType: selectedMode,
-            quantity: selectedQty,
+            generalQuantity: principalQty,
+            dailyQuantity: dailyQty,
             amountCents: totalCents,
           }),
         });
@@ -303,8 +301,8 @@ export function TicketCheckoutFlow({ initialTicketKind = "general" }: TicketChec
           setStep("shop");
           return;
         }
-        purchasePrincipalRef.current = selectedMode === "general" ? selectedQty : 0;
-        purchaseDiarioRef.current = selectedMode === "daily" ? selectedQty : 0;
+        purchasePrincipalRef.current = principalQty;
+        purchaseDiarioRef.current = dailyQty;
         setTransactionId(d.transaction.id);
         setTxStatus(d.transaction.status);
         setPixPayload(d.transaction.pixQrcode);
@@ -316,7 +314,7 @@ export function TicketCheckoutFlow({ initialTicketKind = "general" }: TicketChec
         setStep("shop");
       }
     })();
-  }, [hasSelection, selectedMode, selectedQty, totalCents]);
+  }, [hasSelection, principalQty, dailyQty, totalCents]);
 
   const copyPix = useCallback(() => {
     if (!pixPayload || pixExpired) return;
@@ -352,7 +350,7 @@ export function TicketCheckoutFlow({ initialTicketKind = "general" }: TicketChec
                 <div className="min-w-0">
                   <h2 className="text-[18px] font-black leading-tight text-white">Comprar tickets</h2>
                   <p className="mt-1 text-[12px] font-medium leading-snug text-white/45">
-                    Escolha quantos tickets deseja adquirir.
+                    Escolha seus tickets e aproveite os descontos!
                   </p>
                 </div>
               </div>
@@ -362,115 +360,200 @@ export function TicketCheckoutFlow({ initialTicketKind = "general" }: TicketChec
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setError(null);
-                  setCouponHint(null);
-                  if (ticketKind !== "general") setQty(1);
-                  setTicketKind("general");
-                }}
-                className={
-                  ticketKind === "general"
-                    ? "relative flex min-h-[104px] w-full min-w-0 flex-col overflow-hidden rounded-[14px] border-2 border-primary bg-[#121212]/95 p-2.5 text-left shadow-[0_0_22px_rgba(177,235,11,0.2)] outline-none ring-1 ring-primary/20 backdrop-blur-[2px] transition-transform active:scale-[0.99] sm:min-h-[112px] sm:rounded-[16px] sm:p-3"
-                    : "relative flex min-h-[104px] w-full min-w-0 flex-col overflow-hidden rounded-[14px] border border-white/10 bg-[#121212] p-2.5 text-left outline-none transition-transform active:scale-[0.99] sm:min-h-[112px] sm:rounded-[16px] sm:p-3"
-                }
-              >
-                {ticketKind === "general" && (
-                  <span className="absolute right-1.5 top-1.5 z-10 flex size-5 items-center justify-center rounded-full bg-primary text-[#0E141B] shadow-lg sm:right-2 sm:top-2 sm:size-6">
-                    <Check className="size-3" strokeWidth={3} />
-                  </span>
-                )}
-                <div className="flex w-full min-w-0 flex-row items-center gap-2 pt-5 sm:gap-2.5 sm:pt-6">
+            {/* Faixa promocional (não é o banner superior) */}
+            <div className="flex items-center gap-3 rounded-[14px] border border-[#CA8A04]/50 bg-gradient-to-r from-[#1c1708]/95 to-black/90 px-3.5 py-3">
+              <Tag className="size-8 shrink-0 text-[#FACC15]" strokeWidth={2.2} />
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-black uppercase leading-tight tracking-wide text-[#FDE047] sm:text-[12px]">
+                  Acima de 2 tickets gerais tem desconto no 2º!
+                </p>
+                <p className="mt-1 text-[10px] font-medium leading-snug text-white/55 sm:text-[11px]">
+                  Quanto mais tickets, maior a chance de ganhar.
+                </p>
+              </div>
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-[#FACC15]/40 bg-[#FACC15]/10">
+                <Percent className="size-5 text-[#FDE047]" strokeWidth={2.2} />
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {/* Card Bolão Geral */}
+              <div className="overflow-hidden rounded-[16px] border border-white/10 bg-[#121212]">
+                <div className="flex gap-3 p-3.5 sm:p-4">
                   <img
                     src={ticketGold.src}
                     alt=""
-                    className="h-[65px] w-[48px] shrink-0 object-contain drop-shadow-[0_8px_24px_rgba(177,235,11,0.35)] sm:h-[88px] sm:w-[64px]"
+                    className="h-[72px] w-[52px] shrink-0 self-center object-contain drop-shadow-[0_8px_24px_rgba(177,235,11,0.35)] sm:h-[88px] sm:w-[64px]"
                   />
-                  <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5 pr-5 sm:gap-1 sm:pr-7">
-                    <p
-                      className={
-                        ticketKind === "general"
-                          ? "text-[14px] font-black whitespace-nowrap leading-tight text-primary sm:text-[13px]"
-                          : "text-[14px] font-black whitespace-nowrap leading-tight text-white sm:text-[13px]"
-                      }
-                    >
-                      Ticket Geral
-                    </p>
-                    <p className="text-[10px] font-medium leading-snug text-white/40 sm:text-[10px]">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-[15px] font-black leading-tight text-white">Bolão Geral</h3>
+                      <span className="rounded-md bg-primary/20 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-primary">
+                        Mais popular
+                      </span>
+                    </div>
+                    <p className="mt-1 text-[11px] font-medium leading-snug text-white/45">
                       Acesso a todas as rodadas da Copa do Milhão
                     </p>
                   </div>
                 </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setError(null);
-                  setCouponHint(null);
-                  if (ticketKind !== "daily") setQty(1);
-                  setTicketKind("daily");
-                }}
-                className={
-                  ticketKind === "daily"
-                    ? "relative flex min-h-[104px] w-full min-w-0 flex-col overflow-hidden rounded-[14px] border-2 border-primary bg-[#121212]/95 p-2.5 text-left shadow-[0_0_22px_rgba(177,235,11,0.2)] outline-none ring-1 ring-primary/20 backdrop-blur-[2px] transition-transform active:scale-[0.99] sm:min-h-[112px] sm:rounded-[16px] sm:p-3"
-                    : "relative flex min-h-[104px] w-full min-w-0 flex-col overflow-hidden rounded-[14px] border border-white/10 bg-[#121212] p-2.5 text-left outline-none transition-transform active:scale-[0.99] sm:min-h-[112px] sm:rounded-[16px] sm:p-3"
-                }
-              >
-                {ticketKind === "daily" && (
-                  <span className="absolute right-1.5 top-1.5 z-10 flex size-5 items-center justify-center rounded-full bg-primary text-[#0E141B] shadow-lg sm:right-2 sm:top-2 sm:size-6">
-                    <Check className="size-3" strokeWidth={3} />
-                  </span>
-                )}
-                <div className="flex w-full min-w-0 flex-row items-center gap-2 pt-5 sm:gap-2.5 sm:pt-6">
-                  <img
-                    src={ticketBlue.src}
-                    alt=""
-                    className={
-                      ticketKind === "daily"
-                        ? "h-[65px] w-[48px] shrink-0 object-contain drop-shadow-[0_8px_24px_rgba(59,130,246,0.45)] sm:h-[88px] sm:w-[64px]"
-                        : "h-[65px] w-[48px] shrink-0 object-contain opacity-55 grayscale sm:h-[88px] sm:w-[64px]"
-                    }
-                  />
-                  <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5 pr-5 sm:gap-1 sm:pr-7">
-                    <p
-                      className={
-                        ticketKind === "daily"
-                          ? "text-[14px] font-black whitespace-nowrap leading-tight text-primary sm:text-[13px]"
-                          : "text-[14px] font-black whitespace-nowrap leading-tight text-white sm:text-[13px]"
-                      }
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/6 px-3.5 py-3 sm:px-4">
+                  <div className="flex shrink-0 items-center gap-1 rounded-[12px] border border-white/10 bg-[#0f0f0f] p-1.5">
+                    <button
+                      type="button"
+                      aria-label="Diminuir Bolão Geral"
+                      disabled={principalQty <= 0}
+                      onClick={() => {
+                        setError(null);
+                        setCouponHint(null);
+                        setPrincipalQty((q) => Math.max(0, q - 1));
+                      }}
+                      className="flex h-9 w-9 items-center justify-center rounded-[9px] bg-white/6 text-white/60 transition-colors hover:bg-white/12 hover:text-white disabled:opacity-30"
                     >
-                      Ticket Diário
-                    </p>
-                    <p className="text-[10px] font-medium leading-snug text-white/40 sm:text-[10px]">
-                      Acesso exclusivo ao Bolão do dia.
+                      <ChevronDown className="size-[18px]" strokeWidth={2.5} />
+                    </button>
+                    <span className="w-8 text-center text-[18px] font-black tabular-nums text-white sm:text-[20px]">
+                      {principalQty}
+                    </span>
+                    <button
+                      type="button"
+                      aria-label="Aumentar Bolão Geral"
+                      disabled={principalQty >= MAX_QTY}
+                      onClick={() => {
+                        setError(null);
+                        setCouponHint(null);
+                        setPrincipalQty((q) => Math.min(MAX_QTY, q + 1));
+                      }}
+                      className="flex h-9 w-9 items-center justify-center rounded-[9px] bg-white/6 text-white/60 transition-colors hover:bg-white/12 hover:text-white disabled:opacity-30"
+                    >
+                      <ChevronUp className="size-[18px]" strokeWidth={2.5} />
+                    </button>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] font-semibold text-white/40">Preço unitário</p>
+                    <p className="text-[13px] font-black tabular-nums text-white">{formatBRL(prices.general)}</p>
+                    <p className="text-[10px] font-bold text-primary">
+                      {geralDiscountPct > 0 ? `${geralDiscountPct}% de desconto` : "0% de desconto"}
                     </p>
                   </div>
                 </div>
-              </button>
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/6 bg-black/25 px-3.5 py-2.5 text-[10px] text-white/50 sm:px-4">
+                  <span>
+                    Desconto aplicado:{" "}
+                    <span className="font-bold text-primary">{geralDiscountPct > 0 ? `${geralDiscountPct}%` : "0%"}</span>{" "}
+                    OFF
+                  </span>
+                  <span className="text-right font-medium">
+                    {principalQty > 0 ? (
+                      <>
+                        De {formatBRL(prices.general)} cada por{" "}
+                        <span className="font-black text-white">{formatBRL(geralEffectiveEachCents)}</span> cada
+                      </>
+                    ) : (
+                      <>Escolha a quantidade</>
+                    )}
+                  </span>
+                </div>
+              </div>
+
+              {/* Card Bolão do Dia */}
+              <div className="overflow-hidden rounded-[16px] border border-white/10 bg-[#121212]">
+                <div className="flex gap-3 p-3.5 sm:p-4">
+                  <img
+                    src={ticketBlue.src}
+                    alt=""
+                    className="h-[72px] w-[52px] shrink-0 self-center object-contain drop-shadow-[0_8px_24px_rgba(59,130,246,0.35)] sm:h-[88px] sm:w-[64px]"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-[15px] font-black leading-tight text-white">Bolão do Dia</h3>
+                    <p className="mt-1 text-[11px] font-medium leading-snug text-white/45">
+                      Acesso exclusivo ao bolão do dia
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/6 px-3.5 py-3 sm:px-4">
+                  <div className="flex shrink-0 items-center gap-1 rounded-[12px] border border-white/10 bg-[#0f0f0f] p-1.5">
+                    <button
+                      type="button"
+                      aria-label="Diminuir Bolão do Dia"
+                      disabled={dailyQty <= 0}
+                      onClick={() => {
+                        setError(null);
+                        setCouponHint(null);
+                        setDailyQty((q) => Math.max(0, q - 1));
+                      }}
+                      className="flex h-9 w-9 items-center justify-center rounded-[9px] bg-white/6 text-white/60 transition-colors hover:bg-white/12 hover:text-white disabled:opacity-30"
+                    >
+                      <ChevronDown className="size-[18px]" strokeWidth={2.5} />
+                    </button>
+                    <span className="w-8 text-center text-[18px] font-black tabular-nums text-white sm:text-[20px]">
+                      {dailyQty}
+                    </span>
+                    <button
+                      type="button"
+                      aria-label="Aumentar Bolão do Dia"
+                      disabled={dailyQty >= MAX_QTY}
+                      onClick={() => {
+                        setError(null);
+                        setCouponHint(null);
+                        setDailyQty((q) => Math.min(MAX_QTY, q + 1));
+                      }}
+                      className="flex h-9 w-9 items-center justify-center rounded-[9px] bg-white/6 text-white/60 transition-colors hover:bg-white/12 hover:text-white disabled:opacity-30"
+                    >
+                      <ChevronUp className="size-[18px]" strokeWidth={2.5} />
+                    </button>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] font-semibold text-white/40">Preço unitário</p>
+                    <p className="text-[13px] font-black tabular-nums text-white">{formatBRL(prices.daily)}</p>
+                    <p className="text-[10px] font-bold text-primary">0% de desconto</p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/6 bg-black/25 px-3.5 py-2.5 text-[10px] text-white/50 sm:px-4">
+                  <span>
+                    Desconto aplicado: <span className="font-bold text-primary">0%</span> OFF
+                  </span>
+                  <span className="text-right font-medium">
+                    {dailyQty > 0 ? (
+                      <>
+                        De {formatBRL(prices.daily)} cada por{" "}
+                        <span className="font-black text-white">{formatBRL(prices.daily)}</span> cada
+                      </>
+                    ) : (
+                      <>Escolha a quantidade</>
+                    )}
+                  </span>
+                </div>
+              </div>
             </div>
 
             {/* ── Resumo da compra ─────────────────────────────── */}
-            <div>
-              <div className="mb-3 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="h-[18px] w-[3px] rounded-full bg-primary" aria-hidden />
-                  <h3 className="text-[15px] font-black tracking-tight text-white">Resumo da compra</h3>
+            <div className="rounded-[16px] border border-white/8 bg-[#171717] p-4">
+              <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-2">
+                  <div className="flex size-9 shrink-0 items-center justify-center rounded-[10px] border border-white/10 bg-black/40">
+                    <ShoppingCart className="size-[18px] text-primary" strokeWidth={2.2} />
+                  </div>
+                  <div>
+                    <h3 className="text-[15px] font-black tracking-tight text-white">Resumo da compra</h3>
+                    <p className="text-[11px] font-medium text-white/40">Revise antes de gerar o PIX</p>
+                  </div>
                 </div>
                 <button
                   type="button"
-                  onClick={() => { setCouponOpen((o) => !o); setCouponHint(null); }}
-                  className="inline-flex items-center gap-1.5 text-[13px] font-bold text-primary hover:underline"
+                  onClick={() => {
+                    setCouponOpen((o) => !o);
+                    setCouponHint(null);
+                  }}
+                  className="inline-flex shrink-0 items-center gap-1.5 text-left text-[11px] font-bold leading-snug text-primary hover:underline sm:text-[12px]"
                 >
-                  <Ticket className="size-3.5" strokeWidth={2.2} />
-                  Possui cupom?
+                  <Ticket className="size-3.5 shrink-0" strokeWidth={2.2} />
+                  Possui cupom? Clique para inserir
                 </button>
               </div>
 
               {couponOpen && (
-                <div className="mb-3 flex flex-col gap-2 rounded-[12px] border border-white/10 bg-[#121212] p-3">
+                <div className="mb-4 flex flex-col gap-2 rounded-[12px] border border-white/10 bg-[#121212] p-3">
                   <input
                     value={couponCode}
                     onChange={(e) => setCouponCode(e.target.value)}
@@ -481,7 +564,10 @@ export function TicketCheckoutFlow({ initialTicketKind = "general" }: TicketChec
                     type="button"
                     onClick={() => {
                       const t = couponCode.trim();
-                      if (!t) { setCouponHint("Digite um código."); return; }
+                      if (!t) {
+                        setCouponHint("Digite um código.");
+                        return;
+                      }
                       setCouponHint("Cupons em breve — fique de olho nas promoções.");
                       setCouponCode("");
                     }}
@@ -493,85 +579,26 @@ export function TicketCheckoutFlow({ initialTicketKind = "general" }: TicketChec
                 </div>
               )}
 
-              {/* card do stepper */}
-              <div className="flex items-center gap-4 rounded-[16px] border border-white/8 bg-[#171717] px-2 py-2">
-                {/* stepper horizontal */}
-                <div className="flex shrink-0 items-center gap-1 rounded-[12px] border border-white/10 bg-[#0f0f0f] p-1.5">
-                  <button
-                    type="button"
-                    aria-label="Diminuir quantidade"
-                    disabled={qty <= 1}
-                    onClick={() => setQty((q) => Math.max(1, q - 1))}
-                    className="flex h-9 w-9 items-center justify-center rounded-[9px] bg-white/6 text-white/60 transition-colors hover:bg-white/12 hover:text-white disabled:opacity-30"
-                  >
-                    <ChevronDown className="size-[18px]" strokeWidth={2.5} />
-                  </button>
-                  <span className="w-8 text-center text-[20px] font-black tabular-nums text-white">{qty}</span>
-                  <button
-                    type="button"
-                    aria-label="Aumentar quantidade"
-                    disabled={qty >= MAX_QTY}
-                    onClick={() => setQty((q) => Math.min(MAX_QTY, q + 1))}
-                    className="flex h-9 w-9 items-center justify-center rounded-[9px] bg-white/6 text-white/60 transition-colors hover:bg-white/12 hover:text-white disabled:opacity-30"
-                  >
-                    <ChevronUp className="size-[18px]" strokeWidth={2.5} />
-                  </button>
+              <div className="space-y-2.5 border-b border-white/10 pb-3">
+                <div className="flex items-center justify-between gap-2 text-[13px]">
+                  <span className="font-semibold text-white/70">
+                    Bolão Geral · {principalQty} {principalQty === 1 ? "ticket" : "tickets"}
+                  </span>
+                  <span className="shrink-0 font-black tabular-nums text-white">{formatBRL(principalLineCents)}</span>
                 </div>
-
-                {/* título + subtítulo */}
-                <div className="min-w-0 flex-1">
-                  <p className="text-[12px] font-black leading-tight text-white">{summaryTitle}</p>
-                  <p className="mt-1 text-[10px] font-medium leading-snug text-white/40">{summarySubtitle}</p>
+                <div className="flex items-center justify-between gap-2 text-[13px]">
+                  <span className="font-semibold text-white/70">
+                    Bolão do Dia · {dailyQty} {dailyQty === 1 ? "ticket" : "tickets"}
+                  </span>
+                  <span className="shrink-0 font-black tabular-nums text-white">{formatBRL(diarioLineCents)}</span>
                 </div>
-
-                {/* preço */}
-                <span className="shrink-0 text-[14px] font-black tabular-nums text-primary">
-                  {formatBRL(totalCents)}
-                </span>
+              </div>
+              <div className="mt-3 flex items-center justify-between gap-2">
+                <span className="text-[13px] font-black uppercase tracking-wide text-white/50">Total</span>
+                <span className="text-[18px] font-black tabular-nums text-primary">{formatBRL(totalCents)}</span>
               </div>
             </div>
 
-            {/* ── Benefícios ───────────────────────────────────── */}
-            <div className="space-y-[14px] rounded-[16px] border border-white/8 bg-[#171717] px-4 py-4">
-              <div className="flex items-start gap-3">
-                <span className="mt-px flex size-[22px] shrink-0 items-center justify-center rounded-full border border-primary/40 bg-primary/10">
-                  <Check className="size-3.5 text-primary" strokeWidth={3} />
-                </span>
-                <p className="text-[11px] leading-snug text-white/80">
-                  <span className="font-black text-white">Oferta exclusiva!</span>{" "}
-                  Use os tickets nos melhores bolões
-                </p>
-              </div>
-              <div className="flex items-start gap-3">
-                <span className="mt-px flex size-[22px] shrink-0 items-center justify-center rounded-full border border-primary/40 bg-primary/10">
-                  <Check className="size-3.5 text-primary" strokeWidth={3} />
-                </span>
-                <p className="text-[11px] leading-snug text-white/80">
-                  <span className="font-black text-white">Aproveite e concorra</span>{" "}
-                  a prêmios de até R$ 1.000.000
-                </p>
-              </div>
-            </div>
-
-            {/* ── Trust bar ────────────────────────────────────── */}
-            <div className="flex items-center justify-center gap-6 py-1">
-              <span className="flex items-center gap-1.5 text-[11px] font-semibold text-white/35">
-                <Shield className="size-[12px] shrink-0" strokeWidth={1.8} />
-                100% Seguro
-              </span>
-              <span className="h-3 w-px bg-white/12" aria-hidden />
-              <span className="flex items-center gap-1.5 text-[11px] font-semibold text-white/35">
-                <Zap className="size-[12px] shrink-0" strokeWidth={1.8} />
-                Instantâneo
-              </span>
-              <span className="h-3 w-px bg-white/12" aria-hidden />
-              <span className="flex items-center gap-1.5 text-[11px] font-semibold text-white/35">
-                <Check className="size-[12px] shrink-0" strokeWidth={2.4} />
-                Sem taxas
-              </span>
-            </div>
-
-            {/* ── Botão depositar ──────────────────────────────── */}
             <button
               type="button"
               disabled={!hasSelection}
@@ -579,9 +606,31 @@ export function TicketCheckoutFlow({ initialTicketKind = "general" }: TicketChec
               className="flex h-[62px] w-full items-center justify-center gap-3 rounded-[16px] bg-primary px-5 text-[15px] font-black uppercase tracking-[0.04em] text-[#0E141B] shadow-[0_4px_32px_rgba(177,235,11,0.55)] transition-[transform,filter] hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45"
             >
               <Wallet className="size-5 shrink-0" strokeWidth={2.2} />
-              <span>Depositar {formatBRL(totalCents)}</span>
+              <span>Finalizar compra · {formatBRL(totalCents)}</span>
               <ArrowRight className="size-5 shrink-0" strokeWidth={2.8} />
             </button>
+
+            {/* ── Confiança ───────────────────────────────────── */}
+            <div className="grid grid-cols-3 gap-2 sm:gap-3">
+              <div className="rounded-[12px] border border-white/8 bg-[#171717] px-2 py-3 text-center sm:px-3">
+                <Shield className="mx-auto size-5 text-primary" strokeWidth={2} />
+                <p className="mt-2 text-[10px] font-black uppercase tracking-wide text-white">100% Seguro</p>
+                <p className="mt-1 text-[9px] leading-snug text-white/40">Seus dados protegidos com criptografia.</p>
+              </div>
+              <div className="rounded-[12px] border border-white/8 bg-[#171717] px-2 py-3 text-center sm:px-3">
+                <Zap className="mx-auto size-5 text-primary" strokeWidth={2} />
+                <p className="mt-2 text-[10px] font-black uppercase tracking-wide text-white">Instantâneo</p>
+                <p className="mt-1 text-[9px] leading-snug text-white/40">Acesso liberado na hora.</p>
+              </div>
+              <div className="rounded-[12px] border border-white/8 bg-[#171717] px-2 py-3 text-center sm:px-3">
+                <Check className="mx-auto size-5 text-primary" strokeWidth={2.5} />
+                <p className="mt-2 text-[10px] font-black uppercase tracking-wide text-white">Sem taxas</p>
+                <p className="mt-1 text-[9px] leading-snug text-white/40">Você paga apenas pelo ticket.</p>
+              </div>
+            </div>
+
+            {/* ── Botão depositar ──────────────────────────────── */}
+           
             {error && <p className="text-center text-[12px] font-semibold text-red-300">{error}</p>}
             <p className="flex items-center justify-center gap-2 text-center text-[11px] font-medium text-white/25">
               <Lock className="size-3 shrink-0" strokeWidth={2} />
@@ -706,18 +755,18 @@ export function TicketCheckoutFlow({ initialTicketKind = "general" }: TicketChec
                           <span className="text-white/35 font-normal"> @ {formatBRL(prices.general)}</span>
                         </span>
                         <span className="tabular-nums font-medium" style={{ color: GOLD_LIGHT }}>
-                          {formatBRL(principalLine)}
+                          {formatBRL(principalLineCents)}
                         </span>
                       </div>
                     )}
-                    {diarioQty > 0 && (
+                    {dailyQty > 0 && (
                       <div className="flex justify-between gap-2 text-white/65">
                         <span>
-                          <span className="font-mono text-white">{diarioQty}×</span> Diário
+                          <span className="font-mono text-white">{dailyQty}×</span> Diário
                           <span className="text-white/35 font-normal"> @ {formatBRL(prices.daily)}</span>
                         </span>
                         <span className="tabular-nums font-medium" style={{ color: GOLD_LIGHT }}>
-                          {formatBRL(diarioLine)}
+                          {formatBRL(diarioLineCents)}
                         </span>
                       </div>
                     )}

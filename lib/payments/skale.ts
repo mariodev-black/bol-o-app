@@ -1,5 +1,36 @@
 import { ticketTypeLabel, type TicketType } from "@/lib/payments/ticket-config";
 
+export type SkaleCartLineItem = {
+  title: string;
+  unitPrice: number;
+  quantity: number;
+  externalRef: string;
+};
+
+/** Agrupa linhas de tickets iguais (tipo + centavos) para o payload da Skale. */
+export function buildSkaleCartLineItems(
+  lines: { ticketType: TicketType; unitCents: number }[],
+  externalRefPrefix: string
+): SkaleCartLineItem[] {
+  const map = new Map<string, SkaleCartLineItem>();
+  let skuIdx = 0;
+  for (const line of lines) {
+    const key = `${line.ticketType}:${line.unitCents}`;
+    const existing = map.get(key);
+    if (existing) {
+      existing.quantity += 1;
+    } else {
+      map.set(key, {
+        title: ticketTypeLabel(line.ticketType),
+        unitPrice: line.unitCents,
+        quantity: 1,
+        externalRef: `${externalRefPrefix}_sku_${skuIdx++}`,
+      });
+    }
+  }
+  return [...map.values()];
+}
+
 function env(name: string): string {
   const raw = process.env[name];
   return raw == null ? "" : String(raw).trim();
@@ -17,9 +48,7 @@ function skaleApiKey(): string {
 
 export type CreateSkalePixInput = {
   amountCents: number;
-  unitPriceCents: number;
-  quantity: number;
-  ticketType: TicketType;
+  items: SkaleCartLineItem[];
   externalRef: string;
   postbackUrl: string;
   customer: {
@@ -64,15 +93,13 @@ export async function createSkalePixTransaction(input: CreateSkalePixInput): Pro
         type: "cpf",
       },
     },
-    items: [
-      {
-        title: ticketTypeLabel(input.ticketType),
-        unitPrice: input.unitPriceCents,
-        quantity: input.quantity,
-        tangible: false,
-        externalRef: input.externalRef,
-      },
-    ],
+    items: input.items.map((item) => ({
+      title: item.title,
+      unitPrice: item.unitPrice,
+      quantity: item.quantity,
+      tangible: false,
+      externalRef: item.externalRef,
+    })),
     postbackUrl: input.postbackUrl,
   };
 

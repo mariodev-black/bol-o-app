@@ -837,7 +837,7 @@ export function BoloesClient({ data }: { data: BoloesScreenData | null }) {
   }
 
   return (
-    <div className="min-h-screen bg-black px-[18px] pb-8 pt-[32px] text-white">
+    <div className="min-h-screen bg-black px-[18px] pb-8 text-white">
       <div className="mx-auto w-full max-w-[390px]">
         <header className="text-center">
           <p className="text-[10px] font-black uppercase leading-none tracking-[0.25em]" style={{ color: GREEN }}>

@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, BarChart2, ChevronDown } from "lucide-react";
+import { ArrowRight, ChevronDown } from "lucide-react";
 import { StepsBreadcrumb } from "../_components/StepsBreadcrumb";
 
 export const dynamic = "force-dynamic";
