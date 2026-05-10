@@ -311,6 +311,10 @@ export function TicketCheckoutFlow({
   const hasSelection = totalCents > 0 && totalQty >= 1;
   const geralDiscountPct = progressiveDiscountPercent(principalQty);
   const diarioDiscountPct = progressiveDiscountPercent(dailyQty);
+  const principalUnitPriceCents =
+    principalQty > 0 ? Math.round(principalLineCents / principalQty) : prices.general;
+  const dailyUnitPriceCents =
+    dailyQty > 0 ? Math.round(diarioLineCents / dailyQty) : prices.daily;
   const secondsLeft =
     step === "pix" && pixDeadline != null
       ? Math.max(0, Math.ceil((pixDeadline - now) / 1000))
@@ -524,7 +528,7 @@ export function TicketCheckoutFlow({
                         Preço unitário
                       </p>
                       <p className="mt-1 text-[14px] font-black tabular-nums text-white sm:text-[15px]">
-                        {formatBRL(prices.general)}
+                        {formatBRL(principalUnitPriceCents)}
                       </p>
                       <p className="mt-1 text-[10px] font-semibold tabular-nums text-white/35 line-through">
                         {geralDiscountPct > 0 ? formatBRL(prices.general) : ""}
@@ -621,7 +625,7 @@ export function TicketCheckoutFlow({
                         Preço unitário
                       </p>
                       <p className="mt-1 text-[14px] font-black tabular-nums text-white sm:text-[15px]">
-                        {formatBRL(prices.daily)}
+                        {formatBRL(dailyUnitPriceCents)}
                       </p>
                       <p className="mt-1 text-[10px] font-semibold tabular-nums text-white/35 line-through">
                         {diarioDiscountPct > 0 ? formatBRL(prices.daily) : ""}
