@@ -458,7 +458,7 @@ export function TicketCheckoutFlow({
             <div className="space-y-3">
               {/* Card Bolão Geral */}
               <div className="overflow-hidden rounded-[16px] border border-white/10 bg-[#121212] shadow-[0_8px_26px_rgba(0,0,0,0.35)]">
-                <div className="grid grid-cols-[74px_minmax(0,1fr)_96px] items-center gap-3 p-3 sm:grid-cols-[86px_minmax(0,1fr)_106px] sm:p-3.5">
+                <div className="grid grid-cols-[74px_minmax(0,1fr)] items-center gap-3 p-3 sm:grid-cols-[86px_minmax(0,1fr)] sm:p-3.5">
                   <div className="flex flex-col items-center justify-center">
                     <img
                       src={ticketGold.src}
@@ -470,18 +470,21 @@ export function TicketCheckoutFlow({
                     </span>
                   </div>
 
-                  <div className="min-w-0">
-                    <div className="flex min-w-0 flex-col items-start gap-1">
-                      <h3 className="text-[13px] font-black uppercase leading-tight text-white sm:text-[15px]">
-                        Bolão da Copa 2026
-                      </h3>
-                      <span className="w-fit rounded-md bg-primary/20 px-1.5 py-0.5 text-[7px] font-black uppercase tracking-wide text-primary sm:text-[8px]">
-                        Mais popular
-                      </span>
-                    </div>
-                    <p className="mt-1 text-[10px] font-medium leading-snug text-white/45 sm:text-[11px]">
-                      Acesso a todas as rodadas da Copa do Mundo 2026
-                    </p>
+                  <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_88px] items-center gap-3 sm:grid-cols-[minmax(0,1fr)_96px]">
+                    <div className="min-w-0">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <h3 className="whitespace-nowrap text-[14px] font-black uppercase leading-tight text-white sm:text-[15px]">
+                            Bolão da Copa 2026
+                          </h3>
+                          <span className="w-fit shrink-0 rounded-md bg-primary/20 px-1.5 py-0.5 text-[7px] font-black uppercase tracking-wide text-primary sm:text-[8px]">
+                            Mais popular
+                          </span>
+                        </div>
+                        <p className="mt-1 text-[10px] font-medium leading-snug text-white/45 sm:text-[11px]">
+                          Acesso a todas as rodadas da Copa do Mundo 2026
+                        </p>
+                      </div>
 
                     <div className="mt-3 flex w-fit items-center gap-1 rounded-[10px] border border-white/10 bg-[#0f0f0f] p-1">
                       <button
@@ -516,22 +519,23 @@ export function TicketCheckoutFlow({
                     </div>
                   </div>
 
-                  <div className="min-w-0 text-right">
-                    <p className="text-[10px] font-semibold text-white/40">
-                      Preço unitário
-                    </p>
-                    <p className="mt-1 text-[14px] font-black tabular-nums text-white sm:text-[15px]">
-                      {formatBRL(prices.general)}
-                    </p>
-                    <p className="mt-1 text-[10px] font-semibold tabular-nums text-white/35 line-through">
-                      {geralDiscountPct > 0 ? formatBRL(prices.general) : ""}
-                    </p>
-                    <p className="text-[10px] font-bold text-primary">
-                      {geralDiscountPct}% OFF
-                    </p>
-                    <p className="mt-1 text-[9px] leading-tight text-white/40">
-                      a partir de 2 tickets
-                    </p>
+                    <div className="self-center text-right">
+                      <p className="text-[10px] font-semibold text-white/40">
+                        Preço unitário
+                      </p>
+                      <p className="mt-1 text-[14px] font-black tabular-nums text-white sm:text-[15px]">
+                        {formatBRL(prices.general)}
+                      </p>
+                      <p className="mt-1 text-[10px] font-semibold tabular-nums text-white/35 line-through">
+                        {geralDiscountPct > 0 ? formatBRL(prices.general) : ""}
+                      </p>
+                      <p className="text-[10px] font-bold text-primary">
+                        {geralDiscountPct}% OFF
+                      </p>
+                      <p className="mt-1 text-[9px] leading-tight text-white/40">
+                        a partir de 2 tickets
+                      </p>
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center justify-between gap-2 border-t border-white/6 bg-black/25 px-3.5 py-2.5 text-[10px] text-white/50 sm:px-4">
@@ -551,7 +555,7 @@ export function TicketCheckoutFlow({
 
               {/* Card Bolão do Dia */}
               <div className="overflow-hidden rounded-[16px] border border-white/10 bg-[#121212] shadow-[0_8px_26px_rgba(0,0,0,0.35)]">
-                <div className="grid grid-cols-[74px_minmax(0,1fr)_96px] items-center gap-3 p-3 sm:grid-cols-[86px_minmax(0,1fr)_106px] sm:p-3.5">
+                <div className="grid grid-cols-[74px_minmax(0,1fr)] items-center gap-3 p-3 sm:grid-cols-[86px_minmax(0,1fr)] sm:p-3.5">
                   <div className="flex flex-col items-center justify-center">
                     <img
                       src={ticketBlue.src}
@@ -563,18 +567,21 @@ export function TicketCheckoutFlow({
                     </span>
                   </div>
 
-                  <div className="min-w-0">
-                    <div className="flex min-w-0 flex-col items-start gap-1">
-                      <h3 className="text-[13px] font-black uppercase leading-tight text-white sm:text-[15px]">
-                        Bolão do Dia
-                      </h3>
-                      <span className="w-fit rounded-md bg-primary/20 px-1.5 py-0.5 text-[7px] font-black uppercase tracking-wide text-primary sm:text-[8px]">
-                        Exclusivo
-                      </span>
-                    </div>
-                    <p className="mt-1 text-[10px] font-medium leading-snug text-white/45 sm:text-[11px]">
-                      Acesso exclusivo ao bolão do dia
-                    </p>
+                  <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_88px] items-center gap-3 sm:grid-cols-[minmax(0,1fr)_96px]">
+                    <div className="min-w-0">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <h3 className="whitespace-nowrap text-[14px] font-black uppercase leading-tight text-white sm:text-[15px]">
+                            Bolão do Dia
+                          </h3>
+                          <span className="w-fit shrink-0 rounded-md bg-primary/20 px-1.5 py-0.5 text-[7px] font-black uppercase tracking-wide text-primary sm:text-[8px]">
+                            Exclusivo
+                          </span>
+                        </div>
+                        <p className="mt-1 text-[10px] font-medium leading-snug text-white/45 sm:text-[11px]">
+                          Acesso exclusivo ao bolão do dia
+                        </p>
+                      </div>
 
                     <div className="mt-3 flex w-fit items-center gap-1 rounded-[10px] border border-white/10 bg-[#0f0f0f] p-1">
                       <button
@@ -609,22 +616,23 @@ export function TicketCheckoutFlow({
                     </div>
                   </div>
 
-                  <div className="min-w-0 text-right">
-                    <p className="text-[10px] font-semibold text-white/40">
-                      Preço unitário
-                    </p>
-                    <p className="mt-1 text-[14px] font-black tabular-nums text-white sm:text-[15px]">
-                      {formatBRL(prices.daily)}
-                    </p>
-                    <p className="mt-1 text-[10px] font-semibold tabular-nums text-white/35 line-through">
-                      {diarioDiscountPct > 0 ? formatBRL(prices.daily) : ""}
-                    </p>
-                    <p className="text-[10px] font-bold text-primary">
-                      {diarioDiscountPct}% OFF
-                    </p>
-                    <p className="mt-1 text-[9px] leading-tight text-white/40">
-                      a partir de 2 tickets
-                    </p>
+                    <div className="self-center text-right">
+                      <p className="text-[10px] font-semibold text-white/40">
+                        Preço unitário
+                      </p>
+                      <p className="mt-1 text-[14px] font-black tabular-nums text-white sm:text-[15px]">
+                        {formatBRL(prices.daily)}
+                      </p>
+                      <p className="mt-1 text-[10px] font-semibold tabular-nums text-white/35 line-through">
+                        {diarioDiscountPct > 0 ? formatBRL(prices.daily) : ""}
+                      </p>
+                      <p className="text-[10px] font-bold text-primary">
+                        {diarioDiscountPct}% OFF
+                      </p>
+                      <p className="mt-1 text-[9px] leading-tight text-white/40">
+                        a partir de 2 tickets
+                      </p>
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center justify-between gap-2 border-t border-white/6 bg-black/25 px-3.5 py-2.5 text-[10px] text-white/50 sm:px-4">
