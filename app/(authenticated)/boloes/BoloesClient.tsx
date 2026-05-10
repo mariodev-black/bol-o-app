@@ -1,6 +1,5 @@
-
 "use client";
-
+import bannerBoloes from "@/app/assets/banner-meus-bolao.png";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -117,7 +116,9 @@ function formatCountdown(targetMs: number | null, now: number): string {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   const secs = seconds % 60;
-  return [hours, minutes, secs].map((part) => String(part).padStart(2, "0")).join(":");
+  return [hours, minutes, secs]
+    .map((part) => String(part).padStart(2, "0"))
+    .join(":");
 }
 
 function positionLabel(position: number | null) {
@@ -148,18 +149,31 @@ function SummaryCard({
     >
       <div
         className="mb-3 flex size-[25px] items-center justify-center rounded-[7px] border"
-        style={{ background: `${tone}18`, borderColor: `${tone}22`, boxShadow: `0 0 14px ${tone}1F` }}
+        style={{
+          background: `${tone}18`,
+          borderColor: `${tone}22`,
+          boxShadow: `0 0 14px ${tone}1F`,
+        }}
         aria-hidden
       >
-        <Icon className="size-[13px]" style={{ color: tone }} strokeWidth={2.1} />
+        <Icon
+          className="size-[13px]"
+          style={{ color: tone }}
+          strokeWidth={2.1}
+        />
       </div>
       <p className="whitespace-pre-line text-[9px] font-black uppercase leading-[1.12] tracking-[0.08em] text-white/42 min-[380px]:text-[10px]">
         {label}
       </p>
-      <p className="mt-1 text-[24px] font-black leading-none tracking-[-0.03em]" style={{ color: tone }}>
+      <p
+        className="mt-1 text-[24px] font-black leading-none tracking-[-0.03em]"
+        style={{ color: tone }}
+      >
         {value}
       </p>
-      <p className="mt-1.5 text-[10px] font-medium leading-none text-white/55">{helper}</p>
+      <p className="mt-1.5 text-[10px] font-medium leading-none text-white/55">
+        {helper}
+      </p>
     </div>
   );
 }
@@ -177,13 +191,19 @@ function SectionTitle({
 }) {
   const content = (
     <>
-      {expanded ? "Ocultar" : "Ver todos"} <ChevronRight className={`size-3 transition-transform ${expanded ? "rotate-90" : ""}`} strokeWidth={2.6} />
+      {expanded ? "Ocultar" : "Ver todos"}{" "}
+      <ChevronRight
+        className={`size-3 transition-transform ${expanded ? "rotate-90" : ""}`}
+        strokeWidth={2.6}
+      />
     </>
   );
 
   return (
     <div className="mb-[26px] flex items-center justify-between">
-      <h2 className="text-[17px] font-black leading-none tracking-[-0.03em] text-white">{title}</h2>
+      <h2 className="text-[17px] font-black leading-none tracking-[-0.03em] text-white">
+        {title}
+      </h2>
       {onClick ? (
         <button
           type="button"
@@ -221,14 +241,23 @@ function BolaoIcon({ type }: { type: "copa" | "dia" }) {
       >
         <Icon className="size-[19px]" style={{ color }} strokeWidth={2.1} />
       </div>
-      <p className="whitespace-pre-line text-[11px] font-black uppercase leading-[0.96] tracking-[-0.03em]" style={{ color }}>
+      <p
+        className="whitespace-pre-line text-[11px] font-black uppercase leading-[0.96] tracking-[-0.03em]"
+        style={{ color }}
+      >
         {label}
       </p>
     </div>
   );
 }
 
-function StatusPill({ status, label }: { status: ActiveDailyBolao["status"] | "ativo"; label: string }) {
+function StatusPill({
+  status,
+  label,
+}: {
+  status: ActiveDailyBolao["status"] | "ativo";
+  label: string;
+}) {
   const isActive = status === "ativo";
   const isUsed = status === "usado";
   const tone = isUsed ? "#F87171" : isActive ? GREEN_SOFT : YELLOW;
@@ -238,20 +267,46 @@ function StatusPill({ status, label }: { status: ActiveDailyBolao["status"] | "a
       className="inline-flex h-[18px] items-center rounded-[5px] border px-2 text-[8px] font-black uppercase tracking-[0.12em]"
       style={{ background: `${tone}1F`, borderColor: `${tone}55`, color: tone }}
     >
-      <span className="mr-1 size-[5px] rounded-full" style={{ background: tone }} aria-hidden />
+      <span
+        className="mr-1 size-[5px] rounded-full"
+        style={{ background: tone }}
+        aria-hidden
+      />
       {label}
     </span>
   );
 }
 
-function RankingPanel({ position, points }: { position: number | null; points: number }) {
+function RankingPanel({
+  position,
+  points,
+}: {
+  position: number | null;
+  points: number;
+}) {
   return (
-    <div className="flex min-w-0 flex-col items-center justify-center border-l px-1.5 text-center" style={{ borderColor: BORDER }}>
-      <p className="text-[7px] font-black uppercase leading-[0.95] tracking-[0.06em] text-white/45 min-[380px]:text-[8px]">Sua<br />posição</p>
-      <p className="mt-1 text-[13px] font-black leading-none text-white min-[380px]:text-[14px]">{positionLabel(position)}</p>
+    <div
+      className="flex min-w-0 flex-col items-center justify-center border-l px-1.5 text-center"
+      style={{ borderColor: BORDER }}
+    >
+      <p className="text-[7px] font-black uppercase leading-[0.95] tracking-[0.06em] text-white/45 min-[380px]:text-[8px]">
+        Sua
+        <br />
+        posição
+      </p>
+      <p className="mt-1 text-[13px] font-black leading-none text-white min-[380px]:text-[14px]">
+        {positionLabel(position)}
+      </p>
       <div className="my-3 h-px w-full bg-white/6" />
-      <p className="text-[7px] font-black uppercase leading-none tracking-[0.06em] text-white/45 min-[380px]:text-[8px]">Pontos</p>
-      <p className="mt-1 whitespace-nowrap text-[12px] font-black leading-none min-[380px]:text-[13px]" style={{ color: GREEN }}>{pointsLabel(points)}</p>
+      <p className="text-[7px] font-black uppercase leading-none tracking-[0.06em] text-white/45 min-[380px]:text-[8px]">
+        Pontos
+      </p>
+      <p
+        className="mt-1 whitespace-nowrap text-[12px] font-black leading-none min-[380px]:text-[13px]"
+        style={{ color: GREEN }}
+      >
+        {pointsLabel(points)}
+      </p>
     </div>
   );
 }
@@ -262,7 +317,9 @@ function EmptyActiveCard() {
       className="rounded-[15px] border px-5 py-6 text-center shadow-[0_18px_38px_rgba(0,0,0,0.42)]"
       style={{ background: CARD_ALT, borderColor: BORDER }}
     >
-      <p className="text-[14px] font-black text-white">Você ainda não tem bolões ativos</p>
+      <p className="text-[14px] font-black text-white">
+        Você ainda não tem bolões ativos
+      </p>
       <p className="mx-auto mt-2 max-w-[250px] text-[11px] leading-normal text-white/48">
         Entre em um dos bolões disponíveis abaixo para começar a palpitar.
       </p>
@@ -290,25 +347,44 @@ function ActiveBoloesCard({
     >
       {principal && (
         <div className="grid grid-cols-[58px_minmax(0,1fr)_72px]">
-          <div className="flex items-center justify-center border-r" style={{ borderColor: BORDER }}>
+          <div
+            className="flex items-center justify-center border-r"
+            style={{ borderColor: BORDER }}
+          >
             <BolaoIcon type="copa" />
           </div>
           <Link
             href={principal.href}
             className="min-w-0 px-3 py-[13px] transition-colors hover:bg-white/3 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-primary active:bg-white/5"
           >
-            <p className="text-[13px] font-black uppercase leading-none text-white">{principal.title}</p>
-            <p className="mt-1.5 text-[10px] font-medium leading-none text-white/58">{principal.cotaLabel}</p>
-            <div className="mt-3"><StatusPill status="ativo" label={principal.statusLabel} /></div>
+            <p className="text-[13px] font-black uppercase leading-none text-white">
+              {principal.title}
+            </p>
+            <p className="mt-1.5 text-[10px] font-medium leading-none text-white/58">
+              {principal.cotaLabel}
+            </p>
+            <div className="mt-3">
+              <StatusPill status="ativo" label={principal.statusLabel} />
+            </div>
             <div className="mt-3 flex items-center justify-between gap-2">
-              <span className="text-[10px] font-semibold leading-none text-white/58">Palpites enviados</span>
-              <span className="text-[10px] font-black leading-none text-white">{principal.sent} / {principal.total}</span>
+              <span className="text-[10px] font-semibold leading-none text-white/58">
+                Palpites enviados
+              </span>
+              <span className="text-[10px] font-black leading-none text-white">
+                {principal.sent} / {principal.total}
+              </span>
             </div>
             <div className="mt-1.5 h-[5px] overflow-hidden rounded-full bg-white/8">
-              <div className="h-full rounded-full" style={{ width: `${principal.progress}%`, background: GREEN }} />
+              <div
+                className="h-full rounded-full"
+                style={{ width: `${principal.progress}%`, background: GREEN }}
+              />
             </div>
           </Link>
-          <RankingPanel position={principal.position} points={principal.points} />
+          <RankingPanel
+            position={principal.position}
+            points={principal.points}
+          />
         </div>
       )}
 
@@ -316,21 +392,36 @@ function ActiveBoloesCard({
 
       {diario && (
         <div className="grid grid-cols-[58px_minmax(0,1fr)_72px]">
-          <div className="flex items-center justify-center border-r" style={{ borderColor: BORDER }}>
+          <div
+            className="flex items-center justify-center border-r"
+            style={{ borderColor: BORDER }}
+          >
             <BolaoIcon type="dia" />
           </div>
           <Link
             href={diario.href}
             className="min-w-0 px-3 py-[13px] transition-colors hover:bg-white/3 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-primary active:bg-white/5"
           >
-            <p className="text-[13px] font-black uppercase leading-none text-white">{diario.title}</p>
-            <p className="mt-1.5 text-[10px] font-medium leading-none text-white/58">{diario.cotaLabel}</p>
-            <div className="mt-3"><StatusPill status={diario.status} label={diario.statusLabel} /></div>
-            <p className="mt-3 text-[10px] font-medium leading-none text-white/58">
-              Jogos do dia: <span className="font-black text-white">{diario.gamesCount} jogos</span>
+            <p className="text-[13px] font-black uppercase leading-none text-white">
+              {diario.title}
             </p>
             <p className="mt-1.5 text-[10px] font-medium leading-none text-white/58">
-              {diario.countdownLabel}: <span className="font-black" style={{ color: GREEN_SOFT }}>{formatCountdown(diario.countdownTargetMs, now)}</span>
+              {diario.cotaLabel}
+            </p>
+            <div className="mt-3">
+              <StatusPill status={diario.status} label={diario.statusLabel} />
+            </div>
+            <p className="mt-3 text-[10px] font-medium leading-none text-white/58">
+              Jogos do dia:{" "}
+              <span className="font-black text-white">
+                {diario.gamesCount} jogos
+              </span>
+            </p>
+            <p className="mt-1.5 text-[10px] font-medium leading-none text-white/58">
+              {diario.countdownLabel}:{" "}
+              <span className="font-black" style={{ color: GREEN_SOFT }}>
+                {formatCountdown(diario.countdownTargetMs, now)}
+              </span>
             </p>
           </Link>
           <RankingPanel position={diario.position} points={diario.points} />
@@ -350,11 +441,22 @@ function ActiveBoloesCard({
   );
 }
 
-function ActiveBoloesList({ items, now }: { items: ActiveBolaoListItem[]; now: number }) {
+function ActiveBoloesList({
+  items,
+  now,
+}: {
+  items: ActiveBolaoListItem[];
+  now: number;
+}) {
   if (items.length === 0) {
     return (
-      <div className="rounded-[15px] border px-5 py-6 text-center" style={{ background: CARD_ALT, borderColor: BORDER }}>
-        <p className="text-[12px] font-bold text-white/55">Nenhum bolão ativo encontrado.</p>
+      <div
+        className="rounded-[15px] border px-5 py-6 text-center"
+        style={{ background: CARD_ALT, borderColor: BORDER }}
+      >
+        <p className="text-[12px] font-bold text-white/55">
+          Nenhum bolão ativo encontrado.
+        </p>
       </div>
     );
   }
@@ -371,7 +473,10 @@ function ActiveBoloesList({ items, now }: { items: ActiveBolaoListItem[]; now: n
         return (
           <div key={item.id}>
             <div className="grid grid-cols-[68px_minmax(0,1fr)_58px] min-[380px]:grid-cols-[74px_minmax(0,1fr)_64px]">
-              <div className="flex items-center justify-center border-r" style={{ borderColor: BORDER }}>
+              <div
+                className="flex items-center justify-center border-r"
+                style={{ borderColor: BORDER }}
+              >
                 <BolaoIcon type={isPrincipal ? "copa" : "dia"} />
               </div>
 
@@ -379,8 +484,13 @@ function ActiveBoloesList({ items, now }: { items: ActiveBolaoListItem[]; now: n
                 href={item.href}
                 className="min-w-0 px-3 py-[16px] transition-colors hover:bg-white/3 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-primary active:bg-white/5 min-[380px]:px-4"
               >
-                <p className="max-w-[190px] text-[17px] font-black uppercase leading-[0.98] tracking-[-0.03em] text-white min-[380px]:text-[18px]">{item.title}</p>
-                <p className="mt-2 truncate font-mono text-[12px] font-semibold leading-none text-white/52 min-[380px]:text-[13px]" title={item.id}>
+                <p className="max-w-[190px] text-[17px] font-black uppercase leading-[0.98] tracking-[-0.03em] text-white min-[380px]:text-[18px]">
+                  {item.title}
+                </p>
+                <p
+                  className="mt-2 truncate font-mono text-[12px] font-semibold leading-none text-white/52 min-[380px]:text-[13px]"
+                  title={item.id}
+                >
                   {item.cotaLabel.replace("Cota #", "Cota #")}
                 </p>
 
@@ -391,21 +501,34 @@ function ActiveBoloesList({ items, now }: { items: ActiveBolaoListItem[]; now: n
                 {isPrincipal ? (
                   <div className="mt-4">
                     <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2">
-                      <span className="text-[13px] font-semibold leading-[1.02] text-white/55 min-[380px]:text-[14px]">Palpites enviados</span>
-                      <span className="whitespace-nowrap text-[15px] font-black leading-none text-white min-[380px]:text-[16px]">{item.sent ?? 0} / {item.total ?? 0}</span>
+                      <span className="text-[13px] font-semibold leading-[1.02] text-white/55 min-[380px]:text-[14px]">
+                        Palpites enviados
+                      </span>
+                      <span className="whitespace-nowrap text-[15px] font-black leading-none text-white min-[380px]:text-[16px]">
+                        {item.sent ?? 0} / {item.total ?? 0}
+                      </span>
                     </div>
                     <div className="mt-2 h-[6px] overflow-hidden rounded-full bg-white/8">
-                      <div className="h-full rounded-full" style={{ width: `${progress}%`, background: GREEN }} />
+                      <div
+                        className="h-full rounded-full"
+                        style={{ width: `${progress}%`, background: GREEN }}
+                      />
                     </div>
                   </div>
                 ) : (
                   <div className="mt-5 space-y-2">
                     <p className="text-[14px] font-medium leading-none text-white/55">
-                      Jogos do dia: <span className="font-black text-white">{item.gamesCount ?? 0} jogos</span>
+                      Jogos do dia:{" "}
+                      <span className="font-black text-white">
+                        {item.gamesCount ?? 0} jogos
+                      </span>
                     </p>
                     <p className="text-[14px] font-medium leading-none text-white/55">
                       {item.countdownLabel ?? "Fecha em"}:{" "}
-                      <span className="font-black" style={{ color: GREEN_SOFT }}>
+                      <span
+                        className="font-black"
+                        style={{ color: GREEN_SOFT }}
+                      >
                         {formatCountdown(item.countdownTargetMs ?? null, now)}
                       </span>
                     </p>
@@ -416,7 +539,9 @@ function ActiveBoloesList({ items, now }: { items: ActiveBolaoListItem[]; now: n
               <RankingPanel position={item.position} points={item.points} />
             </div>
 
-            {item !== items[items.length - 1] && <div className="h-px bg-white/6" />}
+            {item !== items[items.length - 1] && (
+              <div className="h-px bg-white/6" />
+            )}
           </div>
         );
       })}
@@ -464,23 +589,49 @@ function AvailableCard({
       </div>
       <div
         className="flex size-[38px] items-center justify-center rounded-[11px]"
-        style={{ background: `${buttonColor}18`, boxShadow: `0 0 18px ${buttonColor}20` }}
+        style={{
+          background: `${buttonColor}18`,
+          boxShadow: `0 0 18px ${buttonColor}20`,
+        }}
         aria-hidden
       >
-        <Icon className="size-[19px]" style={{ color: buttonColor }} strokeWidth={2.1} />
+        <Icon
+          className="size-[19px]"
+          style={{ color: buttonColor }}
+          strokeWidth={2.1}
+        />
       </div>
-      <h3 className="mt-4 text-[13px] font-black leading-none text-white">{title}</h3>
-      <p className="mt-1.5 text-[10px] font-black uppercase leading-none" style={{ color: buttonColor }}>{subtitle}</p>
+      <h3 className="mt-4 text-[13px] font-black leading-none text-white">
+        {title}
+      </h3>
+      <p
+        className="mt-1.5 text-[10px] font-black uppercase leading-none"
+        style={{ color: buttonColor }}
+      >
+        {subtitle}
+      </p>
       <p className="mt-3 min-h-[30px] text-[11px] font-medium leading-tight text-white/48">
-        {bodyLines.map((line) => <span key={line} className="block">{line}</span>)}
+        {bodyLines.map((line) => (
+          <span key={line} className="block">
+            {line}
+          </span>
+        ))}
       </p>
       {time && (
-        <p className="mt-1 text-[13px] font-black leading-none" style={{ color: GREEN }}>
+        <p
+          className="mt-1 text-[13px] font-black leading-none"
+          style={{ color: GREEN }}
+        >
           {time}
         </p>
       )}
-      <div className="mt-auto w-full border-t pt-4" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
-        <p className="text-[14px] font-black leading-none text-white">{price}</p>
+      <div
+        className="mt-auto w-full border-t pt-4"
+        style={{ borderColor: "rgba(255,255,255,0.07)" }}
+      >
+        <p className="text-[14px] font-black leading-none text-white">
+          {price}
+        </p>
         <Link
           href={href}
           className="mt-4 flex h-[34px] w-full items-center justify-center rounded-[7px] text-[11px] font-black uppercase tracking-[0.04em] transition-transform hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[0.97]"
@@ -513,9 +664,30 @@ const STATS = [
 ];
 
 const PACKAGES = [
-  { qty: 1 as const, label: "1 COTA",  priceMain: "R$39",  priceDec: ",90", unit: "Por cota",       saving: null },
-  { qty: 3 as const, label: "3 COTAS", priceMain: "R$99",  priceDec: ",00", unit: "R$33,00 / cota", saving: "-R$21" },
-  { qty: 5 as const, label: "5 COTAS", priceMain: "R$159", priceDec: ",00", unit: "R$31,80 / cota", saving: "-R$40" },
+  {
+    qty: 1 as const,
+    label: "1 COTA",
+    priceMain: "R$39",
+    priceDec: ",90",
+    unit: "Por cota",
+    saving: null,
+  },
+  {
+    qty: 3 as const,
+    label: "3 COTAS",
+    priceMain: "R$99",
+    priceDec: ",00",
+    unit: "R$33,00 / cota",
+    saving: "-R$21",
+  },
+  {
+    qty: 5 as const,
+    label: "5 COTAS",
+    priceMain: "R$159",
+    priceDec: ",00",
+    unit: "R$31,80 / cota",
+    saving: "-R$40",
+  },
 ];
 
 function CarouselShell({
@@ -530,7 +702,10 @@ function CarouselShell({
   const scrollByPage = (direction: -1 | 1) => {
     const el = scrollRef.current;
     if (!el) return;
-    el.scrollBy({ left: direction * el.clientWidth * 0.92, behavior: "smooth" });
+    el.scrollBy({
+      left: direction * el.clientWidth * 0.92,
+      behavior: "smooth",
+    });
   };
 
   return (
@@ -586,15 +761,25 @@ function ShowcaseSectionTitle({
   const content = (
     <>
       {expanded ? "Ocultar" : "Ver todos"}{" "}
-      <ChevronRight className={`size-3 transition-transform ${expanded ? "rotate-90" : ""}`} strokeWidth={2.5} />
+      <ChevronRight
+        className={`size-3 transition-transform ${expanded ? "rotate-90" : ""}`}
+        strokeWidth={2.5}
+      />
     </>
   );
 
   return (
     <div className="mb-2.5 flex items-center justify-between gap-3">
       <div className="flex min-w-0 items-center gap-2">
-        <Icon className="size-4 shrink-0" style={{ color: tone }} strokeWidth={2.2} />
-        <h2 className="truncate text-[12px] font-black uppercase tracking-wide" style={{ color: tone }}>
+        <Icon
+          className="size-4 shrink-0"
+          style={{ color: tone }}
+          strokeWidth={2.2}
+        />
+        <h2
+          className="truncate text-[12px] font-black uppercase tracking-wide"
+          style={{ color: tone }}
+        >
           {index}. {title}
         </h2>
       </div>
@@ -609,7 +794,11 @@ function ShowcaseSectionTitle({
           {content}
         </button>
       ) : (
-        <Link href={href} className="inline-flex shrink-0 items-center gap-1 text-[9px] font-bold" style={{ color: tone }}>
+        <Link
+          href={href}
+          className="inline-flex shrink-0 items-center gap-1 text-[9px] font-bold"
+          style={{ color: tone }}
+        >
           {content}
         </Link>
       )}
@@ -664,12 +853,18 @@ function ActiveShowcaseCard({
           className="h-[78px] w-[60px] object-contain transition-transform duration-500 group-hover:scale-105"
           style={{ filter: `drop-shadow(0 8px 24px ${tone}42)` }}
         />
-        <p className="mt-1 whitespace-pre-line text-[12px] font-black uppercase leading-[0.9]" style={{ color: tone }}>
+        <p
+          className="mt-1 whitespace-pre-line text-[12px] font-black uppercase leading-[0.9]"
+          style={{ color: tone }}
+        >
           {isPrincipal ? "FIFA\nWorld Cup\n2026" : "Bolão\nDo Dia"}
         </p>
       </div>
 
-      <div className="relative z-10 min-w-0 border-l px-3.5 py-4" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+      <div
+        className="relative z-10 min-w-0 border-l px-3.5 py-4"
+        style={{ borderColor: "rgba(255,255,255,0.08)" }}
+      >
         <h3 className="text-[15px] font-black uppercase leading-none tracking-[-0.03em] text-white min-[380px]:text-[16px]">
           {item.title}
         </h3>
@@ -706,7 +901,9 @@ function ActiveShowcaseCard({
           <div className="mt-4 space-y-1.5">
             <p className="text-[10px] font-medium text-white/55">
               Jogos do dia:{" "}
-              <span className="font-black text-white">{item.gamesCount ?? 0} jogos</span>
+              <span className="font-black text-white">
+                {item.gamesCount ?? 0} jogos
+              </span>
             </p>
             <p className="text-[10px] font-medium text-white/55">
               {item.countdownLabel ?? "Início em"}:{" "}
@@ -723,7 +920,9 @@ function ActiveShowcaseCard({
         style={{ borderColor: "rgba(255,255,255,0.08)" }}
       >
         <p className="text-[7px] font-black uppercase leading-[0.95] tracking-[0.08em] text-white/40">
-          Sua<br />posição
+          Sua
+          <br />
+          posição
         </p>
         <p className="mt-2 text-[18px] font-black leading-none text-white">
           {positionLabel(item.position)}
@@ -732,7 +931,10 @@ function ActiveShowcaseCard({
         <p className="text-[7px] font-black uppercase tracking-[0.08em] text-white/40">
           Pontos
         </p>
-        <p className="mt-1 whitespace-nowrap text-[14px] font-black leading-none" style={{ color: tone }}>
+        <p
+          className="mt-1 whitespace-nowrap text-[14px] font-black leading-none"
+          style={{ color: tone }}
+        >
           {pointsLabel(item.points)}
         </p>
       </div>
@@ -746,18 +948,16 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
 
   return (
     <div className="min-h-screen bg-black pb-10 text-white">
-
       {/* ── Banner ──────────────────────────────────── */}
       <div className="w-full bg-black">
         {/* text block */}
         <div className="px-5 pb-2 text-center">
-          <span
-            className="inline-flex items-center rounded-[8px] px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.22em] text-primary bg-primary/20 border border-primary/60"
-          >
+          <span className="inline-flex items-center rounded-[8px] px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.22em] text-primary bg-primary/20 border border-primary/60">
             Valendo
           </span>
           <h1 className="mt-5 text-[36px] font-black uppercase leading-[0.9] tracking-[-0.02em] text-white">
-            +R$ 1 Milhão<br />
+            +R$ 1 Milhão
+            <br />
             <span className="text-primary">em Prêmios!</span>
           </h1>
           <p className="mx-auto mt-4 max-w-[300px] text-[13px] font-medium leading-normal text-white/55">
@@ -779,7 +979,6 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
 
       {/* ── Body ──────────────────────────────────── */}
       <div className="relative z-10 mx-auto w-full max-w-[430px] -mt-10 space-y-8 px-4">
-
         {/* Pricing card */}
         <div
           className="rounded-[16px] px-5 py-5 text-center"
@@ -837,8 +1036,12 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
                 <Icon className="size-[17px] text-primary" strokeWidth={2} />
               </span>
               <div className="min-w-0">
-                <p className="text-[16px] font-black leading-none text-white">{value}</p>
-                <p className="mt-1 text-[9px] font-semibold leading-tight text-white/42">{label}</p>
+                <p className="text-[16px] font-black leading-none text-white">
+                  {value}
+                </p>
+                <p className="mt-1 text-[9px] font-semibold leading-tight text-white/42">
+                  {label}
+                </p>
               </div>
             </div>
           ))}
@@ -871,21 +1074,32 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
             {/* itens */}
             <div className="space-y-0 px-4 py-3">
               {INCLUDED.map((item) => (
-                <div key={item} className="flex items-start gap-2.5 py-2.5 border-b border-white/5 last:border-0">
+                <div
+                  key={item}
+                  className="flex items-start gap-2.5 py-2.5 border-b border-white/5 last:border-0"
+                >
                   <span className="mt-px flex size-[18px] shrink-0 items-center justify-center rounded-full border border-primary/35 bg-primary/10">
                     <Check className="size-3 text-primary" strokeWidth={3} />
                   </span>
-                  <p className="text-[12px] font-medium leading-snug text-white/75">{item}</p>
+                  <p className="text-[12px] font-medium leading-snug text-white/75">
+                    {item}
+                  </p>
                 </div>
               ))}
             </div>
 
             {/* footer */}
             <div className="flex items-start gap-2.5 border-t border-white/7 px-4 py-3.5">
-              <ArrowRight className="mt-0.5 size-3.5 shrink-0 text-primary" strokeWidth={2.5} />
+              <ArrowRight
+                className="mt-0.5 size-3.5 shrink-0 text-primary"
+                strokeWidth={2.5}
+              />
               <p className="text-[11px] font-medium leading-snug text-white/50">
                 Você concorre ao ranking geral e pode ser um dos{" "}
-                <span className="font-bold text-white/80">+20.000 premiados</span>.
+                <span className="font-bold text-white/80">
+                  +20.000 premiados
+                </span>
+                .
               </p>
             </div>
           </div>
@@ -904,7 +1118,9 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
           >
             {/* header */}
             <div className="px-4 pb-4 pt-5">
-              <p className="text-[17px] font-black leading-tight text-white">Aumente suas chances</p>
+              <p className="text-[17px] font-black leading-tight text-white">
+                Aumente suas chances
+              </p>
               <p className="mt-1.5 text-[12px] font-medium leading-snug text-white/45">
                 Mais cotas = mais posições no ranking = mais chances de ganhar
               </p>
@@ -950,14 +1166,22 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
                     </div>
 
                     {/* label */}
-                    <p className={`mt-2 text-[9px] font-black uppercase tracking-wide ${active ? "text-primary" : "text-white/45"}`}>
+                    <p
+                      className={`mt-2 text-[9px] font-black uppercase tracking-wide ${active ? "text-primary" : "text-white/45"}`}
+                    >
                       {pkg.label}
                     </p>
 
                     {/* price */}
-                    <p className={`mt-1 tabular-nums leading-none ${active ? "text-white" : "text-white/65"}`}>
-                      <span className="text-[16px] font-black">{pkg.priceMain}</span>
-                      <span className="text-[11px] font-bold">{pkg.priceDec}</span>
+                    <p
+                      className={`mt-1 tabular-nums leading-none ${active ? "text-white" : "text-white/65"}`}
+                    >
+                      <span className="text-[16px] font-black">
+                        {pkg.priceMain}
+                      </span>
+                      <span className="text-[11px] font-bold">
+                        {pkg.priceDec}
+                      </span>
                     </p>
 
                     {/* per-unit */}
@@ -975,7 +1199,9 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
                 href="/tickets"
                 className="flex h-[56px] w-full items-center justify-center gap-2.5 rounded-[14px] bg-primary text-[13px] font-black uppercase tracking-[0.05em] text-[#0E141B] shadow-[0_4px_24px_rgba(177,235,11,0.45)] transition-[filter] hover:brightness-105 active:scale-[0.98]"
               >
-                Garantir {currentPkg.label.toLowerCase()} — {currentPkg.priceMain}{currentPkg.priceDec}
+                Garantir {currentPkg.label.toLowerCase()} —{" "}
+                {currentPkg.priceMain}
+                {currentPkg.priceDec}
                 <ChevronRight className="size-5 shrink-0" strokeWidth={2.8} />
               </Link>
             </div>
@@ -1000,8 +1226,6 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
           </div>
         </div>
       </div>
-
-
     </div>
   );
 }
@@ -1016,17 +1240,30 @@ export function BoloesClient({ data }: { data: BoloesScreenData | null }) {
   const [showAllDiario, setShowAllDiario] = useState(false);
   const hasTickets = (data?.active.all.length ?? 0) > 0;
 
-  const summary = data?.summary ?? { activeCount: 0, pendingPredictions: 0, bestPosition: null };
-  const bestPosition = summary.bestPosition == null ? "--" : `#${summary.bestPosition}`;
-  const principalItems = (data?.active.all ?? []).filter((item) => item.type === "principal");
-  const diarioItems = (data?.active.all ?? []).filter((item) => item.type === "diario");
+  const summary = data?.summary ?? {
+    activeCount: 0,
+    pendingPredictions: 0,
+    bestPosition: null,
+  };
+  const bestPosition =
+    summary.bestPosition == null ? "--" : `#${summary.bestPosition}`;
+  const principalItems = (data?.active.all ?? []).filter(
+    (item) => item.type === "principal",
+  );
+  const diarioItems = (data?.active.all ?? []).filter(
+    (item) => item.type === "diario",
+  );
   const dailyCountdown = useMemo(
     () => formatCountdown(data?.upcoming.daily.closesAtMs ?? null, now),
-    [data?.upcoming.daily.closesAtMs, now]
+    [data?.upcoming.daily.closesAtMs, now],
   );
 
   if (!hasTickets) {
-    return <NoTicketsState priceLabel={data?.upcoming.principal.priceLabel ?? "R$ 39,90"} />;
+    return (
+      <NoTicketsState
+        priceLabel={data?.upcoming.principal.priceLabel ?? "R$ 39,90"}
+      />
+    );
   }
 
   if (showAllActive) {
@@ -1034,14 +1271,18 @@ export function BoloesClient({ data }: { data: BoloesScreenData | null }) {
       <div className="min-h-screen bg-black px-[18px] pb-8 pt-[24px] text-white">
         <div className="mx-auto w-full max-w-[390px]">
           <header className="text-center">
-            <p className="text-[10px] font-black uppercase leading-none tracking-[0.25em]" style={{ color: GREEN }}>
+            <p
+              className="text-[10px] font-black uppercase leading-none tracking-[0.25em]"
+              style={{ color: GREEN }}
+            >
               Copa 2026
             </p>
             <h1 className="mt-2 text-[25px] font-black uppercase leading-none tracking-[-0.055em] text-white">
               Todos os <span style={{ color: GREEN }}>Bolões</span>
             </h1>
             <p className="mx-auto mt-3 max-w-[282px] text-[12px] font-medium leading-[1.45] text-white/58">
-              Escolha uma cota para ver detalhes, palpitar ou acompanhar sua posição.
+              Escolha uma cota para ver detalhes, palpitar ou acompanhar sua
+              posição.
             </p>
           </header>
 
@@ -1056,7 +1297,8 @@ export function BoloesClient({ data }: { data: BoloesScreenData | null }) {
                 className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-1 text-[10px] font-bold leading-none transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-95"
                 style={{ color: GREEN }}
               >
-                Voltar <ChevronRight className="size-3 rotate-180" strokeWidth={2.6} />
+                Voltar{" "}
+                <ChevronRight className="size-3 rotate-180" strokeWidth={2.6} />
               </button>
             </div>
             <ActiveBoloesList items={data?.active.all ?? []} now={now} />
@@ -1068,22 +1310,37 @@ export function BoloesClient({ data }: { data: BoloesScreenData | null }) {
 
   return (
     <div className="min-h-screen overflow-hidden bg-black pb-8 text-white">
+      <div className="relative w-full overflow-hidden rounded-b-[22px]">
+        <Image
+          src={bannerBoloes}
+          alt="Banner — Bolões"
+          className="h-auto w-full object-cover object-center"
+          priority
+          sizes="100vw"
+        />
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black to-transparent"
+          aria-hidden
+        />
+      </div>
       <div className="mx-auto w-full max-w-[430px] px-4">
-        <header className="pb-7 pt-2 text-center">
-          <p className="text-[10px] font-black uppercase leading-none tracking-[0.25em]" style={{ color: GREEN }}>
-            Copa 2026
-          </p>
-          <h1 className="mt-2 text-[25px] font-black uppercase leading-none tracking-[-0.055em] text-white">
-            Meus <span style={{ color: GREEN }}>Bolões</span>
-          </h1>
-          <p className="mx-auto mt-3 max-w-[282px] text-[12px] font-medium leading-[1.45] text-white/58">
-            Acompanhe suas participações, envie seus palpites e entre nos próximos bolões.
-          </p>
-        </header>
-
-        <section className="grid grid-cols-2 gap-2" aria-label="Resumo dos bolões">
-          <SummaryCard icon={ClipboardList} label="Bolões ativos" value={String(summary.activeCount)} helper="Em andamento" />
-          <SummaryCard icon={Trophy} label="Sua melhor posição" value={bestPosition} helper="Ranking" tone={GREEN_SOFT} />
+        <section
+          className="grid grid-cols-2 gap-2"
+          aria-label="Resumo dos bolões"
+        >
+          <SummaryCard
+            icon={ClipboardList}
+            label="Bolões ativos"
+            value={String(summary.activeCount)}
+            helper="Em andamento"
+          />
+          <SummaryCard
+            icon={Trophy}
+            label="Sua melhor posição"
+            value={bestPosition}
+            helper="Ranking"
+            tone={GREEN_SOFT}
+          />
         </section>
 
         <section className="mt-6">
@@ -1099,7 +1356,13 @@ export function BoloesClient({ data }: { data: BoloesScreenData | null }) {
             <div className="space-y-3">
               {principalItems.length > 0 ? (
                 principalItems.map((item) => (
-                  <ActiveShowcaseCard key={item.id} item={item} now={now} kind="principal" fullWidth />
+                  <ActiveShowcaseCard
+                    key={item.id}
+                    item={item}
+                    now={now}
+                    kind="principal"
+                    fullWidth
+                  />
                 ))
               ) : (
                 <EmptyActiveCard />
@@ -1109,7 +1372,12 @@ export function BoloesClient({ data }: { data: BoloesScreenData | null }) {
             <CarouselShell>
               {principalItems.length > 0 ? (
                 principalItems.map((item) => (
-                  <ActiveShowcaseCard key={item.id} item={item} now={now} kind="principal" />
+                  <ActiveShowcaseCard
+                    key={item.id}
+                    item={item}
+                    now={now}
+                    kind="principal"
+                  />
                 ))
               ) : (
                 <div className="w-[350px] max-w-[86vw] shrink-0 snap-center">
@@ -1134,7 +1402,13 @@ export function BoloesClient({ data }: { data: BoloesScreenData | null }) {
             <div className="space-y-3">
               {diarioItems.length > 0 ? (
                 diarioItems.map((item) => (
-                  <ActiveShowcaseCard key={item.id} item={item} now={now} kind="diario" fullWidth />
+                  <ActiveShowcaseCard
+                    key={item.id}
+                    item={item}
+                    now={now}
+                    kind="diario"
+                    fullWidth
+                  />
                 ))
               ) : (
                 <EmptyActiveCard />
@@ -1144,7 +1418,12 @@ export function BoloesClient({ data }: { data: BoloesScreenData | null }) {
             <CarouselShell tone={YELLOW}>
               {diarioItems.length > 0 ? (
                 diarioItems.map((item) => (
-                  <ActiveShowcaseCard key={item.id} item={item} now={now} kind="diario" />
+                  <ActiveShowcaseCard
+                    key={item.id}
+                    item={item}
+                    now={now}
+                    kind="diario"
+                  />
                 ))
               ) : (
                 <div className="w-[350px] max-w-[86vw] shrink-0 snap-center">
@@ -1167,7 +1446,8 @@ export function BoloesClient({ data }: { data: BoloesScreenData | null }) {
               Quer participar de mais bolões?
             </p>
             <p className="mt-1 text-[10px] font-medium leading-tight text-white/55">
-              Compre novos bolões e aumente suas chances de ganhar prêmios incríveis!
+              Compre novos bolões e aumente suas chances de ganhar prêmios
+              incríveis!
             </p>
           </div>
           <span className="inline-flex h-9 shrink-0 items-center gap-1 rounded-[9px] bg-primary px-3 text-[10px] font-black uppercase text-[#0E141B]">
