@@ -11,11 +11,15 @@ import {
   ClipboardList,
   Lock,
   Shield,
+  Ticket,
   Trophy,
   Users,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import trofeuBoloes from "@/app/assets/trofeu-boloes.png";
+import bgPixel from "@/app/assets/bg-hero-pixels.png";
+import ticketGold from "@/app/assets/ticket-gold.png";
+import ticketBlue from "@/app/assets/Ticket-Blue.png";
 
 export type ActivePrincipalBolao = {
   id: string;
@@ -514,6 +518,228 @@ const PACKAGES = [
   { qty: 5 as const, label: "5 COTAS", priceMain: "R$159", priceDec: ",00", unit: "R$31,80 / cota", saving: "-R$40" },
 ];
 
+function CarouselShell({
+  children,
+  tone = GREEN,
+}: {
+  children: React.ReactNode;
+  tone?: string;
+}) {
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  const scrollByPage = (direction: -1 | 1) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollBy({ left: direction * el.clientWidth * 0.92, behavior: "smooth" });
+  };
+
+  return (
+    <div className="relative">
+      <div
+        ref={scrollRef}
+        className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        {children}
+      </div>
+      <button
+        type="button"
+        onClick={() => scrollByPage(-1)}
+        className="absolute -left-2 top-1/2 z-10 flex size-7 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-black/70 text-white/80 shadow-[0_8px_22px_rgba(0,0,0,0.45)] backdrop-blur"
+        aria-label="Item anterior"
+      >
+        <ChevronRight className="size-4 rotate-180" strokeWidth={2.6} />
+      </button>
+      <button
+        type="button"
+        onClick={() => scrollByPage(1)}
+        className="absolute -right-2 top-1/2 z-10 flex size-7 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-black/70 text-white/80 shadow-[0_8px_22px_rgba(0,0,0,0.45)] backdrop-blur"
+        aria-label="Próximo item"
+      >
+        <ChevronRight className="size-4" strokeWidth={2.6} />
+      </button>
+      <div className="mt-0 flex justify-center gap-1.5">
+        <span className="h-1.5 w-6 rounded-full" style={{ background: tone }} />
+        <span className="size-1.5 rounded-full bg-white/20" />
+        <span className="size-1.5 rounded-full bg-white/20" />
+      </div>
+    </div>
+  );
+}
+
+function ShowcaseSectionTitle({
+  icon: Icon,
+  index,
+  title,
+  href,
+  onViewAll,
+  expanded,
+  tone = GREEN,
+}: {
+  icon: typeof Trophy;
+  index: string;
+  title: string;
+  href: string;
+  onViewAll?: () => void;
+  expanded?: boolean;
+  tone?: string;
+}) {
+  const content = (
+    <>
+      {expanded ? "Ocultar" : "Ver todos"}{" "}
+      <ChevronRight className={`size-3 transition-transform ${expanded ? "rotate-90" : ""}`} strokeWidth={2.5} />
+    </>
+  );
+
+  return (
+    <div className="mb-2.5 flex items-center justify-between gap-3">
+      <div className="flex min-w-0 items-center gap-2">
+        <Icon className="size-4 shrink-0" style={{ color: tone }} strokeWidth={2.2} />
+        <h2 className="truncate text-[12px] font-black uppercase tracking-wide" style={{ color: tone }}>
+          {index}. {title}
+        </h2>
+      </div>
+      {onViewAll ? (
+        <button
+          type="button"
+          onClick={onViewAll}
+          className="inline-flex shrink-0 items-center gap-1 text-[9px] font-bold"
+          style={{ color: tone }}
+          aria-expanded={expanded}
+        >
+          {content}
+        </button>
+      ) : (
+        <Link href={href} className="inline-flex shrink-0 items-center gap-1 text-[9px] font-bold" style={{ color: tone }}>
+          {content}
+        </Link>
+      )}
+    </div>
+  );
+}
+
+function ActiveShowcaseCard({
+  item,
+  now,
+  kind,
+  fullWidth = false,
+}: {
+  item: ActiveBolaoListItem;
+  now: number;
+  kind: "principal" | "diario";
+  fullWidth?: boolean;
+}) {
+  const isPrincipal = kind === "principal";
+  const progress = Math.max(0, Math.min(100, item.progress ?? 0));
+  const tone = isPrincipal ? GREEN : YELLOW;
+  const image = isPrincipal ? ticketGold : ticketBlue;
+  const statusLabel = item.statusLabel;
+
+  return (
+    <Link
+      href={item.href}
+      className={[
+        "group relative grid min-h-[126px] grid-cols-[102px_minmax(0,1fr)_78px] overflow-hidden rounded-[14px] border bg-[#080A07] shadow-[0_18px_42px_rgba(0,0,0,0.55)] transition-transform duration-300 active:scale-[0.985]",
+        fullWidth ? "w-full" : "w-[368px] max-w-[88vw] shrink-0 snap-center",
+      ].join(" ")}
+      style={{
+        borderColor: `${tone}42`,
+        boxShadow: `0 18px 42px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.05), 0 0 26px ${tone}0F`,
+      }}
+    >
+      <div
+        className="pointer-events-none absolute -left-20 -top-16 size-40 rounded-full blur-3xl transition-opacity duration-500 group-hover:opacity-90"
+        style={{ background: `${tone}18` }}
+        aria-hidden
+      />
+
+      <div
+        className="relative z-10 flex flex-col items-center justify-center px-2 text-center"
+        style={{
+          background: `radial-gradient(circle at 50% 42%, ${tone}18 0%, rgba(255,255,255,0.03) 35%, transparent 66%)`,
+        }}
+      >
+        <Image
+          src={image}
+          alt=""
+          className="h-[78px] w-[60px] object-contain transition-transform duration-500 group-hover:scale-105"
+          style={{ filter: `drop-shadow(0 8px 24px ${tone}42)` }}
+        />
+        <p className="mt-1 whitespace-pre-line text-[12px] font-black uppercase leading-[0.9]" style={{ color: tone }}>
+          {isPrincipal ? "FIFA\nWorld Cup\n2026" : "Bolão\nDo Dia"}
+        </p>
+      </div>
+
+      <div className="relative z-10 min-w-0 border-l px-3.5 py-4" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+        <h3 className="text-[15px] font-black uppercase leading-none tracking-[-0.03em] text-white min-[380px]:text-[16px]">
+          {item.title}
+        </h3>
+        <p className="mt-2 font-mono text-[11px] font-semibold leading-none text-white/50">
+          {item.cotaLabel}
+        </p>
+
+        <div className="mt-3">
+          <StatusPill status={item.status} label={statusLabel} />
+        </div>
+
+        {isPrincipal ? (
+          <div className="mt-4">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] font-semibold leading-none text-white/55">
+                Palpites enviados
+              </span>
+              <span className="text-[11px] font-black leading-none text-white">
+                {item.sent ?? 0} / {item.total ?? 0}
+              </span>
+            </div>
+            <div className="mt-2 h-[5px] overflow-hidden rounded-full bg-white/10">
+              <div
+                className="h-full rounded-full transition-[width] duration-700"
+                style={{
+                  width: `${progress}%`,
+                  background: `linear-gradient(90deg, ${tone}, #F3FF8A)`,
+                  boxShadow: `0 0 12px ${tone}70`,
+                }}
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="mt-4 space-y-1.5">
+            <p className="text-[10px] font-medium text-white/55">
+              Jogos do dia:{" "}
+              <span className="font-black text-white">{item.gamesCount ?? 0} jogos</span>
+            </p>
+            <p className="text-[10px] font-medium text-white/55">
+              {item.countdownLabel ?? "Início em"}:{" "}
+              <span className="font-black" style={{ color: GREEN_SOFT }}>
+                {formatCountdown(item.countdownTargetMs ?? null, now)}
+              </span>
+            </p>
+          </div>
+        )}
+      </div>
+
+      <div
+        className="relative z-10 flex min-w-0 flex-col items-center justify-center border-l px-2 text-center"
+        style={{ borderColor: "rgba(255,255,255,0.08)" }}
+      >
+        <p className="text-[7px] font-black uppercase leading-[0.95] tracking-[0.08em] text-white/40">
+          Sua<br />posição
+        </p>
+        <p className="mt-2 text-[18px] font-black leading-none text-white">
+          {positionLabel(item.position)}
+        </p>
+        <div className="my-3 h-px w-[50px] bg-white/8" />
+        <p className="text-[7px] font-black uppercase tracking-[0.08em] text-white/40">
+          Pontos
+        </p>
+        <p className="mt-1 whitespace-nowrap text-[14px] font-black leading-none" style={{ color: tone }}>
+          {pointsLabel(item.points)}
+        </p>
+      </div>
+    </Link>
+  );
+}
+
 function NoTicketsState({ priceLabel }: { priceLabel: string }) {
   const [selectedPkg, setSelectedPkg] = useState<1 | 3 | 5>(1);
   const currentPkg = PACKAGES.find((p) => p.qty === selectedPkg)!;
@@ -786,10 +1012,14 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
 export function BoloesClient({ data }: { data: BoloesScreenData | null }) {
   const now = useNow();
   const [showAllActive, setShowAllActive] = useState(false);
+  const [showAllPrincipal, setShowAllPrincipal] = useState(false);
+  const [showAllDiario, setShowAllDiario] = useState(false);
   const hasTickets = (data?.active.all.length ?? 0) > 0;
 
   const summary = data?.summary ?? { activeCount: 0, pendingPredictions: 0, bestPosition: null };
   const bestPosition = summary.bestPosition == null ? "--" : `#${summary.bestPosition}`;
+  const principalItems = (data?.active.all ?? []).filter((item) => item.type === "principal");
+  const diarioItems = (data?.active.all ?? []).filter((item) => item.type === "diario");
   const dailyCountdown = useMemo(
     () => formatCountdown(data?.upcoming.daily.closesAtMs ?? null, now),
     [data?.upcoming.daily.closesAtMs, now]
@@ -837,9 +1067,9 @@ export function BoloesClient({ data }: { data: BoloesScreenData | null }) {
   }
 
   return (
-    <div className="min-h-screen bg-black px-[18px] pb-8 text-white">
-      <div className="mx-auto w-full max-w-[390px]">
-        <header className="text-center">
+    <div className="min-h-screen overflow-hidden bg-black pb-8 text-white">
+      <div className="mx-auto w-full max-w-[430px] px-4">
+        <header className="pb-7 pt-2 text-center">
           <p className="text-[10px] font-black uppercase leading-none tracking-[0.25em]" style={{ color: GREEN }}>
             Copa 2026
           </p>
@@ -851,53 +1081,99 @@ export function BoloesClient({ data }: { data: BoloesScreenData | null }) {
           </p>
         </header>
 
-        <section className="mt-[47px] grid grid-cols-3 gap-[7px]" aria-label="Resumo dos bolões">
+        <section className="grid grid-cols-2 gap-2" aria-label="Resumo dos bolões">
           <SummaryCard icon={ClipboardList} label="Bolões ativos" value={String(summary.activeCount)} helper="Em andamento" />
-          <SummaryCard icon={ClipboardList} label="Palpites pendentes" value={String(summary.pendingPredictions)} helper="Para enviar" tone={YELLOW} />
-          <SummaryCard icon={Trophy} label="Sua melhor posição" value={bestPosition} helper="No ranking geral" tone={GREEN_SOFT} />
+          <SummaryCard icon={Trophy} label="Sua melhor posição" value={bestPosition} helper="Ranking" tone={GREEN_SOFT} />
         </section>
 
-        <div className="my-[26px] h-px bg-white/6" />
-
-        <section>
-          <SectionTitle
-            title="Meus bolões ativos"
+        <section className="mt-6">
+          <ShowcaseSectionTitle
+            icon={Trophy}
+            index="1"
+            title="Meu Bolão Principal"
             href="/boloes/tickets"
-            expanded={showAllActive}
-            onClick={() => setShowAllActive((current) => !current)}
+            expanded={showAllPrincipal}
+            onViewAll={() => setShowAllPrincipal((current) => !current)}
           />
-          <ActiveBoloesCard principal={data?.active.principal ?? null} diario={data?.active.diario ?? null} now={now} />
-          {showAllActive && <ActiveBoloesList items={data?.active.all ?? []} now={now} />}
+          {showAllPrincipal ? (
+            <div className="space-y-3">
+              {principalItems.length > 0 ? (
+                principalItems.map((item) => (
+                  <ActiveShowcaseCard key={item.id} item={item} now={now} kind="principal" fullWidth />
+                ))
+              ) : (
+                <EmptyActiveCard />
+              )}
+            </div>
+          ) : (
+            <CarouselShell>
+              {principalItems.length > 0 ? (
+                principalItems.map((item) => (
+                  <ActiveShowcaseCard key={item.id} item={item} now={now} kind="principal" />
+                ))
+              ) : (
+                <div className="w-[350px] max-w-[86vw] shrink-0 snap-center">
+                  <EmptyActiveCard />
+                </div>
+              )}
+            </CarouselShell>
+          )}
         </section>
 
-        <section className="mt-[55px]">
-          <SectionTitle title="Próximos bolões disponíveis" href="/tickets" />
-          <div className="grid grid-cols-2 gap-[18px]">
-            <AvailableCard
-              href={data?.upcoming.daily.href ?? "/tickets?bolao=diario"}
-              badge="ó mais popular"
-              badgeTone="lime"
-              icon="calendar"
-              title="Bolão do Dia"
-              subtitle="Jogos de hoje"
-              bodyLines={[`${data?.upcoming.daily.gamesCount ?? 0} jogos disponíveis`, "Fecha em"]}
-              time={dailyCountdown}
-              price={data?.upcoming.daily.priceLabel ?? "R$ 0,00"}
-              buttonTone="lime"
-            />
-            <AvailableCard
-              href={data?.upcoming.principal.href ?? "/tickets"}
-              badge="• de 1 milhão"
-              badgeTone="green"
-              icon="trophy"
-              title="Bolão da Copa"
-              subtitle="Cota extra"
-              bodyLines={["Mais uma chance", "no ranking geral"]}
-              price={data?.upcoming.principal.priceLabel ?? "R$ 0,00"}
-              buttonTone="green"
-            />
-          </div>
+        <section className="mt-4">
+          <ShowcaseSectionTitle
+            icon={CalendarDays}
+            index="2"
+            title="Meu Bolão do Dia"
+            href="/boloes/tickets"
+            tone={YELLOW}
+            expanded={showAllDiario}
+            onViewAll={() => setShowAllDiario((current) => !current)}
+          />
+          {showAllDiario ? (
+            <div className="space-y-3">
+              {diarioItems.length > 0 ? (
+                diarioItems.map((item) => (
+                  <ActiveShowcaseCard key={item.id} item={item} now={now} kind="diario" fullWidth />
+                ))
+              ) : (
+                <EmptyActiveCard />
+              )}
+            </div>
+          ) : (
+            <CarouselShell tone={YELLOW}>
+              {diarioItems.length > 0 ? (
+                diarioItems.map((item) => (
+                  <ActiveShowcaseCard key={item.id} item={item} now={now} kind="diario" />
+                ))
+              ) : (
+                <div className="w-[350px] max-w-[86vw] shrink-0 snap-center">
+                  <EmptyActiveCard />
+                </div>
+              )}
+            </CarouselShell>
+          )}
         </section>
+
+        <Link
+          href="/tickets"
+          className="mt-5 flex items-center gap-3 rounded-[14px] border border-primary/30 bg-primary/10 px-4 py-3 shadow-[0_0_24px_rgba(177,235,11,0.12)] transition-transform active:scale-[0.985]"
+        >
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-[10px] border border-primary/30 bg-black/40">
+            <Ticket className="size-5 text-primary" strokeWidth={2.1} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[12px] font-black uppercase leading-tight text-white">
+              Quer participar de mais bolões?
+            </p>
+            <p className="mt-1 text-[10px] font-medium leading-tight text-white/55">
+              Compre novos bolões e aumente suas chances de ganhar prêmios incríveis!
+            </p>
+          </div>
+          <span className="inline-flex h-9 shrink-0 items-center gap-1 rounded-[9px] bg-primary px-3 text-[10px] font-black uppercase text-[#0E141B]">
+            Comprar <ChevronRight className="size-3.5" strokeWidth={2.8} />
+          </span>
+        </Link>
       </div>
     </div>
   );
