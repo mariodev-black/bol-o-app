@@ -5,6 +5,7 @@ import { LogoutAccountButton } from "@/app/(authenticated)/perfil/LogoutAccountB
 import { loadOwnedTicketsMerged } from "@/app/(authenticated)/tickets/lib/ownedTicketsStorage";
 import type { AffiliateSummary } from "@/app/(authenticated)/indique/affiliate-types";
 import { formatBRLFromCents } from "@/app/(authenticated)/indique/affiliate-types";
+import { fetchAffiliateSummaryCached } from "@/app/(authenticated)/indique/affiliate-summary-cache";
 import { WithdrawGanhosModal } from "@/app/(authenticated)/indique/WithdrawGanhosModal";
 import { useAuth } from "@/app/shared/AuthContext";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -90,9 +91,7 @@ export default function PerfilPage() {
   const reloadAffiliateSummary = useCallback(async () => {
     if (!ready) return;
     try {
-      const aRes = await fetch("/api/affiliate/summary", { credentials: "include", cache: "no-store" });
-      const aj = (await aRes.json()) as { summary?: AffiliateSummary };
-      if (aRes.ok && aj.summary) setAffiliate(aj.summary);
+      setAffiliate(await fetchAffiliateSummaryCached());
     } catch {
       /* ignore */
     }
@@ -123,7 +122,7 @@ export default function PerfilPage() {
         const [hRes, rRes, aRes, rankRes] = await Promise.all([
           fetch("/api/palpites/historico?limit=10", { credentials: "include", cache: "no-store" }),
           fetch("/api/palpites/resumo", { credentials: "include", cache: "no-store" }),
-          fetch("/api/affiliate/summary", { credentials: "include", cache: "no-store" }).catch(() => null),
+          fetchAffiliateSummaryCached().catch(() => null),
           fetch("/api/palpites/ranking", { credentials: "include", cache: "no-store" }),
         ]);
         const hJson = (await hRes.json()) as {
@@ -163,10 +162,7 @@ export default function PerfilPage() {
         }
         const rJson = (await rRes.json()) as { resumo?: typeof resumo };
         if (!cancelled && rRes.ok && rJson.resumo) setResumo(rJson.resumo);
-        if (aRes?.ok) {
-          const aj = (await aRes.json()) as { summary?: AffiliateSummary };
-          if (!cancelled && aj.summary) setAffiliate(aj.summary);
-        }
+        if (!cancelled) setAffiliate(aRes);
         const rk = (await rankRes.json()) as { ranking?: Array<{ totalPoints: number }> };
         if (cancelled) return;
         if (rankRes.ok && Array.isArray(rk.ranking) && rk.ranking.length > 0) {

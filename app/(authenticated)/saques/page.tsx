@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ChevronLeft, Loader2 } from "lucide-react";
 import type { AffiliateSummary } from "../indique/affiliate-types";
 import { formatBRLFromCents } from "../indique/affiliate-types";
+import { fetchAffiliateSummaryCached, invalidateAffiliateSummaryCache } from "../indique/affiliate-summary-cache";
 import type { WithdrawalBalanceSource } from "@/lib/referrals/withdrawSource";
 
 function parseMoneyToCents(raw: string): number | null {
@@ -29,12 +30,11 @@ export default function SaquesPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await fetch("/api/affiliate/summary", { credentials: "include", cache: "no-store" });
-      const d = (await r.json()) as { summary?: AffiliateSummary };
-      if (r.ok && d.summary) {
-        setSummary(d.summary);
-        setMinCents(d.summary.minWithdrawalCents);
-        setMaxCents(d.summary.maxWithdrawalCents ?? 50_000_000);
+      const nextSummary = await fetchAffiliateSummaryCached();
+      if (nextSummary) {
+        setSummary(nextSummary);
+        setMinCents(nextSummary.minWithdrawalCents);
+        setMaxCents(nextSummary.maxWithdrawalCents ?? 50_000_000);
       } else setSummary(null);
     } catch {
       setSummary(null);
@@ -100,6 +100,7 @@ export default function SaquesPage() {
       setMessage({ type: "ok", text: "Solicitação registrada. Aguarde a análise da equipe." });
       setAmountStr("");
       setPixKey("");
+      invalidateAffiliateSummaryCache();
       await load();
     } catch {
       setMessage({ type: "err", text: "Erro de rede. Tente novamente." });
@@ -211,7 +212,7 @@ export default function SaquesPage() {
         <button
           type="submit"
           disabled={submitting || loading || available < minCents}
-          className="w-full py-3.5 rounded-xl font-black text-[15px] bg-gradient-to-r from-[#8FC900] to-primary text-black disabled:opacity-40 flex items-center justify-center gap-2"
+          className="w-full py-3.5 rounded-xl font-black text-[15px] bg-linear-to-r from-[#8FC900] to-primary text-black disabled:opacity-40 flex items-center justify-center gap-2"
         >
           {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
           Solicitar saque

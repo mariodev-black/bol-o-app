@@ -198,6 +198,9 @@ type PartidasResponse = {
   partidas?: Record<string, unknown>;
 };
 
+let loggedHomeMatchesCache: { at: number; matches: HomeMatch[] } | null = null;
+const LOGGED_HOME_MATCHES_CACHE_MS = 3 * 60 * 1000;
+
 function collectHomeMatches(input: unknown): HomeMatch[] {
   const matches: HomeMatch[] = [];
   const visit = (node: unknown) => {
@@ -328,14 +331,24 @@ function LoggedInHome() {
   useEffect(() => {
     let cancelled = false;
     async function loadMatches() {
+      if (
+        loggedHomeMatchesCache &&
+        Date.now() - loggedHomeMatchesCache.at < LOGGED_HOME_MATCHES_CACHE_MS
+      ) {
+        setMatches(loggedHomeMatchesCache.matches);
+        setMatchesLoading(false);
+        return;
+      }
+
       setMatchesLoading(true);
       try {
-        const response = await fetch("/api/partidas", { cache: "no-store" });
+        const response = await fetch("/api/partidas", { cache: "force-cache" });
         const data = (await response.json().catch(() => ({}))) as PartidasResponse;
         if (!response.ok) throw new Error("Falha ao carregar partidas");
         const nextMatches = collectHomeMatches(data.partidas)
           .sort((a, b) => matchDateMs(a) - matchDateMs(b))
           .slice(0, 4);
+        loggedHomeMatchesCache = { at: Date.now(), matches: nextMatches };
         if (!cancelled) setMatches(nextMatches);
       } catch {
         if (!cancelled) setMatches([]);
@@ -627,9 +640,9 @@ function PublicHome() {
                 <span className="text-white">Como </span>
                 <span className="text-primary">Funciona:</span>
               </h2>
-              <p className="mt-3 text-[24px] leading-snug font-[300] text-white">
-                é simples, <em className="font-[500] italic">rápido</em> e{" "}
-                <span className="font-[500] ">emocionante!</span>
+              <p className="mt-3 text-[24px] leading-snug font-light text-white">
+                é simples, <em className="font-medium italic">rápido</em> e{" "}
+                <span className="font-medium ">emocionante!</span>
               </p>
             </header>
             <div className="flex shrink-0 justify-center self-start pt-1">
@@ -638,14 +651,14 @@ function PublicHome() {
                 alt=""
                 width={112}
                 height={112}
-                className="h-[5.5rem] w-[5.5rem] object-contain xl:h-28 xl:w-28"
+                className="h-22 w-22 object-contain xl:h-28 xl:w-28"
                 priority={false}
               />
             </div>
-            <p className="min-w-0 max-w-lg shrink text-left text-[24px] leading-relaxed font-[300] text-white xl:max-w-[620px]">
+            <p className="min-w-0 max-w-lg shrink text-left text-[24px] leading-relaxed font-light text-white xl:max-w-[620px]">
               Participar do Bolão do Milhão é fácil e garante a sua imersão
               total na Copa do Mundo 2026.{" "}
-              <span className="font-[500] text-primary">
+              <span className="font-medium text-primary">
                 Siga estes quatro passos
               </span>{" "}
               e comece a trilhar seu caminho rumo aos milhões:
@@ -665,16 +678,16 @@ function PublicHome() {
               <span className="text-white">Como </span>
               <span className="text-primary">Funciona</span>
             </h2>
-            <p className="mt-3 max-w-md text-[20px] leading-snug font-[300] text-white">
+            <p className="mt-3 max-w-md text-[20px] leading-snug font-light text-white">
               <span className="text-white/70">é simples, </span>
               <em className="italic text-white/70">rápido</em>
               <span className="text-white/70"> e </span>
               <span className="font-bold text-white">emocionante!</span>
             </p>
-            <p className="mt-6 max-w-lg text-[16px] leading-relaxed font-[300] text-white">
+            <p className="mt-6 max-w-lg text-[16px] leading-relaxed font-light text-white">
               Participar do Bolão do Milhão é fácil e garante a sua imersão
               total na Copa do Mundo 2026.{" "}
-              <span className="font-[500] text-primary">
+              <span className="font-medium text-primary">
                 Siga estes quatro passos
               </span>{" "}
               e comece a trilhar seu caminho rumo aos milhões:
@@ -736,7 +749,7 @@ function PublicHome() {
         <div className="mx-auto max-w-[1600px] px-4 py-12 sm:px-6 md:py-16 lg:px-10 lg:py-20 xl:px-14 2xl:px-20">
           <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-2 lg:gap-14 xl:gap-20">
             <div className="mx-auto max-w-xl overflow-visible pt-4 text-center sm:pt-6 lg:mx-0 lg:pt-2 lg:text-left">
-              <h2 className="relative z-[1] flex w-full max-w-full flex-col items-center pb-1 font-bold leading-[1.02] tracking-tight text-[#021C1A] lg:items-start">
+              <h2 className="relative z-1 flex w-full max-w-full flex-col items-center pb-1 font-bold leading-[1.02] tracking-tight text-[#021C1A] lg:items-start">
                 <span className="block text-[62.13px] leading-[1.02] sm:text-[clamp(2.25rem,6.5vw,6.375rem)]">
                   Cada acerto
                 </span>
@@ -757,7 +770,7 @@ function PublicHome() {
                       alt=""
                       width={49}
                       height={49}
-                      className="h-full w-full object-contain -rotate-[17deg] sm:-rotate-[190deg]"
+                      className="h-full w-full object-contain -rotate-17 sm:-rotate-190"
                     />
                   </span>
                   {/* Mobile: à esquerda, sobre “te aproxima”; sm+: esquerda do bloco */}
@@ -770,12 +783,12 @@ function PublicHome() {
                       alt=""
                       width={49}
                       height={49}
-                      className="h-full w-full object-contain -rotate-[130deg] sm:-rotate-[130deg]"
+                      className="h-full w-full object-contain -rotate-130 sm:-rotate-130"
                     />
                   </span>
                 </div>
               </h2>
-              <p className="mx-auto mt-6 max-w-[510px] text-[18px] leading-relaxed font-light text-[#2d3436] sm:text-[28px] sm:font-[300] lg:mx-0">
+              <p className="mx-auto mt-6 max-w-[510px] text-[18px] leading-relaxed font-light text-[#2d3436] sm:text-[28px] sm:font-light lg:mx-0">
                 Nosso sistema de pontuação é{" "}
                 <strong className="font-bold text-[#0A1F1F]">
                   transparente e justo

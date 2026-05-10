@@ -61,6 +61,9 @@ const MOCK_STATS: ResumoStats = {
   exatos: 0,
 };
 
+const RANKING_CLIENT_CACHE_MS = 45 * 1000;
+const rankingClientCache = new Map<string, { at: number; rows: RankingRow[]; stats: ResumoStats }>();
+
 function initials(value: string): string {
   return value.replace(/[^a-zA-Z0-9]/g, "").slice(0, 2).toUpperCase() || "BM";
 }
@@ -133,6 +136,15 @@ export default function RankingPage() {
     let cancelled = false;
 
     async function loadRanking() {
+      const cacheKey = pool;
+      const cached = rankingClientCache.get(cacheKey);
+      if (cached && Date.now() - cached.at < RANKING_CLIENT_CACHE_MS) {
+        setRankingRows(cached.rows);
+        setStats(cached.stats);
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       try {
         const q = new URLSearchParams();
@@ -153,16 +165,17 @@ export default function RankingPage() {
         const resumoData = (await resumoResp.json().catch(() => ({}))) as { resumo?: ResumoStats };
 
         if (cancelled) return;
-        setRankingRows(
+        const nextRows =
           rankingResp.ok && Array.isArray(rankingData.ranking) && rankingData.ranking.length > 0
             ? rankingData.ranking
-            : MOCK_RANKING_ROWS,
-        );
-        setStats(
+            : MOCK_RANKING_ROWS;
+        const nextStats =
           resumoResp.ok && resumoData.resumo && resumoData.resumo.palpites > 0
             ? resumoData.resumo
-            : MOCK_STATS,
-        );
+            : MOCK_STATS;
+        rankingClientCache.set(cacheKey, { at: Date.now(), rows: nextRows, stats: nextStats });
+        setRankingRows(nextRows);
+        setStats(nextStats);
       } catch {
         if (!cancelled) {
           setRankingRows(MOCK_RANKING_ROWS);
@@ -188,8 +201,7 @@ export default function RankingPage() {
 
   return (
     <main className="font-helvetica-now-display min-h-screen overflow-hidden bg-black pb-24 text-white">
-      <div className="mx-auto w-full max-w-[430px] px-3.5">
-        <section className="overflow-hidden rounded-[16px] border border-white/10 bg-[#080808] shadow-[0_18px_38px_rgba(0,0,0,0.5)]">
+      <section className="overflow-hidden hadow-[0_18px_38px_rgba(0,0,0,0.5)]">
           <Image
             src={bannerRanking}
             alt="Ranking oficial Top Palpiteiros"
@@ -198,6 +210,8 @@ export default function RankingPage() {
             sizes="(max-width: 430px) 100vw, 430px"
           />
         </section>
+      <div className="mx-auto w-full max-w-[430px] px-3.5">
+        
 
         <section className="relative z-20 mt-3 grid grid-cols-[minmax(0,1fr)_92px] gap-2">
           <div className="relative">
@@ -317,7 +331,7 @@ export default function RankingPage() {
               return (
                 <div
                   key={`ranking-${row.pos}-${row.ticketId}`}
-                  className="relative grid grid-cols-[44px_minmax(0,1fr)_68px_64px] items-center border-b border-white/[0.045] px-3 py-2.5 last:border-b-0"
+                  className="relative grid grid-cols-[44px_minmax(0,1fr)_68px_64px] items-center border-b border-white/4.5 px-3 py-2.5 last:border-b-0"
                   style={{
                     background: isMe
                       ? "linear-gradient(90deg, rgba(177,235,11,0.22), rgba(177,235,11,0.04))"

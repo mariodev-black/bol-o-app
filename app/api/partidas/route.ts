@@ -89,36 +89,75 @@ function rowToPartida(row: Awaited<ReturnType<typeof readMatchesCache>>[number])
   };
 }
 
+function buildPartidasPayload(rows: Awaited<ReturnType<typeof readMatchesCache>>) {
+  const stableRows = rows.sort((a, b) => a.match_id - b.match_id);
+  const todayMs = todayBRDateMs();
+  const displayRows = stableRows.filter((row) => {
+    const dateMs = brDateToUtcMs(String(row.date_br ?? ""));
+    if (dateMs != null) return dateMs >= todayMs;
+    if (row.kickoff_at) {
+      const kickoff = new Date(row.kickoff_at).getTime();
+      if (Number.isFinite(kickoff)) return kickoff >= Date.now() - 12 * 60 * 60 * 1000;
+    }
+    return false;
+  });
+
+  const fases: PhaseMap = {};
+  for (const row of displayRows) {
+    const phaseKey = row.phase_key || "fase-de-grupos";
+    const groupKey = row.group_key || "grupo-indefinido";
+    const roundKey = row.round_key || "rodada-unica";
+
+    if (!fases[phaseKey]) fases[phaseKey] = {};
+    if (row.group_key) {
+      const phaseObj = fases[phaseKey] as Record<string, NestedRounds>;
+      if (!phaseObj[groupKey]) phaseObj[groupKey] = {};
+      if (!phaseObj[groupKey][roundKey]) phaseObj[groupKey][roundKey] = [];
+      phaseObj[groupKey][roundKey].push(rowToPartida(row));
+    } else {
+      const phaseObj = fases[phaseKey] as NestedRounds;
+      if (!phaseObj[roundKey]) phaseObj[roundKey] = [];
+      phaseObj[roundKey].push(rowToPartida(row));
+    }
+  }
+
+  return { partidas: fases, stableRows, displayRows };
+}
+
 export async function GET() {
   try {
     const dbg = ["1", "true", "yes"].includes((process.env.DEBUG_MATCHES_SYNC || "").trim().toLowerCase());
-    await syncMatchesCache({ fetchProviderMatches, force: false });
     let rows = await readMatchesCache();
-    if (dbg) console.log("[api/partidas] cache-after-soft-sync", { count: rows.length });
-    // Se o cache vier muito pequeno, força refresh para evitar ficar preso em payload parcial.
-    const beforeForceCount = rows.length;
-    const seemsIncomplete = rows.length > 0 && rows.length < 64;
-    if (rows.length === 0 || seemsIncomplete) {
+
+    // Caminho rápido: responde do cache imediatamente e sincroniza sem bloquear a UI.
+    if (rows.length > 0) {
+      void syncMatchesCache({ fetchProviderMatches, force: false }).catch(() => {});
+      const payload = buildPartidasPayload(rows);
+      if (dbg) {
+        console.log("[api/partidas] return-cache-fast", {
+          count: payload.stableRows.length,
+          displayCount: payload.displayRows.length,
+        });
+      }
+      return NextResponse.json({ partidas: payload.partidas }, {
+        headers: {
+          "Cache-Control": "private, max-age=30, stale-while-revalidate=300",
+        },
+      });
+    }
+
+    // Primeiro acesso/ambiente frio: só aqui esperamos a sincronização externa.
+    if (rows.length === 0) {
       await syncMatchesCache({ fetchProviderMatches, force: true });
       rows = await readMatchesCache();
-      if (dbg) console.log("[api/partidas] forced-sync-triggered", { previousCount: beforeForceCount, currentCount: rows.length, seemsIncomplete });
+      if (dbg) console.log("[api/partidas] forced-sync-on-empty-cache", { currentCount: rows.length });
     }
-    const stableRows = rows.sort((a, b) => a.match_id - b.match_id);
-    const todayMs = todayBRDateMs();
-    const displayRows = stableRows.filter((row) => {
-      const dateMs = brDateToUtcMs(String(row.date_br ?? ""));
-      if (dateMs != null) return dateMs >= todayMs;
-      if (row.kickoff_at) {
-        const kickoff = new Date(row.kickoff_at).getTime();
-        if (Number.isFinite(kickoff)) return kickoff >= Date.now() - 12 * 60 * 60 * 1000;
-      }
-      return false;
-    });
+    const payload = buildPartidasPayload(rows);
     if (dbg) {
-      const phases = new Set(stableRows.map((r) => r.phase_key || "fase-de-grupos"));
-      const withDate = stableRows.filter((r) => String(r.date_br || "").trim() !== "").length;
-      const withHour = stableRows.filter((r) => /^\d{2}:\d{2}$/.test(String(r.hour_br || "").slice(0, 5))).length;
-      const sample = displayRows.slice(0, 5).map((r) => ({
+      const phases = new Set(payload.stableRows.map((r) => r.phase_key || "fase-de-grupos"));
+      const withDate = payload.stableRows.filter((r) => String(r.date_br || "").trim() !== "").length;
+      const withHour = payload.stableRows.filter((r) => /^\d{2}:\d{2}$/.test(String(r.hour_br || "").slice(0, 5))).length;
+      const sample = payload.displayRows.slice(0, 5).map((r) => ({
         match_id: r.match_id,
         phase: r.phase_key,
         round: r.round_key,
@@ -128,37 +167,22 @@ export async function GET() {
         kickoff_at: r.kickoff_at,
       }));
       console.log("[api/partidas] stable-rows", {
-        count: stableRows.length,
-        displayCount: displayRows.length,
+        count: payload.stableRows.length,
+        displayCount: payload.displayRows.length,
         phases: Array.from(phases),
         withDate,
-        withoutDate: stableRows.length - withDate,
+        withoutDate: payload.stableRows.length - withDate,
         withHour,
-        withoutHour: stableRows.length - withHour,
+        withoutHour: payload.stableRows.length - withHour,
         sample,
       });
     }
 
-    const fases: PhaseMap = {};
-    for (const row of displayRows) {
-      const phaseKey = row.phase_key || "fase-de-grupos";
-      const groupKey = row.group_key || "grupo-indefinido";
-      const roundKey = row.round_key || "rodada-unica";
-
-      if (!fases[phaseKey]) fases[phaseKey] = {};
-      if (row.group_key) {
-        const phaseObj = fases[phaseKey] as Record<string, NestedRounds>;
-        if (!phaseObj[groupKey]) phaseObj[groupKey] = {};
-        if (!phaseObj[groupKey][roundKey]) phaseObj[groupKey][roundKey] = [];
-        phaseObj[groupKey][roundKey].push(rowToPartida(row));
-      } else {
-        const phaseObj = fases[phaseKey] as NestedRounds;
-        if (!phaseObj[roundKey]) phaseObj[roundKey] = [];
-        phaseObj[roundKey].push(rowToPartida(row));
-      }
-    }
-
-    return NextResponse.json({ partidas: fases });
+    return NextResponse.json({ partidas: payload.partidas }, {
+      headers: {
+        "Cache-Control": "private, max-age=30, stale-while-revalidate=300",
+      },
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Falha ao buscar partidas";
     return NextResponse.json({ error: message }, { status: 500 });

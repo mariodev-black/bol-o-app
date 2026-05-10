@@ -16,6 +16,11 @@ type MatchMap = Map<number, {
   hour: string;
 }>;
 
+const MATCH_MAP_MEMORY_TTL_MS =
+  Number.parseInt(process.env.MATCH_MAP_MEMORY_TTL_MS ?? "15000", 10) || 15_000;
+
+let matchMapMemoryCache: { at: number; map: MatchMap } | null = null;
+
 function token(): string {
   return (process.env.FOOTBALL_API_TOKEN || "").trim();
 }
@@ -58,23 +63,34 @@ function pickScore(p: any, side: "casa" | "visitante"): number | null {
 }
 
 export async function fetchMatchesMap(): Promise<MatchMap> {
+  if (matchMapMemoryCache && Date.now() - matchMapMemoryCache.at < MATCH_MAP_MEMORY_TTL_MS) {
+    debugLog("fetchMatchesMap:return-memory-cache", { count: matchMapMemoryCache.map.size });
+    return new Map(matchMapMemoryCache.map);
+  }
+
   const cachedRows = await readMatchesCache().catch(() => []);
   debugLog("fetchMatchesMap:start", { cachedRows: cachedRows.length, competitionId: competitionId() });
   if (cachedRows.length > 0) {
     void syncMatchesCache({ fetchProviderMatches: fetchProviderMatches, force: false }).catch(() => {});
     debugLog("fetchMatchesMap:return-cache", { count: cachedRows.length });
-    return mapFromCacheRows(cachedRows);
+    const map = mapFromCacheRows(cachedRows);
+    matchMapMemoryCache = { at: Date.now(), map };
+    return new Map(map);
   }
 
   await syncMatchesCache({ fetchProviderMatches: fetchProviderMatches, force: true }).catch(() => {});
   const rowsAfterSync = await readMatchesCache().catch(() => []);
   if (rowsAfterSync.length > 0) {
     debugLog("fetchMatchesMap:return-cache-after-sync", { count: rowsAfterSync.length });
-    return mapFromCacheRows(rowsAfterSync);
+    const map = mapFromCacheRows(rowsAfterSync);
+    matchMapMemoryCache = { at: Date.now(), map };
+    return new Map(map);
   }
 
   debugLog("fetchMatchesMap:fallback-provider");
-  return mapFromProvider(await fetchProviderMatches());
+  const map = mapFromProvider(await fetchProviderMatches());
+  matchMapMemoryCache = { at: Date.now(), map };
+  return new Map(map);
 }
 
 function mapFromCacheRows(rows: Awaited<ReturnType<typeof readMatchesCache>>): MatchMap {

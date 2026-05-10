@@ -28,6 +28,7 @@ import {
 import bgPalpitesDesk from "@/app/assets/bg-palpites-desktop.png";
 import type { AffiliateSummary, ReferralTierId } from "./affiliate-types";
 import { formatBRLFromCents, simulateTotalForNewPaidReferrals } from "./affiliate-types";
+import { fetchAffiliateSummaryCached } from "./affiliate-summary-cache";
 import { WithdrawGanhosModal } from "./WithdrawGanhosModal";
 
 /* ─── Design tokens ─── */
@@ -191,10 +192,7 @@ export default function IndiqueGanhePage() {
     }
     setAffiliateLoading(true);
     try {
-      const r = await fetch("/api/affiliate/summary", { credentials: "include", cache: "no-store" });
-      const d = (await r.json()) as { summary?: AffiliateSummary };
-      if (r.ok && d.summary) setAffiliateSummary(d.summary);
-      else setAffiliateSummary(null);
+      setAffiliateSummary(await fetchAffiliateSummaryCached());
     } catch {
       setAffiliateSummary(null);
     } finally {
