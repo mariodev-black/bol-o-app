@@ -3,6 +3,7 @@ import { z } from "zod";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 import { createDepositTransaction, parseTicketTypeOrThrow } from "@/lib/payments/transactions";
 import {
+  calculateProgressiveDiscountTotalCents,
   expectedPurchaseAmountCents,
   getExtraTicketPriceCents,
   getTicketPriceCents,
@@ -90,10 +91,10 @@ export async function POST(request: NextRequest) {
 
     const ticketType = parseTicketTypeOrThrow(parsed.data.ticketType);
     const quantity = parsed.data.quantity;
-    const expectedAmount =
-      ticketType === "general" && quantity === 2
-        ? getTicketPriceCents("general") + getExtraTicketPriceCents()
-        : getTicketPriceCents(ticketType) * quantity;
+    const expectedAmount = calculateProgressiveDiscountTotalCents(
+      getTicketPriceCents(ticketType),
+      quantity,
+    );
     if (parsed.data.amountCents != null && parsed.data.amountCents !== expectedAmount) {
       return NextResponse.json({ error: "Valor do pedido invalido" }, { status: 400 });
     }

@@ -31,34 +31,51 @@ export function parseTicketType(input: unknown): TicketType | null {
   return null;
 }
 
-/** Uma linha de ticket no pedido (valor unitário já considera promo de 2º geral, quando aplicável). */
+export function getProgressiveDiscountPercent(quantity: number): number {
+  const q = Math.max(0, Math.trunc(quantity));
+  if (q >= 4) return 15;
+  if (q === 3) return 10;
+  if (q === 2) return 5;
+  return 0;
+}
+
+export function calculateProgressiveDiscountTotalCents(unitCents: number, quantity: number): number {
+  const q = Math.max(0, Math.trunc(quantity));
+  if (q <= 0) return 0;
+  const subtotal = unitCents * q;
+  const discount = getProgressiveDiscountPercent(q);
+  return Math.round((subtotal * (100 - discount)) / 100);
+}
+
+function distributeDiscountedTicketAmounts(unitCents: number, quantity: number): number[] {
+  const q = Math.max(0, Math.trunc(quantity));
+  if (q <= 0) return [];
+  const total = calculateProgressiveDiscountTotalCents(unitCents, q);
+  const base = Math.floor(total / q);
+  const remainder = total - base * q;
+  return Array.from({ length: q }, (_, index) => base + (index < remainder ? 1 : 0));
+}
+
+/** Uma linha de ticket no pedido (valor unitário já considera desconto progressivo, quando aplicável). */
 export type PurchaseTicketLine = { ticketType: TicketType; unitCents: number };
 
 /**
  * Monta as linhas de tickets para um carrinho (0–20 de cada tipo).
- * Regra do 2º geral: exatamente 2 tickets gerais → 1º preço cheio + 2º preço "extra" (TICKET_PRICE_EXTRA_CENTS).
+ * Desconto progressivo por tipo: 1 = 0%, 2 = 5%, 3 = 10%, 4+ = 15%.
  */
 export function buildPurchaseTicketLines(generalQty: number, dailyQty: number): PurchaseTicketLine[] {
   const g = Math.max(0, Math.min(20, Math.trunc(generalQty)));
   const d = Math.max(0, Math.min(20, Math.trunc(dailyQty)));
   const lines: PurchaseTicketLine[] = [];
   const genUnit = getTicketPriceCents("general");
-  const extraUnit = getExtraTicketPriceCents();
 
-  if (g === 1) {
-    lines.push({ ticketType: "general", unitCents: genUnit });
-  } else if (g === 2) {
-    lines.push({ ticketType: "general", unitCents: genUnit });
-    lines.push({ ticketType: "general", unitCents: extraUnit });
-  } else if (g > 2) {
-    for (let i = 0; i < g; i++) {
-      lines.push({ ticketType: "general", unitCents: genUnit });
-    }
+  for (const unitCents of distributeDiscountedTicketAmounts(genUnit, g)) {
+    lines.push({ ticketType: "general", unitCents });
   }
 
   const dailyUnit = getTicketPriceCents("daily");
-  for (let i = 0; i < d; i++) {
-    lines.push({ ticketType: "daily", unitCents: dailyUnit });
+  for (const unitCents of distributeDiscountedTicketAmounts(dailyUnit, d)) {
+    lines.push({ ticketType: "daily", unitCents });
   }
 
   return lines;
