@@ -416,7 +416,7 @@ export default function IndiqueGanhePage() {
 
   return (
     <main className="min-h-screen bg-black pb-24 text-white">
-      <section className="relative h-[190px] max-h-[190px] overflow-hidden">
+      <section className="relative h-[200px] max-h-[200px] overflow-hidden">
           <Image
             src={bannerAfiliados}
             alt="Programa de indicação Bolão do Milhão"
@@ -435,9 +435,9 @@ export default function IndiqueGanhePage() {
             </div>
 
             <div className="mt-2 max-w-[205px]">
-              <h1 className="text-[22px] font-black leading-[0.91] tracking-[-0.055em] text-white">
+              <h1 className="font-helvetica-now-display text-[22px] font-black italic uppercase leading-[0.91] tracking-[-0.055em] text-white [paint-order:stroke_fill] [-webkit-text-stroke:0.65px_rgba(255,255,255,0.95)]">
                 Indique amigos e
-                <span className="block text-primary">ganhe dinheiro!</span>
+                <span className="block text-primary [-webkit-text-stroke:0.65px_currentColor]">ganhe dinheiro!</span>
               </h1>
               <p className="mt-2 max-w-[180px] text-[9.5px] font-medium leading-snug text-white/82">
                 Cada amigo que comprar um ticket rende{" "}
