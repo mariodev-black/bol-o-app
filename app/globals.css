@@ -2,7 +2,7 @@
 
 :root {
   /* Brand palette */
-  --background: #03060D;
+  --background: #000000;
   --foreground: #e2d5b8;
   --header-bg: #060B18;
   /* shadcn CSS variables (dark theme default) */

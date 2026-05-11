@@ -425,8 +425,6 @@ export default function IndiqueGanhePage() {
             sizes="(max-width: 430px) 100vw, 430px"
             className="object-cover object-[60%_center]"
           />
-          <div className="absolute inset-0 bg-linear-to-r from-black/98 via-black/66 to-black/10" />
-          <div className="absolute inset-x-0 bottom-0 h-20 bg-linear-to-t from-black/92 via-black/38 to-transparent" />
 
           <div className="relative z-10 flex h-full flex-col p-3">
             <div className="inline-flex w-fit items-center gap-1 rounded-full border border-primary/28 bg-black/38 px-2 py-1 text-[7px] font-black uppercase tracking-widest text-primary">
