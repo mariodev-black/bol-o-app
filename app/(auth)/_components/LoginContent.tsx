@@ -93,7 +93,7 @@ export function LoginContent() {
           <span className="lg:hidden">Bem-vindo!</span>
           <span className="hidden lg:inline">Bem-vindo de volta!</span>
         </h1>
-        <p className="mt-4 text-[14px] font-medium text-white/34 lg:mt-3 lg:text-[13px]">
+        <p className="mt-4 text-[15px] font-medium text-white/50 lg:mt-3 lg:text-[14px]">
           <span className="lg:hidden">Entre na sua conta e dispute o milhão</span>
           <span className="hidden lg:inline">Entre na sua conta para continuar jogando</span>
         </p>
@@ -152,7 +152,7 @@ export function LoginContent() {
               {showPw ? <EyeOff size={17} /> : <Eye size={17} />}
             </button>
           </div>
-          <Link href="/recuperar-senha" className="self-end text-[11px] font-bold text-primary hover:underline">
+          <Link href="/recuperar-senha" className="self-end text-[13px] font-bold text-primary hover:underline">
             Esqueceu a senha?
           </Link>
         </div>
@@ -194,7 +194,7 @@ export function LoginContent() {
       </button>
       </div>
 
-      <p className="mt-[29px] text-center text-[13px] font-medium text-white/25 lg:mt-7 lg:text-[12px]">
+      <p className="mt-[29px] text-center text-[14px] font-medium text-white/45 lg:mt-7 lg:text-[14px]">
         Não tem uma conta?{" "}
         <Link
           href={signupHref}

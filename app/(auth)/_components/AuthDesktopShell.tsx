@@ -66,7 +66,9 @@ export function AuthDesktopShell({ children, variant = "split" }: AuthDesktopShe
           </div>
         </div>
 
-        <div className={`relative flex h-dvh min-h-dvh items-start justify-center overflow-y-auto overflow-x-hidden px-[26px] pb-10 pt-[10px] lg:items-center lg:px-5 lg:py-10 ${isCentered ? "bg-black" : "bg-[#050505]"}`}>
+        <div
+          className={`relative flex h-dvh min-h-dvh items-center justify-center overflow-y-auto overflow-x-hidden px-[26px] py-8 lg:px-5 lg:py-10 ${isCentered ? "bg-black" : "bg-[#050505]"}`}
+        >
           {!isCentered && (
             <>
               <Image
