@@ -427,17 +427,14 @@ export default function IndiqueGanhePage() {
           />
 
           <div className="relative z-10 flex h-full flex-col p-3">
-            <div className="inline-flex w-fit items-center gap-1 rounded-full border border-primary/28 bg-black/38 px-2 py-1 text-[7px] font-black uppercase tracking-widest text-primary">
-              <Gift className="size-2.5" strokeWidth={2.3} />
-              Programa de indicação
-            </div>
+          
 
             <div className="mt-2 max-w-[235px]">
               <h1 className="font-helvetica-now-display text-[19px] font-black italic uppercase leading-[1] tracking-[0.040em] text-white [paint-order:stroke_fill] [-webkit-text-stroke:0.65px_rgba(255,255,255,0.95)]">
                 Indique amigos e
-                <span className="mt-2 block text-primary [-webkit-text-stroke:0.65px_currentColor]">ganhe dinheiro!</span>
+                <span className="block text-primary [-webkit-text-stroke:0.65px_currentColor] text-[21px]">ganhe dinheiro!</span>
               </h1>
-              <p className="mt-2 max-w-[180px] text-[9.5px] font-medium leading-snug text-white/82">
+              <p className="mt-2 max-w-[180px] text-[11.5px] font-medium leading-snug text-white/82">
                 Cada amigo que comprar um ticket rende{" "}
                 <span className="font-black text-primary">{porIndicacaoFmt}</span> na próxima indicação paga.
               </p>
