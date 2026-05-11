@@ -298,14 +298,15 @@ export async function getAdminBoloesDashboardData(selectedDailyDate?: string | n
            CASE
              WHEN mc.result_casa IS NULL OR mc.result_visitante IS NULL THEN 0
              WHEN p.score_casa = mc.result_casa AND p.score_visitante = mc.result_visitante THEN 6
+             WHEN (p.score_casa - p.score_visitante = 0 AND mc.result_casa - mc.result_visitante = 0)
+               OR (p.score_casa - p.score_visitante > 0 AND mc.result_casa - mc.result_visitante > 0)
+               OR (p.score_casa - p.score_visitante < 0 AND mc.result_casa - mc.result_visitante < 0)
+             THEN CASE
+               WHEN p.score_casa = mc.result_casa OR p.score_visitante = mc.result_visitante THEN 4
+               ELSE 3
+             END
              ELSE
-               CASE
-                 WHEN (p.score_casa - p.score_visitante = 0 AND mc.result_casa - mc.result_visitante = 0)
-                   OR (p.score_casa - p.score_visitante > 0 AND mc.result_casa - mc.result_visitante > 0)
-                   OR (p.score_casa - p.score_visitante < 0 AND mc.result_casa - mc.result_visitante < 0)
-                 THEN 3 ELSE 0
-               END
-               + CASE WHEN p.score_casa = mc.result_casa THEN 1 ELSE 0 END
+               CASE WHEN p.score_casa = mc.result_casa THEN 1 ELSE 0 END
                + CASE WHEN p.score_visitante = mc.result_visitante THEN 1 ELSE 0 END
            END
          ) AS score_points,
@@ -320,8 +321,13 @@ export async function getAdminBoloesDashboardData(selectedDailyDate?: string | n
              )
          ) AS outcome_count,
          SUM(
-           CASE WHEN mc.result_casa IS NOT NULL AND p.score_casa = mc.result_casa THEN 1 ELSE 0 END
-           + CASE WHEN mc.result_visitante IS NOT NULL AND p.score_visitante = mc.result_visitante THEN 1 ELSE 0 END
+           CASE
+             WHEN mc.result_casa IS NULL OR mc.result_visitante IS NULL THEN 0
+             WHEN p.score_casa = mc.result_casa AND p.score_visitante = mc.result_visitante THEN 0
+             ELSE
+               CASE WHEN p.score_casa = mc.result_casa THEN 1 ELSE 0 END
+               + CASE WHEN p.score_visitante = mc.result_visitante THEN 1 ELSE 0 END
+           END
          ) AS goals_count
        FROM predictions p
        LEFT JOIN matches_cache mc ON mc.match_id = p.match_id
@@ -640,14 +646,15 @@ export async function listAdminPredictions(): Promise<AdminPredictionListItem[]>
        CASE
          WHEN mc.result_casa IS NULL OR mc.result_visitante IS NULL THEN 0
          WHEN p.score_casa = mc.result_casa AND p.score_visitante = mc.result_visitante THEN 6
+         WHEN (p.score_casa - p.score_visitante = 0 AND mc.result_casa - mc.result_visitante = 0)
+           OR (p.score_casa - p.score_visitante > 0 AND mc.result_casa - mc.result_visitante > 0)
+           OR (p.score_casa - p.score_visitante < 0 AND mc.result_casa - mc.result_visitante < 0)
+         THEN CASE
+           WHEN p.score_casa = mc.result_casa OR p.score_visitante = mc.result_visitante THEN 4
+           ELSE 3
+         END
          ELSE
-           CASE
-             WHEN (p.score_casa - p.score_visitante = 0 AND mc.result_casa - mc.result_visitante = 0)
-               OR (p.score_casa - p.score_visitante > 0 AND mc.result_casa - mc.result_visitante > 0)
-               OR (p.score_casa - p.score_visitante < 0 AND mc.result_casa - mc.result_visitante < 0)
-             THEN 3 ELSE 0
-           END
-           + CASE WHEN p.score_casa = mc.result_casa THEN 1 ELSE 0 END
+           CASE WHEN p.score_casa = mc.result_casa THEN 1 ELSE 0 END
            + CASE WHEN p.score_visitante = mc.result_visitante THEN 1 ELSE 0 END
        END AS points,
        p.submitted_at,
@@ -824,14 +831,15 @@ export async function listAdminTickets(limit = 80): Promise<AdminTicketListItem[
            CASE
              WHEN mc.result_casa IS NULL OR mc.result_visitante IS NULL THEN 0
              WHEN p.score_casa = mc.result_casa AND p.score_visitante = mc.result_visitante THEN 6
+             WHEN (p.score_casa - p.score_visitante = 0 AND mc.result_casa - mc.result_visitante = 0)
+               OR (p.score_casa - p.score_visitante > 0 AND mc.result_casa - mc.result_visitante > 0)
+               OR (p.score_casa - p.score_visitante < 0 AND mc.result_casa - mc.result_visitante < 0)
+             THEN CASE
+               WHEN p.score_casa = mc.result_casa OR p.score_visitante = mc.result_visitante THEN 4
+               ELSE 3
+             END
              ELSE
-               CASE
-                 WHEN (p.score_casa - p.score_visitante = 0 AND mc.result_casa - mc.result_visitante = 0)
-                   OR (p.score_casa - p.score_visitante > 0 AND mc.result_casa - mc.result_visitante > 0)
-                   OR (p.score_casa - p.score_visitante < 0 AND mc.result_casa - mc.result_visitante < 0)
-                 THEN 3 ELSE 0
-               END
-               + CASE WHEN p.score_casa = mc.result_casa THEN 1 ELSE 0 END
+               CASE WHEN p.score_casa = mc.result_casa THEN 1 ELSE 0 END
                + CASE WHEN p.score_visitante = mc.result_visitante THEN 1 ELSE 0 END
            END
          ) AS score_points,
@@ -846,8 +854,13 @@ export async function listAdminTickets(limit = 80): Promise<AdminTicketListItem[
              )
          ) AS outcome_count,
          SUM(
-           CASE WHEN mc.result_casa IS NOT NULL AND p.score_casa = mc.result_casa THEN 1 ELSE 0 END
-           + CASE WHEN mc.result_visitante IS NOT NULL AND p.score_visitante = mc.result_visitante THEN 1 ELSE 0 END
+           CASE
+             WHEN mc.result_casa IS NULL OR mc.result_visitante IS NULL THEN 0
+             WHEN p.score_casa = mc.result_casa AND p.score_visitante = mc.result_visitante THEN 0
+             ELSE
+               CASE WHEN p.score_casa = mc.result_casa THEN 1 ELSE 0 END
+               + CASE WHEN p.score_visitante = mc.result_visitante THEN 1 ELSE 0 END
+           END
          ) AS goals_count,
          MIN(p.submitted_at) AS first_submit_at
        FROM predictions p
@@ -1013,14 +1026,15 @@ export async function getAdminTicketDetail(ticketId: string): Promise<AdminTicke
            CASE
              WHEN mc.result_casa IS NULL OR mc.result_visitante IS NULL THEN 0
              WHEN p.score_casa = mc.result_casa AND p.score_visitante = mc.result_visitante THEN 6
+             WHEN (p.score_casa - p.score_visitante = 0 AND mc.result_casa - mc.result_visitante = 0)
+               OR (p.score_casa - p.score_visitante > 0 AND mc.result_casa - mc.result_visitante > 0)
+               OR (p.score_casa - p.score_visitante < 0 AND mc.result_casa - mc.result_visitante < 0)
+             THEN CASE
+               WHEN p.score_casa = mc.result_casa OR p.score_visitante = mc.result_visitante THEN 4
+               ELSE 3
+             END
              ELSE
-               CASE
-                 WHEN (p.score_casa - p.score_visitante = 0 AND mc.result_casa - mc.result_visitante = 0)
-                   OR (p.score_casa - p.score_visitante > 0 AND mc.result_casa - mc.result_visitante > 0)
-                   OR (p.score_casa - p.score_visitante < 0 AND mc.result_casa - mc.result_visitante < 0)
-                 THEN 3 ELSE 0
-               END
-               + CASE WHEN p.score_casa = mc.result_casa THEN 1 ELSE 0 END
+               CASE WHEN p.score_casa = mc.result_casa THEN 1 ELSE 0 END
                + CASE WHEN p.score_visitante = mc.result_visitante THEN 1 ELSE 0 END
            END
          ) AS score_points,
@@ -1035,8 +1049,13 @@ export async function getAdminTicketDetail(ticketId: string): Promise<AdminTicke
              )
          ) AS outcome_count,
          SUM(
-           CASE WHEN mc.result_casa IS NOT NULL AND p.score_casa = mc.result_casa THEN 1 ELSE 0 END
-           + CASE WHEN mc.result_visitante IS NOT NULL AND p.score_visitante = mc.result_visitante THEN 1 ELSE 0 END
+           CASE
+             WHEN mc.result_casa IS NULL OR mc.result_visitante IS NULL THEN 0
+             WHEN p.score_casa = mc.result_casa AND p.score_visitante = mc.result_visitante THEN 0
+             ELSE
+               CASE WHEN p.score_casa = mc.result_casa THEN 1 ELSE 0 END
+               + CASE WHEN p.score_visitante = mc.result_visitante THEN 1 ELSE 0 END
+           END
          ) AS goals_count,
          MIN(p.submitted_at) AS first_submit_at
        FROM predictions p
@@ -1164,14 +1183,15 @@ export async function getAdminTicketDetail(ticketId: string): Promise<AdminTicke
        CASE
          WHEN mc.result_casa IS NULL OR mc.result_visitante IS NULL THEN 0
          WHEN p.score_casa = mc.result_casa AND p.score_visitante = mc.result_visitante THEN 6
+         WHEN (p.score_casa - p.score_visitante = 0 AND mc.result_casa - mc.result_visitante = 0)
+           OR (p.score_casa - p.score_visitante > 0 AND mc.result_casa - mc.result_visitante > 0)
+           OR (p.score_casa - p.score_visitante < 0 AND mc.result_casa - mc.result_visitante < 0)
+         THEN CASE
+           WHEN p.score_casa = mc.result_casa OR p.score_visitante = mc.result_visitante THEN 4
+           ELSE 3
+         END
          ELSE
-           CASE
-             WHEN (p.score_casa - p.score_visitante = 0 AND mc.result_casa - mc.result_visitante = 0)
-               OR (p.score_casa - p.score_visitante > 0 AND mc.result_casa - mc.result_visitante > 0)
-               OR (p.score_casa - p.score_visitante < 0 AND mc.result_casa - mc.result_visitante < 0)
-             THEN 3 ELSE 0
-           END
-           + CASE WHEN p.score_casa = mc.result_casa THEN 1 ELSE 0 END
+           CASE WHEN p.score_casa = mc.result_casa THEN 1 ELSE 0 END
            + CASE WHEN p.score_visitante = mc.result_visitante THEN 1 ELSE 0 END
        END AS points,
        p.submitted_at,

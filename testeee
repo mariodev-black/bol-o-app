@@ -51,7 +51,7 @@ SKALE_POSTBACK_URL=https://bolaodomilhao.com.br/api/webhooks/skale
 SKALE_WEBHOOK_SECRET=
 
 # ─── API Futebol (partidas/tabela) ──────────────────────────────────────────
-FOOTBALL_COMPETITION_ID=72
+FOOTBALL_COMPETITION_ID=2
 FOOTBALL_API_TOKEN=
 
 # ─── Indicações (comissão após PIX do indicado pago) ─────────────────────────

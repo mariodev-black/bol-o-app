@@ -138,3 +138,45 @@ BEGIN
       CHECK (balance_source IN ('affiliate', 'wallet'));
   END IF;
 END $$;
+
+-- Premiação oficial — fechamentos e prêmios creditados.
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+CREATE TABLE IF NOT EXISTS prize_closures (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  closure_key text NOT NULL UNIQUE,
+  competition_id integer NOT NULL,
+  bolao_type text NOT NULL CHECK (bolao_type IN ('general', 'daily')),
+  date_br text,
+  status text NOT NULL DEFAULT 'processed',
+  total_revenue_cents integer NOT NULL DEFAULT 0,
+  pool_cents integer NOT NULL DEFAULT 0,
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+  processed_at timestamptz NOT NULL DEFAULT now(),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS prize_awards (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  closure_id uuid NOT NULL REFERENCES prize_closures (id) ON DELETE CASCADE,
+  user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  ticket_id text NOT NULL,
+  rank_position integer NOT NULL,
+  amount_cents integer NOT NULL,
+  total_points integer NOT NULL DEFAULT 0,
+  exact_count integer NOT NULL DEFAULT 0,
+  outcome_count integer NOT NULL DEFAULT 0,
+  goals_count integer NOT NULL DEFAULT 0,
+  best_streak integer NOT NULL DEFAULT 0,
+  transaction_id uuid,
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (closure_id, ticket_id)
+);
+
+CREATE INDEX IF NOT EXISTS prize_closures_competition_idx
+  ON prize_closures (competition_id, bolao_type);
+
+CREATE INDEX IF NOT EXISTS prize_awards_user_idx
+  ON prize_awards (user_id);

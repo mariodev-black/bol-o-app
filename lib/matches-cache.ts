@@ -1,4 +1,5 @@
 import { getPool } from "@/lib/db";
+import { processPrizeClosuresAfterMatchSync } from "@/lib/prizes/processor";
 
 export type CachedMatchRow = {
   competition_id: number;
@@ -247,6 +248,7 @@ export async function syncMatchesCache(input: {
     }
     const providerMatches = await input.fetchProviderMatches();
     await upsertMatchesCache(providerMatches);
+    void processPrizeClosuresAfterMatchSync();
     return { refreshed: true as const, reason: "synced" as const, count: providerMatches.length };
   } finally {
     const unlockClient = await pool.connect();

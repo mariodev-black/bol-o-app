@@ -93,34 +93,31 @@ const SCORE_CARD_ACCENTS = [
 
 const SCORE_RULES: ScoreRuleItem[] = [
   {
-    badge: "Placar exato Final",
-    badgeClass:
-      "rounded-full bg-[#C6FF00] px-4 py-2 text-xs font-bold uppercase tracking-wide text-[#0A1F1F] shadow-[0_2px_12px_rgba(198,255,0,0.35)]",
-    points: "10 pontos",
-  },
-  {
     badge: "Placar exato",
     badgeClass:
-      "rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-bold uppercase tracking-wide text-white backdrop-blur-sm",
+      "rounded-full bg-[#C6FF00] px-4 py-2 text-xs font-bold uppercase tracking-wide text-[#0A1F1F] shadow-[0_2px_12px_rgba(198,255,0,0.35)]",
     points: "6 pontos",
   },
   {
-    badge: "Acertar o vencedor",
+    badge: "Vencedor + gol de um time",
+    badgeSub: "(sem placar exato)",
+    badgeClass:
+      "rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-bold uppercase tracking-wide text-white backdrop-blur-sm",
+    points: "4 pontos",
+  },
+  {
+    badge: "Acertar vencedor ou empate",
+    badgeSub: "(sem placar exato)",
     badgeClass:
       "rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-bold uppercase tracking-wide text-white backdrop-blur-sm",
     points: "3 pontos",
   },
   {
-    badge: "Acertar empate",
-    badgeSub: "(sem placar exato)",
-    badgeClass: "",
-    points: "3 Pontos",
-  },
-  {
-    badge: "Acertar gols de uma equipe",
+    badge: "Acertar gols de um time",
+    badgeSub: "(se não acertar resultado)",
     badgeClass:
       "rounded-full border border-white/12 bg-black/35 px-4 py-2 text-xs font-bold uppercase tracking-wide text-white",
-    points: "+1 / por time",
+    points: "1 ponto por time",
   },
 ];
 
@@ -343,7 +340,9 @@ function LoggedInHome() {
         const response = await fetch("/api/partidas", { cache: "force-cache" });
         const data = (await response.json().catch(() => ({}))) as PartidasResponse;
         if (!response.ok) throw new Error("Falha ao carregar partidas");
+        const minUpcomingMs = Date.now() - 12 * 60 * 60 * 1000;
         const nextMatches = collectHomeMatches(data.partidas)
+          .filter((match) => matchDateMs(match) >= minUpcomingMs)
           .sort((a, b) => matchDateMs(a) - matchDateMs(b))
           .slice(0, 4);
         loggedHomeMatchesCache = { at: Date.now(), matches: nextMatches };

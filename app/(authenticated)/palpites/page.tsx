@@ -7,6 +7,7 @@ import { fetchMatchesMap } from "@/lib/football-api";
 
 const MESES = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
 type StatusJogo = "aberto" | "encerrado";
+type TabelaGrupos = PalpitesInitialData["tabela"];
 
 function formatData(dataStr?: string | null, isoStr?: string | null): string {
   const normalized = String(dataStr ?? "").trim();
@@ -144,6 +145,44 @@ function parsePartidas(faseData: Record<string, any>): PalpitesInitialData["jogo
   return jogos;
 }
 
+function parseAllPartidas(fases: Record<string, any> | undefined): {
+  jogos: PalpitesInitialData["jogos"];
+  grupos: string[];
+} {
+  if (!fases || typeof fases !== "object") return { jogos: [], grupos: [] };
+  const phaseValues = Object.values(fases).filter((value) => value && typeof value === "object") as Record<string, any>[];
+  let rodadaOffset = 0;
+  const grupos = new Set<string>();
+  const jogos = phaseValues.flatMap((faseData) => {
+    const parsed = parsePartidas(faseData).map((jogo) => {
+      if (jogo.grupo && jogo.grupo !== "GERAL") grupos.add(jogo.grupo);
+      return { ...jogo, rodada: jogo.rodada + rodadaOffset };
+    });
+    const localRodadas = parsed.map((jogo) => jogo.rodada - rodadaOffset);
+    rodadaOffset += Math.max(1, new Set(localRodadas).size);
+    return parsed;
+  });
+  return { jogos, grupos: Array.from(grupos).sort() };
+}
+
+function pickTabelaGrupos(data: any): TabelaGrupos {
+  if (!data || typeof data !== "object") return null;
+  if (data["fase-de-grupos"] && typeof data["fase-de-grupos"] === "object") {
+    return data["fase-de-grupos"] as TabelaGrupos;
+  }
+  if (Object.keys(data).some((key) => key.startsWith("grupo-"))) {
+    return data as TabelaGrupos;
+  }
+  const firstGrouped = Object.values(data).find(
+    (value) =>
+      value &&
+      typeof value === "object" &&
+      !Array.isArray(value) &&
+      Object.keys(value as Record<string, unknown>).some((key) => key.startsWith("grupo-"))
+  );
+  return (firstGrouped as TabelaGrupos) ?? null;
+}
+
 function resolveBaseUrl(h: Headers): string {
   const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
   const proto = h.get("x-forwarded-proto") ?? "http";
@@ -171,13 +210,10 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
   ]);
 
   const fases = (partidasRes.data as any)?.partidas as Record<string, any> | undefined;
-  const faseKey = fases?.["fase-de-grupos"] ? "fase-de-grupos" : (fases ? Object.keys(fases)[0] : undefined);
-  const faseSelecionada = faseKey ? fases?.[faseKey] : null;
-  const jogos = faseSelecionada && typeof faseSelecionada === "object" ? parsePartidas(faseSelecionada) : [];
+  const parsedPartidas = parseAllPartidas(fases);
+  const jogos = parsedPartidas.jogos;
   const jogosFiltrados = jogos;
-  const grupos = faseSelecionada && typeof faseSelecionada === "object"
-    ? Object.keys(faseSelecionada).filter((k) => k.startsWith("grupo-")).map((k) => k.replace("grupo-", "").toUpperCase()).sort()
-    : [];
+  const grupos = parsedPartidas.grupos;
 
   const token = c.get(sessionCookieName())?.value;
   const userId = token ? await verifySessionToken(token).catch(() => null) : null;
@@ -269,7 +305,9 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
       exactCount: number;
       outcomeCount: number;
       goalsCount: number;
+      bestStreak: number;
       firstSubmitAt: number;
+      hitSequence: Array<{ order: number; hit: boolean }>;
     }>();
     for (const p of rankingPreds) {
       const matchId = Number(p.match_id);
@@ -284,22 +322,40 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
           exactCount: 0,
           outcomeCount: 0,
           goalsCount: 0,
+          bestStreak: 0,
           firstSubmitAt: new Date(p.submitted_at).getTime(),
+          hitSequence: [],
         };
       const calc = calcPredictionPoints(p.score_casa, p.score_visitante, m.resultCasa, m.resultVisitante);
       cur.totalPoints += calc.points;
       cur.exactCount += calc.exact ? 1 : 0;
       cur.outcomeCount += calc.outcomeHit ? 1 : 0;
       cur.goalsCount += calc.goalsHitCount;
+      cur.hitSequence.push({
+        order: m.kickoffAt ? new Date(m.kickoffAt).getTime() : matchId,
+        hit: calc.points > 0,
+      });
       const sub = new Date(p.submitted_at).getTime();
       if (sub < cur.firstSubmitAt) cur.firstSubmitAt = sub;
       byTicket.set(p.ticket_id, cur);
     }
-    const rows = Array.from(byTicket.values()).sort((a, b) => {
+    const rows = Array.from(byTicket.values()).map((row) => {
+      let current = 0;
+      for (const item of row.hitSequence.sort((a, b) => a.order - b.order)) {
+        if (item.hit) {
+          current += 1;
+          row.bestStreak = Math.max(row.bestStreak, current);
+        } else {
+          current = 0;
+        }
+      }
+      return row;
+    }).sort((a, b) => {
       if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
       if (b.exactCount !== a.exactCount) return b.exactCount - a.exactCount;
       if (b.outcomeCount !== a.outcomeCount) return b.outcomeCount - a.outcomeCount;
       if (b.goalsCount !== a.goalsCount) return b.goalsCount - a.goalsCount;
+      if (b.bestStreak !== a.bestStreak) return b.bestStreak - a.bestStreak;
       return a.firstSubmitAt - b.firstSubmitAt;
     });
     rankingRows = rows.map((r, idx) => ({
@@ -317,7 +373,7 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
   return {
     ticketId,
     bolaoType,
-    tabela: ((tabelaRes.data as any)?.["fase-de-grupos"] as any) ?? null,
+    tabela: pickTabelaGrupos(tabelaRes.data as any),
     jogos: jogosFiltrados,
     grupos,
     grupo: grupos[0] ?? "GERAL",

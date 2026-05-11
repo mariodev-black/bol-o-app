@@ -73,18 +73,18 @@ export function calcPredictionPoints(
 ): { points: number; exact: boolean; outcomeHit: boolean; goalsHitCount: number } {
   const exact = predCasa === realCasa && predVisit === realVisit;
   if (exact) {
-    return { points: 6, exact: true, outcomeHit: true, goalsHitCount: 2 };
+    return { points: 6, exact: true, outcomeHit: true, goalsHitCount: 0 };
   }
 
   const predDiff = predCasa - predVisit;
   const realDiff = realCasa - realVisit;
   const outcomeHit = (predDiff === 0 && realDiff === 0) || (predDiff > 0 && realDiff > 0) || (predDiff < 0 && realDiff < 0);
   const goalsHitCount = (predCasa === realCasa ? 1 : 0) + (predVisit === realVisit ? 1 : 0);
+  if (outcomeHit) {
+    return { points: goalsHitCount > 0 ? 4 : 3, exact: false, outcomeHit: true, goalsHitCount };
+  }
 
-  let points = 0;
-  if (outcomeHit) points += 3;
-  points += goalsHitCount;
-  return { points, exact: false, outcomeHit, goalsHitCount };
+  return { points: goalsHitCount, exact: false, outcomeHit: false, goalsHitCount };
 }
 
 export type RankingTicketRow = {

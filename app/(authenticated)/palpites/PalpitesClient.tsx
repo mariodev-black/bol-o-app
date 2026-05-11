@@ -225,6 +225,41 @@ function parsePartidas(faseData: Record<string, any>): Jogo[] {
   return jogos;
 }
 
+function parseAllPartidas(fases: Record<string, any> | undefined): { jogos: Jogo[]; grupos: string[] } {
+  if (!fases || typeof fases !== "object") return { jogos: [], grupos: [] };
+  const phaseValues = Object.values(fases).filter((value) => value && typeof value === "object") as Record<string, any>[];
+  let rodadaOffset = 0;
+  const grupos = new Set<string>();
+  const jogos = phaseValues.flatMap((faseData) => {
+    const parsed = parsePartidas(faseData).map((jogo) => {
+      if (jogo.grupo && jogo.grupo !== "GERAL") grupos.add(jogo.grupo);
+      return { ...jogo, rodada: jogo.rodada + rodadaOffset };
+    });
+    const localRodadas = parsed.map((jogo) => jogo.rodada - rodadaOffset);
+    rodadaOffset += Math.max(1, new Set(localRodadas).size);
+    return parsed;
+  });
+  return { jogos, grupos: Array.from(grupos).sort() };
+}
+
+function pickTabelaGrupos(data: any): TabelaGrupos | null {
+  if (!data || typeof data !== "object") return null;
+  if (data["fase-de-grupos"] && typeof data["fase-de-grupos"] === "object") {
+    return data["fase-de-grupos"] as TabelaGrupos;
+  }
+  if (Object.keys(data).some((key) => key.startsWith("grupo-"))) {
+    return data as TabelaGrupos;
+  }
+  const firstGrouped = Object.values(data).find(
+    (value) =>
+      value &&
+      typeof value === "object" &&
+      !Array.isArray(value) &&
+      Object.keys(value as Record<string, unknown>).some((key) => key.startsWith("grupo-"))
+  );
+  return (firstGrouped as TabelaGrupos) ?? null;
+}
+
 // ── Escudo do time ────────────────────────────────────────────
 function Escudo({ url, alt, size = "md" }: { url: string; alt: string; size?: "sm" | "md" }) {
   const imgSize = size === "sm" ? "w-12 h-12" : "w-14 h-14";
@@ -1665,7 +1700,7 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
   const [loadingResumo, setLoadingResumo] = useState(false);
   const [selectedRodada, setSelectedRodada] = useState<number | null>(() => {
     if (!initialData?.jogos?.length) return null;
-    const todayStr = todayBR();
+    const todayStr = resolveDiarioPlayableDateFromJogos(initialData.jogos);
     const rodadas = Array.from(new Set(initialData.jogos.map((j: Jogo) => j.rodada))).sort((a: number, b: number) => a - b);
     return rodadas.find((r: number) => initialData.jogos.some((j: Jogo) => j.rodada === r && j.dataBR === todayStr)) ?? rodadas[0] ?? null;
   });
@@ -1677,7 +1712,7 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
     Boolean(ticketId) && loadingPredictions && Object.keys(predictionsMap).length === 0;
 
   useEffect(() => {
-    if (initialData) {
+    if (initialData && initialData.jogos.length > 0) {
       setLoading(false);
       setLoadingTabela(false);
       return;
@@ -1686,8 +1721,7 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
     fetch("/api/tabela")
       .then((r) => r.json())
       .then((data) => {
-        const fg = data?.["fase-de-grupos"];
-        if (fg) setTabela(fg);
+        setTabela(pickTabelaGrupos(data));
       })
       .catch(() => {})
       .finally(() => setLoadingTabela(false));
@@ -1703,9 +1737,8 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
           return;
         }
         const fases = data?.partidas as Record<string, any> | undefined;
-        const faseKey = fases?.["fase-de-grupos"] ? "fase-de-grupos" : (fases ? Object.keys(fases)[0] : undefined);
-        const faseSelecionada = faseKey ? fases?.[faseKey] : null;
-        if (!faseSelecionada || typeof faseSelecionada !== "object") {
+        const { jogos: parsed, grupos: letras } = parseAllPartidas(fases);
+        if (parsed.length === 0) {
           setJogos([]);
           setGrupos([]);
           setGrupo("GERAL");
@@ -1713,18 +1746,13 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
           return;
         }
 
-        const parsed = parsePartidas(faseSelecionada);
         setJogos(parsed);
-
-        const letras = Object.keys(faseSelecionada)
-          .filter((k) => k.startsWith("grupo-"))
-          .map((k) => k.replace("grupo-", "").toUpperCase())
-          .sort();
         setGrupos(letras);
         setGrupo(letras[0] ?? "GERAL");
         setErro(false);
-        // initialize the round to the one containing today's games
-        const todayDateStr = todayBR();
+        // initialize the round to today's games or, if there are no games today,
+        // the next playable daily date.
+        const todayDateStr = resolveDiarioPlayableDateFromJogos(parsed);
         const rodadasDispAll = Array.from(new Set(parsed.map((j) => j.rodada))).sort((a, b) => a - b);
         const rodadaContemHoje = rodadasDispAll.find((r) =>
           parsed.filter((j) => j.rodada === r).some((j) => j.dataBR === todayDateStr)
@@ -1915,6 +1943,46 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
     };
   });
   const showGroupedByGroup = hasBoloesFlow && bolaoType === "principal";
+  const debugInfo = {
+    ticketId,
+    bolaoType,
+    totalJogos: jogos.length,
+    diarioPlayableDate,
+    jogosBase: jogosBase.length,
+    jogosDisplayBase: jogosDisplayBase.length,
+    rodadasDisponiveis,
+    selectedRodada,
+    grupos,
+    grupo,
+    hasBoloesFlow,
+    readOnlyMode,
+    diarioLockedMode,
+    sampleDates: Array.from(new Set(jogos.map((j) => j.dataBR).filter(Boolean))).slice(0, 10),
+  };
+
+  useEffect(() => {
+    console.log("[PalpitesDebug]", debugInfo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    ticketId,
+    bolaoType,
+    jogos.length,
+    diarioPlayableDate,
+    jogosBase.length,
+    jogosDisplayBase.length,
+    selectedRodada,
+    grupo,
+    readOnlyMode,
+    diarioLockedMode,
+  ]);
+
+  useEffect(() => {
+    if (rodadasDisponiveis.length === 0) return;
+    if (selectedRodada == null || !rodadasDisponiveis.includes(selectedRodada)) {
+      setSelectedRodada(rodadasDisponiveis[0] ?? null);
+      setSelectedDate(null);
+    }
+  }, [rodadasDisponiveis, selectedRodada]);
 
   // Auto-select the nearest date with pending predictions in the current round.
   // Runs when the round changes OR when predictions first load (from empty → non-empty).
@@ -2142,6 +2210,12 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
           <div key={readOnlyMode ? `result-${resultTab}` : tab} className="animate-tab-in lg:hidden">
             {showJogos && (
               <div>
+                <details className="mb-3 rounded-xl border border-primary/20 bg-primary/5 p-3 text-[11px] text-white/70">
+                  <summary className="cursor-pointer font-black uppercase text-primary">Debug diário</summary>
+                  <pre className="mt-2 max-h-56 overflow-auto whitespace-pre-wrap wrap-break-word text-[10px] leading-relaxed">
+                    {JSON.stringify(debugInfo, null, 2)}
+                  </pre>
+                </details>
                 {erro ? (
                   <div className="flex flex-col items-center py-16">
                     <AlertTriangle className="w-10 h-10 mb-3 text-white/20" strokeWidth={1.5} />
@@ -2288,6 +2362,12 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
               </div>
             ) : jogosPorRodada.length === 0 ? (
               <div className="flex flex-col items-center py-16">
+                <details className="mb-4 w-full rounded-xl border border-primary/20 bg-primary/5 p-3 text-left text-[11px] text-white/70">
+                  <summary className="cursor-pointer font-black uppercase text-primary">Debug diário</summary>
+                  <pre className="mt-2 max-h-56 overflow-auto whitespace-pre-wrap wrap-break-word text-[10px] leading-relaxed">
+                    {JSON.stringify(debugInfo, null, 2)}
+                  </pre>
+                </details>
                 <Disc className="w-10 h-10 mb-3 text-white/20" strokeWidth={1.5} />
                 <p className="text-white/30 text-sm">
                   {bolaoType === "diario" && diarioLockedMode

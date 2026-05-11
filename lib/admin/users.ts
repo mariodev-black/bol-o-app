@@ -78,14 +78,15 @@ export async function listAdminUsers(): Promise<AdminUserListItem[]> {
            CASE
              WHEN mc.result_casa IS NULL OR mc.result_visitante IS NULL THEN 0
              WHEN p.score_casa = mc.result_casa AND p.score_visitante = mc.result_visitante THEN 6
+             WHEN (p.score_casa - p.score_visitante = 0 AND mc.result_casa - mc.result_visitante = 0)
+               OR (p.score_casa - p.score_visitante > 0 AND mc.result_casa - mc.result_visitante > 0)
+               OR (p.score_casa - p.score_visitante < 0 AND mc.result_casa - mc.result_visitante < 0)
+             THEN CASE
+               WHEN p.score_casa = mc.result_casa OR p.score_visitante = mc.result_visitante THEN 4
+               ELSE 3
+             END
              ELSE
-               CASE
-                 WHEN (p.score_casa - p.score_visitante = 0 AND mc.result_casa - mc.result_visitante = 0)
-                   OR (p.score_casa - p.score_visitante > 0 AND mc.result_casa - mc.result_visitante > 0)
-                   OR (p.score_casa - p.score_visitante < 0 AND mc.result_casa - mc.result_visitante < 0)
-                 THEN 3 ELSE 0
-               END
-               + CASE WHEN p.score_casa = mc.result_casa THEN 1 ELSE 0 END
+               CASE WHEN p.score_casa = mc.result_casa THEN 1 ELSE 0 END
                + CASE WHEN p.score_visitante = mc.result_visitante THEN 1 ELSE 0 END
            END
          ) AS score_points
@@ -189,14 +190,15 @@ export async function getAdminUserDetail(userId: string): Promise<AdminUserDetai
            CASE
              WHEN mc.result_casa IS NULL OR mc.result_visitante IS NULL THEN 0
              WHEN p.score_casa = mc.result_casa AND p.score_visitante = mc.result_visitante THEN 6
+             WHEN (p.score_casa - p.score_visitante = 0 AND mc.result_casa - mc.result_visitante = 0)
+               OR (p.score_casa - p.score_visitante > 0 AND mc.result_casa - mc.result_visitante > 0)
+               OR (p.score_casa - p.score_visitante < 0 AND mc.result_casa - mc.result_visitante < 0)
+             THEN CASE
+               WHEN p.score_casa = mc.result_casa OR p.score_visitante = mc.result_visitante THEN 4
+               ELSE 3
+             END
              ELSE
-               CASE
-                 WHEN (p.score_casa - p.score_visitante = 0 AND mc.result_casa - mc.result_visitante = 0)
-                   OR (p.score_casa - p.score_visitante > 0 AND mc.result_casa - mc.result_visitante > 0)
-                   OR (p.score_casa - p.score_visitante < 0 AND mc.result_casa - mc.result_visitante < 0)
-                 THEN 3 ELSE 0
-               END
-               + CASE WHEN p.score_casa = mc.result_casa THEN 1 ELSE 0 END
+               CASE WHEN p.score_casa = mc.result_casa THEN 1 ELSE 0 END
                + CASE WHEN p.score_visitante = mc.result_visitante THEN 1 ELSE 0 END
            END
          ), 0)

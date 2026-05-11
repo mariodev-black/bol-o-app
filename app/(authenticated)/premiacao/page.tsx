@@ -17,44 +17,44 @@ const GREEN = "#B1EB0B";
 
 const PRIZE_ROWS = [
   {
-    place: "1º",
+    place: "10",
     tone: "gold",
-    title: "Campeão",
-    subtitle: "1º lugar geral",
-    prize: "R$500.000",
-    share: "50% do prêmio total",
+    title: "Top 10",
+    subtitle: "1º ao 10º lugar",
+    prize: "45%",
+    share: "Do pool de premiação",
   },
   {
-    place: "2º",
+    place: "50",
     tone: "silver",
-    title: "Vice-campeão",
-    subtitle: "2º lugar geral",
-    prize: "R$200.000",
-    share: "20% do prêmio total",
+    title: "11º ao 50º",
+    subtitle: "Divisão igual na faixa",
+    prize: "13%",
+    share: "Do pool de premiação",
   },
   {
-    place: "3º",
+    place: "500",
     tone: "bronze",
-    title: "3º colocado",
-    subtitle: "3º lugar geral",
-    prize: "R$100.000",
-    share: "10% do prêmio total",
+    title: "51º ao 500º",
+    subtitle: "Divisão igual na faixa",
+    prize: "17%",
+    share: "Do pool de premiação",
   },
   {
-    place: "4º",
+    place: "5K",
     tone: "dark",
-    title: "4º ao 10º lugar",
-    subtitle: "Do 4º ao 10º lugar",
-    prize: "R$100.000",
-    share: "10% do prêmio total",
+    title: "501º ao 5.000º",
+    subtitle: "Divisão igual na faixa",
+    prize: "15%",
+    share: "Do pool de premiação",
   },
   {
-    place: "11º",
+    place: "10K",
     tone: "dark",
-    title: "11º ao 100º lugar",
-    subtitle: "Do 11º ao 100º lugar",
-    prize: "R$100.000",
-    share: "10% do prêmio total",
+    title: "5.001º ao 10.000º",
+    subtitle: "Divisão igual na faixa",
+    prize: "10%",
+    share: "Do pool de premiação",
   },
 ] as const;
 
@@ -72,7 +72,7 @@ const HOW_IT_WORKS = [
   {
     icon: ShieldCheck,
     title: "Receba seguro",
-    text: "A premiação é validada e paga diretamente aos vencedores.",
+    text: "A premiação é validada e creditada direto no saldo principal.",
   },
 ] as const;
 
@@ -189,6 +189,9 @@ export default function PremiacaoPage() {
             </h1>
             <span className="h-px flex-1 bg-linear-to-r from-primary/30 to-transparent" />
           </div>
+          <p className="mb-2 text-[11px] font-semibold leading-snug text-white/50">
+            O prêmio é sempre 60% da arrecadação aprovada: no geral ao fim da competição, no diário ao fim dos jogos do dia.
+          </p>
 
           <div className="overflow-hidden rounded-[17px] border border-white/10 bg-[#101010] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_16px_34px_rgba(0,0,0,0.32)]">
             {PRIZE_ROWS.map((row, index) => (
@@ -239,7 +242,7 @@ export default function PremiacaoPage() {
               Entre no ranking oficial.
             </h2>
             <p className="mt-1 text-[11px] font-medium leading-snug text-white/45">
-              Faça seus palpites e dispute o Top 100.
+              Faça seus palpites e dispute o Top 10.000 premiado.
             </p>
           </div>
 

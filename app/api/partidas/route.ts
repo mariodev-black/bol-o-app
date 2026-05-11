@@ -7,28 +7,6 @@ export const runtime = "nodejs";
 type NestedRounds = Record<string, Array<Record<string, unknown>>>;
 type PhaseMap = Record<string, NestedRounds | Record<string, NestedRounds>>;
 
-function todayBRDateMs(): number {
-  const now = new Date();
-  const br = new Intl.DateTimeFormat("pt-BR", {
-    timeZone: "America/Sao_Paulo",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(now);
-  const [d, m, y] = br.split("/");
-  return Date.UTC(Number(y), Number(m) - 1, Number(d));
-}
-
-function brDateToUtcMs(dateBR: string): number | null {
-  const [d, m, y] = String(dateBR || "").split("/");
-  if (!d || !m || !y) return null;
-  const day = Number(d);
-  const month = Number(m);
-  const year = Number(y);
-  if (!Number.isFinite(day) || !Number.isFinite(month) || !Number.isFinite(year)) return null;
-  return Date.UTC(year, month - 1, day);
-}
-
 function brDateFromIso(iso: string): string {
   const dt = new Date(iso);
   if (Number.isNaN(dt.getTime())) return "";
@@ -91,21 +69,14 @@ function rowToPartida(row: Awaited<ReturnType<typeof readMatchesCache>>[number])
 
 function buildPartidasPayload(rows: Awaited<ReturnType<typeof readMatchesCache>>) {
   const stableRows = rows.sort((a, b) => a.match_id - b.match_id);
-  const todayMs = todayBRDateMs();
-  const displayRows = stableRows.filter((row) => {
-    const dateMs = brDateToUtcMs(String(row.date_br ?? ""));
-    if (dateMs != null) return dateMs >= todayMs;
-    if (row.kickoff_at) {
-      const kickoff = new Date(row.kickoff_at).getTime();
-      if (Number.isFinite(kickoff)) return kickoff >= Date.now() - 12 * 60 * 60 * 1000;
-    }
-    return false;
-  });
+  // Bolao geral precisa enxergar a competicao inteira. O diario continua sendo
+  // limitado por data nas regras de palpites, nao aqui na API de partidas.
+  const displayRows = stableRows;
 
   const fases: PhaseMap = {};
   for (const row of displayRows) {
-    const phaseKey = row.phase_key || "fase-de-grupos";
-    const groupKey = row.group_key || "grupo-indefinido";
+    const phaseKey = row.phase_key || "geral";
+    const groupKey = row.group_key || "grupo-geral";
     const roundKey = row.round_key || "rodada-unica";
 
     if (!fases[phaseKey]) fases[phaseKey] = {};
@@ -154,7 +125,7 @@ export async function GET() {
     }
     const payload = buildPartidasPayload(rows);
     if (dbg) {
-      const phases = new Set(payload.stableRows.map((r) => r.phase_key || "fase-de-grupos"));
+      const phases = new Set(payload.stableRows.map((r) => r.phase_key || "geral"));
       const withDate = payload.stableRows.filter((r) => String(r.date_br || "").trim() !== "").length;
       const withHour = payload.stableRows.filter((r) => /^\d{2}:\d{2}$/.test(String(r.hour_br || "").slice(0, 5))).length;
       const sample = payload.displayRows.slice(0, 5).map((r) => ({

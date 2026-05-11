@@ -58,7 +58,9 @@ export async function GET(request: NextRequest) {
     exactCount: number;
     outcomeCount: number;
     goalsCount: number;
+    bestStreak: number;
     firstSubmitAt: number;
+    hitSequence: Array<{ order: number; hit: boolean }>;
   }>();
 
   for (const p of preds) {
@@ -74,23 +76,41 @@ export async function GET(request: NextRequest) {
         exactCount: 0,
         outcomeCount: 0,
         goalsCount: 0,
+        bestStreak: 0,
         firstSubmitAt: new Date(p.submitted_at).getTime(),
+        hitSequence: [],
       };
     const calc = calcPredictionPoints(p.score_casa, p.score_visitante, m.resultCasa, m.resultVisitante);
     cur.totalPoints += calc.points;
     cur.exactCount += calc.exact ? 1 : 0;
     cur.outcomeCount += calc.outcomeHit ? 1 : 0;
     cur.goalsCount += calc.goalsHitCount;
+    cur.hitSequence.push({
+      order: m.kickoffAt ? new Date(m.kickoffAt).getTime() : matchId,
+      hit: calc.points > 0,
+    });
     const sub = new Date(p.submitted_at).getTime();
     if (sub < cur.firstSubmitAt) cur.firstSubmitAt = sub;
     byTicket.set(p.ticket_id, cur);
   }
 
-  const rows = Array.from(byTicket.values()).sort((a, b) => {
+  const rows = Array.from(byTicket.values()).map((row) => {
+    let current = 0;
+    for (const item of row.hitSequence.sort((a, b) => a.order - b.order)) {
+      if (item.hit) {
+        current += 1;
+        row.bestStreak = Math.max(row.bestStreak, current);
+      } else {
+        current = 0;
+      }
+    }
+    return row;
+  }).sort((a, b) => {
     if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
     if (b.exactCount !== a.exactCount) return b.exactCount - a.exactCount;
     if (b.outcomeCount !== a.outcomeCount) return b.outcomeCount - a.outcomeCount;
     if (b.goalsCount !== a.goalsCount) return b.goalsCount - a.goalsCount;
+    if (b.bestStreak !== a.bestStreak) return b.bestStreak - a.bestStreak;
     return a.firstSubmitAt - b.firstSubmitAt;
   });
 
@@ -102,6 +122,7 @@ export async function GET(request: NextRequest) {
       exactCount: r.exactCount,
       outcomeCount: r.outcomeCount,
       goalsCount: r.goalsCount,
+      bestStreak: r.bestStreak,
       firstSubmitAt: r.firstSubmitAt,
       isMe: ticketId ? ticketId === r.ticketId : false,
     })),

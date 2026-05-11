@@ -130,7 +130,9 @@ function buildRankingMap(predictions: PredictionRow[], matches: MatchMap): Map<s
     exactCount: number;
     outcomeCount: number;
     goalsCount: number;
+    bestStreak: number;
     firstSubmitAt: number;
+    hitSequence: Array<{ order: number; hit: boolean }>;
   }>();
 
   for (const prediction of predictions) {
@@ -145,7 +147,9 @@ function buildRankingMap(predictions: PredictionRow[], matches: MatchMap): Map<s
       exactCount: 0,
       outcomeCount: 0,
       goalsCount: 0,
+      bestStreak: 0,
       firstSubmitAt: new Date(prediction.submitted_at).getTime(),
+      hitSequence: [],
     };
     const calc = calcPredictionPoints(
       prediction.score_casa,
@@ -157,15 +161,31 @@ function buildRankingMap(predictions: PredictionRow[], matches: MatchMap): Map<s
     current.exactCount += calc.exact ? 1 : 0;
     current.outcomeCount += calc.outcomeHit ? 1 : 0;
     current.goalsCount += calc.goalsHitCount;
+    current.hitSequence.push({
+      order: match.kickoffAt ? new Date(match.kickoffAt).getTime() : matchId,
+      hit: calc.points > 0,
+    });
     current.firstSubmitAt = Math.min(current.firstSubmitAt, new Date(prediction.submitted_at).getTime());
     byTicket.set(prediction.ticket_id, current);
   }
 
-  const rows = Array.from(byTicket.values()).sort((a, b) => {
+  const rows = Array.from(byTicket.values()).map((row) => {
+    let current = 0;
+    for (const item of row.hitSequence.sort((a, b) => a.order - b.order)) {
+      if (item.hit) {
+        current += 1;
+        row.bestStreak = Math.max(row.bestStreak, current);
+      } else {
+        current = 0;
+      }
+    }
+    return row;
+  }).sort((a, b) => {
     if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
     if (b.exactCount !== a.exactCount) return b.exactCount - a.exactCount;
     if (b.outcomeCount !== a.outcomeCount) return b.outcomeCount - a.outcomeCount;
     if (b.goalsCount !== a.goalsCount) return b.goalsCount - a.goalsCount;
+    if (b.bestStreak !== a.bestStreak) return b.bestStreak - a.bestStreak;
     return a.firstSubmitAt - b.firstSubmitAt;
   });
 

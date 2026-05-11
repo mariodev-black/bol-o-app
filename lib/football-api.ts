@@ -62,6 +62,84 @@ function pickScore(p: any, side: "casa" | "visitante"): number | null {
   return null;
 }
 
+type ProviderMatch = Awaited<ReturnType<typeof fetchProviderMatches>>[number];
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function isProviderPartida(value: any): boolean {
+  return (
+    value &&
+    typeof value === "object" &&
+    Number.isFinite(Number(value.partida_id)) &&
+    value.time_mandante &&
+    value.time_visitante
+  );
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapProviderPartida(p: any, phaseKey: string | null, groupKey: string | null, roundKey: string | null): ProviderMatch | null {
+  const id = Number(p?.partida_id);
+  if (!Number.isFinite(id)) return null;
+  return {
+    matchId: id,
+    phaseKey,
+    groupKey,
+    roundKey,
+    kickoffAt: parseKickoffISO(p.data_realizacao, p.hora_realizacao),
+    status: String(p?.status ?? "aberto"),
+    resultCasa: pickScore(p, "casa"),
+    resultVisitante: pickScore(p, "visitante"),
+    homeName: String(p?.time_mandante?.nome_popular ?? p?.time_mandante?.sigla ?? "CASA"),
+    homeSigla: String(p?.time_mandante?.sigla ?? p?.time_mandante?.nome_popular ?? "CASA"),
+    homeLogo: p?.time_mandante?.escudo ? String(p.time_mandante.escudo) : null,
+    awayName: String(p?.time_visitante?.nome_popular ?? p?.time_visitante?.sigla ?? "VISIT"),
+    awaySigla: String(p?.time_visitante?.sigla ?? p?.time_visitante?.nome_popular ?? "VISIT"),
+    awayLogo: p?.time_visitante?.escudo ? String(p.time_visitante.escudo) : null,
+    dateBR: String(p?.data_realizacao ?? ""),
+    hourBR: String(p?.hora_realizacao ?? ""),
+  };
+}
+
+function normalizeKey(value: string, fallback: string): string {
+  return String(value || fallback).trim() || fallback;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function collectProviderMatches(node: any, path: string[] = [], out: ProviderMatch[] = []): ProviderMatch[] {
+  if (!node) return out;
+  if (Array.isArray(node)) {
+    for (const item of node) {
+      if (isProviderPartida(item)) {
+        const mapped = mapProviderPartida(
+          item,
+          normalizeKey(path[0] ?? "geral", "geral"),
+          path.length >= 3 ? normalizeKey(path[1]!, "grupo-geral") : null,
+          normalizeKey(path[path.length - 1] ?? "rodada-unica", "rodada-unica")
+        );
+        if (mapped) out.push(mapped);
+      } else {
+        collectProviderMatches(item, path, out);
+      }
+    }
+    return out;
+  }
+  if (typeof node === "object") {
+    if (isProviderPartida(node)) {
+      const mapped = mapProviderPartida(
+        node,
+        normalizeKey(path[0] ?? "geral", "geral"),
+        path.length >= 3 ? normalizeKey(path[1]!, "grupo-geral") : null,
+        normalizeKey(path[path.length - 1] ?? "rodada-unica", "rodada-unica")
+      );
+      if (mapped) out.push(mapped);
+      return out;
+    }
+    for (const [key, value] of Object.entries(node)) {
+      collectProviderMatches(value, [...path, key], out);
+    }
+  }
+  return out;
+}
+
 export async function fetchMatchesMap(): Promise<MatchMap> {
   if (matchMapMemoryCache && Date.now() - matchMapMemoryCache.at < MATCH_MAP_MEMORY_TTL_MS) {
     debugLog("fetchMatchesMap:return-memory-cache", { count: matchMapMemoryCache.map.size });
@@ -178,90 +256,13 @@ export async function fetchProviderMatches(): Promise<
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const data = (await res.json()) as any;
-  const fases = data?.partidas as Record<string, unknown> | undefined;
-  const out: Array<{
-    matchId: number;
-    phaseKey: string | null;
-    groupKey: string | null;
-    roundKey: string | null;
-    status: string;
-    kickoffAt: string | null;
-    dateBR: string;
-    hourBR: string;
-    resultCasa: number | null;
-    resultVisitante: number | null;
-    homeName: string;
-    homeSigla: string;
-    homeLogo: string | null;
-    awayName: string;
-    awaySigla: string;
-    awayLogo: string | null;
-  }> = [];
+  const fases = data?.partidas;
+  const out = collectProviderMatches(fases);
   if (!fases) return out;
-
-  for (const [phaseKey, phaseValue] of Object.entries(fases)) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const phaseObj = phaseValue as any;
-    if (!phaseObj || typeof phaseObj !== "object") continue;
-
-    const phaseEntries = Object.entries(phaseObj);
-    for (const [sectionKey, sectionValue] of phaseEntries) {
-      if (Array.isArray(sectionValue)) {
-        // ex.: fase mata-mata com arrays diretos por rodada
-        for (const p of sectionValue as any[]) {
-          const id = Number(p?.partida_id);
-          if (!Number.isFinite(id)) continue;
-          out.push({
-            matchId: id,
-            phaseKey,
-            groupKey: null,
-            roundKey: sectionKey,
-            kickoffAt: parseKickoffISO(p.data_realizacao, p.hora_realizacao),
-            status: String(p?.status ?? "aberto"),
-            resultCasa: pickScore(p, "casa"),
-            resultVisitante: pickScore(p, "visitante"),
-            homeName: String(p?.time_mandante?.nome_popular ?? p?.time_mandante?.sigla ?? "CASA"),
-            homeSigla: String(p?.time_mandante?.sigla ?? p?.time_mandante?.nome_popular ?? "CASA"),
-            homeLogo: p?.time_mandante?.escudo ? String(p.time_mandante.escudo) : null,
-            awayName: String(p?.time_visitante?.nome_popular ?? p?.time_visitante?.sigla ?? "VISIT"),
-            awaySigla: String(p?.time_visitante?.sigla ?? p?.time_visitante?.nome_popular ?? "VISIT"),
-            awayLogo: p?.time_visitante?.escudo ? String(p.time_visitante.escudo) : null,
-            dateBR: String(p?.data_realizacao ?? ""),
-            hourBR: String(p?.hora_realizacao ?? ""),
-          });
-        }
-        continue;
-      }
-
-      if (!sectionValue || typeof sectionValue !== "object") continue;
-      const rounds = Object.entries(sectionValue as Record<string, unknown>).filter(([, value]) => Array.isArray(value));
-      for (const [roundKey, roundValue] of rounds) {
-        for (const p of roundValue as any[]) {
-          const id = Number(p?.partida_id);
-          if (!Number.isFinite(id)) continue;
-          out.push({
-            matchId: id,
-            phaseKey,
-            groupKey: sectionKey,
-            roundKey,
-            kickoffAt: parseKickoffISO(p.data_realizacao, p.hora_realizacao),
-            status: String(p?.status ?? "aberto"),
-            resultCasa: pickScore(p, "casa"),
-            resultVisitante: pickScore(p, "visitante"),
-            homeName: String(p?.time_mandante?.nome_popular ?? p?.time_mandante?.sigla ?? "CASA"),
-            homeSigla: String(p?.time_mandante?.sigla ?? p?.time_mandante?.nome_popular ?? "CASA"),
-            homeLogo: p?.time_mandante?.escudo ? String(p.time_mandante.escudo) : null,
-            awayName: String(p?.time_visitante?.nome_popular ?? p?.time_visitante?.sigla ?? "VISIT"),
-            awaySigla: String(p?.time_visitante?.sigla ?? p?.time_visitante?.nome_popular ?? "VISIT"),
-            awayLogo: p?.time_visitante?.escudo ? String(p.time_visitante.escudo) : null,
-            dateBR: String(p?.data_realizacao ?? ""),
-            hourBR: String(p?.hora_realizacao ?? ""),
-          });
-        }
-      }
-    }
-  }
-  debugLog("fetchProviderMatches:bulk-result", { count: out.length, phaseCount: Object.keys(fases).length });
+  debugLog("fetchProviderMatches:bulk-result", {
+    count: out.length,
+    phaseCount: fases && typeof fases === "object" && !Array.isArray(fases) ? Object.keys(fases).length : 1,
+  });
   if (out.length === 0) {
     const fromRounds = await fetchProviderMatchesFromRounds(compId, apiToken).catch(() => []);
     if (fromRounds.length > 0) {
@@ -279,11 +280,6 @@ type RodadaListItem = {
   _link?: string;
   proxima_rodada?: { slug?: string; rodada?: number; status?: string } | null;
 };
-
-function rodadaIsOpen(status: string | undefined): boolean {
-  const s = String(status || "").toLowerCase();
-  return s !== "encerrada";
-}
 
 function mapPartidaItem(
   p: any,
@@ -347,19 +343,20 @@ async function fetchProviderMatchesFromRounds(compId: string, apiToken: string) 
   }
   debugLog("rounds:list:ok", { count: rounds.length });
 
-  const firstOpen = rounds.find((r) => rodadaIsOpen(r.status));
-  if (!firstOpen?.slug && !firstOpen?.rodada) {
-    debugLog("rounds:first-open:not-found");
+  // Dinamico por campeonato: para o bolao geral precisamos da competicao inteira.
+  // A API Futebol expõe a lista em /campeonatos/{id}/rodadas; a partir dela
+  // buscamos cada rodada, independente de estar aberta ou encerrada.
+  const selectedRounds = rounds;
+  if (selectedRounds.length === 0) {
+    debugLog("rounds:targets:not-found");
     return [];
   }
 
   const targetRounds = new Map<string, { slug?: string; rodada?: number }>();
-  const firstOpenRef = firstOpen.slug || String(firstOpen.rodada || "");
-  if (firstOpenRef) targetRounds.set(firstOpenRef, { slug: firstOpen.slug, rodada: firstOpen.rodada });
-  const next = firstOpen.proxima_rodada;
-  if (next && rodadaIsOpen(next.status)) {
-    const nextRef = next.slug || String(next.rodada || "");
-    if (nextRef) targetRounds.set(nextRef, { slug: next.slug, rodada: next.rodada });
+  const maxRounds = Number.parseInt(process.env.FOOTBALL_ROUNDS_SYNC_LIMIT ?? "80", 10) || 80;
+  for (const round of selectedRounds.slice(0, maxRounds)) {
+    const ref = round.slug || String(round.rodada || "");
+    if (ref) targetRounds.set(ref, { slug: round.slug, rodada: round.rodada });
   }
   debugLog("rounds:targets", { targets: Array.from(targetRounds.entries()) });
 
