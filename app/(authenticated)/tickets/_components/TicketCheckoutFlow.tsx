@@ -399,7 +399,7 @@ export function TicketCheckoutFlow({
           <div className="mx-auto w-full max-w-[430px] space-y-5 px-4 pt-5">
             {/* Faixa promocional — layout alinhado ao print (fundo preto, borda neon, divisor, coluna ATÉ/25%) */}
             <div
-              className="flex items-stretch rounded-[14px] border border-primary bg-black px-3.5 py-3.5 sm:px-4 sm:py-4"
+              className="flex items-stretch rounded-[14px] border border-primary bg-[#121212] px-3.5 py-3.5 sm:px-4 sm:py-4"
               style={{
                 boxShadow:
                   "0 0 0 1px rgba(177,235,11,0.35), 0 0 28px rgba(177,235,11,0.22), inset 0 0 32px rgba(177,235,11,0.04)",
@@ -440,16 +440,16 @@ export function TicketCheckoutFlow({
               </div>
 
               {/* Direita: ATÉ / 25% / badge */}
-              <div className="flex w-[76px] shrink-0 flex-col items-center justify-center self-center pl-3 text-center sm:w-[84px] sm:pl-4">
+              <div className="flex w-[80px] shrink-0 flex-col items-center justify-center self-center pl-3 text-center sm:w-[84px]">
                 <p className="text-[10px] font-black uppercase tracking-wide text-white sm:text-[11px]">ATÉ</p>
                 <p
                   className="mt-0.5 text-[34px] font-black leading-none tracking-tight text-primary sm:text-[38px]"
                   style={{ textShadow: "0 0 22px rgba(177,235,11,0.5)" }}
                 >
-                  25%
+                  15%
                 </p>
                 <span
-                  className="mt-2 max-w-full bg-primary px-2 py-1 text-[8px] font-black uppercase leading-tight tracking-wide text-black sm:text-[9px] whitespace-nowrap"
+                  className="mt-2 w-full min-w-full bg-primary px-2 py-1 text-[8px] font-black uppercase flex justify-center items-center leading-tight tracking-wide text-black sm:text-[9px] text-center whitespace-nowrap"
                   style={{
                     clipPath: "polygon(3% 0, 97% 0, 100% 18%, 100% 82%, 97% 100%, 3% 100%, 0 82%, 0 18%)",
                   }}
