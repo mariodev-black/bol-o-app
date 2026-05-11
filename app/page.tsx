@@ -367,8 +367,7 @@ function LoggedInHome() {
     <HomePageContainer>
       <Header />
       <main className="min-h-screen bg-black pb-24 text-white">
-        <div className="mx-auto w-full max-w-[430px] px-3.5">
-          <section className="relative h-[280px] overflow-hidden rounded-[17px] border border-primary/22 bg-[#090909] shadow-[0_18px_42px_rgba(0,0,0,0.58),0_0_28px_rgba(177,235,11,0.08)]">
+      <section className="relative h-[250px] overflow-hidden">
             <Image
               src={bannerHome}
               alt="O maior bolão do Brasil"
@@ -423,6 +422,8 @@ function LoggedInHome() {
               </div>
             </div>
           </section>
+        <div className="mx-auto w-full max-w-[430px] px-3.5">
+         
 
           <section className="mt-5">
             <div className="mb-3 flex items-center justify-between gap-3">
