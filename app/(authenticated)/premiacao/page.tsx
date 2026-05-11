@@ -202,7 +202,7 @@ export default function PremiacaoPage() {
           ))}
         </section>
 
-        <section className="mt-3">
+        <section className="mt-8">
           <div className="mb-2 flex items-center gap-2">
             <Trophy className="size-4 text-primary" strokeWidth={2.35} />
             <h1 className="text-[13px] font-black uppercase tracking-[0.08em] text-white">
@@ -211,65 +211,9 @@ export default function PremiacaoPage() {
             <span className="h-px flex-1 bg-linear-to-r from-primary/30 to-transparent" />
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <article
-              className="relative col-span-2 overflow-hidden rounded-[18px] border border-primary/30 p-4 shadow-[0_0_36px_rgba(177,235,11,0.11)]"
-              style={{
-                background:
-                  "radial-gradient(circle at 82% 20%, rgba(177,235,11,0.22), transparent 34%), linear-gradient(135deg, #17230A 0%, #101010 62%, #070707 100%)",
-              }}
-            >
-              <span className="absolute -right-8 -top-10 size-28 rounded-full bg-primary/12 blur-2xl" />
-              <div className="relative flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <span
-                    className="flex size-13 shrink-0 items-center justify-center rounded-full text-[18px] font-black ring-1 ring-white/18"
-                    style={medalStyle("gold")}
-                  >
-                    1º
-                  </span>
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-primary">
-                      Campeão geral
-                    </p>
-                    <h2 className="mt-1 text-[24px] font-black leading-none text-white">
-                      R$500.000
-                    </h2>
-                    <p className="mt-1 text-[11px] font-semibold text-white/45">
-                      50% do prêmio total
-                    </p>
-                  </div>
-                </div>
-                <Crown className="size-9 shrink-0 text-primary" strokeWidth={1.8} />
-              </div>
-            </article>
-
-            {PRIZE_ROWS.slice(1).map((row) => (
-              <article
-                key={row.place}
-                className="min-h-[104px] rounded-[15px] border border-white/10 bg-[#101010] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span
-                    className="flex size-9 shrink-0 items-center justify-center rounded-full text-[13px] font-black ring-1 ring-white/12"
-                    style={medalStyle(row.tone)}
-                  >
-                    {row.place}
-                  </span>
-                  <p className="text-right text-[9px] font-bold uppercase text-white/38">
-                    {row.share}
-                  </p>
-                </div>
-                <h2 className="mt-3 truncate text-[11px] font-black uppercase tracking-[0.03em] text-white">
-                  {row.title}
-                </h2>
-                <p className="mt-1 text-[19px] font-black leading-none text-primary">
-                  {row.prize}
-                </p>
-                <p className="mt-1 truncate text-[10px] font-medium text-white/40">
-                  {row.subtitle}
-                </p>
-              </article>
+          <div className="overflow-hidden rounded-[17px] border border-white/10 bg-[#101010] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_16px_34px_rgba(0,0,0,0.32)]">
+            {PRIZE_ROWS.map((row, index) => (
+              <PrizeRow key={row.place} row={row} featured={index === 0} />
             ))}
           </div>
         </section>
