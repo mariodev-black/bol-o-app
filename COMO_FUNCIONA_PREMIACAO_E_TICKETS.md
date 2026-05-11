@@ -71,6 +71,8 @@ O pool do Bolão Geral é:
 60% do valor total dos tickets gerais pagos/aprovados
 ```
 
+Tickets diários **não** entram nessa soma (pool exclusivo do bolão principal).
+
 Exemplo:
 
 ```text
@@ -82,32 +84,29 @@ Pool de premiação: R$ 600.000
 
 O sistema monta o ranking oficial de todos os tickets gerais pagos/aprovados.
 
-Depois distribui o pool conforme as faixas:
+Depois distribui o pool por posição/pessoa até o 2.506º ticket.
 
-| Faixa | Percentual do pool |
-| --- | ---: |
-| Top 10 | 45% |
-| 11º ao 50º | 13% |
-| 51º ao 500º | 17% |
-| 501º ao 5.000º | 15% |
-| 5.001º ao 10.000º | 10% |
+Essa tabela é proporcional ao pool real. O exemplo abaixo usa um pool-base de R$ 1.000.000 apenas para facilitar o entendimento.
 
-No Top 10, a divisão é ponderada:
-
-| Posição | Percentual do pool |
-| --- | ---: |
-| 1º | 18% |
-| 2º | 8% |
-| 3º | 5% |
-| 4º | 3,5% |
-| 5º | 2,8% |
-| 6º | 2,2% |
-| 7º | 1,7% |
-| 8º | 1,4% |
-| 9º | 1,2% |
-| 10º | 1,2% |
-
-As demais faixas são divididas igualmente entre os ganhadores daquela faixa.
+| Posição | Prêmio no exemplo de R$ 1.000.000 | Percentual individual |
+| --- | ---: | ---: |
+| 1º | R$ 180.000,00 | 18,0000% |
+| 2º | R$ 90.000,00 | 9,0000% |
+| 3º | R$ 50.000,00 | 5,0000% |
+| 4º | R$ 35.000,00 | 3,5000% |
+| 5º | R$ 25.000,00 | 2,5000% |
+| 6º | R$ 18.000,00 | 1,8000% |
+| 7º | R$ 14.000,00 | 1,4000% |
+| 8º | R$ 11.000,00 | 1,1000% |
+| 9º | R$ 9.000,00 | 0,9000% |
+| 10º | R$ 7.000,00 | 0,7000% |
+| 11º ao 20º | R$ 5.052,00 cada | 0,5052% cada |
+| 21º ao 50º | R$ 2.500,00 cada | 0,2500% cada |
+| 51º ao 100º | R$ 1.200,00 cada | 0,1200% cada |
+| 101º ao 250º | R$ 600,00 cada | 0,0600% cada |
+| 251º ao 500º | R$ 300,00 cada | 0,0300% cada |
+| 501º ao 1.000º | R$ 180,00 cada | 0,0180% cada |
+| 1.001º ao 2.506º | R$ 80,00 cada | 0,0080% cada |
 
 Se tiver menos ganhadores do que posições premiadas, a sobra é redistribuída proporcionalmente entre os vencedores existentes.
 
@@ -157,34 +156,52 @@ Jogos cancelados, adiados, suspensos ou interrompidos não bloqueiam o fechament
 
 ### Como calcula o pool
 
-O pool do Bolão Diário é:
+O pool do Bolão Diário é **separado do Bolão Geral**:
 
 ```text
-60% do valor total dos tickets diários pagos/aprovados daquele dia
+60% da soma do valor pago (total_amount_cents) apenas dos tickets DIÁRIOS
+pagos/aprovados que participam daquele dia de jogos.
 ```
+
+O que **não** entra no pool diário:
+
+- Tickets do bolão geral (`ticket_type = general`), em qualquer quantidade.
+- Tickets diários de **outro** dia (outra data de primeira partida apostada).
+
+O que entra:
+
+- Somente `ticket_type = daily` com status pago ou aprovado, cuja **data do bolão diário** é aquela data (definida pela primeira partida em que o usuário apostou, igual ao ranking daquele dia).
 
 Exemplo:
 
 ```text
-Arrecadação com tickets diários do dia 12/05/2026: R$ 10.000
-Pool de premiação diário: R$ 6.000
+Soma dos valores pagos só dos tickets daily do dia 12/05/2026: R$ 10.000
+Pool de premiação diário (60%): R$ 6.000
+(o bolão geral não entra nessa conta)
 ```
 
 ### Como escolhe os ganhadores
 
 O sistema monta o ranking apenas dos tickets diários daquele dia.
 
-A distribuição usa a mesma tabela de faixas do Bolão Geral:
+A distribuição do Bolão Diário é diferente do Bolão Geral.
 
-| Faixa | Percentual do pool |
+O Diário paga apenas o Top 10. A tabela abaixo também é proporcional ao pool real.
+
+| Posição | Percentual individual da premiação |
 | --- | ---: |
-| Top 10 | 45% |
-| 11º ao 50º | 13% |
-| 51º ao 500º | 17% |
-| 501º ao 5.000º | 15% |
-| 5.001º ao 10.000º | 10% |
+| 1º | 37,5931% |
+| 2º | 18,7965% |
+| 3º | 10,4436% |
+| 4º | 7,5188% |
+| 5º | 6,2657% |
+| 6º | 5,0125% |
+| 7º | 4,1774% |
+| 8º | 3,7594% |
+| 9º | 3,3417% |
+| 10º | 3,0902% |
 
-Se houver poucos participantes, o valor que sobraria das posições vazias é redistribuído proporcionalmente entre os ganhadores existentes.
+Se houver menos de 10 participantes, a sobra das posições vazias é redistribuída proporcionalmente entre os vencedores existentes.
 
 ### Como paga
 
@@ -245,6 +262,7 @@ Ticket Geral:
 Fecha no fim do último jogo da competição.
 Pool = 60% dos tickets gerais pagos/aprovados.
 Ranking usa todos os jogos da competição.
+Premia até o 2.506º ticket.
 Prêmio cai no saldo principal do usuário.
 ```
 
@@ -254,5 +272,6 @@ Ticket Diário:
 Fecha no fim dos jogos daquele dia.
 Pool = 60% dos tickets diários pagos/aprovados daquele dia.
 Ranking usa apenas os jogos daquele dia.
+Premia apenas o Top 10.
 Prêmio cai no saldo principal do usuário.
 ```

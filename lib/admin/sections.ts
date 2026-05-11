@@ -862,6 +862,7 @@ export async function listAdminTickets(limit = 80): Promise<AdminTicketListItem[
                + CASE WHEN p.score_visitante = mc.result_visitante THEN 1 ELSE 0 END
            END
          ) AS goals_count,
+        0 AS best_streak,
          MIN(p.submitted_at) AS first_submit_at
        FROM predictions p
        LEFT JOIN matches_cache mc ON mc.match_id = p.match_id
@@ -873,7 +874,7 @@ export async function listAdminTickets(limit = 80): Promise<AdminTicketListItem[
          rb.id,
          RANK() OVER (
            PARTITION BY rb.ticket_type, rb.ranking_group
-           ORDER BY rb.score_points DESC, rb.exact_count DESC, rb.outcome_count DESC, rb.goals_count DESC, rb.first_submit_at ASC NULLS LAST
+          ORDER BY rb.score_points DESC, rb.exact_count DESC, rb.outcome_count DESC, rb.goals_count DESC, rb.best_streak DESC, rb.first_submit_at ASC NULLS LAST
          ) AS ranking_position
        FROM (
          SELECT
@@ -884,6 +885,7 @@ export async function listAdminTickets(limit = 80): Promise<AdminTicketListItem[
            COALESCE(ps.exact_count, 0) AS exact_count,
            COALESCE(ps.outcome_count, 0) AS outcome_count,
            COALESCE(ps.goals_count, 0) AS goals_count,
+          COALESCE(ps.best_streak, 0) AS best_streak,
            ps.first_submit_at
          FROM tickets t
          LEFT JOIN first_prediction_dates fpd ON fpd.ticket_id::text = t.id::text
@@ -1068,7 +1070,7 @@ export async function getAdminTicketDetail(ticketId: string): Promise<AdminTicke
          rb.id,
          RANK() OVER (
            PARTITION BY rb.ticket_type, rb.ranking_group
-           ORDER BY rb.score_points DESC, rb.exact_count DESC, rb.outcome_count DESC, rb.goals_count DESC, rb.first_submit_at ASC NULLS LAST
+          ORDER BY rb.score_points DESC, rb.exact_count DESC, rb.outcome_count DESC, rb.goals_count DESC, rb.best_streak DESC, rb.first_submit_at ASC NULLS LAST
          ) AS ranking_position
        FROM (
          SELECT
@@ -1079,6 +1081,7 @@ export async function getAdminTicketDetail(ticketId: string): Promise<AdminTicke
            COALESCE(ps.exact_count, 0) AS exact_count,
            COALESCE(ps.outcome_count, 0) AS outcome_count,
            COALESCE(ps.goals_count, 0) AS goals_count,
+          0 AS best_streak,
            ps.first_submit_at
          FROM tickets t
          LEFT JOIN all_first_prediction_dates afpd ON afpd.ticket_id::text = t.id::text

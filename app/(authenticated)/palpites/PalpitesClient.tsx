@@ -1961,31 +1961,13 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
   };
 
   useEffect(() => {
-    console.log("[PalpitesDebug]", debugInfo);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    ticketId,
-    bolaoType,
-    jogos.length,
-    diarioPlayableDate,
-    jogosBase.length,
-    jogosDisplayBase.length,
-    selectedRodada,
-    grupo,
-    readOnlyMode,
-    diarioLockedMode,
-  ]);
-
-  useEffect(() => {
     if (rodadasDisponiveis.length === 0) return;
     if (selectedRodada == null || !rodadasDisponiveis.includes(selectedRodada)) {
       setSelectedRodada(rodadasDisponiveis[0] ?? null);
       setSelectedDate(null);
     }
   }, [rodadasDisponiveis, selectedRodada]);
-
-  // Auto-select the nearest date with pending predictions in the current round.
-  // Runs when the round changes OR when predictions first load (from empty → non-empty).
+  
   const predictionsLoadedOnce = Object.keys(predictionsMap).length > 0;
   useEffect(() => {
     if (!showGroupedByGroup) return;

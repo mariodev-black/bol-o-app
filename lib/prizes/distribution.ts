@@ -1,10 +1,3 @@
-export type PrizeBand = {
-  from: number;
-  to: number;
-  poolBps: number;
-  weightsBps?: Record<number, number>;
-};
-
 export type PrizeAwardAmount = {
   rank: number;
   amountCents: number;
@@ -12,29 +5,46 @@ export type PrizeAwardAmount = {
 
 export const PRIZE_POOL_BPS = 6000;
 
-const PRIZE_BANDS: PrizeBand[] = [
-  {
-    from: 1,
-    to: 10,
-    poolBps: 4500,
-    weightsBps: {
-      1: 1800,
-      2: 800,
-      3: 500,
-      4: 350,
-      5: 280,
-      6: 220,
-      7: 170,
-      8: 140,
-      9: 120,
-      10: 120,
-    },
-  },
-  { from: 11, to: 50, poolBps: 1300 },
-  { from: 51, to: 500, poolBps: 1700 },
-  { from: 501, to: 5000, poolBps: 1500 },
-  { from: 5001, to: 10000, poolBps: 1000 },
+const PERCENT_SCALE = 1_000_000;
+
+type GeneralPrizeBand = {
+  from: number;
+  to: number;
+  weightPpm: number;
+};
+
+const GENERAL_PRIZE_BANDS: GeneralPrizeBand[] = [
+  { from: 1, to: 1, weightPpm: 180_000 },
+  { from: 2, to: 2, weightPpm: 90_000 },
+  { from: 3, to: 3, weightPpm: 50_000 },
+  { from: 4, to: 4, weightPpm: 35_000 },
+  { from: 5, to: 5, weightPpm: 25_000 },
+  { from: 6, to: 6, weightPpm: 18_000 },
+  { from: 7, to: 7, weightPpm: 14_000 },
+  { from: 8, to: 8, weightPpm: 11_000 },
+  { from: 9, to: 9, weightPpm: 9_000 },
+  { from: 10, to: 10, weightPpm: 7_000 },
+  { from: 11, to: 20, weightPpm: 5_052 },
+  { from: 21, to: 50, weightPpm: 2_500 },
+  { from: 51, to: 100, weightPpm: 1_200 },
+  { from: 101, to: 250, weightPpm: 600 },
+  { from: 251, to: 500, weightPpm: 300 },
+  { from: 501, to: 1000, weightPpm: 180 },
+  { from: 1001, to: 2506, weightPpm: 80 },
 ];
+
+const DAILY_PRIZE_WEIGHTS = [
+  90_000,
+  45_000,
+  25_000,
+  18_000,
+  15_000,
+  12_000,
+  10_000,
+  9_000,
+  8_000,
+  7_400,
+] as const;
 
 export function calculatePrizePoolCents(totalRevenueCents: number): number {
   return Math.floor(Math.max(0, Math.trunc(totalRevenueCents)) * PRIZE_POOL_BPS / 10000);
@@ -76,36 +86,37 @@ function allocateProportionalRemainder(amounts: PrizeAwardAmount[], cents: numbe
     });
 }
 
-export function calculatePrizeAwards(poolCents: number, rankedCount: number): PrizeAwardAmount[] {
+export function calculatePrizeAwards(
+  poolCents: number,
+  rankedCount: number,
+  bolaoType: "general" | "daily" = "general"
+): PrizeAwardAmount[] {
   const safePool = Math.max(0, Math.trunc(poolCents));
-  const eligibleCount = Math.max(0, Math.min(10000, Math.trunc(rankedCount)));
+  const maxRank = bolaoType === "daily" ? DAILY_PRIZE_WEIGHTS.length : 2506;
+  const eligibleCount = Math.max(0, Math.min(maxRank, Math.trunc(rankedCount)));
   if (safePool === 0 || eligibleCount === 0) return [];
 
   const awards: PrizeAwardAmount[] = [];
   let assignedCents = 0;
 
-  for (const band of PRIZE_BANDS) {
-    const winnersInBand = Math.max(0, Math.min(eligibleCount, band.to) - band.from + 1);
-    if (winnersInBand === 0) continue;
-
-    const bandCents = Math.floor(safePool * band.poolBps / 10000);
-    if (band.weightsBps) {
-      for (let rank = band.from; rank <= Math.min(band.to, eligibleCount); rank += 1) {
-        const amountCents = Math.floor(safePool * (band.weightsBps[rank] ?? 0) / 10000);
-        awards.push({ rank, amountCents });
-        assignedCents += amountCents;
-      }
-      continue;
+  if (bolaoType === "daily") {
+    const totalWeight = DAILY_PRIZE_WEIGHTS.reduce((sum, weight) => sum + weight, 0);
+    for (let idx = 0; idx < eligibleCount; idx += 1) {
+      const rank = idx + 1;
+      const amountCents = Math.floor(safePool * DAILY_PRIZE_WEIGHTS[idx]! / totalWeight);
+      awards.push({ rank, amountCents });
+      assignedCents += amountCents;
     }
+    allocateProportionalRemainder(awards, safePool - assignedCents);
+    return awards.filter((award) => award.amountCents > 0);
+  }
 
-    const perWinner = Math.floor(bandCents / winnersInBand);
-    const startLength = awards.length;
+  for (const band of GENERAL_PRIZE_BANDS) {
     for (let rank = band.from; rank <= Math.min(band.to, eligibleCount); rank += 1) {
-      awards.push({ rank, amountCents: perWinner });
-      assignedCents += perWinner;
+      const amountCents = Math.floor(safePool * band.weightPpm / PERCENT_SCALE);
+      awards.push({ rank, amountCents });
+      assignedCents += amountCents;
     }
-    allocateRemainder(awards.slice(startLength), bandCents - perWinner * winnersInBand);
-    assignedCents += bandCents - perWinner * winnersInBand;
   }
 
   allocateProportionalRemainder(awards, safePool - assignedCents);

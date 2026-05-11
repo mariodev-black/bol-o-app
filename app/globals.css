@@ -100,6 +100,69 @@ button, [role="button"] {
   cursor: pointer !important;
 }
 
+/* Toasts Bolão — entra da direita, sai rumo à esquerda */
+.bolao-toast-card {
+  will-change: transform, opacity;
+}
+
+.bolao-toast-card:not(.bolao-toast-card--leaving) {
+  animation: bolao-toast-slide-in 0.58s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.bolao-toast-card.bolao-toast-card--leaving {
+  animation: bolao-toast-slide-out 0.48s cubic-bezier(0.45, 0, 0.55, 1) forwards;
+}
+
+@keyframes bolao-toast-slide-in {
+  from {
+    opacity: 0;
+    transform: translate3d(calc(100% + 24px), 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes bolao-toast-slide-out {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(calc(-100% - 24px), 0, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bolao-toast-card:not(.bolao-toast-card--leaving) {
+    animation: bolao-toast-fade-in 0.28s ease forwards;
+  }
+
+  .bolao-toast-card.bolao-toast-card--leaving {
+    animation: bolao-toast-fade-out-rm 0.26s ease forwards;
+  }
+
+  @keyframes bolao-toast-fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes bolao-toast-fade-out-rm {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+}
+
 @keyframes marquee {
   0%   { transform: translateX(0); }
   100% { transform: translateX(-50%); }

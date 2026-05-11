@@ -165,6 +165,8 @@ async function listTicketsForClosure(
     return rows;
   }
 
+  // Pool diário: soma APENAS tickets tipo daily pagos/aprovados que participam deste dia
+  // (data da primeira partida apostada = dateBR). Não inclui ticket geral nem outros dias.
   const { rows } = await client.query<TicketRow>(
     `WITH first_prediction_dates AS (
        SELECT DISTINCT ON (p.ticket_id) p.ticket_id, mc.date_br
@@ -364,7 +366,7 @@ async function processClosure(client: PoolClient, input: { compId: number; type:
 
   const predictions = await listPredictionsForTickets(client, tickets.map((ticket) => ticket.id));
   const ranking = buildRanking({ tickets, predictions, matches: input.matches });
-  const awardAmounts = calculatePrizeAwards(poolCents, ranking.length);
+  const awardAmounts = calculatePrizeAwards(poolCents, ranking.length, input.type);
   for (const award of awardAmounts) {
     const row = ranking[award.rank - 1];
     if (!row) continue;

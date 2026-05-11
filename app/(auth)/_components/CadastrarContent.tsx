@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useBolaoToast } from "@/app/components/BolaoToast";
 import { useAuth, type AuthUser } from "@/app/shared/AuthContext";
+import { isValidCpf } from "@/lib/auth/cpf";
+import { isReasonableNationalDigits, isValidBrazilNationalDigits } from "@/lib/auth/phone";
 import { useState, useRef, useEffect, useMemo, type FormEvent } from "react";
 import { ArrowLeft, ArrowRight, Check, ChevronDown, Eye, EyeOff, FileText, Lock, Mail, Phone, Search, User } from "lucide-react";
 import * as Flags from "country-flag-icons/react/3x2";
@@ -278,9 +281,16 @@ function CountrySelector({ selected, onChange }: { selected: Country; onChange: 
 }
 
 /* ── Componente principal ──────────────────────────────────────── */
+function isValidEmailLoose(v: string): boolean {
+  const t = v.trim();
+  if (t.length < 5) return false;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t);
+}
+
 export function CadastrarContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const toast = useBolaoToast();
   const { refresh, applySessionUser } = useAuth();
   const [showPw, setShowPw]       = useState(false);
   const [showPwConfirm, setShowPwConfirm] = useState(false);
@@ -293,12 +303,9 @@ export function CadastrarContent() {
   const [phone, setPhone]         = useState("");
   const [country, setCountry]     = useState<Country>(COUNTRIES[0]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [error, setError]         = useState<string | null>(null);
-  const [notice, setNotice]       = useState<string | null>(null);
   const [loading, setLoading]     = useState(false);
   const [step, setStep]           = useState(1);
   const emailRef = useRef<HTMLDivElement>(null);
-  const errorAlertRef = useRef<HTMLParagraphElement>(null);
 
   /** Código de indicação vindo só da URL (`/cadastrar?ref=...`) — enviado no body, sem campo no formulário. */
   const referralFromUrl = useMemo(() => {
@@ -332,9 +339,27 @@ export function CadastrarContent() {
   }, []);
 
   useEffect(() => {
-    if (!error) return;
-    errorAlertRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, [error]);
+    const d = cpf.replace(/\D/g, "");
+    if (d.length !== 11) return;
+    if (!isValidCpf(d)) {
+      toast.error("CPF inválido. Verifique os números.");
+    }
+  }, [cpf, toast]);
+
+  useEffect(() => {
+    const d = phone.replace(/\D/g, "");
+    if (d.length === 0) return;
+    if (country.code === "+55") {
+      if (d.length < 10) return;
+      if (!isValidBrazilNationalDigits(d)) {
+        toast.error("Telefone inválido. Use DDD + número (celular com 9 após o DDD).");
+      }
+      return;
+    }
+    if (d.length > 15) {
+      toast.error("Número de telefone muito longo para o país selecionado.");
+    }
+  }, [phone, country.code, toast]);
 
   function handleCountryChange(c: Country) {
     setCountry(c);
@@ -364,54 +389,92 @@ export function CadastrarContent() {
   }
 
   function goToNextStep() {
-    setError(null);
-    if (step === 1) {
-      if (fullName.trim().length < 2) {
-        setError("Informe seu nome completo.");
-        return;
-      }
-      if (!email.trim()) {
-        setError("Informe seu e-mail.");
-        return;
-      }
-    }
-    if (step === 2 && cpf.replace(/\D/g, "").length !== 11) {
-      setError("Informe um CPF válido.");
+    if (step !== 1) return;
+    const nameTrim = fullName.trim();
+    if (nameTrim.length < 2) {
+      toast.error("Informe seu nome completo.");
       return;
     }
-    setStep((current) => Math.min(current + 1, 3));
+    if (!email.trim()) {
+      toast.error("Informe seu e-mail.");
+      return;
+    }
+    if (!isValidEmailLoose(email)) {
+      toast.error("Digite um e-mail válido.");
+      return;
+    }
+    const cpfDigits = cpf.replace(/\D/g, "");
+    if (cpfDigits.length !== 11) {
+      toast.error("Informe os 11 dígitos do CPF.");
+      return;
+    }
+    if (!isValidCpf(cpfDigits)) {
+      toast.error("CPF inválido. Confira os dígitos.");
+      return;
+    }
+    const phoneDigits = phone.replace(/\D/g, "");
+    if (phoneDigits.length > 0) {
+      if (country.code === "+55") {
+        if (!isValidBrazilNationalDigits(phoneDigits)) {
+          toast.error("Telefone inválido para o Brasil.");
+          return;
+        }
+      } else if (!isReasonableNationalDigits(phoneDigits)) {
+        toast.error("Número de telefone incompleto ou inválido.");
+        return;
+      }
+    }
+    setStep(2);
   }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    setError(null);
     if (!accepted) {
-      setError("Confirme que tem mais de 18 anos e aceite os termos.");
+      toast.error("Confirme que tem mais de 18 anos e aceite os termos.");
       return;
     }
     const nameTrim = fullName.trim();
     if (nameTrim.length < 2) {
-      setError("Informe seu nome completo.");
-      return;
-    }
-    if (!email.trim()) {
-      setError("Informe seu e-mail.");
+      toast.error("Informe seu nome completo.");
       setStep(1);
       return;
     }
-    if (cpf.replace(/\D/g, "").length !== 11) {
-      setError("Informe um CPF válido.");
-      setStep(2);
+    if (!email.trim()) {
+      toast.error("Informe seu e-mail.");
+      setStep(1);
       return;
     }
+    if (!isValidEmailLoose(email)) {
+      toast.error("Digite um e-mail válido.");
+      setStep(1);
+      return;
+    }
+    const cpfDigits = cpf.replace(/\D/g, "");
+    if (cpfDigits.length !== 11 || !isValidCpf(cpfDigits)) {
+      toast.error("Informe um CPF válido.");
+      setStep(1);
+      return;
+    }
+    const phoneDigitsCheck = phone.replace(/\D/g, "");
+    if (phoneDigitsCheck.length > 0) {
+      if (country.code === "+55") {
+        if (!isValidBrazilNationalDigits(phoneDigitsCheck)) {
+          toast.error("Telefone inválido para o Brasil.");
+          setStep(1);
+          return;
+        }
+      } else if (!isReasonableNationalDigits(phoneDigitsCheck)) {
+        toast.error("Número de telefone incompleto ou inválido.");
+        setStep(1);
+        return;
+      }
+    }
     if (password.length < 8) {
-      setError("Crie uma senha com pelo menos 8 caracteres.");
-      setStep(3);
+      toast.error("Crie uma senha com pelo menos 8 caracteres.");
       return;
     }
     if (password !== confirmPassword) {
-      setError("As senhas não coincidem. Digite a mesma senha nos dois campos.");
-      setStep(3);
+      toast.error("As senhas não coincidem. Digite a mesma senha nos dois campos.");
       return;
     }
     const digits = phone.replace(/\D/g, "");
@@ -438,11 +501,11 @@ export function CadastrarContent() {
       try {
         data = raw ? (JSON.parse(raw) as typeof data) : {};
       } catch {
-        setError("Não foi possível ler a resposta do servidor. Tente novamente.");
+        toast.error("Não foi possível ler a resposta do servidor. Tente novamente.");
         return;
       }
       if (!r.ok) {
-        setError(
+        toast.error(
           typeof data.error === "string" && data.error.trim().length > 0
             ? data.error
             : "Não foi possível criar a conta."
@@ -455,26 +518,26 @@ export function CadastrarContent() {
         await refresh();
       }
       if (data.referralWarning) {
-        setNotice(data.referralWarning);
-        await new Promise((resolve) => setTimeout(resolve, 2200));
+        toast.info(data.referralWarning);
+        await new Promise((resolve) => setTimeout(resolve, 900));
       }
       router.replace(safeReturnPath(fromParam) ?? "/tickets");
     } catch {
-      setError("Erro de rede. Tente novamente.");
+      toast.error("Erro de rede. Tente novamente.");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="w-full py-8 lg:py-0">
+    <form onSubmit={handleSubmit} noValidate className="w-full py-8 lg:py-0">
       <div className="mb-6 flex items-center justify-between">
         <Link href={loginHref} className="inline-flex items-center gap-1.5 text-[11px] font-bold text-white/35 transition-colors hover:text-white/70">
           <ArrowLeft className="h-3.5 w-3.5" />
           Ir para login
         </Link>
         <div className="flex items-center gap-2">
-          {[1, 2, 3].map((item) => (
+          {[1, 2].map((item) => (
             <div key={item} className="flex items-center gap-2">
               <span
                 className={`flex h-[26px] min-w-[26px] items-center justify-center rounded-full border text-[11px] font-black ${
@@ -487,7 +550,7 @@ export function CadastrarContent() {
               >
                 {step > item ? <Check className="h-3.5 w-3.5" /> : item}
               </span>
-              {item < 3 && <span className="h-px w-5 bg-white/10" />}
+              {item < 2 && <span className="h-px w-5 bg-white/10" />}
             </div>
           ))}
         </div>
@@ -495,29 +558,14 @@ export function CadastrarContent() {
 
       <div className="mb-[18px]">
         <h1 className="text-[28px] font-black leading-none tracking-[-0.035em] text-white">
-          {step === 1 ? "Crie sua conta" : step === 2 ? "Complete seus dados" : "Finalize o cadastro"}
+          {step === 1 ? "Crie sua conta" : "Senha e termos"}
         </h1>
-        <p className="mt-3 text-[13px] font-medium text-white/34">
-          {step === 1 ? "Preencha seus dados básicos para começar" : step === 2 ? "Precisamos desses dados para validar sua conta" : "Crie sua senha e aceite os termos para jogar"}
+        <p className="mt-3 text-[14px] font-medium text-white/50">
+          {step === 1
+            ? "Seus dados e forma de contato — em poucos passos você entra no bolão"
+            : "Defina uma senha forte e aceite os termos para jogar"}
         </p>
       </div>
-
-      {error && (
-        <p
-          ref={errorAlertRef}
-          role="alert"
-          aria-live="assertive"
-          className="mb-4 rounded-[8px] border border-red-400/25 bg-red-950/25 px-3.5 py-3 text-[13px] font-semibold text-red-200"
-        >
-          {error}
-        </p>
-      )}
-
-      {notice && (
-        <p role="status" className="mb-4 rounded-[8px] border border-yellow-300/30 bg-yellow-950/30 px-3.5 py-3 text-[13px] font-semibold text-yellow-100">
-          {notice}
-        </p>
-      )}
 
       <div className="min-h-[206px] rounded-[16px] border border-white/8 bg-[#151515] p-[22px] shadow-[0_18px_42px_rgba(0,0,0,0.28)]">
         {step === 1 && (
@@ -577,6 +625,45 @@ export function CadastrarContent() {
               )}
             </div>
 
+            <div className="flex flex-col gap-[10px]">
+              <label className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">CPF</label>
+              <div className="relative">
+                <FileText className="pointer-events-none absolute left-[17px] top-1/2 h-[15px] w-[15px] -translate-y-1/2 text-white/32" />
+                <input
+                  className="auth-input"
+                  style={{ paddingLeft: 46 }}
+                  type="tel"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  placeholder="123.456.789-00"
+                  value={cpf}
+                  onChange={(e) => setCpf(maskCPF(e.target.value))}
+                  disabled={loading}
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-[10px]">
+              <label className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">Telefone</label>
+              <div className="flex w-full gap-2">
+                <CountrySelector selected={country} onChange={handleCountryChange} />
+                <div className="relative min-w-0 flex-1">
+                  <Phone className="pointer-events-none absolute left-[17px] top-1/2 h-[15px] w-[15px] -translate-y-1/2 text-white/32" />
+                  <input
+                    className="auth-input"
+                    style={{ paddingLeft: 46 }}
+                    type="tel"
+                    autoComplete="tel"
+                    placeholder={country.code === "+55" ? "(11) 99999-9999" : "Telefone"}
+                    value={phone}
+                    onChange={(e) => setPhone(maskPhone(e.target.value, country.code))}
+                    disabled={loading}
+                  />
+                </div>
+              </div>
+              <p className="text-[11px] font-medium text-white/28">Opcional. Se informar, validamos na hora.</p>
+            </div>
+
             <div className="flex items-center gap-3">
               <div className="h-px flex-1 bg-white/7" />
               <span className="text-[10px] font-semibold uppercase text-white/18">ou</span>
@@ -601,46 +688,6 @@ export function CadastrarContent() {
         )}
 
         {step === 2 && (
-          <div className="flex flex-col gap-[18px]">
-            <div className="flex flex-col gap-[10px]">
-              <label className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">CPF</label>
-              <div className="relative">
-                <FileText className="pointer-events-none absolute left-[17px] top-1/2 h-[15px] w-[15px] -translate-y-1/2 text-white/32" />
-                <input
-                  className="auth-input"
-                  style={{ paddingLeft: 46 }}
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="123.456.789-00"
-                  value={cpf}
-                  onChange={(e) => setCpf(maskCPF(e.target.value))}
-                  disabled={loading}
-                />
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-[10px]">
-              <label className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">Telefone</label>
-              <div className="flex w-full gap-2">
-                <CountrySelector selected={country} onChange={handleCountryChange} />
-                <div className="relative min-w-0 flex-1">
-                  <Phone className="pointer-events-none absolute left-[17px] top-1/2 h-[15px] w-[15px] -translate-y-1/2 text-white/32" />
-                  <input
-                    className="auth-input"
-                    style={{ paddingLeft: 46 }}
-                    type="tel"
-                    placeholder={country.code === "+55" ? "(11) 99999-9999" : "Telefone"}
-                    value={phone}
-                    onChange={(e) => setPhone(maskPhone(e.target.value, country.code))}
-                    disabled={loading}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {step === 3 && (
           <div className="flex flex-col gap-[18px]">
             <div className="flex flex-col gap-[10px]">
               <label className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">Senha</label>
@@ -721,8 +768,7 @@ export function CadastrarContent() {
           <button
             type="button"
             onClick={() => {
-              setError(null);
-              if (step === 3) setConfirmPassword("");
+              if (step === 2) setConfirmPassword("");
               setStep((current) => current - 1);
             }}
             disabled={loading}
@@ -732,14 +778,14 @@ export function CadastrarContent() {
             <ArrowLeft className="h-4 w-4" />
           </button>
         )}
-        {step < 3 ? (
+        {step < 2 ? (
           <button
             type="button"
             onClick={goToNextStep}
             disabled={loading}
             className="flex h-[48px] flex-1 items-center justify-center gap-2 rounded-[10px] bg-primary text-[13px] font-black text-[#0E141B] shadow-[0_0_24px_rgba(177,235,11,0.42)] transition-transform active:scale-[0.99] disabled:cursor-wait disabled:opacity-75"
           >
-            Continuar para o próximo passo
+            Continuar para senha e termos
             <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
           </button>
         ) : (
@@ -754,7 +800,7 @@ export function CadastrarContent() {
         )}
       </div>
 
-      <p className="mt-[18px] text-center text-[12px] font-medium text-white/25">
+      <p className="mt-[18px] text-center text-[14px] font-medium text-white/35">
         Já tem uma conta?{" "}
         <Link href={loginHref} className="font-black text-primary hover:underline">Entrar agora</Link>
       </p>

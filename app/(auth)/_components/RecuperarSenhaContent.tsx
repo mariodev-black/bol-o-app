@@ -32,7 +32,7 @@ export function RecuperarSenhaContent() {
         <h1 className="text-[28px] font-black leading-none tracking-[-0.035em] text-white">
           Recuperar senha
         </h1>
-        <p className="mt-3 text-[13px] font-medium text-white/34">
+        <p className="mt-3 text-[14px] font-medium text-white/50">
           Informe seu e-mail para receber as instruções
         </p>
       </div>
@@ -80,7 +80,7 @@ export function RecuperarSenhaContent() {
         {sent ? <Check className="h-4 w-4" strokeWidth={2.5} /> : <ArrowRight className="h-4 w-4" strokeWidth={2.5} />}
       </button>
 
-      <p className="mt-[18px] text-center text-[12px] font-medium text-white/25">
+      <p className="mt-[18px] text-center text-[14px] font-medium text-white/35">
         Lembrou sua senha?{" "}
         <Link href="/login" className="font-black text-primary hover:underline">Entrar agora</Link>
       </p>
