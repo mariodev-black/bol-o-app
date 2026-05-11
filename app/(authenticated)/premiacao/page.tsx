@@ -181,28 +181,7 @@ export default function PremiacaoPage() {
         />
       </section>
       <div className="relative mx-auto w-full max-w-[430px] px-3 sm:max-w-[960px] sm:px-6 lg:px-8">
-        <section className="mt-3 grid grid-cols-3 gap-2">
-          {[
-            { label: "Prêmio total", value: "R$1M", icon: Gift },
-            { label: "Campeão", value: "R$500K", icon: Crown },
-            { label: "Top 100", value: "Pago", icon: ShieldCheck },
-          ].map(({ label, value, icon: Icon }) => (
-            <article
-              key={label}
-              className="rounded-[14px] border border-white/10 bg-[#101010] px-2.5 py-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
-            >
-              <Icon className="mx-auto size-4 text-primary" strokeWidth={2.35} />
-              <p className="mt-1.5 text-[17px] font-black leading-none text-white">
-                {value}
-              </p>
-              <p className="mt-1 truncate text-[9px] font-bold uppercase tracking-[0.06em] text-white/40">
-                {label}
-              </p>
-            </article>
-          ))}
-        </section>
-
-        <section className="mt-8">
+        <section className="mt-4">
           <div className="mb-2 flex items-center gap-2">
             <Trophy className="size-4 text-primary" strokeWidth={2.35} />
             <h1 className="text-[13px] font-black uppercase tracking-[0.08em] text-white">

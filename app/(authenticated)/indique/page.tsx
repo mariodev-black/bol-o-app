@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useMemo } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useAuth } from "@/app/shared/AuthContext";
 import {
   Gift,
@@ -26,6 +27,7 @@ import {
   CircleDollarSign,
 } from "lucide-react";
 import bgPalpitesDesk from "@/app/assets/bg-palpites-desktop.png";
+import bannerAfiliados from "@/app/assets/banner-afiliados.png";
 import type { AffiliateSummary, ReferralTierId } from "./affiliate-types";
 import { formatBRLFromCents, simulateTotalForNewPaidReferrals } from "./affiliate-types";
 import { fetchAffiliateSummaryCached } from "./affiliate-summary-cache";
@@ -411,6 +413,216 @@ export default function IndiqueGanhePage() {
       setTimeout(() => setCopied(false), 2200);
     }
   }, [copyReferralLink, signupLink]);
+
+  return (
+    <main className="min-h-screen bg-black pb-24 text-white">
+      <section className="relative h-[190px] max-h-[190px] overflow-hidden">
+          <Image
+            src={bannerAfiliados}
+            alt="Programa de indicação Bolão do Milhão"
+            fill
+            priority
+            sizes="(max-width: 430px) 100vw, 430px"
+            className="object-cover object-[60%_center]"
+          />
+          <div className="absolute inset-0 bg-linear-to-r from-black/98 via-black/66 to-black/10" />
+          <div className="absolute inset-x-0 bottom-0 h-20 bg-linear-to-t from-black/92 via-black/38 to-transparent" />
+
+          <div className="relative z-10 flex h-full flex-col p-3">
+            <div className="inline-flex w-fit items-center gap-1 rounded-full border border-primary/28 bg-black/38 px-2 py-1 text-[7px] font-black uppercase tracking-widest text-primary">
+              <Gift className="size-2.5" strokeWidth={2.3} />
+              Programa de indicação
+            </div>
+
+            <div className="mt-2 max-w-[205px]">
+              <h1 className="text-[22px] font-black leading-[0.91] tracking-[-0.055em] text-white">
+                Indique amigos e
+                <span className="block text-primary">ganhe dinheiro!</span>
+              </h1>
+              <p className="mt-2 max-w-[180px] text-[9.5px] font-medium leading-snug text-white/82">
+                Cada amigo que comprar um ticket rende{" "}
+                <span className="font-black text-primary">{porIndicacaoFmt}</span> na próxima indicação paga.
+              </p>
+            </div>
+
+            <div className="mt-auto grid grid-cols-2 gap-1.5">
+              <div className="flex h-[48px] items-center gap-2 rounded-[9px] border border-white/10 bg-black/52 px-2 backdrop-blur-[2px]">
+                <Trophy className="size-4 shrink-0 text-[#C47A37]" strokeWidth={2.2} />
+                <div className="min-w-0">
+                  <p className="text-[6.5px] font-black uppercase tracking-widest text-white/38">Seu nível atual</p>
+                  <p className="mt-0.5 truncate text-[14px] font-black leading-none text-[#D48A4A]">{currentTierLabel}</p>
+                </div>
+              </div>
+              <div className="flex h-[48px] items-center gap-2 rounded-[9px] border border-white/10 bg-black/52 px-2 backdrop-blur-[2px]">
+                <CircleDollarSign className="size-4 shrink-0 text-primary" strokeWidth={2.2} />
+                <div className="min-w-0">
+                  <p className="text-[6.5px] font-black uppercase tracking-widest text-white/38">Você ganha</p>
+                  <p className="mt-0.5 truncate text-[15px] font-black leading-none text-primary">{porIndicacaoFmt}</p>
+                  <p className="mt-0.5 text-[6.5px] font-medium text-white/48">por indicação</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      <div className="mx-auto w-full max-w-[430px] px-3.5">
+        
+
+        <section className="mt-3 rounded-[14px] border border-primary/22 bg-primary/8 p-3 shadow-[0_0_24px_rgba(177,235,11,0.08)]">
+          <div className="flex items-center gap-3">
+            <Zap className="size-6 shrink-0 text-primary" strokeWidth={2.3} />
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-medium text-white/72">
+                Faltam <span className="font-black text-white">{remainingToNext}</span> indicações para{" "}
+                <span className="font-black text-white">{nextTierLabelStr}</span> — ganhe{" "}
+                <span className="font-black text-primary">{nextTierRewardFmt}/ind.</span>
+              </p>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-black/45">
+                <div
+                  className="h-full rounded-full bg-primary shadow-[0_0_18px_rgba(177,235,11,0.5)]"
+                  style={{ width: `${Math.max(4, tierBarPct)}%` }}
+                />
+              </div>
+            </div>
+            <span className="rounded-full border border-primary/20 bg-black/35 px-2 py-1 text-[10px] font-black text-primary">
+              {paidIndicacoes}/{nextTierMin}
+            </span>
+          </div>
+        </section>
+
+        <section className="mt-4">
+          <p className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-white/26">Seu progresso</p>
+          <div className="grid grid-cols-3 gap-2.5">
+            {[
+              { icon: MousePointerClick, value: affiliateSummary?.signupReferralsCount ?? 0, label: "Cliques" },
+              { icon: UserPlus, value: paidIndicacoes, label: "Pagas" },
+              { icon: Wallet, value: totalRecebidoFmt, label: "Ganhos", highlight: true },
+            ].map(({ icon: Icon, value, label, highlight }) => (
+              <article
+                key={label}
+                className={`rounded-[13px] border p-3 text-center ${
+                  highlight ? "border-primary/30 bg-primary/7" : "border-white/10 bg-[#101010]"
+                }`}
+              >
+                <Icon className={`mx-auto size-5 ${highlight ? "text-primary" : "text-white/45"}`} strokeWidth={2.15} />
+                <p className={`mt-3 truncate text-[22px] font-black leading-none ${highlight ? "text-primary" : "text-white"}`}>
+                  {value}
+                </p>
+                <p className="mt-1 text-[9px] font-black uppercase tracking-[0.08em] text-white/40">{label}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <button
+          type="button"
+          onClick={() => setWithdrawModalOpen(true)}
+          className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-[12px] border border-primary/22 bg-[#101010] text-[13px] font-black text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] active:scale-[0.99]"
+        >
+          <CircleDollarSign className="size-4" strokeWidth={2.3} />
+          Sacar ganhos
+        </button>
+
+        <section className="mt-3 grid gap-3 sm:grid-cols-2">
+          <article className="rounded-[15px] border border-white/10 bg-[#101010] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/34">Seu código</p>
+            <div className="mt-4 flex items-center justify-between gap-3">
+              <p className="truncate text-[18px] font-black tracking-[0.16em] text-white">{code || "------"}</p>
+              <button
+                type="button"
+                onClick={handleCopyCode}
+                className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-[9px] border border-white/10 bg-black/30 px-3 text-[10px] font-bold text-white/70"
+              >
+                <Copy className="size-3.5" />
+                {codeCopied ? "Copiado" : "Copiar"}
+              </button>
+            </div>
+            <p className="mt-5 text-[10px] font-medium text-white/35">Compartilhe seu link</p>
+            <div className="mt-2 truncate rounded-[9px] border border-white/8 bg-black/35 px-3 py-2 text-[10px] text-white/32">
+              {signupLink || "Gerando link..."}
+            </div>
+            <div className="mt-3 grid grid-cols-[minmax(0,1fr)_44px] gap-2">
+              <button
+                type="button"
+                onClick={handleCopy}
+                className="flex h-11 items-center justify-center gap-2 rounded-[10px] bg-primary text-[12px] font-black text-black active:scale-[0.99]"
+              >
+                <Copy className="size-4" />
+                {copied ? "Link copiado" : "Copiar link"}
+              </button>
+              <button
+                type="button"
+                onClick={openWhatsAppInvite}
+                className="flex h-11 items-center justify-center rounded-[10px] border border-white/10 bg-black/30 text-[#25D366]"
+                aria-label="Enviar no WhatsApp"
+              >
+                <Share2 className="size-5" />
+              </button>
+            </div>
+          </article>
+
+          <article className="rounded-[15px] border border-white/10 bg-[#101010] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/34">Jornada de níveis</p>
+            <div className="relative mt-5 grid grid-cols-4 gap-2">
+              <span className="absolute left-[12.5%] right-[12.5%] top-5 h-px bg-white/10" />
+              <span
+                className="absolute left-[12.5%] top-5 h-px bg-primary"
+                style={{ width: `${Math.min(75, Math.max(0, lineProgressPct * 0.75))}%` }}
+              />
+              {tierRows.map(({ label, threshold, active, completed, color, Icon }) => (
+                <div key={label} className="relative z-1 flex flex-col items-center text-center">
+                  <span
+                    className="flex size-10 items-center justify-center rounded-full border bg-[#101010]"
+                    style={{
+                      borderColor: active || completed ? color : "rgba(255,255,255,0.12)",
+                      color: active || completed ? color : "rgba(255,255,255,0.28)",
+                    }}
+                  >
+                    <Icon className="size-4" strokeWidth={2.2} />
+                  </span>
+                  <p className="mt-2 text-[9px] font-black text-white/72">{label}</p>
+                  <p className="mt-0.5 text-[8px] font-medium text-white/36">{threshold}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-5 grid grid-cols-[1fr_28px_1fr] items-center rounded-[12px] border border-white/8 bg-black/24 p-3">
+              <div>
+                <p className="text-[9px] font-black uppercase text-white/35">Agora</p>
+                <p className="mt-1 text-[19px] font-black leading-none text-primary">{porIndicacaoFmt}</p>
+                <p className="mt-1 text-[9px] text-white/42">por indicação</p>
+              </div>
+              <span className="text-center text-white/25">→</span>
+              <div className="text-right">
+                <p className="text-[9px] font-black uppercase text-white/35">No {nextTierLabelStr}</p>
+                <p className="mt-1 text-[19px] font-black leading-none text-white">{nextTierRewardFmt}</p>
+                <p className="mt-1 text-[9px] text-white/42">por indicação</p>
+              </div>
+            </div>
+            <p className="mt-3 text-[10px] font-medium text-white/40">
+              {paidIndicacoes} de {nextTierMin} indicações pagas · +{remainingToNext} para {nextTierLabelStr}
+            </p>
+          </article>
+        </section>
+
+        <section className="mt-3 rounded-[15px] border border-white/10 bg-[#101010] p-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/34">Atividade recente</p>
+          <ReferralActivityList
+            commissions={affiliateSummary?.commissionActivity ?? []}
+            pendingSignups={affiliateSummary?.pendingSignupReferrals ?? []}
+            loading={affiliateLoading}
+          />
+        </section>
+      </div>
+
+      <WithdrawGanhosModal
+        open={withdrawModalOpen}
+        onOpenChange={setWithdrawModalOpen}
+        summary={affiliateSummary}
+        summaryLoading={affiliateLoading}
+        onReloadSummary={reloadAffiliateSummary}
+      />
+    </main>
+  );
 
   return (
     <div className="min-h-screen pb-8">
