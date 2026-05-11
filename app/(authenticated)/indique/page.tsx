@@ -444,14 +444,14 @@ export default function IndiqueGanhePage() {
               <div className="flex h-[48px] items-center gap-2 rounded-[9px] border border-white/10 bg-black/52 px-2 backdrop-blur-[2px]">
                 <Trophy className="size-4 shrink-0 text-[#C47A37]" strokeWidth={2.2} />
                 <div className="min-w-0">
-                  <p className="text-[6.5px] font-black uppercase tracking-widest text-white/38">Seu nível atual</p>
+                  <p className="text-[8px] font-black uppercase tracking-widest text-white/80">Seu nível atual</p>
                   <p className="mt-0.5 truncate text-[14px] font-black leading-none text-[#D48A4A]">{currentTierLabel}</p>
                 </div>
               </div>
               <div className="flex h-[48px] items-center gap-2 rounded-[9px] border border-white/10 bg-black/52 px-2 backdrop-blur-[2px]">
                 <CircleDollarSign className="size-4 shrink-0 text-primary" strokeWidth={2.2} />
                 <div className="min-w-0">
-                  <p className="text-[6.5px] font-black uppercase tracking-widest text-white/38">Você ganha</p>
+                  <p className="text-[8px] font-black uppercase tracking-widest text-white/80">Você ganha</p>
                   <p className="mt-0.5 truncate text-[15px] font-black leading-none text-primary">{porIndicacaoFmt}</p>
                   <p className="mt-0.5 text-[6.5px] font-medium text-white/48">por indicação</p>
                 </div>
