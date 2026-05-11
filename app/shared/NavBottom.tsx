@@ -11,7 +11,7 @@ import logo from "@/app/assets/logo.svg";
 import homeIcon from "@/app/assets/navbottom/home.svg";
 import afiliadoIcon from "@/app/assets/navbottom/afiliado.svg";
 import myBoloesIcon from "@/app/assets/navbottom/meus-bolao.svg";
-import profileIcon from "@/app/assets/navbottom/perfil.svg";
+import rankingIcon from "@/app/assets/navbottom/ranking.svg";
 import premiacaoIcon from "@/app/assets/navbottom/premiacao.svg";
 
 const BOTTOM_ITEMS_PROFILE = [
@@ -19,7 +19,7 @@ const BOTTOM_ITEMS_PROFILE = [
   { label: "Afiliado", href: "/indique", icon: afiliadoIcon, iconSize: 22 },
   { label: "Meus Bolões", href: "/boloes", icon: myBoloesIcon, iconSize: 25 },
   { label: "Premiação", href: "/premiacao", icon: premiacaoIcon, iconSize: 22 },
-  { label: "Perfil", href: "/perfil", icon: profileIcon, iconSize: 21 },
+  { label: "Ranking", href: "/ranking", icon: rankingIcon, iconSize: 21 },
 ] as const;
 
 const BOTTOM_ITEMS_PUBLIC = [
@@ -27,7 +27,7 @@ const BOTTOM_ITEMS_PUBLIC = [
   { label: "Afiliado", href: "/cadastrar?from=%2Findique", icon: afiliadoIcon, iconSize: 22 },
   { label: "Meus Bolões", href: "/boloes", icon: myBoloesIcon, iconSize: 25 },
   { label: "Premiação", href: "/premiacao", icon: premiacaoIcon, iconSize: 22 },
-  { label: "Perfil", href: "/login", icon: profileIcon, iconSize: 21 },
+  { label: "Ranking", href: "/ranking", icon: rankingIcon, iconSize: 21 },
 ] as const;
 
 type BottomItem = {
