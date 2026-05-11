@@ -432,10 +432,10 @@ export default function IndiqueGanhePage() {
               Programa de indicação
             </div>
 
-            <div className="mt-2 max-w-[205px]">
-              <h1 className="font-helvetica-now-display text-[22px] font-black italic uppercase leading-[0.91] tracking-[-0.055em] text-white [paint-order:stroke_fill] [-webkit-text-stroke:0.65px_rgba(255,255,255,0.95)]">
+            <div className="mt-2 max-w-[235px]">
+              <h1 className="font-helvetica-now-display text-[19px] font-black italic uppercase leading-[1] tracking-[0.040em] text-white [paint-order:stroke_fill] [-webkit-text-stroke:0.65px_rgba(255,255,255,0.95)]">
                 Indique amigos e
-                <span className="block text-primary [-webkit-text-stroke:0.65px_currentColor]">ganhe dinheiro!</span>
+                <span className="mt-2 block text-primary [-webkit-text-stroke:0.65px_currentColor]">ganhe dinheiro!</span>
               </h1>
               <p className="mt-2 max-w-[180px] text-[9.5px] font-medium leading-snug text-white/82">
                 Cada amigo que comprar um ticket rende{" "}
