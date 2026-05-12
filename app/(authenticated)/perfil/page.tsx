@@ -8,7 +8,6 @@ import type { AffiliateSummary } from "@/app/(authenticated)/indique/affiliate-t
 import { formatBRLFromCents } from "@/app/(authenticated)/indique/affiliate-types";
 import { fetchAffiliateSummaryCached } from "@/app/(authenticated)/indique/affiliate-summary-cache";
 import { WithdrawGanhosModal } from "@/app/(authenticated)/indique/WithdrawGanhosModal";
-import { PerfilAvatarPickerDialog } from "@/app/(authenticated)/perfil/PerfilAvatarPickerDialog";
 import bannerRanking from "@/app/assets/banner-ranking.png";
 import { useAuth } from "@/app/shared/AuthContext";
 import { clampAvatarIndex } from "@/lib/auth/avatar-index";
@@ -31,6 +30,7 @@ import {
   Trophy,
   Wallet,
 } from "lucide-react";
+import { PerfilAvatarPickerDialog } from "./PerfilAvatarPickerDialog";
 
 const CARD = "#121212";
 const BORDER = "rgba(255,255,255,0.08)";
@@ -441,16 +441,6 @@ export default function PerfilPage() {
             )}
           </div>
         </section>
-
-        {/* Banner ranking */}
-        <Link href="/ranking" className="mt-4 block overflow-hidden rounded-2xl border border-white/10 shadow-lg transition-opacity hover:opacity-95">
-          <Image
-            src={bannerRanking}
-            alt="Ranking oficial — disputa Copa 2026"
-            className="h-auto w-full object-cover"
-            sizes="(max-width:512px) 100vw, 512px"
-          />
-        </Link>
 
         {/* Nível & progresso */}
         <section
