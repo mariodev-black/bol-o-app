@@ -10,7 +10,7 @@ import {
   type PrepareAvatarErrorCode,
 } from "@/lib/client/avatar-upload-prepare";
 import { AVATAR_PRESET_IMAGES, clampAvatarIndex } from "@/lib/user/avatar-presets";
-import { avatarUploadPublicUrl, isStoredAvatarUploadFilename } from "@/lib/user/avatar-filename";
+import { avatarUploadImageSrc, isStoredAvatarUploadFilename } from "@/lib/user/avatar-filename";
 
 type TabId = "presets" | "foto";
 
@@ -273,7 +273,7 @@ export function PerfilAvatarPickerDialog({
                 {safeUpload ? (
                   <div className="relative size-32 shrink-0 overflow-hidden rounded-2xl border-2 border-primary/40 shadow-[0_0_24px_rgba(177,235,11,0.2)]">
                     <Image
-                      src={avatarUploadPublicUrl(safeUpload)}
+                      src={avatarUploadImageSrc(safeUpload)}
                       alt=""
                       fill
                       className="object-cover"

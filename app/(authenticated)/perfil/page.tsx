@@ -11,7 +11,7 @@ import { WithdrawGanhosModal } from "@/app/(authenticated)/indique/WithdrawGanho
 import bannerRanking from "@/app/assets/banner-ranking.png";
 import { useAuth } from "@/app/shared/AuthContext";
 import { clampAvatarIndex } from "@/lib/auth/avatar-index";
-import { avatarUploadPublicUrl, isStoredAvatarUploadFilename } from "@/lib/user/avatar-filename";
+import { avatarUploadImageSrc, isStoredAvatarUploadFilename } from "@/lib/user/avatar-filename";
 import { getAvatarPresetImage } from "@/lib/user/avatar-presets";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { LucideIcon } from "lucide-react";
@@ -292,7 +292,7 @@ export default function PerfilPage() {
                     <SkeletonBlock className="size-full rounded-2xl bg-white/10" />
                   ) : customAvatar ? (
                     <Image
-                      src={avatarUploadPublicUrl(customAvatar)}
+                      src={avatarUploadImageSrc(customAvatar)}
                       alt=""
                       fill
                       className="object-cover"

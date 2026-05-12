@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 import { clampAvatarIndex } from "@/lib/auth/avatar-index";
-import { setUserAvatarUploadFilename, updateUserAvatarIndex } from "@/lib/auth/users";
+import { clearUserAvatarUpload, updateUserAvatarIndex } from "@/lib/auth/users";
 import { responseForDbError } from "@/lib/db-errors";
 
 export const runtime = "nodejs";
@@ -54,7 +54,7 @@ export async function PATCH(request: NextRequest) {
   try {
     let user;
     if (parsed.data.clearCustomAvatar) {
-      user = await setUserAvatarUploadFilename(userId, null);
+      user = await clearUserAvatarUpload(userId);
     } else {
       const avatarIndex = clampAvatarIndex(parsed.data.avatarIndex!);
       user = await updateUserAvatarIndex(userId, avatarIndex);

@@ -1,9 +1,9 @@
-import { existsSync, mkdirSync, unlinkSync, writeFileSync } from "fs";
+import { existsSync, readFileSync, unlinkSync } from "fs";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { isStoredAvatarUploadFilename } from "@/lib/user/avatar-filename";
 
-/** Limite do arquivo salvo em disco (após o cliente otimizar, raramente chega perto disso). */
+/** Limite do arquivo (bytes no DB ou em disco). */
 export const AVATAR_UPLOAD_MAX_BYTES = 50 * 1024 * 1024;
 
 const MIME_TO_EXT = new Map<string, string>([
@@ -17,12 +17,7 @@ export function avatarUploadDir(): string {
   return join(process.cwd(), "public", "avataruploads");
 }
 
-export function ensureAvatarUploadDir(): void {
-  const dir = avatarUploadDir();
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-}
-
-export function saveUserAvatarBuffer(buf: Buffer, mimeRaw: string): string {
+export function assertAvatarUploadBuffer(buf: Buffer, mimeRaw: string): { mime: string; ext: string } {
   const mime = mimeRaw.split(";")[0]?.trim().toLowerCase() ?? "";
   const ext = MIME_TO_EXT.get(mime);
   if (!ext) {
@@ -31,11 +26,22 @@ export function saveUserAvatarBuffer(buf: Buffer, mimeRaw: string): string {
   if (buf.length === 0 || buf.length > AVATAR_UPLOAD_MAX_BYTES) {
     throw new Error("invalid_size");
   }
-  ensureAvatarUploadDir();
-  const name = `${randomUUID()}${ext}`;
-  const full = join(avatarUploadDir(), name);
-  writeFileSync(full, buf);
-  return name;
+  return { mime, ext };
+}
+
+export function newRandomAvatarFilename(ext: string): string {
+  return `${randomUUID()}${ext}`;
+}
+
+export function readAvatarUploadFromDisk(filename: string): Buffer | null {
+  if (!isStoredAvatarUploadFilename(filename)) return null;
+  const full = join(avatarUploadDir(), filename);
+  if (!existsSync(full)) return null;
+  try {
+    return readFileSync(full);
+  } catch {
+    return null;
+  }
 }
 
 export function deleteUserAvatarFile(filename: string | null | undefined): void {

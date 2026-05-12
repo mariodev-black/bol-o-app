@@ -19,7 +19,7 @@ export type AuthUser = {
   avatarUrl: string | null;
   /** Preset 0–4 (`app/assets/avatares/{n}.png`), persistido em `users.avatar_index`. */
   avatarIndex: number;
-  /** Basename em `public/avataruploads/`; quando definido, substitui o preset na UI. */
+  /** Basename estável (UUID + ext.); bytes em `users.avatar_upload_data` ou legado em `public/avataruploads/`. */
   avatarUploadFilename: string | null;
   /** Código de indicação deste usuário (para compartilhar). */
   referralCode: string;

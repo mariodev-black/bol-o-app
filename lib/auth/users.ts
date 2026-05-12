@@ -2,7 +2,7 @@ import { getPool } from "@/lib/db";
 import { allocateUniqueReferralCode, findUserIdByReferralCode } from "@/lib/auth/referral-code";
 import { clampAvatarIndex, randomPresetAvatarIndex } from "@/lib/auth/avatar-index";
 import { isStoredAvatarUploadFilename } from "@/lib/user/avatar-filename";
-import { deleteUserAvatarFile } from "@/lib/user/avatar-upload-storage";
+import { deleteUserAvatarFile, newRandomAvatarFilename, assertAvatarUploadBuffer } from "@/lib/user/avatar-upload-storage";
 
 const U =
   "id, email, cpf, password_hash, name, phone, avatar_url, avatar_index, avatar_upload_filename, google_sub, email_verified_at, referral_code, referred_by_user_id";
@@ -14,7 +14,7 @@ export type PublicUser = {
   avatarUrl: string | null;
   /** Preset local 0–4 (`app/assets/avatares/{n}.png`). */
   avatarIndex: number;
-  /** Basename em `public/avataruploads/`; se preenchido, tem precedência sobre o preset. */
+  /** Basename estável (UUID + ext.); bytes em `avatar_upload_data` ou legado em `public/avataruploads/`. */
   avatarUploadFilename: string | null;
   referralCode: string;
 };
@@ -243,7 +243,7 @@ export async function updateUserAvatarIndex(userId: string, avatarIndex: number)
   const oldUpload = peekRows[0]?.f?.trim() ?? null;
 
   const { rows } = await pool.query<UserRow>(
-    `UPDATE users SET avatar_index = $2, avatar_upload_filename = NULL, updated_at = now() WHERE id = $1 RETURNING ${U}`,
+    `UPDATE users SET avatar_index = $2, avatar_upload_filename = NULL, avatar_upload_data = NULL, updated_at = now() WHERE id = $1 RETURNING ${U}`,
     [userId, idx]
   );
   const row = rows[0];
@@ -254,10 +254,33 @@ export async function updateUserAvatarIndex(userId: string, avatarIndex: number)
   return toPublic(row);
 }
 
-export async function setUserAvatarUploadFilename(
+export async function setUserAvatarUploadFromBuffer(
   userId: string,
-  filename: string | null
+  buf: Buffer,
+  mimeRaw: string
 ): Promise<PublicUser | null> {
+  const { ext } = assertAvatarUploadBuffer(buf, mimeRaw);
+  const pool = getPool();
+  const { rows: peekRows } = await pool.query<{ f: string | null }>(
+    `SELECT avatar_upload_filename AS f FROM users WHERE id = $1`,
+    [userId]
+  );
+  const oldUpload = peekRows[0]?.f?.trim() ?? null;
+  const newName = newRandomAvatarFilename(ext);
+
+  const { rows } = await pool.query<UserRow>(
+    `UPDATE users SET avatar_upload_filename = $2, avatar_upload_data = $3::bytea, updated_at = now() WHERE id = $1 RETURNING ${U}`,
+    [userId, newName, buf]
+  );
+  const row = rows[0];
+  if (!row) return null;
+  if (oldUpload && isStoredAvatarUploadFilename(oldUpload) && oldUpload !== newName) {
+    deleteUserAvatarFile(oldUpload);
+  }
+  return toPublic(row);
+}
+
+export async function clearUserAvatarUpload(userId: string): Promise<PublicUser | null> {
   const pool = getPool();
   const { rows: peekRows } = await pool.query<{ f: string | null }>(
     `SELECT avatar_upload_filename AS f FROM users WHERE id = $1`,
@@ -265,14 +288,13 @@ export async function setUserAvatarUploadFilename(
   );
   const oldUpload = peekRows[0]?.f?.trim() ?? null;
 
-  const safe = filename && isStoredAvatarUploadFilename(filename) ? filename : null;
   const { rows } = await pool.query<UserRow>(
-    `UPDATE users SET avatar_upload_filename = $2, updated_at = now() WHERE id = $1 RETURNING ${U}`,
-    [userId, safe]
+    `UPDATE users SET avatar_upload_filename = NULL, avatar_upload_data = NULL, updated_at = now() WHERE id = $1 RETURNING ${U}`,
+    [userId]
   );
   const row = rows[0];
   if (!row) return null;
-  if (oldUpload && isStoredAvatarUploadFilename(oldUpload) && oldUpload !== safe) {
+  if (oldUpload && isStoredAvatarUploadFilename(oldUpload)) {
     deleteUserAvatarFile(oldUpload);
   }
   return toPublic(row);
