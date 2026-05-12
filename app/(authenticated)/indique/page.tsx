@@ -431,7 +431,7 @@ export default function IndiqueGanhePage() {
 
             <div className="mt-2 max-w-[235px]">
               <h1 className="font-helvetica-now-display text-[19px] font-black italic uppercase leading-[1] tracking-[0.040em] text-white [paint-order:stroke_fill] [-webkit-text-stroke:0.65px_rgba(255,255,255,0.95)]">
-                Indique amigos e
+                teste
                 <span className="block text-primary [-webkit-text-stroke:0.65px_currentColor] text-[21px]">ganhe dinheiro!</span>
               </h1>
               <p className="mt-2 max-w-[180px] text-[11.5px] font-medium leading-snug text-white/82">
