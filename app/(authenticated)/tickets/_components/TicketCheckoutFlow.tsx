@@ -435,8 +435,8 @@ export function TicketCheckoutFlow({
                   </p>
                   <p className="mt-1.5 text-[10px] font-normal leading-snug text-white sm:text-[11px]">
                     Quanto mais tickets, maior a sua chance de ganhar!
-                  </p>
-                </div>
+                </p>
+              </div>
               </div>
 
               {/* Direita: ATÉ / 25% / badge */}
@@ -450,14 +450,14 @@ export function TicketCheckoutFlow({
                 </p>
                 <span
                   className="mt-2 w-full min-w-full bg-primary px-2 py-1 text-[8px] font-black uppercase flex justify-center items-center leading-tight tracking-wide text-black sm:text-[9px] text-center whitespace-nowrap"
-                  style={{
+                style={{
                     clipPath: "polygon(3% 0, 97% 0, 100% 18%, 100% 82%, 97% 100%, 3% 100%, 0 82%, 0 18%)",
-                  }}
-                >
+                }}
+              >
                   DE DESCONTO
-                </span>
+                  </span>
               </div>
-            </div>
+                </div>
 
             <div className="space-y-3">
               {/* Card Bolão Geral */}
@@ -543,18 +543,18 @@ export function TicketCheckoutFlow({
                   </div>
                 </div>
                 <div className="flex items-center justify-between gap-2 border-t border-white/6 bg-black/25 px-3.5 py-2.5 text-[10px] text-white/50 sm:px-4">
-                  <span>
+                      <span>
                     Desconto aplicado:{" "}
                     <span className="font-bold text-primary">
                       {geralDiscountPct}%
                     </span>{" "}
                     OFF
-                  </span>
+                      </span>
                   <span className="inline-flex items-center gap-1 text-right font-medium">
                     Escolha a quantidade
                     <ChevronRight className="size-3.5 text-white/35" strokeWidth={2.4} />
-                  </span>
-                </div>
+                      </span>
+                    </div>
               </div>
 
               {/* Card Bolão do Dia */}
@@ -640,18 +640,18 @@ export function TicketCheckoutFlow({
                   </div>
                 </div>
                 <div className="flex items-center justify-between gap-2 border-t border-white/6 bg-black/25 px-3.5 py-2.5 text-[10px] text-white/50 sm:px-4">
-                  <span>
+                      <span>
                     Desconto aplicado:{" "}
                     <span className="font-bold text-primary">
                       {diarioDiscountPct}%
                     </span>{" "}
                     OFF
-                  </span>
+                      </span>
                   <span className="inline-flex items-center gap-1 text-right font-medium">
                     Escolha a quantidade
                     <ChevronRight className="size-3.5 text-white/35" strokeWidth={2.4} />
-                  </span>
-                </div>
+                      </span>
+                    </div>
               </div>
             </div>
 
@@ -747,18 +747,18 @@ export function TicketCheckoutFlow({
                 <span className="text-[18px] font-black tabular-nums text-primary">
                   {formatBRL(totalCents)}
                 </span>
-              </div>
+                </div>
 
-              <button
-                type="button"
-                disabled={!hasSelection}
-                onClick={goGenerate}
+                <button
+                  type="button"
+                  disabled={!hasSelection}
+                  onClick={goGenerate}
                 className="mt-4 flex h-[56px] w-full items-center justify-center gap-3 rounded-[14px] bg-primary px-5 text-[13px] font-black uppercase tracking-[0.04em] text-[#0E141B] shadow-[0_4px_32px_rgba(177,235,11,0.55)] transition-[transform,filter] hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 sm:text-[14px]"
               >
                 <Wallet className="size-5 shrink-0" strokeWidth={2.2} />
                 <span>Finalizar compra · {formatBRL(totalCents)}</span>
                 <ArrowRight className="size-5 shrink-0" strokeWidth={2.8} />
-              </button>
+                </button>
             </div>
 
             {/* ── Confiança ───────────────────────────────────── */}
@@ -800,28 +800,28 @@ export function TicketCheckoutFlow({
 
             {/* ── Botão depositar ──────────────────────────────── */}
 
-            {error && (
+                {error && (
               <p className="text-center text-[12px] font-semibold text-red-300">
-                {error}
-              </p>
-            )}
+                    {error}
+                  </p>
+                )}
             <p className="flex items-center justify-center gap-2 text-center text-[11px] font-medium text-white/25">
               <Lock className="size-3 shrink-0" strokeWidth={2} />
               Transação protegida por criptografia SSL 256-bit
             </p>
-          </div>
-        </div>
+              </div>
+            </div>
       ) : (
         <div className="mx-auto flex min-h-screen w-full max-w-md flex-1 flex-col justify-start bg-black px-4 py-8 sm:px-6 sm:py-10">
           <section className="w-full">
-            {step === "generating" && (
-              <div
-                className="flex flex-col items-center justify-center py-20 px-6 rounded-2xl"
-                style={{
-                  border: "1px solid rgba(177,235,11,0.18)",
-                  background: `linear-gradient(180deg, rgba(14,20,32,0.96) 0%, ${CARD} 100%)`,
-                }}
-              >
+          {step === "generating" && (
+            <div
+              className="flex flex-col items-center justify-center py-20 px-6 rounded-2xl"
+              style={{
+                border: "1px solid rgba(177,235,11,0.18)",
+                background: `linear-gradient(180deg, rgba(14,20,32,0.96) 0%, ${CARD} 100%)`,
+              }}
+            >
                 <Loader2
                   className="w-12 h-12 animate-spin mb-5"
                   style={{ color: GOLD_LIGHT }}
@@ -831,19 +831,19 @@ export function TicketCheckoutFlow({
                   className="text-lg font-semibold text-white text-center"
                   style={{ fontFamily: montserrat }}
                 >
-                  Emitindo cobrança PIX
-                </p>
+                Emitindo cobrança PIX
+              </p>
                 <p
                   className="text-[15px] text-center mt-2 max-w-sm leading-relaxed"
                   style={{ color: "rgba(226,213,184,0.5)" }}
                 >
-                  Registrando pedido no sistema Bolão do Milhão…
-                </p>
-              </div>
-            )}
+                Registrando pedido no sistema Bolão do Milhão…
+              </p>
+            </div>
+          )}
 
-            {step === "pix" && pixPayload && (
-              <div className="space-y-4">
+          {step === "pix" && pixPayload && (
+            <div className="space-y-4">
                 {/* overlay de confirmação */}
                 {confirmedPaid && (
                   <div className="flex flex-col items-center gap-3 rounded-2xl border border-[#0AC96B]/40 bg-[#0AC96B]/10 px-6 py-8 text-center">
@@ -863,24 +863,24 @@ export function TicketCheckoutFlow({
                   </div>
                 )}
 
-                <div>
-                  <div className="flex items-center justify-between gap-2 mb-1.5">
+              <div>
+                <div className="flex items-center justify-between gap-2 mb-1.5">
                     <span className="text-[11px] font-bold uppercase tracking-wider text-white/45">
                       PIX
                     </span>
                     <span className="text-[12px] font-mono text-white/55 truncate max-w-[55%]">
                       {orderRef}
                     </span>
-                  </div>
+                </div>
                   <div
                     className="flex items-center justify-between text-[13px] mb-1"
                     style={{ color: "rgba(226,213,184,0.55)" }}
                   >
-                    <span>{pixExpired ? "Expirado" : "Válido 5 min"}</span>
+                  <span>{pixExpired ? "Expirado" : "Válido 5 min"}</span>
                     <span className="font-mono tabular-nums text-white/65">
                       {pixExpired ? "0:00" : formatCountdown(secondsLeft)}
                     </span>
-                  </div>
+                </div>
                   <p className="text-[12px] text-white/50 mt-0.5 mb-1">
                     Status:{" "}
                     <span
@@ -892,57 +892,57 @@ export function TicketCheckoutFlow({
                     >
                       {statusLabelPt(txStatus || "waiting_payment")}
                     </span>
-                  </p>
-                  <div
-                    className="h-1.5 rounded-full overflow-hidden"
+                </p>
+                <div
+                  className="h-1.5 rounded-full overflow-hidden"
                     style={{
                       background: pixExpired
                         ? "rgba(127,29,29,0.35)"
                         : "rgba(255,255,255,0.08)",
                     }}
-                    role="progressbar"
-                    aria-valuenow={pixExpired ? 0 : Math.round(pixProgressPct)}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
+                  role="progressbar"
+                  aria-valuenow={pixExpired ? 0 : Math.round(pixProgressPct)}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                >
+                  <div
+                    className="h-full rounded-full transition-[width] duration-1000 ease-linear"
+                    style={{
+                      width: `${pixProgressPct}%`,
+                      background: pixExpired
+                        ? "rgba(248,113,113,0.5)"
+                        : secondsLeft <= 60
+                          ? "linear-gradient(90deg, #FBBF24, #F59E0B)"
+                          : `linear-gradient(90deg, ${GOLD_LIGHT}, ${GOLD})`,
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div
+                className="rounded-xl p-3 sm:p-4 space-y-4"
+                style={{
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  background: `linear-gradient(180deg, rgba(16,22,36,0.95) 0%, ${CARD} 100%)`,
+                }}
+              >
+                <div className="relative mx-auto w-fit">
+                  <div
+                    className={`p-3.5 rounded-2xl bg-white shadow-xl ${pixExpired ? "opacity-35 grayscale" : ""}`}
+                    style={{ boxShadow: "0 20px 50px rgba(0,0,0,0.45)" }}
                   >
-                    <div
-                      className="h-full rounded-full transition-[width] duration-1000 ease-linear"
-                      style={{
-                        width: `${pixProgressPct}%`,
-                        background: pixExpired
-                          ? "rgba(248,113,113,0.5)"
-                          : secondsLeft <= 60
-                            ? "linear-gradient(90deg, #FBBF24, #F59E0B)"
-                            : `linear-gradient(90deg, ${GOLD_LIGHT}, ${GOLD})`,
-                      }}
-                    />
+                    <QRCode value={pixPayload} size={196} level="M" />
                   </div>
+                  {pixExpired && (
+                    <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/55 px-4">
+                      <p className="text-center text-[15px] font-semibold text-white leading-snug px-1">
+                        QR expirado — gere outro para pagar
+                      </p>
+                    </div>
+                  )}
                 </div>
 
-                <div
-                  className="rounded-xl p-3 sm:p-4 space-y-4"
-                  style={{
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    background: `linear-gradient(180deg, rgba(16,22,36,0.95) 0%, ${CARD} 100%)`,
-                  }}
-                >
-                  <div className="relative mx-auto w-fit">
-                    <div
-                      className={`p-3.5 rounded-2xl bg-white shadow-xl ${pixExpired ? "opacity-35 grayscale" : ""}`}
-                      style={{ boxShadow: "0 20px 50px rgba(0,0,0,0.45)" }}
-                    >
-                      <QRCode value={pixPayload} size={196} level="M" />
-                    </div>
-                    {pixExpired && (
-                      <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/55 px-4">
-                        <p className="text-center text-[15px] font-semibold text-white leading-snug px-1">
-                          QR expirado — gere outro para pagar
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  <div>
+                <div>
                     <p className="text-[11px] font-bold uppercase tracking-wider text-white/40 mb-1">
                       Pedido
                     </p>
@@ -952,12 +952,12 @@ export function TicketCheckoutFlow({
                     >
                       Geral {formatBRL(prices.general)} · Diário{" "}
                       {formatBRL(prices.daily)} · {totalQty} ticket
-                      {totalQty === 1 ? "" : "s"}
-                    </p>
-                    <div className="space-y-1.5 text-[14px]">
-                      {principalQty > 0 && (
-                        <div className="flex justify-between gap-2 text-white/65">
-                          <span>
+                    {totalQty === 1 ? "" : "s"}
+                  </p>
+                  <div className="space-y-1.5 text-[14px]">
+                    {principalQty > 0 && (
+                      <div className="flex justify-between gap-2 text-white/65">
+                        <span>
                             <span className="font-mono text-white">
                               {principalQty}×
                             </span>{" "}
@@ -965,19 +965,19 @@ export function TicketCheckoutFlow({
                             <span className="text-white/35 font-normal">
                               {" "}
                               @ {formatBRL(prices.general)}
-                            </span>
+                        </span>
                           </span>
                           <span
                             className="tabular-nums font-medium"
                             style={{ color: GOLD_LIGHT }}
                           >
                             {formatBRL(principalLineCents)}
-                          </span>
-                        </div>
-                      )}
+                        </span>
+                      </div>
+                    )}
                       {dailyQty > 0 && (
-                        <div className="flex justify-between gap-2 text-white/65">
-                          <span>
+                      <div className="flex justify-between gap-2 text-white/65">
+                        <span>
                             <span className="font-mono text-white">
                               {dailyQty}×
                             </span>{" "}
@@ -985,70 +985,70 @@ export function TicketCheckoutFlow({
                             <span className="text-white/35 font-normal">
                               {" "}
                               @ {formatBRL(prices.daily)}
-                            </span>
+                        </span>
                           </span>
                           <span
                             className="tabular-nums font-medium"
                             style={{ color: GOLD_LIGHT }}
                           >
                             {formatBRL(diarioLineCents)}
-                          </span>
-                        </div>
-                      )}
-                      <div className="flex justify-between gap-2 pt-2 mt-1 border-t border-white/10 text-[15px] font-bold text-white">
-                        <span>Total</span>
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex justify-between gap-2 pt-2 mt-1 border-t border-white/10 text-[15px] font-bold text-white">
+                      <span>Total</span>
                         <span
                           className="tabular-nums"
                           style={{ color: GOLD_LIGHT }}
                         >
-                          {formatBRL(totalCents)}
-                        </span>
-                      </div>
+                        {formatBRL(totalCents)}
+                      </span>
                     </div>
                   </div>
+                </div>
 
-                  <div>
+                <div>
                     <label className="block text-[11px] font-bold uppercase tracking-wider text-white/45 mb-2">
                       PIX copia e cola
                     </label>
-                    <div
-                      className="rounded-xl p-3.5 max-h-[100px] overflow-y-auto"
-                      style={{
-                        background: "rgba(0,0,0,0.42)",
-                        border: "1px solid rgba(255,255,255,0.08)",
-                      }}
-                    >
+                  <div
+                    className="rounded-xl p-3.5 max-h-[100px] overflow-y-auto"
+                    style={{
+                      background: "rgba(0,0,0,0.42)",
+                      border: "1px solid rgba(255,255,255,0.08)",
+                    }}
+                  >
                       <p className="text-[11px] sm:text-[12px] font-mono text-white/75 break-all leading-relaxed">
                         {pixPayload}
                       </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={copyPix}
-                      disabled={pixExpired}
-                      className="mt-3 w-full py-4 rounded-xl text-[15px] font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-35"
-                      style={{
+                  </div>
+                  <button
+                    type="button"
+                    onClick={copyPix}
+                    disabled={pixExpired}
+                    className="mt-3 w-full py-4 rounded-xl text-[15px] font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-35"
+                    style={{
                         background: copied
                           ? "rgba(34,197,94,0.18)"
                           : "rgba(177,235,11,0.12)",
-                        border: `1px solid ${copied ? "rgba(34,197,94,0.4)" : "rgba(177,235,11,0.32)"}`,
-                        color: copied ? "#86EFAC" : GOLD_LIGHT,
-                      }}
-                    >
-                      {copied ? (
-                        <>
-                          <Check className="w-5 h-5" strokeWidth={2.5} />
-                          Copiado
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-5 h-5" strokeWidth={2} />
-                          Copiar código PIX
-                        </>
-                      )}
-                    </button>
-                  </div>
+                      border: `1px solid ${copied ? "rgba(34,197,94,0.4)" : "rgba(177,235,11,0.32)"}`,
+                      color: copied ? "#86EFAC" : GOLD_LIGHT,
+                    }}
+                  >
+                    {copied ? (
+                      <>
+                        <Check className="w-5 h-5" strokeWidth={2.5} />
+                        Copiado
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-5 h-5" strokeWidth={2} />
+                        Copiar código PIX
+                      </>
+                    )}
+                  </button>
                 </div>
+              </div>
 
                 {/* Botão de verificação manual */}
                 {!confirmedPaid && !pixExpired && (
@@ -1117,7 +1117,7 @@ export function TicketCheckoutFlow({
                     {error}
                   </p>
                 )}
-              </div>
+        </div>
             )}
           </section>
         </div>

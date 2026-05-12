@@ -719,23 +719,23 @@ function PublicHome() {
           <div className="flex animate-marquee">
             {[...SCORE_TICKER_SEGMENTS, ...SCORE_TICKER_SEGMENTS].map(
               (_, idx) => (
-                <span
-                  key={idx}
-                  className="inline-flex shrink-0 items-center gap-4 px-6 md:gap-5 md:px-8"
-                >
-                  <span className="whitespace-nowrap text-sm font-bold tracking-wide text-[#0A1F1F] md:text-base">
-                    O Top 10 ganha prêmios milionários!
-                  </span>
-                  <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#0f291c] md:h-10 md:w-10">
-                    <Image
-                      src={cifraoIcon}
-                      alt=""
-                      width={22}
-                      height={22}
-                      className="h-5 w-5 object-contain md:h-6 md:w-6"
-                    />
-                  </span>
+              <span
+                key={idx}
+                className="inline-flex shrink-0 items-center gap-4 px-6 md:gap-5 md:px-8"
+              >
+                <span className="whitespace-nowrap text-sm font-bold tracking-wide text-[#0A1F1F] md:text-base">
+                  O Top 10 ganha prêmios milionários!
                 </span>
+                <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#0f291c] md:h-10 md:w-10">
+                  <Image
+                    src={cifraoIcon}
+                    alt=""
+                    width={22}
+                    height={22}
+                    className="h-5 w-5 object-contain md:h-6 md:w-6"
+                  />
+                </span>
+              </span>
               ),
             )}
           </div>
@@ -807,7 +807,7 @@ function PublicHome() {
       <CopaCtaBandSection />
       <Footer />
       <Suspense fallback={null}>
-        <NavBottom />
+      <NavBottom />
       </Suspense>
     </HomePageContainer>
   );

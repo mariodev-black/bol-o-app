@@ -19,6 +19,7 @@ import trofeuBoloes from "@/app/assets/trofeu-boloes.png";
 import bgPixel from "@/app/assets/bg-hero-pixels.png";
 import ticketGold from "@/app/assets/ticket-gold.png";
 import ticketBlue from "@/app/assets/Ticket-Blue.png";
+import { CotaCpa } from "../components/ui/cota_cpa";
 
 export type ActivePrincipalBolao = {
   id: string;
@@ -352,8 +353,8 @@ function ActiveBoloesCard({
             style={{ borderColor: BORDER }}
           >
             <BolaoIcon type="copa" />
-          </div>
-          <Link
+              </div>
+                <Link
             href={principal.href}
             className="min-w-0 px-3 py-[13px] transition-colors hover:bg-white/3 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-primary active:bg-white/5"
           >
@@ -380,12 +381,12 @@ function ActiveBoloesCard({
                 style={{ width: `${principal.progress}%`, background: GREEN }}
               />
             </div>
-          </Link>
+                </Link>
           <RankingPanel
             position={principal.position}
             points={principal.points}
           />
-        </div>
+              </div>
       )}
 
       {principal && diario && <div className="h-px bg-white/6" />}
@@ -397,7 +398,7 @@ function ActiveBoloesCard({
             style={{ borderColor: BORDER }}
           >
             <BolaoIcon type="dia" />
-          </div>
+            </div>
           <Link
             href={diario.href}
             className="min-w-0 px-3 py-[13px] transition-colors hover:bg-white/3 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-primary active:bg-white/5"
@@ -461,8 +462,8 @@ function ActiveBoloesList({
     );
   }
 
-  return (
-    <article
+                  return (
+                    <article
       className="overflow-hidden rounded-[15px] border shadow-[0_18px_38px_rgba(0,0,0,0.42)]"
       style={{ background: CARD_ALT, borderColor: BORDER }}
     >
@@ -506,8 +507,8 @@ function ActiveBoloesList({
                       </span>
                       <span className="whitespace-nowrap text-[15px] font-black leading-none text-white min-[380px]:text-[16px]">
                         {item.sent ?? 0} / {item.total ?? 0}
-                      </span>
-                    </div>
+                          </span>
+                        </div>
                     <div className="mt-2 h-[6px] overflow-hidden rounded-full bg-white/8">
                       <div
                         className="h-full rounded-full"
@@ -531,8 +532,8 @@ function ActiveBoloesList({
                       >
                         {formatCountdown(item.countdownTargetMs ?? null, now)}
                       </span>
-                    </p>
-                  </div>
+                          </p>
+                        </div>
                 )}
               </Link>
 
@@ -586,7 +587,7 @@ function AvailableCard({
         style={{ background: badgeColor, color: "#0E141B" }}
       >
         {badge}
-      </div>
+                          </div>
       <div
         className="flex size-[38px] items-center justify-center rounded-[11px]"
         style={{
@@ -639,7 +640,7 @@ function AvailableCard({
         >
           Entrar
         </Link>
-      </div>
+                          </div>
     </article>
   );
 }
@@ -715,9 +716,9 @@ function CarouselShell({
         className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {children}
-      </div>
-      <button
-        type="button"
+                        </div>
+                        <button
+                          type="button"
         onClick={() => scrollByPage(-1)}
         className="absolute -left-2 top-1/2 z-10 flex size-7 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-black/70 text-white/80 shadow-[0_8px_22px_rgba(0,0,0,0.45)] backdrop-blur"
         aria-label="Item anterior"
@@ -763,8 +764,8 @@ function ShowcaseSectionTitle({
       {expanded ? "Ocultar" : "Ver todos"}{" "}
       <ChevronRight
         className={`size-3 transition-transform ${expanded ? "rotate-90" : ""}`}
-        strokeWidth={2.5}
-      />
+                            strokeWidth={2.5}
+                          />
     </>
   );
 
@@ -782,7 +783,7 @@ function ShowcaseSectionTitle({
         >
           {index}. {title}
         </h2>
-      </div>
+                          </div>
       {onViewAll ? (
         <button
           type="button"
@@ -801,8 +802,8 @@ function ShowcaseSectionTitle({
         >
           {content}
         </Link>
-      )}
-    </div>
+                        )}
+                      </div>
   );
 }
 
@@ -824,13 +825,13 @@ function ActiveShowcaseCard({
   const statusLabel = item.statusLabel;
 
   return (
-    <Link
+                          <Link
       href={item.href}
       className={[
         "group relative grid min-h-[126px] grid-cols-[102px_minmax(0,1fr)_78px] overflow-hidden rounded-[14px] border bg-[#080A07] shadow-[0_18px_42px_rgba(0,0,0,0.55)] transition-transform duration-300 active:scale-[0.985]",
         fullWidth ? "w-full" : "w-[368px] max-w-[88vw] shrink-0 snap-center",
       ].join(" ")}
-      style={{
+                            style={{
         borderColor: `${tone}42`,
         boxShadow: `0 18px 42px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.05), 0 0 26px ${tone}0F`,
       }}
@@ -859,7 +860,7 @@ function ActiveShowcaseCard({
         >
           {isPrincipal ? "FIFA\nWorld Cup\n2026" : "Bolão\nDo Dia"}
         </p>
-      </div>
+                        </div>
 
       <div
         className="relative z-10 min-w-0 border-l px-3.5 py-4"
@@ -874,7 +875,7 @@ function ActiveShowcaseCard({
 
         <div className="mt-3">
           <StatusPill status={item.status} label={statusLabel} />
-        </div>
+                      </div>
 
         {isPrincipal ? (
           <div className="mt-4">
@@ -885,7 +886,7 @@ function ActiveShowcaseCard({
               <span className="text-[11px] font-black leading-none text-white">
                 {item.sent ?? 0} / {item.total ?? 0}
               </span>
-            </div>
+              </div>
             <div className="mt-2 h-[5px] overflow-hidden rounded-full bg-white/10">
               <div
                 className="h-full rounded-full transition-[width] duration-700"
@@ -911,8 +912,8 @@ function ActiveShowcaseCard({
                 {formatCountdown(item.countdownTargetMs ?? null, now)}
               </span>
             </p>
-          </div>
-        )}
+            </div>
+          )}
       </div>
 
       <div
@@ -946,7 +947,7 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
   const [selectedPkg, setSelectedPkg] = useState<1 | 3 | 5>(1);
   const currentPkg = PACKAGES.find((p) => p.qty === selectedPkg)!;
 
-  return (
+                  return (
     <div className="min-h-screen bg-black pb-10 text-white">
       {/* ── Banner ──────────────────────────────────── */}
       <div className="w-full bg-black">
@@ -982,7 +983,7 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
         {/* Pricing card */}
         <div
           className="rounded-[16px] px-5 py-5 text-center"
-          style={{
+                      style={{
             background: "#111",
             border: "1px solid rgba(177,235,11,0.18)",
             boxShadow: "0 0 32px rgba(177,235,11,0.06) inset",
@@ -1021,8 +1022,8 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
           <span className="flex items-center gap-1.5 text-[11px] font-semibold text-white/35">
             <Lock className="size-3.5 shrink-0" strokeWidth={1.8} />
             Dados protegidos
-          </span>
-        </div>
+                          </span>
+                        </div>
 
         {/* Stats 2×2 */}
         <div className="grid grid-cols-2 gap-2.5">
@@ -1041,8 +1042,8 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
                 </p>
                 <p className="mt-1 text-[9px] font-semibold leading-tight text-white/42">
                   {label}
-                </p>
-              </div>
+                          </p>
+                        </div>
             </div>
           ))}
         </div>
@@ -1068,7 +1069,7 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
                 <span className="mt-1.5 inline-flex items-center rounded-[5px] bg-primary/15 px-2 py-0.5 text-[8px] font-black uppercase tracking-wider text-primary">
                   Cota Oficial Copa 2026
                 </span>
-              </div>
+                          </div>
             </div>
 
             {/* itens */}
@@ -1083,17 +1084,17 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
                   </span>
                   <p className="text-[12px] font-medium leading-snug text-white/75">
                     {item}
-                  </p>
-                </div>
+                            </p>
+                          </div>
               ))}
-            </div>
+                        </div>
 
             {/* footer */}
             <div className="flex items-start gap-2.5 border-t border-white/7 px-4 py-3.5">
               <ArrowRight
                 className="mt-0.5 size-3.5 shrink-0 text-primary"
-                strokeWidth={2.5}
-              />
+                            strokeWidth={2.5}
+                          />
               <p className="text-[11px] font-medium leading-snug text-white/50">
                 Você concorre ao ranking geral e pode ser um dos{" "}
                 <span className="font-bold text-white/80">
@@ -1124,7 +1125,7 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
               <p className="mt-1.5 text-[12px] font-medium leading-snug text-white/45">
                 Mais cotas = mais posições no ranking = mais chances de ganhar
               </p>
-            </div>
+                          </div>
 
             <div className="mx-4 h-px bg-white/8" />
 
@@ -1162,8 +1163,8 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
                         <span className="rounded-full bg-primary/20 px-1.5 py-0.5 text-[8px] font-black text-primary">
                           {pkg.saving}
                         </span>
-                      )}
-                    </div>
+                        )}
+                      </div>
 
                     {/* label */}
                     <p
@@ -1195,7 +1196,7 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
 
             {/* CTA button inside the card */}
             <div className="px-4 pb-2">
-              <Link
+                          <Link
                 href="/tickets"
                 className="flex h-[56px] w-full items-center justify-center gap-2.5 rounded-[14px] bg-primary text-[13px] font-black uppercase tracking-[0.05em] text-[#0E141B] shadow-[0_4px_24px_rgba(177,235,11,0.45)] transition-[filter] hover:brightness-105 active:scale-[0.98]"
               >
@@ -1203,8 +1204,8 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
                 {currentPkg.priceMain}
                 {currentPkg.priceDec}
                 <ChevronRight className="size-5 shrink-0" strokeWidth={2.8} />
-              </Link>
-            </div>
+                          </Link>
+                        </div>
 
             {/* trust bar inside the card */}
             <div className="flex items-center justify-around px-4 py-4">
@@ -1222,7 +1223,7 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
                 <Check className="size-3 shrink-0" strokeWidth={2.2} />
                 Oficial
               </span>
-            </div>
+                      </div>
           </div>
         </div>
       </div>
@@ -1300,10 +1301,10 @@ export function BoloesClient({ data }: { data: BoloesScreenData | null }) {
                 Voltar{" "}
                 <ChevronRight className="size-3 rotate-180" strokeWidth={2.6} />
               </button>
-            </div>
+              </div>
             <ActiveBoloesList items={data?.active.all ?? []} now={now} />
           </section>
-        </div>
+            </div>
       </div>
     );
   }
@@ -1388,7 +1389,7 @@ export function BoloesClient({ data }: { data: BoloesScreenData | null }) {
           )}
         </section>
 
-        <section className="mt-4">
+        <section className="mt-4 mb-6">
           <ShowcaseSectionTitle
             icon={CalendarDays}
             index="2"
@@ -1434,26 +1435,7 @@ export function BoloesClient({ data }: { data: BoloesScreenData | null }) {
           )}
         </section>
 
-        <Link
-          href="/tickets"
-          className="mt-5 flex items-center gap-3 rounded-[14px] border border-primary/30 bg-primary/10 px-4 py-3 shadow-[0_0_24px_rgba(177,235,11,0.12)] transition-transform active:scale-[0.985]"
-        >
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-[10px] border border-primary/30 bg-black/40">
-            <Ticket className="size-5 text-primary" strokeWidth={2.1} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-[12px] font-black uppercase leading-tight text-white">
-              Quer participar de mais bolões?
-            </p>
-            <p className="mt-1 text-[10px] font-medium leading-tight text-white/55">
-              Compre novos bolões e aumente suas chances de ganhar prêmios
-              incríveis!
-            </p>
-          </div>
-          <span className="inline-flex h-9 shrink-0 items-center gap-1 rounded-[9px] bg-primary px-3 text-[10px] font-black uppercase text-[#0E141B]">
-            Comprar <ChevronRight className="size-3.5" strokeWidth={2.8} />
-          </span>
-        </Link>
+        <CotaCpa />
       </div>
     </div>
   );
