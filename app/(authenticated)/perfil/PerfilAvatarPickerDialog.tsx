@@ -270,30 +270,29 @@ export function PerfilAvatarPickerDialog({
                 onChange={onFileChange}
               />
               <div className="mt-4 flex min-h-[280px] flex-col items-center justify-center gap-3">
-                {safeUpload ? (
-                  <div className="relative size-32 shrink-0 overflow-hidden rounded-2xl border-2 border-primary/40 shadow-[0_0_24px_rgba(177,235,11,0.2)]">
-                    <Image
-                      src={avatarUploadImageSrc(safeUpload)}
-                      alt=""
-                      fill
-                      className="object-cover"
-                      sizes="128px"
-                      unoptimized
-                    />
-                  </div>
-                ) : (
-                  <div className="flex size-32 shrink-0 items-center justify-center rounded-2xl border border-dashed border-white/20 bg-white/3 text-white/35">
-                    <ImagePlus className="size-10" strokeWidth={1.5} />
-                  </div>
-                )}
                 <label
                   htmlFor={fileInputId}
-                  className={`inline-flex h-11 w-full max-w-xs cursor-pointer items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/12 px-4 text-[12px] font-black uppercase tracking-wide text-primary transition-colors hover:bg-primary/18 ${
+                  className={`group relative block shrink-0 cursor-pointer rounded-2xl focus-within:outline-none focus-within:ring-2 focus-within:ring-primary/50 focus-within:ring-offset-2 focus-within:ring-offset-[#101010] ${
                     saving ? "pointer-events-none opacity-50" : ""
                   }`}
+                  aria-label={safeUpload ? "Trocar foto da galeria" : "Escolher foto da galeria"}
                 >
-                  <ImagePlus className="size-4" strokeWidth={2.2} />
-                  Escolher da galeria
+                  {safeUpload ? (
+                    <div className="relative size-32 overflow-hidden rounded-2xl border-2 border-primary/40 shadow-[0_0_24px_rgba(177,235,11,0.2)] ring-primary/0 transition-[box-shadow,ring] group-hover:ring-2 group-hover:ring-primary/25">
+                      <Image
+                        src={avatarUploadImageSrc(safeUpload)}
+                        alt=""
+                        fill
+                        className="object-cover"
+                        sizes="128px"
+                        unoptimized
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex size-32 items-center justify-center rounded-2xl border border-dashed border-white/20 bg-white/3 text-white/35 transition-colors group-hover:border-primary/35 group-hover:bg-primary/5 group-hover:text-primary/50">
+                      <ImagePlus className="size-10" strokeWidth={1.5} />
+                    </div>
+                  )}
                 </label>
                 {safeUpload ? (
                   <button
