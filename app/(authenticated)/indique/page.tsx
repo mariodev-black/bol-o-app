@@ -439,7 +439,6 @@ export default function IndiqueGanhePage() {
                 <span className="font-black text-primary">{porIndicacaoFmt}</span> na próxima indicação paga.
               </p>
             </div>
-
             <div className="mt-auto grid grid-cols-2 gap-1.5">
               <div className="flex h-[48px] items-center gap-2 rounded-[9px] border border-white/10 bg-black/52 px-2 backdrop-blur-[2px]">
                 <Trophy className="size-4 shrink-0 text-[#C47A37]" strokeWidth={2.2} />
