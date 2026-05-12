@@ -51,7 +51,7 @@ export function RecuperarSenhaContent() {
 
       <div className="rounded-[16px] border border-white/8 bg-[#151515] p-[22px] shadow-[0_18px_42px_rgba(0,0,0,0.28)]">
         <div className="flex flex-col gap-[10px]">
-          <label className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">
+          <label className="text-[10px] font-black uppercase tracking-[0.14em] text-white/80">
             E-mail
           </label>
           <div className="relative">

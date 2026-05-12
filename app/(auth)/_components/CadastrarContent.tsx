@@ -571,7 +571,7 @@ export function CadastrarContent() {
         {step === 1 && (
           <div className="flex flex-col gap-[18px]">
             <div className="flex flex-col gap-[10px]">
-              <label className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">Nome completo</label>
+              <label className="text-[10px] font-black uppercase tracking-[0.14em] text-white/80">Nome completo</label>
               <div className="relative">
                 <User className="pointer-events-none absolute left-[17px] top-1/2 h-[15px] w-[15px] -translate-y-1/2 text-white/32" />
                 <input
@@ -591,7 +591,7 @@ export function CadastrarContent() {
             </div>
 
             <div ref={emailRef} className="relative flex flex-col gap-[10px]">
-              <label className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">E-mail</label>
+              <label className="text-[10px] font-black uppercase tracking-[0.14em] text-white/80">E-mail</label>
               <div className="relative">
                 <Mail className="pointer-events-none absolute left-[17px] top-1/2 h-[15px] w-[15px] -translate-y-1/2 text-white/32" />
                 <input
@@ -626,7 +626,7 @@ export function CadastrarContent() {
             </div>
 
             <div className="flex flex-col gap-[10px]">
-              <label className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">CPF</label>
+              <label className="text-[10px] font-black uppercase tracking-[0.14em] text-white/80">CPF</label>
               <div className="relative">
                 <FileText className="pointer-events-none absolute left-[17px] top-1/2 h-[15px] w-[15px] -translate-y-1/2 text-white/32" />
                 <input
@@ -644,7 +644,7 @@ export function CadastrarContent() {
             </div>
 
             <div className="flex flex-col gap-[10px]">
-              <label className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">Telefone</label>
+              <label className="text-[10px] font-black uppercase tracking-[0.14em] text-white/80">Telefone</label>
               <div className="flex w-full gap-2">
                 <CountrySelector selected={country} onChange={handleCountryChange} />
                 <div className="relative min-w-0 flex-1">
@@ -690,7 +690,7 @@ export function CadastrarContent() {
         {step === 2 && (
           <div className="flex flex-col gap-[18px]">
             <div className="flex flex-col gap-[10px]">
-              <label className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">Senha</label>
+              <label className="text-[10px] font-black uppercase tracking-[0.14em] text-white/80">Senha</label>
               <div className="relative">
                 <Lock className="pointer-events-none absolute left-[17px] top-1/2 h-[15px] w-[15px] -translate-y-1/2 text-white/32" />
                 <input
@@ -718,7 +718,7 @@ export function CadastrarContent() {
             </div>
 
             <div className="flex flex-col gap-[10px]">
-              <label className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">Confirmar senha</label>
+              <label className="text-[10px] font-black uppercase tracking-[0.14em] text-white/80">Confirmar senha</label>
               <div className="relative">
                 <Lock className="pointer-events-none absolute left-[17px] top-1/2 h-[15px] w-[15px] -translate-y-1/2 text-white/32" />
                 <input

@@ -111,7 +111,7 @@ export function LoginContent() {
       <div className="rounded-[20px] border border-white/10 bg-[#050505]/70 px-5 py-[27px] shadow-[0_16px_40px_rgba(0,0,0,0.28)] lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none">
       <div className="flex flex-col gap-[17px] lg:gap-5">
         <div className="flex flex-col gap-[10px]">
-          <label className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">E-mail</label>
+          <label className="text-[10px] font-black uppercase tracking-[0.14em] text-white/80">E-mail</label>
           <div className="relative">
             <Mail className="pointer-events-none absolute left-[17px] top-1/2 h-[15px] w-[15px] -translate-y-1/2 text-white/32" />
             <input
@@ -129,7 +129,7 @@ export function LoginContent() {
         </div>
 
         <div className="flex flex-col gap-[10px]">
-          <label className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">Senha</label>
+          <label className="text-[10px] font-black uppercase tracking-[0.14em] text-white/80">Senha</label>
           <div className="relative">
             <Lock className="pointer-events-none absolute left-[17px] top-1/2 h-[15px] w-[15px] -translate-y-1/2 text-white/32" />
             <input
