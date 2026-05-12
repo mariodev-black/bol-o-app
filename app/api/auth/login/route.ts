@@ -5,6 +5,8 @@ import { verifyPassword } from "@/lib/auth/password";
 import { attachSessionCookie } from "@/lib/auth/session";
 import { responseForDbError } from "@/lib/db-errors";
 import { findUserByCpf, findUserByEmail } from "@/lib/auth/users";
+import { clampAvatarIndex } from "@/lib/auth/avatar-index";
+import { isStoredAvatarUploadFilename } from "@/lib/user/avatar-filename";
 
 export const runtime = "nodejs";
 
@@ -55,11 +57,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "E-mail/CPF ou senha incorretos" }, { status: 401 });
   }
 
+  const rawUpload = typeof row.avatar_upload_filename === "string" ? row.avatar_upload_filename.trim() : "";
   const user = {
     id: row.id,
     email: row.email,
     name: row.name,
     avatarUrl: row.avatar_url,
+    avatarIndex: clampAvatarIndex(Number(row.avatar_index)),
+    avatarUploadFilename: rawUpload && isStoredAvatarUploadFilename(rawUpload) ? rawUpload : null,
     referralCode: row.referral_code ?? "",
   };
   const res = NextResponse.json({ user });

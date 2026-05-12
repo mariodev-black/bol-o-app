@@ -8,8 +8,12 @@ import type { AffiliateSummary } from "@/app/(authenticated)/indique/affiliate-t
 import { formatBRLFromCents } from "@/app/(authenticated)/indique/affiliate-types";
 import { fetchAffiliateSummaryCached } from "@/app/(authenticated)/indique/affiliate-summary-cache";
 import { WithdrawGanhosModal } from "@/app/(authenticated)/indique/WithdrawGanhosModal";
+import { PerfilAvatarPickerDialog } from "@/app/(authenticated)/perfil/PerfilAvatarPickerDialog";
 import bannerRanking from "@/app/assets/banner-ranking.png";
 import { useAuth } from "@/app/shared/AuthContext";
+import { clampAvatarIndex } from "@/lib/auth/avatar-index";
+import { avatarUploadPublicUrl, isStoredAvatarUploadFilename } from "@/lib/user/avatar-filename";
+import { getAvatarPresetImage } from "@/lib/user/avatar-presets";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Camera,
@@ -50,17 +54,6 @@ const settingsItems = [
   { icon: CircleHelp, title: "Ajuda e Suporte", subtitle: "FAQ e atendimento", href: "/indique" },
   { icon: FileText, title: "Política de Privacidade", subtitle: "Seus dados e privacidade", href: "/privacidade" },
 ];
-
-function userInitials(name: string | null, email: string): string {
-  const n = name?.trim();
-  if (n) {
-    const parts = n.split(/\s+/).filter(Boolean);
-    if (parts.length >= 2) return (parts[0]![0]! + parts[1]![0]!).toUpperCase();
-    return n.slice(0, 2).toUpperCase();
-  }
-  const local = email.split("@")[0]?.trim();
-  return (local?.slice(0, 2) || "??").toUpperCase();
-}
 
 function nextTierProgress(affiliate: AffiliateSummary | null): {
   nextLabel: string;
@@ -116,7 +109,7 @@ function EliteShieldBadge() {
 }
 
 export default function PerfilPage() {
-  const { user, ready } = useAuth();
+  const { user, ready, applySessionUser } = useAuth();
   const [recentPicks, setRecentPicks] = useState<RecentPick[]>([]);
   const [resumo, setResumo] = useState<{ palpites: number; acertos: number; pontos: number; exatos: number } | null>(
     null
@@ -126,6 +119,7 @@ export default function PerfilPage() {
   const [ticketsLoading, setTicketsLoading] = useState(true);
   const [profileDataLoading, setProfileDataLoading] = useState(true);
   const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
+  const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
 
   const reloadAffiliateSummary = useCallback(async () => {
     if (!ready) return;
@@ -238,7 +232,11 @@ export default function PerfilPage() {
   }, [ticketCount, resumo]);
 
   const displayName = user?.name?.trim() || user?.email?.split("@")[0] || "Jogador";
-  const initials = user ? userInitials(user.name, user.email) : "…";
+  const avatarIndex = clampAvatarIndex(user?.avatarIndex ?? 0);
+  const customAvatar =
+    user?.avatarUploadFilename && isStoredAvatarUploadFilename(user.avatarUploadFilename.trim())
+      ? user.avatarUploadFilename.trim()
+      : null;
   const nivelAfiliado = affiliate?.currentTierLabel ?? "—";
   const tierProgress = useMemo(() => nextTierProgress(affiliate), [affiliate]);
   const sessionLoading = !ready;
@@ -273,17 +271,42 @@ export default function PerfilPage() {
           <div className="pointer-events-none absolute -right-16 -top-20 h-40 w-40 rounded-full bg-primary/10 blur-3xl" />
           <div className="relative flex flex-col gap-4">
             <div className="flex flex-wrap items-start gap-4">
-              <div className="relative shrink-0">
-                <div className="flex size-[4.5rem] items-center justify-center rounded-2xl bg-primary text-xl font-black text-[#0E141B] shadow-[0_10px_28px_rgba(177,235,11,0.35)] sm:size-20 sm:text-2xl">
-                  {sessionLoading ? <SkeletonBlock className="h-8 w-10 bg-black/15" /> : initials}
+              <button
+                type="button"
+                onClick={() => setAvatarDialogOpen(true)}
+                disabled={!ready || !user}
+                className="group relative shrink-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#121212] disabled:pointer-events-none disabled:opacity-50"
+                aria-label="Alterar avatar"
+              >
+                <div className="relative size-[4.5rem] overflow-hidden rounded-2xl border border-white/12 bg-black shadow-[0_10px_28px_rgba(0,0,0,0.45)] ring-primary/0 transition-[box-shadow,transform] group-hover:ring-2 group-hover:ring-primary/35 group-active:scale-[0.98] sm:size-20">
+                  {sessionLoading ? (
+                    <SkeletonBlock className="size-full rounded-2xl bg-white/10" />
+                  ) : customAvatar ? (
+                    <Image
+                      src={avatarUploadPublicUrl(customAvatar)}
+                      alt=""
+                      fill
+                      className="object-cover"
+                      sizes="80px"
+                      unoptimized
+                    />
+                  ) : (
+                    <Image
+                      src={getAvatarPresetImage(avatarIndex)}
+                      alt=""
+                      fill
+                      className="object-cover"
+                      sizes="80px"
+                    />
+                  )}
                 </div>
                 <span
-                  className="absolute -bottom-1 -right-1 flex size-7 items-center justify-center rounded-lg border border-white/10 bg-[#1a1a1a] shadow-md"
+                  className="pointer-events-none absolute -bottom-1 -right-1 flex size-7 items-center justify-center rounded-lg border border-white/10 bg-[#1a1a1a] shadow-md"
                   aria-hidden
                 >
                   <Camera className="size-3.5 text-white/70" strokeWidth={2.2} />
                 </span>
-              </div>
+              </button>
               <div className="min-w-0 flex-1">
                 <p className="truncate font-helvetica-now-display text-2xl font-black text-white sm:text-[1.75rem]">
                   {sessionLoading ? <SkeletonBlock className="h-8 w-36" /> : displayName}
@@ -292,14 +315,15 @@ export default function PerfilPage() {
                   {sessionLoading ? <SkeletonBlock className="h-4 w-48" /> : user?.email}
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <Link
-                    href="/perfil#configuracoes"
-                    scroll
-                    className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-primary/35 bg-primary/10 px-3 text-[11px] font-black uppercase tracking-wide text-primary transition-colors hover:bg-primary/15"
+                  <button
+                    type="button"
+                    onClick={() => setAvatarDialogOpen(true)}
+                    disabled={!ready || !user}
+                    className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-primary/35 bg-primary/10 px-3 text-[11px] font-black uppercase tracking-wide text-primary transition-colors hover:bg-primary/15 disabled:pointer-events-none disabled:opacity-50"
                   >
                     <Pencil className="size-3.5" strokeWidth={2.2} />
                     Editar perfil
-                  </Link>
+                  </button>
                   <Link
                     href="/indique"
                     className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-white/12 bg-white/[0.04] px-3 text-[11px] font-black uppercase tracking-wide text-white/90 transition-colors hover:bg-white/[0.07]"
@@ -590,6 +614,14 @@ export default function PerfilPage() {
           <LogoutAccountButton />
         </div>
       </div>
+
+      <PerfilAvatarPickerDialog
+        open={avatarDialogOpen && Boolean(user)}
+        onClose={() => setAvatarDialogOpen(false)}
+        currentIndex={avatarIndex}
+        uploadFilename={user?.avatarUploadFilename ?? null}
+        onSaved={applySessionUser}
+      />
 
       <WithdrawGanhosModal
         open={withdrawModalOpen}

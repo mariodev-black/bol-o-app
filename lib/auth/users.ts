@@ -1,14 +1,21 @@
 import { getPool } from "@/lib/db";
 import { allocateUniqueReferralCode, findUserIdByReferralCode } from "@/lib/auth/referral-code";
+import { clampAvatarIndex, randomPresetAvatarIndex } from "@/lib/auth/avatar-index";
+import { isStoredAvatarUploadFilename } from "@/lib/user/avatar-filename";
+import { deleteUserAvatarFile } from "@/lib/user/avatar-upload-storage";
 
 const U =
-  "id, email, cpf, password_hash, name, phone, avatar_url, google_sub, email_verified_at, referral_code, referred_by_user_id";
+  "id, email, cpf, password_hash, name, phone, avatar_url, avatar_index, avatar_upload_filename, google_sub, email_verified_at, referral_code, referred_by_user_id";
 
 export type PublicUser = {
   id: string;
   email: string;
   name: string | null;
   avatarUrl: string | null;
+  /** Preset local 0–4 (`app/assets/avatares/{n}.png`). */
+  avatarIndex: number;
+  /** Basename em `public/avataruploads/`; se preenchido, tem precedência sobre o preset. */
+  avatarUploadFilename: string | null;
   referralCode: string;
 };
 
@@ -20,11 +27,29 @@ type UserRow = {
   name: string | null;
   phone: string | null;
   avatar_url: string | null;
+  avatar_index: string | number | null;
+  avatar_upload_filename: string | null;
   google_sub: string | null;
   email_verified_at: Date | null;
   referral_code: string | null;
   referred_by_user_id: string | null;
 };
+
+function rowAvatarIndex(row: UserRow): number {
+  const v = row.avatar_index;
+  if (typeof v === "number" && Number.isFinite(v)) return clampAvatarIndex(v);
+  if (typeof v === "string" && v.trim() !== "") {
+    const n = parseInt(v, 10);
+    if (!Number.isNaN(n)) return clampAvatarIndex(n);
+  }
+  return 0;
+}
+
+function rowAvatarUploadFilename(row: UserRow): string | null {
+  const v = row.avatar_upload_filename?.trim();
+  if (!v) return null;
+  return isStoredAvatarUploadFilename(v) ? v : null;
+}
 
 function toPublic(row: UserRow): PublicUser {
   return {
@@ -32,6 +57,8 @@ function toPublic(row: UserRow): PublicUser {
     email: row.email,
     name: row.name,
     avatarUrl: row.avatar_url,
+    avatarIndex: rowAvatarIndex(row),
+    avatarUploadFilename: rowAvatarUploadFilename(row),
     referralCode: row.referral_code ?? "",
   };
 }
@@ -137,9 +164,11 @@ export async function createUserWithPassword(input: {
 
   const myCode = await allocateUniqueReferralCode();
 
+  const avatarIndex = randomPresetAvatarIndex();
+
   const { rows } = await pool.query<UserRow>(
-    `INSERT INTO users (email, cpf, password_hash, name, phone, referral_code, referred_by_user_id)
-     VALUES (lower(trim($1)), $2, $3, trim($4), $5, $6, $7)
+    `INSERT INTO users (email, cpf, password_hash, name, phone, referral_code, referred_by_user_id, avatar_index)
+     VALUES (lower(trim($1)), $2, $3, trim($4), $5, $6, $7, $8)
      RETURNING ${U}`,
     [
       input.email,
@@ -149,6 +178,7 @@ export async function createUserWithPassword(input: {
       input.phone,
       myCode,
       referredByUserId,
+      avatarIndex,
     ]
   );
   return { user: toPublic(rows[0]!), inviteInvalid };
@@ -169,12 +199,13 @@ export async function createUserFromGoogle(input: {
   const myCode = await allocateUniqueReferralCode();
   const referredBy =
     input.referredByUserId && input.referredByUserId.length > 0 ? input.referredByUserId : null;
+  const avatarIndex = randomPresetAvatarIndex();
 
   const { rows } = await pool.query<UserRow>(
-    `INSERT INTO users (email, google_sub, name, avatar_url, email_verified_at, password_hash, cpf, referral_code, referred_by_user_id)
-     VALUES (lower(trim($1)), $2, trim($3), $4, $5, NULL, NULL, $6, $7)
+    `INSERT INTO users (email, google_sub, name, avatar_url, avatar_index, email_verified_at, password_hash, cpf, referral_code, referred_by_user_id)
+     VALUES (lower(trim($1)), $2, trim($3), $4, $5, $6, NULL, NULL, $7, $8)
      RETURNING ${U}`,
-    [input.email, input.googleSub, displayName, input.avatarUrl, verified, myCode, referredBy]
+    [input.email, input.googleSub, displayName, input.avatarUrl, avatarIndex, verified, myCode, referredBy]
   );
   return toPublic(rows[0]!);
 }
@@ -200,4 +231,49 @@ export async function linkGoogleToExistingUser(
     [userId, googleSub, name, avatarUrl, verified]
   );
   return toPublic(rows[0]!);
+}
+
+export async function updateUserAvatarIndex(userId: string, avatarIndex: number): Promise<PublicUser | null> {
+  const idx = clampAvatarIndex(avatarIndex);
+  const pool = getPool();
+  const { rows: peekRows } = await pool.query<{ f: string | null }>(
+    `SELECT avatar_upload_filename AS f FROM users WHERE id = $1`,
+    [userId]
+  );
+  const oldUpload = peekRows[0]?.f?.trim() ?? null;
+
+  const { rows } = await pool.query<UserRow>(
+    `UPDATE users SET avatar_index = $2, avatar_upload_filename = NULL, updated_at = now() WHERE id = $1 RETURNING ${U}`,
+    [userId, idx]
+  );
+  const row = rows[0];
+  if (!row) return null;
+  if (oldUpload && isStoredAvatarUploadFilename(oldUpload)) {
+    deleteUserAvatarFile(oldUpload);
+  }
+  return toPublic(row);
+}
+
+export async function setUserAvatarUploadFilename(
+  userId: string,
+  filename: string | null
+): Promise<PublicUser | null> {
+  const pool = getPool();
+  const { rows: peekRows } = await pool.query<{ f: string | null }>(
+    `SELECT avatar_upload_filename AS f FROM users WHERE id = $1`,
+    [userId]
+  );
+  const oldUpload = peekRows[0]?.f?.trim() ?? null;
+
+  const safe = filename && isStoredAvatarUploadFilename(filename) ? filename : null;
+  const { rows } = await pool.query<UserRow>(
+    `UPDATE users SET avatar_upload_filename = $2, updated_at = now() WHERE id = $1 RETURNING ${U}`,
+    [userId, safe]
+  );
+  const row = rows[0];
+  if (!row) return null;
+  if (oldUpload && isStoredAvatarUploadFilename(oldUpload) && oldUpload !== safe) {
+    deleteUserAvatarFile(oldUpload);
+  }
+  return toPublic(row);
 }

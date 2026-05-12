@@ -37,5 +37,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# avatares enviados pelos usuários (mantém só .gitkeep)
+public/avataruploads/*
+!public/avataruploads/.gitkeep
+
 # deploy webhook logs (mantém pasta com logs/.gitkeep)
 /logs/*.log

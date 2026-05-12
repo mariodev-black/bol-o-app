@@ -514,3 +514,29 @@ button, [role="button"] {
   border-color: rgba(177, 235, 11, 0.42);
   box-shadow: 0 0 0 4px rgba(177, 235, 11, 0.08);
 }
+
+/* ── Perfil: modal de avatar (bottom sheet) ─────────────────── */
+@keyframes perfil-avatar-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes perfil-avatar-sheet-in {
+  from {
+    opacity: 0.75;
+    transform: translate3d(0, 100%, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+.animate-perfil-avatar-overlay-in {
+  animation: perfil-avatar-overlay-in 0.28s ease-out forwards;
+}
+.animate-perfil-avatar-sheet-in {
+  animation: perfil-avatar-sheet-in 0.42s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}

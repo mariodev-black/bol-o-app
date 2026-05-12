@@ -9,12 +9,18 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { clampAvatarIndex } from "@/lib/auth/avatar-index";
+import { isStoredAvatarUploadFilename } from "@/lib/user/avatar-filename";
 
 export type AuthUser = {
   id: string;
   email: string;
   name: string | null;
   avatarUrl: string | null;
+  /** Preset 0–4 (`app/assets/avatares/{n}.png`), persistido em `users.avatar_index`. */
+  avatarIndex: number;
+  /** Basename em `public/avataruploads/`; quando definido, substitui o preset na UI. */
+  avatarUploadFilename: string | null;
   /** Código de indicação deste usuário (para compartilhar). */
   referralCode: string;
 };
@@ -33,6 +39,16 @@ type AuthContextValue = {
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+
+function normalizeSessionUser(u: AuthUser): AuthUser {
+  const raw = typeof u.avatarUploadFilename === "string" ? u.avatarUploadFilename.trim() : "";
+  return {
+    ...u,
+    referralCode: u.referralCode ?? "",
+    avatarIndex: clampAvatarIndex(Number(u.avatarIndex)),
+    avatarUploadFilename: raw && isStoredAvatarUploadFilename(raw) ? raw : null,
+  };
+}
 
 async function parseJsonSafe(r: Response): Promise<{ error?: string; user?: AuthUser | null }> {
   try {
@@ -55,7 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const applySessionUser = useCallback(
     (u: AuthUser) => {
       beginNewAuthEpoch();
-      setUser({ ...u, referralCode: u.referralCode ?? "" });
+      setUser(normalizeSessionUser(u));
       /** Header/NavBottom só renderizam com `ready`; não dependem do 1º `/me` terminar depois do login/registro. */
       setReady(true);
     },
@@ -70,9 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (epochAtStart !== authEpochRef.current) return;
       const u = data.user;
       setUser(
-        u
-          ? { ...u, referralCode: u.referralCode ?? "" }
-          : null
+        u ? normalizeSessionUser(u) : null
       );
     } catch {
       if (epochAtStart !== authEpochRef.current) return;
