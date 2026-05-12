@@ -36,3 +36,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# deploy webhook logs (mantém pasta com logs/.gitkeep)
+/logs/*.log
