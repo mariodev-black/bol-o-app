@@ -453,7 +453,7 @@ export default function IndiqueGanhePage() {
                 <div className="min-w-0">
                   <p className="text-[8px] font-black uppercase tracking-widest text-white/80">Você ganha</p>
                   <p className="mt-0.5 truncate text-[15px] font-black leading-none text-primary">{porIndicacaoFmt}</p>
-                  <p className="mt-0.5 text-[6.5px] font-medium text-white/48">por indicação</p>
+                  <p className="mt-0.5 text-[7.8px] font-medium text-white">por indicação</p>
                 </div>
               </div>
             </div>
