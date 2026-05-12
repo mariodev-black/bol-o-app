@@ -604,17 +604,11 @@ function PublicHome() {
               </div>
             </div>
             <div className="flex h-full w-full items-end justify-end">
-              <div className="relative aspect-[3/5] w-full max-w-md mx-auto sm:aspect-[4/5] sm:max-w-lg lg:mx-0 lg:max-w-xl xl:max-w-2xl">
-                <div className="absolute inset-0">
-                  <HomeHeroCarousel
-                    slides={HOME_SLIDER_SLIDES}
-                    heightClassName="h-full w-full"
-                    objectPositionClassName="object-cover object-[50%_100%]"
-                    sizes="(max-width: 1024px) 92vw, 46vw"
-                    intervalMs={6000}
-                  />
-                </div>
-              </div>
+              <img
+                src={bgHeroDesktop.src}
+                alt="Bolão da Copa 2026 — premiação e ranking"
+                className="w-full"
+              />
             </div>
           </div>
         </div>
