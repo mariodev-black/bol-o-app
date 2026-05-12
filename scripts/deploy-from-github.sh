@@ -23,7 +23,10 @@ mkdir -p "$(dirname "$LOG")"
 
 exec >>"$LOG" 2>&1
 
-echo "==== $(date -u '+%Y-%m-%dT%H:%M:%SZ') deploy start (pid $$) pid=$$ ===="
+trap 'echo "[deploy-flow] ERRO bash: exit=$? linha=$LINENO (comando provavelmente acima)"' ERR
+
+echo "==== $(date -u '+%Y-%m-%dT%H:%M:%SZ') [deploy-flow] script iniciado | pid=$$ | ROOT=$ROOT | LOG=$LOG ===="
+echo "[deploy-flow] Lembrete: o GitHub só chama este script após **git push** (commit só local não dispara webhook)."
 
 BRANCH="${GITHUB_DEPLOY_BRANCH:-main}"
 export NODE_ENV="${NODE_ENV:-production}"
@@ -38,34 +41,37 @@ deps_fingerprint() {
 }
 
 DEPS_BEFORE="$(deps_fingerprint)"
+echo "[deploy-flow] fingerprint deps (antes do git): ${DEPS_BEFORE}"
 
 if [[ "${SKIP_GIT_PULL:-0}" != "1" ]]; then
-  echo "git checkout ${BRANCH} ..."
+  echo "[deploy-flow] etapa: git checkout ${BRANCH}"
   git checkout "$BRANCH"
-  echo "git pull origin ${BRANCH} ..."
+  echo "[deploy-flow] etapa: git pull origin ${BRANCH}"
   git pull origin "$BRANCH"
 else
-  echo "SKIP_GIT_PULL=1 — pulando git"
+  echo "[deploy-flow] SKIP_GIT_PULL=1 — pulando git"
 fi
 
 DEPS_AFTER="$(deps_fingerprint)"
+echo "[deploy-flow] fingerprint deps (depois do git): ${DEPS_AFTER}"
+
 if [[ "${FORCE_NPM_INSTALL:-0}" == "1" ]]; then
-  echo "FORCE_NPM_INSTALL=1 — npm install ..."
+  echo "[deploy-flow] etapa: npm install (FORCE_NPM_INSTALL=1)"
   npm install --no-audit --no-fund
 elif [[ ! -d node_modules ]]; then
-  echo "node_modules ausente — npm install ..."
+  echo "[deploy-flow] etapa: npm install (node_modules ausente)"
   npm install --no-audit --no-fund
 elif [[ "$DEPS_BEFORE" != "$DEPS_AFTER" ]]; then
-  echo "package.json ou package-lock.json mudou — npm install ..."
+  echo "[deploy-flow] etapa: npm install (package.json ou lock mudou)"
   npm install --no-audit --no-fund
 else
-  echo "Dependências inalteradas — pulando npm install"
+  echo "[deploy-flow] etapa: npm install — PULADO (deps inalteradas)"
 fi
 
-echo "npm run build ..."
+echo "[deploy-flow] etapa: npm run build"
 npm run build
 
-echo "pm2 restart all ..."
+echo "[deploy-flow] etapa: pm2 restart all"
 pm2 restart all
 
-echo "==== deploy finished OK ===="
+echo "==== $(date -u '+%Y-%m-%dT%H:%M:%SZ') [deploy-flow] script terminou OK ===="
