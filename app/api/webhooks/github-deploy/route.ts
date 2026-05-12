@@ -33,14 +33,12 @@ function queueDeploy(): void {
 }
 
 /**
- * Webhook GitHub: eventos `ping` (teste) e `push` na branch configurada.
- * Configure em GitHub: Settings → Webhooks → Payload URL …/api/webhooks/github-deploy
- * Content type: application/json · apenas "push".
+ * Igual ideia do Vercel: quando o código **chega no GitHub** (você dá `git push` na branch
+ * conectada), o GitHub chama esta URL e o servidor roda: git pull → npm install → build → pm2.
+ * (Commit só no PC não dispara nada — o remoto precisa receber o push, como no Vercel.)
  *
- * Sem verificação de assinatura: qualquer POST bem-formado pode enfileirar deploy.
- * Proteja na rede (IP GitHub, nginx, firewall) se a URL for pública.
- *
- * Deploy em processo desanexado em DEPLOY_APP_ROOT: git fetch/reset, npm ci, build, pm2 restart all.
+ * Webhook: Settings → Webhooks → Payload …/api/webhooks/github-deploy · JSON · só "push".
+ * Sem assinatura: restrinja por IP/firewall se a URL for pública.
  */
 export function GET() {
   return NextResponse.json({ error: "Use POST (webhook do GitHub)" }, { status: 405 });

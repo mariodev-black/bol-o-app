@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Deploy disparado pelo webhook GitHub: entra na pasta do app, pull, build, pm2.
+# Deploy disparado pelo webhook GitHub: pasta do app → git pull → npm install só se precisar → build → pm2.
+# npm install roda se: node_modules não existe, package.json/lock mudou no pull, ou FORCE_NPM_INSTALL=1.
 # No servidor defina DEPLOY_APP_ROOT=/root/app (ou ~/app) — é onde está o clone e o .git.
 
 set -euo pipefail
@@ -27,17 +28,39 @@ echo "==== $(date -u '+%Y-%m-%dT%H:%M:%SZ') deploy start (pid $$) pid=$$ ===="
 BRANCH="${GITHUB_DEPLOY_BRANCH:-main}"
 export NODE_ENV="${NODE_ENV:-production}"
 
+# “Impressão digital” de package.json + package-lock.json (só roda npm install se mudar ou não houver node_modules).
+deps_fingerprint() {
+  if [[ -f package-lock.json ]]; then
+    cat package.json package-lock.json | md5sum | awk '{print $1}'
+  else
+    md5sum package.json | awk '{print $1}'
+  fi
+}
+
+DEPS_BEFORE="$(deps_fingerprint)"
+
 if [[ "${SKIP_GIT_PULL:-0}" != "1" ]]; then
-  echo "git fetch origin ${BRANCH} ..."
-  git fetch origin "$BRANCH"
-  echo "git reset --hard origin/${BRANCH} ..."
-  git reset --hard "origin/${BRANCH}"
+  echo "git checkout ${BRANCH} ..."
+  git checkout "$BRANCH"
+  echo "git pull origin ${BRANCH} ..."
+  git pull origin "$BRANCH"
 else
   echo "SKIP_GIT_PULL=1 — pulando git"
 fi
 
-echo "npm ci ..."
-npm ci
+DEPS_AFTER="$(deps_fingerprint)"
+if [[ "${FORCE_NPM_INSTALL:-0}" == "1" ]]; then
+  echo "FORCE_NPM_INSTALL=1 — npm install ..."
+  npm install --no-audit --no-fund
+elif [[ ! -d node_modules ]]; then
+  echo "node_modules ausente — npm install ..."
+  npm install --no-audit --no-fund
+elif [[ "$DEPS_BEFORE" != "$DEPS_AFTER" ]]; then
+  echo "package.json ou package-lock.json mudou — npm install ..."
+  npm install --no-audit --no-fund
+else
+  echo "Dependências inalteradas — pulando npm install"
+fi
 
 echo "npm run build ..."
 npm run build
