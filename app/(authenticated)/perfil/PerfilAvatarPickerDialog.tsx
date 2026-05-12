@@ -269,7 +269,7 @@ export function PerfilAvatarPickerDialog({
                 disabled={saving}
                 onChange={onFileChange}
               />
-              <div className="mt-4 flex min-h-[280px] flex-col items-center justify-center gap-3">
+              <div className="mt-4 flex min-h-[200px] flex-col items-center justify-center gap-3">
                 <label
                   htmlFor={fileInputId}
                   className={`group relative block shrink-0 cursor-pointer rounded-2xl focus-within:outline-none focus-within:ring-2 focus-within:ring-primary/50 focus-within:ring-offset-2 focus-within:ring-offset-[#101010] ${

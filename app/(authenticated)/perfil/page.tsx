@@ -254,7 +254,7 @@ export default function PerfilPage() {
   const overviewLoading = statsLoading || ticketsLoading;
 
   return (
-    <div className="min-h-screen w-full bg-black pb-28 text-white">
+    <div className="min-h-screen w-full bg-black pb-16 text-white">
       <div className="mx-auto w-full max-w-lg px-3 pt-1 sm:px-4">
         {/* Hero — referência: rótulo + título + escudo */}
         <header className="flex items-start justify-between gap-3 pb-5 pt-1">
