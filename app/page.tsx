@@ -30,7 +30,10 @@ import bollIcon from "@/app/assets/boll.svg";
 import cifraoIcon from "@/app/assets/cifrao.svg";
 import bgHeroDesktop from "@/app/assets/home-desk.png";
 import bgPixel from "@/app/assets/bg-hero-pixels.png";
-import bannerHome from "@/app/assets/banner-home.png";
+import slider1 from "@/app/assets/sliders/1.jpeg";
+import slider2 from "@/app/assets/sliders/2.jpeg";
+import slider3 from "@/app/assets/sliders/3.jpeg";
+import { HomeHeroCarousel } from "@/app/components/HomeHeroCarousel";
 import { FlagsMarquee } from "./components/FlagsMarquee";
 import { WhyParticipateSection } from "@/app/components/WhyParticipateSection";
 import { PrizesTestimonialsSection } from "@/app/components/PrizesTestimonialsSection";
@@ -38,6 +41,17 @@ import { CopaCtaBandSection } from "@/app/components/CopaCtaBandSection";
 import { TicketPurchaseLink } from "@/app/shared/TicketPurchaseLink";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/app/shared/AuthContext";
+
+const HOME_SLIDER_SLIDES = [
+  { src: slider1, alt: "Bolão do Milhão — slide 1" },
+  { src: slider2, alt: "Bolão do Milhão — slide 2" },
+  { src: slider3, alt: "Bolão do Milhão — slide 3" },
+] as const;
+
+/** Clique no banner (área da imagem) — home logada */
+const HOME_LOGGED_SLIDER_HREF = "/boloes";
+/** Clique no banner — home pública (hero) */
+const HOME_PUBLIC_SLIDER_HREF = "/tickets";
 
 const HERO_STATS = [
   {
@@ -222,7 +236,8 @@ function matchDateMs(match: HomeMatch): number {
 
 function matchDayLabel(match: HomeMatch): string {
   const ms = matchDateMs(match);
-  if (!Number.isFinite(ms) || ms === Number.MAX_SAFE_INTEGER) return match.data_realizacao || "Em breve";
+  if (!Number.isFinite(ms) || ms === Number.MAX_SAFE_INTEGER)
+    return match.data_realizacao || "Em breve";
   const today = new Date();
   const target = new Date(ms);
   const sameDay =
@@ -240,23 +255,36 @@ function matchDayLabel(match: HomeMatch): string {
 }
 
 function TeamBadge({ team }: { team: HomeMatch["time_mandante"] }) {
-  const sigla = team.sigla || team.nome_popular?.slice(0, 3).toUpperCase() || "---";
+  const sigla =
+    team.sigla || team.nome_popular?.slice(0, 3).toUpperCase() || "---";
   return (
     <div className="flex min-w-0 items-center gap-1.5">
       <span className="flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-[6px] border border-white/10 bg-white/6">
         {team.escudo ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={team.escudo} alt="" className="size-full object-contain p-1" />
+          <img
+            src={team.escudo}
+            alt=""
+            className="size-full object-contain p-1"
+          />
         ) : (
           <span className="text-[9px] font-black text-primary">{sigla}</span>
         )}
       </span>
-      <span className="truncate text-[12px] font-black uppercase leading-tight text-white">{sigla}</span>
+      <span className="truncate text-[12px] font-black uppercase leading-tight text-white">
+        {sigla}
+      </span>
     </div>
   );
 }
 
-function UpcomingMatchCard({ match, featured = false }: { match: HomeMatch; featured?: boolean }) {
+function UpcomingMatchCard({
+  match,
+  featured = false,
+}: {
+  match: HomeMatch;
+  featured?: boolean;
+}) {
   const lockLabel = featured ? "Palpite agora" : "Aberto";
   return (
     <Link
@@ -266,17 +294,26 @@ function UpcomingMatchCard({ match, featured = false }: { match: HomeMatch; feat
       <div className="flex min-w-0 items-center gap-1.5">
         <Clock3 className="size-3.5 shrink-0 text-primary" strokeWidth={2.4} />
         <div className="min-w-0">
-          <p className="truncate text-[8px] font-black uppercase text-white/55">{matchDayLabel(match)}</p>
-          <p className="text-[10px] font-black leading-none text-primary">{match.hora_realizacao || "--:--"}</p>
+          <p className="truncate text-[8px] font-black uppercase text-white/55">
+            {matchDayLabel(match)}
+          </p>
+          <p className="text-[10px] font-black leading-none text-primary">
+            {match.hora_realizacao || "--:--"}
+          </p>
         </div>
       </div>
       <TeamBadge team={match.time_mandante} />
-      <span className="rounded-md border border-white/8 bg-black/35 px-2 py-1 text-center text-[9px] font-black text-white/40">VS</span>
+      <span className="rounded-md border border-white/8 bg-black/35 px-2 py-1 text-center text-[9px] font-black text-white/40">
+        VS
+      </span>
       <TeamBadge team={match.time_visitante} />
       <span className="rounded-full bg-primary px-2 py-1 text-center text-[8px] font-black uppercase text-[#0E141B]">
         {lockLabel}
       </span>
-      <ChevronRight className="size-4 text-primary transition-transform group-active:translate-x-0.5" strokeWidth={2.8} />
+      <ChevronRight
+        className="size-4 text-primary transition-transform group-active:translate-x-0.5"
+        strokeWidth={2.8}
+      />
     </Link>
   );
 }
@@ -293,13 +330,22 @@ function HomeStatCard({
   return (
     <div className="flex min-h-[72px] flex-col items-center justify-center border-r border-white/8 px-2 text-center last:border-r-0">
       <Icon className="size-5 text-primary" strokeWidth={2.1} />
-      <p className="mt-2 text-[13px] font-black leading-none text-primary">{value}</p>
-      <p className="mt-1 text-[8px] font-black uppercase tracking-[0.07em] text-white/42">{label}</p>
+      <p className="mt-2 text-[13px] font-black leading-none text-primary">
+        {value}
+      </p>
+      <p className="mt-1 text-[8px] font-black uppercase tracking-[0.07em] text-white/42">
+        {label}
+      </p>
     </div>
   );
 }
 
-function QuickActionCard({ title, desc, href, icon: Icon }: (typeof QUICK_ACTIONS)[number]) {
+function QuickActionCard({
+  title,
+  desc,
+  href,
+  icon: Icon,
+}: (typeof QUICK_ACTIONS)[number]) {
   return (
     <Link
       href={href}
@@ -311,8 +357,12 @@ function QuickActionCard({ title, desc, href, icon: Icon }: (typeof QUICK_ACTION
         </span>
         <ChevronRight className="size-3.5 text-white/35 transition-transform group-active:translate-x-0.5" />
       </div>
-      <p className="mt-2 truncate text-[10px] font-black uppercase leading-tight text-white">{title}</p>
-      <p className="mt-1 line-clamp-2 text-[8px] font-medium leading-snug text-white/45">{desc}</p>
+      <p className="mt-2 truncate text-[10px] font-black uppercase leading-tight text-white">
+        {title}
+      </p>
+      <p className="mt-1 line-clamp-2 text-[8px] font-medium leading-snug text-white/45">
+        {desc}
+      </p>
     </Link>
   );
 }
@@ -338,7 +388,9 @@ function LoggedInHome() {
       setMatchesLoading(true);
       try {
         const response = await fetch("/api/partidas", { cache: "force-cache" });
-        const data = (await response.json().catch(() => ({}))) as PartidasResponse;
+        const data = (await response
+          .json()
+          .catch(() => ({}))) as PartidasResponse;
         if (!response.ok) throw new Error("Falha ao carregar partidas");
         const minUpcomingMs = Date.now() - 12 * 60 * 60 * 1000;
         const nextMatches = collectHomeMatches(data.partidas)
@@ -366,70 +418,23 @@ function LoggedInHome() {
     <HomePageContainer>
       <Header />
       <main className="min-h-screen bg-black pb-24 text-white">
-      <section className="relative h-[250px] overflow-hidden">
-            <Image
-              src={bannerHome}
-              alt="O maior bolão do Brasil"
-              fill
-              className="object-cover object-[63%_center]"
-              sizes="(max-width: 430px) 100vw, 430px"
-              priority
-            />
-            <div className="absolute inset-0 bg-linear-to-r from-black/95 via-black/58 to-black/6" />
-            <div className="absolute inset-x-0 bottom-0 h-28 bg-linear-to-t from-black/88 via-black/38 to-transparent" />
-
-            <div className="relative z-10 flex h-full flex-col p-4">
-              <div className="inline-flex w-fit items-center gap-1.5 rounded-full border border-primary/28 bg-black/35 px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.08em] text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-                <Trophy className="size-3" strokeWidth={2.4} />
-                Bolão principal
-              </div>
-
-              <div className="mt-3 max-w-[210px]">
-                <h1 className="text-[25px] font-black uppercase leading-[0.92] tracking-[-0.055em] text-white">
-                  O maior bolão
-                  <span className="block text-primary">do Brasil</span>
-                </h1>
-                <p className="mt-3 max-w-[170px] text-[10px] font-semibold leading-snug text-white/78">
-                  Jogue, acompanhe e concorra ao prêmio milionário da temporada!
-                </p>
-              </div>
-
-              <div className="mt-auto">
-                <div className="grid grid-cols-3 overflow-hidden rounded-[12px] border border-white/10 bg-black/48 backdrop-blur-[2px]">
-              {[
-                { icon: Users, label: "Participantes", value: "128.732" },
-                { icon: Wallet, label: "Montante", value: "R$3.247.890" },
-                { icon: Trophy, label: "Prêmio total", value: "R$1.000.000" },
-              ].map(({ icon: Icon, label, value }) => (
-                    <div key={label} className="flex items-center gap-1.5 border-r border-white/8 px-2 py-2 last:border-r-0">
-                      <Icon className="size-4 shrink-0 text-primary" strokeWidth={2.15} />
-                  <div className="min-w-0">
-                        <p className="truncate text-[9px] font-black leading-none text-white">{value}</p>
-                        <p className="mt-0.5 truncate text-[6.8px] font-bold uppercase text-white/45">{label}</p>
-                  </div>
-                </div>
-              ))}
-                </div>
-
-                <Link
-                  href="/boloes"
-                  className="mt-3 inline-flex h-9 items-center gap-2 rounded-[10px] bg-primary px-4 text-[10px] font-black uppercase text-[#0E141B] shadow-[0_8px_26px_rgba(177,235,11,0.26)] active:scale-[0.99]"
-                >
-                  Ver detalhes do bolão
-                  <ArrowRight className="size-3.5" strokeWidth={2.8} />
-                </Link>
-              </div>
-            </div>
+          <section className="relative w-full overflow-hidden">
+              <HomeHeroCarousel
+                mode="slide"
+                slides={HOME_SLIDER_SLIDES}
+                intervalMs={5500}
+                slideDurationMs={520}
+                linkHref={HOME_LOGGED_SLIDER_HREF}
+                linkAriaLabel="Ir para bolões"
+                sizes="(max-width: 430px) 100vw, 100vw"
+              />
           </section>
         <div className="mx-auto w-full max-w-[430px] px-3.5">
-         
-
           <section className="mt-5">
             <div className="mb-3 flex items-center justify-between gap-3">
-              <h2 className="text-[14px] font-black uppercase tracking-wide text-white">Acesso rápido</h2>
-              <span className="inline-flex items-center gap-1 text-[9px] font-bold text-primary">
-                Personalizar <span className="text-white/35">⚙</span>
-              </span>
+              <h2 className="text-[14px] font-black uppercase tracking-wide text-white">
+                Acesso rápido
+              </h2>
             </div>
             <div className="grid grid-cols-4 gap-2.5">
               {QUICK_ACTIONS.map((action) => (
@@ -440,8 +445,13 @@ function LoggedInHome() {
 
           <section className="mt-5">
             <div className="mb-3 flex items-center justify-between gap-3">
-              <h2 className="text-[14px] font-black uppercase tracking-wide text-white">Próximos jogos</h2>
-              <Link href="/palpites" className="inline-flex shrink-0 items-center gap-1 text-[10px] font-bold text-primary">
+              <h2 className="text-[14px] font-black uppercase tracking-wide text-white">
+                Próximos jogos
+              </h2>
+              <Link
+                href="/palpites"
+                className="inline-flex shrink-0 items-center gap-1 text-[10px] font-bold text-primary"
+              >
                 Ver todos <ChevronRight className="size-3" strokeWidth={2.5} />
               </Link>
             </div>
@@ -449,7 +459,10 @@ function LoggedInHome() {
             {matchesLoading ? (
               <div className="space-y-2">
                 {[0, 1, 2, 3].map((item) => (
-                  <div key={item} className="h-[42px] animate-pulse rounded-[10px] border border-white/8 bg-[#111]" />
+                  <div
+                    key={item}
+                    className="h-[42px] animate-pulse rounded-[10px] border border-white/8 bg-[#111]"
+                  />
                 ))}
               </div>
             ) : featuredMatch ? (
@@ -461,16 +474,23 @@ function LoggedInHome() {
               </div>
             ) : (
               <div className="rounded-[16px] border border-primary/20 bg-primary/[0.07] p-4 text-center">
-                <Flame className="mx-auto size-7 text-primary" strokeWidth={2.1} />
-                <p className="mt-2 text-[13px] font-black uppercase text-white">Jogos em atualização</p>
+                <Flame
+                  className="mx-auto size-7 text-primary"
+                  strokeWidth={2.1}
+                />
+                <p className="mt-2 text-[13px] font-black uppercase text-white">
+                  Jogos em atualização
+                </p>
                 <p className="mx-auto mt-1 max-w-[260px] text-[10px] font-medium leading-snug text-white/55">
-                  Assim que a tabela liberar novas partidas, elas aparecem aqui para você palpitar.
+                  Assim que a tabela liberar novas partidas, elas aparecem aqui
+                  para você palpitar.
                 </p>
                 <Link
                   href="/palpites"
                   className="mt-3 inline-flex h-9 items-center gap-2 rounded-[10px] bg-primary px-3 text-[10px] font-black uppercase text-[#0E141B]"
                 >
-                  Ir para palpites <ArrowRight className="size-3.5" strokeWidth={2.8} />
+                  Ir para palpites{" "}
+                  <ArrowRight className="size-3.5" strokeWidth={2.8} />
                 </Link>
               </div>
             )}
@@ -502,7 +522,8 @@ function LoggedInHome() {
                   Próximo passo: enviar palpites
                 </h2>
                 <p className="mt-1 text-[10px] font-medium leading-snug text-white/55">
-                  Confira os jogos disponíveis e não perca o prazo de cada partida.
+                  Confira os jogos disponíveis e não perca o prazo de cada
+                  partida.
                 </p>
               </div>
               <Link
@@ -590,11 +611,19 @@ function PublicHome() {
               </div>
             </div>
             <div className="flex h-full w-full items-end justify-end">
-              <img
-                src={bgHeroDesktop.src}
-                alt="Bolão da Copa 2026 — premiação e ranking"
-                className="w-full"
-              />
+              <div className="relative aspect-[3/5] w-full max-w-md mx-auto sm:aspect-[4/5] sm:max-w-lg lg:mx-0 lg:max-w-xl xl:max-w-2xl">
+                <div className="absolute inset-0">
+                  <HomeHeroCarousel
+                    slides={HOME_SLIDER_SLIDES}
+                    heightClassName="h-full w-full"
+                    objectPositionClassName="object-cover object-[50%_100%]"
+                    sizes="(max-width: 1024px) 92vw, 46vw"
+                    intervalMs={6000}
+                    linkHref={HOME_PUBLIC_SLIDER_HREF}
+                    linkAriaLabel="Ir para comprar tickets"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -703,25 +732,27 @@ function PublicHome() {
       >
         <div className="overflow-hidden bg-[#C6FF00] py-2.5 md:py-3">
           <div className="flex animate-marquee">
-            {[...SCORE_TICKER_SEGMENTS, ...SCORE_TICKER_SEGMENTS].map((_, idx) => (
-              <span
-                key={idx}
-                className="inline-flex shrink-0 items-center gap-4 px-6 md:gap-5 md:px-8"
-              >
-                <span className="whitespace-nowrap text-sm font-bold tracking-wide text-[#0A1F1F] md:text-base">
-                  O Top 10 ganha prêmios milionários!
+            {[...SCORE_TICKER_SEGMENTS, ...SCORE_TICKER_SEGMENTS].map(
+              (_, idx) => (
+                <span
+                  key={idx}
+                  className="inline-flex shrink-0 items-center gap-4 px-6 md:gap-5 md:px-8"
+                >
+                  <span className="whitespace-nowrap text-sm font-bold tracking-wide text-[#0A1F1F] md:text-base">
+                    O Top 10 ganha prêmios milionários!
+                  </span>
+                  <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#0f291c] md:h-10 md:w-10">
+                    <Image
+                      src={cifraoIcon}
+                      alt=""
+                      width={22}
+                      height={22}
+                      className="h-5 w-5 object-contain md:h-6 md:w-6"
+                    />
+                  </span>
                 </span>
-                <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#0f291c] md:h-10 md:w-10">
-                  <Image
-                    src={cifraoIcon}
-                    alt=""
-                    width={22}
-                    height={22}
-                    className="h-5 w-5 object-contain md:h-6 md:w-6"
-                  />
-                </span>
-              </span>
-            ))}
+              ),
+            )}
           </div>
         </div>
 
