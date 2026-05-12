@@ -19,7 +19,7 @@ const BOTTOM_ITEMS_PROFILE = [
   { label: "Afiliado", href: "/indique", icon: afiliadoIcon, iconSize: 22 },
   { label: "Meus Bolões", href: "/boloes", icon: myBoloesIcon, iconSize: 25 },
   { label: "Premiação", href: "/premiacao", icon: premiacaoIcon, iconSize: 22 },
-  { label: "Ranking", href: "/ranking", icon: rankingIcon, iconSize: 21 },
+  { label: "Classificação", href: "/ranking", icon: rankingIcon, iconSize: 21 },
 ] as const;
 
 const BOTTOM_ITEMS_PUBLIC = [
@@ -27,7 +27,7 @@ const BOTTOM_ITEMS_PUBLIC = [
   { label: "Afiliado", href: "/cadastrar?from=%2Findique", icon: afiliadoIcon, iconSize: 22 },
   { label: "Meus Bolões", href: "/boloes", icon: myBoloesIcon, iconSize: 25 },
   { label: "Premiação", href: "/premiacao", icon: premiacaoIcon, iconSize: 22 },
-  { label: "Ranking", href: "/ranking", icon: rankingIcon, iconSize: 21 },
+  { label: "Classificação", href: "/ranking", icon: rankingIcon, iconSize: 21 },
 ] as const;
 
 type BottomItem = {

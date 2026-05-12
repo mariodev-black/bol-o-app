@@ -378,7 +378,7 @@ export default function PremiacaoPage() {
   return (
     <main className="min-h-screen bg-black pb-24 text-white sm:pb-28">
       {/* Banner: altura fluida no mobile; proporção natural em telas maiores */}
-      <section className="relative w-full overflow-hidden bg-black">
+      <section className="relative w-full overflow-hidden bg-black mb-5">
         <Image
           src={bannerPremiacao}
           alt=""

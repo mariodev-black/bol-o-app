@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { LogoutAccountButton } from "@/app/(authenticated)/perfil/LogoutAccountButton";
 import { loadOwnedTicketsMerged } from "@/app/(authenticated)/tickets/lib/ownedTicketsStorage";
@@ -7,28 +8,28 @@ import type { AffiliateSummary } from "@/app/(authenticated)/indique/affiliate-t
 import { formatBRLFromCents } from "@/app/(authenticated)/indique/affiliate-types";
 import { fetchAffiliateSummaryCached } from "@/app/(authenticated)/indique/affiliate-summary-cache";
 import { WithdrawGanhosModal } from "@/app/(authenticated)/indique/WithdrawGanhosModal";
+import bannerRanking from "@/app/assets/banner-ranking.png";
 import { useAuth } from "@/app/shared/AuthContext";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Camera,
   ChevronRight,
   CircleHelp,
+  Clock,
   Crown,
   FileText,
-  Medal,
+  Hexagon,
+  Pencil,
+  Percent,
   Shield,
   Target,
   Ticket,
   Trophy,
-  User2,
-  Banknote,
+  Wallet,
 } from "lucide-react";
 
-const GREEN = "#B1EB0B";
-const GREEN_LIGHT = "#E8FF8A";
-const GREEN_SOFT = "#0AC96B";
-const CARD = "#111111";
-const CARD_ALT = "#0F0F0F";
-const BORDER = "rgba(255,255,255,0.06)";
+const CARD = "#121212";
+const BORDER = "rgba(255,255,255,0.08)";
 
 type RecentPick = {
   id: string;
@@ -61,28 +62,66 @@ function userInitials(name: string | null, email: string): string {
   return (local?.slice(0, 2) || "??").toUpperCase();
 }
 
-function SectionHeader({ title }: { title: string }) {
-  return (
-    <div className="flex items-center justify-between mb-2.5">
-      <div className="h-px flex-1 ml-3" style={{ background: "linear-gradient(90deg, rgba(177,235,11,0.5) 0%, rgba(177,235,11,0) 100%)" }} />
-      <h2 className="text-[18px] uppercase tracking-[0.12em] font-black" style={{ color: "rgba(217,255,89,0.82)" }}>
-        {title}
-      </h2>
-      <div className="h-px flex-1 ml-3" style={{ background: "linear-gradient(90deg, rgba(177,235,11,0.5) 0%, rgba(177,235,11,0) 100%)" }} />
-    </div>
-  );
+function nextTierProgress(affiliate: AffiliateSummary | null): {
+  nextLabel: string;
+  remaining: number;
+  progressPct: number;
+} {
+  if (!affiliate) {
+    return { nextLabel: "Prata", remaining: 0, progressPct: 0 };
+  }
+  const { currentTier, paidReferralsCount, config } = affiliate;
+  if (currentTier === "diamond") {
+    return { nextLabel: "—", remaining: 0, progressPct: 100 };
+  }
+  const tierOrder: Array<{
+    id: AffiliateSummary["currentTier"];
+    nextLabel: string;
+    min: number;
+    prevMin: number;
+  }> = [
+    { id: "bronze", nextLabel: "Prata", min: config.tierSilverMinCommissions, prevMin: 0 },
+    { id: "silver", nextLabel: "Ouro", min: config.tierGoldMinCommissions, prevMin: config.tierSilverMinCommissions },
+    { id: "gold", nextLabel: "Diamante", min: config.tierDiamondMinCommissions, prevMin: config.tierGoldMinCommissions },
+  ];
+  const row = tierOrder.find((t) => t.id === currentTier);
+  if (!row) return { nextLabel: "Prata", remaining: 0, progressPct: 0 };
+  const span = Math.max(1, row.min - row.prevMin);
+  const progress = Math.min(100, Math.max(0, ((paidReferralsCount - row.prevMin) / span) * 100));
+  const remaining = Math.max(0, row.min - paidReferralsCount);
+  return { nextLabel: row.nextLabel, remaining, progressPct: progress };
 }
 
 function SkeletonBlock({ className }: { className: string }) {
   return <div className={`animate-pulse rounded-md bg-white/10 ${className}`} />;
 }
 
+function EliteShieldBadge() {
+  return (
+    <div className="relative shrink-0" aria-hidden>
+      <div
+        className="pointer-events-none absolute -inset-3 rounded-full opacity-70 blur-2xl"
+        style={{ background: "radial-gradient(circle, rgba(177,235,11,0.55) 0%, transparent 70%)" }}
+      />
+      <div className="relative flex size-[72px] items-center justify-center sm:size-20">
+        <Hexagon
+          className="absolute size-[72px] text-primary drop-shadow-[0_0_14px_rgba(177,235,11,0.45)] sm:size-20"
+          strokeWidth={1.35}
+          fill="rgba(177,235,11,0.12)"
+        />
+        <Crown className="relative z-10 size-7 text-primary sm:size-8" strokeWidth={2} />
+      </div>
+    </div>
+  );
+}
+
 export default function PerfilPage() {
   const { user, ready } = useAuth();
   const [recentPicks, setRecentPicks] = useState<RecentPick[]>([]);
-  const [resumo, setResumo] = useState<{ palpites: number; acertos: number; pontos: number; exatos: number } | null>(null);
+  const [resumo, setResumo] = useState<{ palpites: number; acertos: number; pontos: number; exatos: number } | null>(
+    null
+  );
   const [affiliate, setAffiliate] = useState<AffiliateSummary | null>(null);
-  const [bestTicketPts, setBestTicketPts] = useState<number | null>(null);
   const [ticketCount, setTicketCount] = useState(0);
   const [ticketsLoading, setTicketsLoading] = useState(true);
   const [profileDataLoading, setProfileDataLoading] = useState(true);
@@ -119,11 +158,10 @@ export default function PerfilPage() {
     (async () => {
       setProfileDataLoading(true);
       try {
-        const [hRes, rRes, aRes, rankRes] = await Promise.all([
+        const [hRes, rRes, aRes] = await Promise.all([
           fetch("/api/palpites/historico?limit=10", { credentials: "include", cache: "no-store" }),
           fetch("/api/palpites/resumo", { credentials: "include", cache: "no-store" }),
           fetchAffiliateSummaryCached().catch(() => null),
-          fetch("/api/palpites/ranking", { credentials: "include", cache: "no-store" }),
         ]);
         const hJson = (await hRes.json()) as {
           historico?: Array<{
@@ -143,37 +181,31 @@ export default function PerfilPage() {
         };
         if (hRes.ok && Array.isArray(hJson.historico)) {
           const mapped = hJson.historico.map((h) => ({
-              id: String(h.matchId),
-              home: h.mandante,
-              away: h.visitante,
-              homeLogo: h.escudoMandante ?? null,
-              awayLogo: h.escudoVisitante ?? null,
-              guess: `${h.palpiteCasa}x${h.palpiteVisitante}`,
-              result:
-                h.resultadoCasa != null && h.resultadoVisitante != null
-                  ? `${h.resultadoCasa}x${h.resultadoVisitante}`
-                  : "-",
-              hit: h.pontos > 0,
-              matchInfo: `${h.jogoData}${h.jogoHora ? ` · ${h.jogoHora}` : ""} · Copa 2026`,
-              points: h.pontos > 0 ? `+${h.pontos} pts` : "0 pts",
-              pointsNum: h.pontos,
-            }));
+            id: String(h.matchId),
+            home: h.mandante,
+            away: h.visitante,
+            homeLogo: h.escudoMandante ?? null,
+            awayLogo: h.escudoVisitante ?? null,
+            guess: `${h.palpiteCasa}x${h.palpiteVisitante}`,
+            result:
+              h.resultadoCasa != null && h.resultadoVisitante != null
+                ? `${h.resultadoCasa}x${h.resultadoVisitante}`
+                : "—",
+            hit: h.pontos > 0,
+            matchInfo: `${h.jogoData}${h.jogoHora ? ` · ${h.jogoHora}` : ""}`,
+            points: h.pontos > 0 ? `+${h.pontos} pts` : "0 pts",
+            pointsNum: h.pontos,
+          }));
           if (!cancelled) setRecentPicks(mapped);
         }
         const rJson = (await rRes.json()) as { resumo?: typeof resumo };
         if (!cancelled && rRes.ok && rJson.resumo) setResumo(rJson.resumo);
         if (!cancelled) setAffiliate(aRes);
-        const rk = (await rankRes.json()) as { ranking?: Array<{ totalPoints: number }> };
-        if (cancelled) return;
-        if (rankRes.ok && Array.isArray(rk.ranking) && rk.ranking.length > 0) {
-          setBestTicketPts(rk.ranking[0]!.totalPoints);
-        } else setBestTicketPts(null);
       } catch {
         if (!cancelled) {
           setRecentPicks([]);
           setResumo(null);
           setAffiliate(null);
-          setBestTicketPts(null);
         }
       } finally {
         if (!cancelled) setProfileDataLoading(false);
@@ -184,511 +216,381 @@ export default function PerfilPage() {
     };
   }, [ready]);
 
-  const pickSummary = useMemo(() => {
-    const hits = recentPicks.filter((p) => p.hit).length;
-    const miss = Math.max(0, recentPicks.length - hits);
-    const totalPts = recentPicks.reduce((acc, p) => acc + p.pointsNum, 0);
-    const rate = recentPicks.length > 0 ? Math.round((hits / recentPicks.length) * 100) : 0;
-    return { hits, miss, totalPts, rate };
-  }, [recentPicks]);
-
-  const highlights = useMemo(() => {
+  const overviewTiles = useMemo(() => {
     const taxa =
       resumo && resumo.palpites > 0
         ? `${Math.round((resumo.acertos / Math.max(1, resumo.palpites)) * 100)}%`
-        : "—";
+        : "0%";
+    const boloesLabel =
+      ticketCount === 0
+        ? "Nenhum bolão ativo"
+        : ticketCount === 1
+          ? "1 bolão ativo"
+          : `${ticketCount} bolões ativos`;
+    const ticketsLabel =
+      ticketCount === 0 ? "0 disponíveis" : ticketCount === 1 ? "1 disponível" : `${ticketCount} disponíveis`;
     return [
-      { label: "Meus Bolões", value: `${ticketCount} ticket(s)`, href: "/boloes", icon: Trophy },
-      { label: "Tickets", value: `${ticketCount} na carteira`, href: "/boloes", icon: Ticket },
-      { label: "Taxa (acertos/palpites)", value: taxa, href: "/meus-palpites", icon: Target },
+      { label: "Meus Bolões", value: boloesLabel, href: "/boloes", icon: Trophy },
+      { label: "Tickets", value: ticketsLabel, href: "/boloes", icon: Ticket },
+      { label: "Taxa", value: taxa, href: "/meus-palpites", icon: Percent },
+      { label: "Desempenho", value: "Ver histórico", href: "/meus-palpites", icon: Target },
     ];
   }, [ticketCount, resumo]);
-
-  const achievements = useMemo(() => {
-    const p = resumo?.palpites ?? 0;
-    const ex = resumo?.exatos ?? 0;
-    const pts = resumo?.pontos ?? 0;
-    const paidRef = affiliate?.paidReferralsCount ?? 0;
-    const tier = affiliate?.currentTier ?? "bronze";
-    const obt = (ok: boolean) => (ok ? ("obtida" as const) : ("bloqueada" as const));
-    return [
-      { label: "Primeiro palpite", subtitle: "Salvou ao menos 1 palpite", icon: Target, status: obt(p >= 1) },
-      { label: "Placar exato", subtitle: "Pelo menos 1 placar exato", icon: Medal, status: obt(ex >= 1) },
-      { label: "Maratonista", subtitle: "10+ palpites registrados", icon: Crown, status: obt(p >= 10) },
-      { label: "Pontuador", subtitle: "30+ pontos no bolão", icon: Trophy, status: obt(pts >= 30) },
-      { label: "Indicador", subtitle: "1+ indicação paga", icon: User2, status: obt(paidRef >= 1) },
-      { label: "Rede de ouro", subtitle: "Nível Ouro ou Diamante no programa", icon: Trophy, status: obt(tier === "gold" || tier === "diamond") },
-    ];
-  }, [resumo, affiliate]);
 
   const displayName = user?.name?.trim() || user?.email?.split("@")[0] || "Jogador";
   const initials = user ? userInitials(user.name, user.email) : "…";
   const nivelAfiliado = affiliate?.currentTierLabel ?? "—";
-  const metaIndicacoes = affiliate?.config.tierDiamondMinCommissions ?? 50;
-  const progressPct =
-    affiliate && metaIndicacoes > 0 ? Math.min(100, (affiliate.paidReferralsCount / metaIndicacoes) * 100) : 0;
+  const tierProgress = useMemo(() => nextTierProgress(affiliate), [affiliate]);
   const sessionLoading = !ready;
   const statsLoading = sessionLoading || profileDataLoading;
   const affiliateLoading = sessionLoading || profileDataLoading;
   const overviewLoading = statsLoading || ticketsLoading;
 
   return (
-    <div className="min-h-screen w-full bg-black text-white">
-      <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 px-4 py-6 sm:px-6 lg:gap-5">
-      <header className="pt-1">
-        <p className="text-[11px] font-black uppercase tracking-[0.2em]" style={{ color: GREEN }}>
-          Centro do Jogador
-        </p>
-        <h1 className="mt-1 text-[34px] sm:text-[38px] leading-none font-black text-white tracking-tight">Perfil Elite</h1>
-        <p className="mt-2 text-[14px]" style={{ color: "rgba(255,255,255,0.52)" }}>
-          Gestão completa da sua conta, desempenho e status.
-        </p>
-      </header>
+    <div className="min-h-screen w-full bg-black pb-28 text-white">
+      <div className="mx-auto w-full max-w-lg px-3 pt-1 sm:px-4">
+        {/* Hero — referência: rótulo + título + escudo */}
+        <header className="flex items-start justify-between gap-3 pb-5 pt-1">
+          <div className="min-w-0">
+            <p className="font-helvetica-now-display text-[10px] font-black uppercase tracking-[0.22em] text-primary">
+              Centro do Jogador
+            </p>
+            <h1 className="mt-1.5 font-helvetica-now-display text-[1.65rem] font-black leading-[1.05] tracking-tight text-white sm:text-[2rem]">
+              Perfil <span className="text-primary">Elite</span>
+            </h1>
+            <p className="mt-2 max-w-[16rem] text-[13px] font-medium leading-snug text-white/50">
+              Gestão completa da sua conta, desempenho e status.
+            </p>
+          </div>
+          <EliteShieldBadge />
+        </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 lg:gap-5 items-start">
-        <div className="space-y-4 lg:space-y-5 min-w-0">
-          <section
-            className="rounded-[18px] p-5 border relative overflow-hidden"
-            style={{
-              borderColor: BORDER,
-              background: CARD,
-              boxShadow: "0 12px 30px rgba(0,0,0,0.3)",
-            }}
-          >
-            <HeroCardAmbientGlow radiusClass="rounded-[18px]" />
-            <div className="relative flex items-start justify-between gap-3">
-              <div className="flex items-center gap-3.5 min-w-0">
-                <div className="relative w-[70px] h-[70px] rounded-2xl bg-[#B1EB0B] text-[#0E141B] flex items-center justify-center text-[22px] font-black shadow-[0_12px_24px_rgba(177,235,11,0.35)]">
-                  {sessionLoading ? <SkeletonBlock className="h-7 w-8 bg-black/15" /> : initials}
-                  <span className="absolute -right-1 -bottom-1 w-6 h-6 rounded-full flex items-center justify-center border border-[#B1EB0B] bg-[#111111]">
-                    <Trophy className="w-3 h-3" style={{ color: GREEN }} />
-                  </span>
+        {/* Cartão do usuário */}
+        <section
+          className="relative overflow-hidden rounded-2xl border p-4 shadow-[0_12px_40px_rgba(0,0,0,0.45)] sm:p-5"
+          style={{ borderColor: BORDER, background: CARD }}
+        >
+          <div className="pointer-events-none absolute -right-16 -top-20 h-40 w-40 rounded-full bg-primary/10 blur-3xl" />
+          <div className="relative flex flex-col gap-4">
+            <div className="flex flex-wrap items-start gap-4">
+              <div className="relative shrink-0">
+                <div className="flex size-[4.5rem] items-center justify-center rounded-2xl bg-primary text-xl font-black text-[#0E141B] shadow-[0_10px_28px_rgba(177,235,11,0.35)] sm:size-20 sm:text-2xl">
+                  {sessionLoading ? <SkeletonBlock className="h-8 w-10 bg-black/15" /> : initials}
                 </div>
-                <div className="min-w-0">
-                  <p className="text-[30px] sm:text-[32px] font-black text-white leading-[0.95] truncate">
-                    {sessionLoading ? <SkeletonBlock className="h-8 w-44" /> : displayName}
-                  </p>
-                  <p className="text-[13px] mt-1 truncate" style={{ color: "rgba(255,255,255,0.62)" }}>
-                    {sessionLoading ? <SkeletonBlock className="h-4 w-52" /> : user?.email}
-                  </p>
-                </div>
+                <span
+                  className="absolute -bottom-1 -right-1 flex size-7 items-center justify-center rounded-lg border border-white/10 bg-[#1a1a1a] shadow-md"
+                  aria-hidden
+                >
+                  <Camera className="size-3.5 text-white/70" strokeWidth={2.2} />
+                </span>
               </div>
-
-              <div className="flex flex-col items-end gap-1.5 shrink-0">
-                <span
-                  className="px-3 py-1 rounded-lg text-[11px] font-black border"
-                  style={{ background: "rgba(177,235,11,0.12)", borderColor: "rgba(177,235,11,0.38)", color: GREEN }}
-                >
-                  {affiliateLoading ? <SkeletonBlock className="h-3 w-20" /> : `Afiliado: ${nivelAfiliado}`}
-                </span>
-                <span
-                  className="px-3 py-1 rounded-lg text-[11px] font-black border"
-                  style={{ background: "rgba(177,235,11,0.08)", borderColor: "rgba(177,235,11,0.28)", color: GREEN_LIGHT }}
-                >
-                  {affiliateLoading ? <SkeletonBlock className="h-3 w-16" /> : affiliate ? `${affiliate.paidReferralsCount} ind. pagas` : "—"}
-                </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-helvetica-now-display text-2xl font-black text-white sm:text-[1.75rem]">
+                  {sessionLoading ? <SkeletonBlock className="h-8 w-36" /> : displayName}
+                </p>
+                <p className="mt-1 truncate text-[13px] text-white/55">
+                  {sessionLoading ? <SkeletonBlock className="h-4 w-48" /> : user?.email}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Link
+                    href="/perfil#configuracoes"
+                    scroll
+                    className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-primary/35 bg-primary/10 px-3 text-[11px] font-black uppercase tracking-wide text-primary transition-colors hover:bg-primary/15"
+                  >
+                    <Pencil className="size-3.5" strokeWidth={2.2} />
+                    Editar perfil
+                  </Link>
+                  <Link
+                    href="/indique"
+                    className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-white/12 bg-white/[0.04] px-3 text-[11px] font-black uppercase tracking-wide text-white/90 transition-colors hover:bg-white/[0.07]"
+                  >
+                    <Crown className="size-3.5 text-primary" strokeWidth={2.2} />
+                    Meu plano
+                  </Link>
+                </div>
               </div>
             </div>
 
-            <div className="relative mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="grid grid-cols-3 gap-2 border-t border-white/[0.06] pt-4">
               {[
-                { label: "Palpites", value: String(resumo?.palpites ?? "—"), color: "white" },
-                { label: "Acertos", value: String(resumo?.acertos ?? "—"), color: GREEN_SOFT },
-                { label: "Pontos", value: String(resumo?.pontos ?? "—"), color: GREEN },
-                { label: "Melhor bolão", value: bestTicketPts != null ? `${bestTicketPts} pts` : "—", color: GREEN_LIGHT },
-              ].map((item) => (
+                { k: "palpites", label: "Palpites", value: resumo?.palpites, accent: false },
+                { k: "acertos", label: "Acertos", value: resumo?.acertos, accent: true },
+                { k: "pontos", label: "Pontos", value: resumo?.pontos, accent: false },
+              ].map((col) => (
                 <div
-                  key={item.label}
-                  className="rounded-xl px-3 py-2.5 border"
-                  style={{
-                    borderColor: BORDER,
-                    background: "rgba(255,255,255,0.03)",
-                  }}
+                  key={col.k}
+                  className="rounded-xl border border-white/[0.06] bg-black/30 px-2 py-2.5 text-center sm:px-3"
                 >
                   {statsLoading ? (
-                    <SkeletonBlock className="h-7 w-14" />
+                    <SkeletonBlock className="mx-auto h-7 w-10" />
                   ) : (
-                    <p className="text-[26px] leading-none font-black" style={{ color: item.color }}>
-                      {item.value}
+                    <p
+                      className={`font-helvetica-now-display text-[1.35rem] font-black tabular-nums leading-none sm:text-2xl ${
+                        col.accent ? "text-primary" : "text-white"
+                      }`}
+                    >
+                      {col.value ?? "—"}
                     </p>
                   )}
-                  <p className="text-[11px] mt-1 uppercase tracking-[0.08em]" style={{ color: "rgba(255,255,255,0.48)" }}>
-                    {item.label}
+                  <p className="mt-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-white/45 sm:text-[10px]">
+                    {col.label}
                   </p>
                 </div>
               ))}
             </div>
-          </section>
+          </div>
+        </section>
 
-          <section
-            className="rounded-2xl border overflow-hidden"
-            style={{ borderColor: BORDER, background: CARD_ALT }}
-          >
-            <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
-              <h2 className="text-[22px] font-black text-white">Últimos Palpites</h2>
-              <Link href="/meus-palpites" className="text-sm font-bold inline-flex items-center gap-1" style={{ color: "#B1EB0B" }}>
-                Ver todos <ChevronRight className="w-4 h-4" />
-              </Link>
+        {/* Últimos palpites */}
+        <section
+          className="mt-4 overflow-hidden rounded-2xl border"
+          style={{ borderColor: BORDER, background: CARD }}
+        >
+          <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
+            <div className="flex items-center gap-2">
+              <Clock className="size-4 text-primary" strokeWidth={2.2} />
+              <h2 className="font-helvetica-now-display text-[15px] font-black uppercase tracking-wide text-white">
+                Últimos Palpites
+              </h2>
             </div>
-            <div
-              className="hidden lg:grid grid-cols-[1fr_120px_120px_120px] px-6 py-2 text-[10px] font-black uppercase tracking-[0.12em] border-b"
-              style={{ color: "rgba(255,255,255,0.35)", borderColor: "rgba(255,255,255,0.06)" }}
+            <Link
+              href="/meus-palpites"
+              className="inline-flex items-center gap-0.5 text-[11px] font-black uppercase tracking-wide text-primary"
             >
-              <span>Partida</span>
-              <span className="text-right">Meu palpite</span>
-              <span className="text-right">Resultado</span>
-              <span className="text-right">Pontos</span>
-            </div>
-            <div className="px-3 py-2">
-              {profileDataLoading ? (
-                <div className="space-y-2 py-2">
-                  {Array.from({ length: 4 }).map((_, index) => (
-                    <div
-                      key={index}
-                      className="grid grid-cols-[24px_1fr_auto_auto] items-center gap-3 px-2 py-2.5 border-b last:border-b-0"
-                      style={{ borderColor: "rgba(255,255,255,0.06)" }}
-                    >
-                      <SkeletonBlock className="h-4 w-4 rounded-full" />
-                      <div className="space-y-1.5">
-                        <SkeletonBlock className="h-4 w-40" />
-                        <SkeletonBlock className="hidden h-3 w-56 lg:block" />
-                      </div>
-                      <SkeletonBlock className="h-4 w-8" />
-                      <SkeletonBlock className="h-4 w-8" />
-                    </div>
-                  ))}
-                </div>
-              ) : recentPicks.length === 0 && ready ? (
-                <p className="text-center text-sm py-8" style={{ color: "rgba(255,255,255,0.35)" }}>
-                  Nenhum palpite recente.{" "}
-                  <Link href="/boloes" className="font-bold underline" style={{ color: "#B1EB0B" }}>
-                    Ver meus bolões
-                  </Link>
-                </p>
-              ) : null}
-              {!profileDataLoading && recentPicks.map((pick) => (
-                <div
+              Ver todos
+              <ChevronRight className="size-4" strokeWidth={2.4} />
+            </Link>
+          </div>
+          <div className="max-h-[min(52vh,380px)] overflow-y-auto">
+            {profileDataLoading ? (
+              <div className="space-y-0 p-2">
+                {Array.from({ length: 5 }).map((_, index) => (
+                  <div key={index} className="flex items-center gap-3 rounded-xl px-3 py-2.5">
+                    <SkeletonBlock className="h-10 flex-1" />
+                    <SkeletonBlock className="h-6 w-12" />
+                    <SkeletonBlock className="size-4 rounded" />
+                  </div>
+                ))}
+              </div>
+            ) : recentPicks.length === 0 && ready ? (
+              <p className="px-4 py-10 text-center text-[13px] text-white/40">
+                Nenhum palpite recente.{" "}
+                <Link href="/boloes" className="font-bold text-primary underline-offset-2 hover:underline">
+                  Ver bolões
+                </Link>
+              </p>
+            ) : (
+              recentPicks.map((pick) => (
+                <Link
                   key={pick.id}
-                  className="grid grid-cols-[24px_1fr_auto_auto] lg:grid-cols-[24px_1fr_120px_120px_120px] items-center gap-3 px-2 lg:px-3 py-2.5 border-b border-l-2 last:border-b-0"
-                  style={{
-                    borderColor: "rgba(255,255,255,0.06)",
-                    borderLeftColor: pick.hit ? "rgba(34,197,94,0.65)" : "rgba(239,68,68,0.65)",
-                  }}
+                  href="/meus-palpites"
+                  className="flex items-center justify-between gap-2 border-b border-white/[0.05] bg-white/[0.02] px-4 py-3 transition-colors last:border-b-0 hover:bg-white/[0.04]"
                 >
-                  <span className="w-4 h-4 rounded-full flex items-center justify-center" style={{ background: pick.hit ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)" }}>
-                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: pick.hit ? "#22C55E" : "#EF4444" }} />
-                  </span>
-                  <div>
-                    <p className="text-sm font-semibold text-white">
-                      <span className="inline-flex items-center gap-1.5">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[12px] font-semibold leading-snug text-white sm:text-[13px]">
+                      <span className="inline-flex items-center gap-1">
                         {pick.homeLogo ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={pick.homeLogo} alt={pick.home} className="w-4 h-4 object-contain" />
+                          <img src={pick.homeLogo} alt="" className="size-4 shrink-0 object-contain" />
                         ) : null}
-                        <span>{pick.home}</span>
-                      </span>{" "}
-                      <span style={{ color: "rgba(255,255,255,0.45)" }}>vs</span>{" "}
-                      <span className="inline-flex items-center gap-1.5">
+                        <span className="truncate">{pick.home}</span>
+                      </span>
+                      <span className="text-white/35"> x </span>
+                      <span className="inline-flex items-center gap-1">
                         {pick.awayLogo ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={pick.awayLogo} alt={pick.away} className="w-4 h-4 object-contain" />
+                          <img src={pick.awayLogo} alt="" className="size-4 shrink-0 object-contain" />
                         ) : null}
-                        <span>{pick.away}</span>
+                        <span className="truncate">{pick.away}</span>
                       </span>
                     </p>
-                    <p className="hidden lg:block text-[11px] mt-0.5" style={{ color: "rgba(255,255,255,0.32)" }}>
-                      {pick.matchInfo}
-                    </p>
+                    <p className="mt-0.5 truncate text-[10px] text-white/35">{pick.matchInfo}</p>
                   </div>
-                  <p className="text-sm font-black text-right" style={{ color: "rgba(255,255,255,0.8)" }}>
-                    {pick.guess}
-                  </p>
-                  <p className="text-sm font-black text-right" style={{ color: pick.hit ? "#22C55E" : "#EF4444" }}>
-                    {pick.result}
-                  </p>
-                  <div className="hidden lg:flex justify-end">
-                    <span
-                      className="px-2.5 py-1 rounded-lg text-[12px] font-black"
-                      style={{
-                        color: pick.hit ? "#86EFAC" : "#FCA5A5",
-                        background: pick.hit ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.12)",
-                        border: pick.hit ? "1px solid rgba(34,197,94,0.28)" : "1px solid rgba(239,68,68,0.28)",
-                      }}
-                    >
-                      {pick.points}
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span className="font-helvetica-now-display text-sm font-black tabular-nums text-primary sm:text-base">
+                      {pick.result}
                     </span>
+                    <ChevronRight className="size-4 text-white/25" strokeWidth={2.2} />
                   </div>
-                </div>
-              ))}
-            </div>
-            <div
-              className="hidden lg:flex items-center justify-between px-4 py-2.5 border-t"
-              style={{ borderColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.42)" }}
-            >
-              {profileDataLoading ? (
-                <>
-                  <SkeletonBlock className="h-4 w-72" />
-                  <SkeletonBlock className="h-4 w-24" />
-                </>
-              ) : (
-                <>
-                  <div className="flex items-center gap-4 text-[12px]">
-                    <span>
-                      <span style={{ color: "#22C55E" }}>●</span> {pickSummary.hits} acertos
-                    </span>
-                    <span>
-                      <span style={{ color: "#EF4444" }}>●</span> {pickSummary.miss} erros
-                    </span>
-                    <span>
-                      Taxa: <span style={{ color: "#B1EB0B", fontWeight: 700 }}>{pickSummary.rate}%</span>
-                    </span>
-                  </div>
-                  <p className="text-[12px]">
-                    Total: <span style={{ color: "#E8FF8A", fontWeight: 700 }}>{pickSummary.totalPts >= 0 ? "+" : ""}{pickSummary.totalPts} pts</span>
-                  </p>
-                </>
-              )}
-            </div>
-          </section>
+                </Link>
+              ))
+            )}
+          </div>
+        </section>
 
-          <section
-            className="rounded-2xl border p-3 lg:p-4"
-            style={{ borderColor: BORDER, background: CARD }}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <SectionHeader title="Conquistas" />
-              <span
-                className="px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-[0.08em]"
-                style={{ color: GREEN, background: "rgba(177,235,11,0.12)", border: "1px solid rgba(177,235,11,0.28)" }}
-              >
-                {statsLoading ? <SkeletonBlock className="h-3 w-24" /> : `${achievements.filter((a) => a.status === "obtida").length} / ${achievements.length} desbloqueadas`}
-              </span>
-            </div>
+        {/* Banner ranking */}
+        <Link href="/ranking" className="mt-4 block overflow-hidden rounded-2xl border border-white/10 shadow-lg transition-opacity hover:opacity-95">
+          <Image
+            src={bannerRanking}
+            alt="Ranking oficial — disputa Copa 2026"
+            className="h-auto w-full object-cover"
+            sizes="(max-width:512px) 100vw, 512px"
+          />
+        </Link>
 
-            <div className="h-1 rounded-full mb-3" style={{ background: "rgba(255,255,255,0.09)" }}>
-              <div
-                className="h-full rounded-full transition-all"
-                style={{
-                  width: statsLoading ? "18%" : `${achievements.length ? (achievements.filter((a) => a.status === "obtida").length / achievements.length) * 100 : 0}%`,
-                  background: "linear-gradient(90deg, #B1EB0B, #E8FF8A)",
-                }}
-              />
+        {/* Nível & progresso */}
+        <section
+          className="mt-4 rounded-2xl border p-4 sm:p-5"
+          style={{ borderColor: BORDER, background: CARD }}
+        >
+          <div className="flex items-start gap-3">
+            <div className="flex size-12 shrink-0 items-center justify-center rounded-full border border-amber-700/40 bg-gradient-to-b from-amber-700/30 to-amber-950/50 shadow-inner">
+              <Trophy className="size-6 text-amber-400/90" strokeWidth={2} />
             </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2.5">
-              {statsLoading ? Array.from({ length: 6 }).map((_, index) => (
-                <div
-                  key={index}
-                  className="rounded-xl border p-3"
-                  style={{ borderColor: "rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.02)" }}
-                >
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <SkeletonBlock className="h-10 w-10 rounded-xl" />
-                    <SkeletonBlock className="h-5 w-16" />
-                  </div>
-                  <SkeletonBlock className="h-4 w-28" />
-                  <SkeletonBlock className="mt-2 h-3 w-full" />
-                </div>
-              )) : achievements.map((badge) => (
-                <div
-                  key={badge.label}
-                  className="rounded-xl border p-3"
-                  style={{
-                    borderColor: badge.status === "bloqueada" ? "rgba(255,255,255,0.08)" : "rgba(177,235,11,0.28)",
-                    background:
-                      badge.status === "bloqueada"
-                        ? "rgba(255,255,255,0.02)"
-                        : CARD_ALT,
-                    opacity: badge.status === "bloqueada" ? 0.65 : 1,
-                  }}
-                >
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <span
-                      className="w-10 h-10 rounded-xl border flex items-center justify-center"
-                      style={{
-                        borderColor: badge.status === "bloqueada" ? "rgba(255,255,255,0.12)" : "rgba(177,235,11,0.34)",
-                        background: badge.status === "bloqueada" ? "rgba(255,255,255,0.03)" : "rgba(177,235,11,0.12)",
-                      }}
-                    >
-                      <badge.icon className="w-5 h-5" style={{ color: badge.status === "bloqueada" ? "rgba(255,255,255,0.4)" : "#B1EB0B" }} />
-                    </span>
-                    <span
-                      className="px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-[0.08em]"
-                      style={{
-                        color: badge.status === "bloqueada" ? "rgba(255,255,255,0.55)" : GREEN,
-                        background: badge.status === "bloqueada" ? "rgba(255,255,255,0.06)" : "rgba(177,235,11,0.14)",
-                        border: badge.status === "bloqueada" ? "1px solid rgba(255,255,255,0.12)" : "1px solid rgba(177,235,11,0.3)",
-                      }}
-                    >
-                      {badge.status === "bloqueada" ? "Bloqueada" : "Obtida"}
-                    </span>
-                  </div>
-                  <p className="text-[13px] font-bold text-white">{badge.label}</p>
-                  <p className="text-[11px] mt-1" style={{ color: "rgba(255,255,255,0.42)" }}>
-                    {badge.subtitle}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </section>
-        </div>
-
-        <aside className="space-y-4 lg:space-y-5 lg:sticky lg:top-20">
-          <section
-            className="rounded-2xl border p-4"
-            style={{ borderColor: BORDER, background: CARD }}
-          >
-            <SectionHeader title="Nível & Progresso" />
-            <div className="mt-3">
+            <div className="min-w-0 flex-1">
+              <h2 className="font-helvetica-now-display text-[11px] font-black uppercase tracking-[0.14em] text-primary">
+                Nível &amp; progresso
+              </h2>
               {affiliateLoading ? (
-                <>
-                  <SkeletonBlock className="h-4 w-28" />
-                  <SkeletonBlock className="mt-2 h-3 w-full" />
-                </>
+                <div className="mt-2 space-y-2">
+                  <SkeletonBlock className="h-5 w-32" />
+                  <SkeletonBlock className="h-3 w-full" />
+                </div>
               ) : (
                 <>
-                  <p className="text-sm font-bold text-white">{nivelAfiliado}</p>
-                  <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.5)" }}>
-                    {affiliate ? `${affiliate.paidReferralsCount} indicações pagas · próx.: ${(affiliate.nextRewardCents / 100).toFixed(2).replace(".", ",")}` : "Programa de indicação"}
-                  </p>
+                  <p className="mt-1 font-helvetica-now-display text-lg font-black text-white">{nivelAfiliado}</p>
+                  <p className="mt-0.5 text-[12px] text-white/50">Continue assim e evolua de nível!</p>
                 </>
               )}
-              <div className="mt-3 h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.08)" }}>
-                <div className="h-full rounded-full transition-all" style={{ width: affiliateLoading ? "20%" : `${progressPct}%`, background: "linear-gradient(90deg, #B1EB0B, #E8FF8A)" }} />
-              </div>
-              <p className="mt-2 text-[11px]" style={{ color: "rgba(255,255,255,0.42)" }}>
-                {affiliateLoading
-                  ? "Carregando progresso..."
-                  : affiliate
-                  ? `${affiliate.paidReferralsCount}/${metaIndicacoes} até meta Diamante (config.)`
-                  : "Carregue a página com sessão para ver progresso."}
-              </p>
             </div>
-          </section>
-
-          <section>
-            <SectionHeader title="Saldos e saque" />
+          </div>
+          <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-white/[0.08]">
             <div
-              className="rounded-2xl border p-4 mt-2 space-y-3"
-              style={{ borderColor: BORDER, background: CARD }}
-            >
+              className="h-full rounded-full bg-primary transition-all duration-500"
+              style={{ width: affiliateLoading ? "22%" : `${tierProgress.progressPct}%` }}
+            />
+          </div>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[11px] font-semibold text-primary">
               {affiliateLoading ? (
-                <SkeletonBlock className="h-16 w-full" />
+                "Carregando…"
+              ) : affiliate?.currentTier === "diamond" ? (
+                "Você está no nível máximo do programa de indicação."
               ) : (
                 <>
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span
-                        className="w-9 h-9 rounded-xl border flex items-center justify-center shrink-0"
-                        style={{ borderColor: "rgba(177,235,11,0.28)", background: "rgba(177,235,11,0.1)" }}
-                      >
-                        <Banknote className="w-4 h-4" style={{ color: GREEN }} />
-                      </span>
-                      <div className="min-w-0">
-                        <p className="text-[11px] font-black uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.38)" }}>
-                          Afiliado
-                        </p>
-                        <p className="text-lg font-black text-white truncate">{formatBRLFromCents(affiliate?.balances.availableCents ?? 0)}</p>
-                      </div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-[11px] font-black uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.38)" }}>
-                        Conta
-                      </p>
-                      <p className="text-lg font-black" style={{ color: GREEN_SOFT }}>
-                        {formatBRLFromCents(affiliate?.balances.walletBalanceCents ?? 0)}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setWithdrawModalOpen(true)}
-                    className="w-full py-3 rounded-xl text-[13px] font-black uppercase tracking-wide transition-opacity hover:opacity-95"
-                    style={{
-                      background: "linear-gradient(90deg, rgba(177,235,11,0.95), rgba(232,255,138,0.95))",
-                      color: "#0E141B",
-                    }}
-                  >
-                    Sacar
-                  </button>
-                  <Link href="/saques" className="block text-center text-[11px] font-bold" style={{ color: "rgba(255,255,255,0.35)" }}>
-                    Abrir página de saques
-                  </Link>
+                  <span className="font-black">{tierProgress.remaining}</span> indicações pagas até o próximo nível (
+                  {tierProgress.nextLabel})
                 </>
               )}
-            </div>
-          </section>
+            </p>
+            <Link
+              href="/indique"
+              className="inline-flex items-center gap-0.5 text-[11px] font-black uppercase tracking-wide text-primary"
+            >
+              Ver detalhes
+              <ChevronRight className="size-4" strokeWidth={2.4} />
+            </Link>
+          </div>
+        </section>
 
-          <section>
-            <SectionHeader title="Visão Geral" />
-            <div className="grid grid-cols-3 gap-2.5">
-              {highlights.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.label}
-                    href={item.href}
-                    className="rounded-xl border p-3 lg:p-4 transition-all duration-200 hover:-translate-y-px text-center min-h-[108px] flex flex-col items-center justify-center"
-                    style={{
-                      borderColor: BORDER,
-                      background: CARD,
-                    }}
-                  >
-                    <div className="flex flex-col items-center gap-2">
-                      <span
-                        className="w-9 h-9 rounded-lg border flex items-center justify-center shrink-0"
-                        style={{ borderColor: "rgba(177,235,11,0.28)", background: "rgba(177,235,11,0.1)" }}
-                      >
-                        <Icon className="w-4 h-4" style={{ color: "#B1EB0B" }} />
-                      </span>
-                      <p className="text-[12px] font-bold text-white leading-tight">{item.label}</p>
-                      <p className="text-[10px] leading-tight" style={{ color: "rgba(255,255,255,0.58)" }}>
-                        {overviewLoading ? <SkeletonBlock className="mx-auto h-3 w-16" /> : item.value}
-                      </p>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          </section>
-
-          <section
-            className="rounded-2xl border overflow-hidden"
-            style={{ borderColor: BORDER, background: CARD }}
-          >
-            <h2 className="px-4 py-3 border-b text-[18px] font-black text-white" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
-              Configurações
+        {/* Saldos e saque */}
+        <section className="mt-4 rounded-2xl border p-4 sm:p-5" style={{ borderColor: BORDER, background: CARD }}>
+          <div className="mb-4 flex items-center gap-2">
+            <Wallet className="size-5 text-primary" strokeWidth={2.2} />
+            <h2 className="font-helvetica-now-display text-[11px] font-black uppercase tracking-[0.14em] text-primary">
+              Saldos e saque
             </h2>
+          </div>
+          {affiliateLoading ? (
+            <SkeletonBlock className="h-24 w-full rounded-xl" />
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl border border-white/[0.06] bg-black/25 px-3 py-3">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-white/40">Afiliado</p>
+                  <p className="mt-1 font-helvetica-now-display text-lg font-black tabular-nums text-white">
+                    {formatBRLFromCents(affiliate?.balances.availableCents ?? 0)}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-white/[0.06] bg-black/25 px-3 py-3">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-white/40">Conta</p>
+                  <p className="mt-1 font-helvetica-now-display text-lg font-black tabular-nums text-primary">
+                    {formatBRLFromCents(affiliate?.balances.walletBalanceCents ?? 0)}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setWithdrawModalOpen(true)}
+                className="mt-4 flex h-12 w-full items-center justify-center gap-1 rounded-xl bg-primary font-helvetica-now-display text-[13px] font-black uppercase tracking-wide text-[#0E141B] shadow-[0_8px_24px_rgba(177,235,11,0.25)] transition-transform active:scale-[0.99]"
+              >
+                Sacar
+                <ChevronRight className="size-4" strokeWidth={2.6} />
+              </button>
+              <Link
+                href="/saques"
+                className="mt-2 block text-center text-[11px] font-semibold text-white/40 hover:text-white/55"
+              >
+                Histórico de saques
+              </Link>
+            </>
+          )}
+        </section>
+
+        {/* Visão geral 2×2 */}
+        <section className="mt-5">
+          <h2 className="mb-2.5 font-helvetica-now-display text-[11px] font-black uppercase tracking-[0.14em] text-white/55">
+            Visão geral
+          </h2>
+          <div className="grid grid-cols-2 gap-2.5">
+            {overviewTiles.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  className="flex min-h-[108px] flex-col justify-between rounded-2xl border border-white/[0.08] bg-[#121212] p-3.5 transition-colors hover:border-primary/25 hover:bg-[#161616] sm:p-4"
+                >
+                  <span className="flex size-9 items-center justify-center rounded-xl border border-primary/25 bg-primary/10">
+                    <Icon className="size-4 text-primary" strokeWidth={2.2} />
+                  </span>
+                  <div>
+                    <p className="mt-2 font-helvetica-now-display text-[13px] font-black text-white">{item.label}</p>
+                    <p className="mt-0.5 text-[11px] font-medium text-white/45">
+                      {overviewLoading ? <SkeletonBlock className="mt-1 h-3 w-20" /> : item.value}
+                    </p>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* Configurações */}
+        <section id="configuracoes" className="mt-5 scroll-mt-28">
+          <h2 className="mb-2.5 font-helvetica-now-display text-[11px] font-black uppercase tracking-[0.14em] text-white/55">
+            Configurações
+          </h2>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {settingsItems.map((item) => {
               const Icon = item.icon;
               return (
                 <Link
                   key={item.title}
                   href={item.href}
-                  className="w-full px-4 py-3 border-b last:border-b-0 flex items-center justify-between text-left"
-                  style={{ borderColor: "rgba(255,255,255,0.08)" }}
+                  className="flex items-center justify-between gap-3 rounded-2xl border border-white/[0.08] bg-[#121212] px-3 py-3.5 transition-colors hover:border-white/15 sm:px-4"
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="w-9 h-9 rounded-xl border flex items-center justify-center" style={{ borderColor: "rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.02)" }}>
-                      <Icon className="w-4.5 h-4.5" style={{ color: "rgba(255,255,255,0.56)" }} />
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03]">
+                      <Icon className="size-[18px] text-white/55" strokeWidth={2} />
                     </span>
-                    <span>
-                      <p className="text-[14px] font-bold text-white">{item.title}</p>
-                      <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.45)" }}>
-                        {item.subtitle}
-                      </p>
-                    </span>
+                    <div className="min-w-0">
+                      <p className="text-[13px] font-bold text-white">{item.title}</p>
+                      <p className="truncate text-[11px] text-white/40">{item.subtitle}</p>
+                    </div>
                   </div>
-                  <ChevronRight className="w-4 h-4" style={{ color: "rgba(255,255,255,0.35)" }} />
+                  <ChevronRight className="size-4 shrink-0 text-white/25" strokeWidth={2.2} />
                 </Link>
               );
             })}
-          </section>
+          </div>
+        </section>
 
+        <div className="mt-6 pb-4">
           <LogoutAccountButton />
-        </aside>
+        </div>
       </div>
-      </div>
+
       <WithdrawGanhosModal
         open={withdrawModalOpen}
         onOpenChange={setWithdrawModalOpen}
@@ -699,33 +601,3 @@ export default function PerfilPage() {
     </div>
   );
 }
-
-function HeroCardAmbientGlow({ radiusClass }: { radiusClass: string }) {
-  return (
-    <div className={`pointer-events-none absolute inset-0 overflow-hidden z-0 ${radiusClass}`} aria-hidden>
-      <div
-        className="absolute"
-        style={{
-          top: "-32%",
-          right: "-30%",
-          width: "100%",
-          height: "88%",
-          background:
-            "radial-gradient(ellipse 78% 68% at 84% 10%, rgba(217, 255, 89, 0.34) 0%, rgba(217, 255, 89, 0.11) 40%, transparent 70%)",
-        }}
-      />
-      <div
-        className="absolute"
-        style={{
-          bottom: "-34%",
-          left: "-30%",
-          width: "95%",
-          height: "82%",
-          background:
-            "radial-gradient(ellipse 72% 62% at 12% 90%, rgba(177, 235, 11, 0.26) 0%, rgba(177, 235, 11, 0.08) 42%, transparent 74%)",
-        }}
-      />
-    </div>
-  );
-}
-

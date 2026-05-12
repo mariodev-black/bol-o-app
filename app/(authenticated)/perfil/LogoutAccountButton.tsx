@@ -11,18 +11,13 @@ export function LogoutAccountButton() {
   return (
     <button
       type="button"
-      className="w-full rounded-2xl border h-12 text-[16px] font-black inline-flex items-center justify-center gap-2"
-      style={{
-        borderColor: "rgba(239,68,68,0.35)",
-        color: "#F87171",
-        background: "linear-gradient(180deg, rgba(127,29,29,0.22) 0%, rgba(69,10,10,0.38) 100%)",
-      }}
+      className="flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-[13px] font-black text-red-400/95 transition-colors hover:bg-red-500/10 hover:text-red-300"
       onClick={async () => {
         await logout();
         router.push("/login");
       }}
     >
-      <LogOut className="w-4.5 h-4.5" />
+      <LogOut className="size-4 shrink-0" strokeWidth={2.25} />
       Sair da conta
     </button>
   );
