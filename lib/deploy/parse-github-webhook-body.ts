@@ -12,10 +12,42 @@ type ParseErr = {
 export type ParseGithubWebhookBodyResult = ParseOk | ParseErr;
 
 /**
- * GitHub manda JSON; em alguns proxies o corpo vem gzip sem header claro.
- * Ordem: gzip explícito / magic gzip → UTF-8 direto → tentativa gzip de fallback.
+ * GitHub pode enviar:
+ * - `application/json` — corpo é o JSON do evento
+ * - `application/x-www-form-urlencoded` — campo `payload` com JSON URL-encoded (opção no painel do GitHub)
+ *
+ * Além disso, gzip no Content-Encoding ou magic bytes 1f 8b.
  */
-export function parseGithubWebhookBody(buf: Buffer, contentEncoding: string | null): ParseGithubWebhookBodyResult {
+function tryParseJsonOrGithubForm(text: string, contentType: string | null): { ok: true; json: Record<string, unknown> } | null {
+  const trimmed = text.replace(/^\uFEFF/, "").trim();
+  const ct = (contentType ?? "").toLowerCase();
+  const looksForm =
+    ct.includes("application/x-www-form-urlencoded") || trimmed.startsWith("payload=");
+
+  if (looksForm) {
+    const params = new URLSearchParams(trimmed);
+    const payload = params.get("payload");
+    if (payload) {
+      try {
+        return { ok: true, json: JSON.parse(payload) as Record<string, unknown> };
+      } catch {
+        return null;
+      }
+    }
+  }
+
+  try {
+    return { ok: true, json: JSON.parse(trimmed) as Record<string, unknown> };
+  } catch {
+    return null;
+  }
+}
+
+export function parseGithubWebhookBody(
+  buf: Buffer,
+  contentEncoding: string | null,
+  contentType: string | null
+): ParseGithubWebhookBodyResult {
   const enc = (contentEncoding ?? "").toLowerCase();
   const looksGzip = buf.length >= 2 && buf[0] === 0x1f && buf[1] === 0x8b;
 
@@ -49,14 +81,12 @@ export function parseGithubWebhookBody(buf: Buffer, contentEncoding: string | nu
   let lastErr = "";
   let previewUtf8 = "";
   for (const { label, text } of candidates) {
-    try {
-      const trimmed = text.replace(/^\uFEFF/, "").trim();
-      return { ok: true, json: JSON.parse(trimmed) as Record<string, unknown> };
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      lastErr = `${label}: ${msg}`;
-      previewUtf8 = text.slice(0, 160).replace(/[\u0000-\u001f\\]/g, " ");
+    const parsed = tryParseJsonOrGithubForm(text, contentType);
+    if (parsed) {
+      return { ok: true, json: parsed.json };
     }
+    lastErr = `${label}: JSON ou campo payload inválido`;
+    previewUtf8 = text.slice(0, 160).replace(/[\u0000-\u001f\\]/g, " ");
   }
 
   return {

@@ -86,11 +86,12 @@ export async function POST(request: Request) {
   const appRoot = resolveDeployAppRoot();
   const buf = Buffer.from(await request.arrayBuffer());
   const contentEncoding = request.headers.get("content-encoding");
+  const contentType = request.headers.get("content-type");
   const event = request.headers.get("x-github-event")?.trim() ?? "";
 
   await appendDeployFlowLog(
     appRoot,
-    `POST recebido | X-GitHub-Event="${event || "(vazio)"}" | bodyBytes=${buf.length} | Content-Encoding=${contentEncoding ?? "(vazio)"} | appRoot=${appRoot}`
+    `POST recebido | X-GitHub-Event="${event || "(vazio)"}" | bodyBytes=${buf.length} | Content-Type=${contentType ?? "(vazio)"} | Content-Encoding=${contentEncoding ?? "(vazio)"} | appRoot=${appRoot}`
   );
 
   if (event === "ping") {
@@ -103,7 +104,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, ignored: true, event, step: "ignored_not_push" });
   }
 
-  const parsed = parseGithubWebhookBody(buf, contentEncoding);
+  const parsed = parseGithubWebhookBody(buf, contentEncoding, contentType);
   if (!parsed.ok) {
     await appendDeployFlowLog(
       appRoot,
