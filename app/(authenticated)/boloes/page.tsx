@@ -289,7 +289,7 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
       return {
         id: ticket.id,
         type: "principal",
-        title: "Bolão da Copa 2026",
+        title: "Bolão do Milhão",
         cotaLabel: `Cota #${shortTicketId(ticket.id)}`,
         href: `/palpites?${new URLSearchParams({ ticket: ticket.id }).toString()}`,
         status: "ativo",
@@ -328,7 +328,7 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
           const metrics = metricsByTicket.get(firstGeneral.id)!;
           return {
             id: firstGeneral.id,
-            title: "Bolão da Copa 2026",
+            title: "Bolão do Milhão",
             cotaLabel: `Cota #${shortTicketId(firstGeneral.id)}`,
             href: `/palpites?${new URLSearchParams({ ticket: firstGeneral.id }).toString()}`,
             status: "ativo" as const,

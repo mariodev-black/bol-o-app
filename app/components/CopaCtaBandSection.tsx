@@ -102,7 +102,7 @@ export function CopaCtaBandSection() {
                 Pagamento 100% seguro
               </div>
               <p className="relative mt-6 max-w-[242px] text-center text-[13px] font-light leading-[1.12] text-white/82">
-                Vagas limitadas. Não fique de fora do maior bolão da Copa 2026!
+                Vagas limitadas. Não fique de fora do maior Bolão do Milhão!
               </p>
             </div>
           </div>

@@ -479,7 +479,7 @@ export function TicketCheckoutFlow({
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-1.5">
                           <h3 className="whitespace-nowrap text-[14px] font-black uppercase leading-tight text-white sm:text-[15px]">
-                            Bolão da Copa 2026
+                            Bolão do Milhão
                           </h3>
                           <span className="w-fit shrink-0 rounded-md bg-primary/20 px-1.5 py-0.5 text-[7px] font-black uppercase tracking-wide text-primary sm:text-[8px]">
                             Mais popular
