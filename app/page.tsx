@@ -33,7 +33,7 @@ import bgPixel from "@/app/assets/bg-hero-pixels.png";
 import slider1 from "@/app/assets/sliders/1.jpeg";
 import slider2 from "@/app/assets/sliders/2.jpeg";
 import slider3 from "@/app/assets/sliders/3.jpeg";
-import { HomeHeroCarousel } from "@/app/components/HomeHeroCarousel";
+import { HomeHeroCarousel, type HomeHeroSlide } from "@/app/components/HomeHeroCarousel";
 import { FlagsMarquee } from "./components/FlagsMarquee";
 import { WhyParticipateSection } from "@/app/components/WhyParticipateSection";
 import { PrizesTestimonialsSection } from "@/app/components/PrizesTestimonialsSection";
@@ -42,16 +42,11 @@ import { TicketPurchaseLink } from "@/app/shared/TicketPurchaseLink";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/app/shared/AuthContext";
 
-const HOME_SLIDER_SLIDES = [
-  { src: slider1, alt: "Bolão do Milhão — slide 1" },
-  { src: slider2, alt: "Bolão do Milhão — slide 2" },
-  { src: slider3, alt: "Bolão do Milhão — slide 3" },
-] as const;
-
-/** Clique no banner (área da imagem) — home logada */
-const HOME_LOGGED_SLIDER_HREF = "/boloes";
-/** Clique no banner — home pública (hero) */
-const HOME_PUBLIC_SLIDER_HREF = "/tickets";
+const HOME_SLIDER_SLIDES: readonly HomeHeroSlide[] = [
+  { src: slider1, alt: "Bolão do Milhão — slide 1", href: "/boloes", linkAriaLabel: "Ir para bolões" },
+  { src: slider2, alt: "Bolão do Milhão — slide 2", href: "/premiacao", linkAriaLabel: "Ir para premiação" },
+  { src: slider3, alt: "Bolão do Milhão — slide 3", href: "/indique", linkAriaLabel: "Ir para indique e ganhe" },
+];
 
 const HERO_STATS = [
   {
@@ -418,17 +413,15 @@ function LoggedInHome() {
     <HomePageContainer>
       <Header />
       <main className="min-h-screen bg-black pb-24 text-white">
-          <section className="relative w-full overflow-hidden">
-              <HomeHeroCarousel
-                mode="slide"
-                slides={HOME_SLIDER_SLIDES}
-                intervalMs={5500}
-                slideDurationMs={520}
-                linkHref={HOME_LOGGED_SLIDER_HREF}
-                linkAriaLabel="Ir para bolões"
-                sizes="(max-width: 430px) 100vw, 100vw"
-              />
-          </section>
+        <section className="relative w-full overflow-hidden">
+          <HomeHeroCarousel
+            mode="slide"
+            slides={HOME_SLIDER_SLIDES}
+            intervalMs={5500}
+            slideDurationMs={520}
+            sizes="(max-width: 430px) 100vw, 100vw"
+          />
+        </section>
         <div className="mx-auto w-full max-w-[430px] px-3.5">
           <section className="mt-5">
             <div className="mb-3 flex items-center justify-between gap-3">
@@ -619,8 +612,6 @@ function PublicHome() {
                     objectPositionClassName="object-cover object-[50%_100%]"
                     sizes="(max-width: 1024px) 92vw, 46vw"
                     intervalMs={6000}
-                    linkHref={HOME_PUBLIC_SLIDER_HREF}
-                    linkAriaLabel="Ir para comprar tickets"
                   />
                 </div>
               </div>
