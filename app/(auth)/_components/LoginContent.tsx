@@ -17,11 +17,16 @@ const GOOGLE_ERRORS: Record<string, string> = {
   google_server: "Erro no servidor ao concluir o login. Tente mais tarde.",
 };
 
+const ACCOUNT_MSG: Record<string, string> = {
+  senha_alterada: "Senha alterada com sucesso. Entre novamente com a nova senha.",
+};
+
 export function LoginContent() {
   const [showPw, setShowPw] = useState(false);
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [infoMsg, setInfoMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
@@ -29,6 +34,7 @@ export function LoginContent() {
   const { loginWithPassword, refresh, isLoggedIn, ready } = useAuth();
   const fromParam = useMemo(() => searchParams.get("from"), [searchParams]);
   const errorParam = useMemo(() => searchParams.get("error"), [searchParams]);
+  const msgParam = useMemo(() => searchParams.get("msg"), [searchParams]);
   const signupHref = useMemo(() => {
     const params = new URLSearchParams();
     const ref = searchParams.get("ref")?.trim();
@@ -60,6 +66,15 @@ export function LoginContent() {
   }, [errorParam]);
 
   useEffect(() => {
+    if (!msgParam) {
+      setInfoMsg(null);
+      return;
+    }
+    const t = ACCOUNT_MSG[msgParam];
+    setInfoMsg(t ?? null);
+  }, [msgParam]);
+
+  useEffect(() => {
     if (!ready || !isLoggedIn) return;
     const next = safeReturnPath(fromParam) ?? "/boloes";
     navigateToAfterAuth(next);
@@ -69,6 +84,7 @@ export function LoginContent() {
     e.preventDefault();
     if (loading) return;
     setError(null);
+    setInfoMsg(null);
     setLoading(true);
     try {
       const result = await loginWithPassword(identifier, password);
@@ -105,6 +121,15 @@ export function LoginContent() {
           className="mb-4 rounded-[8px] border border-red-400/25 bg-red-950/25 px-3.5 py-3 text-[13px] font-semibold text-red-200"
         >
           {error}
+        </p>
+      )}
+
+      {infoMsg && !error && (
+        <p
+          role="status"
+          className="mb-4 rounded-[8px] border border-primary/35 bg-primary/10 px-3.5 py-3 text-[13px] font-semibold text-primary"
+        >
+          {infoMsg}
         </p>
       )}
 

@@ -277,3 +277,21 @@ export async function setUserAvatarUploadFilename(
   }
   return toPublic(row);
 }
+
+export async function getUserPasswordHashById(userId: string): Promise<{ password_hash: string | null } | null> {
+  const pool = getPool();
+  const { rows } = await pool.query<{ password_hash: string | null }>(
+    `SELECT password_hash FROM users WHERE id = $1 LIMIT 1`,
+    [userId]
+  );
+  return rows[0] ?? null;
+}
+
+export async function updateUserPasswordHash(userId: string, passwordHash: string): Promise<boolean> {
+  const pool = getPool();
+  const r = await pool.query(`UPDATE users SET password_hash = $2, updated_at = now() WHERE id = $1`, [
+    userId,
+    passwordHash,
+  ]);
+  return (r.rowCount ?? 0) > 0;
+}

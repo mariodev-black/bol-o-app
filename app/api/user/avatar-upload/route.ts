@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 import { setUserAvatarUploadFilename } from "@/lib/auth/users";
 import { responseForDbError } from "@/lib/db-errors";
-import { deleteUserAvatarFile, saveUserAvatarBuffer } from "@/lib/user/avatar-upload-storage";
+import { deleteUserAvatarFile, saveUserAvatarBuffer, AVATAR_UPLOAD_MAX_BYTES } from "@/lib/user/avatar-upload-storage";
 
 export const runtime = "nodejs";
+export const maxDuration = 120;
 
 export async function POST(request: NextRequest) {
   const token = request.cookies.get(sessionCookieName())?.value;
@@ -48,10 +49,16 @@ export async function POST(request: NextRequest) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "";
     if (msg === "unsupported_mime") {
-      return NextResponse.json({ error: "Use JPG, PNG ou WebP." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Formato não aceito. Use JPG, PNG ou WebP." },
+        { status: 400 }
+      );
     }
     if (msg === "invalid_size") {
-      return NextResponse.json({ error: "Imagem muito grande (máx. 2 MB)." }, { status: 400 });
+      return NextResponse.json(
+        { error: `Imagem muito grande após envio (máx. ${Math.round(AVATAR_UPLOAD_MAX_BYTES / (1024 * 1024))} MB).` },
+        { status: 400 }
+      );
     }
     console.error("[user/avatar-upload] save", e);
     return NextResponse.json({ error: "Não foi possível salvar a imagem" }, { status: 400 });

@@ -14,6 +14,7 @@ import { clampAvatarIndex } from "@/lib/auth/avatar-index";
 import { avatarUploadPublicUrl, isStoredAvatarUploadFilename } from "@/lib/user/avatar-filename";
 import { getAvatarPresetImage } from "@/lib/user/avatar-presets";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { LucideIcon } from "lucide-react";
 import {
   Camera,
   ChevronRight,
@@ -30,7 +31,9 @@ import {
   Trophy,
   Wallet,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { PerfilAvatarPickerDialog } from "./PerfilAvatarPickerDialog";
+import { PerfilSegurancaDialog } from "./PerfilSegurancaDialog";
 
 const CARD = "#121212";
 const BORDER = "rgba(255,255,255,0.08)";
@@ -49,10 +52,14 @@ type RecentPick = {
   pointsNum: number;
 };
 
-const settingsItems = [
-  { icon: Shield, title: "Segurança", subtitle: "Alterar senha", href: "/perfil" },
-  { icon: CircleHelp, title: "Ajuda e Suporte", subtitle: "FAQ e atendimento", href: "/indique" },
-  { icon: FileText, title: "Política de Privacidade", subtitle: "Seus dados e privacidade", href: "/privacidade" },
+type SettingsItem =
+  | { kind: "password"; icon: LucideIcon; title: string; subtitle: string }
+  | { kind: "link"; icon: LucideIcon; title: string; subtitle: string; href: string };
+
+const settingsItems: SettingsItem[] = [
+  { kind: "password", icon: Shield, title: "Segurança", subtitle: "Alterar senha" },
+  { kind: "link", icon: CircleHelp, title: "Ajuda e Suporte", subtitle: "FAQ e atendimento", href: "/indique" },
+  { kind: "link", icon: FileText, title: "Política de Privacidade", subtitle: "Seus dados e privacidade", href: "/privacidade" },
 ];
 
 function nextTierProgress(affiliate: AffiliateSummary | null): {
@@ -109,7 +116,8 @@ function EliteShieldBadge() {
 }
 
 export default function PerfilPage() {
-  const { user, ready, applySessionUser } = useAuth();
+  const router = useRouter();
+  const { user, ready, applySessionUser, logout } = useAuth();
   const [recentPicks, setRecentPicks] = useState<RecentPick[]>([]);
   const [resumo, setResumo] = useState<{ palpites: number; acertos: number; pontos: number; exatos: number } | null>(
     null
@@ -120,6 +128,7 @@ export default function PerfilPage() {
   const [profileDataLoading, setProfileDataLoading] = useState(true);
   const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
   const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
+  const [segurancaDialogOpen, setSegurancaDialogOpen] = useState(false);
 
   const reloadAffiliateSummary = useCallback(async () => {
     if (!ready) return;
@@ -278,7 +287,7 @@ export default function PerfilPage() {
                 className="group relative shrink-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#121212] disabled:pointer-events-none disabled:opacity-50"
                 aria-label="Alterar avatar"
               >
-                <div className="relative size-[4.5rem] overflow-hidden rounded-2xl border border-white/12 bg-black shadow-[0_10px_28px_rgba(0,0,0,0.45)] ring-primary/0 transition-[box-shadow,transform] group-hover:ring-2 group-hover:ring-primary/35 group-active:scale-[0.98] sm:size-20">
+                <div className="relative size-[4.5rem] overflow-hidden rounded-[7px] ring-primary/0 transition-[box-shadow,transform] group-hover:ring-2 group-hover:ring-primary/35 group-active:scale-[0.98] sm:size-20">
                   {sessionLoading ? (
                     <SkeletonBlock className="size-full rounded-2xl bg-white/10" />
                   ) : customAvatar ? (
@@ -578,12 +587,8 @@ export default function PerfilPage() {
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {settingsItems.map((item) => {
               const Icon = item.icon;
-              return (
-                <Link
-                  key={item.title}
-                  href={item.href}
-                  className="flex items-center justify-between gap-3 rounded-2xl border border-white/[0.08] bg-[#121212] px-3 py-3.5 transition-colors hover:border-white/15 sm:px-4"
-                >
+              const inner = (
+                <>
                   <div className="flex min-w-0 items-center gap-3">
                     <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03]">
                       <Icon className="size-[18px] text-white/55" strokeWidth={2} />
@@ -594,6 +599,25 @@ export default function PerfilPage() {
                     </div>
                   </div>
                   <ChevronRight className="size-4 shrink-0 text-white/25" strokeWidth={2.2} />
+                </>
+              );
+              const className =
+                "flex w-full items-center justify-between gap-3 rounded-2xl border border-white/[0.08] bg-[#121212] px-3 py-3.5 text-left transition-colors hover:border-white/15 sm:px-4";
+              if (item.kind === "password") {
+                return (
+                  <button
+                    key={item.title}
+                    type="button"
+                    onClick={() => setSegurancaDialogOpen(true)}
+                    className={className}
+                  >
+                    {inner}
+                  </button>
+                );
+              }
+              return (
+                <Link key={item.title} href={item.href} className={className}>
+                  {inner}
                 </Link>
               );
             })}
@@ -611,6 +635,15 @@ export default function PerfilPage() {
         currentIndex={avatarIndex}
         uploadFilename={user?.avatarUploadFilename ?? null}
         onSaved={applySessionUser}
+      />
+
+      <PerfilSegurancaDialog
+        open={segurancaDialogOpen && Boolean(user)}
+        onClose={() => setSegurancaDialogOpen(false)}
+        onSuccessAfterChange={async () => {
+          await logout();
+          router.replace("/login?msg=senha_alterada");
+        }}
       />
 
       <WithdrawGanhosModal

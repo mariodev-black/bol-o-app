@@ -3,7 +3,8 @@ import { join } from "path";
 import { randomUUID } from "crypto";
 import { isStoredAvatarUploadFilename } from "@/lib/user/avatar-filename";
 
-const MAX_BYTES = 2 * 1024 * 1024;
+/** Limite do arquivo salvo em disco (após o cliente otimizar, raramente chega perto disso). */
+export const AVATAR_UPLOAD_MAX_BYTES = 50 * 1024 * 1024;
 
 const MIME_TO_EXT = new Map<string, string>([
   ["image/jpeg", ".jpg"],
@@ -27,7 +28,7 @@ export function saveUserAvatarBuffer(buf: Buffer, mimeRaw: string): string {
   if (!ext) {
     throw new Error("unsupported_mime");
   }
-  if (buf.length === 0 || buf.length > MAX_BYTES) {
+  if (buf.length === 0 || buf.length > AVATAR_UPLOAD_MAX_BYTES) {
     throw new Error("invalid_size");
   }
   ensureAvatarUploadDir();

@@ -1,9 +1,14 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 import { ImagePlus, Trash2, X } from "lucide-react";
 import type { AuthUser } from "@/app/shared/AuthContext";
+import {
+  prepareAvatarImageForUpload,
+  prepareAvatarErrorMessage,
+  type PrepareAvatarErrorCode,
+} from "@/lib/client/avatar-upload-prepare";
 import { AVATAR_PRESET_IMAGES, clampAvatarIndex } from "@/lib/user/avatar-presets";
 import { avatarUploadPublicUrl, isStoredAvatarUploadFilename } from "@/lib/user/avatar-filename";
 
@@ -27,13 +32,16 @@ export function PerfilAvatarPickerDialog({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<TabId>("presets");
-  const fileRef = useRef<HTMLInputElement>(null);
+  /** Só durante upload de foto: permite mensagem fluida sem bloquear pintura. */
+  const [uploadPhase, setUploadPhase] = useState<null | "preparing" | "uploading">(null);
+  const fileInputId = useId();
 
   const safeUpload = uploadFilename && isStoredAvatarUploadFilename(uploadFilename) ? uploadFilename : null;
 
   useEffect(() => {
     if (!open) return;
     setError(null);
+    setUploadPhase(null);
     setTab("presets");
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -111,9 +119,25 @@ export function PerfilAvatarPickerDialog({
       if (!file) return;
       setSaving(true);
       setError(null);
+      setUploadPhase("preparing");
+      await new Promise<void>((r) => requestAnimationFrame(() => r()));
       try {
+        let prepared: File;
+        try {
+          prepared = await prepareAvatarImageForUpload(file);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : "";
+          const code: PrepareAvatarErrorCode =
+            msg === "not_image" || msg === "too_big_pick" || msg === "decode" || msg === "export"
+              ? msg
+              : "decode";
+          setError(prepareAvatarErrorMessage(code));
+          return;
+        }
+        setUploadPhase("uploading");
+        await new Promise<void>((r) => requestAnimationFrame(() => r()));
         const fd = new FormData();
-        fd.set("file", file);
+        fd.set("file", prepared);
         const r = await fetch("/api/user/avatar-upload", {
           method: "POST",
           credentials: "include",
@@ -129,6 +153,7 @@ export function PerfilAvatarPickerDialog({
       } catch {
         setError("Erro de rede. Tente novamente.");
       } finally {
+        setUploadPhase(null);
         setSaving(false);
       }
     },
@@ -234,18 +259,19 @@ export function PerfilAvatarPickerDialog({
           ) : (
             <>
               <p className="text-center text-[12px] font-medium leading-relaxed text-white/55">
-                JPG, PNG ou WebP · até 2 MB. A foto fica salva na sua conta.
+                Você pode escolher fotos grandes (até ~50 MB); o app otimiza antes de enviar. A foto fica salva na sua conta.
               </p>
               <input
-                ref={fileRef}
+                id={fileInputId}
                 type="file"
-                accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                accept="image/*"
                 className="sr-only"
+                disabled={saving}
                 onChange={onFileChange}
               />
-              <div className="mt-4 flex flex-col items-center gap-3">
+              <div className="mt-4 flex min-h-[280px] flex-col items-center justify-center gap-3">
                 {safeUpload ? (
-                  <div className="relative size-32 overflow-hidden rounded-2xl border-2 border-primary/40 shadow-[0_0_24px_rgba(177,235,11,0.2)]">
+                  <div className="relative size-32 shrink-0 overflow-hidden rounded-2xl border-2 border-primary/40 shadow-[0_0_24px_rgba(177,235,11,0.2)]">
                     <Image
                       src={avatarUploadPublicUrl(safeUpload)}
                       alt=""
@@ -256,19 +282,19 @@ export function PerfilAvatarPickerDialog({
                     />
                   </div>
                 ) : (
-                  <div className="flex size-32 items-center justify-center rounded-2xl border border-dashed border-white/20 bg-white/3 text-white/35">
+                  <div className="flex size-32 shrink-0 items-center justify-center rounded-2xl border border-dashed border-white/20 bg-white/3 text-white/35">
                     <ImagePlus className="size-10" strokeWidth={1.5} />
                   </div>
                 )}
-                <button
-                  type="button"
-                  disabled={saving}
-                  onClick={() => fileRef.current?.click()}
-                  className="inline-flex h-11 w-full max-w-xs items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/12 px-4 text-[12px] font-black uppercase tracking-wide text-primary transition-colors hover:bg-primary/18 disabled:opacity-50"
+                <label
+                  htmlFor={fileInputId}
+                  className={`inline-flex h-11 w-full max-w-xs cursor-pointer items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/12 px-4 text-[12px] font-black uppercase tracking-wide text-primary transition-colors hover:bg-primary/18 ${
+                    saving ? "pointer-events-none opacity-50" : ""
+                  }`}
                 >
                   <ImagePlus className="size-4" strokeWidth={2.2} />
                   Escolher da galeria
-                </button>
+                </label>
                 {safeUpload ? (
                   <button
                     type="button"
@@ -286,7 +312,13 @@ export function PerfilAvatarPickerDialog({
 
           {error ? <p className="mt-4 text-center text-[12px] font-semibold text-red-400">{error}</p> : null}
           {saving ? (
-            <p className="mt-2 text-center text-[11px] font-medium text-primary">Salvando…</p>
+            <p className="mt-2 text-center text-[11px] font-medium text-primary">
+              {uploadPhase === "preparing"
+                ? "Otimizando imagem…"
+                : uploadPhase === "uploading"
+                  ? "Enviando…"
+                  : "Salvando…"}
+            </p>
           ) : null}
         </div>
       </div>
