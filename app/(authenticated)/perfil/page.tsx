@@ -333,13 +333,7 @@ export default function PerfilPage() {
                     <Pencil className="size-3.5" strokeWidth={2.2} />
                     Editar perfil
                   </button>
-                  <Link
-                    href="/indique"
-                    className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-white/12 bg-white/[0.04] px-3 text-[11px] font-black uppercase tracking-wide text-white/90 transition-colors hover:bg-white/[0.07]"
-                  >
-                    <Crown className="size-3.5 text-primary" strokeWidth={2.2} />
-                    Meu plano
-                  </Link>
+                  
                 </div>
               </div>
             </div>
