@@ -4,6 +4,7 @@ import { spawn } from "node:child_process";
 import path from "node:path";
 import { NextResponse } from "next/server";
 import { appendDeployFlowLog, deployLogPath } from "@/lib/deploy/deploy-flow-log";
+import { parseGithubWebhookBody } from "@/lib/deploy/parse-github-webhook-body";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -83,12 +84,13 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const appRoot = resolveDeployAppRoot();
-  const rawBody = await request.text();
+  const buf = Buffer.from(await request.arrayBuffer());
+  const contentEncoding = request.headers.get("content-encoding");
   const event = request.headers.get("x-github-event")?.trim() ?? "";
 
   await appendDeployFlowLog(
     appRoot,
-    `POST recebido | X-GitHub-Event="${event || "(vazio)"}" | body ${rawBody.length} bytes | appRoot=${appRoot}`
+    `POST recebido | X-GitHub-Event="${event || "(vazio)"}" | bodyBytes=${buf.length} | Content-Encoding=${contentEncoding ?? "(vazio)"} | appRoot=${appRoot}`
   );
 
   if (event === "ping") {
@@ -101,21 +103,32 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, ignored: true, event, step: "ignored_not_push" });
   }
 
-  let body: { ref?: string } = {};
-  try {
-    body = rawBody ? (JSON.parse(rawBody) as typeof body) : {};
-  } catch {
-    await appendDeployFlowLog(appRoot, "corpo JSON inválido — deploy não enfileirado");
-    return NextResponse.json({ error: "JSON inválido", step: "bad_json" }, { status: 400 });
+  const parsed = parseGithubWebhookBody(buf, contentEncoding);
+  if (!parsed.ok) {
+    await appendDeployFlowLog(
+      appRoot,
+      `corpo JSON inválido | ${parsed.error} | Content-Encoding=${parsed.contentEncoding} | hex48=${parsed.previewHex} | utf8preview=${parsed.previewUtf8.slice(0, 120)}`
+    );
+    return NextResponse.json(
+      {
+        error: "JSON inválido",
+        step: "bad_json",
+        detail: parsed.error,
+        contentEncoding: parsed.contentEncoding,
+        bodyBytes: buf.length,
+      },
+      { status: 400 }
+    );
   }
 
+  const body = parsed.json;
   const branch = process.env.GITHUB_DEPLOY_BRANCH?.trim() || "main";
   const expectedRef = process.env.GITHUB_DEPLOY_REF?.trim() || `refs/heads/${branch}`;
 
   if (!deployRefMatches(body.ref, expectedRef)) {
     await appendDeployFlowLog(
       appRoot,
-      `push recebido mas branch não é a de deploy | ref payload="${body.ref ?? "(undefined)"}" | esperado="${expectedRef}"`
+      `push recebido mas branch não é a de deploy | ref payload="${String(body.ref ?? "(undefined)")}" | esperado="${expectedRef}"`
     );
     return NextResponse.json({
       ok: true,
@@ -130,7 +143,7 @@ export async function POST(request: Request) {
   const scriptPath = path.join(appRoot, "scripts", "deploy-from-github.sh");
   await appendDeployFlowLog(
     appRoot,
-    `push OK na branch de deploy → enfileirando script | ref=${body.ref} | script=${scriptPath}`
+    `push OK na branch de deploy → enfileirando script | ref=${String(body.ref)} | script=${scriptPath}`
   );
 
   const pid = queueDeploy(appRoot);
