@@ -56,7 +56,6 @@ const MENU_SECTIONS: MenuSection[] = [
     items: [
       { label: "Página inicial", href: "/", icon: Home, subtitle: "Início" },
       { label: "Meus Bolões", href: "/boloes", icon: Trophy, subtitle: "Cotas e palpites" },
-      { label: "Bolão do Dia", href: "/tickets?bolao=diario", icon: CalendarClock, subtitle: "Comprar diário" },
       { label: "Meus Palpites", href: "/meus-palpites", icon: BarChart2, subtitle: "Histórico e ranking" },
       { label: "Premiação", href: "/premiacao", icon: Gift, subtitle: "Prêmios oficiais" },
     ],
