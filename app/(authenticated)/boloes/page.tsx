@@ -14,6 +14,11 @@ import { resolveDiarioPlayableDate } from "@/lib/diario-playable-date";
 
 export const dynamic = "force-dynamic";
 
+function parseEnvBool(v: string | undefined): boolean {
+  const s = (v ?? "").trim().toLowerCase();
+  return s === "1" || s === "true" || s === "yes" || s === "on";
+}
+
 type MatchMap = Awaited<ReturnType<typeof fetchMatchesMap>>;
 type MatchInfo = MatchMap extends Map<number, infer T> ? T : never;
 
@@ -480,13 +485,14 @@ export default async function BoloesPage() {
   const userId = token ? await verifySessionToken(token).catch(() => null) : null;
   debugBoloes("request", { hasToken: Boolean(token), userId });
   const data = userId ? await loadBoloesData(userId) : null;
+  const ticketsExtraOnly = parseEnvBool(process.env.TICKETS_EXTRA_ONLY);
   if (!userId) debugBoloes("no authenticated user", {});
   return (
     <>
       <Suspense fallback={null}>
         <BoloesPurchaseSync />
       </Suspense>
-      <BoloesClient data={data} />
+      <BoloesClient data={data} ticketsExtraOnly={ticketsExtraOnly} />
     </>
   );
 }

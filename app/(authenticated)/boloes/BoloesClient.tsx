@@ -1410,7 +1410,14 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
 /* ─────────────────────────────────────────────────────
    Componente principal
    ───────────────────────────────────────────────────── */
-export function BoloesClient({ data }: { data: BoloesScreenData | null }) {
+export function BoloesClient({
+  data,
+  ticketsExtraOnly = false,
+}: {
+  data: BoloesScreenData | null;
+  /** Alinhado a `TICKETS_EXTRA_ONLY`: oculta vitrines de principal e do dia. */
+  ticketsExtraOnly?: boolean;
+}) {
   const now = useNow();
   const [showAllActive, setShowAllActive] = useState(false);
   const [showAllPrincipal, setShowAllPrincipal] = useState(false);
@@ -1533,6 +1540,8 @@ export function BoloesClient({ data }: { data: BoloesScreenData | null }) {
           />
         </section>
 
+        {!ticketsExtraOnly && (
+          <>
         <section className="mt-6">
           <ShowcaseSectionTitle
             icon={Trophy}
@@ -1631,12 +1640,14 @@ export function BoloesClient({ data }: { data: BoloesScreenData | null }) {
             </CarouselShell>
           )}
         </section>
+          </>
+        )}
 
         {hasExtraSection && (
-          <section className="mt-4 mb-6">
+          <section className={ticketsExtraOnly ? "mt-6 mb-6" : "mt-4 mb-6"}>
             <ShowcaseSectionTitle
               icon={Sparkles}
-              index="3"
+              index={ticketsExtraOnly ? "1" : "3"}
               title={
                 extraItems.length > 0 ? "Meus bolões extra" : "Bolões extra — comprar"
               }

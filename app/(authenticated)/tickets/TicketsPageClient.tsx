@@ -4,7 +4,13 @@ import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { TicketCheckoutFlow } from "./_components/TicketCheckoutFlow";
 
-function TicketsPageContent({ serverExtraChampionshipIds }: { serverExtraChampionshipIds: number[] }) {
+function TicketsPageContent({
+  serverExtraChampionshipIds,
+  ticketsExtraOnly,
+}: {
+  serverExtraChampionshipIds: number[];
+  ticketsExtraOnly: boolean;
+}) {
   const search = useSearchParams();
   const bolaoRaw = search.get("bolao");
   const bolao =
@@ -20,19 +26,29 @@ function TicketsPageContent({ serverExtraChampionshipIds }: { serverExtraChampio
   return (
     <div className="flex min-h-screen flex-col bg-black">
       <TicketCheckoutFlow
-        key={`${bolao}-${initialExtraChampionshipId ?? ""}`}
+        key={`${bolao}-${initialExtraChampionshipId ?? ""}-${ticketsExtraOnly ? "xo" : "all"}`}
         initialTicketKind={initialTicketKind}
         initialExtraChampionshipId={initialExtraChampionshipId}
         serverExtraChampionshipIds={serverExtraChampionshipIds}
+        ticketsExtraOnly={ticketsExtraOnly}
       />
     </div>
   );
 }
 
-export function TicketsPageClient({ serverExtraChampionshipIds }: { serverExtraChampionshipIds: number[] }) {
+export function TicketsPageClient({
+  serverExtraChampionshipIds,
+  ticketsExtraOnly,
+}: {
+  serverExtraChampionshipIds: number[];
+  ticketsExtraOnly: boolean;
+}) {
   return (
     <Suspense fallback={<div className="min-h-screen bg-background" />}>
-      <TicketsPageContent serverExtraChampionshipIds={serverExtraChampionshipIds} />
+      <TicketsPageContent
+        serverExtraChampionshipIds={serverExtraChampionshipIds}
+        ticketsExtraOnly={ticketsExtraOnly}
+      />
     </Suspense>
   );
 }

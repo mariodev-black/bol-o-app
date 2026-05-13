@@ -106,6 +106,11 @@ type TicketCheckoutFlowProps = {
   initialExtraChampionshipId?: number;
   /** IDs extras vindos do servidor — alinhados a `BOLOES_EXTRA_*`. */
   serverExtraChampionshipIds?: number[];
+  /**
+   * Quando true (env `TICKETS_EXTRA_ONLY`): oculta bolão geral e bolão do dia na loja;
+   * só exibe a compra de bolões extra.
+   */
+  ticketsExtraOnly?: boolean;
 };
 
 const MAX_QTY = 20;
@@ -114,14 +119,17 @@ export function TicketCheckoutFlow({
   initialTicketKind = "general",
   initialExtraChampionshipId: _initialExtraChampionshipId,
   serverExtraChampionshipIds = [],
+  ticketsExtraOnly = false,
 }: TicketCheckoutFlowProps) {
   const router = useRouter();
-  const [principalQty, setPrincipalQty] = useState(() =>
-    initialTicketKind === "daily" || initialTicketKind === "extra" ? 0 : 1,
-  );
-  const [dailyQty, setDailyQty] = useState(() =>
-    initialTicketKind === "daily" ? 1 : 0,
-  );
+  const [principalQty, setPrincipalQty] = useState(() => {
+    if (ticketsExtraOnly) return 0;
+    return initialTicketKind === "daily" || initialTicketKind === "extra" ? 0 : 1;
+  });
+  const [dailyQty, setDailyQty] = useState(() => {
+    if (ticketsExtraOnly) return 0;
+    return initialTicketKind === "daily" ? 1 : 0;
+  });
   const [extraBoloes, setExtraBoloes] = useState<ExtraBolaoOption[]>(() => {
     const fromServer = (serverExtraChampionshipIds ?? []).filter((n) => Number.isFinite(n) && n > 0);
     const fromPublic = parseNextPublicExtraChampionshipIds();
@@ -131,9 +139,10 @@ export function TicketCheckoutFlow({
       unitCents: DEFAULT_EXTRA_CENTS,
     }));
   });
-  const [extraQuantity, setExtraQuantity] = useState(() =>
-    initialTicketKind === "extra" ? 1 : 0,
-  );
+  const [extraQuantity, setExtraQuantity] = useState(() => {
+    if (ticketsExtraOnly) return initialTicketKind === "extra" ? 1 : 0;
+    return initialTicketKind === "extra" ? 1 : 0;
+  });
   const [prices, setPrices] = useState({
     general: DEFAULT_PRINCIPAL_CENTS,
     daily: DEFAULT_DIARIO_CENTS,
@@ -154,6 +163,12 @@ export function TicketCheckoutFlow({
   const purchasePrincipalRef = useRef(0);
   const purchaseDiarioRef = useRef(0);
   const purchaseExtraRef = useRef<Record<number, number>>({});
+
+  useEffect(() => {
+    if (!ticketsExtraOnly) return;
+    setPrincipalQty(0);
+    setDailyQty(0);
+  }, [ticketsExtraOnly]);
 
   const handleTransactionUpdate = useCallback(
     (payload: TransactionUpdatePayload, source?: string) => {
@@ -568,6 +583,8 @@ export function TicketCheckoutFlow({
                 </div>
 
             <div className="space-y-3">
+              {!ticketsExtraOnly && (
+                <>
               {/* Card Bolão Geral */}
               <div className="overflow-hidden rounded-[16px] border border-white/10 bg-[#121212] shadow-[0_8px_26px_rgba(0,0,0,0.35)]">
                 <div className="grid grid-cols-[74px_minmax(0,1fr)] items-center gap-3 p-3 sm:grid-cols-[86px_minmax(0,1fr)] sm:p-3.5">
@@ -761,6 +778,8 @@ export function TicketCheckoutFlow({
                       </span>
                     </div>
               </div>
+                </>
+              )}
 
               {extraBoloes.length > 0 && (
                 <div className="overflow-hidden rounded-[16px] border border-white/10 bg-[#121212] shadow-[0_8px_26px_rgba(0,0,0,0.35)]">
