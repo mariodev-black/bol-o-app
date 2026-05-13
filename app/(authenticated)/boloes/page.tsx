@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 import { listPaidTicketsForUser, type PaidTicketRow } from "@/lib/payments/user-tickets";
 import { getExtraBolaoUnitCents, getTicketPriceCents } from "@/lib/payments/ticket-config";
-import { calcPredictionPoints, listPredictions, listAllPredictions, type PredictionRow } from "@/lib/predictions";
+import { calcPredictionPoints, listPredictions, listAllPredictions, palpiteLockBeforeKickoffMs, type PredictionRow } from "@/lib/predictions";
 import { fetchMatchesMap } from "@/lib/football-api";
 import { BoloesClient, type BoloesScreenData } from "@/app/(authenticated)/boloes/BoloesClient";
 import { BoloesPurchaseSync } from "@/app/(authenticated)/boloes/_components/BoloesPurchaseSync";
@@ -18,6 +18,10 @@ function parseEnvBool(v: string | undefined): boolean {
   const s = (v ?? "").trim().toLowerCase();
   return s === "1" || s === "true" || s === "yes" || s === "on";
 }
+
+const PALPITE_LOCK_MS_PRINCIPAL = palpiteLockBeforeKickoffMs("principal");
+const PALPITE_LOCK_MS_DIARIO = palpiteLockBeforeKickoffMs("diario");
+const PALPITE_LOCK_MS_EXTRA = palpiteLockBeforeKickoffMs("extra");
 
 type MatchMap = Awaited<ReturnType<typeof fetchMatchesMap>>;
 type MatchInfo = MatchMap extends Map<number, infer T> ? T : never;
@@ -80,23 +84,23 @@ function kickoffMs(match: MatchInfo): number | null {
   return Date.UTC(year, month - 1, day, hours + 3, minutes, 0);
 }
 
-function lockMs(match: MatchInfo): number | null {
+function lockMs(match: MatchInfo, leadMs: number): number | null {
   const kickoff = kickoffMs(match);
-  return kickoff == null ? null : kickoff - 60 * 60 * 1000;
+  return kickoff == null ? null : kickoff - leadMs;
 }
 
-function isOpenMatch(match: MatchInfo, now = Date.now()): boolean {
+function isOpenMatch(match: MatchInfo, leadMs: number, now = Date.now()): boolean {
   if (isFinishedStatus(match.status)) return false;
-  const lock = lockMs(match);
+  const lock = lockMs(match, leadMs);
   if (lock != null) return lock > now;
   const matchDate = brDateToUtcMs(match.dateBR);
   const today = brDateToUtcMs(todayBR());
   return matchDate != null && today != null && matchDate >= today;
 }
 
-function nextLockMs(matches: MatchInfo[], now = Date.now()): number | null {
+function nextLockMs(matches: MatchInfo[], leadMs: number, now = Date.now()): number | null {
   const locks = matches
-    .map(lockMs)
+    .map((m) => lockMs(m, leadMs))
     .filter((value): value is number => value != null && value > now)
     .sort((a, b) => a - b);
   return locks[0] ?? null;
@@ -280,13 +284,15 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
   const playableDateMatches = Array.from(matches.values()).filter(
     (match) =>
       match.dateBR === playableDate &&
-      isOpenMatch(match) &&
+      isOpenMatch(match, PALPITE_LOCK_MS_DIARIO) &&
       (Number(match.competitionId) || mainComp) === mainComp,
   );
   const dailyMatchesCount = playableDateMatches.length;
-  const dailyCloseAtMs = nextLockMs(playableDateMatches);
-  const generalOpenMatches = Array.from(matches.values()).filter((match) => isOpenMatch(match));
-  const generalCloseAtMs = nextLockMs(generalOpenMatches);
+  const dailyCloseAtMs = nextLockMs(playableDateMatches, PALPITE_LOCK_MS_DIARIO);
+  const generalOpenMatches = Array.from(matches.values()).filter((match) =>
+    isOpenMatch(match, PALPITE_LOCK_MS_PRINCIPAL),
+  );
+  const generalCloseAtMs = nextLockMs(generalOpenMatches, PALPITE_LOCK_MS_PRINCIPAL);
   const positions = tickets
     .map((ticket) => metricsByTicket.get(ticket.id)?.position ?? null)
     .filter((pos): pos is number => pos != null);
@@ -331,7 +337,10 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
           m.dateBR === date &&
           (safeComp <= 0 || (Number(m.competitionId) || safeComp) === safeComp),
       );
-      const closeAt = nextLockMs(dateMatches.filter((m) => isOpenMatch(m)));
+      const closeAt = nextLockMs(
+        dateMatches.filter((m) => isOpenMatch(m, PALPITE_LOCK_MS_EXTRA)),
+        PALPITE_LOCK_MS_EXTRA,
+      );
       const status: ActiveDailyStatus =
         ticket.dailyStatus === "usado" ? "usado" : ticket.dailyStatus === "em_uso" ? "ativo" : "aguardando";
       return {
@@ -357,7 +366,10 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
       (match) =>
         match.dateBR === date && (Number(match.competitionId) || mainComp) === mainComp,
     );
-    const closeAt = nextLockMs(dateMatches.filter((match) => isOpenMatch(match)));
+    const closeAt = nextLockMs(
+      dateMatches.filter((match) => isOpenMatch(match, PALPITE_LOCK_MS_DIARIO)),
+      PALPITE_LOCK_MS_DIARIO,
+    );
     const status: ActiveDailyStatus =
       ticket.dailyStatus === "usado" ? "usado" : ticket.dailyStatus === "em_uso" ? "ativo" : "aguardando";
     return {
@@ -403,7 +415,10 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
             (match) =>
               match.dateBR === date && (Number(match.competitionId) || mainComp) === mainComp,
           );
-          const closeAt = nextLockMs(dateMatches.filter((match) => isOpenMatch(match)));
+          const closeAt = nextLockMs(
+            dateMatches.filter((match) => isOpenMatch(match, PALPITE_LOCK_MS_DIARIO)),
+            PALPITE_LOCK_MS_DIARIO,
+          );
           const status: ActiveDailyStatus =
             firstDaily.dailyStatus === "usado" ? "usado" : firstDaily.dailyStatus === "em_uso" ? "ativo" : "aguardando";
           return {
@@ -450,13 +465,13 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
           (m) =>
             m.dateBR === pd && (Number(m.competitionId) || championshipId) === championshipId,
         );
-        const openOnDate = dateMatches.filter((m) => isOpenMatch(m));
+        const openOnDate = dateMatches.filter((m) => isOpenMatch(m, PALPITE_LOCK_MS_EXTRA));
         return {
           championshipId,
           title: competitionLabels[championshipId] ?? `Bolão extra`,
           href: `/tickets?bolao=extra&championshipId=${championshipId}`,
           gamesCount: openOnDate.length,
-          closesAtMs: nextLockMs(openOnDate),
+          closesAtMs: nextLockMs(openOnDate, PALPITE_LOCK_MS_EXTRA),
           priceLabel: formatBRL(getExtraBolaoUnitCents()),
         };
       }),

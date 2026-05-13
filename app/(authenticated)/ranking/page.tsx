@@ -2,14 +2,16 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CalendarClock,
   Check,
   ChevronDown,
   ChevronRight,
+  Eye,
   Pencil,
   Share2,
+  Sparkles,
   Star,
   Ticket,
   Trophy,
@@ -17,17 +19,8 @@ import {
 } from "lucide-react";
 import { TrophyGold, TrophySilver, TrophyBronze } from "@/app/components/RankingTrophies";
 import bannerRanking from "@/app/assets/banner-ranking.png";
+import type { RankingScopeOption } from "@/lib/ranking/scopes";
 import { getAvatarPresetImage } from "@/lib/user/avatar-presets";
-
-type RankingScopeOption = {
-  key: string;
-  mode: "principal" | "diario" | "extra";
-  ticketId: string | null;
-  label: string;
-  meta: string;
-  unusedPalpites: boolean;
-  palpitesHref: string;
-};
 
 type BoardRow = {
   pos: number;
@@ -64,6 +57,38 @@ type ResumoStats = {
 const PRIMARY = "#B1EB0B";
 const CARD = "#101010";
 const BORDER = "rgba(255,255,255,0.08)";
+
+/** Bola estilizada (sem emoji) para bolão do dia no seletor de ranking. */
+function SoccerBallIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden>
+      <circle cx="12" cy="12" r="9.25" fill="#f4f4f5" stroke="#18181b" strokeWidth="0.65" />
+      <path
+        fill="#18181b"
+        d="M12 6.35 14.42 8.12v3.52L12 13.65 9.58 11.64V8.12L12 6.35zm-5.9 2.78 2.95 1.05v4.64l-2.95 1.05-1.82-3.37 1.82-3.37zm11.8 0 1.82 3.37-1.82 3.37-2.95-1.05v-4.64l2.95-1.05z"
+      />
+    </svg>
+  );
+}
+
+function scopeGlyphForMode(mode: RankingScopeOption["mode"] | undefined, size: "md" | "sm" = "md") {
+  const dim = size === "md" ? "size-[22px]" : "size-[18px]";
+  if (mode === "principal")
+    return <Trophy className={`${dim} shrink-0 text-primary`} strokeWidth={size === "sm" ? 2 : 2.2} aria-hidden />;
+  if (mode === "extra")
+    return <Sparkles className={`${dim} shrink-0 text-primary`} strokeWidth={size === "sm" ? 2 : 2.2} aria-hidden />;
+  return <SoccerBallIcon className={dim} />;
+}
+
+function scopeSelectLines(option: RankingScopeOption) {
+  const primary =
+    option.selectPrimary ??
+    (option.label.includes(" — ") ? option.label.split(" — ")[0]! : option.label);
+  const secondary =
+    option.selectSecondary ??
+    (option.label.includes(" — ") ? option.label.split(" — ").slice(1).join(" — ") : option.meta);
+  return { primary, secondary };
+}
 
 function formatParticipantsShort(n: number): string {
   if (!Number.isFinite(n) || n < 0) return "0";
@@ -202,6 +227,7 @@ const CACHE_MS = 45 * 1000;
 const boardCache = new Map<string, { at: number; payload: { rows: BoardRow[]; meta: BoardMeta } }>();
 
 export default function RankingPage() {
+  const poolShellRef = useRef<HTMLDivElement>(null);
   const [scopes, setScopes] = useState<RankingScopeOption[]>([]);
   const [scopeKey, setScopeKey] = useState<string | null>(null);
   const [poolOpen, setPoolOpen] = useState(false);
@@ -273,6 +299,16 @@ export default function RankingPage() {
   );
 
   const firstDailyIndex = useMemo(() => scopes.findIndex((s) => s.mode === "diario"), [scopes]);
+  const firstExtraIndex = useMemo(() => scopes.findIndex((s) => s.mode === "extra"), [scopes]);
+
+  useEffect(() => {
+    if (!poolOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (!poolShellRef.current?.contains(e.target as Node)) setPoolOpen(false);
+    };
+    window.addEventListener("pointerdown", onPointerDown, true);
+    return () => window.removeEventListener("pointerdown", onPointerDown, true);
+  }, [poolOpen]);
 
   const loadBoard = useCallback(async () => {
     if (!scopeKey || scopes.length === 0) return;
@@ -366,8 +402,10 @@ export default function RankingPage() {
     return myRows.reduce((a, b) => (a.pos <= b.pos ? a : b));
   }, [myRows, selectedScope?.ticketId]);
 
-  const poolLabel = selectedScope?.label ?? "—";
-  const poolMeta = selectedScope?.meta ?? "";
+  const { primary: poolSelectPrimary, secondary: poolSelectSecondary } = useMemo(() => {
+    if (!selectedScope) return { primary: "—", secondary: "" } as const;
+    return scopeSelectLines(selectedScope);
+  }, [selectedScope]);
   const palpitesQuickHref = selectedScope?.palpitesHref ?? "/palpites";
 
   const shareRanking = useCallback(async () => {
@@ -463,72 +501,158 @@ export default function RankingPage() {
 
         {!loadingScopes && scopes.length > 0 ? (
           <>
-        <section className="relative z-20 mt-3">
-          <button
-            type="button"
-            disabled={!scopeKey}
-            onClick={() => setPoolOpen((v) => !v)}
-            className="flex h-[3.35rem] w-full items-center justify-between gap-3 rounded-2xl border px-3 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] active:scale-[0.99] disabled:opacity-60"
-            style={{ background: CARD, borderColor: BORDER }}
-          >
-            <span className="flex min-w-0 items-center gap-2.5">
-              <span
-                className="flex size-10 shrink-0 items-center justify-center rounded-xl border text-[18px] leading-none"
-                style={{ borderColor: "rgba(177,235,11,0.28)", background: "rgba(177,235,11,0.08)" }}
-                aria-hidden
-              >
-                ⚽
-              </span>
-              <span className="min-w-0">
-                <span className="block text-[9px] font-black uppercase tracking-[0.18em] text-white/42">Selecionar bolão / cota</span>
-                <span className="mt-0.5 block truncate text-[13px] font-black text-white">{poolLabel}</span>
-                {poolMeta ? <span className="mt-0.5 block truncate text-[12px] font-medium text-white/38">{poolMeta}</span> : null}
-              </span>
-            </span>
-            <ChevronDown className={`size-4 shrink-0 text-primary transition-transform ${poolOpen ? "rotate-180" : ""}`} strokeWidth={2.6} />
-          </button>
+        <section
+          className={`relative mt-4 rounded-2xl border border-white/10 bg-[#0a0a0a] px-5 pb-5 pt-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ${
+            poolOpen ? "z-50 overflow-visible" : "overflow-hidden"
+          }`}
+        >
+          <div
+            className="pointer-events-none absolute -right-6 top-0 h-32 w-32 rounded-full opacity-[0.14] blur-3xl"
+            style={{ background: PRIMARY }}
+          />
+          <div className="relative z-10">
+            <header className="flex items-start gap-3.5">
+              <div className="flex size-12 shrink-0 items-center justify-center rounded-full border border-white/14 bg-[#121212] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+                <Trophy className="size-[22px] text-primary" strokeWidth={2.2} aria-hidden />
+              </div>
+              <div className="min-w-0 flex-1 pt-0.5">
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-primary">Consultar classificação</p>
+                <p className="mt-1 text-[13px] font-semibold leading-snug text-white/90">
+                  Selecione o bolão que deseja acompanhar
+                </p>
+              </div>
+            </header>
 
-          {poolOpen ? (
-            <div
-              className="absolute left-0 right-0 top-[calc(100%+6px)] z-30 max-h-[min(60vh,320px)] overflow-y-auto rounded-2xl border shadow-[0_18px_40px_rgba(0,0,0,0.65)]"
-              style={{ background: CARD, borderColor: BORDER }}
-            >
-              {scopes.map((option, idx) => {
-                const active = scopeKey === option.key;
-                const showBolaoGeralHeader = idx === 0 && scopes[0]?.mode === "principal";
-                const showBolaoDiaHeader = firstDailyIndex !== -1 && idx === firstDailyIndex;
-                return (
-                  <Fragment key={option.key}>
-                    {showBolaoGeralHeader ? (
-                      <div className="sticky top-0 z-10 border-b border-white/10 bg-[#161616] px-4 py-2 text-[9px] font-black uppercase tracking-[0.2em] text-white/80">
-                        Bolão geral
-                      </div>
-                    ) : null}
-                    {showBolaoDiaHeader ? (
-                      <div className="sticky top-0 z-10 border-b border-white/10 bg-[#161616] px-4 py-2 text-[9px] font-black uppercase tracking-[0.2em] text-white/80">
-                        Bolão do dia
-                      </div>
-                    ) : null}
-                    <button
-                    type="button"
-                    onClick={() => {
-                      setScopeKey(option.key);
-                      setPoolOpen(false);
-                    }}
-                    className="flex w-full items-center justify-between gap-3 border-b border-white/6 px-4 py-3 text-left last:border-b-0"
-                    style={{ background: active ? "rgba(177,235,11,0.09)" : "transparent" }}
-                  >
-                    <span className="min-w-0">
-                      <span className="block truncate text-[13px] font-bold text-white">{option.label}</span>
-                      <span className="block truncate text-[11px] text-white/38">{option.meta}</span>
+            <div ref={poolShellRef} className="relative z-20 mt-5">
+              <button
+                type="button"
+                disabled={!scopeKey}
+                onClick={() => setPoolOpen((v) => !v)}
+                className="flex w-full items-center gap-3.5 rounded-xl border-2 px-3.5 py-3.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition-[transform,box-shadow,border-color] active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0a0a0a] disabled:opacity-55 disabled:active:scale-100"
+                style={{
+                  borderColor: "rgba(177,235,11,0.55)",
+                  background: "linear-gradient(180deg, rgba(22,22,22,0.98), rgba(12,12,12,0.98))",
+                  boxShadow: poolOpen
+                    ? "0 0 0 1px rgba(177,235,11,0.2), 0 12px 36px rgba(0,0,0,0.55)"
+                    : "0 8px 28px rgba(0,0,0,0.45)",
+                }}
+                aria-expanded={poolOpen}
+                aria-haspopup="listbox"
+              >
+                <span
+                  className="flex size-11 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-black/50 shadow-inner"
+                  aria-hidden
+                >
+                  {scopeGlyphForMode(selectedScope?.mode, "md")}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[14px] font-black leading-tight text-white">{poolSelectPrimary}</span>
+                  {poolSelectSecondary ? (
+                    <span className="mt-1 block truncate text-[12px] font-medium tabular-nums text-white/45">
+                      {poolSelectSecondary}
                     </span>
-                    {active ? <Check className="size-4 shrink-0 text-primary" strokeWidth={2.8} /> : null}
-                  </button>
-                  </Fragment>
-                );
-              })}
+                  ) : null}
+                </span>
+                <ChevronDown
+                  className={`ml-auto size-5 shrink-0 text-white/90 transition-transform ${poolOpen ? "rotate-180" : ""}`}
+                  strokeWidth={2.4}
+                  aria-hidden
+                />
+              </button>
+
+              {poolOpen ? (
+                <div
+                  className="absolute left-0 right-0 top-[calc(100%+10px)] z-[100] overflow-hidden rounded-xl border border-white/12 bg-[#0c0c0c] shadow-[0_24px_56px_rgba(0,0,0,0.88),inset_0_1px_0_rgba(255,255,255,0.04)] ring-1 ring-black/50"
+                  role="listbox"
+                  aria-label="Bolões e cotas"
+                >
+                  <div className="max-h-[min(60vh,360px)] overflow-y-auto overscroll-contain p-1.5 [scrollbar-gutter:stable]">
+                    <div className="flex flex-col gap-1">
+                  {scopes.map((option, idx) => {
+                    const active = scopeKey === option.key;
+                    const showBolaoGeralHeader = idx === 0 && scopes[0]?.mode === "principal";
+                    const showBolaoDiaHeader = firstDailyIndex !== -1 && idx === firstDailyIndex;
+                    const showBolaoExtraHeader = firstExtraIndex !== -1 && idx === firstExtraIndex;
+                    return (
+                      <Fragment key={option.key}>
+                        {showBolaoGeralHeader ? (
+                          <div className="sticky top-0 z-10 rounded-lg border border-white/10 bg-zinc-950/95 px-3 py-2 text-[9px] font-black uppercase tracking-[0.2em] text-primary backdrop-blur-sm">
+                            Bolão geral
+                          </div>
+                        ) : null}
+                        {showBolaoDiaHeader ? (
+                          <div className="sticky top-0 z-10 rounded-lg border border-white/10 bg-zinc-950/95 px-3 py-2 text-[9px] font-black uppercase tracking-[0.2em] text-primary backdrop-blur-sm">
+                            Bolão do dia
+                          </div>
+                        ) : null}
+                        {showBolaoExtraHeader ? (
+                          <div className="sticky top-0 z-10 rounded-lg border border-white/10 bg-zinc-950/95 px-3 py-2 text-[9px] font-black uppercase tracking-[0.2em] text-primary backdrop-blur-sm">
+                            Bolão extra
+                          </div>
+                        ) : null}
+                        <button
+                          type="button"
+                          role="option"
+                          aria-selected={active}
+                          onClick={() => {
+                            setScopeKey(option.key);
+                            setPoolOpen(false);
+                          }}
+                          className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-left transition-colors ${
+                            active
+                              ? "border border-primary/35 bg-primary/12 shadow-[inset_0_0_0_1px_rgba(177,235,11,0.12)]"
+                              : "border border-transparent hover:border-white/12 hover:bg-white/6"
+                          }`}
+                        >
+                          <span className="flex min-w-0 items-center gap-3">
+                            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-white/12 bg-linear-to-b from-zinc-900/90 to-black/90 shadow-inner">
+                              {scopeGlyphForMode(option.mode, "sm")}
+                            </span>
+                            <span className="min-w-0">
+                              {(() => {
+                                const { primary, secondary } = scopeSelectLines(option);
+                                return (
+                                  <>
+                                    <span className="block truncate text-[13px] font-bold leading-tight text-white">
+                                      {primary}
+                                    </span>
+                                    <span className="mt-0.5 block truncate text-[11px] font-medium tabular-nums text-white/45">
+                                      {secondary}
+                                    </span>
+                                    {option.meta && option.meta !== secondary ? (
+                                      <span className="mt-0.5 block truncate text-[10px] font-medium tabular-nums text-white/35">
+                                        {option.meta}
+                                      </span>
+                                    ) : null}
+                                  </>
+                                );
+                              })()}
+                            </span>
+                          </span>
+                          {active ? (
+                            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/20">
+                              <Check className="size-3.5 text-primary" strokeWidth={2.8} />
+                            </span>
+                          ) : (
+                            <span className="size-7 shrink-0" aria-hidden />
+                          )}
+                        </button>
+                      </Fragment>
+                    );
+                  })}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
             </div>
-          ) : null}
+
+            <footer className="mt-5 flex items-start gap-2.5 border-t border-white/[0.07] pt-4">
+              <Eye className="mt-0.5 size-4 shrink-0 text-primary" strokeWidth={2.35} aria-hidden />
+              <p className="text-[12px] font-medium leading-relaxed text-white/68">
+                Escolha um bolão para acompanhar sua posição na tabela.
+              </p>
+            </footer>
+          </div>
         </section>
 
         {selectedScope?.unusedPalpites ? (

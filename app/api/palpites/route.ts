@@ -3,7 +3,7 @@ import { revalidateTag } from "next/cache";
 import { z } from "zod";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 import { fetchMatchesMapDirectFromDb, resolveKickoffAtIso } from "@/lib/football-api";
-import { getPredictionByUserTicketMatch, listPredictions, upsertPrediction } from "@/lib/predictions";
+import { getPredictionByUserTicketMatch, listPredictions, palpiteLockBeforeKickoffMs, upsertPrediction } from "@/lib/predictions";
 import { inferBolaoTypeFromTicketId } from "@/lib/ticket-kind-server";
 import { inferBolaoTypeFromTicketPrefix } from "@/lib/ticket-kind-shared";
 import { getPool } from "@/lib/db";
@@ -197,15 +197,14 @@ export async function POST(request: NextRequest) {
     dateBR: dateBrDb,
     hour: match.hour,
   });
-  const lockMs = kickoffIso ? new Date(kickoffIso).getTime() - 60 * 60 * 1000 : null;
+  const lockLeadMs = palpiteLockBeforeKickoffMs(bolaoType);
+  const lockMs = kickoffIso ? new Date(kickoffIso).getTime() - lockLeadMs : null;
   if (lockMs != null && Number.isFinite(lockMs) && Date.now() >= lockMs) {
-    return NextResponse.json(
-      {
-        error:
-          "Palpite recusado: o prazo maximo e ate 1h antes do apito. Na ultima hora antes do jogo nao aceita nem primeiro palpite nem alteracao; quem nao registrou a tempo nao entra nesta partida.",
-      },
-      { status: 400 }
-    );
+    const msg =
+      bolaoType === "extra"
+        ? "Palpite recusado: o prazo maximo e ate 5 minutos antes do apito. Apos esse limite nao aceita nem primeiro palpite nem alteracao."
+        : "Palpite recusado: o prazo maximo e ate 1h antes do apito. Na ultima hora antes do jogo nao aceita nem primeiro palpite nem alteracao; quem nao registrou a tempo nao entra nesta partida.";
+    return NextResponse.json({ error: msg }, { status: 400 });
   }
   const kickoffMs = kickoffIso ? new Date(kickoffIso).getTime() : null;
   if (kickoffMs != null && Number.isFinite(kickoffMs) && Date.now() >= kickoffMs) {

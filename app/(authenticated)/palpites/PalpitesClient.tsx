@@ -39,6 +39,10 @@ import {
   parseKickoffFromPartidaPayload,
   pickScoreFromPartidaPayload,
 } from "@/lib/partida-placar";
+import {
+  palpiteLockBeforeKickoffMs,
+  type PredictionBolaoType,
+} from "@/lib/predictions";
 
 // ── Tipos ────────────────────────────────────────────────────
 type TabView = "jogos" | "tabela" | "ranking" | "resumo";
@@ -163,11 +167,36 @@ function brDateToUtcMs(dateBR: string): number | null {
 function isLockedByKickoff(
   kickoffAt: string | null | undefined,
   nowMs: number,
+  bolaoType: PredictionBolaoType,
 ): boolean {
   if (!kickoffAt) return false;
   const kickoffMs = new Date(kickoffAt).getTime();
   if (!Number.isFinite(kickoffMs)) return false;
-  return nowMs >= kickoffMs - 60 * 60 * 1000;
+  const lead = palpiteLockBeforeKickoffMs(bolaoType);
+  return nowMs >= kickoffMs - lead;
+}
+
+function palpiteLockUiCopy(bolaoType: PredictionBolaoType): {
+  fechadoJaPassou: string;
+  faixaForaPrazo: string;
+  rankingBloco: string;
+} {
+  if (bolaoType === "extra") {
+    return {
+      fechadoJaPassou: "Fechado: prazo era até 5 min antes do jogo",
+      faixaForaPrazo:
+        "O prazo termina 5 minutos antes do apito. Depois disso não dá para apostar. Se você não tiver salvo um palpite antes desse horário, não entra nesta partida.",
+      rankingBloco:
+        "Palpites só até 5 minutos antes do apito: após esse limite e após o início o sistema fecha. Quem não tiver palpite salvo até esse horário não entra na partida.",
+    };
+  }
+  return {
+    fechadoJaPassou: "Fechado: prazo era ate 1h antes do jogo",
+    faixaForaPrazo:
+      "O prazo termina 1 hora antes do apito. Depois disso não dá para apostar. Se você não tiver salvo um palpite antes desse horário, não entra nesta partida.",
+    rankingBloco:
+      "Palpites so ate 1h antes do apito: na ultima hora antes do jogo e depois do inicio o sistema fecha. Quem nao tiver palpite salvo ate esse limite nao entra na partida.",
+  };
 }
 
 function kickoffMsFromJogo(jogo: Jogo): number | null {
@@ -510,6 +539,7 @@ function JogoCard({
   ticketId,
   initialPrediction,
   predictionsLoading = false,
+  bolaoType,
   onSavePrediction,
 }: {
   jogo: Jogo;
@@ -517,6 +547,7 @@ function JogoCard({
   ticketId: string | null;
   initialPrediction?: { scoreCasa: number; scoreVisitante: number } | null;
   predictionsLoading?: boolean;
+  bolaoType: PredictionBolaoType;
   onSavePrediction?: (payload: {
     matchId: number;
     scoreCasa: number;
@@ -539,8 +570,10 @@ function JogoCard({
     setPalpiteSalvo(true);
   }, [initialPrediction]);
 
+  const lockLeadMs = palpiteLockBeforeKickoffMs(bolaoType);
+  const lockUi = palpiteLockUiCopy(bolaoType);
   const lockAtMs = jogo.kickoffAt
-    ? new Date(jogo.kickoffAt).getTime() - 60 * 60 * 1000
+    ? new Date(jogo.kickoffAt).getTime() - lockLeadMs
     : null;
   const [nowMs, setNowMs] = useState(() => Date.now());
   useEffect(() => {
@@ -558,7 +591,7 @@ function JogoCard({
     return undefined;
   }, [lockAtMs, jogo.kickoffAt]);
   const isLockedByTime = lockAtMs != null ? nowMs >= lockAtMs : false;
-  /** Palpite so ate o instante em que falta 1h pro apito; na ultima hora e apos o inicio: nada de primeiro palpite nem alteracao (nao entra quem nao salvou a tempo). */
+  /** Palpite até instantes antes do apito (1h no geral/dia, 5 min no extra). */
   const canEdit = !readOnly && jogo.status === "aberto" && !isLockedByTime;
 
   function formatTimeUntilLock(): string {
@@ -1284,7 +1317,7 @@ function JogoCard({
                   ? "Palpites encerrados"
                   : !canEdit && isLockedByTime
                     ? hasInitialPrediction
-                      ? "Fechado: prazo era ate 1h antes do jogo"
+                      ? lockUi.fechadoJaPassou
                       : "Fora do prazo — sem palpite nao entra nesta partida"
                     : hasInitialPrediction
                       ? "Atualizar palpite"
@@ -1302,9 +1335,7 @@ function JogoCard({
             className="mt-3 text-sm text-center leading-relaxed px-1"
             style={{ color: "rgba(255,255,255,0.72)" }}
           >
-            O prazo termina 1 hora antes do apito. Depois disso não dá para
-            apostar. Se você não tiver salvo um palpite antes desse horário, não
-            entra nesta partida.
+            {lockUi.faixaForaPrazo}
           </p>
         ) : null}
         {saveError ? (
@@ -1622,10 +1653,13 @@ function RankingAvatar({
 function RankingView({
   rows,
   stats,
+  bolaoType,
 }: {
   rows: RankingRowView[];
   stats: ResumoStats;
+  bolaoType: PredictionBolaoType;
 }) {
+  const lockCopy = palpiteLockUiCopy(bolaoType);
   const MEU = rows.find((r) => r.isMe) ??
     rows[0] ?? {
       pos: 0,
@@ -1821,9 +1855,7 @@ function RankingView({
             className="text-[12px] mt-1 leading-relaxed"
             style={{ color: "rgba(218,182,130,0.5)" }}
           >
-            Palpites so ate 1h antes do apito: na ultima hora antes do jogo e
-            depois do inicio o sistema fecha. Quem nao tiver palpite salvo ate
-            esse limite nao entra na partida.
+            {lockCopy.rankingBloco}
           </p>
         </div>
       </div>
@@ -2303,6 +2335,7 @@ function DesktopSidebar({
   onGrupo,
   rankingRows,
   stats,
+  bolaoType,
 }: {
   grupo: string;
   tabela: TabelaGrupos | null;
@@ -2310,7 +2343,9 @@ function DesktopSidebar({
   onGrupo: (g: string) => void;
   rankingRows: RankingRowView[];
   stats: ResumoStats;
+  bolaoType: PredictionBolaoType;
 }) {
+  const lockCopy = palpiteLockUiCopy(bolaoType);
   const grupoKey = `grupo-${grupo.toLowerCase()}`;
   const times = tabela ? (tabela[grupoKey] ?? []) : [];
   const idx = grupos.indexOf(grupo);
@@ -2581,9 +2616,7 @@ function DesktopSidebar({
             className="text-[11px] mt-1 leading-relaxed"
             style={{ color: "rgba(218,182,130,0.5)" }}
           >
-            Palpites so ate 1h antes do apito: na ultima hora antes do jogo e
-            depois do inicio o sistema fecha. Quem nao tiver palpite salvo ate
-            esse limite nao entra na partida.
+            {lockCopy.rankingBloco}
           </p>
         </div>
       </div>
@@ -3279,7 +3312,7 @@ function PalpitesPageContent({
     dailyLike &&
     jogosOnPlayableDate.length > 0 &&
     jogosOnPlayableDate.every(
-      (j) => j.status === "encerrado" || isLockedByKickoff(j.kickoffAt, nowMs),
+      (j) => j.status === "encerrado" || isLockedByKickoff(j.kickoffAt, nowMs, bolaoType),
     );
   const readOnlyMode = resultMode || diarioLockedMode;
   const showJogos = readOnlyMode ? resultTab === "jogos" : tab === "jogos";
@@ -3689,6 +3722,7 @@ function PalpitesPageContent({
                                 predictionsMap[jogo.id] ?? null
                               }
                               predictionsLoading={loadingPredictions}
+                              bolaoType={bolaoType}
                               onSavePrediction={savePrediction}
                             />
                           ))}
@@ -3716,6 +3750,7 @@ function PalpitesPageContent({
                           ticketId={ticketId}
                           initialPrediction={predictionsMap[jogo.id] ?? null}
                           predictionsLoading={loadingPredictions}
+                          bolaoType={bolaoType}
                           onSavePrediction={savePrediction}
                         />
                       ))}
@@ -3733,7 +3768,7 @@ function PalpitesPageContent({
               />
             )}
             {showRanking ? (
-              <RankingView rows={rankingRows} stats={resumoStats} />
+              <RankingView rows={rankingRows} stats={resumoStats} bolaoType={bolaoType} />
             ) : null}
             {showResumo ? (
               <TicketResumoView
@@ -3807,7 +3842,7 @@ function PalpitesPageContent({
                 jogosById={jogosById}
               />
             ) : showRanking ? (
-              <RankingView rows={rankingRows} stats={resumoStats} />
+              <RankingView rows={rankingRows} stats={resumoStats} bolaoType={bolaoType} />
             ) : erro ? (
               <div className="flex flex-col items-center py-16">
                 <AlertTriangle
@@ -3883,6 +3918,7 @@ function PalpitesPageContent({
                             ticketId={ticketId}
                             initialPrediction={predictionsMap[jogo.id] ?? null}
                             predictionsLoading={loadingPredictions}
+                            bolaoType={bolaoType}
                             onSavePrediction={savePrediction}
                           />
                         ))}
@@ -3912,6 +3948,7 @@ function PalpitesPageContent({
                         ticketId={ticketId}
                         initialPrediction={predictionsMap[jogo.id] ?? null}
                         predictionsLoading={loadingPredictions}
+                        bolaoType={bolaoType}
                         onSavePrediction={savePrediction}
                       />
                     ))}
@@ -3932,6 +3969,7 @@ function PalpitesPageContent({
               onGrupo={setGrupo}
               rankingRows={rankingRows}
               stats={resumoStats}
+              bolaoType={bolaoType}
             />
           </div>
         )}

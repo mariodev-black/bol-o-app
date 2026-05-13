@@ -4,8 +4,13 @@ export type RankingScopeOption = {
   key: string;
   mode: "principal" | "diario" | "extra";
   ticketId: string | null;
+  /** Texto completo (ex.: listas e acessibilidade). */
   label: string;
   meta: string;
+  /** Primeira linha do gatilho do select no ranking (título do bolão, sem data). */
+  selectPrimary: string;
+  /** Segunda linha: data (dia/extra) ou subtítulo do bolão (ex.: competição no geral). */
+  selectSecondary: string;
   unusedPalpites: boolean;
   palpitesHref: string;
 };
@@ -41,6 +46,8 @@ export async function buildRankingScopes(
         ticketId: null,
         label: "Bolão geral — Copa do Mundo 2026",
         meta: `${general.length} cota${general.length === 1 ? "" : "s"} no bolão principal`,
+        selectPrimary: "Bolão geral",
+        selectSecondary: "Copa do Mundo 2026",
         unusedPalpites: unused,
         palpitesHref: "/palpites",
       });
@@ -55,6 +62,8 @@ export async function buildRankingScopes(
         ticketId: t.id,
         label: `Bolão do dia — ${date}`,
         meta: `Cota ${shortId(t.id)}`,
+        selectPrimary: "Bolão do dia",
+        selectSecondary: date,
         unusedPalpites: unused,
         palpitesHref: palpitesHrefForTicket(t.id),
       });
@@ -70,6 +79,8 @@ export async function buildRankingScopes(
         ticketId: t.id,
         label: `Bolão extra (${comp}) — ${date}`,
         meta: `Cota ${shortId(t.id)}`,
+        selectPrimary: `Bolão extra (${comp})`,
+        selectSecondary: date,
         unusedPalpites: unused,
         palpitesHref: palpitesHrefForTicket(t.id),
       });

@@ -2,7 +2,7 @@ import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
 import { getPool } from "@/lib/db";
 import { brToday, minBrDate, resolveDiarioPlayableDate, utcMsForBrDate } from "@/lib/diario-playable-date";
 import { fetchMatchesMap } from "@/lib/football-api";
-import { listPredictionTicketMatchPairsForUser } from "@/lib/predictions";
+import { listPredictionTicketMatchPairsForUser, palpiteLockBeforeKickoffMs } from "@/lib/predictions";
 
 export type PaidTicketRow = {
   id: string;
@@ -94,21 +94,26 @@ export async function listPaidTicketsForUser(userId: string): Promise<PaidTicket
     const now = Date.now();
     const today = brToday();
     const todayMs = utcMsForBrDate(today) ?? now;
-    const openMatches: OpenMatch[] = Array.from(matchMap.entries())
-      .map(([matchId, m]) => ({
-        matchId: Number(matchId),
-        dateBR: m.dateBR,
-        status: m.status,
-        competitionId: Number(m.competitionId) || mainComp,
-        kickoffAt: parseKickoffUtcMs(m.dateBR, m.hour),
-      }))
-      .filter((m) => {
-        const finished = isFinishedStatus(m.status);
-        const lockAt = m.kickoffAt != null ? m.kickoffAt - 60 * 60 * 1000 : null;
-        const dateMs = m.dateBR ? utcMsForBrDate(m.dateBR) : null;
-        const stillOpenByTime = lockAt != null ? lockAt > now : (dateMs ?? 0) >= todayMs;
-        return !finished && stillOpenByTime;
-      });
+
+    const buildOpenMatches = (leadMs: number): OpenMatch[] =>
+      Array.from(matchMap.entries())
+        .map(([matchId, m]) => ({
+          matchId: Number(matchId),
+          dateBR: m.dateBR,
+          status: m.status,
+          competitionId: Number(m.competitionId) || mainComp,
+          kickoffAt: parseKickoffUtcMs(m.dateBR, m.hour),
+        }))
+        .filter((m) => {
+          const finished = isFinishedStatus(m.status);
+          const lockAt = m.kickoffAt != null ? m.kickoffAt - leadMs : null;
+          const dateMs = m.dateBR ? utcMsForBrDate(m.dateBR) : null;
+          const stillOpenByTime = lockAt != null ? lockAt > now : (dateMs ?? 0) >= todayMs;
+          return !finished && stillOpenByTime;
+        });
+
+    const openMatchesDefaultLock = buildOpenMatches(palpiteLockBeforeKickoffMs("diario"));
+    const openMatchesExtraLock = buildOpenMatches(palpiteLockBeforeKickoffMs("extra"));
 
     const byTicket = new Map<string, { ticket_id: string; match_id: number }[]>();
     for (const p of preds) {
@@ -121,7 +126,7 @@ export async function listPaidTicketsForUser(userId: string): Promise<PaidTicket
       if (t.ticketType === "general") {
         const ticketPreds = byTicket.get(t.id) ?? [];
         const predictedIds = new Set<number>(ticketPreds.map((p) => Number(p.match_id)).filter(Number.isFinite));
-        const openMain = openMatches.filter((m) => m.competitionId === mainComp);
+        const openMain = openMatchesDefaultLock.filter((m) => m.competitionId === mainComp);
         const availableGames = openMain.reduce((acc, m) => (predictedIds.has(m.matchId) ? acc : acc + 1), 0);
         return { ...t, availableGames };
       }
@@ -131,7 +136,10 @@ export async function listPaidTicketsForUser(userId: string): Promise<PaidTicket
         return { ...t, dailyStatus: "disponivel" as const, playDate: brToday(), availableGames: 0 };
       }
 
-      const scopeOpen = openMatches.filter((m) => m.competitionId === scopeComp);
+      const scopeOpen =
+        t.ticketType === "daily"
+          ? openMatchesDefaultLock.filter((m) => m.competitionId === scopeComp)
+          : openMatchesExtraLock.filter((m) => m.competitionId === scopeComp);
       const playableDate = resolveDiarioPlayableDate(matchMap, { competitionId: scopeComp });
 
       const ticketPreds = byTicket.get(t.id) ?? [];

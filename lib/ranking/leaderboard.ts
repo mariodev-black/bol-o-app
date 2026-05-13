@@ -4,6 +4,7 @@ import {
   calcPredictionPoints,
   listMatchIdsForTicketPredictions,
   listPredictionsAggregateByBolao,
+  palpiteLockBeforeKickoffMs,
   type PredictionAggregateRow,
 } from "@/lib/predictions";
 import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
@@ -54,9 +55,9 @@ function kickoffMs(match: MatchInfo): number | null {
   return Date.UTC(year, month - 1, day, hours + 3, minutes, 0);
 }
 
-function lockMs(match: MatchInfo): number | null {
+function lockMs(match: MatchInfo, leadMs: number): number | null {
   const kickoff = kickoffMs(match);
-  return kickoff == null ? null : kickoff - 60 * 60 * 1000;
+  return kickoff == null ? null : kickoff - leadMs;
 }
 
 function brDateToUtcMs(dateBR: string): number | null {
@@ -166,12 +167,17 @@ function aggregatePredictions(
   return byTicket;
 }
 
-function computeNextPalpiteLockMs(matches: MatchMap, matchFilter: (m: MatchInfo) => boolean, now = Date.now()): number | null {
+function computeNextPalpiteLockMs(
+  matches: MatchMap,
+  matchFilter: (m: MatchInfo) => boolean,
+  lockLeadMs: number,
+  now = Date.now()
+): number | null {
   const locks: number[] = [];
   for (const m of matches.values()) {
     if (!matchFilter(m)) continue;
     if (isFinishedStatus(m.status)) continue;
-    const lock = lockMs(m);
+    const lock = lockMs(m, lockLeadMs);
     if (lock != null && lock > now) locks.push(lock);
   }
   locks.sort((a, b) => a - b);
@@ -336,7 +342,7 @@ async function buildLeaderboardPrincipalUncached(): Promise<{ rows: LeaderboardR
   const revenueCents = paidInPool.reduce((s, t) => s + t.total_amount_cents, 0);
   const participantCount = paidInPool.length;
   const poolCentsApprox = calculatePrizePoolCents(revenueCents);
-  const nextPalpiteLockMs = computeNextPalpiteLockMs(matches, () => true);
+  const nextPalpiteLockMs = computeNextPalpiteLockMs(matches, () => true, palpiteLockBeforeKickoffMs("principal"));
   const approxPremiados = Math.max(1, Math.ceil(participantCount / 10));
   const hasResultedMatchesInPool = poolHasAnyResultedMatch(preds, matches, allowed);
 
@@ -475,7 +481,7 @@ async function buildLeaderboardDiarioUncached(focusTicketId: string): Promise<{ 
     if (!m.dateBR) return false;
     if (Number(m.competitionId) !== mainComp) return false;
     return dateSet.has(m.dateBR);
-  });
+  }, palpiteLockBeforeKickoffMs("diario"));
 
   const approxPremiados = Math.max(1, Math.ceil(participantCount / 10));
   const hasResultedMatchesInPool = poolHasAnyResultedMatch(cohortPreds, matches, allowedDailyIds);
@@ -621,7 +627,7 @@ async function buildLeaderboardExtraUncached(
     if (!m.dateBR) return false;
     if (Number(m.competitionId) !== extraComp) return false;
     return dateSet.has(m.dateBR);
-  });
+  }, palpiteLockBeforeKickoffMs("extra"));
 
   const approxPremiados = Math.max(1, Math.ceil(participantCount / 10));
   const hasResultedMatchesInPool = poolHasAnyResultedMatch(cohortPreds, matches, allowedExtraIds);
