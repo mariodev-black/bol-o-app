@@ -108,7 +108,8 @@ export type BoloesScreenData = {
 const GREEN = "#B1EB0B";
 const GREEN_SOFT = "#0AC96B";
 const YELLOW = "#E6B726";
-const EXTRA_VIOLET = "#C084FC";
+/** Bolão extra: teal claro alinhado ao verde primário (#B1EB0B) e ao tema escuro do app. */
+const EXTRA_ACCENT = "#2DD4BF";
 const CARD = "#111111";
 const CARD_ALT = "#0F0F0F";
 const BORDER = "rgba(255,255,255,0.06)";
@@ -141,6 +142,19 @@ function positionLabel(position: number | null) {
 
 function pointsLabel(points: number) {
   return `${points} pts`;
+}
+
+/** Ativo / aguardando primeiro; usado por último (mesmo id estável como desempate). */
+function sortBoloesByAvailabilityForShowcase(
+  items: ActiveBolaoListItem[],
+): ActiveBolaoListItem[] {
+  const rank = (s: ActiveBolaoListItem["status"]) =>
+    s === "ativo" ? 0 : s === "aguardando" ? 1 : 2;
+  return [...items].sort((a, b) => {
+    const d = rank(a.status) - rank(b.status);
+    if (d !== 0) return d;
+    return a.id.localeCompare(b.id);
+  });
 }
 
 function SummaryCard({
@@ -244,7 +258,7 @@ function SectionTitle({
 function BolaoIcon({ type }: { type: "copa" | "dia" | "extra" }) {
   const Icon = type === "copa" ? Trophy : type === "extra" ? Sparkles : CalendarDays;
   const label = type === "copa" ? "COPA\n2026" : type === "extra" ? "BOLÃO\nEXTRA" : "BOLÃO\nDO DIA";
-  const color = type === "copa" ? GREEN_SOFT : type === "extra" ? EXTRA_VIOLET : GREEN;
+  const color = type === "copa" ? GREEN_SOFT : type === "extra" ? EXTRA_ACCENT : GREEN;
 
   return (
     <div className="flex w-[58px] shrink-0 flex-col items-center justify-center text-center">
@@ -325,18 +339,38 @@ function RankingPanel({
   );
 }
 
-function EmptyActiveCard() {
+function EmptyBolaoShowcaseCard({
+  variant,
+}: {
+  variant: "principal" | "diario" | "lista" | "resumo";
+}) {
+  const title =
+    variant === "principal"
+      ? "Nenhuma cota do bolão principal"
+      : variant === "diario"
+        ? "Nenhuma cota do bolão do dia"
+        : variant === "resumo"
+          ? "Sem bolão principal nem do dia"
+          : "Nenhum bolão nesta lista";
+
   return (
     <div
       className="rounded-[15px] border px-5 py-6 text-center shadow-[0_18px_38px_rgba(0,0,0,0.42)]"
       style={{ background: CARD_ALT, borderColor: BORDER }}
     >
-      <p className="text-[14px] font-black text-white">
-        Você ainda não tem bolões ativos
+      <p className="text-[14px] font-black uppercase leading-tight tracking-[0.04em] text-white">
+        {title}
       </p>
-      <p className="mx-auto mt-2 max-w-[250px] text-[11px] leading-normal text-white/48">
-        Entre em um dos bolões disponíveis abaixo para começar a palpitar.
+      <p className="mx-auto mt-2.5 max-w-[280px] text-[11px] leading-[1.45] text-white/48">
+        Compre seu ingresso na área de tickets para liberar palpites e acompanhar sua posição no ranking.
       </p>
+      <Link
+        href="/tickets"
+        className="mt-4 flex h-[40px] w-full items-center justify-center gap-2 rounded-[10px] bg-primary text-[12px] font-black uppercase tracking-[0.05em] text-[#0E141B] shadow-[0_4px_20px_rgba(177,235,11,0.35)] transition-[filter] hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[0.99]"
+      >
+        Ir para tickets
+        <ArrowRight className="size-4 shrink-0" strokeWidth={2.6} />
+      </Link>
     </div>
   );
 }
@@ -352,7 +386,7 @@ function ActiveBoloesCard({
 }) {
   const detailsHref = principal?.href ?? diario?.href ?? "/tickets";
 
-  if (!principal && !diario) return <EmptyActiveCard />;
+  if (!principal && !diario) return <EmptyBolaoShowcaseCard variant="resumo" />;
 
   return (
     <article
@@ -463,16 +497,7 @@ function ActiveBoloesList({
   now: number;
 }) {
   if (items.length === 0) {
-    return (
-      <div
-        className="rounded-[15px] border px-5 py-6 text-center"
-        style={{ background: CARD_ALT, borderColor: BORDER }}
-      >
-        <p className="text-[12px] font-bold text-white/55">
-          Nenhum bolão ativo encontrado.
-        </p>
-      </div>
-    );
+    return <EmptyBolaoShowcaseCard variant="lista" />;
   }
 
                   return (
@@ -708,11 +733,32 @@ const PACKAGES = [
 function CarouselShell({
   children,
   tone = GREEN,
+  itemCount,
 }: {
   children: React.ReactNode;
   tone?: string;
+  itemCount: number;
 }) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [activeIdx, setActiveIdx] = useState(0);
+  const showNav = itemCount > 1;
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || !showNav) return;
+    const onScroll = () => {
+      const max = el.scrollWidth - el.clientWidth;
+      if (max <= 0) {
+        setActiveIdx(0);
+        return;
+      }
+      const t = el.scrollLeft / max;
+      setActiveIdx(Math.min(itemCount - 1, Math.max(0, Math.round(t * (itemCount - 1)))));
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => el.removeEventListener("scroll", onScroll);
+  }, [itemCount, showNav]);
 
   const scrollByPage = (direction: -1 | 1) => {
     const el = scrollRef.current;
@@ -730,29 +776,144 @@ function CarouselShell({
         className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {children}
-                        </div>
-                        <button
-                          type="button"
-        onClick={() => scrollByPage(-1)}
-        className="absolute -left-2 top-1/2 z-10 flex size-7 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-black/70 text-white/80 shadow-[0_8px_22px_rgba(0,0,0,0.45)] backdrop-blur"
-        aria-label="Item anterior"
-      >
-        <ChevronRight className="size-4 rotate-180" strokeWidth={2.6} />
-      </button>
-      <button
-        type="button"
-        onClick={() => scrollByPage(1)}
-        className="absolute -right-2 top-1/2 z-10 flex size-7 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-black/70 text-white/80 shadow-[0_8px_22px_rgba(0,0,0,0.45)] backdrop-blur"
-        aria-label="Próximo item"
-      >
-        <ChevronRight className="size-4" strokeWidth={2.6} />
-      </button>
-      <div className="mt-0 flex justify-center gap-1.5">
-        <span className="h-1.5 w-6 rounded-full" style={{ background: tone }} />
-        <span className="size-1.5 rounded-full bg-white/20" />
-        <span className="size-1.5 rounded-full bg-white/20" />
       </div>
+      {showNav && (
+        <>
+          <button
+            type="button"
+            onClick={() => scrollByPage(-1)}
+            className="absolute -left-2 top-1/2 z-10 flex size-7 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-black/70 text-white/80 shadow-[0_8px_22px_rgba(0,0,0,0.45)] backdrop-blur"
+            aria-label="Item anterior"
+          >
+            <ChevronRight className="size-4 rotate-180" strokeWidth={2.6} />
+          </button>
+          <button
+            type="button"
+            onClick={() => scrollByPage(1)}
+            className="absolute -right-2 top-1/2 z-10 flex size-7 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-black/70 text-white/80 shadow-[0_8px_22px_rgba(0,0,0,0.45)] backdrop-blur"
+            aria-label="Próximo item"
+          >
+            <ChevronRight className="size-4" strokeWidth={2.6} />
+          </button>
+        </>
+      )}
+      {showNav && (
+        <div className="mt-0 flex justify-center gap-1.5">
+          {Array.from({ length: itemCount }, (_, i) => (
+            <span
+              key={i}
+              className={
+                i === activeIdx
+                  ? "h-1.5 w-6 shrink-0 rounded-full transition-[width,opacity]"
+                  : "size-1.5 shrink-0 rounded-full bg-white/20 transition-[width,opacity]"
+              }
+              style={i === activeIdx ? { background: tone } : undefined}
+              aria-hidden
+            />
+          ))}
+        </div>
+      )}
     </div>
+  );
+}
+
+function UpcomingExtraOfferCard({
+  ex,
+  now,
+  fullWidth,
+}: {
+  ex: BoloesScreenData["upcoming"]["extras"][number];
+  now: number;
+  fullWidth?: boolean;
+}) {
+  const tone = EXTRA_ACCENT;
+  return (
+    <Link
+      href={ex.href}
+      className={[
+        "group relative grid min-h-[126px] grid-cols-[102px_minmax(0,1fr)_78px] overflow-hidden rounded-[14px] border bg-[#080A07] shadow-[0_18px_42px_rgba(0,0,0,0.55)] transition-transform duration-300 active:scale-[0.985]",
+        fullWidth ? "w-full" : "w-[368px] max-w-[88vw] shrink-0 snap-center",
+      ].join(" ")}
+      style={{
+        borderColor: `${tone}42`,
+        boxShadow: `0 18px 42px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.05), 0 0 26px ${tone}0F`,
+      }}
+    >
+      <div
+        className="pointer-events-none absolute -left-20 -top-16 size-40 rounded-full blur-3xl transition-opacity duration-500 group-hover:opacity-90"
+        style={{ background: `${tone}18` }}
+        aria-hidden
+      />
+
+      <div
+        className="relative z-10 flex flex-col items-center justify-center px-2 text-center"
+        style={{
+          background: `radial-gradient(circle at 50% 42%, ${tone}18 0%, rgba(255,255,255,0.03) 35%, transparent 66%)`,
+        }}
+      >
+        <Image
+          src={ticketBlue}
+          alt=""
+          className="h-[78px] w-[60px] object-contain transition-transform duration-500 group-hover:scale-105"
+          style={{ filter: `drop-shadow(0 8px 24px ${tone}42)` }}
+        />
+        <p
+          className="mt-1 whitespace-pre-line text-[12px] font-black uppercase leading-[0.9]"
+          style={{ color: tone }}
+        >
+          Bolão{"\n"}Extra
+        </p>
+      </div>
+
+      <div
+        className="relative z-10 min-w-0 border-l px-3.5 py-4"
+        style={{ borderColor: "rgba(255,255,255,0.08)" }}
+      >
+        <h3 className="text-[15px] font-black uppercase leading-none tracking-[-0.03em] text-white min-[380px]:text-[16px]">
+          {ex.title}
+        </h3>
+        <p className="mt-2 font-mono text-[11px] font-semibold leading-none text-white/50">
+          Nova cota
+        </p>
+        <div className="mt-3">
+          <StatusPill status="ativo" label="À venda" />
+        </div>
+        <div className="mt-4 space-y-1.5">
+          <p className="text-[12px] font-medium text-white/55">
+            Jogos na rodada:{" "}
+            <span className="font-black text-white">{ex.gamesCount} jogos</span>
+          </p>
+          <p className="text-[12px] font-medium text-white/55">
+            Fecha em:{" "}
+            <span className="font-black" style={{ color: GREEN_SOFT }}>
+              {formatCountdown(ex.closesAtMs, now)}
+            </span>
+          </p>
+        </div>
+      </div>
+
+      <div
+        className="relative z-10 flex min-w-0 flex-col items-center justify-center border-l px-2 text-center"
+        style={{ borderColor: "rgba(255,255,255,0.08)" }}
+      >
+        <p className="text-[7px] font-black uppercase leading-[0.95] tracking-[0.08em] text-white/40">
+          Valor
+          <br />
+          por cota
+        </p>
+        <p
+          className="mt-2 max-w-[72px] text-[11px] font-black leading-tight text-white min-[380px]:text-[12px]"
+          style={{ color: tone }}
+        >
+          {ex.priceLabel}
+        </p>
+        <div className="my-3 h-px w-[50px] bg-white/8" />
+        <p className="text-[7px] font-black uppercase tracking-[0.08em] text-white/40">
+          Ver oferta
+        </p>
+        <ChevronRight className="mt-1 size-4 text-white/55" strokeWidth={2.4} aria-hidden />
+      </div>
+    </Link>
   );
 }
 
@@ -835,7 +996,7 @@ function ActiveShowcaseCard({
   const isPrincipal = kind === "principal";
   const isExtra = kind === "extra";
   const progress = Math.max(0, Math.min(100, item.progress ?? 0));
-  const tone = isPrincipal ? GREEN : isExtra ? EXTRA_VIOLET : YELLOW;
+  const tone = isPrincipal ? GREEN : isExtra ? EXTRA_ACCENT : YELLOW;
   const image = isPrincipal ? ticketGold : ticketBlue;
   const statusLabel = item.statusLabel;
 
@@ -1272,6 +1433,16 @@ export function BoloesClient({ data }: { data: BoloesScreenData | null }) {
   );
   const extraItems = (data?.active.all ?? []).filter((item) => item.type === "extra");
   const upcomingExtras = data?.upcoming.extras ?? [];
+  const diarioShowcaseItems = useMemo(
+    () => sortBoloesByAvailabilityForShowcase(diarioItems),
+    [diarioItems],
+  );
+  const extraShowcaseItems = useMemo(
+    () => sortBoloesByAvailabilityForShowcase(extraItems),
+    [extraItems],
+  );
+  const hasExtraSection =
+    extraItems.length > 0 || upcomingExtras.length > 0;
   const dailyCountdown = useMemo(
     () => formatCountdown(data?.upcoming.daily.closesAtMs ?? null, now),
     [data?.upcoming.daily.closesAtMs, now],
@@ -1384,25 +1555,29 @@ export function BoloesClient({ data }: { data: BoloesScreenData | null }) {
                   />
                 ))
               ) : (
-                <EmptyActiveCard />
+                <EmptyBolaoShowcaseCard variant="principal" />
               )}
             </div>
+          ) : principalItems.length === 0 ? (
+            <EmptyBolaoShowcaseCard variant="principal" />
+          ) : principalItems.length === 1 ? (
+            <ActiveShowcaseCard
+              key={principalItems[0].id}
+              item={principalItems[0]}
+              now={now}
+              kind="principal"
+              fullWidth
+            />
           ) : (
-            <CarouselShell>
-              {principalItems.length > 0 ? (
-                principalItems.map((item) => (
-                  <ActiveShowcaseCard
-                    key={item.id}
-                    item={item}
-                    now={now}
-                    kind="principal"
-                  />
-                ))
-              ) : (
-                <div className="w-[350px] max-w-[86vw] shrink-0 snap-center">
-                  <EmptyActiveCard />
-                </div>
-              )}
+            <CarouselShell itemCount={principalItems.length}>
+              {principalItems.map((item) => (
+                <ActiveShowcaseCard
+                  key={item.id}
+                  item={item}
+                  now={now}
+                  kind="principal"
+                />
+              ))}
             </CarouselShell>
           )}
         </section>
@@ -1420,7 +1595,7 @@ export function BoloesClient({ data }: { data: BoloesScreenData | null }) {
           {showAllDiario ? (
             <div className="space-y-3">
               {diarioItems.length > 0 ? (
-                diarioItems.map((item) => (
+                diarioShowcaseItems.map((item) => (
                   <ActiveShowcaseCard
                     key={item.id}
                     item={item}
@@ -1430,83 +1605,107 @@ export function BoloesClient({ data }: { data: BoloesScreenData | null }) {
                   />
                 ))
               ) : (
-                <EmptyActiveCard />
+                <EmptyBolaoShowcaseCard variant="diario" />
               )}
             </div>
+          ) : diarioItems.length === 0 ? (
+            <EmptyBolaoShowcaseCard variant="diario" />
+          ) : diarioShowcaseItems.length === 1 ? (
+            <ActiveShowcaseCard
+              key={diarioShowcaseItems[0].id}
+              item={diarioShowcaseItems[0]}
+              now={now}
+              kind="diario"
+              fullWidth
+            />
           ) : (
-            <CarouselShell tone={YELLOW}>
-              {diarioItems.length > 0 ? (
-                diarioItems.map((item) => (
-                  <ActiveShowcaseCard
-                    key={item.id}
-                    item={item}
-                    now={now}
-                    kind="diario"
-                  />
-                ))
-              ) : (
-                <div className="w-[350px] max-w-[86vw] shrink-0 snap-center">
-                  <EmptyActiveCard />
-                </div>
-              )}
+            <CarouselShell tone={YELLOW} itemCount={diarioShowcaseItems.length}>
+              {diarioShowcaseItems.map((item) => (
+                <ActiveShowcaseCard
+                  key={item.id}
+                  item={item}
+                  now={now}
+                  kind="diario"
+                />
+              ))}
             </CarouselShell>
           )}
         </section>
 
-        {(extraItems.length > 0 || upcomingExtras.length > 0) && (
+        {hasExtraSection && (
           <section className="mt-4 mb-6">
             <ShowcaseSectionTitle
               icon={Sparkles}
               index="3"
-              title={extraItems.length > 0 ? "Meus bolões extra" : "Bolões extra — comprar"}
+              title={
+                extraItems.length > 0 ? "Meus bolões extra" : "Bolões extra — comprar"
+              }
               href="/tickets"
-              tone={EXTRA_VIOLET}
-              expanded={extraItems.length > 1 ? showAllExtra : undefined}
-              onViewAll={extraItems.length > 1 ? () => setShowAllExtra((c: boolean) => !c) : undefined}
+              tone={EXTRA_ACCENT}
+              expanded={showAllExtra}
+              onViewAll={() => setShowAllExtra((c: boolean) => !c)}
             />
-            {extraItems.length > 0 ? (
-              showAllExtra ? (
+            {(() => {
+              const extraCollapsedCount =
+                extraShowcaseItems.length > 0
+                  ? extraShowcaseItems.length
+                  : upcomingExtras.length;
+              return showAllExtra ? (
                 <div className="space-y-3">
-                  {extraItems.map((item) => (
-                    <ActiveShowcaseCard
-                      key={item.id}
-                      item={item}
-                      now={now}
-                      kind="extra"
-                      fullWidth
-                    />
-                  ))}
+                  {extraShowcaseItems.length > 0 ? (
+                    extraShowcaseItems.map((item) => (
+                      <ActiveShowcaseCard
+                        key={item.id}
+                        item={item}
+                        now={now}
+                        kind="extra"
+                        fullWidth
+                      />
+                    ))
+                  ) : (
+                    upcomingExtras.map((ex) => (
+                      <UpcomingExtraOfferCard
+                        key={ex.championshipId}
+                        ex={ex}
+                        now={now}
+                        fullWidth
+                      />
+                    ))
+                  )}
                 </div>
+              ) : extraCollapsedCount <= 1 ? (
+                extraShowcaseItems.length === 1 ? (
+                  <ActiveShowcaseCard
+                    key={extraShowcaseItems[0].id}
+                    item={extraShowcaseItems[0]}
+                    now={now}
+                    kind="extra"
+                    fullWidth
+                  />
+                ) : (
+                  <UpcomingExtraOfferCard
+                    ex={upcomingExtras[0]}
+                    now={now}
+                    fullWidth
+                  />
+                )
               ) : (
-                <CarouselShell tone={EXTRA_VIOLET}>
-                  {extraItems.map((item) => (
-                    <ActiveShowcaseCard key={item.id} item={item} now={now} kind="extra" />
-                  ))}
+                <CarouselShell tone={EXTRA_ACCENT} itemCount={extraCollapsedCount}>
+                  {extraShowcaseItems.length > 0
+                    ? extraShowcaseItems.map((item) => (
+                        <ActiveShowcaseCard
+                          key={item.id}
+                          item={item}
+                          now={now}
+                          kind="extra"
+                        />
+                      ))
+                    : upcomingExtras.map((ex) => (
+                        <UpcomingExtraOfferCard key={ex.championshipId} ex={ex} now={now} />
+                      ))}
                 </CarouselShell>
-              )
-            ) : (
-              <div className="space-y-2">
-                {upcomingExtras.map((ex) => (
-                  <Link
-                    key={ex.championshipId}
-                    href={ex.href}
-                    className="flex flex-col gap-1 rounded-[14px] border border-white/10 bg-[#121212] px-4 py-3.5 shadow-[0_8px_26px_rgba(0,0,0,0.35)] transition-transform active:scale-[0.99]"
-                    style={{ borderColor: `${EXTRA_VIOLET}44` }}
-                  >
-                    <p className="text-[14px] font-black uppercase leading-tight text-white">{ex.title}</p>
-                    <p className="text-[12px] font-medium text-white/55">
-                      {ex.gamesCount} jogos na rodada · fecha em{" "}
-                      <span className="font-black text-white">
-                        {formatCountdown(ex.closesAtMs, now)}
-                      </span>
-                    </p>
-                    <p className="text-[12px] font-black" style={{ color: EXTRA_VIOLET }}>
-                      {ex.priceLabel} por cota
-                    </p>
-                  </Link>
-                ))}
-              </div>
-            )}
+              );
+            })()}
           </section>
         )}
 
