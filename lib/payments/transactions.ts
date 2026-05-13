@@ -1,7 +1,12 @@
 import { randomUUID } from "crypto";
 import { getPool } from "@/lib/db";
 import { buildSkaleCartLineItems, createSkalePixTransaction } from "@/lib/payments/skale";
-import { buildPurchaseTicketLines, parseTicketType, type TicketType } from "@/lib/payments/ticket-config";
+import {
+  buildPurchaseTicketLines,
+  parseTicketType,
+  type PurchaseExtraInput,
+  type TicketType,
+} from "@/lib/payments/ticket-config";
 import { publishTransactionEvent } from "@/lib/payments/transaction-events";
 import { recordReferralCommissionIfApplicable } from "@/lib/referrals/commissions";
 
@@ -86,14 +91,16 @@ function mapRowToView(row: {
 }
 
 export type CreateDepositTransactionInput =
-  | { userId: string; ticketType: "general" | "daily"; quantity: number; amountCentsOverride?: number }
-  | { userId: string; ticketType: "extra"; quantity: number; extraChampionshipId: number; amountCentsOverride?: number }
+  | { userId: string; ticketType: "general" | "daily"; quantity: number }
+  | { userId: string; ticketType: "extra"; quantity: number; extraChampionshipId: number }
   | {
       userId: string;
       generalQty: number;
       dailyQty: number;
+      /** Preferir: quantidade total de cotas extras (valor e alocação só no servidor). */
+      extraQuantity?: number;
+      /** Legado: quantidades por campeonato (filtrado pelo servidor). */
       extraByChampionship?: Record<number, number>;
-      amountCentsOverride?: number;
     };
 
 function normalizeExtraByChampionship(map: Record<number, number> | undefined): Record<number, number> {
@@ -110,14 +117,19 @@ function normalizeExtraByChampionship(map: Record<number, number> | undefined): 
 function resolvePurchaseQuantities(input: CreateDepositTransactionInput): {
   generalQty: number;
   dailyQty: number;
-  extraByChampionship: Record<number, number>;
+  extraPurchase?: PurchaseExtraInput;
 } {
   if ("generalQty" in input && "dailyQty" in input) {
-    return {
-      generalQty: Math.max(0, Math.min(20, Math.trunc(input.generalQty))),
-      dailyQty: Math.max(0, Math.min(20, Math.trunc(input.dailyQty))),
-      extraByChampionship: normalizeExtraByChampionship(input.extraByChampionship),
-    };
+    const g = Math.max(0, Math.min(20, Math.trunc(input.generalQty)));
+    const d = Math.max(0, Math.min(20, Math.trunc(input.dailyQty)));
+    const exQ = Math.max(0, Math.min(20, Math.trunc(Number(input.extraQuantity) || 0)));
+    const rawMap = normalizeExtraByChampionship(input.extraByChampionship);
+    let extraPurchase: PurchaseExtraInput | undefined;
+    if (exQ > 0) extraPurchase = { extraQuantity: exQ };
+    else if (Object.values(rawMap).some((v) => v > 0)) {
+      extraPurchase = { extraByChampionship: rawMap };
+    }
+    return { generalQty: g, dailyQty: d, extraPurchase };
   }
   const single = input as
     | { ticketType: "general"; quantity: number }
@@ -125,16 +137,16 @@ function resolvePurchaseQuantities(input: CreateDepositTransactionInput): {
     | { ticketType: "extra"; quantity: number; extraChampionshipId: number };
   const q = Math.max(1, Math.min(20, Math.trunc(single.quantity)));
   if (single.ticketType === "general") {
-    return { generalQty: q, dailyQty: 0, extraByChampionship: {} };
+    return { generalQty: q, dailyQty: 0 };
   }
   if (single.ticketType === "daily") {
-    return { generalQty: 0, dailyQty: q, extraByChampionship: {} };
+    return { generalQty: 0, dailyQty: q };
   }
   const cid = Math.trunc(single.extraChampionshipId);
   if (!Number.isFinite(cid) || cid <= 0) {
-    return { generalQty: 0, dailyQty: 0, extraByChampionship: {} };
+    return { generalQty: 0, dailyQty: 0 };
   }
-  return { generalQty: 0, dailyQty: 0, extraByChampionship: { [cid]: q } };
+  return { generalQty: 0, dailyQty: 0, extraPurchase: { extraByChampionship: { [cid]: q } } };
 }
 
 export async function createDepositTransaction(input: CreateDepositTransactionInput): Promise<DepositTransactionView> {
@@ -151,33 +163,27 @@ export async function createDepositTransaction(input: CreateDepositTransactionIn
     throw new Error("Telefone do usuario invalido para pagamento");
   }
 
-  const { generalQty, dailyQty, extraByChampionship } = resolvePurchaseQuantities(input);
-  const lines = buildPurchaseTicketLines(generalQty, dailyQty, extraByChampionship);
+  const { generalQty, dailyQty, extraPurchase } = resolvePurchaseQuantities(input);
+  const lines = buildPurchaseTicketLines(generalQty, dailyQty, extraPurchase);
   if (lines.length === 0) {
     throw new Error("Selecione pelo menos um ticket");
   }
 
-  const amountCentsExpected = lines.reduce((s, l) => s + l.unitCents, 0);
-  if (
-    input.amountCentsOverride != null &&
-    input.amountCentsOverride > 0 &&
-    input.amountCentsOverride !== amountCentsExpected
-  ) {
-    throw new Error("Valor do pedido invalido");
-  }
-  const amountCents = amountCentsExpected;
+  const amountCents = lines.reduce((s, l) => s + l.unitCents, 0);
 
   const primaryTicketType = lines[0]!.ticketType;
-  const externalRef = `ticket_${randomUUID()}`;
+  const paymentExternalRef = `ticket_${randomUUID()}`;
 
   const ticketIds: string[] = [];
-  for (const line of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!;
+    const ticketLineRef = `${paymentExternalRef}:p${i}`;
     const extraId = line.ticketType === "extra" ? line.extraChampionshipId ?? null : null;
     const ticketInsert = await pool.query<{ id: string }>(
       `INSERT INTO tickets (user_id, ticket_type, extra_championship_id, unit_price_cents, quantity, total_amount_cents, status, external_ref)
        VALUES ($1, $2, $3, $4, 1, $5, 'pending_payment', $6)
        RETURNING id`,
-      [input.userId, line.ticketType, extraId, line.unitCents, line.unitCents, externalRef]
+      [input.userId, line.ticketType, extraId, line.unitCents, line.unitCents, ticketLineRef]
     );
     ticketIds.push(ticketInsert.rows[0]!.id);
   }
@@ -188,16 +194,16 @@ export async function createDepositTransaction(input: CreateDepositTransactionIn
       user_id, ticket_id, ticket_type, provider, status, amount_cents, payment_method, external_ref, raw_request
     ) VALUES ($1, $2, $3, 'skale', 'creating', $4, 'pix', $5, '{}'::jsonb)
     RETURNING id`,
-    [input.userId, ticketId, primaryTicketType, amountCents, externalRef]
+    [input.userId, ticketId, primaryTicketType, amountCents, paymentExternalRef]
   );
   const transactionId = txInsert.rows[0]!.id;
 
   try {
-    const skaleItems = buildSkaleCartLineItems(lines, externalRef);
+    const skaleItems = buildSkaleCartLineItems(lines, paymentExternalRef);
     const skale = await createSkalePixTransaction({
       amountCents,
       items: skaleItems,
-      externalRef,
+      externalRef: paymentExternalRef,
       postbackUrl: webhookUrl(),
       customer: {
         name: billingUser.name,
@@ -243,8 +249,8 @@ export async function createDepositTransaction(input: CreateDepositTransactionIn
     await pool.query(
       `UPDATE tickets
        SET transaction_id = $2, updated_at = now()
-       WHERE external_ref = $1`,
-      [externalRef, transactionId]
+       WHERE id = ANY($1::uuid[])`,
+      [ticketIds, transactionId]
     );
 
     return mapRowToView(rows[0]!);
@@ -258,8 +264,8 @@ export async function createDepositTransaction(input: CreateDepositTransactionIn
       [transactionId, error instanceof Error ? error.message : "Erro ao criar transacao"]
     );
     await pool.query(
-      `UPDATE tickets SET status = 'failed', updated_at = now() WHERE external_ref = $1`,
-      [externalRef]
+      `UPDATE tickets SET status = 'failed', updated_at = now() WHERE id = ANY($1::uuid[])`,
+      [ticketIds]
     );
     throw error;
   }
@@ -360,10 +366,10 @@ export async function updateTransactionStatusByProviderId(input: {
      SET status = $2,
          paid_at = CASE WHEN $2 = 'paid' THEN COALESCE(paid_at, now()) ELSE paid_at END,
          updated_at = now()
-     WHERE external_ref = $1
+     WHERE transaction_id = $1
        AND NOT $3::boolean
      RETURNING id`,
-    [row.external_ref, ticketStatus, wasAlreadyPaid]
+    [row.id, ticketStatus, wasAlreadyPaid]
   );
 
   console.error("[skale/webhook] transaction processed", {

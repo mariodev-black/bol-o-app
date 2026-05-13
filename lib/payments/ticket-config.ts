@@ -30,12 +30,10 @@ export function getExtraTicketPriceCents(): number {
   return getExtraBolaoUnitCents();
 }
 
-export function ticketTypeLabel(type: TicketType, extraChampionshipId?: number): string {
+export function ticketTypeLabel(type: TicketType, _extraChampionshipId?: number): string {
   if (type === "daily") return "Ticket Diario";
   if (type === "general") return "Ticket Geral";
-  return extraChampionshipId != null
-    ? `Bolao extra (campeonato ${extraChampionshipId})`
-    : "Bolao extra";
+  return "Bolão extra";
 }
 
 export function parseTicketType(input: unknown): TicketType | null {
@@ -75,14 +73,58 @@ export type PurchaseTicketLine = {
   extraChampionshipId?: number;
 };
 
+/** Compra de extras: uma quantidade total (desconto progressivo sobre o total) ou mapa legado por campeonato. */
+export type PurchaseExtraInput =
+  | { extraQuantity: number }
+  | { extraByChampionship: Record<number, number> };
+
 /**
- * Monta as linhas de tickets para um carrinho (0–20 de cada tipo / por campeonato extra).
- * Desconto progressivo por tipo (e por bolão extra separado): 1 = 0%, 2 = 5%, 3 = 10%, 4+ = 15%.
+ * Expande N cotas extras na mesma ordem dos IDs permitidos (round-robin).
+ * `allowedOrderedIds` deve seguir a ordem do servidor (ex.: `parseExtraBolaoChampionshipIds()` ou GET `extraBoloes`).
+ */
+export function expandExtraQuantityWithOrder(quantity: number, allowedOrderedIds: number[]): number[] {
+  const q = Math.max(0, Math.min(20, Math.trunc(quantity)));
+  if (q <= 0 || allowedOrderedIds.length === 0) return [];
+  const seq: number[] = [];
+  for (let i = 0; i < q; i++) {
+    seq.push(allowedOrderedIds[i % allowedOrderedIds.length]!);
+  }
+  return seq;
+}
+
+/** Contagem por campeonato após round-robin (útil p/ localStorage / exibição). */
+export function championshipCountsFromExtraQuantity(
+  quantity: number,
+  allowedOrderedIds: number[],
+): Record<number, number> {
+  const seq = expandExtraQuantityWithOrder(quantity, allowedOrderedIds);
+  const out: Record<number, number> = {};
+  for (const cid of seq) {
+    out[cid] = (out[cid] ?? 0) + 1;
+  }
+  return out;
+}
+
+function normalizeExtraMap(map: Record<number, number> | undefined): Record<number, number> {
+  const out: Record<number, number> = {};
+  if (!map) return out;
+  const allowedExtra = new Set(parseExtraBolaoChampionshipIds());
+  for (const [k, v] of Object.entries(map)) {
+    const id = Number.parseInt(k, 10);
+    if (!Number.isFinite(id) || !allowedExtra.has(id)) continue;
+    out[id] = Math.max(0, Math.min(20, Math.trunc(Number(v) || 0)));
+  }
+  return out;
+}
+
+/**
+ * Monta as linhas de tickets para um carrinho (0–20 geral/dia; extras por quantidade total ou mapa legado).
+ * Desconto progressivo: geral e dia por tipo; extras — uma curva só sobre a quantidade total de extras.
  */
 export function buildPurchaseTicketLines(
   generalQty: number,
   dailyQty: number,
-  extraByChampionship?: Record<number, number>
+  extraInput?: PurchaseExtraInput,
 ): PurchaseTicketLine[] {
   const g = Math.max(0, Math.min(20, Math.trunc(generalQty)));
   const d = Math.max(0, Math.min(20, Math.trunc(dailyQty)));
@@ -99,13 +141,24 @@ export function buildPurchaseTicketLines(
   }
 
   const extraUnit = getExtraBolaoUnitCents();
-  const allowedExtra = new Set(parseExtraBolaoChampionshipIds());
-  const extraMap = extraByChampionship ?? {};
-  for (const compId of allowedExtra) {
-    const raw = extraMap[compId] ?? 0;
-    const q = Math.max(0, Math.min(20, Math.trunc(raw)));
-    for (const unitCents of distributeDiscountedTicketAmounts(extraUnit, q)) {
-      lines.push({ ticketType: "extra", unitCents, extraChampionshipId: compId });
+  const allowedOrdered = parseExtraBolaoChampionshipIds();
+
+  if (extraInput && "extraQuantity" in extraInput) {
+    const q = Math.max(0, Math.min(20, Math.trunc(extraInput.extraQuantity)));
+    const seq = expandExtraQuantityWithOrder(q, allowedOrdered);
+    const amounts = distributeDiscountedTicketAmounts(extraUnit, seq.length);
+    seq.forEach((cid, i) => {
+      lines.push({ ticketType: "extra", unitCents: amounts[i]!, extraChampionshipId: cid });
+    });
+  } else if (extraInput && "extraByChampionship" in extraInput) {
+    const allowedExtra = new Set(allowedOrdered);
+    const extraMap = normalizeExtraMap(extraInput.extraByChampionship);
+    for (const compId of allowedExtra) {
+      const raw = extraMap[compId] ?? 0;
+      const cq = Math.max(0, Math.min(20, Math.trunc(raw)));
+      for (const unitCents of distributeDiscountedTicketAmounts(extraUnit, cq)) {
+        lines.push({ ticketType: "extra", unitCents, extraChampionshipId: compId });
+      }
     }
   }
 
@@ -115,7 +168,7 @@ export function buildPurchaseTicketLines(
 export function expectedPurchaseAmountCents(
   generalQty: number,
   dailyQty: number,
-  extraByChampionship?: Record<number, number>
+  extraInput?: PurchaseExtraInput,
 ): number {
-  return buildPurchaseTicketLines(generalQty, dailyQty, extraByChampionship).reduce((s, l) => s + l.unitCents, 0);
+  return buildPurchaseTicketLines(generalQty, dailyQty, extraInput).reduce((s, l) => s + l.unitCents, 0);
 }
