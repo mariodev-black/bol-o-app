@@ -30,7 +30,7 @@ import {
   TrophySilver,
   TrophyBronze,
 } from "@/app/components/RankingTrophies";
-import bannerRanking from "@/app/assets/banner-ranking.png";
+import { RankingPromoCards } from "@/app/(authenticated)/ranking/_components/RankingPromoCards";
 import type { RankingScopeOption } from "@/lib/ranking/scopes";
 import { getAvatarPresetImage } from "@/lib/user/avatar-presets";
 
@@ -397,7 +397,8 @@ function RankingPodiumAndTable({
           <div
             className="relative grid grid-cols-[40px_minmax(0,1fr)_64px_56px] items-center gap-1 overflow-hidden rounded-2xl border px-3 py-3"
             style={{
-              background: "linear-gradient(90deg, rgba(177,235,11,0.18), rgba(177,235,11,0.05))",
+              background:
+                "linear-gradient(90deg, rgba(177,235,11,0.18), rgba(177,235,11,0.05))",
               borderColor: "rgba(177,235,11,0.35)",
               boxShadow: "0 0 24px rgba(177,235,11,0.12)",
             }}
@@ -408,7 +409,9 @@ function RankingPodiumAndTable({
             >
               Você
             </span>
-            <span className="pl-10 text-[13px] font-black tabular-nums text-white">{myRow.pos}</span>
+            <span className="pl-10 text-[13px] font-black tabular-nums text-white">
+              {myRow.pos}
+            </span>
             <div className="flex min-w-0 items-center gap-2">
               <PlayerAvatar
                 userId={myRow.userId}
@@ -418,11 +421,21 @@ function RankingPodiumAndTable({
                 avatarUploadFilename={myRow.avatarUploadFilename}
                 sizeClass="size-8"
               />
-              <span className="truncate text-[12px] font-black text-white">{myRow.displayName}</span>
-              <Check className="size-3 shrink-0 text-primary" strokeWidth={3} aria-hidden />
+              <span className="truncate text-[12px] font-black text-white">
+                {myRow.displayName}
+              </span>
+              <Check
+                className="size-3 shrink-0 text-primary"
+                strokeWidth={3}
+                aria-hidden
+              />
             </div>
-            <span className="text-right text-[12px] font-bold tabular-nums text-white/85">{myRow.outcomeCount}</span>
-            <span className="text-right text-[14px] font-black tabular-nums text-primary">{myRow.totalPoints}</span>
+            <span className="text-right text-[12px] font-bold tabular-nums text-white/85">
+              {myRow.outcomeCount}
+            </span>
+            <span className="text-right text-[14px] font-black tabular-nums text-primary">
+              {myRow.totalPoints}
+            </span>
           </div>
         </section>
       ) : null}
@@ -666,7 +679,6 @@ export default function RankingPage() {
       if (!selectedScope) return { primary: "—", secondary: "" } as const;
       return scopeSelectLines(selectedScope);
     }, [selectedScope]);
-  const palpitesQuickHref = selectedScope?.palpitesHref ?? "/palpites";
 
   const shareRanking = useCallback(async () => {
     const url = typeof window !== "undefined" ? window.location.href : "";
@@ -730,42 +742,44 @@ export default function RankingPage() {
     ) : null;
 
   return (
-    <main className="font-helvetica-now-display min-h-screen bg-black pb-28 text-white">
+    <main className="font-helvetica-now-display bg-black pb-28 text-white">
       <div className="mx-auto w-full max-w-[430px] px-3.5 pt-1">
-        <section className="relative mt-1 overflow-hidden rounded-2xl border border-white/9 bg-[#0a0a0a] px-4 pb-5 pt-4">
-          <div
-            className="pointer-events-none absolute -right-6 top-6 h-28 w-28 opacity-[0.14] blur-3xl"
-            style={{ background: PRIMARY }}
-          />
-          <div className="relative flex gap-3">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5">
-                <Trophy className="size-3.5 text-primary" strokeWidth={2.4} />
-                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-primary">
-                  Ranking oficial
-                </span>
+        {!loadingScopes ? (
+          <section className="relative mt-1 overflow-hidden rounded-2xl border border-white/9 bg-[#0a0a0a] px-4 pb-5 pt-4">
+            <div
+              className="pointer-events-none absolute -right-6 top-6 h-28 w-28 opacity-[0.14] blur-3xl"
+              style={{ background: PRIMARY }}
+            />
+            <div className="relative flex gap-3">
+              <div className="min-w-0 flex-1">
+                <h1 className="mt-2 font-black uppercase leading-[0.95] tracking-tight">
+                  <span className="block text-[1.65rem] text-white sm:text-[1.85rem]">
+                    Classificação
+                  </span>
+                  <span
+                    className="block text-[1.65rem] sm:text-[1.85rem]"
+                    style={{ color: PRIMARY }}
+                  >
+                    total
+                  </span>
+                </h1>
+                <p className="mt-2 max-w-66 text-[12px] font-medium leading-snug text-white">
+                  Acompanhe sua posição em{" "}
+                  <span className="font-semibold text-primary">tempo real</span>
+                  ,
+                  <br />
+                  veja quem está no topo da tabela e
+                  <br />
+                  dispute{" "}
+                  <span className="font-semibold text-primary">
+                    ponto a ponto
+                  </span>{" "}
+                  durante toda a Copa.
+                </p>
               </div>
-              <h1 className="mt-2 font-black uppercase leading-[0.95] tracking-tight">
-                <span className="block text-[1.65rem] text-white sm:text-[1.85rem]">
-                  Classificação
-                </span>
-                <span
-                  className="block text-[1.65rem] sm:text-[1.85rem]"
-                  style={{ color: PRIMARY }}
-                >
-                  total
-                </span>
-              </h1>
-              <p className="mt-2 max-w-66 text-[12px] font-medium leading-snug text-white/52">
-                Ranking de{" "}
-                <strong className="text-white/75">todos que apostaram</strong>{" "}
-                neste bolão (uma linha por cota). Acompanhe posição, acertos e
-                pontos.
-              </p>
             </div>
-          </div>
-        </section>
-
+          </section>
+        ) : null}
         {loadingScopes ? (
           <p className="mt-6 text-center text-[12px] font-medium text-white/80">
             Carregando seus bolões…
@@ -972,17 +986,6 @@ export default function RankingPage() {
                     </div>
                   ) : null}
                 </div>
-
-                <footer className="mt-5 flex items-start gap-2.5 border-t border-white/[0.07] pt-4">
-                  <Eye
-                    className="mt-0.5 size-4 shrink-0 text-primary"
-                    strokeWidth={2.35}
-                    aria-hidden
-                  />
-                  <p className="text-[12px] font-medium leading-relaxed text-white/68">
-                    Escolha um bolão para acompanhar sua posição na tabela.
-                  </p>
-                </footer>
               </div>
             </section>
 
@@ -1024,15 +1027,24 @@ export default function RankingPage() {
                 <div
                   className="pointer-events-none absolute inset-x-0 top-0 h-px opacity-60"
                   style={{
-                    background: "linear-gradient(90deg, transparent, rgba(177,235,11,0.35), transparent)",
+                    background:
+                      "linear-gradient(90deg, transparent, rgba(177,235,11,0.35), transparent)",
                   }}
                 />
                 <div className="relative flex gap-3">
                   <div className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-primary/30 bg-primary/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
                     {rankingViewTab === "tabela" ? (
-                      <Trophy className="size-[18px] text-primary" strokeWidth={2.3} aria-hidden />
+                      <Trophy
+                        className="size-[18px] text-primary"
+                        strokeWidth={2.3}
+                        aria-hidden
+                      />
                     ) : (
-                      <Sparkles className="size-[18px] text-primary" strokeWidth={2.3} aria-hidden />
+                      <Sparkles
+                        className="size-[18px] text-primary"
+                        strokeWidth={2.3}
+                        aria-hidden
+                      />
                     )}
                   </div>
                   <div className="min-w-0 flex-1 pt-0.5">
@@ -1202,34 +1214,10 @@ export default function RankingPage() {
                     </p>
                   </div>
                 </section>
-
-                <section className="mt-5">
-                  <div
-                    className="flex items-center gap-3 overflow-hidden rounded-2xl border px-3 py-3.5"
-                    style={{ background: CARD, borderColor: BORDER }}
-                  >
-                    <div className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-primary/30 bg-primary/10">
-                      <Trophy
-                        className="size-5 text-primary"
-                        strokeWidth={2.2}
-                      />
-                    </div>
-                    <p className="min-w-0 flex-1 text-[11px] font-semibold uppercase leading-snug tracking-wide text-white/65">
-                      Faça seus palpites e suba no ranking! Cada palpite te
-                      aproxima do prêmio.
-                    </p>
-                    <Link
-                      href={palpitesQuickHref}
-                      className="inline-flex shrink-0 items-center gap-1 rounded-xl px-3.5 py-2.5 text-[12px] font-black uppercase tracking-wide text-[#0E141B] transition active:scale-[0.98]"
-                      style={{ background: PRIMARY }}
-                    >
-                      Palpitar agora
-                      <ChevronRight className="size-4" strokeWidth={2.8} />
-                    </Link>
-                  </div>
-                </section>
               </>
             )}
+
+            <RankingPromoCards boloesHref="/boloes" />
           </>
         ) : null}
       </div>
