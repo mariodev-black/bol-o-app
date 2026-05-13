@@ -1,34 +1,57 @@
 import { NextRequest, NextResponse } from "next/server";
+import { oauthLog, oauthRequestSnapshot, oauthWarn } from "@/lib/auth/oauth-console";
 import { clearSessionCookie, sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 import { findUserById } from "@/lib/auth/users";
 
 export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
+  const authDebug = process.env.AUTH_DEBUG === "1";
+
   const token = request.cookies.get(sessionCookieName())?.value;
   if (!token) {
+    if (authDebug) {
+      oauthLog("me_no_session_cookie", oauthRequestSnapshot(request));
+    }
     return NextResponse.json({ user: null });
   }
 
   let userId: string | null;
   try {
     userId = await verifySessionToken(token);
-  } catch {
+  } catch (e) {
+    oauthWarn("me_jwt_verify_threw", {
+      message: e instanceof Error ? e.message : String(e),
+      ...oauthRequestSnapshot(request),
+    });
     const res = NextResponse.json({ user: null });
-    res.cookies.set(sessionCookieName(), "", { maxAge: 0, path: "/" });
+    clearSessionCookie(res, request);
     return res;
   }
 
   if (!userId) {
-    return NextResponse.json({ user: null });
+    oauthWarn("me_jwt_invalid_or_expired", oauthRequestSnapshot(request));
+    const res = NextResponse.json({ user: null });
+    clearSessionCookie(res, request);
+    return res;
   }
 
   try {
     const user = await findUserById(userId);
     if (!user) {
+      oauthWarn("me_user_not_in_db", {
+        userIdPrefix: `${userId.slice(0, 8)}…`,
+        ...oauthRequestSnapshot(request),
+      });
       const res = NextResponse.json({ user: null });
-      clearSessionCookie(res);
+      clearSessionCookie(res, request);
       return res;
+    }
+    if (authDebug) {
+      oauthLog("me_ok", {
+        userIdPrefix: `${user.id.slice(0, 8)}…`,
+        emailDomain: user.email?.includes("@") ? user.email.split("@")[1] : undefined,
+      });
     }
     return NextResponse.json({ user });
   } catch (e) {

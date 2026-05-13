@@ -1,6 +1,9 @@
 import { randomBytes } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { normalizeReferralCodeInput } from "@/lib/auth/referral-code";
+import { oauthStateCookieOptions } from "@/lib/auth/session";
+import { oauthLog, oauthRequestSnapshot, oauthWarn } from "@/lib/auth/oauth-console";
+import { getOAuthPublicOrigin } from "@/lib/auth/request-host";
 import { GOOGLE_OAUTH_CALLBACK_PATH, GOOGLE_OAUTH_SCOPES } from "@/lib/google/oauth-config";
 
 export const runtime = "nodejs";
@@ -15,28 +18,19 @@ function safeReturnPath(from: string | null): string | null {
   return from;
 }
 
-function oauthStateCookieOptions() {
-  return {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax" as const,
-    path: "/",
-    maxAge: 600,
-  };
-}
-
 export async function GET(request: NextRequest) {
   const clientId = process.env.GOOGLE_CLIENT_ID;
-  const appUrl = process.env.APP_URL?.replace(/\/$/, "");
-  if (!clientId || !appUrl) {
+  if (!clientId) {
+    oauthWarn("google_start_missing_client_id", {});
     return NextResponse.json(
-      { error: "Login com Google não configurado (GOOGLE_CLIENT_ID / APP_URL)" },
+      { error: "Login com Google não configurado (GOOGLE_CLIENT_ID)" },
       { status: 503 }
     );
   }
 
+  const publicOrigin = getOAuthPublicOrigin(request);
   const state = randomBytes(24).toString("hex");
-  const redirectUri = `${appUrl}${GOOGLE_OAUTH_CALLBACK_PATH}`;
+  const redirectUri = `${publicOrigin}${GOOGLE_OAUTH_CALLBACK_PATH}`;
 
   const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
   url.searchParams.set("client_id", clientId);
@@ -48,17 +42,28 @@ export async function GET(request: NextRequest) {
   url.searchParams.set("prompt", "select_account");
 
   const res = NextResponse.redirect(url.toString());
-  res.cookies.set(STATE_COOKIE, state, oauthStateCookieOptions());
+  const oc = oauthStateCookieOptions(request);
+  res.cookies.set(STATE_COOKIE, state, oc);
 
   const refRaw = request.nextUrl.searchParams.get("ref");
   const refNorm = normalizeReferralCodeInput(refRaw ?? undefined);
   if (refNorm) {
-    res.cookies.set(REFERRAL_COOKIE, refNorm, oauthStateCookieOptions());
+    res.cookies.set(REFERRAL_COOKIE, refNorm, oc);
   }
   const returnTo = safeReturnPath(request.nextUrl.searchParams.get("from"));
   if (returnTo) {
-    res.cookies.set(RETURN_COOKIE, returnTo, oauthStateCookieOptions());
+    res.cookies.set(RETURN_COOKIE, returnTo, oc);
   }
+
+  oauthLog("google_start", {
+    ...oauthRequestSnapshot(request),
+    redirectUri,
+    stateLen: state.length,
+    stateSuffix: state.slice(-6),
+    hasReferralCookie: Boolean(refNorm),
+    returnTo: returnTo ?? null,
+    clientIdSuffix: clientId.slice(-8),
+  });
 
   return res;
 }

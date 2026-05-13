@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { authLog, oauthRequestSnapshot } from "@/lib/auth/oauth-console";
 import { isValidCpf, normalizeCpf } from "@/lib/auth/cpf";
 import { hashPassword } from "@/lib/auth/password";
 import { attachSessionCookie } from "@/lib/auth/session";
@@ -25,7 +26,7 @@ const bodySchema = z.object({
     .refine((v) => v === true, { message: "Aceite os termos para continuar" }),
 });
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   let json: unknown;
   try {
     json = await request.json();
@@ -90,7 +91,11 @@ export async function POST(request: Request) {
         "Código de indicação não encontrado. Sua conta foi criada; você pode compartilhar o seu código em Indique.";
     }
     const res = NextResponse.json(payload);
-    await attachSessionCookie(res, user.id);
+    await attachSessionCookie(res, user.id, request);
+    authLog("register_ok", {
+      userIdPrefix: `${user.id.slice(0, 8)}…`,
+      ...oauthRequestSnapshot(request),
+    });
     return res;
   } catch (e: unknown) {
     const err = e as { code?: string };

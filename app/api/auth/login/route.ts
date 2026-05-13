@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { authLog, oauthRequestSnapshot } from "@/lib/auth/oauth-console";
 import { normalizeCpf } from "@/lib/auth/cpf";
 import { verifyPassword } from "@/lib/auth/password";
 import { attachSessionCookie } from "@/lib/auth/session";
@@ -13,7 +14,7 @@ const bodySchema = z.object({
   password: z.string().min(1, "Informe a senha"),
 });
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   let json: unknown;
   try {
     json = await request.json();
@@ -60,6 +61,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Conta inconsistente" }, { status: 500 });
   }
   const res = NextResponse.json({ user });
-  await attachSessionCookie(res, row.id);
+  await attachSessionCookie(res, row.id, request);
+  authLog("password_login_ok", {
+    userIdPrefix: `${row.id.slice(0, 8)}…`,
+    ...oauthRequestSnapshot(request),
+  });
   return res;
 }
