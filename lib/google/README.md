@@ -117,3 +117,14 @@ GOOGLE_CLIENT_SECRET=GOCSPX-...
 ```
 
 Reinicie o processo Node (ou PM2) após alterar `.env`.
+
+---
+
+## 6. Erro `invalid_client` / “client secret is invalid”
+
+O Google devolve isso na **troca do código** (`POST oauth2.googleapis.com/token`), não no redirect. Causas típicas:
+
+1. **`GOOGLE_CLIENT_SECRET` no servidor** não é o do **mesmo** cliente OAuth “Aplicativo da Web” cujo `GOOGLE_CLIENT_ID` está no `.env` (secret antigo após rotação, typo, aspas a mais, secret de outro projeto).
+2. **Novo secret** gerado no Console: copie o valor **uma vez**, atualize o `.env` na VM e rode `pm2 restart next-app` (ou o nome do processo).
+
+Confira em [Google Cloud Console](https://console.cloud.google.com/apis/credentials) → **Credenciais** → seu **ID do cliente OAuth 2.0** (tipo Web) → **Chave secreta do cliente**.

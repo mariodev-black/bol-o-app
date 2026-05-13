@@ -52,10 +52,29 @@ async function exchangeCode(code: string, redirectUri: string): Promise<{ access
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
+    let googleError: string | undefined;
+    try {
+      const j = JSON.parse(text) as { error?: string; error_description?: string };
+      googleError = j.error;
+      if (j.error === "invalid_client") {
+        oauthErr("google_token_exchange_invalid_client", {
+          hint: "GOOGLE_CLIENT_SECRET não confere com o OAuth Client no Google Cloud (ou é de outro client). APIs e Credenciais → Cliente OAuth 2.0 (tipo Web) → copiar secret → .env na VM → pm2 restart.",
+          redirectUriUsed: redirectUri,
+        });
+      } else if (j.error === "invalid_grant") {
+        oauthErr("google_token_exchange_invalid_grant", {
+          hint: "Código já usado/expirado ou redirect_uri diferente do da autorização. Peça novo login.",
+          error_description: j.error_description,
+        });
+      }
+    } catch {
+      /* corpo não JSON */
+    }
     oauthErr("google_token_exchange_http_error", {
       status: res.status,
       bodyPreview: text.slice(0, 800),
       redirectUriUsed: redirectUri,
+      googleError,
     });
     return null;
   }
