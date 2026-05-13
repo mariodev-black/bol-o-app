@@ -988,23 +988,64 @@ export default function RankingPage() {
                     {provisionalRankingNote ? (
                       <div className="mb-3">{provisionalRankingNote}</div>
                     ) : null}
-                    <div
-                      className="max-h-[min(70vh,520px)] overflow-y-auto overflow-x-hidden rounded-2xl border"
-                      style={{ background: CARD, borderColor: BORDER }}
-                    >
-                      <div className="grid grid-cols-[40px_minmax(0,1fr)_64px_56px] gap-1 border-b border-white/7 px-3 py-2.5 text-[9px] font-black uppercase tracking-widest text-white/38">
-                        <span>#</span>
-                        <span>Jogador</span>
-                        <span className="text-right">Acertos</span>
-                        <span className="text-right">Pontos</span>
-                      </div>
-                      {rankingRows.map((row) => (
-                        <RankingDataRow
-                          key={`${row.pos}-${row.ticketId}`}
-                          row={row}
-                        />
-                      ))}
-                    </div>
+                    {rankingRows.length > 0 ? (
+                      <>
+                        {provisionalRankingNote ? (
+                          <div className="mt-4">{provisionalRankingNote}</div>
+                        ) : null}
+
+                        <section className="mt-5 flex items-end justify-center gap-2 px-0.5">
+                          {padTopThree[1] ? (
+                            <PodiumCard
+                              row={padTopThree[1]}
+                              rank={2}
+                              elevated={false}
+                            />
+                          ) : (
+                            <div className="w-[30%]" />
+                          )}
+                          {padTopThree[0] ? (
+                            <PodiumCard
+                              row={padTopThree[0]}
+                              rank={1}
+                              elevated
+                            />
+                          ) : (
+                            <div className="w-[34%]" />
+                          )}
+                          {padTopThree[2] ? (
+                            <PodiumCard
+                              row={padTopThree[2]}
+                              rank={3}
+                              elevated={false}
+                            />
+                          ) : (
+                            <div className="w-[30%]" />
+                          )}
+                        </section>
+
+                        <section className="mt-6">
+                          <div
+                            className="overflow-hidden rounded-2xl border"
+                            style={{ background: CARD, borderColor: BORDER }}
+                          >
+                            <div className="grid grid-cols-[40px_minmax(0,1fr)_64px_56px] gap-1 border-b border-white/7 px-3 py-2.5 text-[9px] font-black uppercase tracking-widest text-white/38">
+                              <span>#</span>
+                              <span>Jogador</span>
+                              <span className="text-right">Acertos</span>
+                              <span className="text-right">Pontos</span>
+                            </div>
+
+                            {rowsFourToTen.map((row) => (
+                              <RankingDataRow
+                                key={`${row.pos}-${row.ticketId}`}
+                                row={row}
+                              />
+                            ))}
+                          </div>
+                        </section>
+                      </>
+                    ) : null}
                   </section>
                 ) : null}
               </>
@@ -1040,63 +1081,6 @@ export default function RankingPage() {
                   <p className="mt-6 text-center text-[12px] font-medium text-white/80">
                     Carregando ranking…
                   </p>
-                ) : null}
-
-               
-
-                {rankingRows.length > 0 ? (
-                  <>
-                    {provisionalRankingNote ? (
-                      <div className="mt-4">{provisionalRankingNote}</div>
-                    ) : null}
-
-                    <section className="mt-5 flex items-end justify-center gap-2 px-0.5">
-                      {padTopThree[1] ? (
-                        <PodiumCard
-                          row={padTopThree[1]}
-                          rank={2}
-                          elevated={false}
-                        />
-                      ) : (
-                        <div className="w-[30%]" />
-                      )}
-                      {padTopThree[0] ? (
-                        <PodiumCard row={padTopThree[0]} rank={1} elevated />
-                      ) : (
-                        <div className="w-[34%]" />
-                      )}
-                      {padTopThree[2] ? (
-                        <PodiumCard
-                          row={padTopThree[2]}
-                          rank={3}
-                          elevated={false}
-                        />
-                      ) : (
-                        <div className="w-[30%]" />
-                      )}
-                    </section>
-
-                    <section className="mt-6">
-                      <div
-                        className="overflow-hidden rounded-2xl border"
-                        style={{ background: CARD, borderColor: BORDER }}
-                      >
-                        <div className="grid grid-cols-[40px_minmax(0,1fr)_64px_56px] gap-1 border-b border-white/7 px-3 py-2.5 text-[9px] font-black uppercase tracking-widest text-white/38">
-                          <span>#</span>
-                          <span>Jogador</span>
-                          <span className="text-right">Acertos</span>
-                          <span className="text-right">Pontos</span>
-                        </div>
-
-                        {rowsFourToTen.map((row) => (
-                          <RankingDataRow
-                            key={`${row.pos}-${row.ticketId}`}
-                            row={row}
-                          />
-                        ))}
-                      </div>
-                    </section>
-                  </>
                 ) : null}
 
                 {myRow != null && myRow.pos > 10 ? (
