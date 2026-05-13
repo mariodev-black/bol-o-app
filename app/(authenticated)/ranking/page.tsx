@@ -985,9 +985,7 @@ export default function RankingPage() {
 
                 {rankingRows.length > 0 ? (
                   <section className="mt-4">
-                    {provisionalRankingNote ? (
-                      <div className="mb-3">{provisionalRankingNote}</div>
-                    ) : null}
+
                     {rankingRows.length > 0 ? (
                       <>
                         {provisionalRankingNote ? (
@@ -1051,6 +1049,9 @@ export default function RankingPage() {
               </>
             ) : (
               <>
+               {provisionalRankingNote ? (
+                      <div className="mb-3 mt-4">{provisionalRankingNote}</div>
+                    ) : null}
                 <section
                   className="mt-3 grid grid-cols-4 overflow-hidden rounded-2xl border"
                   style={{ background: CARD, borderColor: BORDER }}
