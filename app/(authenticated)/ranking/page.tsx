@@ -9,6 +9,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type ReactNode,
 } from "react";
 import {
   CalendarClock,
@@ -339,6 +340,93 @@ function RankingDataRow({ row }: { row: BoardRow }) {
         {row.totalPoints}
       </span>
     </div>
+  );
+}
+
+function RankingPodiumAndTable({
+  provisional,
+  padTopThree,
+  rowsFourToTen,
+  myRow,
+}: {
+  provisional: ReactNode;
+  padTopThree: readonly [BoardRow | null, BoardRow | null, BoardRow | null];
+  rowsFourToTen: BoardRow[];
+  myRow: BoardRow | null;
+}) {
+  return (
+    <>
+      {provisional}
+      <section className="mt-5 flex items-end justify-center gap-2 px-0.5">
+        {padTopThree[1] ? (
+          <PodiumCard row={padTopThree[1]!} rank={2} elevated={false} />
+        ) : (
+          <div className="w-[30%]" />
+        )}
+        {padTopThree[0] ? (
+          <PodiumCard row={padTopThree[0]!} rank={1} elevated />
+        ) : (
+          <div className="w-[34%]" />
+        )}
+        {padTopThree[2] ? (
+          <PodiumCard row={padTopThree[2]!} rank={3} elevated={false} />
+        ) : (
+          <div className="w-[30%]" />
+        )}
+      </section>
+
+      <section className="mt-6">
+        <div
+          className="overflow-hidden rounded-2xl border"
+          style={{ background: CARD, borderColor: BORDER }}
+        >
+          <div className="grid grid-cols-[40px_minmax(0,1fr)_64px_56px] gap-1 border-b border-white/7 px-3 py-2.5 text-[9px] font-black uppercase tracking-widest text-white/38">
+            <span>#</span>
+            <span>Jogador</span>
+            <span className="text-right">Acertos</span>
+            <span className="text-right">Pontos</span>
+          </div>
+          {rowsFourToTen.map((row) => (
+            <RankingDataRow key={`${row.pos}-${row.ticketId}`} row={row} />
+          ))}
+        </div>
+      </section>
+
+      {myRow != null && myRow.pos > 10 ? (
+        <section className="mt-3">
+          <div
+            className="relative grid grid-cols-[40px_minmax(0,1fr)_64px_56px] items-center gap-1 overflow-hidden rounded-2xl border px-3 py-3"
+            style={{
+              background: "linear-gradient(90deg, rgba(177,235,11,0.18), rgba(177,235,11,0.05))",
+              borderColor: "rgba(177,235,11,0.35)",
+              boxShadow: "0 0 24px rgba(177,235,11,0.12)",
+            }}
+          >
+            <span
+              className="absolute left-2 top-1/2 z-1 -translate-y-1/2 rounded px-1 py-0.5 text-[7px] font-black uppercase text-[#0E141B]"
+              style={{ background: PRIMARY }}
+            >
+              Você
+            </span>
+            <span className="pl-10 text-[13px] font-black tabular-nums text-white">{myRow.pos}</span>
+            <div className="flex min-w-0 items-center gap-2">
+              <PlayerAvatar
+                userId={myRow.userId}
+                displayName={myRow.displayName}
+                isMe
+                avatarIndex={myRow.avatarIndex}
+                avatarUploadFilename={myRow.avatarUploadFilename}
+                sizeClass="size-8"
+              />
+              <span className="truncate text-[12px] font-black text-white">{myRow.displayName}</span>
+              <Check className="size-3 shrink-0 text-primary" strokeWidth={3} aria-hidden />
+            </div>
+            <span className="text-right text-[12px] font-bold tabular-nums text-white/85">{myRow.outcomeCount}</span>
+            <span className="text-right text-[14px] font-black tabular-nums text-primary">{myRow.totalPoints}</span>
+          </div>
+        </section>
+      ) : null}
+    </>
   );
 }
 
@@ -898,37 +986,69 @@ export default function RankingPage() {
               </div>
             </section>
 
-            <div
-              className="mt-4 flex rounded-2xl border border-white/10 bg-[#0a0a0a] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
-              role="tablist"
-              aria-label="Modo de exibição do ranking"
-            >
-              <button
-                type="button"
-                role="tab"
-                aria-selected={rankingViewTab === "tabela"}
-                onClick={() => setRankingViewTab("tabela")}
-                className={`min-h-[44px] flex-1 rounded-xl text-[12px] font-black uppercase tracking-wide transition ${
-                  rankingViewTab === "tabela"
-                    ? "bg-primary/15 text-primary shadow-[inset_0_0_0_1px_rgba(177,235,11,0.35)]"
-                    : "text-white/55 hover:bg-white/6 hover:text-white/85"
-                }`}
+            <div className="mt-4 overflow-hidden rounded-2xl border border-white/12 bg-[#0a0a0a] shadow-[0_16px_48px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.05)]">
+              <div
+                className="flex gap-1 p-1.5"
+                role="tablist"
+                aria-label="Modo de exibição do ranking"
               >
-                Tabela
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={rankingViewTab === "detalhes"}
-                onClick={() => setRankingViewTab("detalhes")}
-                className={`min-h-[44px] flex-1 rounded-xl text-[12px] font-black uppercase tracking-wide transition ${
-                  rankingViewTab === "detalhes"
-                    ? "bg-primary/15 text-primary shadow-[inset_0_0_0_1px_rgba(177,235,11,0.35)]"
-                    : "text-white/55 hover:bg-white/6 hover:text-white/85"
-                }`}
-              >
-                Detalhes
-              </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={rankingViewTab === "tabela"}
+                  onClick={() => setRankingViewTab("tabela")}
+                  className={`min-h-[44px] flex-1 rounded-xl text-[12px] font-black uppercase tracking-wide transition active:scale-[0.99] ${
+                    rankingViewTab === "tabela"
+                      ? "bg-primary/18 text-primary shadow-[inset_0_0_0_1px_rgba(177,235,11,0.45)]"
+                      : "text-white/50 hover:bg-white/8 hover:text-white/88"
+                  }`}
+                >
+                  Tabela
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={rankingViewTab === "detalhes"}
+                  onClick={() => setRankingViewTab("detalhes")}
+                  className={`min-h-[44px] flex-1 rounded-xl text-[12px] font-black uppercase tracking-wide transition active:scale-[0.99] ${
+                    rankingViewTab === "detalhes"
+                      ? "bg-primary/18 text-primary shadow-[inset_0_0_0_1px_rgba(177,235,11,0.45)]"
+                      : "text-white/50 hover:bg-white/8 hover:text-white/88"
+                  }`}
+                >
+                  Detalhes
+                </button>
+              </div>
+
+              <div className="relative border-t border-white/8 bg-linear-to-b from-black/50 to-black/80 px-3.5 pb-3.5 pt-3">
+                <div
+                  className="pointer-events-none absolute inset-x-0 top-0 h-px opacity-60"
+                  style={{
+                    background: "linear-gradient(90deg, transparent, rgba(177,235,11,0.35), transparent)",
+                  }}
+                />
+                <div className="relative flex gap-3">
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-primary/30 bg-primary/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+                    {rankingViewTab === "tabela" ? (
+                      <Trophy className="size-[18px] text-primary" strokeWidth={2.3} aria-hidden />
+                    ) : (
+                      <Sparkles className="size-[18px] text-primary" strokeWidth={2.3} aria-hidden />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1 pt-0.5">
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">
+                      {rankingViewTab === "tabela"
+                        ? "Top 10 neste bolão"
+                        : "Painel completo"}
+                    </p>
+                    <p className="mt-1.5 text-[11px] font-medium leading-relaxed text-white/52">
+                      {rankingViewTab === "tabela"
+                        ? "Pódio com os 3 primeiros e lista até o 10º. Se você estiver abaixo, um card destaca sua posição e pontos."
+                        : "Participantes, prêmios estimados, pódio, tabela e seus números — tudo para acompanhar o bolão de perto."}
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {selectedScope?.unusedPalpites ? (
@@ -985,73 +1105,21 @@ export default function RankingPage() {
 
                 {rankingRows.length > 0 ? (
                   <section className="mt-4">
-
-                    {rankingRows.length > 0 ? (
-                      <>
-                        {provisionalRankingNote ? (
-                          <div className="mt-4">{provisionalRankingNote}</div>
-                        ) : null}
-
-                        <section className="mt-5 flex items-end justify-center gap-2 px-0.5">
-                          {padTopThree[1] ? (
-                            <PodiumCard
-                              row={padTopThree[1]}
-                              rank={2}
-                              elevated={false}
-                            />
-                          ) : (
-                            <div className="w-[30%]" />
-                          )}
-                          {padTopThree[0] ? (
-                            <PodiumCard
-                              row={padTopThree[0]}
-                              rank={1}
-                              elevated
-                            />
-                          ) : (
-                            <div className="w-[34%]" />
-                          )}
-                          {padTopThree[2] ? (
-                            <PodiumCard
-                              row={padTopThree[2]}
-                              rank={3}
-                              elevated={false}
-                            />
-                          ) : (
-                            <div className="w-[30%]" />
-                          )}
-                        </section>
-
-                        <section className="mt-6">
-                          <div
-                            className="overflow-hidden rounded-2xl border"
-                            style={{ background: CARD, borderColor: BORDER }}
-                          >
-                            <div className="grid grid-cols-[40px_minmax(0,1fr)_64px_56px] gap-1 border-b border-white/7 px-3 py-2.5 text-[9px] font-black uppercase tracking-widest text-white/38">
-                              <span>#</span>
-                              <span>Jogador</span>
-                              <span className="text-right">Acertos</span>
-                              <span className="text-right">Pontos</span>
-                            </div>
-
-                            {rowsFourToTen.map((row) => (
-                              <RankingDataRow
-                                key={`${row.pos}-${row.ticketId}`}
-                                row={row}
-                              />
-                            ))}
-                          </div>
-                        </section>
-                      </>
-                    ) : null}
+                    <RankingPodiumAndTable
+                      provisional={
+                        provisionalRankingNote ? (
+                          <div className="mb-3">{provisionalRankingNote}</div>
+                        ) : null
+                      }
+                      padTopThree={padTopThree}
+                      rowsFourToTen={rowsFourToTen}
+                      myRow={myRow}
+                    />
                   </section>
                 ) : null}
               </>
             ) : (
               <>
-               {provisionalRankingNote ? (
-                      <div className="mb-3 mt-4">{provisionalRankingNote}</div>
-                    ) : null}
                 <section
                   className="mt-3 grid grid-cols-4 overflow-hidden rounded-2xl border"
                   style={{ background: CARD, borderColor: BORDER }}
@@ -1084,51 +1152,24 @@ export default function RankingPage() {
                   </p>
                 ) : null}
 
-                {myRow != null && myRow.pos > 10 ? (
-                  <section className="mt-3">
-                    <div
-                      className="relative grid grid-cols-[40px_minmax(0,1fr)_64px_56px] items-center gap-1 overflow-hidden rounded-2xl border px-3 py-3"
-                      style={{
-                        background:
-                          "linear-gradient(90deg, rgba(177,235,11,0.18), rgba(177,235,11,0.05))",
-                        borderColor: "rgba(177,235,11,0.35)",
-                        boxShadow: "0 0 24px rgba(177,235,11,0.12)",
-                      }}
-                    >
-                      <span
-                        className="absolute left-2 top-1/2 z-1 -translate-y-1/2 rounded px-1 py-0.5 text-[7px] font-black uppercase text-[#0E141B]"
-                        style={{ background: PRIMARY }}
-                      >
-                        Você
-                      </span>
-                      <span className="pl-10 text-[13px] font-black tabular-nums text-white">
-                        {myRow.pos}
-                      </span>
-                      <div className="flex min-w-0 items-center gap-2">
-                        <PlayerAvatar
-                          userId={myRow.userId}
-                          displayName={myRow.displayName}
-                          isMe
-                          avatarIndex={myRow.avatarIndex}
-                          avatarUploadFilename={myRow.avatarUploadFilename}
-                          sizeClass="size-8"
-                        />
-                        <span className="truncate text-[12px] font-black text-white">
-                          {myRow.displayName}
-                        </span>
-                        <Check
-                          className="size-3 shrink-0 text-primary"
-                          strokeWidth={3}
-                          aria-hidden
-                        />
-                      </div>
-                      <span className="text-right text-[12px] font-bold tabular-nums text-white/85">
-                        {myRow.outcomeCount}
-                      </span>
-                      <span className="text-right text-[14px] font-black tabular-nums text-primary">
-                        {myRow.totalPoints}
-                      </span>
-                    </div>
+                {!loadingBoard && rankingRows.length === 0 ? (
+                  <p className="mt-6 text-center text-[12px] font-medium text-white/80">
+                    Ainda não há participantes classificados neste bolão.
+                  </p>
+                ) : null}
+
+                {rankingRows.length > 0 ? (
+                  <section className="mt-4">
+                    <RankingPodiumAndTable
+                      provisional={
+                        provisionalRankingNote ? (
+                          <div className="mb-3">{provisionalRankingNote}</div>
+                        ) : null
+                      }
+                      padTopThree={padTopThree}
+                      rowsFourToTen={rowsFourToTen}
+                      myRow={myRow}
+                    />
                   </section>
                 ) : null}
 
