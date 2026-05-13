@@ -63,7 +63,7 @@ function predictionPointsLabel(prediction: {
 function TeamLogo({ src, alt }: { src: string | null; alt: string }) {
   if (!src) {
     return (
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 text-[10px] font-black text-white/35">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 text-[12px] font-black text-white/80">
         {alt.slice(0, 2).toUpperCase()}
       </span>
     );
@@ -79,7 +79,7 @@ function TeamLogo({ src, alt }: { src: string | null; alt: string }) {
 function InfoCard({ label, value }: { label: string; value: ReactNode }) {
   return (
     <article className="rounded-[16px] border border-white/8 bg-[#101010] p-4">
-      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/35">{label}</p>
+      <p className="text-[12px] font-black uppercase tracking-[0.18em] text-white/80">{label}</p>
       <div className="mt-3 text-[14px] font-bold text-white/82">{value}</div>
     </article>
   );
@@ -156,7 +156,7 @@ export default async function AdminCotaDetailPage({
           <div className="overflow-x-auto">
             <table className="min-w-[1180px] w-full table-fixed text-left">
               <thead className="border-b border-white/8 bg-white/2.5">
-                <tr className="text-[11px] font-black uppercase tracking-[0.16em] text-white/35">
+                <tr className="text-[11px] font-black uppercase tracking-[0.16em] text-white/80">
                   <th className="w-[390px] px-4 py-4">Jogo</th>
                   <th className="w-[130px] px-4 py-4">Data</th>
                   <th className="w-[110px] px-4 py-4 text-center">Palpite</th>
@@ -174,17 +174,17 @@ export default async function AdminCotaDetailPage({
                         <TeamLogo src={prediction.homeLogo} alt={prediction.homeName} />
                         <div className="min-w-0 flex-1">
                           <p className="truncate font-black text-white">{prediction.homeName}</p>
-                          <p className="mt-1 font-mono text-[10px] text-white/30">Partida #{prediction.matchId}</p>
+                          <p className="mt-1 font-mono text-[12px] text-white/30">Partida #{prediction.matchId}</p>
                         </div>
                         <span className="shrink-0 text-[11px] font-black text-white/28">x</span>
                         <div className="min-w-0 flex-1 text-right">
                           <p className="truncate font-black text-white">{prediction.awayName}</p>
-                          <p className="mt-1 text-[10px] text-white/25">visitante</p>
+                          <p className="mt-1 text-[12px] text-white/25">visitante</p>
                         </div>
                         <TeamLogo src={prediction.awayLogo} alt={prediction.awayName} />
                       </div>
                     </td>
-                    <td className="px-4 py-4 text-white/45">
+                    <td className="px-4 py-4 text-white/80">
                       <p className="font-bold text-white/62">{prediction.dateBR ?? "Sem data"}</p>
                       <p className="mt-1 text-[11px] text-white/32">{prediction.hourBR ?? "Sem hora"}</p>
                     </td>
@@ -201,7 +201,7 @@ export default async function AdminCotaDetailPage({
                         "rounded-full border px-3 py-1 text-[11px] font-black uppercase",
                         prediction.points > 0
                           ? "border-primary/20 bg-primary/10 text-primary"
-                          : "border-white/10 bg-white/5 text-white/45",
+                          : "border-white/10 bg-white/5 text-white/80",
                       ].join(" ")}>
                         {predictionPointsLabel(prediction)}
                       </span>
@@ -212,7 +212,7 @@ export default async function AdminCotaDetailPage({
                         {prediction.resultCasa == null || prediction.resultVisitante == null ? "Aguardando resultado" : "Resultado apurado"}
                       </p>
                     </td>
-                    <td className="px-4 py-4 text-white/45">{formatDate(prediction.submittedAt)}</td>
+                    <td className="px-4 py-4 text-white/80">{formatDate(prediction.submittedAt)}</td>
                   </tr>
                 ))}
               </tbody>

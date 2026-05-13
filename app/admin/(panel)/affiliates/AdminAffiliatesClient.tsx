@@ -152,7 +152,7 @@ export function AdminAffiliatesClient({ data }: { data: AdminAffiliateDashboardD
       <div className="mb-5 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         {cards.map((card) => (
           <article key={card.label} className="rounded-[18px] border border-white/8 bg-[#101010] p-5">
-            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/35">{card.label}</p>
+            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/80">{card.label}</p>
             <p className="mt-4 text-[28px] font-black leading-none tracking-[-0.05em] text-primary">{card.value}</p>
           </article>
         ))}
@@ -186,7 +186,7 @@ export function AdminAffiliatesClient({ data }: { data: AdminAffiliateDashboardD
           <div className="overflow-x-auto">
             <table className="min-w-[980px] w-full text-left">
               <thead className="border-b border-white/8 bg-white/2.5">
-                <tr className="text-[11px] font-black uppercase tracking-[0.16em] text-white/35">
+                <tr className="text-[11px] font-black uppercase tracking-[0.16em] text-white/80">
                   <th className="px-4 py-4">Afiliado</th>
                   <th className="px-4 py-4">Modelo</th>
                   <th className="px-4 py-4">Código</th>
@@ -202,7 +202,7 @@ export function AdminAffiliatesClient({ data }: { data: AdminAffiliateDashboardD
                     <td className="px-4 py-4">
                       <Link href={`/admin/users/${affiliate.id}`} className="block">
                         <p className="font-black text-white hover:text-primary">{affiliate.name ?? "Sem nome"}</p>
-                        <p className="mt-1 text-white/35">{affiliate.email}</p>
+                        <p className="mt-1 text-white/80">{affiliate.email}</p>
                       </Link>
                     </td>
                     <td className="px-4 py-4">
@@ -215,14 +215,14 @@ export function AdminAffiliatesClient({ data }: { data: AdminAffiliateDashboardD
                         {affiliate.affiliateMode === "influencer" ? `Influencer ${formatCpa(affiliate.influencerCpaBps)}` : "Padrão"}
                       </span>
                     </td>
-                    <td className="px-4 py-4 font-mono text-white/45">{affiliate.referralCode ?? "-"}</td>
+                    <td className="px-4 py-4 font-mono text-white/80">{affiliate.referralCode ?? "-"}</td>
                     <td className="px-4 py-4 font-black text-white">{affiliate.referredUsersCount}</td>
                     <td className="px-4 py-4 font-black text-primary">{affiliate.paidReferralsCount}</td>
                     <td className="px-4 py-4">
                       <p className="font-black text-white">{formatBRL(affiliate.commissionsCents)}</p>
-                      <p className="mt-1 text-[11px] text-white/35">{affiliate.commissionsCount} registros</p>
+                      <p className="mt-1 text-[11px] text-white/80">{affiliate.commissionsCount} registros</p>
                     </td>
-                    <td className="px-4 py-4 text-white/45">{formatDate(affiliate.createdAt)}</td>
+                    <td className="px-4 py-4 text-white/80">{formatDate(affiliate.createdAt)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -235,7 +235,7 @@ export function AdminAffiliatesClient({ data }: { data: AdminAffiliateDashboardD
           <div className="overflow-x-auto">
             <table className="min-w-[1040px] w-full text-left">
               <thead className="border-b border-white/8 bg-white/2.5">
-                <tr className="text-[11px] font-black uppercase tracking-[0.16em] text-white/35">
+                <tr className="text-[11px] font-black uppercase tracking-[0.16em] text-white/80">
                   <th className="px-4 py-4">Usuário indicado</th>
                   <th className="px-4 py-4">CPF</th>
                   <th className="px-4 py-4">Afiliado</th>
@@ -249,18 +249,18 @@ export function AdminAffiliatesClient({ data }: { data: AdminAffiliateDashboardD
                     <td className="px-4 py-4">
                       <Link href={`/admin/users/${user.id}`} className="block">
                         <p className="font-black text-white hover:text-primary">{user.name ?? "Sem nome"}</p>
-                        <p className="mt-1 text-white/35">{user.email}</p>
+                        <p className="mt-1 text-white/80">{user.email}</p>
                       </Link>
                     </td>
-                    <td className="px-4 py-4 font-mono text-white/45">{maskCpf(user.cpf)}</td>
+                    <td className="px-4 py-4 font-mono text-white/80">{maskCpf(user.cpf)}</td>
                     <td className="px-4 py-4">
                       <Link href={`/admin/users/${user.referrerId}`} className="block">
                         <p className="font-bold text-white hover:text-primary">{user.referrerName ?? "Sem nome"}</p>
-                        <p className="mt-1 text-white/35">{user.referrerEmail}</p>
+                        <p className="mt-1 text-white/80">{user.referrerEmail}</p>
                       </Link>
                     </td>
                     <td className="px-4 py-4 font-black text-primary">{user.paidTicketsCount}</td>
-                    <td className="px-4 py-4 text-white/45">{formatDate(user.createdAt)}</td>
+                    <td className="px-4 py-4 text-white/80">{formatDate(user.createdAt)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -273,7 +273,7 @@ export function AdminAffiliatesClient({ data }: { data: AdminAffiliateDashboardD
           <div className="overflow-x-auto">
             <table className="min-w-[960px] w-full text-left">
               <thead className="border-b border-white/8 bg-white/2.5">
-                <tr className="text-[11px] font-black uppercase tracking-[0.16em] text-white/35">
+                <tr className="text-[11px] font-black uppercase tracking-[0.16em] text-white/80">
                   <th className="px-4 py-4">Afiliado</th>
                   <th className="px-4 py-4">Indicado</th>
                   <th className="px-4 py-4">Valor</th>
@@ -286,14 +286,14 @@ export function AdminAffiliatesClient({ data }: { data: AdminAffiliateDashboardD
                   <tr key={commission.id} className="text-[13px] text-white/72 hover:bg-white/2.5">
                     <td className="px-4 py-4">
                       <p className="font-black text-white">{commission.referrerName ?? "Sem nome"}</p>
-                      <p className="mt-1 text-white/35">{commission.referrerEmail}</p>
+                      <p className="mt-1 text-white/80">{commission.referrerEmail}</p>
                     </td>
                     <td className="px-4 py-4">
                       <p className="font-bold text-white">{commission.referredName ?? "Sem nome"}</p>
-                      <p className="mt-1 text-white/35">{commission.referredEmail}</p>
+                      <p className="mt-1 text-white/80">{commission.referredEmail}</p>
                     </td>
                     <td className="px-4 py-4 font-black text-primary">{formatBRL(commission.amountCents)}</td>
-                    <td className="px-4 py-4 text-white/45">
+                    <td className="px-4 py-4 text-white/80">
                       <p className="font-black text-white">
                         {commission.commissionModel === "influencer" ? `Influencer ${formatCpa(commission.cpaBps)}` : commission.tier}
                       </p>
@@ -302,7 +302,7 @@ export function AdminAffiliatesClient({ data }: { data: AdminAffiliateDashboardD
                         {commission.baseAmountCents ? ` · base ${formatBRL(commission.baseAmountCents)}` : ""}
                       </p>
                     </td>
-                    <td className="px-4 py-4 text-white/45">{formatDate(commission.createdAt)}</td>
+                    <td className="px-4 py-4 text-white/80">{formatDate(commission.createdAt)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -325,7 +325,7 @@ export function AdminAffiliatesClient({ data }: { data: AdminAffiliateDashboardD
             {!withdrawLoading && withdrawRows.length > 0 ? (
               <table className="min-w-[920px] w-full text-left">
                 <thead className="border-b border-white/8 bg-white/2.5">
-                  <tr className="text-[11px] font-black uppercase tracking-[0.16em] text-white/35">
+                  <tr className="text-[11px] font-black uppercase tracking-[0.16em] text-white/80">
                     <th className="px-4 py-4">Usuário</th>
                     <th className="px-4 py-4">Origem</th>
                     <th className="px-4 py-4">Valor</th>
@@ -340,7 +340,7 @@ export function AdminAffiliatesClient({ data }: { data: AdminAffiliateDashboardD
                       <td className="px-4 py-4">
                         <Link href={`/admin/users/${row.userId}`} className="block">
                           <p className="font-black text-white hover:text-primary">{row.userName ?? "Sem nome"}</p>
-                          <p className="mt-1 text-white/35">{row.userEmail}</p>
+                          <p className="mt-1 text-white/80">{row.userEmail}</p>
                         </Link>
                       </td>
                       <td className="px-4 py-4">
@@ -356,11 +356,11 @@ export function AdminAffiliatesClient({ data }: { data: AdminAffiliateDashboardD
                         </span>
                       </td>
                       <td className="px-4 py-4 font-black text-primary">{formatBRL(row.amountCents)}</td>
-                      <td className="px-4 py-4 text-white/45">
+                      <td className="px-4 py-4 text-white/80">
                         <p className="font-bold text-white/70 uppercase text-[11px]">{row.pixKeyType}</p>
                         <p className="mt-1 font-mono text-[12px] break-all">{row.pixKey}</p>
                       </td>
-                      <td className="px-4 py-4 text-white/45">{formatDate(row.createdAt)}</td>
+                      <td className="px-4 py-4 text-white/80">{formatDate(row.createdAt)}</td>
                       <td className="px-4 py-4 text-right">
                         <div className="flex flex-wrap justify-end gap-2">
                           <button

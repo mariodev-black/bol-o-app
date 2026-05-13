@@ -477,14 +477,14 @@ export default function IndiqueGanhePage() {
                 />
               </div>
             </div>
-            <span className="rounded-full border border-primary/20 bg-black/35 px-2 py-1 text-[10px] font-black text-primary">
+            <span className="rounded-full border border-primary/20 bg-black/35 px-2 py-1 text-[12px] font-black text-primary">
               {paidIndicacoes}/{nextTierMin}
             </span>
           </div>
         </section>
 
         <section className="mt-4">
-          <p className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-white/26">Seu progresso</p>
+          <p className="mb-2 text-[12px] font-black uppercase tracking-[0.2em] text-white/26">Seu progresso</p>
           <div className="grid grid-cols-3 gap-2.5">
             {[
               { icon: MousePointerClick, value: affiliateSummary?.signupReferralsCount ?? 0, label: "Cliques" },
@@ -497,7 +497,7 @@ export default function IndiqueGanhePage() {
                   highlight ? "border-primary/30 bg-primary/7" : "border-white/10 bg-[#101010]"
                 }`}
               >
-                <Icon className={`mx-auto size-5 ${highlight ? "text-primary" : "text-white/45"}`} strokeWidth={2.15} />
+                <Icon className={`mx-auto size-5 ${highlight ? "text-primary" : "text-white/80"}`} strokeWidth={2.15} />
                 <p className={`mt-3 truncate text-[22px] font-black leading-none ${highlight ? "text-primary" : "text-white"}`}>
                   {value}
                 </p>
@@ -518,20 +518,20 @@ export default function IndiqueGanhePage() {
 
         <section className="mt-3 grid gap-3 sm:grid-cols-2">
           <article className="rounded-[15px] border border-white/10 bg-[#101010] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/34">Seu código</p>
+            <p className="text-[12px] font-black uppercase tracking-[0.18em] text-white/34">Seu código</p>
             <div className="mt-4 flex items-center justify-between gap-3">
               <p className="truncate text-[18px] font-black tracking-[0.16em] text-white">{code || "------"}</p>
               <button
                 type="button"
                 onClick={handleCopyCode}
-                className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-[9px] border border-white/10 bg-black/30 px-3 text-[10px] font-bold text-white/70"
+                className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-[9px] border border-white/10 bg-black/30 px-3 text-[12px] font-bold text-white/70"
               >
                 <Copy className="size-3.5" />
                 {codeCopied ? "Copiado" : "Copiar"}
               </button>
             </div>
-            <p className="mt-5 text-[10px] font-medium text-white/35">Compartilhe seu link</p>
-            <div className="mt-2 truncate rounded-[9px] border border-white/8 bg-black/35 px-3 py-2 text-[10px] text-white/32">
+            <p className="mt-5 text-[12px] font-medium text-white/80">Compartilhe seu link</p>
+            <div className="mt-2 truncate rounded-[9px] border border-white/8 bg-black/35 px-3 py-2 text-[12px] text-white/32">
               {signupLink || "Gerando link..."}
             </div>
             <div className="mt-3 grid grid-cols-[minmax(0,1fr)_44px] gap-2">
@@ -555,7 +555,7 @@ export default function IndiqueGanhePage() {
           </article>
 
           <article className="rounded-[15px] border border-white/10 bg-[#101010] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/34">Jornada de níveis</p>
+            <p className="text-[12px] font-black uppercase tracking-[0.18em] text-white/34">Jornada de níveis</p>
             <div className="relative mt-5 grid grid-cols-4 gap-2">
               <span className="absolute left-[12.5%] right-[12.5%] top-5 h-px bg-white/10" />
               <span
@@ -581,25 +581,25 @@ export default function IndiqueGanhePage() {
 
             <div className="mt-5 grid grid-cols-[1fr_28px_1fr] items-center rounded-[12px] border border-white/8 bg-black/24 p-3">
               <div>
-                <p className="text-[9px] font-black uppercase text-white/35">Agora</p>
+                <p className="text-[9px] font-black uppercase text-white/80">Agora</p>
                 <p className="mt-1 text-[19px] font-black leading-none text-primary">{porIndicacaoFmt}</p>
                 <p className="mt-1 text-[9px] text-white/42">por indicação</p>
               </div>
               <span className="text-center text-white/25">→</span>
               <div className="text-right">
-                <p className="text-[9px] font-black uppercase text-white/35">No {nextTierLabelStr}</p>
+                <p className="text-[9px] font-black uppercase text-white/80">No {nextTierLabelStr}</p>
                 <p className="mt-1 text-[19px] font-black leading-none text-white">{nextTierRewardFmt}</p>
                 <p className="mt-1 text-[9px] text-white/42">por indicação</p>
               </div>
             </div>
-            <p className="mt-3 text-[10px] font-medium text-white/40">
+            <p className="mt-3 text-[12px] font-medium text-white/40">
               {paidIndicacoes} de {nextTierMin} indicações pagas · +{remainingToNext} para {nextTierLabelStr}
             </p>
           </article>
         </section>
 
         <section className="mt-3 rounded-[15px] border border-white/10 bg-[#101010] p-4">
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/34">Atividade recente</p>
+          <p className="text-[12px] font-black uppercase tracking-[0.18em] text-white/34">Atividade recente</p>
           <ReferralActivityList
             commissions={affiliateSummary?.commissionActivity ?? []}
             pendingSignups={affiliateSummary?.pendingSignupReferrals ?? []}
@@ -655,7 +655,7 @@ export default function IndiqueGanhePage() {
                   style={{ background: `${C.gold}1A`, border: `1px solid ${C.gold}45` }}
                 >
                   <Gift size={11} style={{ color: C.goldLight }} />
-                  <span className="text-[10px] font-extrabold uppercase tracking-widest" style={{ color: C.goldLight }}>
+                  <span className="text-[12px] font-extrabold uppercase tracking-widest" style={{ color: C.goldLight }}>
                     Programa de Indicação
                   </span>
                 </span>
@@ -741,7 +741,7 @@ export default function IndiqueGanhePage() {
                     style={{ background: "rgba(177,235,11,0.08)", border: `1px solid rgba(177,235,11,0.42)` }}
                   >
                     <Sparkles size={13} style={{ color: C.gold }} strokeWidth={2.2} />
-                    <span className="text-[10px] font-extrabold uppercase tracking-[0.14em]" style={{ color: C.goldMid }}>
+                    <span className="text-[12px] font-extrabold uppercase tracking-[0.14em]" style={{ color: C.goldMid }}>
                       Programa de Indicação
                     </span>
                   </span>
@@ -853,7 +853,7 @@ export default function IndiqueGanhePage() {
                 <div className="flex-1 flex flex-col items-center justify-center gap-1 py-4 px-3 min-w-0">
                   <MousePointerClick size={20} style={{ color: C.valueMuted }} strokeWidth={2} />
                   <span className="text-[26px] font-black text-white leading-none tracking-[-0.02em]">—</span>
-                  <span className="text-[10px] font-medium text-center leading-snug" style={{ color: "rgba(255,255,255,0.36)" }}>
+                  <span className="text-[12px] font-medium text-center leading-snug" style={{ color: "rgba(255,255,255,0.36)" }}>
                     Cliques no seu link
                   </span>
                 </div>
@@ -864,7 +864,7 @@ export default function IndiqueGanhePage() {
                 >
                   <Target size={20} style={{ color: C.goldMid }} strokeWidth={2} />
                   <span className="text-[26px] font-black text-white leading-none tracking-[-0.02em]">{paidIndicacoes}</span>
-                  <span className="text-[10px] font-medium text-center leading-snug" style={{ color: "rgba(255,255,255,0.36)" }}>
+                  <span className="text-[12px] font-medium text-center leading-snug" style={{ color: "rgba(255,255,255,0.36)" }}>
                     Indicações pagas
                   </span>
                 </div>
@@ -878,7 +878,7 @@ export default function IndiqueGanhePage() {
                 >
                   <Wallet size={20} style={{ color: C.valueMuted }} strokeWidth={2} />
                   <span className="text-[26px] font-black leading-none tracking-[-0.02em]" style={{ color: C.value }}>{totalRecebidoFmt}</span>
-                  <span className="text-[10px] font-medium text-center leading-snug" style={{ color: "rgba(255,255,255,0.36)" }}>
+                  <span className="text-[12px] font-medium text-center leading-snug" style={{ color: "rgba(255,255,255,0.36)" }}>
                     Total recebido
                   </span>
                 </div>
@@ -985,7 +985,7 @@ export default function IndiqueGanhePage() {
 
               <div className="flex flex-col gap-2.5 mt-4">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.35)" }}>
+                  <span className="text-[12px] font-bold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.35)" }}>
                     Seu código
                   </span>
                   <div
@@ -1106,7 +1106,7 @@ export default function IndiqueGanhePage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <span
-                            className="w-[18px] h-[18px] rounded-full flex items-center justify-center text-[10px] font-black shrink-0"
+                            className="w-[18px] h-[18px] rounded-full flex items-center justify-center text-[12px] font-black shrink-0"
                             style={{ background: `${step.color}25`, color: step.color }}
                           >
                             {i + 1}
@@ -1188,7 +1188,7 @@ export default function IndiqueGanhePage() {
                       <span className="text-[11px] font-bold" style={{ color: isActive ? "#fff" : isCompleted ? C.goldMid : "rgba(255,255,255,0.30)" }}>
                         {tier.label}
                       </span>
-                      <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.20)" }}>{tier.threshold}</span>
+                      <span className="text-[12px]" style={{ color: "rgba(255,255,255,0.20)" }}>{tier.threshold}</span>
                     </div>
                   );
                 })}
@@ -1201,7 +1201,7 @@ export default function IndiqueGanhePage() {
                 <div className="min-w-0">
                   <p className="text-[9px] font-bold uppercase tracking-[0.12em] mb-1.5" style={{ color: "rgba(255,255,255,0.30)" }}>Agora</p>
                   <p className="text-[24px] font-black leading-none tracking-[-0.02em]" style={{ color: C.goldLight }}>{porIndicacaoFmt}</p>
-                  <p className="text-[10px] mt-1.5" style={{ color: "rgba(255,255,255,0.28)" }}>por indic.</p>
+                  <p className="text-[12px] mt-1.5" style={{ color: "rgba(255,255,255,0.28)" }}>por indic.</p>
                 </div>
                 <div className="flex flex-col items-center gap-2">
                   <ArrowRight size={14} style={{ color: "rgba(255,255,255,0.18)" }} />
@@ -1216,7 +1216,7 @@ export default function IndiqueGanhePage() {
                   <p className="text-[24px] font-black leading-none tracking-[-0.02em]" style={{ background: `linear-gradient(135deg, #F8FAFC, ${C.platinum} 45%, ${C.goldLight} 95%)`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
                     {nextTierRewardFmt}
                   </p>
-                  <p className="text-[10px] mt-1.5" style={{ color: "rgba(255,255,255,0.28)" }}>por indic.</p>
+                  <p className="text-[12px] mt-1.5" style={{ color: "rgba(255,255,255,0.28)" }}>por indic.</p>
                 </div>
               </div>
 
@@ -1413,7 +1413,7 @@ export default function IndiqueGanhePage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <span
-                            className="w-[18px] h-[18px] rounded-full flex items-center justify-center text-[10px] font-black shrink-0"
+                            className="w-[18px] h-[18px] rounded-full flex items-center justify-center text-[12px] font-black shrink-0"
                             style={{ background: `${step.color}25`, color: step.color }}
                           >
                             {i + 1}
@@ -1565,7 +1565,7 @@ function SacarGanhosLink({
 
 function SmallLabel({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <p className={`text-[10px] font-bold uppercase tracking-[0.14em] ${className}`} style={{ color: "rgba(255,255,255,0.28)" }}>
+    <p className={`text-[12px] font-bold uppercase tracking-[0.14em] ${className}`} style={{ color: "rgba(255,255,255,0.28)" }}>
       {children}
     </p>
   );
@@ -1602,7 +1602,7 @@ function StatCard({
         <Icon size={19} style={{ color: iconColor }} />
       </div>
       <span className="text-[22px] font-black leading-none" style={{ color: valueColor }}>{value}</span>
-      <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.32)" }}>
+      <span className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.32)" }}>
         {label}
       </span>
     </div>
@@ -1633,7 +1633,7 @@ function StatCardInline({
       </div>
       <div>
         <p className="text-[18px] font-black leading-none" style={{ color: valueColor }}>{value}</p>
-        <p className="text-[10px] font-semibold uppercase tracking-wider mt-0.5" style={{ color: "rgba(255,255,255,0.32)" }}>{label}</p>
+        <p className="text-[12px] font-semibold uppercase tracking-wider mt-0.5" style={{ color: "rgba(255,255,255,0.32)" }}>{label}</p>
       </div>
     </div>
   );
@@ -1643,7 +1643,7 @@ function TrustItem({ Icon, label }: { Icon: React.ElementType; label: string }) 
   return (
     <div className="flex-1 flex flex-col items-center gap-1.5 py-4">
       <Icon size={16} style={{ color: "rgba(255,255,255,0.35)" }} />
-      <span className="text-[10px] font-medium text-center leading-tight" style={{ color: "rgba(255,255,255,0.35)" }}>
+      <span className="text-[12px] font-medium text-center leading-tight" style={{ color: "rgba(255,255,255,0.35)" }}>
         {label}
       </span>
     </div>

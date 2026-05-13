@@ -53,7 +53,7 @@ function cpaBpsFromInput(value: string) {
 function InfoCard({ label, value }: { label: string; value: ReactNode }) {
   return (
     <article className="rounded-[16px] border border-white/8 bg-[#101010] p-4">
-      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/35">{label}</p>
+      <p className="text-[12px] font-black uppercase tracking-[0.18em] text-white/80">{label}</p>
       <div className="mt-3 text-[14px] font-bold text-white/82">{value}</div>
     </article>
   );
@@ -80,7 +80,7 @@ function PermissionCard({
       onClick={onClick}
       className="rounded-[16px] border border-primary/20 bg-[#101010] p-4 text-left transition-colors hover:bg-primary/[0.035]"
     >
-      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/35">Permissão atual</p>
+      <p className="text-[12px] font-black uppercase tracking-[0.18em] text-white/80">Permissão atual</p>
       <div className="mt-3 text-[14px] font-bold text-primary">{ROLE_LABELS[role]}</div>
       <p className="mt-3 text-[11px] font-bold uppercase tracking-[0.12em] text-white/28">
         Clique para alterar
@@ -286,7 +286,7 @@ export function AdminUserDetailTabs({
                 <div className="overflow-x-auto">
                   <table className="min-w-[860px] w-full text-left">
                     <thead className="border-b border-white/8 bg-white/2.5">
-                      <tr className="text-[11px] font-black uppercase tracking-[0.16em] text-white/35">
+                      <tr className="text-[11px] font-black uppercase tracking-[0.16em] text-white/80">
                         <th className="px-4 py-4">Usuário</th>
                         <th className="px-4 py-4">CPF</th>
                         <th className="px-4 py-4">Cotas</th>
@@ -299,17 +299,17 @@ export function AdminUserDetailTabs({
                           <td className="px-4 py-4">
                             <Link href={`/admin/users/${referred.id}`} className="block">
                               <p className="font-black text-white group-hover:text-primary">{referred.name ?? "Sem nome"}</p>
-                              <p className="mt-1 text-white/35">{referred.email}</p>
+                              <p className="mt-1 text-white/80">{referred.email}</p>
                             </Link>
                           </td>
-                          <td className="px-4 py-4 font-mono text-white/45">{maskCpf(referred.cpf)}</td>
+                          <td className="px-4 py-4 font-mono text-white/80">{maskCpf(referred.cpf)}</td>
                           <td className="px-4 py-4">
                             <p className="font-black text-white">{referred.ticketsCount.toLocaleString("pt-BR")}</p>
-                            <p className="mt-1 text-[11px] font-bold text-white/35">
+                            <p className="mt-1 text-[11px] font-bold text-white/80">
                               {referred.paidTicketsCount.toLocaleString("pt-BR")} pagas
                             </p>
                           </td>
-                          <td className="px-4 py-4 text-white/45">{formatDate(referred.createdAt)}</td>
+                          <td className="px-4 py-4 text-white/80">{formatDate(referred.createdAt)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -351,7 +351,7 @@ export function AdminUserDetailTabs({
 
               <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px]">
                 <label className="block">
-                  <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-white/35">
+                  <span className="mb-2 block text-[12px] font-black uppercase tracking-[0.18em] text-white/80">
                     Modelo do afiliado
                   </span>
                   <select
@@ -366,7 +366,7 @@ export function AdminUserDetailTabs({
                 </label>
 
                 <label className="block">
-                  <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-white/35">
+                  <span className="mb-2 block text-[12px] font-black uppercase tracking-[0.18em] text-white/80">
                     CPA (%)
                   </span>
                   <input
@@ -385,9 +385,9 @@ export function AdminUserDetailTabs({
                   {influencerError ? <p className="text-[12px] font-bold text-red-300">{influencerError}</p> : null}
                   {influencerMessage ? <p className="text-[12px] font-bold text-primary">{influencerMessage}</p> : null}
                   {!canManageInfluencer ? (
-                    <p className="text-[12px] font-bold text-white/35">Apenas super admin pode alterar o modo influencer.</p>
+                    <p className="text-[12px] font-bold text-white/80">Apenas super admin pode alterar o modo influencer.</p>
                   ) : (
-                    <p className="text-[12px] font-bold text-white/35">
+                    <p className="text-[12px] font-bold text-white/80">
                       Requer 2FA ativo e verificação em /admin/2fa neste navegador para salvar.
                     </p>
                   )}
@@ -439,7 +439,7 @@ export function AdminUserDetailTabs({
               <div className="overflow-x-auto">
                 <table className="min-w-[840px] w-full text-left">
                   <thead className="border-b border-white/8 bg-white/2.5">
-                    <tr className="text-[11px] font-black uppercase tracking-[0.16em] text-white/35">
+                    <tr className="text-[11px] font-black uppercase tracking-[0.16em] text-white/80">
                       <th className="px-4 py-4">Cota</th>
                       <th className="px-4 py-4">Tipo</th>
                       <th className="px-4 py-4">Status</th>
@@ -452,7 +452,7 @@ export function AdminUserDetailTabs({
                     {visibleTickets.map((ticket) => (
                       <tr key={ticket.id} className="group text-[13px] text-white/72 transition-colors hover:bg-white/2.5">
                         <td className="px-4 py-4">
-                          <Link href={`/admin/cotas/${ticket.id}`} className="block font-mono text-[11px] text-white/45 group-hover:text-primary">
+                          <Link href={`/admin/cotas/${ticket.id}`} className="block font-mono text-[11px] text-white/80 group-hover:text-primary">
                             {ticket.id}
                           </Link>
                         </td>
@@ -469,10 +469,10 @@ export function AdminUserDetailTabs({
                         <td className="px-4 py-4 font-black text-white">
                           <Link href={`/admin/cotas/${ticket.id}`} className="block">{formatBRL(ticket.totalAmountCents)}</Link>
                         </td>
-                        <td className="px-4 py-4 text-white/45">
+                        <td className="px-4 py-4 text-white/80">
                           <Link href={`/admin/cotas/${ticket.id}`} className="block">{ticket.predictionsCount}</Link>
                         </td>
-                        <td className="px-4 py-4 text-white/45">
+                        <td className="px-4 py-4 text-white/80">
                           <Link href={`/admin/cotas/${ticket.id}`} className="block">{formatDate(ticket.createdAt)}</Link>
                         </td>
                       </tr>
@@ -510,7 +510,7 @@ export function AdminUserDetailTabs({
               <strong className="text-white">{ROLE_LABELS[selectedRole]}</strong>. Essa ação só é permitida para super admin.
             </p>
             <label className="mt-5 block">
-              <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-white/35">
+              <span className="mb-2 block text-[12px] font-black uppercase tracking-[0.18em] text-white/80">
                 Nova permissão
               </span>
               <select

@@ -21,7 +21,7 @@ export default function AdminSettingsPage() {
       <section className="grid gap-3 md:grid-cols-2">
         {items.map((item) => (
           <article key={item.label} className="rounded-[16px] border border-white/8 bg-[#101010] p-5">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/35">{item.label}</p>
+            <p className="text-[12px] font-black uppercase tracking-[0.18em] text-white/80">{item.label}</p>
             <p className="mt-3 wrap-break-word text-[14px] font-bold text-white/82">{item.value}</p>
           </article>
         ))}

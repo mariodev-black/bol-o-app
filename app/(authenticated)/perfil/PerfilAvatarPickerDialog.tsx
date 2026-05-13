@@ -203,7 +203,7 @@ export function PerfilAvatarPickerDialog({
             className={`min-h-10 flex-1 rounded-t-lg py-2 text-[11px] font-black uppercase tracking-wide transition-colors ${
               tab === "presets"
                 ? "border-b-2 border-primary text-primary"
-                : "border-b-2 border-transparent text-white/45 hover:text-white/70"
+                : "border-b-2 border-transparent text-white/80 hover:text-white/70"
             }`}
           >
             Oficiais
@@ -215,7 +215,7 @@ export function PerfilAvatarPickerDialog({
             className={`min-h-10 flex-1 rounded-t-lg py-2 text-[11px] font-black uppercase tracking-wide transition-colors ${
               tab === "foto"
                 ? "border-b-2 border-primary text-primary"
-                : "border-b-2 border-transparent text-white/45 hover:text-white/70"
+                : "border-b-2 border-transparent text-white/80 hover:text-white/70"
             }`}
           >
             Minha foto
@@ -289,7 +289,7 @@ export function PerfilAvatarPickerDialog({
                       />
                     </div>
                   ) : (
-                    <div className="flex size-32 items-center justify-center rounded-2xl border border-dashed border-white/20 bg-white/3 text-white/35 transition-colors group-hover:border-primary/35 group-hover:bg-primary/5 group-hover:text-primary/50">
+                    <div className="flex size-32 items-center justify-center rounded-2xl border border-dashed border-white/20 bg-white/3 text-white/80 transition-colors group-hover:border-primary/35 group-hover:bg-primary/5 group-hover:text-primary/50">
                       <ImagePlus className="size-10" strokeWidth={1.5} />
                     </div>
                   )}

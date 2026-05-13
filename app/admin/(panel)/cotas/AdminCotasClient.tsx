@@ -52,7 +52,7 @@ export function AdminCotasClient({ tickets }: { tickets: AdminTicketListItem[] }
       <div className="overflow-x-auto">
         <table className="min-w-[1240px] w-full table-fixed text-left">
           <thead className="border-b border-white/8 bg-white/2.5">
-            <tr className="text-[11px] font-black uppercase tracking-[0.16em] text-white/35">
+            <tr className="text-[11px] font-black uppercase tracking-[0.16em] text-white/80">
               <th className="w-[110px] px-4 py-4">Cota</th>
               <th className="w-[210px] px-4 py-4">Usuário</th>
               <th className="w-[110px] px-4 py-4">Tipo</th>
@@ -72,13 +72,13 @@ export function AdminCotasClient({ tickets }: { tickets: AdminTicketListItem[] }
                 <td className="px-4 py-4">
                   <Link href={`/admin/cotas/${ticket.id}`} className="block">
                     <p className="font-mono text-[12px] font-black text-white group-hover:text-primary">#{shortId(ticket.id)}</p>
-                    {ticket.externalRef ? <p className="mt-1 truncate font-mono text-[10px] text-white/25">{ticket.externalRef}</p> : null}
+                    {ticket.externalRef ? <p className="mt-1 truncate font-mono text-[12px] text-white/25">{ticket.externalRef}</p> : null}
                   </Link>
                 </td>
                 <td className="px-4 py-4">
                   <Link href={`/admin/cotas/${ticket.id}`} className="block">
                     <p className="truncate font-bold text-white group-hover:text-primary">{ticket.userName ?? "Sem nome"}</p>
-                    <p className="mt-1 truncate text-white/35">{ticket.userEmail}</p>
+                    <p className="mt-1 truncate text-white/80">{ticket.userEmail}</p>
                   </Link>
                 </td>
                 <td className="px-4 py-4 font-bold uppercase text-white/58">
@@ -100,7 +100,7 @@ export function AdminCotasClient({ tickets }: { tickets: AdminTicketListItem[] }
                 <td className="px-4 py-4">
                   <Link href={`/admin/cotas/${ticket.id}`} className="block">
                     <p className="text-[18px] font-black leading-none text-primary">{ticket.scorePoints.toLocaleString("pt-BR")}</p>
-                    <p className="mt-1 text-[11px] font-bold text-white/35">pontos</p>
+                    <p className="mt-1 text-[11px] font-bold text-white/80">pontos</p>
                   </Link>
                 </td>
                 <td className="px-4 py-4 text-center">
@@ -115,7 +115,7 @@ export function AdminCotasClient({ tickets }: { tickets: AdminTicketListItem[] }
                     <p className="font-black text-white">
                       {ticket.predictionsCount}/{ticket.totalMatchesCount}
                     </p>
-                    <p className="mt-1 text-[11px] text-white/35">enviados</p>
+                    <p className="mt-1 text-[11px] text-white/80">enviados</p>
                   </Link>
                 </td>
                 <td className="px-4 py-4 text-center">
@@ -130,7 +130,7 @@ export function AdminCotasClient({ tickets }: { tickets: AdminTicketListItem[] }
                     </span>
                   </Link>
                 </td>
-                <td className="px-4 py-4 text-white/45">
+                <td className="px-4 py-4 text-white/80">
                   <Link href={`/admin/cotas/${ticket.id}`} className="block">
                     {new Intl.DateTimeFormat("pt-BR").format(new Date(ticket.createdAt))}
                   </Link>

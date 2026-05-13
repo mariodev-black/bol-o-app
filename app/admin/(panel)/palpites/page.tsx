@@ -19,7 +19,7 @@ export default async function AdminPalpitesPage() {
       <div className="grid gap-4 md:grid-cols-3">
         {cards.map((card) => (
           <article key={card.label} className="rounded-[18px] border border-white/8 bg-[#101010] p-5">
-            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/35">{card.label}</p>
+            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/80">{card.label}</p>
             <p className="mt-4 text-[30px] font-black leading-none tracking-[-0.05em] text-primary">{card.value}</p>
           </article>
         ))}

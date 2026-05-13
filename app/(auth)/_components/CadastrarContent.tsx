@@ -532,7 +532,7 @@ export function CadastrarContent() {
   return (
     <form onSubmit={handleSubmit} noValidate className="w-full py-8 lg:py-0">
       <div className="mb-6 flex items-center justify-between">
-        <Link href={loginHref} className="inline-flex items-center gap-1.5 text-[11px] font-bold text-white/35 transition-colors hover:text-white/70">
+        <Link href={loginHref} className="inline-flex items-center gap-1.5 text-[11px] font-bold text-white/80 transition-colors hover:text-white/70">
           <ArrowLeft className="h-3.5 w-3.5" />
           Ir para login
         </Link>
@@ -571,7 +571,7 @@ export function CadastrarContent() {
         {step === 1 && (
           <div className="flex flex-col gap-[18px]">
             <div className="flex flex-col gap-[10px]">
-              <label className="text-[10px] font-black uppercase tracking-[0.14em] text-white/80">Nome completo</label>
+              <label className="text-[12px] font-black uppercase tracking-[0.14em] text-white/80">Nome completo</label>
               <div className="relative">
                 <User className="pointer-events-none absolute left-[17px] top-1/2 h-[15px] w-[15px] -translate-y-1/2 text-white/32" />
                 <input
@@ -591,7 +591,7 @@ export function CadastrarContent() {
             </div>
 
             <div ref={emailRef} className="relative flex flex-col gap-[10px]">
-              <label className="text-[10px] font-black uppercase tracking-[0.14em] text-white/80">E-mail</label>
+              <label className="text-[12px] font-black uppercase tracking-[0.14em] text-white/80">E-mail</label>
               <div className="relative">
                 <Mail className="pointer-events-none absolute left-[17px] top-1/2 h-[15px] w-[15px] -translate-y-1/2 text-white/32" />
                 <input
@@ -626,7 +626,7 @@ export function CadastrarContent() {
             </div>
 
             <div className="flex flex-col gap-[10px]">
-              <label className="text-[10px] font-black uppercase tracking-[0.14em] text-white/80">CPF</label>
+              <label className="text-[12px] font-black uppercase tracking-[0.14em] text-white/80">CPF</label>
               <div className="relative">
                 <FileText className="pointer-events-none absolute left-[17px] top-1/2 h-[15px] w-[15px] -translate-y-1/2 text-white/32" />
                 <input
@@ -644,7 +644,7 @@ export function CadastrarContent() {
             </div>
 
             <div className="flex flex-col gap-[10px]">
-              <label className="text-[10px] font-black uppercase tracking-[0.14em] text-white/80">Telefone</label>
+              <label className="text-[12px] font-black uppercase tracking-[0.14em] text-white/80">Telefone</label>
               <div className="flex w-full gap-2">
                 <CountrySelector selected={country} onChange={handleCountryChange} />
                 <div className="relative min-w-0 flex-1">
@@ -666,7 +666,7 @@ export function CadastrarContent() {
 
             <div className="flex items-center gap-3">
               <div className="h-px flex-1 bg-white/7" />
-              <span className="text-[10px] font-semibold uppercase text-white/18">ou</span>
+              <span className="text-[12px] font-semibold uppercase text-white/18">ou</span>
               <div className="h-px flex-1 bg-white/7" />
             </div>
 
@@ -690,7 +690,7 @@ export function CadastrarContent() {
         {step === 2 && (
           <div className="flex flex-col gap-[18px]">
             <div className="flex flex-col gap-[10px]">
-              <label className="text-[10px] font-black uppercase tracking-[0.14em] text-white/80">Senha</label>
+              <label className="text-[12px] font-black uppercase tracking-[0.14em] text-white/80">Senha</label>
               <div className="relative">
                 <Lock className="pointer-events-none absolute left-[17px] top-1/2 h-[15px] w-[15px] -translate-y-1/2 text-white/32" />
                 <input
@@ -718,7 +718,7 @@ export function CadastrarContent() {
             </div>
 
             <div className="flex flex-col gap-[10px]">
-              <label className="text-[10px] font-black uppercase tracking-[0.14em] text-white/80">Confirmar senha</label>
+              <label className="text-[12px] font-black uppercase tracking-[0.14em] text-white/80">Confirmar senha</label>
               <div className="relative">
                 <Lock className="pointer-events-none absolute left-[17px] top-1/2 h-[15px] w-[15px] -translate-y-1/2 text-white/32" />
                 <input
@@ -752,7 +752,7 @@ export function CadastrarContent() {
               <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-[5px] border transition-colors ${accepted ? "border-primary bg-primary/15" : "border-white/20 bg-transparent"}`}>
                 {accepted && <Check className="h-3.5 w-3.5 text-primary" strokeWidth={3} />}
               </span>
-              <span className="text-[12px] font-medium leading-relaxed text-white/45">
+              <span className="text-[12px] font-medium leading-relaxed text-white/80">
                 Confirmo que tenho mais de 18 anos e aceito os{" "}
                 <Link href="/termos" className="font-bold text-[#D7FF59] underline" onClick={(e) => e.stopPropagation()}>Termos e Condições</Link>{" "}
                 e a{" "}
@@ -800,7 +800,7 @@ export function CadastrarContent() {
         )}
       </div>
 
-      <p className="mt-[18px] text-center text-[14px] font-medium text-white/35">
+      <p className="mt-[18px] text-center text-[14px] font-medium text-white/80">
         Já tem uma conta?{" "}
         <Link href={loginHref} className="font-black text-primary hover:underline">Entrar agora</Link>
       </p>

@@ -112,7 +112,7 @@ function AnimatedPremiacaoBars() {
               transitionDelay: visible ? `${70 + i * 110}ms` : "0ms",
             }}
           />
-          <span className="text-[10px] font-bold text-white sm:text-xs">
+          <span className="text-[12px] font-bold text-white sm:text-xs">
             R$ 500k
           </span>
         </div>

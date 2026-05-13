@@ -46,7 +46,7 @@ export function AdminLoginClient() {
           <span className="mx-auto flex h-13 w-13 items-center justify-center rounded-[16px] border border-primary/25 bg-primary/10 text-primary shadow-[0_0_30px_rgba(177,235,11,0.14)]">
             <ShieldCheck className="h-6 w-6" />
           </span>
-          <p className="mt-5 text-[10px] font-black uppercase tracking-[0.24em] text-primary">Painel administrativo</p>
+          <p className="mt-5 text-[12px] font-black uppercase tracking-[0.24em] text-primary">Painel administrativo</p>
           <h1 className="mt-3 text-[30px] font-black tracking-[-0.06em] text-white">Login Admin</h1>
           <p className="mt-2 text-[13px] font-semibold text-white/38">
             Acesso exclusivo para administradores autorizados.
@@ -54,7 +54,7 @@ export function AdminLoginClient() {
         </div>
 
         <label className="block">
-          <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-white/35">E-mail ou CPF</span>
+          <span className="mb-2 block text-[12px] font-black uppercase tracking-[0.18em] text-white/80">E-mail ou CPF</span>
           <input
             value={identifier}
             onChange={(event) => setIdentifier(event.target.value)}
@@ -66,7 +66,7 @@ export function AdminLoginClient() {
         </label>
 
         <label className="mt-4 block">
-          <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-white/35">Senha</span>
+          <span className="mb-2 block text-[12px] font-black uppercase tracking-[0.18em] text-white/80">Senha</span>
           <div className="relative">
             <input
               type={showPassword ? "text" : "password"}

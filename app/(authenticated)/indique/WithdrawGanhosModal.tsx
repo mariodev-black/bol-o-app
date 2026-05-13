@@ -131,7 +131,7 @@ export function WithdrawGanhosModal({ open, onOpenChange, summary, summaryLoadin
       >
         <div className="flex items-start justify-between gap-3 mb-4">
           <div>
-            <p className="text-[11px] font-black uppercase tracking-wider text-white/35">Saque</p>
+            <p className="text-[11px] font-black uppercase tracking-wider text-white/80">Saque</p>
             <h2 id="withdraw-modal-title" className="text-xl font-black text-white tracking-tight">
               Solicitar resgate
             </h2>
@@ -156,7 +156,7 @@ export function WithdrawGanhosModal({ open, onOpenChange, summary, summaryLoadin
         ) : (
           <>
             <div className="rounded-xl border border-white/8 p-4 mb-4 space-y-3">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-white/35">Origem do saque</p>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-white/80">Origem do saque</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <button
                   type="button"
@@ -168,7 +168,7 @@ export function WithdrawGanhosModal({ open, onOpenChange, summary, summaryLoadin
                   <p className="text-[12px] font-bold text-white">Saldo afiliado</p>
                   <p className="text-lg font-black text-primary mt-0.5">{formatBRLFromCents(affiliateAvail)}</p>
                   {pendingAffiliate > 0 ? (
-                    <p className="text-[11px] text-white/35 mt-1">Em análise: {formatBRLFromCents(pendingAffiliate)}</p>
+                    <p className="text-[11px] text-white/80 mt-1">Em análise: {formatBRLFromCents(pendingAffiliate)}</p>
                   ) : null}
                 </button>
                 <button
@@ -181,7 +181,7 @@ export function WithdrawGanhosModal({ open, onOpenChange, summary, summaryLoadin
                   <p className="text-[12px] font-bold text-white">Saldo conta (bolão / prêmios)</p>
                   <p className="text-lg font-black text-emerald-300 mt-0.5">{formatBRLFromCents(walletAvail)}</p>
                   {pendingWallet > 0 ? (
-                    <p className="text-[11px] text-white/35 mt-1">Em análise: {formatBRLFromCents(pendingWallet)}</p>
+                    <p className="text-[11px] text-white/80 mt-1">Em análise: {formatBRLFromCents(pendingWallet)}</p>
                   ) : null}
                 </button>
               </div>
@@ -238,7 +238,7 @@ export function WithdrawGanhosModal({ open, onOpenChange, summary, summaryLoadin
                 Solicitar saque
               </button>
               {available < minCents ? (
-                <p className="text-[12px] text-white/35 text-center">Saldo desta origem abaixo do mínimo.</p>
+                <p className="text-[12px] text-white/80 text-center">Saldo desta origem abaixo do mínimo.</p>
               ) : null}
             </form>
           </>

@@ -82,7 +82,7 @@ export function AdminTransactionsClient({
       <div className="overflow-x-auto">
         <table className="min-w-[1180px] w-full text-left">
           <thead className="border-b border-white/8 bg-white/2.5">
-            <tr className="text-[11px] font-black uppercase tracking-[0.16em] text-white/35">
+            <tr className="text-[11px] font-black uppercase tracking-[0.16em] text-white/80">
               <th className="px-4 py-4">Transação</th>
               <th className="px-4 py-4">Usuário</th>
               <th className="px-4 py-4">Cota</th>
@@ -103,7 +103,7 @@ export function AdminTransactionsClient({
                     {transaction.id}
                   </p>
                   {transaction.providerTransactionId ? (
-                    <p className="mt-1 font-mono text-[10px] text-white/25">
+                    <p className="mt-1 font-mono text-[12px] text-white/25">
                       {transaction.providerTransactionId}
                     </p>
                   ) : null}
@@ -116,7 +116,7 @@ export function AdminTransactionsClient({
                     <p className="font-bold text-white hover:text-primary">
                       {transaction.userName ?? "Sem nome"}
                     </p>
-                    <p className="mt-1 text-white/35">
+                    <p className="mt-1 text-white/80">
                       {transaction.userEmail}
                     </p>
                   </Link>
@@ -127,10 +127,10 @@ export function AdminTransactionsClient({
                       href={`/admin/cotas/${transaction.ticketId}`}
                       className="block"
                     >
-                      <p className="font-mono text-[11px] text-white/45 hover:text-primary">
+                      <p className="font-mono text-[11px] text-white/80 hover:text-primary">
                         {transaction.ticketId}
                       </p>
-                      <p className="mt-1 font-bold uppercase text-white/35">
+                      <p className="mt-1 font-bold uppercase text-white/80">
                         {formatAdminTicketType(transaction.ticketType)}
                       </p>
                     </Link>
@@ -153,7 +153,7 @@ export function AdminTransactionsClient({
                     {transaction.paymentMethod}
                   </p>{" "}
                 </td>
-                <td className="px-4 py-4 text-white/45">
+                <td className="px-4 py-4 text-white/80">
                   {formatDate(transaction.createdAt)}
                 </td>
               </tr>

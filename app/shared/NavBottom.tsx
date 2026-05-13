@@ -393,7 +393,7 @@ export function NavBottom() {
                 <span
                   className={[
                     "block max-w-full truncate text-center leading-none",
-                    active ? "text-[10px] font-black" : "text-[10px] font-semibold",
+                    active ? "text-[12px] font-black" : "text-[12px] font-semibold",
                   ].join(" ")}
                   style={{ color: active ? "#B1EB0B" : "#929292" }}
                 >

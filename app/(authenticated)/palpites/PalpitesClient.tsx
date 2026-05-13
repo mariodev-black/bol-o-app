@@ -1644,7 +1644,7 @@ function RankingView({
           border: "1px solid rgba(80,120,40,0.25)",
         }}
       >
-        <p className="text-[10px] text-[#FFFFFF8C] font-bold tracking-widest uppercase mb-3">
+        <p className="text-[12px] text-[#FFFFFF8C] font-bold tracking-widest uppercase mb-3">
           Sua posição atual
         </p>
         <div className="flex items-center justify-between">
@@ -1678,7 +1678,7 @@ function RankingView({
             >
               {MEU.pts}
             </p>
-            <p className="text-[10px] mt-0.5 text-[#FFFFFF59]">pontos</p>
+            <p className="text-[12px] mt-0.5 text-[#FFFFFF59]">pontos</p>
           </div>
         </div>
       </div>
@@ -1788,7 +1788,7 @@ function RankingView({
                 {r.pts}
               </span>
               <span
-                className="text-[10px]"
+                className="text-[12px]"
                 style={{ color: "rgba(255,255,255,0.2)" }}
               >
                 pts
@@ -1861,7 +1861,7 @@ function TicketBarcodeMini() {
       {w.map((width, i) => (
         <span
           key={i}
-          className="rounded-[1px] bg-white/35"
+          className="rounded-[1px] bg-white/80"
           style={{ width, height: i % 3 === 0 ? 20 : i % 2 === 0 ? 16 : 12 }}
         />
       ))}
@@ -1935,7 +1935,7 @@ function TicketResumoView({
       }}
     >
       <div className="relative z-1 pl-[18px] pr-4 pt-4 pb-3 sm:pr-5 flex items-start justify-between gap-3">
-        <p className="text-[11px] uppercase tracking-[0.14em] font-bold text-white/45 font-mono leading-snug">
+        <p className="text-[11px] uppercase tracking-[0.14em] font-bold text-white/80 font-mono leading-snug">
           {resultMode ? "Resumo do ticket (resultado)" : "Resumo do ticket"}
         </p>
         <span
@@ -2083,12 +2083,12 @@ function TicketResumoView({
               background: "rgba(0,0,0,0.15)",
             }}
           >
-            <p className="text-[10px] uppercase tracking-[0.14em] font-bold text-white/40 mb-2 font-mono">
+            <p className="text-[12px] uppercase tracking-[0.14em] font-bold text-white/40 mb-2 font-mono">
               Informações
             </p>
             <ul className="space-y-2.5 text-white/75">
               <li className="flex justify-between gap-3">
-                <span className="text-white/45 shrink-0">Bolão</span>
+                <span className="text-white/80 shrink-0">Bolão</span>
                 <span className="text-right font-medium text-white/90">
                   {bolaoType === "principal"
                     ? "Copa do Mundo 2026 — jogos do dia (Copa inteira)"
@@ -2096,7 +2096,7 @@ function TicketResumoView({
                 </span>
               </li>
               <li className="flex justify-between gap-3">
-                <span className="text-white/45 shrink-0">Regra</span>
+                <span className="text-white/80 shrink-0">Regra</span>
                 <span className="text-right font-medium text-white/90">
                   {bolaoType === "principal"
                     ? "Ticket válido durante toda a Copa: todo dia você palpita em todos os jogos do dia."
@@ -2104,7 +2104,7 @@ function TicketResumoView({
                 </span>
               </li>
               <li className="flex justify-between gap-3">
-                <span className="text-white/45 shrink-0">Status do ticket</span>
+                <span className="text-white/80 shrink-0">Status do ticket</span>
                 <span className="text-right font-medium text-white/90 font-mono">
                   {resultMode ? "Resultado disponível" : "Em andamento"}
                 </span>
@@ -2117,7 +2117,7 @@ function TicketResumoView({
               <HistoricoSkeletonRows />
             ) : historico.length === 0 ? (
               <div
-                className="rounded-lg px-4 py-4 text-[12px] text-white/45 font-mono"
+                className="rounded-lg px-4 py-4 text-[12px] text-white/80 font-mono"
                 style={{
                   border: "1px dashed rgba(255,255,255,0.14)",
                   background: "rgba(0,0,0,0.15)",
@@ -2153,7 +2153,7 @@ function TicketResumoView({
                             ) : null}
                             <p className="text-[13px] font-bold text-white leading-snug">
                               {item.mandante}{" "}
-                              <span className="text-white/35 font-normal">
+                              <span className="text-white/80 font-normal">
                                 vs
                               </span>{" "}
                               {item.visitante}
@@ -2174,7 +2174,7 @@ function TicketResumoView({
                           </p>
                         </div>
                         <span
-                          className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full shrink-0"
+                          className="text-[12px] font-bold uppercase px-2 py-0.5 rounded-full shrink-0"
                           style={{
                             background:
                               item.resultadoCasa != null &&
@@ -2254,7 +2254,7 @@ function TicketResumoView({
                         </div>
                         <div className="sm:ml-auto flex items-center gap-2">
                           <span
-                            className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                            className="text-[12px] font-bold px-2 py-0.5 rounded-full"
                             style={{
                               background:
                                 item.pontos > 0
@@ -2351,7 +2351,7 @@ function DesktopSidebar({
               {val}
             </span>
             <span
-              className="text-[10px]"
+              className="text-[12px]"
               style={{ color: "rgba(255,255,255,0.3)" }}
             >
               {label}
@@ -2436,7 +2436,7 @@ function DesktopSidebar({
           >
             {/* Posição */}
             <span
-              className="w-5 h-5 rounded-[5px] flex items-center justify-center text-[10px] font-bold shrink-0"
+              className="w-5 h-5 rounded-[5px] flex items-center justify-center text-[12px] font-bold shrink-0"
               style={{
                 background:
                   i === 0 ? "rgba(177,235,11,0.14)" : "rgba(255,255,255,0.06)",
@@ -2526,7 +2526,7 @@ function DesktopSidebar({
                 {r.nome}
                 {r.isMe && (
                   <span
-                    className="text-[10px] font-normal ml-0.5"
+                    className="text-[12px] font-normal ml-0.5"
                     style={{ color: "rgba(255,255,255,0.3)" }}
                   >
                     (você)
@@ -2534,7 +2534,7 @@ function DesktopSidebar({
                 )}
               </p>
               <p
-                className="text-[10px]"
+                className="text-[12px]"
                 style={{ color: "rgba(255,255,255,0.3)" }}
               >
                 {r.acertos} acertos
@@ -3764,7 +3764,7 @@ function PalpitesPageContent({
                   <summary className="cursor-pointer font-black uppercase text-primary">
                     Debug diário
                   </summary>
-                  <pre className="mt-2 max-h-56 overflow-auto whitespace-pre-wrap wrap-break-word text-[10px] leading-relaxed">
+                  <pre className="mt-2 max-h-56 overflow-auto whitespace-pre-wrap wrap-break-word text-[12px] leading-relaxed">
                     {JSON.stringify(debugInfo, null, 2)}
                   </pre>
                 </details>

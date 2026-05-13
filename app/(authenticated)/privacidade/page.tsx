@@ -419,7 +419,7 @@ export default function PrivacidadePage() {
       <div className="relative z-10 max-w-7xl mx-auto px-4 pt-6 lg:pt-10 lg:px-8">
         {/* Mobile header */}
         <div className="lg:hidden text-center mb-6">
-          <p className="text-[10px] font-extrabold uppercase tracking-[0.22em] mb-2" style={{ color: GOLD_MID }}>
+          <p className="text-[12px] font-extrabold uppercase tracking-[0.22em] mb-2" style={{ color: GOLD_MID }}>
             Bolão do Milhão
           </p>
           <h1 className="text-[26px] font-black text-white tracking-tight leading-tight">Política de Privacidade</h1>
@@ -467,7 +467,7 @@ export default function PrivacidadePage() {
               style={{ background: CARD, border: "1px solid rgba(255,255,255,0.06)" }}
             >
               <p
-                className="text-[10px] font-bold uppercase tracking-[0.18em] mb-3.5"
+                className="text-[12px] font-bold uppercase tracking-[0.18em] mb-3.5"
                 style={{ color: TEXT_INDEX_INACTIVE }}
               >
                 ÍNDICE
@@ -548,7 +548,7 @@ export default function PrivacidadePage() {
                 </p>
               </div>
               <span
-                className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase"
+                className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[12px] font-bold uppercase"
                 style={{
                   background: "rgba(177, 235, 11, 0.15)",
                   border: "1px solid rgba(177, 235, 11, 0.35)",

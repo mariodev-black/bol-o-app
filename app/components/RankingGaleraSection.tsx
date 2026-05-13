@@ -160,7 +160,7 @@ function PointsBadge({
           : "border-black/40 bg-[#030806]/95 shadow-inner"
       }`}
     >
-      <span className="min-w-[3.25rem] text-right text-[10px] font-bold tabular-nums tracking-tight text-white sm:min-w-[3.5rem] sm:text-xs">
+      <span className="min-w-[3.25rem] text-right text-[12px] font-bold tabular-nums tracking-tight text-white sm:min-w-[3.5rem] sm:text-xs">
         {shown}
         <span className="text-[0.7em] font-semibold text-white/80"> pts</span>
       </span>

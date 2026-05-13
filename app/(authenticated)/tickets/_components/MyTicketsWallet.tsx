@@ -60,7 +60,7 @@ export function MyTicketsWallet({ refreshKey }: MyTicketsWalletProps) {
               <div className="min-w-0 flex-1">
                 <p className="font-mono text-[12px] text-white/40 truncate">{t.id}</p>
                 <p className="text-[15px] font-semibold text-white mt-0.5">Ativo na temporada</p>
-                <p className="text-[13px] text-white/45 mt-0.5">Use em qualquer rodada da Copa no bolão principal.</p>
+                <p className="text-[13px] text-white/80 mt-0.5">Use em qualquer rodada da Copa no bolão principal.</p>
               </div>
               <Link
                 href={palpitesUrlPrincipal(t.id)}
@@ -146,7 +146,7 @@ function DiarioTicketRow({
             <CalendarDays className="w-4 h-4 text-sky-300/90" />
             Dia: {ticket.playDate}
           </p>
-          <p className="text-[13px] text-white/45 mt-0.5">Ticket amarrado a esta data — palpites contam só para os jogos do dia.</p>
+          <p className="text-[13px] text-white/80 mt-0.5">Ticket amarrado a esta data — palpites contam só para os jogos do dia.</p>
         </div>
         <Link
           href={palpitesUrlDiario(ticket.id)}
@@ -169,7 +169,7 @@ function DiarioTicketRow({
       <div className="min-w-0 flex-1 space-y-2">
         <p className="font-mono text-[12px] text-white/40 truncate">{ticket.id}</p>
         <p className="text-[15px] font-semibold text-white">Ainda não amarrado a um dia</p>
-        <p className="text-[13px] text-white/45 leading-relaxed">
+        <p className="text-[13px] text-white/80 leading-relaxed">
           O ticket do dia só entra em jogo quando você escolhe a data e vai aos palpites. Um ticket = um dia de rodada.
         </p>
         <div className="flex flex-col sm:flex-row sm:items-end gap-2 pt-1">

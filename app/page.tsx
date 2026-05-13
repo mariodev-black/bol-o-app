@@ -292,7 +292,7 @@ function UpcomingMatchCard({
           <p className="truncate text-[8px] font-black uppercase text-white/55">
             {matchDayLabel(match)}
           </p>
-          <p className="text-[10px] font-black leading-none text-primary">
+          <p className="text-[12px] font-black leading-none text-primary">
             {match.hora_realizacao || "--:--"}
           </p>
         </div>
@@ -350,12 +350,12 @@ function QuickActionCard({
         <span className="flex size-8 shrink-0 items-center justify-center rounded-[9px] border border-primary/25 bg-primary/10">
           <Icon className="size-4 text-primary" strokeWidth={2.2} />
         </span>
-        <ChevronRight className="size-3.5 text-white/35 transition-transform group-active:translate-x-0.5" />
+        <ChevronRight className="size-3.5 text-white/80 transition-transform group-active:translate-x-0.5" />
       </div>
-      <p className="mt-2 truncate text-[10px] font-black uppercase leading-tight text-white">
+      <p className="mt-2 truncate text-[12px] font-black uppercase leading-tight text-white">
         {title}
       </p>
-      <p className="mt-1 line-clamp-2 text-[8px] font-medium leading-snug text-white/45">
+      <p className="mt-1 line-clamp-2 text-[8px] font-medium leading-snug text-white/80">
         {desc}
       </p>
     </Link>
@@ -443,7 +443,7 @@ function LoggedInHome() {
               </h2>
               <Link
                 href="/palpites"
-                className="inline-flex shrink-0 items-center gap-1 text-[10px] font-bold text-primary"
+                className="inline-flex shrink-0 items-center gap-1 text-[12px] font-bold text-primary"
               >
                 Ver todos <ChevronRight className="size-3" strokeWidth={2.5} />
               </Link>
@@ -474,13 +474,13 @@ function LoggedInHome() {
                 <p className="mt-2 text-[13px] font-black uppercase text-white">
                   Jogos em atualização
                 </p>
-                <p className="mx-auto mt-1 max-w-[260px] text-[10px] font-medium leading-snug text-white/55">
+                <p className="mx-auto mt-1 max-w-[260px] text-[12px] font-medium leading-snug text-white/55">
                   Assim que a tabela liberar novas partidas, elas aparecem aqui
                   para você palpitar.
                 </p>
                 <Link
                   href="/palpites"
-                  className="mt-3 inline-flex h-9 items-center gap-2 rounded-[10px] bg-primary px-3 text-[10px] font-black uppercase text-[#0E141B]"
+                  className="mt-3 inline-flex h-9 items-center gap-2 rounded-[10px] bg-primary px-3 text-[12px] font-black uppercase text-[#0E141B]"
                 >
                   Ir para palpites{" "}
                   <ArrowRight className="size-3.5" strokeWidth={2.8} />
@@ -514,7 +514,7 @@ function LoggedInHome() {
                 <h2 className="text-[13px] font-black uppercase leading-tight text-white">
                   Próximo passo: enviar palpites
                 </h2>
-                <p className="mt-1 text-[10px] font-medium leading-snug text-white/55">
+                <p className="mt-1 text-[12px] font-medium leading-snug text-white/55">
                   Confira os jogos disponíveis e não perca o prazo de cada
                   partida.
                 </p>

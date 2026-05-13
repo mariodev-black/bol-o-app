@@ -435,7 +435,7 @@ export function TicketCheckoutFlow({
                   />
                 </div>
                 <div className="min-w-0 flex-1 py-0.5">
-                  <p className="text-[10px] font-black uppercase leading-tight tracking-wide text-white sm:text-[11px]">
+                  <p className="text-[12px] font-black uppercase leading-tight tracking-wide text-white sm:text-[11px]">
                     ACIMA DE 2 TICKETS
                   </p>
                   <p
@@ -444,7 +444,7 @@ export function TicketCheckoutFlow({
                   >
                     DESCONTO PROGRESSIVO!
                   </p>
-                  <p className="mt-1.5 text-[10px] font-normal leading-snug text-white sm:text-[11px]">
+                  <p className="mt-1.5 text-[12px] font-normal leading-snug text-white sm:text-[11px]">
                     Quanto mais tickets, maior a sua chance de ganhar!
                 </p>
               </div>
@@ -452,7 +452,7 @@ export function TicketCheckoutFlow({
 
               {/* Direita: ATÉ / 25% / badge */}
               <div className="flex w-[80px] shrink-0 flex-col items-center justify-center self-center pl-3 text-center sm:w-[84px]">
-                <p className="text-[10px] font-black uppercase tracking-wide text-white sm:text-[11px]">ATÉ</p>
+                <p className="text-[12px] font-black uppercase tracking-wide text-white sm:text-[11px]">ATÉ</p>
                 <p
                   className="mt-0.5 text-[34px] font-black leading-none tracking-tight text-primary sm:text-[38px]"
                   style={{ textShadow: "0 0 22px rgba(177,235,11,0.5)" }}
@@ -496,7 +496,7 @@ export function TicketCheckoutFlow({
                             Mais popular
                           </span>
                         </div>
-                        <p className="mt-1 text-[10px] font-medium leading-snug text-white/45 sm:text-[11px]">
+                        <p className="mt-1 text-[12px] font-medium leading-snug text-white/80 sm:text-[11px]">
                           Acesso a todas as rodadas da Copa do Mundo 2026
                         </p>
                       </div>
@@ -535,16 +535,16 @@ export function TicketCheckoutFlow({
                   </div>
 
                     <div className="self-center text-right">
-                      <p className="text-[10px] font-semibold text-white/40">
+                      <p className="text-[12px] font-semibold text-white/40">
                         Preço unitário
                       </p>
                       <p className="mt-1 text-[14px] font-black tabular-nums text-white sm:text-[15px]">
                         {formatBRL(principalUnitPriceCents)}
                       </p>
-                      <p className="mt-1 text-[10px] font-semibold tabular-nums text-white/35 line-through">
+                      <p className="mt-1 text-[12px] font-semibold tabular-nums text-white/80 line-through">
                         {geralDiscountPct > 0 ? formatBRL(prices.general) : ""}
                       </p>
-                      <p className="text-[10px] font-bold text-primary">
+                      <p className="text-[12px] font-bold text-primary">
                         {geralDiscountPct}% OFF
                       </p>
                       <p className="mt-1 text-[9px] leading-tight text-white/40">
@@ -553,7 +553,7 @@ export function TicketCheckoutFlow({
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center justify-between gap-2 border-t border-white/6 bg-black/25 px-3.5 py-2.5 text-[10px] text-white/50 sm:px-4">
+                <div className="flex items-center justify-between gap-2 border-t border-white/6 bg-black/25 px-3.5 py-2.5 text-[12px] text-white/50 sm:px-4">
                       <span>
                     Desconto aplicado:{" "}
                     <span className="font-bold text-primary">
@@ -563,7 +563,7 @@ export function TicketCheckoutFlow({
                       </span>
                   <span className="inline-flex items-center gap-1 text-right font-medium">
                     Escolha a quantidade
-                    <ChevronRight className="size-3.5 text-white/35" strokeWidth={2.4} />
+                    <ChevronRight className="size-3.5 text-white/80" strokeWidth={2.4} />
                       </span>
                     </div>
               </div>
@@ -593,7 +593,7 @@ export function TicketCheckoutFlow({
                             Exclusivo
                           </span>
                         </div>
-                        <p className="mt-1 text-[10px] font-medium leading-snug text-white/45 sm:text-[11px]">
+                        <p className="mt-1 text-[12px] font-medium leading-snug text-white/80 sm:text-[11px]">
                           Acesso exclusivo ao bolão do dia
                         </p>
                       </div>
@@ -632,16 +632,16 @@ export function TicketCheckoutFlow({
                   </div>
 
                     <div className="self-center text-right">
-                      <p className="text-[10px] font-semibold text-white/40">
+                      <p className="text-[12px] font-semibold text-white/40">
                         Preço unitário
                       </p>
                       <p className="mt-1 text-[14px] font-black tabular-nums text-white sm:text-[15px]">
                         {formatBRL(dailyUnitPriceCents)}
                       </p>
-                      <p className="mt-1 text-[10px] font-semibold tabular-nums text-white/35 line-through">
+                      <p className="mt-1 text-[12px] font-semibold tabular-nums text-white/80 line-through">
                         {diarioDiscountPct > 0 ? formatBRL(prices.daily) : ""}
                       </p>
-                      <p className="text-[10px] font-bold text-primary">
+                      <p className="text-[12px] font-bold text-primary">
                         {diarioDiscountPct}% OFF
                       </p>
                       <p className="mt-1 text-[9px] leading-tight text-white/40">
@@ -650,7 +650,7 @@ export function TicketCheckoutFlow({
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center justify-between gap-2 border-t border-white/6 bg-black/25 px-3.5 py-2.5 text-[10px] text-white/50 sm:px-4">
+                <div className="flex items-center justify-between gap-2 border-t border-white/6 bg-black/25 px-3.5 py-2.5 text-[12px] text-white/50 sm:px-4">
                       <span>
                     Desconto aplicado:{" "}
                     <span className="font-bold text-primary">
@@ -660,7 +660,7 @@ export function TicketCheckoutFlow({
                       </span>
                   <span className="inline-flex items-center gap-1 text-right font-medium">
                     Escolha a quantidade
-                    <ChevronRight className="size-3.5 text-white/35" strokeWidth={2.4} />
+                    <ChevronRight className="size-3.5 text-white/80" strokeWidth={2.4} />
                       </span>
                     </div>
               </div>
@@ -779,7 +779,7 @@ export function TicketCheckoutFlow({
                   className="mx-auto size-5 text-primary"
                   strokeWidth={2}
                 />
-                <p className="mt-2 text-[10px] font-black uppercase tracking-wide text-white">
+                <p className="mt-2 text-[12px] font-black uppercase tracking-wide text-white">
                   100% Seguro
                 </p>
                 <p className="mt-1 text-[9px] leading-snug text-white/40">
@@ -788,7 +788,7 @@ export function TicketCheckoutFlow({
               </div>
               <div className="rounded-[12px] border border-white/8 bg-[#171717] px-2 py-3 text-center sm:px-3">
                 <Zap className="mx-auto size-5 text-primary" strokeWidth={2} />
-                <p className="mt-2 text-[10px] font-black uppercase tracking-wide text-white">
+                <p className="mt-2 text-[12px] font-black uppercase tracking-wide text-white">
                   Instantâneo
                 </p>
                 <p className="mt-1 text-[9px] leading-snug text-white/40">
@@ -800,7 +800,7 @@ export function TicketCheckoutFlow({
                   className="mx-auto size-5 text-primary"
                   strokeWidth={2.5}
                 />
-                <p className="mt-2 text-[10px] font-black uppercase tracking-wide text-white">
+                <p className="mt-2 text-[12px] font-black uppercase tracking-wide text-white">
                   Sem taxas
                 </p>
                 <p className="mt-1 text-[9px] leading-snug text-white/40">

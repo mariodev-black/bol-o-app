@@ -259,7 +259,7 @@ export default function PerfilPage() {
         {/* Hero — referência: rótulo + título + escudo */}
         <header className="flex items-start justify-between gap-3 pb-5 pt-1">
           <div className="min-w-0">
-            <p className="font-helvetica-now-display text-[10px] font-black uppercase tracking-[0.22em] text-primary">
+            <p className="font-helvetica-now-display text-[12px] font-black uppercase tracking-[0.22em] text-primary">
               Centro do Jogador
             </p>
             <h1 className="mt-1.5 font-helvetica-now-display text-[1.65rem] font-black leading-[1.05] tracking-tight text-white sm:text-[2rem]">
@@ -359,7 +359,7 @@ export default function PerfilPage() {
                       {col.value ?? "—"}
                     </p>
                   )}
-                  <p className="mt-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-white/45 sm:text-[10px]">
+                  <p className="mt-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-white/80 sm:text-[12px]">
                     {col.label}
                   </p>
                 </div>
@@ -422,7 +422,7 @@ export default function PerfilPage() {
                         ) : null}
                         <span className="truncate">{pick.home}</span>
                       </span>
-                      <span className="text-white/35"> x </span>
+                      <span className="text-white/80"> x </span>
                       <span className="inline-flex items-center gap-1">
                         {pick.awayLogo ? (
                           // eslint-disable-next-line @next/next/no-img-element
@@ -431,7 +431,7 @@ export default function PerfilPage() {
                         <span className="truncate">{pick.away}</span>
                       </span>
                     </p>
-                    <p className="mt-0.5 truncate text-[10px] text-white/35">{pick.matchInfo}</p>
+                    <p className="mt-0.5 truncate text-[12px] text-white/80">{pick.matchInfo}</p>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     <span className="font-helvetica-now-display text-sm font-black tabular-nums text-primary sm:text-base">
@@ -514,13 +514,13 @@ export default function PerfilPage() {
             <>
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-xl border border-white/[0.06] bg-black/25 px-3 py-3">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-white/40">Afiliado</p>
+                  <p className="text-[12px] font-black uppercase tracking-wider text-white/40">Afiliado</p>
                   <p className="mt-1 font-helvetica-now-display text-lg font-black tabular-nums text-white">
                     {formatBRLFromCents(affiliate?.balances.availableCents ?? 0)}
                   </p>
                 </div>
                 <div className="rounded-xl border border-white/[0.06] bg-black/25 px-3 py-3">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-white/40">Conta</p>
+                  <p className="text-[12px] font-black uppercase tracking-wider text-white/40">Conta</p>
                   <p className="mt-1 font-helvetica-now-display text-lg font-black tabular-nums text-primary">
                     {formatBRLFromCents(affiliate?.balances.walletBalanceCents ?? 0)}
                   </p>
@@ -563,7 +563,7 @@ export default function PerfilPage() {
                   </span>
                   <div>
                     <p className="mt-2 font-helvetica-now-display text-[13px] font-black text-white">{item.label}</p>
-                    <p className="mt-0.5 text-[11px] font-medium text-white/45">
+                    <p className="mt-0.5 text-[11px] font-medium text-white/80">
                       {overviewLoading ? <SkeletonBlock className="mt-1 h-3 w-20" /> : item.value}
                     </p>
                   </div>

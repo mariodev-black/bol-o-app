@@ -138,7 +138,7 @@ export function TicketPixGeneratedScreen({
                 PIX GERADO COM SUCESSO!
               </h1>
               <p
-                className="mt-2 text-[12px] leading-snug text-white/70 sm:text-[13px]"
+                className="mt-2 text-[13px] leading-snug text-white/70 sm:text-[13px]"
                 style={{ fontFamily: montserrat }}
               >
                 Pague em até{" "}

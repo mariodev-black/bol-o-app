@@ -24,7 +24,7 @@ export default async function AdminTransactionsPage() {
       <div className="mb-5 grid gap-4 md:grid-cols-4">
         {cards.map((card) => (
           <article key={card.label} className="rounded-[16px] border border-white/8 bg-[#101010] p-4">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/35">{card.label}</p>
+            <p className="text-[12px] font-black uppercase tracking-[0.18em] text-white/80">{card.label}</p>
             <p className="mt-3 text-[24px] font-black leading-none text-primary">{card.value}</p>
           </article>
         ))}

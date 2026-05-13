@@ -185,13 +185,13 @@ export default async function AdminDashboardPage({
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {cards.map((card) => (
           <article key={card.label} className="rounded-[18px] border border-white/8 bg-[#101010] p-5 shadow-[0_18px_40px_rgba(0,0,0,0.28)]">
-            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/35">{card.label}</p>
+            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/80">{card.label}</p>
             <p className="mt-4 text-[30px] font-black leading-none tracking-[-0.05em] text-primary">{card.value}</p>
-            <p className="mt-3 text-[12px] font-bold text-white/35">{card.hint}</p>
+            <p className="mt-3 text-[12px] font-bold text-white/80">{card.hint}</p>
           </article>
         ))}
         <article className="rounded-[18px] border border-white/8 bg-[#101010] p-5 shadow-[0_18px_40px_rgba(0,0,0,0.28)]">
-          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/35">Cotas por tipo</p>
+          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/80">Cotas por tipo</p>
           <div className="mt-4 grid gap-3">
             {ticketTypeItems.length ? ticketTypeItems.map((item) => (
               <div key={item.label}>
@@ -207,7 +207,7 @@ export default async function AdminDashboardPage({
                 </div>
               </div>
             )) : (
-              <p className="text-[12px] font-bold text-white/35">Sem cotas no período.</p>
+              <p className="text-[12px] font-bold text-white/80">Sem cotas no período.</p>
             )}
           </div>
         </article>

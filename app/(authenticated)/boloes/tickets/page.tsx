@@ -235,7 +235,7 @@ function TicketsBoloesPageContent() {
 
                 <div className="relative z-1 pl-[18px] pr-4 sm:pr-5 pt-4 sm:pt-5 pb-3">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="font-mono text-[10px] uppercase tracking-[0.12em] font-semibold text-white/40">
+                    <p className="font-mono text-[12px] uppercase tracking-[0.12em] font-semibold text-white/40">
                       {t.id}
                     </p>
                     <span className="text-[8px] font-bold uppercase tracking-[0.32em] text-white/20">Ingresso</span>
@@ -287,7 +287,7 @@ function TicketsBoloesPageContent() {
                     <div className="min-w-0 flex-1 text-center sm:text-right">
                       <p className="text-[9px] uppercase tracking-[0.18em] font-bold text-white/38">Pontos</p>
                       <p className="text-[22px] font-black text-white mt-0.5 font-mono tabular-nums leading-none">
-                        {t.points} <span className="text-[13px] font-bold text-white/45">pts</span>
+                        {t.points} <span className="text-[13px] font-bold text-white/80">pts</span>
                       </p>
                     </div>
                   </div>

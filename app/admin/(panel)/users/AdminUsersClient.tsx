@@ -122,7 +122,7 @@ export function AdminUsersClient({ users }: { users: AdminUserListItem[] }) {
           { label: "Pontos totais", value: stats.scorePoints.toLocaleString("pt-BR") },
         ].map((card) => (
           <article key={card.label} className="rounded-[16px] border border-white/8 bg-[#101010] p-4">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/35">{card.label}</p>
+            <p className="text-[12px] font-black uppercase tracking-[0.18em] text-white/80">{card.label}</p>
             <p className="mt-3 text-[24px] font-black leading-none text-primary">{card.value}</p>
           </article>
         ))}
@@ -131,7 +131,7 @@ export function AdminUsersClient({ users }: { users: AdminUserListItem[] }) {
       <section className="mb-5 rounded-[18px] border border-white/8 bg-[#101010] p-4">
         <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_240px]">
           <label className="block">
-            <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-white/35">
+            <span className="mb-2 block text-[12px] font-black uppercase tracking-[0.18em] text-white/80">
               Buscar por nome, e-mail ou CPF
             </span>
             <input
@@ -145,7 +145,7 @@ export function AdminUsersClient({ users }: { users: AdminUserListItem[] }) {
             />
           </label>
           <label className="block">
-            <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-white/35">
+            <span className="mb-2 block text-[12px] font-black uppercase tracking-[0.18em] text-white/80">
               Ordenar por
             </span>
             <select
@@ -167,7 +167,7 @@ export function AdminUsersClient({ users }: { users: AdminUserListItem[] }) {
         <div className="overflow-x-auto">
           <table className="min-w-[1120px] w-full text-left">
             <thead className="border-b border-white/8 bg-white/2.5">
-              <tr className="text-[11px] font-black uppercase tracking-[0.16em] text-white/35">
+              <tr className="text-[11px] font-black uppercase tracking-[0.16em] text-white/80">
                 <th className="px-4 py-4">Usuário</th>
                 <th className="px-4 py-4">Contato</th>
                 <th className="px-4 py-4">CPF</th>
@@ -189,10 +189,10 @@ export function AdminUsersClient({ users }: { users: AdminUserListItem[] }) {
                   <td className="px-4 py-4">
                     <Link href={`/admin/users/${user.id}`} className="block">
                       <p className="font-semibold">{user.email}</p>
-                      <p className="mt-1 text-white/35">{user.phone ?? "-"}</p>
+                      <p className="mt-1 text-white/80">{user.phone ?? "-"}</p>
                     </Link>
                   </td>
-                  <td className="px-4 py-4 font-mono text-white/45">
+                  <td className="px-4 py-4 font-mono text-white/80">
                     <Link href={`/admin/users/${user.id}`} className="block">{maskCpf(user.cpf)}</Link>
                   </td>
                   <td className="px-4 py-4">
@@ -205,16 +205,16 @@ export function AdminUsersClient({ users }: { users: AdminUserListItem[] }) {
                   <td className="px-4 py-4">
                     <Link href={`/admin/users/${user.id}`} className="block">
                       <p className="text-[18px] font-black leading-none text-white">{user.ticketsCount.toLocaleString("pt-BR")}</p>
-                      <p className="mt-1 text-[11px] font-bold text-white/35">{user.paidTicketsCount.toLocaleString("pt-BR")} pagas</p>
+                      <p className="mt-1 text-[11px] font-bold text-white/80">{user.paidTicketsCount.toLocaleString("pt-BR")} pagas</p>
                     </Link>
                   </td>
                   <td className="px-4 py-4">
                     <Link href={`/admin/users/${user.id}`} className="block">
                       <p className="text-[18px] font-black leading-none text-primary">{user.scorePoints.toLocaleString("pt-BR")}</p>
-                      <p className="mt-1 text-[11px] font-bold text-white/35">pontos nas cotas</p>
+                      <p className="mt-1 text-[11px] font-bold text-white/80">pontos nas cotas</p>
                     </Link>
                   </td>
-                  <td className="px-4 py-4 text-white/45">
+                  <td className="px-4 py-4 text-white/80">
                     <Link href={`/admin/users/${user.id}`} className="block">
                       {new Intl.DateTimeFormat("pt-BR").format(new Date(user.createdAt))}
                     </Link>

@@ -58,7 +58,7 @@ export function TwoFactorClient({ enabled }: { enabled: boolean }) {
         </span>
         <div>
           <h1 className="text-[24px] font-black tracking-[-0.04em] text-white">Verificação 2FA</h1>
-          <p className="mt-1 text-[12px] font-semibold text-white/35">
+          <p className="mt-1 text-[12px] font-semibold text-white/80">
             {enabled ? "Confirme seu código para acessar o admin." : "Configure antes do primeiro acesso admin."}
           </p>
         </div>
@@ -69,11 +69,11 @@ export function TwoFactorClient({ enabled }: { enabled: boolean }) {
           <div className="mx-auto w-fit rounded-xl bg-white p-3">
             <QRCode value={otpauthUrl} size={176} />
           </div>
-          <p className="mt-4 break-all text-center font-mono text-[12px] text-white/45">{secret}</p>
+          <p className="mt-4 break-all text-center font-mono text-[12px] text-white/80">{secret}</p>
         </div>
       )}
 
-      <label className="text-[10px] font-black uppercase tracking-[0.16em] text-white/40">Código do app autenticador</label>
+      <label className="text-[12px] font-black uppercase tracking-[0.16em] text-white/40">Código do app autenticador</label>
       <input
         value={code}
         onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}

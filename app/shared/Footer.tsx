@@ -290,7 +290,7 @@ export function Footer() {
         >
           {/* Texto de autorização */}
           <div className="flex items-center px-2 py-2 lg:px-3 lg:py-2">
-            <span className="text-[10px] lg:text-[11px]" style={{ color: "rgba(255,255,255,0.6)" }}>
+            <span className="text-[12px] lg:text-[11px]" style={{ color: "rgba(255,255,255,0.6)" }}>
               Autorização SPA/MF nº 320/2025
             </span>
           </div>
@@ -301,7 +301,7 @@ export function Footer() {
             style={{ borderLeft: "1px solid rgba(255,255,255,0.15)" }}
           >
             <div
-              className="flex items-center justify-center w-6 h-6 lg:w-7 lg:h-7 rounded-full text-[10px] lg:text-[11px] font-bold shrink-0"
+              className="flex items-center justify-center w-6 h-6 lg:w-7 lg:h-7 rounded-full text-[12px] lg:text-[11px] font-bold shrink-0"
               style={{ border: "1.5px solid rgba(255,255,255,0.45)", color: "rgba(255,255,255,0.9)" }}
             >
               18+
@@ -309,18 +309,18 @@ export function Footer() {
             <div className="flex flex-col gap-1">
               <div className="flex items-center gap-1">
                 <span className="flex items-center justify-center w-3 h-3 rounded-full text-[7px] font-bold shrink-0" style={{ backgroundColor: "#F59E0B", color: "#000" }}>!</span>
-                <span className="text-[9px] lg:text-[10px] leading-tight" style={{ color: "rgba(255,255,255,0.75)" }}>Aposte com responsabilidade</span>
+                <span className="text-[9px] lg:text-[12px] leading-tight" style={{ color: "rgba(255,255,255,0.75)" }}>Aposte com responsabilidade</span>
               </div>
               <div className="flex items-center gap-1">
                 <span className="flex items-center justify-center w-3 h-3 rounded-full text-[7px] font-bold shrink-0" style={{ backgroundColor: "#EF4444", color: "#fff" }}>✕</span>
-                <span className="text-[9px] lg:text-[10px] leading-tight" style={{ color: "rgba(255,255,255,0.75)" }}>Aposta não é investimento</span>
+                <span className="text-[9px] lg:text-[12px] leading-tight" style={{ color: "rgba(255,255,255,0.75)" }}>Aposta não é investimento</span>
               </div>
             </div>
           </div>
         </div>
 
         {/* Col 2 — Texto legal (centro) */}
-        <p className="text-[10px] leading-relaxed lg:text-center" style={{ color: "rgba(255,255,255,0.3)" }}>
+        <p className="text-[12px] leading-relaxed lg:text-center" style={{ color: "rgba(255,255,255,0.3)" }}>
           Este site é operado por EB INTERMEDIAÇÕES E JOGOS S/A, empresa brasileira
           inscrita no CNPJ sob o nº 52.839.845/0001-25 e devidamente autorizada pela
           Secretaria de Prêmios e Apostas através da Portaria SPA/MF nº 320, de 17 de

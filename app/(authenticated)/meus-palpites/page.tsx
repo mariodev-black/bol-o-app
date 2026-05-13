@@ -147,7 +147,7 @@ function StatCard({
           {value}
         </p>
       </div>
-      <p className="text-[10px] mt-1.5 uppercase tracking-[0.08em]" style={{ color: "rgba(255,255,255,0.4)" }}>
+      <p className="text-[12px] mt-1.5 uppercase tracking-[0.08em]" style={{ color: "rgba(255,255,255,0.4)" }}>
         {label}
       </p>
     </div>
@@ -174,7 +174,7 @@ function PickCard({ pick }: { pick: Pick }) {
 
       <div className="flex items-center justify-between gap-2">
         <span
-          className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-[0.08em]"
+          className="px-2 py-0.5 rounded-md text-[12px] font-black uppercase tracking-[0.08em]"
           style={{
             color: neutral ? "#94A3B8" : pick.hit ? C.greenSoft : "#F87171",
             background: neutral ? "rgba(148,163,184,0.12)" : pick.hit ? "rgba(34,197,94,0.10)" : "rgba(127,29,29,0.20)",
@@ -184,7 +184,7 @@ function PickCard({ pick }: { pick: Pick }) {
           {pick.badge}
         </span>
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-white/35">{pick.time}</span>
+          <span className="text-[12px] text-white/80">{pick.time}</span>
           <span
             className="px-2.5 py-1 rounded-md text-[11px] font-black leading-none"
             style={{
@@ -208,15 +208,15 @@ function PickCard({ pick }: { pick: Pick }) {
             <span aria-hidden>{pick.homeFlag}</span>
             {pick.home}
           </p>
-          <p className="text-[10px] text-white/35 mt-0.5 truncate">{pick.homeName}</p>
+          <p className="text-[12px] text-white/80 mt-0.5 truncate">{pick.homeName}</p>
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div className="rounded-lg border px-3 py-1.5 text-center" style={{ borderColor: "rgba(177,235,11,0.3)", background: "rgba(177,235,11,0.08)" }}>
-            <p className="text-[9px] uppercase tracking-[0.08em] text-white/45">Meu palpite</p>
+            <p className="text-[9px] uppercase tracking-[0.08em] text-white/80">Meu palpite</p>
             <p className="text-[24px] leading-none font-black" style={{ color: C.goldLight }}>{pick.guess}</p>
           </div>
           <div className="rounded-lg border px-3 py-1.5 text-center" style={{ borderColor: "rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.03)" }}>
-            <p className="text-[9px] uppercase tracking-[0.08em] text-white/45">Resultado</p>
+            <p className="text-[9px] uppercase tracking-[0.08em] text-white/80">Resultado</p>
             <p className="text-[24px] leading-none font-black" style={{ color: neutral ? "#94A3B8" : pick.hit ? "#22C55E" : "#EF4444" }}>{pick.result}</p>
           </div>
         </div>
@@ -225,7 +225,7 @@ function PickCard({ pick }: { pick: Pick }) {
             {pick.away}
             <span aria-hidden>{pick.awayFlag}</span>
           </p>
-          <p className="text-[10px] text-white/35 mt-0.5 truncate">{pick.awayName}</p>
+          <p className="text-[12px] text-white/80 mt-0.5 truncate">{pick.awayName}</p>
         </div>
       </div>
     </article>
@@ -325,7 +325,7 @@ export default function MeusPalpitesPage() {
       <header className="space-y-2">
         <Link
           href="/perfil"
-          className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-white/45 hover:text-white/70"
+          className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-white/80 hover:text-white/70"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           Voltar ao perfil
@@ -402,7 +402,7 @@ export default function MeusPalpitesPage() {
       <section className="space-y-3">
         <SectionHeader
           title="Histórico"
-          right={<span className="text-[11px] text-white/35">{loading ? "…" : `${picks.length} palpites`}</span>}
+          right={<span className="text-[11px] text-white/80">{loading ? "…" : `${picks.length} palpites`}</span>}
         />
 
         <div className="flex items-center gap-2 overflow-x-auto pb-1">
@@ -426,9 +426,9 @@ export default function MeusPalpitesPage() {
 
         <div className="space-y-2.5">
           {loading ? (
-            <p className="text-center text-sm text-white/35 py-10">Carregando…</p>
+            <p className="text-center text-sm text-white/80 py-10">Carregando…</p>
           ) : filteredPicks.length === 0 ? (
-            <p className="text-center text-sm text-white/35 py-10">
+            <p className="text-center text-sm text-white/80 py-10">
               Nenhum palpite neste filtro. Faça palpites em{" "}
               <Link href="/boloes" className="font-bold text-primary underline">
                 Meus bolões

@@ -39,7 +39,7 @@ export function BolaoRankingTable({
     <div className="overflow-x-auto">
       <table className="min-w-[980px] w-full text-left">
         <thead className="border-b border-white/8 bg-white/2.5">
-          <tr className="text-[11px] font-black uppercase tracking-[0.16em] text-white/35">
+          <tr className="text-[11px] font-black uppercase tracking-[0.16em] text-white/80">
             <th className="px-4 py-4">Posição</th>
             <th className="px-4 py-4">Usuário</th>
             <th className="px-4 py-4">Cota</th>
@@ -61,7 +61,7 @@ export function BolaoRankingTable({
               <td className="px-4 py-4">
                 <Link href={`/admin/users/${row.userId}`} className="block">
                   <p className="font-black text-white group-hover:text-primary">{row.userName ?? "Sem nome"}</p>
-                  <p className="mt-1 text-white/35">{row.userEmail}</p>
+                  <p className="mt-1 text-white/80">{row.userEmail}</p>
                 </Link>
               </td>
               <td className="px-4 py-4">
@@ -72,11 +72,11 @@ export function BolaoRankingTable({
               </td>
               <td className="px-4 py-4">
                 <p className="text-[20px] font-black leading-none text-primary">{row.scorePoints.toLocaleString("pt-BR")}</p>
-                <p className="mt-1 text-[11px] text-white/35">pontos</p>
+                <p className="mt-1 text-[11px] text-white/80">pontos</p>
               </td>
               <td className="px-4 py-4">
                 <p className="font-black text-white">{row.exactCount} exatos</p>
-                <p className="mt-1 text-[11px] text-white/35">
+                <p className="mt-1 text-[11px] text-white/80">
                   {row.outcomeCount} resultados · {row.goalsCount} gols
                 </p>
               </td>
@@ -88,7 +88,7 @@ export function BolaoRankingTable({
                   {usageLabel(row)}
                 </span>
               </td>
-              <td className="px-4 py-4 text-white/45">{formatDate(row.paidAt ?? row.createdAt)}</td>
+              <td className="px-4 py-4 text-white/80">{formatDate(row.paidAt ?? row.createdAt)}</td>
             </tr>
           ))}
         </tbody>

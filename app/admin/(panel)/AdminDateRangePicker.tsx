@@ -99,7 +99,7 @@ function CalendarMonth({
         <button
           type="button"
           onClick={onPrev}
-          className="flex h-8 w-8 items-center justify-center rounded-full border border-white/8 bg-white/3 text-[18px] font-black text-white/45 hover:bg-white/7 hover:text-white"
+          className="flex h-8 w-8 items-center justify-center rounded-full border border-white/8 bg-white/3 text-[18px] font-black text-white/80 hover:bg-white/7 hover:text-white"
           aria-label="Mês anterior"
         >
           ‹
@@ -108,7 +108,7 @@ function CalendarMonth({
         <button
           type="button"
           onClick={onNext}
-          className="flex h-8 w-8 items-center justify-center rounded-full border border-white/8 bg-white/3 text-[18px] font-black text-white/45 hover:bg-white/7 hover:text-white"
+          className="flex h-8 w-8 items-center justify-center rounded-full border border-white/8 bg-white/3 text-[18px] font-black text-white/80 hover:bg-white/7 hover:text-white"
           aria-label="Próximo mês"
         >
           ›
@@ -283,7 +283,7 @@ export function AdminDateRangePicker({
           <div className="relative w-full max-w-[920px] rounded-[22px] border border-white/10 bg-[#080B0F] p-6 shadow-[0_28px_90px_rgba(0,0,0,0.58)]" style={{ animation: "adminDatePop 180ms ease-out" }}>
             <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Filtrar dashboard</p>
+                <p className="text-[12px] font-black uppercase tracking-[0.2em] text-primary">Filtrar dashboard</p>
                 <h3 className="mt-3 text-[24px] font-black tracking-[-0.04em] text-white">Selecione o período</h3>
                 <p className="mt-2 text-[13px] font-medium text-white/42">Escolha duas datas para recalcular os indicadores.</p>
               </div>
@@ -310,7 +310,7 @@ export function AdminDateRangePicker({
 
             <div className="mt-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div className="rounded-[14px] border border-white/8 bg-white/3 px-4 py-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/30">Selecionado</p>
+                <p className="text-[12px] font-black uppercase tracking-[0.16em] text-white/30">Selecionado</p>
                 <p className="mt-1 text-[13px] font-black text-white/88">
                   {formatDisplayDate(draftStart)} - {formatDisplayDate(draftEnd)}
                 </p>

@@ -27,7 +27,7 @@ export default async function AdminBoloesPage() {
           >
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Principal</p>
+                <p className="text-[12px] font-black uppercase tracking-[0.2em] text-primary">Principal</p>
                 <h3 className="mt-3 text-[24px] font-black leading-none tracking-[-0.04em] text-white">Bolão principal</h3>
                 <p className="mt-2 text-[12px] font-bold text-white/38">Ranking geral de cotas principais.</p>
               </div>
@@ -42,7 +42,7 @@ export default async function AdminBoloesPage() {
                 ["Pontos", data.principal.totalPoints],
               ].map(([label, value]) => (
                 <div key={label} className="rounded-[12px] border border-white/8 bg-black/25 px-2 py-3">
-                  <p className="text-[10px] font-black uppercase text-white/30">{label}</p>
+                  <p className="text-[12px] font-black uppercase text-white/30">{label}</p>
                   <p className="mt-1 text-[16px] font-black text-white">{Number(value).toLocaleString("pt-BR")}</p>
                 </div>
               ))}
@@ -60,7 +60,7 @@ export default async function AdminBoloesPage() {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Diário</p>
+                      <p className="text-[12px] font-black uppercase tracking-[0.2em] text-primary">Diário</p>
                       <h3 className="mt-3 text-[22px] font-black leading-none tracking-[-0.04em] text-white">{card.date}</h3>
                       <p className="mt-2 text-[12px] font-bold text-white/38">Bolão diário com apostas nesta data.</p>
                     </div>
@@ -75,7 +75,7 @@ export default async function AdminBoloesPage() {
                       ["Fim", card.finishedCount],
                     ].map(([label, value]) => (
                       <div key={label} className="rounded-[12px] border border-white/8 bg-black/25 px-2 py-3">
-                        <p className="text-[10px] font-black uppercase text-white/30">{label}</p>
+                        <p className="text-[12px] font-black uppercase text-white/30">{label}</p>
                         <p className="mt-1 text-[16px] font-black text-white">{Number(value).toLocaleString("pt-BR")}</p>
                       </div>
                     ))}

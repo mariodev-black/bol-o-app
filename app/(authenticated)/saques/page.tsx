@@ -135,7 +135,7 @@ export default function SaquesPage() {
         </div>
       ) : (
         <div className="space-y-4 mb-6">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-white/35">Origem do saque</p>
+          <p className="text-[11px] font-bold uppercase tracking-wider text-white/80">Origem do saque</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <button
               type="button"
@@ -164,7 +164,7 @@ export default function SaquesPage() {
               ) : null}
             </button>
           </div>
-          <p className="text-[12px] text-white/35">
+          <p className="text-[12px] text-white/80">
             Mínimo por solicitação: {formatBRLFromCents(minCents)} · máximo: {formatBRLFromCents(maxCents)}
           </p>
         </div>
@@ -218,7 +218,7 @@ export default function SaquesPage() {
           Solicitar saque
         </button>
         {available < minCents && !loading ? (
-          <p className="text-[12px] text-white/35 text-center">Saldo desta origem abaixo do mínimo para solicitar saque.</p>
+          <p className="text-[12px] text-white/80 text-center">Saldo desta origem abaixo do mínimo para solicitar saque.</p>
         ) : null}
       </form>
     </div>

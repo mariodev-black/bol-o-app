@@ -163,7 +163,7 @@ function SummaryCard({
           strokeWidth={2.1}
         />
       </div>
-      <p className="whitespace-pre-line text-[9px] font-black uppercase leading-[1.12] tracking-[0.08em] text-white/42 min-[380px]:text-[10px]">
+      <p className="whitespace-pre-line text-[9px] font-black uppercase leading-[1.12] tracking-[0.08em] text-white/42 min-[380px]:text-[12px]">
         {label}
       </p>
       <p
@@ -172,7 +172,7 @@ function SummaryCard({
       >
         {value}
       </p>
-      <p className="mt-1.5 text-[10px] font-medium leading-none text-white/55">
+      <p className="mt-1.5 text-[12px] font-medium leading-none text-white/55">
         {helper}
       </p>
     </div>
@@ -209,7 +209,7 @@ function SectionTitle({
         <button
           type="button"
           onClick={onClick}
-          className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-1 text-[10px] font-bold leading-none transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-95"
+          className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-1 text-[12px] font-bold leading-none transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-95"
           style={{ color: GREEN }}
           aria-expanded={expanded}
         >
@@ -218,7 +218,7 @@ function SectionTitle({
       ) : (
         <Link
           href={href}
-          className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-1 text-[10px] font-bold leading-none transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-95"
+          className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-1 text-[12px] font-bold leading-none transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-95"
           style={{ color: GREEN }}
         >
           {content}
@@ -290,7 +290,7 @@ function RankingPanel({
       className="flex min-w-0 flex-col items-center justify-center border-l px-1.5 text-center"
       style={{ borderColor: BORDER }}
     >
-      <p className="text-[7px] font-black uppercase leading-[0.95] tracking-[0.06em] text-white/45 min-[380px]:text-[8px]">
+      <p className="text-[7px] font-black uppercase leading-[0.95] tracking-[0.06em] text-white/80 min-[380px]:text-[8px]">
         Sua
         <br />
         posição
@@ -299,7 +299,7 @@ function RankingPanel({
         {positionLabel(position)}
       </p>
       <div className="my-3 h-px w-full bg-white/6" />
-      <p className="text-[7px] font-black uppercase leading-none tracking-[0.06em] text-white/45 min-[380px]:text-[8px]">
+      <p className="text-[7px] font-black uppercase leading-none tracking-[0.06em] text-white/80 min-[380px]:text-[8px]">
         Pontos
       </p>
       <p
@@ -361,17 +361,17 @@ function ActiveBoloesCard({
             <p className="text-[13px] font-black uppercase leading-none text-white">
               {principal.title}
             </p>
-            <p className="mt-1.5 text-[10px] font-medium leading-none text-white/58">
+            <p className="mt-1.5 text-[12px] font-medium leading-none text-white/58">
               {principal.cotaLabel}
             </p>
             <div className="mt-3">
               <StatusPill status="ativo" label={principal.statusLabel} />
             </div>
             <div className="mt-3 flex items-center justify-between gap-2">
-              <span className="text-[10px] font-semibold leading-none text-white/58">
+              <span className="text-[12px] font-semibold leading-none text-white/58">
                 Palpites enviados
               </span>
-              <span className="text-[10px] font-black leading-none text-white">
+              <span className="text-[12px] font-black leading-none text-white">
                 {principal.sent} / {principal.total}
               </span>
             </div>
@@ -406,19 +406,19 @@ function ActiveBoloesCard({
             <p className="text-[13px] font-black uppercase leading-none text-white">
               {diario.title}
             </p>
-            <p className="mt-1.5 text-[10px] font-medium leading-none text-white/58">
+            <p className="mt-1.5 text-[12px] font-medium leading-none text-white/58">
               {diario.cotaLabel}
             </p>
             <div className="mt-3">
               <StatusPill status={diario.status} label={diario.statusLabel} />
             </div>
-            <p className="mt-3 text-[10px] font-medium leading-none text-white/58">
+            <p className="mt-3 text-[12px] font-medium leading-none text-white/58">
               Jogos do dia:{" "}
               <span className="font-black text-white">
                 {diario.gamesCount} jogos
               </span>
             </p>
-            <p className="mt-1.5 text-[10px] font-medium leading-none text-white/58">
+            <p className="mt-1.5 text-[12px] font-medium leading-none text-white/58">
               {diario.countdownLabel}:{" "}
               <span className="font-black" style={{ color: GREEN_SOFT }}>
                 {formatCountdown(diario.countdownTargetMs, now)}
@@ -432,7 +432,7 @@ function ActiveBoloesCard({
       <div className="px-3 pb-3 pt-2">
         <Link
           href={detailsHref}
-          className="flex h-[36px] w-full items-center justify-center rounded-[8px] border text-[10px] font-black uppercase tracking-[0.04em] text-white/62 transition-colors hover:bg-white/3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[0.99] active:bg-white/5"
+          className="flex h-[36px] w-full items-center justify-center rounded-[8px] border text-[12px] font-black uppercase tracking-[0.04em] text-white/62 transition-colors hover:bg-white/3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[0.99] active:bg-white/5"
           style={{ borderColor: "rgba(177,235,11,0.18)" }}
         >
           Ver detalhes
@@ -606,7 +606,7 @@ function AvailableCard({
         {title}
       </h3>
       <p
-        className="mt-1.5 text-[10px] font-black uppercase leading-none"
+        className="mt-1.5 text-[12px] font-black uppercase leading-none"
         style={{ color: buttonColor }}
       >
         {subtitle}
@@ -880,7 +880,7 @@ function ActiveShowcaseCard({
         {isPrincipal ? (
           <div className="mt-4">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-[10px] font-semibold leading-none text-white/55">
+              <span className="text-[12px] font-semibold leading-none text-white/55">
                 Palpites enviados
               </span>
               <span className="text-[11px] font-black leading-none text-white">
@@ -900,13 +900,13 @@ function ActiveShowcaseCard({
           </div>
         ) : (
           <div className="mt-4 space-y-1.5">
-            <p className="text-[10px] font-medium text-white/55">
+            <p className="text-[12px] font-medium text-white/55">
               Jogos do dia:{" "}
               <span className="font-black text-white">
                 {item.gamesCount ?? 0} jogos
               </span>
             </p>
-            <p className="text-[10px] font-medium text-white/55">
+            <p className="text-[12px] font-medium text-white/55">
               {item.countdownLabel ?? "Início em"}:{" "}
               <span className="font-black" style={{ color: GREEN_SOFT }}>
                 {formatCountdown(item.countdownTargetMs ?? null, now)}
@@ -953,7 +953,7 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
       <div className="w-full bg-black">
         {/* text block */}
         <div className="px-5 pb-2 text-center">
-          <span className="inline-flex items-center rounded-[8px] px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.22em] text-primary bg-primary/20 border border-primary/60">
+          <span className="inline-flex items-center rounded-[8px] px-4 py-1.5 text-[12px] font-black uppercase tracking-[0.22em] text-primary bg-primary/20 border border-primary/60">
             Valendo
           </span>
           <h1 className="mt-5 text-[36px] font-black uppercase leading-[0.9] tracking-[-0.02em] text-white">
@@ -992,13 +992,13 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
           <p className="text-[11px] font-black uppercase tracking-[0.2em] text-white">
             Cota Oficial Copa 2026
           </p>
-          <p className="mt-3 text-[14px] font-semibold text-white/35 line-through">
+          <p className="mt-3 text-[14px] font-semibold text-white/80 line-through">
             R$ 59,90
           </p>
           <p className="mt-1 text-[44px] font-black leading-none tracking-[-0.03em] text-primary">
             R$ 39,90
           </p>
-          <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">
+          <p className="mt-2 text-[12px] font-bold uppercase tracking-[0.2em] text-white/80">
             Por Cota
           </p>
         </div>
@@ -1014,12 +1014,12 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
 
         {/* Trust badges */}
         <div className="flex items-center justify-center gap-6">
-          <span className="flex items-center gap-1.5 text-[11px] font-semibold text-white/35">
+          <span className="flex items-center gap-1.5 text-[11px] font-semibold text-white/80">
             <Shield className="size-3.5 shrink-0" strokeWidth={1.8} />
             Pagamento seguro
           </span>
           <span className="h-3 w-px bg-white/12" aria-hidden />
-          <span className="flex items-center gap-1.5 text-[11px] font-semibold text-white/35">
+          <span className="flex items-center gap-1.5 text-[11px] font-semibold text-white/80">
             <Lock className="size-3.5 shrink-0" strokeWidth={1.8} />
             Dados protegidos
                           </span>
@@ -1050,7 +1050,7 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
 
         {/* O que está incluído */}
         <div>
-          <p className="mb-3 text-[11px] font-black uppercase tracking-[0.2em] text-white/35">
+          <p className="mb-3 text-[11px] font-black uppercase tracking-[0.2em] text-white/80">
             O que está incluído
           </p>
           <div
@@ -1108,7 +1108,7 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
 
         {/* Escolha seu pacote */}
         <div>
-          <p className="mb-3 text-[11px] font-black uppercase tracking-[0.2em] text-white/35">
+          <p className="mb-3 text-[11px] font-black uppercase tracking-[0.2em] text-white/80">
             Escolha seu pacote
           </p>
 
@@ -1122,7 +1122,7 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
               <p className="text-[17px] font-black leading-tight text-white">
                 Aumente suas chances
               </p>
-              <p className="mt-1.5 text-[12px] font-medium leading-snug text-white/45">
+              <p className="mt-1.5 text-[12px] font-medium leading-snug text-white/80">
                 Mais cotas = mais posições no ranking = mais chances de ganhar
               </p>
                           </div>
@@ -1168,7 +1168,7 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
 
                     {/* label */}
                     <p
-                      className={`mt-2 text-[9px] font-black uppercase tracking-wide ${active ? "text-primary" : "text-white/45"}`}
+                      className={`mt-2 text-[9px] font-black uppercase tracking-wide ${active ? "text-primary" : "text-white/80"}`}
                     >
                       {pkg.label}
                     </p>
@@ -1186,7 +1186,7 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
                     </p>
 
                     {/* per-unit */}
-                    <p className="mt-1 text-[8px] font-medium leading-tight text-white/35">
+                    <p className="mt-1 text-[8px] font-medium leading-tight text-white/80">
                       {pkg.unit}
                     </p>
                   </button>
@@ -1209,17 +1209,17 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
 
             {/* trust bar inside the card */}
             <div className="flex items-center justify-around px-4 py-4">
-              <span className="flex items-center gap-1.5 text-[10px] font-semibold text-white/30">
+              <span className="flex items-center gap-1.5 text-[12px] font-semibold text-white/30">
                 <Lock className="size-3 shrink-0" strokeWidth={1.8} />
                 100% Seguro
               </span>
               <span className="h-3 w-px bg-white/12" aria-hidden />
-              <span className="flex items-center gap-1.5 text-[10px] font-semibold text-white/30">
+              <span className="flex items-center gap-1.5 text-[12px] font-semibold text-white/30">
                 <Shield className="size-3 shrink-0" strokeWidth={1.8} />
                 Dados protegidos
               </span>
               <span className="h-3 w-px bg-white/12" aria-hidden />
-              <span className="flex items-center gap-1.5 text-[10px] font-semibold text-white/30">
+              <span className="flex items-center gap-1.5 text-[12px] font-semibold text-white/30">
                 <Check className="size-3 shrink-0" strokeWidth={2.2} />
                 Oficial
               </span>
@@ -1273,7 +1273,7 @@ export function BoloesClient({ data }: { data: BoloesScreenData | null }) {
         <div className="mx-auto w-full max-w-[390px]">
           <header className="text-center">
             <p
-              className="text-[10px] font-black uppercase leading-none tracking-[0.25em]"
+              className="text-[12px] font-black uppercase leading-none tracking-[0.25em]"
               style={{ color: GREEN }}
             >
               Copa 2026
@@ -1295,7 +1295,7 @@ export function BoloesClient({ data }: { data: BoloesScreenData | null }) {
               <button
                 type="button"
                 onClick={() => setShowAllActive(false)}
-                className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-1 text-[10px] font-bold leading-none transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-95"
+                className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-1 text-[12px] font-bold leading-none transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-95"
                 style={{ color: GREEN }}
               >
                 Voltar{" "}

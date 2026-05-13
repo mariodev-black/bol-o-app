@@ -424,7 +424,7 @@ export default function RankingPage() {
         </section>
 
         {loadingScopes ? (
-          <p className="mt-6 text-center text-[12px] font-medium text-white/45">Carregando seus bolões…</p>
+          <p className="mt-6 text-center text-[12px] font-medium text-white/80">Carregando seus bolões…</p>
         ) : null}
 
         {!loadingScopes && scopes.length === 0 ? (
@@ -479,7 +479,7 @@ export default function RankingPage() {
               <span className="min-w-0">
                 <span className="block text-[9px] font-black uppercase tracking-[0.18em] text-white/42">Selecionar bolão / cota</span>
                 <span className="mt-0.5 block truncate text-[13px] font-black text-white">{poolLabel}</span>
-                {poolMeta ? <span className="mt-0.5 block truncate text-[10px] font-medium text-white/38">{poolMeta}</span> : null}
+                {poolMeta ? <span className="mt-0.5 block truncate text-[12px] font-medium text-white/38">{poolMeta}</span> : null}
               </span>
             </span>
             <ChevronDown className={`size-4 shrink-0 text-primary transition-transform ${poolOpen ? "rotate-180" : ""}`} strokeWidth={2.6} />
@@ -497,12 +497,12 @@ export default function RankingPage() {
                 return (
                   <Fragment key={option.key}>
                     {showBolaoGeralHeader ? (
-                      <div className="sticky top-0 z-10 border-b border-white/10 bg-[#161616] px-4 py-2 text-[9px] font-black uppercase tracking-[0.2em] text-white/45">
+                      <div className="sticky top-0 z-10 border-b border-white/10 bg-[#161616] px-4 py-2 text-[9px] font-black uppercase tracking-[0.2em] text-white/80">
                         Bolão geral
                       </div>
                     ) : null}
                     {showBolaoDiaHeader ? (
-                      <div className="sticky top-0 z-10 border-b border-white/10 bg-[#161616] px-4 py-2 text-[9px] font-black uppercase tracking-[0.2em] text-white/45">
+                      <div className="sticky top-0 z-10 border-b border-white/10 bg-[#161616] px-4 py-2 text-[9px] font-black uppercase tracking-[0.2em] text-white/80">
                         Bolão do dia
                       </div>
                     ) : null}
@@ -538,7 +538,7 @@ export default function RankingPage() {
                 <Ticket className="size-5 text-primary" strokeWidth={2.2} />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-black uppercase tracking-wide text-primary">Ainda dá tempo de palpitar</p>
+                <p className="text-[12px] font-black uppercase tracking-wide text-primary">Ainda dá tempo de palpitar</p>
                 <p className="mt-1 text-[12px] font-medium leading-snug text-white/72">{unusedCopy}</p>
                 <Link
                   href={selectedScope.palpitesHref}
@@ -563,11 +563,11 @@ export default function RankingPage() {
         {error ? <p className="mt-3 text-center text-[12px] font-semibold text-red-400">{error}</p> : null}
 
         {loadingBoard && rankingRows.length === 0 ? (
-          <p className="mt-6 text-center text-[12px] font-medium text-white/45">Carregando ranking…</p>
+          <p className="mt-6 text-center text-[12px] font-medium text-white/80">Carregando ranking…</p>
         ) : null}
 
         {!loadingBoard && rankingRows.length === 0 ? (
-          <p className="mt-6 text-center text-[12px] font-medium text-white/45">
+          <p className="mt-6 text-center text-[12px] font-medium text-white/80">
             Ainda não há participantes com pontuação neste bolão.
           </p>
         ) : null}
@@ -692,7 +692,7 @@ export default function RankingPage() {
             </p>
             <Link
               href={palpitesQuickHref}
-              className="inline-flex shrink-0 items-center gap-1 rounded-xl px-3.5 py-2.5 text-[10px] font-black uppercase tracking-wide text-[#0E141B] transition active:scale-[0.98]"
+              className="inline-flex shrink-0 items-center gap-1 rounded-xl px-3.5 py-2.5 text-[12px] font-black uppercase tracking-wide text-[#0E141B] transition active:scale-[0.98]"
               style={{ background: PRIMARY }}
             >
               Palpitar agora
@@ -704,7 +704,7 @@ export default function RankingPage() {
         <section className="mt-3 grid grid-cols-2 gap-2">
           <Link
             href={palpitesQuickHref}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border text-[10px] font-black uppercase tracking-wide text-white/90 transition hover:bg-white/4"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border text-[12px] font-black uppercase tracking-wide text-white/90 transition hover:bg-white/4"
             style={{ borderColor: "rgba(177,235,11,0.35)", background: "rgba(177,235,11,0.04)" }}
           >
             <Pencil className="size-3.5 text-primary" strokeWidth={2.3} />
@@ -713,7 +713,7 @@ export default function RankingPage() {
           <button
             type="button"
             onClick={() => void shareRanking()}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-white/12 bg-white/3 text-[10px] font-black uppercase tracking-wide text-white/88 transition hover:bg-white/6"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-white/12 bg-white/3 text-[12px] font-black uppercase tracking-wide text-white/88 transition hover:bg-white/6"
           >
             <Share2 className="size-3.5 text-primary" strokeWidth={2.3} />
             Compartilhar
@@ -722,15 +722,15 @@ export default function RankingPage() {
 
         <section className="mt-4 grid grid-cols-3 overflow-hidden rounded-2xl border" style={{ background: CARD, borderColor: BORDER }}>
           <div className="border-r border-white/8 py-3 text-center">
-            <p className="text-[9px] font-black uppercase text-white/45">Palpites (você)</p>
+            <p className="text-[9px] font-black uppercase text-white/80">Palpites (você)</p>
             <p className="mt-1 text-xl font-black text-primary">{loadingBoard ? "—" : stats.palpites}</p>
           </div>
           <div className="border-r border-white/8 py-3 text-center">
-            <p className="text-[9px] font-black uppercase text-white/45">Acertos</p>
+            <p className="text-[9px] font-black uppercase text-white/80">Acertos</p>
             <p className="mt-1 text-xl font-black text-primary">{loadingBoard ? "—" : stats.acertos}</p>
           </div>
           <div className="py-3 text-center">
-            <p className="text-[9px] font-black uppercase text-white/45">Pontos</p>
+            <p className="text-[9px] font-black uppercase text-white/80">Pontos</p>
             <p className="mt-1 text-xl font-black text-primary">{loadingBoard ? "—" : stats.pontos}</p>
           </div>
         </section>

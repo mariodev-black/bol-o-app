@@ -30,7 +30,7 @@ function PwField({
 }) {
   return (
     <div className="flex flex-col gap-2">
-      <label htmlFor={id} className="text-[10px] font-black uppercase tracking-[0.14em] text-white/80">
+      <label htmlFor={id} className="text-[12px] font-black uppercase tracking-[0.14em] text-white/80">
         {label}
       </label>
       <div className="relative">

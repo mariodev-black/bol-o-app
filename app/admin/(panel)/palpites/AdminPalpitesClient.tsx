@@ -49,7 +49,7 @@ function bolaoLabel(value: string) {
 function TeamLogo({ src, alt }: { src: string | null; alt: string }) {
   if (!src) {
     return (
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 text-[10px] font-black text-white/35">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 text-[12px] font-black text-white/80">
         {alt.slice(0, 2).toUpperCase()}
       </span>
     );
@@ -114,7 +114,7 @@ export function AdminPalpitesClient({ predictions }: { predictions: AdminPredict
       <section className="mt-5 rounded-[18px] border border-white/8 bg-[#101010] p-4">
         <div className="grid gap-3">
           <label className="block">
-            <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-white/35">
+            <span className="mb-2 block text-[12px] font-black uppercase tracking-[0.18em] text-white/80">
               Buscar palpite
             </span>
             <input
@@ -137,7 +137,7 @@ export function AdminPalpitesClient({ predictions }: { predictions: AdminPredict
         <div className="overflow-x-auto">
           <table className="min-w-[1300px] w-full table-fixed text-left">
             <thead className="border-b border-white/8 bg-white/2.5">
-              <tr className="text-[11px] font-black uppercase tracking-[0.16em] text-white/35">
+              <tr className="text-[11px] font-black uppercase tracking-[0.16em] text-white/80">
                 <th className="w-[210px] px-4 py-4">Usuário</th>
                 <th className="w-[130px] px-4 py-4">Cota</th>
                 <th className="w-[110px] px-4 py-4">Bolão</th>
@@ -155,13 +155,13 @@ export function AdminPalpitesClient({ predictions }: { predictions: AdminPredict
                   <td className="px-4 py-4">
                     <Link href={`/admin/users/${prediction.userId}`} className="block">
                       <p className="truncate font-black text-white group-hover:text-primary">{prediction.userName ?? "Sem nome"}</p>
-                      <p className="mt-1 truncate text-white/35">{prediction.userEmail}</p>
+                      <p className="mt-1 truncate text-white/80">{prediction.userEmail}</p>
                     </Link>
                   </td>
                   <td className="px-4 py-4">
                     <Link href={`/admin/cotas/${prediction.ticketId}`} className="block">
                       <p className="font-mono text-[12px] font-black text-white group-hover:text-primary">#{shortId(prediction.ticketId)}</p>
-                      <p className="mt-1 text-[11px] font-bold uppercase text-white/35">
+                      <p className="mt-1 text-[11px] font-bold uppercase text-white/80">
                         {formatAdminTicketType(prediction.ticketType)}
                       </p>
                     </Link>
@@ -172,12 +172,12 @@ export function AdminPalpitesClient({ predictions }: { predictions: AdminPredict
                       <TeamLogo src={prediction.homeLogo} alt={prediction.homeName} />
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-black text-white">{prediction.homeName}</p>
-                        <p className="mt-1 font-mono text-[10px] text-white/30">Partida #{prediction.matchId}</p>
+                        <p className="mt-1 font-mono text-[12px] text-white/30">Partida #{prediction.matchId}</p>
                       </div>
                       <span className="shrink-0 text-[11px] font-black text-white/28">x</span>
                       <div className="min-w-0 flex-1 text-right">
                         <p className="truncate font-black text-white">{prediction.awayName}</p>
-                        <p className="mt-1 text-[10px] text-white/25">visitante</p>
+                        <p className="mt-1 text-[12px] text-white/25">visitante</p>
                       </div>
                       <TeamLogo src={prediction.awayLogo} alt={prediction.awayName} />
                     </div>
@@ -204,7 +204,7 @@ export function AdminPalpitesClient({ predictions }: { predictions: AdminPredict
                     <p className="text-white/55">{formatMatchDate(prediction)}</p>
                     <p className="mt-1 text-[11px] text-white/30">{prediction.matchStatus ?? "Sem status"}</p>
                   </td>
-                  <td className="px-4 py-4 text-white/45">{formatDate(prediction.submittedAt)}</td>
+                  <td className="px-4 py-4 text-white/80">{formatDate(prediction.submittedAt)}</td>
                 </tr>
               ))}
             </tbody>

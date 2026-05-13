@@ -28,7 +28,7 @@ export function RecuperarSenhaContent() {
   return (
     <form onSubmit={handleSubmit} className="w-full py-8 lg:py-0">
       <div className="mb-6">
-        <Link href="/login" className="inline-flex items-center gap-1.5 text-[11px] font-bold text-white/35 transition-colors hover:text-white/70">
+        <Link href="/login" className="inline-flex items-center gap-1.5 text-[11px] font-bold text-white/80 transition-colors hover:text-white/70">
           <ArrowLeft className="h-3.5 w-3.5" />
           Ir para login
         </Link>
@@ -45,7 +45,7 @@ export function RecuperarSenhaContent() {
 
       <div className="rounded-[16px] border border-white/8 bg-[#151515] p-[22px] shadow-[0_18px_42px_rgba(0,0,0,0.28)]">
         <div className="flex flex-col gap-[10px]">
-          <label className="text-[10px] font-black uppercase tracking-[0.14em] text-white/80">
+          <label className="text-[12px] font-black uppercase tracking-[0.14em] text-white/80">
             E-mail
           </label>
           <div className="relative">
@@ -74,7 +74,7 @@ export function RecuperarSenhaContent() {
         {sent ? <Check className="h-4 w-4" strokeWidth={2.5} /> : <ArrowRight className="h-4 w-4" strokeWidth={2.5} />}
       </button>
 
-      <p className="mt-[18px] text-center text-[14px] font-medium text-white/35">
+      <p className="mt-[18px] text-center text-[14px] font-medium text-white/80">
         Lembrou sua senha?{" "}
         <Link href="/login" className="font-black text-primary hover:underline">Entrar agora</Link>
       </p>

@@ -125,7 +125,7 @@ export function ProfileCompletionHost({ children }: { children: React.ReactNode 
             </p>
             <form onSubmit={onSubmit} className="mt-6 flex flex-col gap-4">
               <div>
-                <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-white/50">
+                <label className="mb-1.5 block text-[12px] font-black uppercase tracking-widest text-white/50">
                   Nome completo
                 </label>
                 <input
@@ -142,7 +142,7 @@ export function ProfileCompletionHost({ children }: { children: React.ReactNode 
                 />
               </div>
               <div>
-                <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-white/50">
+                <label className="mb-1.5 block text-[12px] font-black uppercase tracking-widest text-white/50">
                   CPF
                 </label>
                 <input
@@ -157,7 +157,7 @@ export function ProfileCompletionHost({ children }: { children: React.ReactNode 
                 />
               </div>
               <div>
-                <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-white/50">
+                <label className="mb-1.5 block text-[12px] font-black uppercase tracking-widest text-white/50">
                   Celular (opcional)
                 </label>
                 <div className="flex gap-2">
@@ -192,7 +192,7 @@ export function ProfileCompletionHost({ children }: { children: React.ReactNode 
                     window.location.href = "/login";
                   })();
                 }}
-                className="text-center text-[12px] font-medium text-white/35 underline-offset-2 hover:text-white/50 hover:underline"
+                className="text-center text-[12px] font-medium text-white/80 underline-offset-2 hover:text-white/50 hover:underline"
               >
                 Sair e usar outra conta
               </button>

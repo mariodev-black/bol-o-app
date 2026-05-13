@@ -27,7 +27,7 @@ export const CotaCpa = () => {
           <ChevronRight className="size-3.5 sm:size-4" strokeWidth={2.6} />
         </Link>
       </div>
-      <p className="mt-1.5 text-center text-[10px] font-semibold text-[#0E141B]/75 sm:mt-2 sm:text-left sm:text-[11px]">
+      <p className="mt-1.5 text-center text-[12px] font-semibold text-[#0E141B]/75 sm:mt-2 sm:text-left sm:text-[11px]">
         É rápido, fácil e seguro!
       </p>
     </section>

@@ -86,16 +86,16 @@ export function ScoreRulesCards({ rules, accents, heroSrc }: ScoreRulesCardsProp
             <div className="relative z-10 flex flex-col items-start gap-1 pl-2 md:pl-3 max-sm:min-h-0 max-sm:w-full max-sm:flex-1 max-sm:pl-1.5">
               {badgeSub ? (
                 <div className="rounded-full border border-white/12 bg-[#0f291c]/95 px-4 py-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-[2px] max-sm:w-full max-sm:px-2.5 max-sm:py-1.5">
-                  <span className="block text-xs font-bold uppercase leading-tight text-white max-sm:text-[10px] max-sm:leading-snug">
+                  <span className="block text-xs font-bold uppercase leading-tight text-white max-sm:text-[12px] max-sm:leading-snug">
                     {badge}
                   </span>
-                  <span className="mt-0.5 block text-[10px] font-medium normal-case text-white/90 max-sm:text-[9px] max-sm:leading-snug">
+                  <span className="mt-0.5 block text-[12px] font-medium normal-case text-white/90 max-sm:text-[9px] max-sm:leading-snug">
                     {badgeSub}
                   </span>
                 </div>
               ) : (
                 <span
-                  className={`${badgeClass} max-sm:max-w-full max-sm:text-balance max-sm:px-2.5 max-sm:py-1.5 max-sm:text-[10px] max-sm:leading-snug`}
+                  className={`${badgeClass} max-sm:max-w-full max-sm:text-balance max-sm:px-2.5 max-sm:py-1.5 max-sm:text-[12px] max-sm:leading-snug`}
                 >
                   {badge}
                 </span>

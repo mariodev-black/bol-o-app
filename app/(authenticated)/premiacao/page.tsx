@@ -199,7 +199,7 @@ function PremiacaoGeralDetalhesModal({
             oficiais do bolão.
           </p>
           <div className="mt-4 overflow-hidden rounded-xl border border-white/10 bg-black/40">
-            <div className="sticky top-0 z-1 grid grid-cols-[minmax(0,4.5rem)_1fr] gap-2 border-b border-white/10 bg-[#141414] px-3 py-2 text-[10px] font-black uppercase tracking-wide text-white/55 sm:px-3.5 sm:text-[11px]">
+            <div className="sticky top-0 z-1 grid grid-cols-[minmax(0,4.5rem)_1fr] gap-2 border-b border-white/10 bg-[#141414] px-3 py-2 text-[12px] font-black uppercase tracking-wide text-white/55 sm:px-3.5 sm:text-[11px]">
               <span>Pos.</span>
               <span className="text-right">Prêmio (ex.)</span>
             </div>
@@ -219,7 +219,7 @@ function PremiacaoGeralDetalhesModal({
               ))}
             </div>
           </div>
-          <p className="mt-3 text-center text-[10px] font-medium text-white/45">
+          <p className="mt-3 text-center text-[12px] font-medium text-white/80">
             Total distribuído neste exemplo:{" "}
             <span className="font-black text-primary">{formatBrlCents(GENERAL_SIMULATION_TOTAL_CENTS)}</span>
             {" · "}

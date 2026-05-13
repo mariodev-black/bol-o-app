@@ -12,13 +12,13 @@ export function AdminShell({ admin, children }: { admin: AdminUser; children: Re
           <Image src={logo} alt="Bolão do Milhão" width={162} height={39} className="h-auto w-[162px]" priority />
         </Link>
         <div>
-          <p className="mb-4 text-[10px] font-black uppercase tracking-[0.24em] text-white/22">Menu</p>
+          <p className="mb-4 text-[12px] font-black uppercase tracking-[0.24em] text-white/22">Menu</p>
           <AdminSidenav />
         </div>
         <div className="mt-auto border-t border-white/8 pt-5">
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Admin</p>
+          <p className="text-[12px] font-black uppercase tracking-[0.2em] text-primary">Admin</p>
           <p className="mt-2 truncate text-[14px] font-bold text-white/88">{admin.name ?? admin.email}</p>
-          <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.16em] text-white/28">{admin.role}</p>
+          <p className="mt-1 text-[12px] font-bold uppercase tracking-[0.16em] text-white/28">{admin.role}</p>
         </div>
       </aside>
 
@@ -26,7 +26,7 @@ export function AdminShell({ admin, children }: { admin: AdminUser; children: Re
         <div className="mx-auto w-full max-w-[1180px]">
           <header className="mb-6 flex items-center justify-between rounded-[18px] border border-white/8 bg-[#0D0D0D] px-4 py-4 lg:hidden">
             <Image src={logo} alt="Bolão do Milhão" width={150} height={36} className="h-auto w-[150px]" />
-            <span className="rounded-full bg-primary px-3 py-1 text-[10px] font-black uppercase text-[#0E141B]">
+            <span className="rounded-full bg-primary px-3 py-1 text-[12px] font-black uppercase text-[#0E141B]">
               Admin
             </span>
           </header>
@@ -44,7 +44,7 @@ export function AdminPageTitle({ title, subtitle }: { title: string; subtitle: s
       <h1 className="mt-2 text-[34px] font-black leading-none tracking-[-0.045em] text-white lg:text-[44px]">
         {title}
       </h1>
-      <p className="mt-3 max-w-2xl text-[14px] font-medium leading-relaxed text-white/45">{subtitle}</p>
+      <p className="mt-3 max-w-2xl text-[14px] font-medium leading-relaxed text-white/80">{subtitle}</p>
     </div>
   );
 }

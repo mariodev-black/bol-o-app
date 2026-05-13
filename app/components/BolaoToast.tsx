@@ -172,7 +172,7 @@ function BolaoToastCard({
           <Icon className="h-5 w-5" strokeWidth={2.2} aria-hidden />
         </div>
         <div className="min-w-0 flex-1 pt-0.5">
-          <p className="font-helvetica-now-display text-[10px] font-black uppercase tracking-[0.2em] text-primary/90">
+          <p className="font-helvetica-now-display text-[12px] font-black uppercase tracking-[0.2em] text-primary/90">
             Bolão do Milhão
           </p>
           <p className="mt-1 text-[13px] font-semibold leading-snug text-white/92">{message}</p>
@@ -180,7 +180,7 @@ function BolaoToastCard({
         <button
           type="button"
           onClick={beginLeave}
-          className="shrink-0 rounded-lg p-1.5 text-white/35 transition-colors hover:bg-white/8 hover:text-white/70"
+          className="shrink-0 rounded-lg p-1.5 text-white/80 transition-colors hover:bg-white/8 hover:text-white/70"
           aria-label="Fechar"
         >
           <X className="h-4 w-4" />
