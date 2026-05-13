@@ -1,3 +1,4 @@
+import { fetchFootballApiV1 } from "@/lib/football-api-fetch";
 import { registerMatchMapMemoryInvalidate } from "@/lib/match-map-cache-invalidator";
 import { parseKickoffFromPartidaPayload, pickScoreFromPartidaPayload } from "@/lib/partida-placar";
 import { fasesEnrichmentCacheKey, readFootballApiCacheJson } from "@/lib/football-api-cache-store";
@@ -198,7 +199,7 @@ export async function fetchProviderMatches(): Promise<ProviderMatch[]> {
   debugLog("fetchProviderMatches:start", { competitionId: compId });
 
   const url = `https://api.api-futebol.com.br/v1/campeonatos/${compId}/partidas`;
-  const res = await fetch(url, {
+  const res = await fetchFootballApiV1(url, {
     headers: { Authorization: `Bearer ${apiToken}` },
     cache: "no-store",
   });
@@ -315,7 +316,7 @@ function mapPartidaItem(p: any, phaseKey: string, roundSlug: string): ProviderMa
 async function fetchProviderMatchesFromRounds(compId: string, apiToken: string) {
   const roundsUrl = `https://api.api-futebol.com.br/v1/campeonatos/${compId}/rodadas`;
   debugLog("rounds:list:request", { url: roundsUrl });
-  const roundsRes = await fetch(roundsUrl, {
+  const roundsRes = await fetchFootballApiV1(roundsUrl, {
     headers: { Authorization: `Bearer ${apiToken}` },
     cache: "no-store",
   });
@@ -361,7 +362,7 @@ async function fetchProviderMatchesFromRounds(compId: string, apiToken: string) 
     let detail: any = null;
     let resolvedRoundRef = roundRef;
     for (const detailUrl of detailCandidates) {
-      const detailRes = await fetch(detailUrl, {
+      const detailRes = await fetchFootballApiV1(detailUrl, {
         headers: { Authorization: `Bearer ${apiToken}` },
         cache: "no-store",
       });
@@ -431,7 +432,7 @@ async function mergeProviderMatchesWithRoundsAndDetail(
   for (const m of still.slice(0, maxDetail)) {
     try {
       const detailUrl = `https://api.api-futebol.com.br/v1/partidas/${m.matchId}`;
-      const dr = await fetch(detailUrl, { headers: { Authorization: `Bearer ${apiToken}` }, cache: "no-store" });
+      const dr = await fetchFootballApiV1(detailUrl, { headers: { Authorization: `Bearer ${apiToken}` }, cache: "no-store" });
       if (!dr.ok) continue;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const p = (await dr.json().catch(() => null)) as any;

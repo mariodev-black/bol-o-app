@@ -1,3 +1,4 @@
+import { fetchFootballApiV1 } from "@/lib/football-api-fetch";
 import type { ProviderMatch } from "@/lib/football-api";
 
 type FaseListItem = { fase_id?: number; slug?: string; nome?: string };
@@ -33,7 +34,7 @@ export async function downloadStandingsJson(compId: string, apiToken: string): P
  */
 export async function downloadFasesEnrichmentMatches(compId: string, apiToken: string): Promise<ProviderMatch[]> {
   const listUrl = `https://api.api-futebol.com.br/v1/campeonatos/${compId}/fases`;
-  const listRes = await fetch(listUrl, {
+  const listRes = await fetchFootballApiV1(listUrl, {
     headers: { Authorization: `Bearer ${apiToken}` },
     cache: "no-store",
   });
@@ -51,7 +52,7 @@ export async function downloadFasesEnrichmentMatches(compId: string, apiToken: s
     const faseId = Number(f?.fase_id);
     if (!Number.isFinite(faseId)) continue;
     const detailUrl = `https://api.api-futebol.com.br/v1/campeonatos/${compId}/fases/${faseId}`;
-    const detailRes = await fetch(detailUrl, {
+    const detailRes = await fetchFootballApiV1(detailUrl, {
       headers: { Authorization: `Bearer ${apiToken}` },
       cache: "no-store",
     });
