@@ -1,6 +1,6 @@
 import { registerMatchMapMemoryInvalidate } from "@/lib/match-map-cache-invalidator";
 import { parseKickoffFromPartidaPayload, pickScoreFromPartidaPayload } from "@/lib/partida-placar";
-import { readMatchesCache, requestMatchesCacheSoftSync, syncMatchesCache } from "@/lib/matches-cache";
+import { readMatchesCache, requestMatchesCacheSoftSync, scheduleSaysFresh, syncMatchesCache } from "@/lib/matches-cache";
 
 type MatchMap = Map<number, {
   id: number;
@@ -154,20 +154,42 @@ function collectProviderMatches(node: any, path: string[] = [], out: ProviderMat
   return out;
 }
 
-export async function fetchMatchesMap(): Promise<MatchMap> {
+export type FetchMatchesMapOptions = {
+  /**
+   * false (default): só Postgres + cache em memória — não agenda sync com a API de futebol.
+   * true: mantém comportamento antigo (soft sync quando a agenda permitir; force se cache vazia).
+   */
+  allowExternalSync?: boolean;
+};
+
+export async function fetchMatchesMap(options?: FetchMatchesMapOptions): Promise<MatchMap> {
+  const allowExternal = options?.allowExternalSync ?? false;
+
   if (matchMapMemoryCache && Date.now() - matchMapMemoryCache.at < MATCH_MAP_MEMORY_TTL_MS) {
     debugLog("fetchMatchesMap:return-memory-cache", { count: matchMapMemoryCache.map.size });
     return new Map(matchMapMemoryCache.map);
   }
 
   const cachedRows = await readMatchesCache().catch(() => []);
-  debugLog("fetchMatchesMap:start", { cachedRows: cachedRows.length, competitionId: competitionId() });
+  debugLog("fetchMatchesMap:start", { cachedRows: cachedRows.length, competitionId: competitionId(), allowExternal });
   if (cachedRows.length > 0) {
-    requestMatchesCacheSoftSync(fetchProviderMatches);
+    if (allowExternal) {
+      const podeAdiar = await scheduleSaysFresh().catch(() => false);
+      if (!podeAdiar) {
+        requestMatchesCacheSoftSync(fetchProviderMatches);
+      }
+    }
     debugLog("fetchMatchesMap:return-cache", { count: cachedRows.length });
     const map = mapFromCacheRows(cachedRows);
     matchMapMemoryCache = { at: Date.now(), map };
     return new Map(map);
+  }
+
+  if (!allowExternal) {
+    debugLog("fetchMatchesMap:empty-cache-no-external");
+    const empty: MatchMap = new Map();
+    matchMapMemoryCache = { at: Date.now(), map: empty };
+    return new Map(empty);
   }
 
   await syncMatchesCache({ fetchProviderMatches: fetchProviderMatches, force: true }).catch(() => {});

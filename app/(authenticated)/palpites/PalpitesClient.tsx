@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { ChevronDown, ChevronUp, BarChart2, Trophy, AlignJustify, Target, CircleCheck, Star, Bell, Coins, AlertTriangle, Disc, Pencil, Loader2, ChevronLeft, ChevronRight, Check } from "lucide-react";
+import { ChevronDown, ChevronUp, BarChart2, Trophy, AlignJustify, Target, CircleCheck, Star, Bell, Coins, AlertTriangle, Disc, Pencil, Loader2, ChevronLeft, ChevronRight, Check, Sparkles } from "lucide-react";
 import { TrophyGold, TrophySilver, TrophyBronze } from "@/app/components/RankingTrophies";
 import bgPalpitesDesk from "@/app/assets/bg-palpites-desktop.png";
 import {
@@ -318,8 +318,8 @@ function pickTabelaGrupos(data: any): TabelaGrupos | null {
 }
 
 // ── Escudo do time ────────────────────────────────────────────
-function Escudo({ url, alt, size = "md" }: { url: string; alt: string; size?: "sm" | "md" }) {
-  const imgSize = size === "sm" ? "w-12 h-12" : "w-14 h-14";
+function Escudo({ url, alt, size = "md" }: { url: string; alt: string; size?: "sm" | "md" | "lg" }) {
+  const imgSize = size === "sm" ? "w-12 h-12" : size === "lg" ? "w-16 h-16" : "w-14 h-14";
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img src={url} alt={alt} className={`${imgSize} object-contain shrink-0 drop-shadow-sm`} />
@@ -376,6 +376,53 @@ function ScoreDisplay({ value, dir }: { value: number; dir: "up" | "down" }) {
 }
 
 // ── Card do jogo ──────────────────────────────────────────────
+
+/** Texto do rodapé após jogo com placar e palpite (regras iguais ao calcPredictionPoints). */
+function copyPontuacaoPartida(
+  review: ReturnType<typeof calcPredictionPoints>,
+  predCasa: number,
+  predVis: number,
+  realCasa: number,
+  realVis: number
+): { title: string; subtitle?: string; tone: "win" | "partial" | "miss" } {
+  if (review.exact) {
+    return {
+      title: `Placar exato: +${review.points} pontos`,
+      subtitle: "Você acertou quantos gols o time da casa fez e quantos o visitante fez.",
+      tone: "win",
+    };
+  }
+  if (review.outcomeHit) {
+    const subtitle =
+      review.goalsHitCount >= 1
+        ? "Você acertou quem venceu ou se empatou, e também acertou um dos números do placar."
+        : "Você acertou quem venceu ou se o jogo terminou empatado.";
+    return {
+      title: `Resultado do jogo certo: +${review.points} pontos`,
+      subtitle,
+      tone: "win",
+    };
+  }
+  if (review.points > 0) {
+    const subtitle =
+      predCasa === realCasa && predVis !== realVis
+        ? "Só o número de gols do time da casa estava igual ao jogo."
+        : predVis === realVis && predCasa !== realCasa
+          ? "Só o número de gols do visitante estava igual ao jogo."
+          : "Parte do placar bateu com o jogo.";
+    return {
+      title: `Você ganhou ${review.points} ponto${review.points > 1 ? "s" : ""} nesta partida`,
+      subtitle,
+      tone: "partial",
+    };
+  }
+  return {
+    title: "Nenhum ponto nesta partida",
+    subtitle: `O jogo terminou ${realCasa} a ${realVis}. Você tinha colocado ${predCasa} a ${predVis}.`,
+    tone: "miss",
+  };
+}
+
 function JogoCard({
   jogo,
   readOnly = false,
@@ -473,11 +520,6 @@ function JogoCard({
   const temPlacarOficial = jogo.resultCasa != null && jogo.resultVisitante != null;
   const displayCasa = readOnly && temPlacarOficial ? jogo.resultCasa! : scoreCasa;
   const displayVisitante = readOnly && temPlacarOficial ? jogo.resultVisitante! : scoreVisitante;
-  const showPalpiteHint =
-    readOnly &&
-    temPlacarOficial &&
-    hasInitialPrediction &&
-    (scoreCasa !== jogo.resultCasa! || scoreVisitante !== jogo.resultVisitante!);
   const review =
     readOnly && temPlacarOficial && hasInitialPrediction
       ? calcPredictionPoints(scoreCasa, scoreVisitante, jogo.resultCasa!, jogo.resultVisitante!)
@@ -491,6 +533,16 @@ function JogoCard({
   const readOnlyPending = readOnly && beforeKickoff;
   const readOnlyMatchLive = readOnly && matchLive;
   const readOnlyPlacarPendente = readOnly && !readOnlyPending && !readOnlyMatchLive && !temPlacarOficial && jogo.status === "encerrado";
+  const resultadoResumo =
+    readOnly &&
+    temPlacarOficial &&
+    hasInitialPrediction &&
+    review &&
+    !readOnlyPending &&
+    !readOnlyMatchLive &&
+    !readOnlyPlacarPendente
+      ? copyPontuacaoPartida(review, scoreCasa, scoreVisitante, jogo.resultCasa!, jogo.resultVisitante!)
+      : null;
 
   // Status badge label/style
   const statusBadge = readOnly
@@ -509,29 +561,31 @@ function JogoCard({
     ? { label: "Fechado", color: "rgba(255,255,255,0.40)", bg: "rgba(255,255,255,0.06)", border: "rgba(255,255,255,0.10)", dot: false }
     : { label: formatTimeUntilLock(), color: "#B1EB0B", bg: "rgba(177,235,11,0.10)", border: "rgba(177,235,11,0.34)", dot: true };
 
-  // Horizontal stepper — square chevron buttons
+  // Horizontal stepper — áreas de toque maiores (acessibilidade)
   const HorizStepper = ({
     value, onInc, onDec,
   }: { value: number; onInc: () => void; onDec: () => void }) => (
-    <div className="mt-2 flex items-center gap-2">
+    <div className="mt-3 flex items-center gap-2.5">
       <button
         type="button"
         onClick={onDec}
         disabled={disabled}
-        className="w-8 h-8 rounded-[6px] flex items-center justify-center transition-opacity"
-        style={{ opacity: disabled ? 0.3 : 1, background: "#111411", border: "1px solid rgba(177,235,11,0.14)" }}
+        aria-label="Diminuir gols"
+        className="min-h-11 min-w-11 h-11 w-11 rounded-lg flex items-center justify-center transition-opacity"
+        style={{ opacity: disabled ? 0.3 : 1, background: "#111411", border: "1px solid rgba(177,235,11,0.2)" }}
       >
-        <ChevronDown className="w-3.5 h-3.5 text-primary" />
+        <ChevronDown className="w-5 h-5 text-primary" aria-hidden />
       </button>
-      <span className="w-7 text-center text-[22px] font-black text-white tabular-nums">{value}</span>
+      <span className="min-w-10 text-center text-[26px] font-black text-white tabular-nums leading-none">{value}</span>
       <button
         type="button"
         onClick={onInc}
         disabled={disabled}
-        className="w-8 h-8 rounded-[6px] flex items-center justify-center transition-opacity"
-        style={{ opacity: disabled ? 0.3 : 1, background: "#111411", border: "1px solid rgba(177,235,11,0.14)" }}
+        aria-label="Aumentar gols"
+        className="min-h-11 min-w-11 h-11 w-11 rounded-lg flex items-center justify-center transition-opacity"
+        style={{ opacity: disabled ? 0.3 : 1, background: "#111411", border: "1px solid rgba(177,235,11,0.2)" }}
       >
-        <ChevronUp className="w-3.5 h-3.5 text-primary" />
+        <ChevronUp className="w-5 h-5 text-primary" aria-hidden />
       </button>
     </div>
   );
@@ -543,7 +597,15 @@ function JogoCard({
         ? "rgba(232,200,64,0.42)"
         : readOnlyMatchLive
           ? "rgba(177,235,11,0.48)"
-          : "rgba(177,235,11,0.15)"
+          : resultadoResumo?.tone === "win" && review?.exact
+            ? "rgba(177,235,11,0.52)"
+            : resultadoResumo?.tone === "win"
+              ? "rgba(177,235,11,0.34)"
+              : resultadoResumo?.tone === "partial"
+                ? "rgba(177,235,11,0.22)"
+                : resultadoResumo?.tone === "miss"
+                  ? "rgba(255,255,255,0.11)"
+                  : "rgba(177,235,11,0.15)"
     : palpiteSalvo
       ? "rgba(177,235,11,0.60)"
       : "rgba(177,235,11,0.15)";
@@ -554,93 +616,97 @@ function JogoCard({
         ? "0 0 0 1px rgba(232,200,64,0.10), 0 4px 18px rgba(0,0,0,0.32), 0 0 12px rgba(232,200,64,0.06)"
         : readOnlyMatchLive
           ? "0 0 0 1px rgba(177,235,11,0.12), 0 8px 24px rgba(0,0,0,0.40), 0 0 18px rgba(177,235,11,0.12)"
-          : "0 4px 16px rgba(0,0,0,0.28)"
+          : resultadoResumo?.tone === "win" && review?.exact
+            ? "0 0 0 1px rgba(177,235,11,0.14), 0 8px 28px rgba(0,0,0,0.38), 0 0 22px rgba(177,235,11,0.18)"
+            : resultadoResumo?.tone === "win"
+              ? "0 0 0 1px rgba(177,235,11,0.10), 0 6px 22px rgba(0,0,0,0.34), 0 0 16px rgba(177,235,11,0.10)"
+              : "0 4px 16px rgba(0,0,0,0.28)"
     : palpiteSalvo
       ? "0 0 0 1px rgba(177,235,11,0.12), 0 8px 24px rgba(0,0,0,0.40), 0 0 18px rgba(177,235,11,0.12)"
       : "0 4px 16px rgba(0,0,0,0.28)";
 
   return (
     <div
-      className="rounded-xl overflow-hidden mb-2.5 bg-[#0B0D0C]"
+      className="rounded-xl overflow-hidden mb-4 bg-[#0B0D0C]"
       style={{
         border: `1px solid ${cardBorder}`,
         boxShadow: cardShadow,
       }}
     >
-      {/* ── Top bar: status + date ── */}
-      <div className="flex items-center justify-between px-4 pt-3 pb-0">
-        {/* Status badge */}
+      {/* ── Top bar: status + date (tipografia maior, contraste alto) ── */}
+      <div className="flex items-start justify-between gap-3 px-4 sm:px-5 pt-4 pb-1">
         <div
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-full"
+          className="flex items-center gap-2 px-3 py-2 rounded-full shrink-0"
           style={{ background: statusBadge.bg, border: `1px solid ${statusBadge.border}` }}
         >
           {statusBadge.dot && (
-            <span
-              className="w-1.5 h-1.5 rounded-full animate-pulse"
-              style={{ background: statusBadge.color }}
-            />
+            <span className="w-2 h-2 rounded-full animate-pulse shrink-0" style={{ background: statusBadge.color }} aria-hidden />
           )}
-          <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: statusBadge.color }}>
+          <span className="text-sm font-semibold leading-tight tracking-normal" style={{ color: statusBadge.color }}>
             {statusBadge.label}
           </span>
         </div>
-        {/* Data / hora + relogio ao vivo (verde) */}
-        <div className="flex items-center justify-end gap-2 flex-wrap text-right max-w-[58%]">
-          <span className="text-[11px] font-medium leading-tight" style={{ color: "rgba(255,255,255,0.35)" }}>
+        <div className="flex flex-col items-end justify-start gap-1 text-right min-w-0 flex-1">
+          <span className="text-sm font-medium leading-snug" style={{ color: "rgba(255,255,255,0.78)" }}>
             {formatData(jogo.dataBR, jogo.kickoffAt)}, {safeHourLabel(jogo.hora)}
           </span>
           {liveClockLabel ? (
-            <span className="text-[10px] font-black leading-tight whitespace-nowrap" style={{ color: "#B1EB0B" }}>
+            <span className="text-sm font-bold leading-snug text-pretty sm:whitespace-nowrap" style={{ color: "#B1EB0B" }}>
               {liveClockLabel}
             </span>
           ) : null}
         </div>
       </div>
 
-      {/* ── Teams + score: two columns with × between ── */}
-      <div className="flex items-center px-4 py-3 gap-2">
+      {readOnly && temPlacarOficial ? (
+        <p className="px-4 sm:px-5 pt-1 pb-0.5 text-center text-base font-semibold leading-snug" style={{ color: "rgba(255,255,255,0.82)" }}>
+          Placar oficial do jogo
+        </p>
+      ) : null}
 
-        {/* Casa column */}
-        <div className="flex flex-1 flex-col items-center">
-          <Escudo url={jogo.escudoCasa} alt={jogo.timeCasa} size="sm" />
-          <p className="mt-2 text-[12px] font-semibold text-white text-center leading-tight line-clamp-2">
+      {/* ── Times + placar ── */}
+      <div className="flex items-end px-4 sm:px-5 py-4 gap-2">
+
+        <div className="flex flex-1 flex-col items-center min-w-0">
+          <Escudo url={jogo.escudoCasa} alt={jogo.timeCasa} size={readOnly ? "lg" : "md"} />
+          <p className="mt-3 text-[15px] sm:text-base font-semibold text-white text-center leading-snug line-clamp-2 px-0.5">
             {jogo.timeCasa}
           </p>
           {readOnly ? (
             <div
-              className="mt-2 w-10 h-10 rounded-lg flex items-center justify-center text-[22px] font-black"
-              style={{ background: "rgba(255,255,255,0.08)", color: "#fff" }}
+              className="mt-3 min-h-13 min-w-13 px-2 rounded-xl flex items-center justify-center text-[1.75rem] sm:text-[2rem] font-black tabular-nums leading-none"
+              style={{ background: "rgba(255,255,255,0.12)", color: "#fff", border: "1px solid rgba(255,255,255,0.14)" }}
+              aria-label={`Gols ${jogo.timeCasa}: ${displayCasa}`}
             >
               {displayCasa}
             </div>
           ) : predictionsLoading ? (
-            <div className="mt-3 h-8 w-24 rounded-full animate-pulse" style={{ background: "rgba(255,255,255,0.06)" }} />
+            <div className="mt-3 h-11 w-28 rounded-full animate-pulse" style={{ background: "rgba(255,255,255,0.06)" }} />
           ) : (
             <HorizStepper value={scoreCasa} onInc={() => increment("casa")} onDec={() => decrement("casa")} />
           )}
         </div>
 
-        {/* × separator — aligned with score row */}
-        <svg className="mb-1 shrink-0 opacity-90" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <svg className="mb-2 shrink-0 opacity-95" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <line x1="18" y1="6" x2="6" y2="18" />
           <line x1="6" y1="6" x2="18" y2="18" />
         </svg>
 
-        {/* Visitante column */}
-        <div className="flex flex-1 flex-col items-center">
-          <Escudo url={jogo.escudoVisitante} alt={jogo.timeVisitante} size="sm" />
-          <p className="mt-2 text-[12px] font-semibold text-white text-center leading-tight line-clamp-2">
+        <div className="flex flex-1 flex-col items-center min-w-0">
+          <Escudo url={jogo.escudoVisitante} alt={jogo.timeVisitante} size={readOnly ? "lg" : "md"} />
+          <p className="mt-3 text-[15px] sm:text-base font-semibold text-white text-center leading-snug line-clamp-2 px-0.5">
             {jogo.timeVisitante}
           </p>
           {readOnly ? (
             <div
-              className="mt-2 w-10 h-10 rounded-lg flex items-center justify-center text-[22px] font-black"
-              style={{ background: "rgba(255,255,255,0.08)", color: "#fff" }}
+              className="mt-3 min-h-13 min-w-13 px-2 rounded-xl flex items-center justify-center text-[1.75rem] sm:text-[2rem] font-black tabular-nums leading-none"
+              style={{ background: "rgba(255,255,255,0.12)", color: "#fff", border: "1px solid rgba(255,255,255,0.14)" }}
+              aria-label={`Gols ${jogo.timeVisitante}: ${displayVisitante}`}
             >
               {displayVisitante}
             </div>
           ) : predictionsLoading ? (
-            <div className="mt-3 h-8 w-24 rounded-full animate-pulse" style={{ background: "rgba(255,255,255,0.06)" }} />
+            <div className="mt-3 h-11 w-28 rounded-full animate-pulse" style={{ background: "rgba(255,255,255,0.06)" }} />
           ) : (
             <HorizStepper value={scoreVisitante} onInc={() => increment("visitante")} onDec={() => decrement("visitante")} />
           )}
@@ -648,88 +714,185 @@ function JogoCard({
 
       </div>
 
-      {showPalpiteHint ? (
-        <div className="px-4 pb-1 -mt-1 text-center">
-          <span className="text-[10px] font-semibold tracking-wide" style={{ color: "rgba(255,255,255,0.42)" }}>
-            Seu palpite: {scoreCasa} x {scoreVisitante}
-          </span>
+      {readOnly && temPlacarOficial && hasInitialPrediction ? (
+        <div className="px-4 sm:px-5 pb-3">
+          <section
+            className="rounded-xl px-4 py-4"
+            style={{
+              background: "linear-gradient(180deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.03) 100%)",
+              border: "1px solid rgba(255,255,255,0.12)",
+            }}
+            aria-label="Seu palpite em relação ao resultado do jogo"
+          >
+            <p className="text-sm sm:text-[15px] leading-relaxed text-center font-medium mb-3" style={{ color: "rgba(255,255,255,0.82)" }}>
+              Os números grandes acima mostram como o jogo terminou. Aqui está o que você tinha escolhido.
+            </p>
+            <p className="text-base font-bold text-center text-white mb-3">Seu palpite</p>
+            <div className="flex flex-col items-center justify-center gap-3">
+              <div className="flex items-center justify-center gap-2.5" role="group" aria-label="Placar do seu palpite">
+                <span
+                  className="min-w-12 min-h-12 h-12 px-2 rounded-xl flex items-center justify-center text-2xl sm:text-[1.65rem] font-black tabular-nums"
+                  style={{
+                    background: scoreCasa === jogo.resultCasa ? "rgba(177,235,11,0.22)" : "rgba(255,255,255,0.08)",
+                    color: scoreCasa === jogo.resultCasa ? "#D4F862" : "rgba(255,255,255,0.92)",
+                    border: `2px solid ${
+                      scoreCasa === jogo.resultCasa ? "rgba(177,235,11,0.55)" : "rgba(255,255,255,0.14)"
+                    }`,
+                    boxShadow: scoreCasa === jogo.resultCasa ? "0 0 14px rgba(177,235,11,0.15)" : "none",
+                  }}
+                >
+                  {scoreCasa}
+                </span>
+                <span className="text-xl font-black" style={{ color: "rgba(255,255,255,0.45)" }} aria-hidden>
+                  ×
+                </span>
+                <span
+                  className="min-w-12 min-h-12 h-12 px-2 rounded-xl flex items-center justify-center text-2xl sm:text-[1.65rem] font-black tabular-nums"
+                  style={{
+                    background: scoreVisitante === jogo.resultVisitante ? "rgba(177,235,11,0.22)" : "rgba(255,255,255,0.08)",
+                    color: scoreVisitante === jogo.resultVisitante ? "#D4F862" : "rgba(255,255,255,0.92)",
+                    border: `2px solid ${
+                      scoreVisitante === jogo.resultVisitante ? "rgba(177,235,11,0.55)" : "rgba(255,255,255,0.14)"
+                    }`,
+                    boxShadow: scoreVisitante === jogo.resultVisitante ? "0 0 14px rgba(177,235,11,0.15)" : "none",
+                  }}
+                >
+                  {scoreVisitante}
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm text-center leading-snug max-w-sm px-1" style={{ color: "rgba(255,255,255,0.62)" }}>
+                Quando um número fica em verde claro, você acertou quantos gols aquele time fez.
+              </p>
+            </div>
+          </section>
         </div>
       ) : null}
 
-      <div className="mx-4 h-px bg-white/8 mb-3" />
+      <div className="mx-4 sm:mx-5 h-px bg-white/10 mb-3" />
 
-      {/* ── Rodape somente leitura / acao ── */}
-      <div className="px-3 pb-3">
+      <div className="px-4 sm:px-5 pb-4">
         {readOnly ? (
           <div
-            className="w-full py-2.5 px-2 rounded-lg flex items-center justify-center"
+            className="w-full py-4 px-3 sm:px-4 rounded-xl flex flex-col items-center justify-center gap-2"
             style={{
               background: readOnlyPending
                 ? "rgba(232,200,64,0.08)"
                 : readOnlyPlacarPendente
                   ? "rgba(232,200,64,0.06)"
-                  : review && review.points > 0
-                    ? "rgba(177,235,11,0.10)"
-                    : "rgba(255,255,255,0.03)",
+                  : resultadoResumo?.tone === "win"
+                    ? review?.exact
+                      ? "rgba(177,235,11,0.12)"
+                      : "rgba(177,235,11,0.09)"
+                    : resultadoResumo?.tone === "partial"
+                      ? "rgba(177,235,11,0.06)"
+                      : resultadoResumo?.tone === "miss"
+                        ? "rgba(255,255,255,0.03)"
+                        : review && review.points > 0
+                          ? "rgba(177,235,11,0.10)"
+                          : "rgba(255,255,255,0.03)",
               border: readOnlyPending
                 ? "1px solid rgba(232,200,64,0.28)"
                 : readOnlyPlacarPendente
                   ? "1px solid rgba(232,200,64,0.22)"
-                  : review && review.points > 0
-                    ? "1px solid rgba(177,235,11,0.28)"
-                    : "1px solid rgba(255,255,255,0.06)",
+                  : resultadoResumo?.tone === "win"
+                    ? review?.exact
+                      ? "1px solid rgba(177,235,11,0.35)"
+                      : "1px solid rgba(177,235,11,0.26)"
+                    : resultadoResumo?.tone === "partial"
+                      ? "1px solid rgba(177,235,11,0.20)"
+                      : resultadoResumo?.tone === "miss"
+                        ? "1px solid rgba(255,255,255,0.07)"
+                        : review && review.points > 0
+                          ? "1px solid rgba(177,235,11,0.28)"
+                          : "1px solid rgba(255,255,255,0.06)",
             }}
           >
-            <span
-              className={`text-center leading-snug ${review && review.points > 0 && !readOnlyPending ? "font-black text-[13px]" : "font-semibold text-[12px]"}`}
-              style={{
-                color: readOnlyPending
-                  ? "rgba(232,216,120,0.92)"
-                  : readOnlyPlacarPendente
-                    ? "rgba(232,216,120,0.85)"
-                    : review && review.points > 0
-                      ? "#B1EB0B"
-                      : readOnlyMatchLive
-                        ? "rgba(255,255,255,0.72)"
-                        : "rgba(255,255,255,0.42)",
-              }}
-            >
-              {readOnlyPending
-                ? "Aguardando o inicio da partida"
-                : readOnlyPlacarPendente
-                  ? "Sincronizando placar oficial..."
-                  : readOnlyMatchLive
-                    ? "Jogo em andamento — a pontuacao aparece apos o resultado oficial"
-                    : !hasInitialPrediction && (jogo.status === "encerrado" || temPlacarOficial)
-                      ? "Sem palpite nesta partida"
-                      : review && review.points > 0
-                        ? `Voce ganhou ${review.points} pts nesta partida`
-                        : "Sem pontuacao nesta partida"}
-            </span>
+            {readOnlyPending ? (
+              <span className="text-center leading-relaxed font-semibold text-base px-1" style={{ color: "rgba(252,234,160,0.98)" }}>
+                Aguardando o início da partida.
+              </span>
+            ) : readOnlyPlacarPendente ? (
+              <span className="text-center leading-relaxed font-semibold text-base px-1" style={{ color: "rgba(252,234,160,0.95)" }}>
+                Estamos sincronizando o placar oficial. Volte daqui a pouco.
+              </span>
+            ) : readOnlyMatchLive ? (
+              <span className="text-center leading-relaxed font-semibold text-base px-1" style={{ color: "rgba(255,255,255,0.88)" }}>
+                Jogo em andamento. A pontuação do seu palpite aparece depois que o resultado oficial estiver disponível.
+              </span>
+            ) : !hasInitialPrediction && (jogo.status === "encerrado" || temPlacarOficial) ? (
+              <span className="text-center leading-relaxed font-semibold text-base px-1" style={{ color: "rgba(255,255,255,0.78)" }}>
+                Você não fez palpite nesta partida.
+              </span>
+            ) : resultadoResumo ? (
+              <div className="flex flex-col items-center gap-2 w-full" role="status" aria-live="polite">
+                <div className="flex items-center justify-center gap-2.5 flex-wrap px-1">
+                  {resultadoResumo.tone === "win" && review?.exact ? (
+                    <Sparkles className="w-6 h-6 shrink-0" style={{ color: "#D4F862" }} strokeWidth={2.2} aria-hidden />
+                  ) : null}
+                  {resultadoResumo.tone === "win" && review && !review.exact ? (
+                    <Target className="w-6 h-6 shrink-0" style={{ color: "#D4F862" }} strokeWidth={2.2} aria-hidden />
+                  ) : null}
+                  {resultadoResumo.tone === "partial" ? (
+                    <Star className="w-6 h-6 shrink-0" style={{ color: "#D4F862" }} strokeWidth={2.2} aria-hidden />
+                  ) : null}
+                  {resultadoResumo.tone === "miss" ? (
+                    <Disc className="w-6 h-6 shrink-0" style={{ color: "rgba(255,255,255,0.55)" }} strokeWidth={2.2} aria-hidden />
+                  ) : null}
+                  <span
+                    className={`text-center leading-snug text-pretty ${resultadoResumo.tone !== "miss" ? "font-bold text-[17px] sm:text-lg" : "font-semibold text-base"}`}
+                    style={{
+                      color: resultadoResumo.tone === "miss" ? "rgba(255,255,255,0.88)" : "#D4F862",
+                    }}
+                  >
+                    {resultadoResumo.title}
+                  </span>
+                </div>
+                {resultadoResumo.subtitle ? (
+                  <span
+                    className="text-center leading-relaxed text-sm sm:text-[15px] px-2 font-medium max-w-md"
+                    style={{ color: "rgba(255,255,255,0.78)" }}
+                  >
+                    {resultadoResumo.subtitle}
+                  </span>
+                ) : null}
+              </div>
+            ) : review && review.points > 0 ? (
+              <span className="text-center leading-relaxed font-bold text-lg px-1" style={{ color: "#D4F862" }}>
+                Você ganhou {review.points} pontos nesta partida.
+              </span>
+            ) : (
+              <span className="text-center leading-relaxed font-semibold text-base px-1" style={{ color: "rgba(255,255,255,0.78)" }}>
+                Sem pontuação nesta partida.
+              </span>
+            )}
           </div>
         ) : palpiteSalvo ? (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-stretch gap-2">
             <div
-              className="flex-1 py-2.5 rounded-lg flex items-center justify-center gap-2"
+              className="flex-1 min-h-[48px] py-3 rounded-xl flex items-center justify-center gap-2"
               style={{ background: "rgba(177,235,11,0.12)", border: "1px solid rgba(177,235,11,0.30)" }}
             >
-              <CircleCheck className="w-3.5 h-3.5" style={{ color: "#B1EB0B" }} strokeWidth={2.5} />
-              <span className="font-black text-[13px]" style={{ color: "#B1EB0B" }}>Palpite salvo</span>
+              <CircleCheck className="w-5 h-5 shrink-0" style={{ color: "#D4F862" }} strokeWidth={2.5} aria-hidden />
+              <span className="font-bold text-base" style={{ color: "#D4F862" }}>
+                Palpite salvo
+              </span>
             </div>
             {canEdit && (
               <button
+                type="button"
                 onClick={() => { setSaveError(null); setPalpiteSalvo(false); }}
                 disabled={isSubmitting}
-                className="h-[42px] px-3 rounded-lg flex items-center gap-1.5 transition-all duration-200 disabled:opacity-40"
-                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
+                className="min-h-[48px] px-4 rounded-xl flex items-center justify-center gap-2 transition-all duration-200 disabled:opacity-40"
+                style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.14)" }}
               >
-                <Pencil className="w-3 h-3 text-white/50" strokeWidth={2} />
-                <span className="text-[12px] font-semibold text-white/50">Editar</span>
+                <Pencil className="w-4 h-4 text-white/70" strokeWidth={2} aria-hidden />
+                <span className="text-base font-semibold text-white/80">Editar palpite</span>
               </button>
             )}
           </div>
         ) : (
           <button
+            type="button"
             onClick={async () => {
               if (!canEdit || !ticketId || !onSavePrediction) return;
               setSaveError(null);
@@ -744,7 +907,7 @@ function JogoCard({
               }
             }}
             disabled={!canEdit || !ticketId || isSubmitting}
-            className="w-full py-2.5 rounded-lg font-black text-[14px] transition-all duration-200"
+            className="w-full min-h-[52px] py-3.5 rounded-xl font-bold text-base transition-all duration-200"
             style={{
               background: !canEdit || !ticketId || isSubmitting ? "#1A1A1A" : hasInitialPrediction ? "#B1EB0B" : "#E6E6E6",
               color: !canEdit || !ticketId || isSubmitting ? "rgba(255,255,255,0.22)" : "#0E141B",
@@ -768,11 +931,11 @@ function JogoCard({
           </button>
         )}
         {!readOnly && !palpiteSalvo && !canEdit && jogo.status === "aberto" && isLockedByTime && !hasInitialPrediction ? (
-          <p className="mt-2 text-[11px] text-center leading-snug" style={{ color: "rgba(255,255,255,0.38)" }}>
-            O limite e ate 1h antes do apito: na ultima hora e apos o inicio nao da para apostar. Sem palpite salvo ate la, voce nao entra nesta partida.
+          <p className="mt-3 text-sm text-center leading-relaxed px-1" style={{ color: "rgba(255,255,255,0.72)" }}>
+            O prazo termina 1 hora antes do apito. Depois disso não dá para apostar. Se você não tiver salvo um palpite antes desse horário, não entra nesta partida.
           </p>
         ) : null}
-        {saveError ? <p className="mt-2 text-[11px] text-red-300">{saveError}</p> : null}
+        {saveError ? <p className="mt-3 text-sm text-center leading-relaxed text-red-300 px-1">{saveError}</p> : null}
       </div>
     </div>
   );

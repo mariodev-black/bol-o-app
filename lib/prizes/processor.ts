@@ -48,17 +48,71 @@ function competitionId(): number {
   return Number.parseInt((process.env.FOOTBALL_COMPETITION_ID || "72").trim(), 10) || 72;
 }
 
-function isTerminalMatch(match: Pick<MatchRow, "status" | "result_casa" | "result_visitante">): boolean {
+/**
+ * Partida "resolvida" para premiacao: placar oficial preenchido OU situacao sem placar valido (cancel/adiado/suspens).
+ * Nao basta "encerrado" sem gols — evita pagar antes do sync do placar.
+ */
+function isMatchResolvedForPrizes(match: Pick<MatchRow, "status" | "result_casa" | "result_visitante">): boolean {
   if (match.result_casa != null && match.result_visitante != null) return true;
   const status = String(match.status || "").trim().toLowerCase();
   return (
-    status.includes("encerr") ||
-    status.includes("finaliz") ||
     status.includes("cancel") ||
     status.includes("adiad") ||
     status.includes("suspens") ||
     status.includes("interromp")
   );
+}
+
+function lastKickoffMs(matches: MatchRow[]): number | null {
+  let maxMs = 0;
+  for (const m of matches) {
+    if (!m.kickoff_at) continue;
+    const t = new Date(m.kickoff_at).getTime();
+    if (Number.isFinite(t) && t > maxMs) maxMs = t;
+  }
+  return maxMs > 0 ? maxMs : null;
+}
+
+/** Minutos apos o apito do ultimo jogo do dia (DD/MM/AAAA) para fechar o bolao diario. Default 180 = 3h. */
+function prizeDailyGraceAfterLastKickoffMinutes(): number {
+  const n = Number.parseInt((process.env.PRIZE_DAILY_GRACE_AFTER_LAST_KICKOFF_MINUTES || "180").trim(), 10);
+  if (!Number.isFinite(n)) return 180;
+  return Math.min(600, Math.max(0, n));
+}
+
+/** Horas apos o apito do ultimo jogo da competicao (max kickoff no cache) para fechar o bolao geral. Default 36h. */
+function prizeGeneralGraceHoursAfterLastKickoff(): number {
+  const n = Number.parseFloat((process.env.PRIZE_GENERAL_GRACE_HOURS_AFTER_LAST_KICKOFF || "36").trim());
+  if (!Number.isFinite(n) || n <= 0) return 36;
+  return Math.min(168, n);
+}
+
+function hasScheduledFutureKickoff(matches: MatchRow[], nowMs: number): boolean {
+  for (const m of matches) {
+    if (!m.kickoff_at) continue;
+    const t = new Date(m.kickoff_at).getTime();
+    if (Number.isFinite(t) && t > nowMs) return true;
+  }
+  return false;
+}
+
+/** Bolao diario: todos resolvidos + ja passou a margem apos o ultimo apito daquele dia. */
+function dailyPoolReadyForClosure(dateMatches: MatchRow[], nowMs: number): boolean {
+  if (dateMatches.length === 0) return false;
+  if (!dateMatches.every(isMatchResolvedForPrizes)) return false;
+  const lastKo = lastKickoffMs(dateMatches);
+  if (lastKo == null) return true;
+  return nowMs >= lastKo + prizeDailyGraceAfterLastKickoffMinutes() * 60_000;
+}
+
+/** Bolao geral (Copa inteira): nenhum jogo futuro no cache, todos resolvidos, margem apos ultimo apito. */
+function generalPoolReadyForClosure(matches: MatchRow[], nowMs: number): boolean {
+  if (matches.length === 0) return false;
+  if (hasScheduledFutureKickoff(matches, nowMs)) return false;
+  if (!matches.every(isMatchResolvedForPrizes)) return false;
+  const lastKo = lastKickoffMs(matches);
+  if (lastKo == null) return true;
+  return nowMs >= lastKo + prizeGeneralGraceHoursAfterLastKickoff() * 3600_000;
 }
 
 function closureKey(input: { competitionId: number; type: BolaoPrizeType; dateBR?: string | null }): string {
@@ -347,7 +401,16 @@ async function creditAward(
   );
 }
 
-async function processClosure(client: PoolClient, input: { compId: number; type: BolaoPrizeType; dateBR: string | null; matches: MatchRow[] }) {
+async function processClosure(
+  client: PoolClient,
+  input: {
+    compId: number;
+    type: BolaoPrizeType;
+    dateBR: string | null;
+    matches: MatchRow[];
+    metadataExtra?: Record<string, unknown>;
+  }
+) {
   const tickets = await listTicketsForClosure(client, { type: input.type, dateBR: input.dateBR });
   const totalRevenueCents = tickets.reduce((sum, ticket) => sum + Number(ticket.total_amount_cents || 0), 0);
   const poolCents = calculatePrizePoolCents(totalRevenueCents);
@@ -360,6 +423,7 @@ async function processClosure(client: PoolClient, input: { compId: number; type:
     metadata: {
       ticketCount: tickets.length,
       matchCount: input.matches.length,
+      ...(input.metadataExtra ?? {}),
     },
   });
   if (!closureId || tickets.length === 0 || poolCents <= 0) return;
@@ -396,6 +460,8 @@ export async function processPrizeClosuresAfterMatchSync(): Promise<void> {
     const matches = await listMatches(client, compId);
     if (matches.length === 0) return;
 
+    const nowMs = Date.now();
+
     const byDate = new Map<string, MatchRow[]>();
     for (const match of matches) {
       if (!match.date_br) continue;
@@ -405,10 +471,20 @@ export async function processPrizeClosuresAfterMatchSync(): Promise<void> {
     }
 
     for (const [dateBR, dateMatches] of byDate) {
-      if (dateMatches.length > 0 && dateMatches.every(isTerminalMatch)) {
+      if (dailyPoolReadyForClosure(dateMatches, nowMs)) {
         await client.query("BEGIN");
         try {
-          await processClosure(client, { compId, type: "daily", dateBR, matches: dateMatches });
+          await processClosure(client, {
+            compId,
+            type: "daily",
+            dateBR,
+            matches: dateMatches,
+            metadataExtra: {
+              prizeGate: "daily",
+              lastKickoffMs: lastKickoffMs(dateMatches),
+              graceMinutesAfterLastKickoff: prizeDailyGraceAfterLastKickoffMinutes(),
+            },
+          });
           await client.query("COMMIT");
         } catch (error) {
           await client.query("ROLLBACK");
@@ -417,10 +493,20 @@ export async function processPrizeClosuresAfterMatchSync(): Promise<void> {
       }
     }
 
-    if (matches.every(isTerminalMatch)) {
+    if (generalPoolReadyForClosure(matches, nowMs)) {
       await client.query("BEGIN");
       try {
-        await processClosure(client, { compId, type: "general", dateBR: null, matches });
+        await processClosure(client, {
+          compId,
+          type: "general",
+          dateBR: null,
+          matches,
+          metadataExtra: {
+            prizeGate: "general",
+            lastKickoffMs: lastKickoffMs(matches),
+            graceHoursAfterLastKickoff: prizeGeneralGraceHoursAfterLastKickoff(),
+          },
+        });
         await client.query("COMMIT");
       } catch (error) {
         await client.query("ROLLBACK");

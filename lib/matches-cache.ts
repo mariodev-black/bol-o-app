@@ -120,8 +120,8 @@ export async function matchesCacheIsFresh(): Promise<boolean> {
   return Boolean(rows[0]?.fresh);
 }
 
-/** Janela “quente” (ao vivo / perto do apito) calculada só no Postgres — sem puxar todas as linhas na app. */
-async function scheduleSaysFresh(): Promise<boolean> {
+/** Se true, o ultimo sync ainda cobre a janela (idle ou ao vivo / pre-apito) — evita bater na API. */
+export async function scheduleSaysFresh(): Promise<boolean> {
   const pool = getPool();
   const comp = competitionId();
   const preMin = PRE_KICKOFF_WINDOW_MINUTES;
@@ -264,10 +264,14 @@ export async function syncMatchesCache(input: {
   force?: boolean;
 }) {
   if (!input.force) {
-    const scheduledFresh = await scheduleSaysFresh().catch(() => false);
-    if (scheduledFresh) return { refreshed: false as const, reason: "scheduled-fresh" as const };
-    const fresh = await matchesCacheIsFresh();
-    if (fresh) return { refreshed: false as const, reason: "fresh" as const };
+    const rowsPeek = await readMatchesCache().catch(() => []);
+    const placarPendente = matchCacheRowsTerminalWithoutScores(rowsPeek);
+    if (!placarPendente) {
+      const scheduledFresh = await scheduleSaysFresh().catch(() => false);
+      if (scheduledFresh) return { refreshed: false as const, reason: "scheduled-fresh" as const };
+      const fresh = await matchesCacheIsFresh();
+      if (fresh) return { refreshed: false as const, reason: "fresh" as const };
+    }
   }
 
   const pool = getPool();
@@ -283,10 +287,14 @@ export async function syncMatchesCache(input: {
 
   try {
     if (!input.force) {
-      const scheduledFresh = await scheduleSaysFresh().catch(() => false);
-      if (scheduledFresh) return { refreshed: false as const, reason: "scheduled-fresh-after-lock" as const };
-      const fresh = await matchesCacheIsFresh();
-      if (fresh) return { refreshed: false as const, reason: "fresh-after-lock" as const };
+      const rowsPeek2 = await readMatchesCache().catch(() => []);
+      const placarPendente2 = matchCacheRowsTerminalWithoutScores(rowsPeek2);
+      if (!placarPendente2) {
+        const scheduledFresh = await scheduleSaysFresh().catch(() => false);
+        if (scheduledFresh) return { refreshed: false as const, reason: "scheduled-fresh-after-lock" as const };
+        const fresh = await matchesCacheIsFresh();
+        if (fresh) return { refreshed: false as const, reason: "fresh-after-lock" as const };
+      }
     }
     const providerMatches = await input.fetchProviderMatches();
     await upsertMatchesCache(providerMatches);

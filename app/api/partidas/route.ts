@@ -4,141 +4,56 @@ import {
   matchCacheRowsTerminalWithoutScores,
   readMatchesCache,
   requestMatchesCacheSoftSync,
+  scheduleSaysFresh,
   syncMatchesCache,
 } from "@/lib/matches-cache";
+import { buildPartidasFasesFromRows } from "@/lib/partidas-cache-payload";
 
 export const runtime = "nodejs";
-
-type NestedRounds = Record<string, Array<Record<string, unknown>>>;
-type PhaseMap = Record<string, NestedRounds | Record<string, NestedRounds>>;
-
-function brDateFromIso(iso: string): string {
-  const dt = new Date(iso);
-  if (Number.isNaN(dt.getTime())) return "";
-  const parts = new Intl.DateTimeFormat("pt-BR", {
-    timeZone: "America/Sao_Paulo",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(dt);
-  const day = parts.find((p) => p.type === "day")?.value ?? "";
-  const month = parts.find((p) => p.type === "month")?.value ?? "";
-  const year = parts.find((p) => p.type === "year")?.value ?? "";
-  if (!day || !month || !year) return "";
-  return `${day}/${month}/${year}`;
-}
-
-function brHourFromIso(iso: string): string {
-  const dt = new Date(iso);
-  if (Number.isNaN(dt.getTime())) return "--:--";
-  return new Intl.DateTimeFormat("pt-BR", {
-    timeZone: "America/Sao_Paulo",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).format(dt);
-}
-
-function rowToPartida(row: Awaited<ReturnType<typeof readMatchesCache>>[number]) {
-  let dateBR = String(row.date_br ?? "").trim();
-  const hourRaw = String(row.hour_br ?? "").trim();
-  if ((!dateBR || dateBR === "undefined" || dateBR === "null") && row.kickoff_at) {
-    dateBR = brDateFromIso(row.kickoff_at);
-  }
-  const hourBR =
-    /^\d{2}:\d{2}$/.test(hourRaw.slice(0, 5))
-      ? hourRaw.slice(0, 5)
-      : row.kickoff_at
-        ? brHourFromIso(row.kickoff_at)
-        : "--:--";
-  return {
-    partida_id: row.match_id,
-    status: row.status,
-    data_realizacao: dateBR,
-    hora_realizacao: hourBR,
-    data_realizacao_iso: row.kickoff_at,
-    placar_mandante: row.result_casa,
-    placar_visitante: row.result_visitante,
-    time_mandante: {
-      nome_popular: row.home_name,
-      sigla: row.home_sigla,
-      escudo: row.home_logo,
-    },
-    time_visitante: {
-      nome_popular: row.away_name,
-      sigla: row.away_sigla,
-      escudo: row.away_logo,
-    },
-  };
-}
-
-function buildPartidasPayload(rows: Awaited<ReturnType<typeof readMatchesCache>>) {
-  const stableRows = rows.sort((a, b) => a.match_id - b.match_id);
-  // Bolao geral precisa enxergar a competicao inteira. O diario continua sendo
-  // limitado por data nas regras de palpites, nao aqui na API de partidas.
-  const displayRows = stableRows;
-
-  const fases: PhaseMap = {};
-  for (const row of displayRows) {
-    const phaseKey = row.phase_key || "geral";
-    const groupKey = row.group_key || "grupo-geral";
-    const roundKey = row.round_key || "rodada-unica";
-
-    if (!fases[phaseKey]) fases[phaseKey] = {};
-    if (row.group_key) {
-      const phaseObj = fases[phaseKey] as Record<string, NestedRounds>;
-      if (!phaseObj[groupKey]) phaseObj[groupKey] = {};
-      if (!phaseObj[groupKey][roundKey]) phaseObj[groupKey][roundKey] = [];
-      phaseObj[groupKey][roundKey].push(rowToPartida(row));
-    } else {
-      const phaseObj = fases[phaseKey] as NestedRounds;
-      if (!phaseObj[roundKey]) phaseObj[roundKey] = [];
-      phaseObj[roundKey].push(rowToPartida(row));
-    }
-  }
-
-  return { partidas: fases, stableRows, displayRows };
-}
 
 export async function GET() {
   try {
     const dbg = ["1", "true", "yes"].includes((process.env.DEBUG_MATCHES_SYNC || "").trim().toLowerCase());
     let rows = await readMatchesCache();
 
-    // Caminho rápido: responde do cache; se houver inconsistência (ex.: "finalizado" sem placar), força 1 sync antes de responder.
     if (rows.length > 0) {
-      if (matchCacheRowsTerminalWithoutScores(rows)) {
+      const placarPendente = matchCacheRowsTerminalWithoutScores(rows);
+      if (placarPendente) {
         await syncMatchesCache({ fetchProviderMatches, force: true }).catch(() => {});
         rows = await readMatchesCache();
       } else {
-        requestMatchesCacheSoftSync(fetchProviderMatches);
+        const podeAdiar = await scheduleSaysFresh().catch(() => false);
+        if (!podeAdiar) {
+          requestMatchesCacheSoftSync(fetchProviderMatches);
+        }
       }
-      const payload = buildPartidasPayload(rows);
+      const partidas = buildPartidasFasesFromRows(rows);
       if (dbg) {
         console.log("[api/partidas] return-cache-fast", {
-          count: payload.stableRows.length,
-          displayCount: payload.displayRows.length,
+          count: rows.length,
         });
       }
-      return NextResponse.json({ partidas: payload.partidas }, {
-        headers: {
-          "Cache-Control": "private, max-age=120, stale-while-revalidate=600",
-        },
-      });
+      return NextResponse.json(
+        { partidas },
+        {
+          headers: {
+            "Cache-Control": "private, max-age=120, stale-while-revalidate=600",
+          },
+        }
+      );
     }
 
-    // Primeiro acesso/ambiente frio: só aqui esperamos a sincronização externa.
     if (rows.length === 0) {
       await syncMatchesCache({ fetchProviderMatches, force: true });
       rows = await readMatchesCache();
       if (dbg) console.log("[api/partidas] forced-sync-on-empty-cache", { currentCount: rows.length });
     }
-    const payload = buildPartidasPayload(rows);
+    const partidas = buildPartidasFasesFromRows(rows);
     if (dbg) {
-      const phases = new Set(payload.stableRows.map((r) => r.phase_key || "geral"));
-      const withDate = payload.stableRows.filter((r) => String(r.date_br || "").trim() !== "").length;
-      const withHour = payload.stableRows.filter((r) => /^\d{2}:\d{2}$/.test(String(r.hour_br || "").slice(0, 5))).length;
-      const sample = payload.displayRows.slice(0, 5).map((r) => ({
+      const phases = new Set(rows.map((r) => r.phase_key || "geral"));
+      const withDate = rows.filter((r) => String(r.date_br || "").trim() !== "").length;
+      const withHour = rows.filter((r) => /^\d{2}:\d{2}$/.test(String(r.hour_br || "").slice(0, 5))).length;
+      const sample = rows.slice(0, 5).map((r) => ({
         match_id: r.match_id,
         phase: r.phase_key,
         round: r.round_key,
@@ -148,22 +63,24 @@ export async function GET() {
         kickoff_at: r.kickoff_at,
       }));
       console.log("[api/partidas] stable-rows", {
-        count: payload.stableRows.length,
-        displayCount: payload.displayRows.length,
+        count: rows.length,
         phases: Array.from(phases),
         withDate,
-        withoutDate: payload.stableRows.length - withDate,
+        withoutDate: rows.length - withDate,
         withHour,
-        withoutHour: payload.stableRows.length - withHour,
+        withoutHour: rows.length - withHour,
         sample,
       });
     }
 
-    return NextResponse.json({ partidas: payload.partidas }, {
-      headers: {
-        "Cache-Control": "private, max-age=120, stale-while-revalidate=600",
-      },
-    });
+    return NextResponse.json(
+      { partidas },
+      {
+        headers: {
+          "Cache-Control": "private, max-age=120, stale-while-revalidate=600",
+        },
+      }
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : "Falha ao buscar partidas";
     return NextResponse.json({ error: message }, { status: 500 });

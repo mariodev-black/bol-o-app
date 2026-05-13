@@ -4,6 +4,7 @@ import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 import { inferBolaoTypeFromTicketId } from "@/lib/ticket-kind-server";
 import { calcPredictionPoints, listPredictions } from "@/lib/predictions";
 import { fetchMatchesMap } from "@/lib/football-api";
+import { getPartidasFasesFromDb } from "@/lib/partidas-cache-payload";
 import { parseKickoffFromPartidaPayload, pickScoreFromPartidaPayload } from "@/lib/partida-placar";
 
 const MESES = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
@@ -215,12 +216,15 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
   const baseUrl = resolveBaseUrl(h);
   const cookieHeader = c.toString();
 
-  const [tabelaRes, partidasRes] = await Promise.all([
-    fetchJson(baseUrl, "/api/tabela", cookieHeader),
-    fetchJson(baseUrl, "/api/partidas", cookieHeader),
-  ]);
+  const tabelaRes = await fetchJson(baseUrl, "/api/tabela", cookieHeader);
 
-  const fases = (partidasRes.data as any)?.partidas as Record<string, any> | undefined;
+  let partidasOk = true;
+  let fases: Record<string, any> = {};
+  try {
+    fases = (await getPartidasFasesFromDb()) as Record<string, any>;
+  } catch {
+    partidasOk = false;
+  }
   const parsedPartidas = parseAllPartidas(fases);
   const jogos = parsedPartidas.jogos;
   const jogosFiltrados = jogos;
@@ -388,7 +392,7 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
     jogos: jogosFiltrados,
     grupos,
     grupo: grupos[0] ?? "GERAL",
-    erro: !partidasRes.ok,
+    erro: !partidasOk || !tabelaRes.ok,
     predictionsMap,
     rankingRows,
     resumoStats,
