@@ -316,6 +316,44 @@ export function TicketCheckoutFlow({
     };
   }, [step, transactionId, handleTransactionUpdate]);
 
+  const extraPrimaryBolao = useMemo(() => {
+    if (extraBoloes.length === 0) return undefined;
+    if (_initialExtraChampionshipId != null) {
+      const hit = extraBoloes.find((b) => b.championshipId === _initialExtraChampionshipId);
+      if (hit) return hit;
+    }
+    return extraBoloes[0];
+  }, [extraBoloes, _initialExtraChampionshipId]);
+
+  const extraResumoShortLabel = useMemo(() => {
+    const raw = extraPrimaryBolao?.displayName?.trim();
+    if (raw) return raw;
+    const names = extraBoloes.map((b) => b.displayName?.trim()).filter(Boolean);
+    const uniq = [...new Set(names)];
+    if (uniq.length === 1) return uniq[0]!;
+    if (uniq.length > 1) return uniq.join(" · ");
+    return "Bolão extra";
+  }, [extraBoloes, extraPrimaryBolao]);
+
+  const extraTicketHeadline = useMemo(() => {
+    const base = extraResumoShortLabel.trim();
+    if (!base || base === "Bolão extra") return "TICKET BOLÃO EXTRA";
+    return `TICKET ${base.toUpperCase()}`;
+  }, [extraResumoShortLabel]);
+
+  const extraIconBadge = useMemo(() => {
+    const s = extraResumoShortLabel.trim();
+    if (!s || s === "Bolão extra") return "EXTRA";
+    const first = (s.split(/\s+/)[0] ?? s).replace(/[^a-zA-ZÀ-ÿ0-9]/g, "");
+    if (first.length <= 1) return s.slice(0, 10).toUpperCase();
+    return first.length > 12 ? `${first.slice(0, 10)}…`.toUpperCase() : first.toUpperCase();
+  }, [extraResumoShortLabel]);
+
+  const extraNamesUnique = useMemo(
+    () => [...new Set(extraBoloes.map((b) => b.displayName?.trim()).filter(Boolean))],
+    [extraBoloes],
+  );
+
   const principalLineCents = progressiveDiscountTotalCents(
     prices.general,
     principalQty,
@@ -326,13 +364,13 @@ export function TicketCheckoutFlow({
     if (extraQuantity <= 0) return [];
     return [
       {
-        championshipId: extraBoloes[0]?.championshipId ?? 0,
+        championshipId: extraPrimaryBolao?.championshipId ?? extraBoloes[0]?.championshipId ?? 0,
         qty: extraQuantity,
         lineCents: extraLineCents,
-        displayLabel: "Bolão extra",
+        displayLabel: `Ticket ${extraResumoShortLabel}`,
       },
     ];
-  }, [extraBoloes, extraQuantity, extraLineCents]);
+  }, [extraBoloes, extraQuantity, extraLineCents, extraPrimaryBolao, extraResumoShortLabel]);
 
   const extraLinesCents = extraLineCents;
   const totalCents = principalLineCents + diarioLineCents + extraLinesCents;
@@ -731,35 +769,32 @@ export function TicketCheckoutFlow({
                       <img
                         src={ticketBlue.src}
                         alt=""
-                        className="h-[72px] w-[52px] shrink-0 object-contain drop-shadow-[0_8px_24px_rgba(168,85,247,0.35)] sm:h-[86px] sm:w-[62px]"
+                        className="h-[72px] w-[52px] shrink-0 object-contain drop-shadow-[0_8px_24px_rgba(177,235,11,0.28)] sm:h-[86px] sm:w-[62px]"
                       />
-                      <span className="mt-1 text-[8px] font-black uppercase leading-tight tracking-wide text-purple-300">
-                        Extra
+                      <span className="mt-1 max-w-[72px] truncate text-center text-[8px] font-black uppercase leading-tight tracking-wide text-primary">
+                        {extraIconBadge}
                       </span>
                     </div>
                     <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_88px] items-center gap-3 sm:grid-cols-[minmax(0,1fr)_96px]">
                       <div className="min-w-0">
                         <div className="min-w-0">
                           <h3 className="text-[14px] font-black uppercase leading-tight text-white sm:text-[15px]">
-                            Bolão extra
+                            {extraTicketHeadline}
                           </h3>
                           <p className="mt-1 text-[12px] font-medium leading-snug text-white/80 sm:text-[11px]">
-                            Uma cota extra vale para os bolões extras disponiveis.
+                            Uma cota extra vale para os bolões extras disponíveis no app — palpites na rodada em
+                            aberto do campeonato.
                           </p>
-                          {extraBoloes.some((b) => b.displayName?.trim()) && (
+                          {extraNamesUnique.length > 1 && (
                             <p className="mt-1.5 text-[10px] font-medium leading-snug text-white/50">
-                              Inclui:{" "}
-                              {extraBoloes
-                                .map((b) => b.displayName?.trim())
-                                .filter(Boolean)
-                                .join(" · ")}
+                              Inclui: {extraNamesUnique.join(" · ")}
                             </p>
                           )}
                         </div>
                         <div className="mt-3 flex w-fit items-center gap-1 rounded-[10px] border border-white/10 bg-[#0f0f0f] p-1">
                           <button
                             type="button"
-                            aria-label="Diminuir Bolão extra"
+                            aria-label={`Diminuir ${extraTicketHeadline}`}
                             disabled={extraQuantity <= 0}
                             onClick={() => {
                               setError(null);
@@ -775,7 +810,7 @@ export function TicketCheckoutFlow({
                           </span>
                           <button
                             type="button"
-                            aria-label="Aumentar Bolão extra"
+                            aria-label={`Aumentar ${extraTicketHeadline}`}
                             disabled={extraQuantity >= MAX_QTY}
                             onClick={() => {
                               setError(null);
@@ -903,7 +938,8 @@ export function TicketCheckoutFlow({
                 {extraQuantity > 0 && (
                   <div className="flex items-center justify-between gap-2 text-[13px]">
                     <span className="font-semibold text-white/70">
-                      Bolão extra · {extraQuantity} {extraQuantity === 1 ? "ticket" : "tickets"}
+                      {extraResumoShortLabel} · {extraQuantity}{" "}
+                      {extraQuantity === 1 ? "ticket" : "tickets"}
                     </span>
                     <span className="shrink-0 font-black tabular-nums text-white">
                       {formatBRL(extraLineCents)}
