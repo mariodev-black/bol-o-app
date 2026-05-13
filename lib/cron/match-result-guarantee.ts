@@ -91,3 +91,53 @@ export async function needsForcedResultSync(): Promise<boolean> {
   );
   return Boolean(rows[0]?.needs);
 }
+
+/** Minutos sem atualizar `matches_cache.synced_at` para considerar “atrasado” no tick de 5 min (pode puxar API). */
+export function matchCronStaleRefreshMinutes(): number {
+  const n = Number.parseInt((process.env.MATCH_CRON_STALE_REFRESH_MINUTES || "25").trim(), 10);
+  return Number.isFinite(n) && n >= 5 && n <= 180 ? n : 25;
+}
+
+/**
+ * Há partida já iniciada com cache “velho”: palpite pendente de placar OU jogo ao vivo/intervalo.
+ * Usado pelo cron interno — não dispara a API em GET de front.
+ */
+export async function needsStaleMatchCacheForApiSync(): Promise<boolean> {
+  const mins = matchCronStaleRefreshMinutes();
+  const pool = getPool();
+  const { rows } = await pool.query<{ needs: boolean }>(
+    `SELECT EXISTS (
+       SELECT 1
+       FROM matches_cache mc
+       WHERE mc.competition_id = $1
+         AND mc.kickoff_at IS NOT NULL
+         AND mc.kickoff_at::timestamptz < now()
+         AND mc.synced_at < now() - ($2::text || ' minutes')::interval
+         AND NOT (
+           lower(coalesce(mc.status, '')) LIKE '%cancel%'
+           OR lower(coalesce(mc.status, '')) LIKE '%adiad%'
+           OR lower(coalesce(mc.status, '')) LIKE '%suspens%'
+           OR lower(coalesce(mc.status, '')) LIKE '%interromp%'
+         )
+         AND NOT (
+           (lower(coalesce(mc.status, '')) LIKE '%encerr%' OR lower(coalesce(mc.status, '')) LIKE '%finaliz%')
+           AND mc.result_casa IS NOT NULL
+           AND mc.result_visitante IS NOT NULL
+         )
+         AND (
+           EXISTS (SELECT 1 FROM predictions p WHERE p.match_id = mc.match_id)
+           OR lower(coalesce(mc.status, '')) LIKE '%andamento%'
+           OR lower(coalesce(mc.status, '')) LIKE '%intervalo%'
+           OR lower(coalesce(mc.status, '')) LIKE '%ao vivo%'
+         )
+     ) AS needs`,
+    [competitionId(), String(mins)]
+  );
+  return Boolean(rows[0]?.needs);
+}
+
+/** Tick de manutenção: só vale gastar cota da API se há pendência real ou cache defasado. */
+export async function needsMatchApiRefreshForCron(): Promise<boolean> {
+  if (await needsForcedResultSync()) return true;
+  return needsStaleMatchCacheForApiSync();
+}

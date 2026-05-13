@@ -120,29 +120,36 @@ export async function matchesCacheIsFresh(): Promise<boolean> {
   return Boolean(rows[0]?.fresh);
 }
 
-/** Se true, o ultimo sync ainda cobre a janela (idle ou ao vivo / pre-apito) — evita bater na API. */
+/** Se true, o ultimo sync ainda cobre a janela (idle ou pre-apito) — evita bater na API. */
 export async function scheduleSaysFresh(): Promise<boolean> {
   const pool = getPool();
   const comp = competitionId();
   const preMin = PRE_KICKOFF_WINDOW_MINUTES;
+
+  /** Com jogo ao vivo no DB, nao dispara sync leve na API (cota diaria); placar e atualizado pelo cron de garantia / noturno. */
+  const { rows: liveRows } = await pool.query<{ live: boolean }>(
+    `SELECT EXISTS (
+       SELECT 1 FROM matches_cache
+       WHERE competition_id = $1
+         AND (
+           lower(coalesce(status, '')) LIKE '%andamento%'
+           OR lower(coalesce(status, '')) LIKE '%ao vivo%'
+           OR lower(coalesce(status, '')) LIKE '%intervalo%'
+         )
+     ) AS live`,
+    [comp]
+  );
+  if (Boolean(liveRows[0]?.live)) {
+    return true;
+  }
+
   const { rows: activeRows } = await pool.query<{ active: boolean }>(
-    `SELECT (
-       EXISTS (
-         SELECT 1 FROM matches_cache
-         WHERE competition_id = $1
-           AND (
-             lower(status) LIKE '%andamento%'
-             OR lower(status) LIKE '%ao vivo%'
-             OR lower(status) LIKE '%intervalo%'
-           )
-       )
-       OR EXISTS (
-         SELECT 1 FROM matches_cache
-         WHERE competition_id = $1
-           AND kickoff_at IS NOT NULL
-           AND kickoff_at::timestamptz > now()
-           AND kickoff_at::timestamptz <= now() + (($2::text || ' minutes')::interval)
-       )
+    `SELECT EXISTS (
+       SELECT 1 FROM matches_cache
+       WHERE competition_id = $1
+         AND kickoff_at IS NOT NULL
+         AND kickoff_at::timestamptz > now()
+         AND kickoff_at::timestamptz <= now() + (($2::text || ' minutes')::interval)
      ) AS active`,
     [comp, String(preMin)]
   );

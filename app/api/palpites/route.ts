@@ -240,6 +240,7 @@ export async function POST(request: NextRequest) {
     scoreVisitante: data.scoreVisitante,
   });
   revalidateTag("leaderboard", "max");
+  void import("@/lib/football-standings-refresh").then((m) => m.refreshStandingsFromApiOnce()).catch(() => {});
   return NextResponse.json({
     prediction: {
       ticketId: row.ticket_id,

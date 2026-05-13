@@ -1,36 +1,28 @@
 import { NextResponse } from "next/server";
+import { readFootballApiCacheJson, standingsCacheKey } from "@/lib/football-api-cache-store";
 
-function token(): string {
-  return (process.env.FOOTBALL_API_TOKEN || "").trim();
+export const runtime = "nodejs";
+
+function competitionIdNum(): number {
+  return Number.parseInt((process.env.FOOTBALL_COMPETITION_ID || "72").trim(), 10) || 72;
 }
 
-function competitionId(): string {
-  return (process.env.FOOTBALL_COMPETITION_ID || "72").trim();
-}
-
+/** Somente `football_api_cache` no Postgres. Sem API no GET — atualização via cron ou POST interno. */
 export async function GET() {
-  const apiToken = token();
-  if (!apiToken) {
-    return NextResponse.json({ error: "FOOTBALL_API_TOKEN nao configurado" }, { status: 500 });
+  const compNum = competitionIdNum();
+  const key = standingsCacheKey(compNum);
+  const payload = await readFootballApiCacheJson(key).catch(() => null);
+  if (payload != null) {
+    return NextResponse.json(payload, {
+      headers: { "Cache-Control": "private, max-age=120, stale-while-revalidate=3600" },
+    });
   }
 
-  const res = await fetch(
-    `https://api.api-futebol.com.br/v1/campeonatos/${competitionId()}/tabela`,
+  return NextResponse.json(
     {
-      headers: {
-        Authorization: `Bearer ${apiToken}`,
-      },
-      next: { revalidate: 300 },
-    }
+      error:
+        "Tabela ainda nao carregada. Aplique scripts/sql/add-football-api-cache.sql, configure FOOTBALL_API_TOKEN e rode o cron (GET /api/cron/football-snapshots?secret=... ou warmup do servidor).",
+    },
+    { status: 503 }
   );
-
-  if (!res.ok) {
-    return NextResponse.json(
-      { error: "Falha ao buscar tabela" },
-      { status: res.status }
-    );
-  }
-
-  const data = await res.json();
-  return NextResponse.json(data);
 }

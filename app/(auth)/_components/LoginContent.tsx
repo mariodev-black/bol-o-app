@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useEffect, useState, type FormEvent } from "react";
 import { ArrowRight, Eye, EyeOff, Lock, Mail } from "lucide-react";
+import { useBolaoToast } from "@/app/components/BolaoToast";
 import { useAuth } from "@/app/shared/AuthContext";
 
 const GOOGLE_ERRORS: Record<string, string> = {
@@ -25,9 +26,8 @@ export function LoginContent() {
   const [showPw, setShowPw] = useState(false);
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [infoMsg, setInfoMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const toast = useBolaoToast();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -62,17 +62,14 @@ export function LoginContent() {
 
   useEffect(() => {
     if (!errorParam) return;
-    setError(GOOGLE_ERRORS[errorParam] ?? "Não foi possível entrar com o Google.");
-  }, [errorParam]);
+    toast.error(GOOGLE_ERRORS[errorParam] ?? "Não foi possível entrar com o Google.");
+  }, [errorParam, toast]);
 
   useEffect(() => {
-    if (!msgParam) {
-      setInfoMsg(null);
-      return;
-    }
+    if (!msgParam) return;
     const t = ACCOUNT_MSG[msgParam];
-    setInfoMsg(t ?? null);
-  }, [msgParam]);
+    if (t) toast.success(t);
+  }, [msgParam, toast]);
 
   useEffect(() => {
     if (!ready || !isLoggedIn) return;
@@ -83,13 +80,11 @@ export function LoginContent() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (loading) return;
-    setError(null);
-    setInfoMsg(null);
     setLoading(true);
     try {
       const result = await loginWithPassword(identifier, password);
       if (!result.ok) {
-        setError(result.error);
+        toast.error(result.error);
         return;
       }
       // Garante que a sessão via cookie já está visível no backend
@@ -114,24 +109,6 @@ export function LoginContent() {
           <span className="hidden lg:inline">Entre na sua conta para continuar jogando</span>
         </p>
       </div>
-
-      {error && (
-        <p
-          role="alert"
-          className="mb-4 rounded-[8px] border border-red-400/25 bg-red-950/25 px-3.5 py-3 text-[13px] font-semibold text-red-200"
-        >
-          {error}
-        </p>
-      )}
-
-      {infoMsg && !error && (
-        <p
-          role="status"
-          className="mb-4 rounded-[8px] border border-primary/35 bg-primary/10 px-3.5 py-3 text-[13px] font-semibold text-primary"
-        >
-          {infoMsg}
-        </p>
-      )}
 
       <div className="rounded-[20px] border border-white/10 bg-[#050505]/70 px-5 py-[27px] shadow-[0_16px_40px_rgba(0,0,0,0.28)] lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none">
       <div className="flex flex-col gap-[17px] lg:gap-5">

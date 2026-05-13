@@ -3,20 +3,26 @@
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { ArrowLeft, ArrowRight, Check, Mail } from "lucide-react";
+import { useBolaoToast } from "@/app/components/BolaoToast";
 
 export function RecuperarSenhaContent() {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const toast = useBolaoToast();
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    setError(null);
     if (!email.trim()) {
-      setError("Informe seu e-mail para recuperar a senha.");
+      toast.error("Informe seu e-mail para recuperar a senha.");
       return;
     }
+    const isResend = sent;
     setSent(true);
+    if (isResend) {
+      toast.info("Se o e-mail existir em nossa base, você receberá as instruções novamente.");
+    } else {
+      toast.success("Enviamos as instruções para o e-mail informado, caso ele exista em nossa base.");
+    }
   }
 
   return (
@@ -36,18 +42,6 @@ export function RecuperarSenhaContent() {
           Informe seu e-mail para receber as instruções
         </p>
       </div>
-
-      {error && (
-        <p role="alert" className="mb-4 rounded-[8px] border border-red-400/25 bg-red-950/25 px-3.5 py-3 text-[13px] font-semibold text-red-200">
-          {error}
-        </p>
-      )}
-
-      {sent && (
-        <p role="status" className="mb-4 rounded-[8px] border border-primary/25 bg-primary/10 px-3.5 py-3 text-[13px] font-semibold text-primary">
-          Enviamos as instruções para o e-mail informado, caso ele exista em nossa base.
-        </p>
-      )}
 
       <div className="rounded-[16px] border border-white/8 bg-[#151515] p-[22px] shadow-[0_18px_42px_rgba(0,0,0,0.28)]">
         <div className="flex flex-col gap-[10px]">

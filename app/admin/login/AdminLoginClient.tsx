@@ -3,18 +3,18 @@
 import { ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
+import { useBolaoToast } from "@/app/components/BolaoToast";
 
 export function AdminLoginClient() {
   const router = useRouter();
+  const toast = useBolaoToast();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    setError(null);
     setLoading(true);
     try {
       const response = await fetch("/api/admin/login", {
@@ -25,7 +25,7 @@ export function AdminLoginClient() {
       });
       const data = (await response.json().catch(() => null)) as { error?: string } | null;
       if (!response.ok) {
-        setError(data?.error ?? "Não foi possível acessar o admin.");
+        toast.error(data?.error ?? "Não foi possível acessar o admin.");
         return;
       }
       router.replace("/admin/2fa");
@@ -86,8 +86,6 @@ export function AdminLoginClient() {
             </button>
           </div>
         </label>
-
-        {error ? <p className="mt-4 rounded-[12px] border border-red-400/20 bg-red-400/10 px-4 py-3 text-center text-[12px] font-bold text-red-200">{error}</p> : null}
 
         <button
           type="submit"

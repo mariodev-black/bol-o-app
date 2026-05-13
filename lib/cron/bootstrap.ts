@@ -1,4 +1,5 @@
 import { runMaintenanceTick } from "@/lib/cron/maintenance-tick";
+import { runFootballSnapshotsIfCacheMissing } from "@/lib/cron/tasks/footballSnapshotsTask";
 import { runGuaranteeResultsTask } from "@/lib/cron/tasks/guaranteeResultsTask";
 import { runSyncMatchesTask } from "@/lib/cron/tasks/syncMatchesTask";
 
@@ -37,6 +38,7 @@ export function startInternalCronScheduler(): CronHandle {
     globalThis.__bolaoWarmupStarted = true;
     void (async () => {
       try {
+        await runFootballSnapshotsIfCacheMissing();
         await runSyncMatchesTask(true);
         await runGuaranteeResultsTask();
       } catch (error) {

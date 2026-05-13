@@ -1,6 +1,7 @@
 import { registerMatchMapMemoryInvalidate } from "@/lib/match-map-cache-invalidator";
 import { parseKickoffFromPartidaPayload, pickScoreFromPartidaPayload } from "@/lib/partida-placar";
-import { readMatchesCache, requestMatchesCacheSoftSync, scheduleSaysFresh, syncMatchesCache } from "@/lib/matches-cache";
+import { fasesEnrichmentCacheKey, readFootballApiCacheJson } from "@/lib/football-api-cache-store";
+import { readMatchesCache } from "@/lib/matches-cache";
 
 type MatchMap = Map<number, {
   id: number;
@@ -118,7 +119,7 @@ function normalizeKey(value: string, fallback: string): string {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function collectProviderMatches(node: any, path: string[] = [], out: ProviderMatch[] = []): ProviderMatch[] {
+export function collectProviderMatches(node: any, path: string[] = [], out: ProviderMatch[] = []): ProviderMatch[] {
   if (!node) return out;
   if (Array.isArray(node)) {
     for (const item of node) {
@@ -154,55 +155,16 @@ function collectProviderMatches(node: any, path: string[] = [], out: ProviderMat
   return out;
 }
 
-export type FetchMatchesMapOptions = {
-  /**
-   * false (default): só Postgres + cache em memória — não agenda sync com a API de futebol.
-   * true: mantém comportamento antigo (soft sync quando a agenda permitir; force se cache vazia).
-   */
-  allowExternalSync?: boolean;
-};
-
-export async function fetchMatchesMap(options?: FetchMatchesMapOptions): Promise<MatchMap> {
-  const allowExternal = options?.allowExternalSync ?? false;
-
+/** Mapa de partidas só a partir do Postgres (`matches_cache`). Servidor preenche via cron/bootstrap. */
+export async function fetchMatchesMap(): Promise<MatchMap> {
   if (matchMapMemoryCache && Date.now() - matchMapMemoryCache.at < MATCH_MAP_MEMORY_TTL_MS) {
     debugLog("fetchMatchesMap:return-memory-cache", { count: matchMapMemoryCache.map.size });
     return new Map(matchMapMemoryCache.map);
   }
 
   const cachedRows = await readMatchesCache().catch(() => []);
-  debugLog("fetchMatchesMap:start", { cachedRows: cachedRows.length, competitionId: competitionId(), allowExternal });
-  if (cachedRows.length > 0) {
-    if (allowExternal) {
-      const podeAdiar = await scheduleSaysFresh().catch(() => false);
-      if (!podeAdiar) {
-        requestMatchesCacheSoftSync(fetchProviderMatches);
-      }
-    }
-    debugLog("fetchMatchesMap:return-cache", { count: cachedRows.length });
-    const map = mapFromCacheRows(cachedRows);
-    matchMapMemoryCache = { at: Date.now(), map };
-    return new Map(map);
-  }
-
-  if (!allowExternal) {
-    debugLog("fetchMatchesMap:empty-cache-no-external");
-    const empty: MatchMap = new Map();
-    matchMapMemoryCache = { at: Date.now(), map: empty };
-    return new Map(empty);
-  }
-
-  await syncMatchesCache({ fetchProviderMatches: fetchProviderMatches, force: true }).catch(() => {});
-  const rowsAfterSync = await readMatchesCache().catch(() => []);
-  if (rowsAfterSync.length > 0) {
-    debugLog("fetchMatchesMap:return-cache-after-sync", { count: rowsAfterSync.length });
-    const map = mapFromCacheRows(rowsAfterSync);
-    matchMapMemoryCache = { at: Date.now(), map };
-    return new Map(map);
-  }
-
-  debugLog("fetchMatchesMap:fallback-provider");
-  const map = mapFromProvider(await fetchProviderMatches());
+  debugLog("fetchMatchesMap:start", { cachedRows: cachedRows.length, competitionId: competitionId() });
+  const map = mapFromCacheRows(cachedRows);
   matchMapMemoryCache = { at: Date.now(), map };
   return new Map(map);
 }
@@ -224,28 +186,6 @@ function mapFromCacheRows(rows: Awaited<ReturnType<typeof readMatchesCache>>): M
       awayLogo: r.away_logo ?? null,
       dateBR: r.date_br || "",
       hour: r.hour_br || "",
-    });
-  }
-  return out;
-}
-
-function mapFromProvider(rows: ProviderMatch[]): MatchMap {
-  const out: MatchMap = new Map();
-  for (const p of rows) {
-    out.set(p.matchId, {
-      id: p.matchId,
-      kickoffAt: p.kickoffAt,
-      status: p.status,
-      resultCasa: p.resultCasa,
-      resultVisitante: p.resultVisitante,
-      home: p.homeSigla || p.homeName || "CASA",
-      away: p.awaySigla || p.awayName || "VISIT",
-      homeName: p.homeName || p.homeSigla || "CASA",
-      awayName: p.awayName || p.awaySigla || "VISIT",
-      homeLogo: p.homeLogo ?? null,
-      awayLogo: p.awayLogo ?? null,
-      dateBR: p.dateBR,
-      hour: p.hourBR,
     });
   }
   return out;
@@ -311,75 +251,39 @@ function parseRodadasListPayload(raw: unknown): RodadaListItem[] {
   return [];
 }
 
-type FaseListItem = { fase_id?: number; slug?: string; nome?: string };
-
-function parseFasesListPayload(raw: unknown): FaseListItem[] {
-  if (Array.isArray(raw)) return raw as FaseListItem[];
-  if (raw && typeof raw === "object") {
-    const o = raw as Record<string, unknown>;
-    for (const key of ["fases", "data", "items", "result"]) {
-      const v = o[key];
-      if (Array.isArray(v)) return v as FaseListItem[];
+/** Snapshot gravado pelo cron (tabela + fases); substitui N+1 HTTP em cada sync de partidas. */
+async function loadFasesEnrichmentFromSnapshot(compId: string): Promise<ProviderMatch[]> {
+  const n = Number.parseInt(compId, 10) || 0;
+  const raw = await readFootballApiCacheJson(fasesEnrichmentCacheKey(n)).catch(() => null);
+  if (!raw || typeof raw !== "object") return [];
+  const matches = (raw as { matches?: unknown }).matches;
+  if (!Array.isArray(matches)) return [];
+  const out: ProviderMatch[] = [];
+  for (const item of matches) {
+    if (item && typeof item === "object" && Number.isFinite(Number((item as ProviderMatch).matchId))) {
+      out.push(item as ProviderMatch);
     }
   }
-  return [];
-}
-
-/** Campeonatos tipo mata-mata (ex.: Copa do Brasil) muitas vezes nao expoem /rodadas; as partidas ficam em /fases/{id}. */
-async function fetchProviderMatchesFromFases(compId: string, apiToken: string): Promise<ProviderMatch[]> {
-  const listUrl = `https://api.api-futebol.com.br/v1/campeonatos/${compId}/fases`;
-  debugLog("fases:list:request", { url: listUrl });
-  const listRes = await fetch(listUrl, {
-    headers: { Authorization: `Bearer ${apiToken}` },
-    cache: "no-store",
-  });
-  if (!listRes.ok) {
-    debugLog("fases:list:failed", { status: listRes.status });
-    return [];
-  }
-  const raw = await listRes.json().catch(() => null);
-  const fasesList = parseFasesListPayload(raw);
-  if (fasesList.length === 0) {
-    debugLog("fases:list:empty");
-    if (raw && typeof raw === "object" && !Array.isArray(raw)) {
-      debugLog("fases:list:shape", { keys: Object.keys(raw as object).slice(0, 24) });
-    }
-    return [];
-  }
-  debugLog("fases:list:ok", { count: fasesList.length });
-  const maxFases = Number.parseInt(process.env.FOOTBALL_FASES_SYNC_LIMIT ?? "32", 10) || 32;
-  const byId = new Map<number, ProviderMatch>();
-  for (const f of fasesList.slice(0, maxFases)) {
-    const faseId = Number(f?.fase_id);
-    if (!Number.isFinite(faseId)) continue;
-    const detailUrl = `https://api.api-futebol.com.br/v1/campeonatos/${compId}/fases/${faseId}`;
-    try {
-      const detailRes = await fetch(detailUrl, {
-        headers: { Authorization: `Bearer ${apiToken}` },
-        cache: "no-store",
-      });
-      if (!detailRes.ok) {
-        debugLog("fases:detail:failed", { faseId, status: detailRes.status });
-        continue;
-      }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const parsed = (await detailRes.json().catch(() => null)) as any;
-      const chunk = collectProviderMatches(parsed);
-      debugLog("fases:detail:ok", { faseId, partidas: chunk.length });
-      for (const m of chunk) {
-        byId.set(m.matchId, m);
-      }
-    } catch {
-      debugLog("fases:detail:error", { faseId });
-    }
-  }
-  const out = Array.from(byId.values());
-  debugLog("fases:merge:result", { count: out.length });
   return out;
 }
 
-/** Enriquecimento em lista: rodadas (turno/regular) ou, se vazio, detalhe por fase (mata-mata). */
+/** Campeonatos tipo mata-mata: enriquecimento vem do snapshot diario no Postgres, nao da API em tempo real. */
+async function fetchProviderMatchesFromFases(compId: string, _apiToken: string): Promise<ProviderMatch[]> {
+  const fromDb = await loadFasesEnrichmentFromSnapshot(compId);
+  if (fromDb.length > 0) {
+    debugLog("fases:from-db-snapshot", { count: fromDb.length });
+    return fromDb;
+  }
+  debugLog("fases:snapshot-empty");
+  return [];
+}
+
+/** Enriquecimento: snapshot diario (Postgres); rodadas na API so com FOOTBALL_ROUNDS_LIVE_ENRICH=1 (consome muita cota). */
 async function fetchSupplementalProviderMatchesForMerge(compId: string, apiToken: string): Promise<ProviderMatch[]> {
+  const fromSnapshot = await loadFasesEnrichmentFromSnapshot(compId);
+  if (fromSnapshot.length > 0) return fromSnapshot;
+  const allowRounds = ["1", "true", "yes"].includes((process.env.FOOTBALL_ROUNDS_LIVE_ENRICH || "").trim().toLowerCase());
+  if (!allowRounds) return [];
   const fromRounds = await fetchProviderMatchesFromRounds(compId, apiToken).catch(() => []);
   if (fromRounds.length > 0) return fromRounds;
   return fetchProviderMatchesFromFases(compId, apiToken).catch(() => []);
