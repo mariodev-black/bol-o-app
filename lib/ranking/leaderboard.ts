@@ -119,7 +119,8 @@ function aggregatePredictions(
     const matchId = Number(prediction.match_id);
     if (!Number.isFinite(matchId)) continue;
     const match = matches.get(matchId);
-    if (!match || match.resultCasa == null || match.resultVisitante == null) continue;
+    const submitMs = new Date(prediction.submitted_at).getTime();
+    if (!Number.isFinite(submitMs)) continue;
 
     const cur =
       byTicket.get(prediction.ticket_id) ??
@@ -130,25 +131,28 @@ function aggregatePredictions(
         outcomeCount: 0,
         goalsCount: 0,
         bestStreak: 0,
-        firstSubmitAt: new Date(prediction.submitted_at).getTime(),
+        firstSubmitAt: submitMs,
         hitSequence: [],
       };
 
-    const calc = calcPredictionPoints(
-      prediction.score_casa,
-      prediction.score_visitante,
-      match.resultCasa,
-      match.resultVisitante
-    );
-    cur.totalPoints += calc.points;
-    cur.exactCount += calc.exact ? 1 : 0;
-    cur.outcomeCount += calc.outcomeHit ? 1 : 0;
-    cur.goalsCount += calc.goalsHitCount;
-    cur.hitSequence.push({
-      order: match.kickoffAt ? new Date(match.kickoffAt).getTime() : matchId,
-      hit: calc.points > 0,
-    });
-    cur.firstSubmitAt = Math.min(cur.firstSubmitAt, new Date(prediction.submitted_at).getTime());
+    cur.firstSubmitAt = Math.min(cur.firstSubmitAt, submitMs);
+
+    if (match != null) {
+      const rc = match.resultCasa;
+      const rv = match.resultVisitante;
+      if (rc != null && rv != null) {
+        const calc = calcPredictionPoints(prediction.score_casa, prediction.score_visitante, rc, rv);
+        cur.totalPoints += calc.points;
+        cur.exactCount += calc.exact ? 1 : 0;
+        cur.outcomeCount += calc.outcomeHit ? 1 : 0;
+        cur.goalsCount += calc.goalsHitCount;
+        cur.hitSequence.push({
+          order: match.kickoffAt ? new Date(match.kickoffAt).getTime() : matchId,
+          hit: calc.points > 0,
+        });
+      }
+    }
+
     byTicket.set(prediction.ticket_id, cur);
   }
 
@@ -277,7 +281,7 @@ async function loadPaidTickets(
 export async function buildLeaderboardPrincipal(): Promise<{ rows: LeaderboardRow[]; meta: LeaderboardBoardMeta }> {
   const getCached = unstable_cache(
     async () => buildLeaderboardPrincipalUncached(),
-    ["leaderboard", "principal", "v3"],
+    ["leaderboard", "principal", "v4"],
     { revalidate: RANKING_REVALIDATE_SEC, tags: ["leaderboard"] }
   );
   return getCached();
@@ -362,7 +366,7 @@ async function buildLeaderboardPrincipalUncached(): Promise<{ rows: LeaderboardR
 export async function buildLeaderboardDiarioForTicket(focusTicketId: string): Promise<{ rows: LeaderboardRow[]; meta: LeaderboardBoardMeta }> {
   const getCached = unstable_cache(
     async () => buildLeaderboardDiarioUncached(focusTicketId),
-    ["leaderboard", "diario", focusTicketId, "v3"],
+    ["leaderboard", "diario", focusTicketId, "v4"],
     { revalidate: RANKING_REVALIDATE_SEC, tags: ["leaderboard"] }
   );
   return getCached();
@@ -504,7 +508,7 @@ export async function buildLeaderboardExtraForTicket(
 ): Promise<{ rows: LeaderboardRow[]; meta: LeaderboardBoardMeta }> {
   const getCached = unstable_cache(
     async () => buildLeaderboardExtraUncached(focusTicketId),
-    ["leaderboard", "extra", focusTicketId, "v1"],
+    ["leaderboard", "extra", focusTicketId, "v2"],
     { revalidate: RANKING_REVALIDATE_SEC, tags: ["leaderboard"] }
   );
   return getCached();
