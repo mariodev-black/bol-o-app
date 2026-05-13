@@ -42,7 +42,7 @@ import {
 import {
   palpiteLockBeforeKickoffMs,
   type PredictionBolaoType,
-} from "@/lib/predictions";
+} from "@/lib/palpites-kickoff-lock";
 
 // ── Tipos ────────────────────────────────────────────────────
 type TabView = "jogos" | "tabela" | "ranking" | "resumo";
