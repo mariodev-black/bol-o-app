@@ -1,4 +1,5 @@
 import { registerMatchMapMemoryInvalidate } from "@/lib/match-map-cache-invalidator";
+import { parseKickoffFromPartidaPayload, pickScoreFromPartidaPayload } from "@/lib/partida-placar";
 import { readMatchesCache, requestMatchesCacheSoftSync, syncMatchesCache } from "@/lib/matches-cache";
 
 type MatchMap = Map<number, {
@@ -45,16 +46,6 @@ function debugLog(...args: unknown[]) {
   console.log(...args);
 }
 
-function parseKickoffISO(dataRealizacao: string | null | undefined, hora: string | null | undefined): string | null {
-  if (!dataRealizacao || !hora) return null;
-  const [d, m, y] = dataRealizacao.split("/");
-  if (!d || !m || !y) return null;
-  const hhmm = hora.slice(0, 5);
-  if (!/^\d{2}:\d{2}$/.test(hhmm)) return null;
-  return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}T${hhmm}:00-03:00`;
-}
-
-/** ISO do apito: usa kickoff da API/cache; se nulo, monta a partir de data/hora BR (mesmo criterio do cliente). */
 export function resolveKickoffAtIso(match: {
   kickoffAt: string | null;
   dateBR: string;
@@ -62,24 +53,30 @@ export function resolveKickoffAtIso(match: {
 }): string | null {
   const k = match.kickoffAt?.trim();
   if (k) return match.kickoffAt;
-  return parseKickoffISO(match.dateBR, match.hour);
+  return parseKickoffFromPartidaPayload({
+    data_realizacao: match.dateBR,
+    hora_realizacao: match.hour,
+  });
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function pickScore(p: any, side: "casa" | "visitante"): number | null {
-  const keys =
-    side === "casa"
-      ? ["placar_mandante", "placar", "gols_mandante", "resultado_mandante"]
-      : ["placar_visitante", "gols_visitante", "resultado_visitante"];
-  for (const k of keys) {
-    const v = p?.[k];
-    if (typeof v === "number") return v;
-    if (typeof v === "string" && v.trim() !== "" && !Number.isNaN(Number(v))) return Number(v);
-  }
-  return null;
-}
-
-type ProviderMatch = Awaited<ReturnType<typeof fetchProviderMatches>>[number];
+export type ProviderMatch = {
+  matchId: number;
+  phaseKey: string | null;
+  groupKey: string | null;
+  roundKey: string | null;
+  kickoffAt: string | null;
+  status: string;
+  resultCasa: number | null;
+  resultVisitante: number | null;
+  homeName: string;
+  homeSigla: string;
+  homeLogo: string | null;
+  awayName: string;
+  awaySigla: string;
+  awayLogo: string | null;
+  dateBR: string;
+  hourBR: string;
+};
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function isProviderPartida(value: any): boolean {
@@ -101,10 +98,10 @@ function mapProviderPartida(p: any, phaseKey: string | null, groupKey: string | 
     phaseKey,
     groupKey,
     roundKey,
-    kickoffAt: parseKickoffISO(p.data_realizacao, p.hora_realizacao),
+    kickoffAt: parseKickoffFromPartidaPayload(p),
     status: String(p?.status ?? "aberto"),
-    resultCasa: pickScore(p, "casa"),
-    resultVisitante: pickScore(p, "visitante"),
+    resultCasa: pickScoreFromPartidaPayload(p, "casa"),
+    resultVisitante: pickScoreFromPartidaPayload(p, "visitante"),
     homeName: String(p?.time_mandante?.nome_popular ?? p?.time_mandante?.sigla ?? "CASA"),
     homeSigla: String(p?.time_mandante?.sigla ?? p?.time_mandante?.nome_popular ?? "CASA"),
     homeLogo: p?.time_mandante?.escudo ? String(p.time_mandante.escudo) : null,
@@ -210,7 +207,7 @@ function mapFromCacheRows(rows: Awaited<ReturnType<typeof readMatchesCache>>): M
   return out;
 }
 
-function mapFromProvider(rows: Awaited<ReturnType<typeof fetchProviderMatches>>): MatchMap {
+function mapFromProvider(rows: ProviderMatch[]): MatchMap {
   const out: MatchMap = new Map();
   for (const p of rows) {
     out.set(p.matchId, {
@@ -232,26 +229,7 @@ function mapFromProvider(rows: Awaited<ReturnType<typeof fetchProviderMatches>>)
   return out;
 }
 
-export async function fetchProviderMatches(): Promise<
-  Array<{
-    matchId: number;
-    phaseKey: string | null;
-    groupKey: string | null;
-    roundKey: string | null;
-    status: string;
-    kickoffAt: string | null;
-    dateBR: string;
-    hourBR: string;
-    resultCasa: number | null;
-    resultVisitante: number | null;
-    homeName: string;
-    homeSigla: string;
-    homeLogo: string | null;
-    awayName: string;
-    awaySigla: string;
-    awayLogo: string | null;
-  }>
-> {
+export async function fetchProviderMatches(): Promise<ProviderMatch[]> {
   const apiToken = token();
   if (!apiToken) throw new Error("FOOTBALL_API_TOKEN nao configurado");
   const compId = competitionId();
@@ -267,7 +245,7 @@ export async function fetchProviderMatches(): Promise<
     const fromRounds = await fetchProviderMatchesFromRounds(compId, apiToken).catch(() => []);
     if (fromRounds.length > 0) {
       debugLog("fetchProviderMatches:fallback-from-rounds", { count: fromRounds.length });
-      return fromRounds;
+      return mergeProviderMatchesWithRoundsAndDetail(compId, apiToken, fromRounds);
     }
     throw new Error(`Falha ao buscar partidas (${res.status})`);
   }
@@ -275,7 +253,7 @@ export async function fetchProviderMatches(): Promise<
   const data = (await res.json()) as any;
   const fases = data?.partidas;
   const out = collectProviderMatches(fases);
-  if (!fases) return out;
+  if (!fases) return mergeProviderMatchesWithRoundsAndDetail(compId, apiToken, out);
   debugLog("fetchProviderMatches:bulk-result", {
     count: out.length,
     phaseCount: fases && typeof fases === "object" && !Array.isArray(fases) ? Object.keys(fases).length : 1,
@@ -284,10 +262,10 @@ export async function fetchProviderMatches(): Promise<
     const fromRounds = await fetchProviderMatchesFromRounds(compId, apiToken).catch(() => []);
     if (fromRounds.length > 0) {
       debugLog("fetchProviderMatches:bulk-empty-fallback-rounds", { count: fromRounds.length });
-      return fromRounds;
+      return mergeProviderMatchesWithRoundsAndDetail(compId, apiToken, fromRounds);
     }
   }
-  return out;
+  return mergeProviderMatchesWithRoundsAndDetail(compId, apiToken, out);
 }
 
 type RodadaListItem = {
@@ -298,28 +276,7 @@ type RodadaListItem = {
   proxima_rodada?: { slug?: string; rodada?: number; status?: string } | null;
 };
 
-function mapPartidaItem(
-  p: any,
-  phaseKey: string,
-  roundSlug: string
-): {
-  matchId: number;
-  phaseKey: string | null;
-  groupKey: string | null;
-  roundKey: string | null;
-  status: string;
-  kickoffAt: string | null;
-  dateBR: string;
-  hourBR: string;
-  resultCasa: number | null;
-  resultVisitante: number | null;
-  homeName: string;
-  homeSigla: string;
-  homeLogo: string | null;
-  awayName: string;
-  awaySigla: string;
-  awayLogo: string | null;
-} | null {
+function mapPartidaItem(p: any, phaseKey: string, roundSlug: string): ProviderMatch | null {
   const id = Number(p?.partida_id);
   if (!Number.isFinite(id)) return null;
   return {
@@ -327,10 +284,10 @@ function mapPartidaItem(
     phaseKey,
     groupKey: null,
     roundKey: roundSlug,
-    kickoffAt: parseKickoffISO(p?.data_realizacao, p?.hora_realizacao),
+    kickoffAt: parseKickoffFromPartidaPayload(p),
     status: String(p?.status ?? "aberto"),
-    resultCasa: pickScore(p, "casa"),
-    resultVisitante: pickScore(p, "visitante"),
+    resultCasa: pickScoreFromPartidaPayload(p, "casa"),
+    resultVisitante: pickScoreFromPartidaPayload(p, "visitante"),
     homeName: String(p?.time_mandante?.nome_popular ?? p?.time_mandante?.sigla ?? "CASA"),
     homeSigla: String(p?.time_mandante?.sigla ?? p?.time_mandante?.nome_popular ?? "CASA"),
     homeLogo: p?.time_mandante?.escudo ? String(p.time_mandante.escudo) : null,
@@ -418,3 +375,67 @@ async function fetchProviderMatchesFromRounds(compId: string, apiToken: string) 
   return out;
 }
 
+function providerTerminalSemPlacar(m: ProviderMatch): boolean {
+  const s = m.status.toLowerCase();
+  if (s.includes("cancel") || s.includes("adiad") || s.includes("suspens") || s.includes("interromp")) return false;
+  return (
+    (s.includes("encerr") || s.includes("finaliz") || s.includes("finalizada")) &&
+    (m.resultCasa == null || m.resultVisitante == null)
+  );
+}
+
+async function mergeProviderMatchesWithRoundsAndDetail(
+  compId: string,
+  apiToken: string,
+  rows: ProviderMatch[]
+): Promise<ProviderMatch[]> {
+  let next = rows;
+  if (next.length === 0 || !next.some(providerTerminalSemPlacar)) return next;
+  debugLog("fetchProviderMatches:enrich-missing-scores", { bulk: next.length });
+  const fromRounds = await fetchProviderMatchesFromRounds(compId, apiToken).catch(() => []);
+  if (fromRounds.length > 0) {
+    const byId = new Map(fromRounds.map((x) => [x.matchId, x]));
+    next = next.map((m) => {
+      if (!providerTerminalSemPlacar(m)) return m;
+      const r = byId.get(m.matchId);
+      if (!r) return m;
+      return {
+        ...m,
+        resultCasa: m.resultCasa ?? r.resultCasa,
+        resultVisitante: m.resultVisitante ?? r.resultVisitante,
+        status: r.status || m.status,
+        kickoffAt: m.kickoffAt ?? r.kickoffAt,
+      };
+    });
+  }
+  const still = next.filter(providerTerminalSemPlacar);
+  if (still.length === 0) return next;
+  const maxDetail = Number.parseInt(process.env.FOOTBALL_PARTIDA_DETAIL_LOOKUP_LIMIT ?? "16", 10) || 16;
+  for (const m of still.slice(0, maxDetail)) {
+    try {
+      const detailUrl = `https://api.api-futebol.com.br/v1/partidas/${m.matchId}`;
+      const dr = await fetch(detailUrl, { headers: { Authorization: `Bearer ${apiToken}` }, cache: "no-store" });
+      if (!dr.ok) continue;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const p = (await dr.json().catch(() => null)) as any;
+      if (!p?.partida_id) continue;
+      const casa = pickScoreFromPartidaPayload(p, "casa");
+      const vis = pickScoreFromPartidaPayload(p, "visitante");
+      if (casa == null && vis == null) continue;
+      next = next.map((row) =>
+        row.matchId !== m.matchId
+          ? row
+          : {
+              ...row,
+              resultCasa: row.resultCasa ?? casa,
+              resultVisitante: row.resultVisitante ?? vis,
+              status: String(p?.status ?? row.status),
+              kickoffAt: row.kickoffAt ?? parseKickoffFromPartidaPayload(p),
+            }
+      );
+    } catch {
+      /* ignore */
+    }
+  }
+  return next;
+}

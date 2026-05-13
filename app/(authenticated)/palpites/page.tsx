@@ -4,6 +4,7 @@ import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 import { inferBolaoTypeFromTicketId } from "@/lib/ticket-kind-server";
 import { calcPredictionPoints, listPredictions } from "@/lib/predictions";
 import { fetchMatchesMap } from "@/lib/football-api";
+import { parseKickoffFromPartidaPayload, pickScoreFromPartidaPayload } from "@/lib/partida-placar";
 
 const MESES = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
 type StatusJogo = "aberto" | "encerrado";
@@ -53,36 +54,6 @@ function mapStatus(s: string): StatusJogo {
     return "encerrado";
   }
   return "aberto";
-}
-
-function parseKickoffISO(
-  dataRealizacaoISO: string | null | undefined,
-  dataRealizacao: string | null | undefined,
-  hora: string | null | undefined
-): string | null {
-  if (dataRealizacaoISO) {
-    const parsed = new Date(dataRealizacaoISO);
-    if (!Number.isNaN(parsed.getTime())) return parsed.toISOString();
-  }
-  if (!dataRealizacao || !hora) return null;
-  const [d, m, y] = dataRealizacao.split("/");
-  if (!d || !m || !y) return null;
-  const hhmm = hora.slice(0, 5);
-  if (!/^\d{2}:\d{2}$/.test(hhmm)) return null;
-  return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}T${hhmm}:00-03:00`;
-}
-
-function pickScore(p: any, side: "casa" | "visitante"): number | null {
-  const keys =
-    side === "casa"
-      ? ["placar_mandante", "placar", "gols_mandante", "resultado_mandante"]
-      : ["placar_visitante", "gols_visitante", "resultado_visitante"];
-  for (const k of keys) {
-    const v = p?.[k];
-    if (typeof v === "number") return v;
-    if (typeof v === "string" && v.trim() !== "" && !Number.isNaN(Number(v))) return Number(v);
-  }
-  return null;
 }
 
 function parseLiveTempoFromPartida(p: any): number | null {
@@ -143,9 +114,9 @@ function parsePartidas(faseData: Record<string, any>): PalpitesInitialData["jogo
           status: mapStatus(String(p.status ?? "")),
           grupo: "GERAL",
           rodada: rodadaIndex,
-          kickoffAt: parseKickoffISO(p.data_realizacao_iso, p.data_realizacao, p.hora_realizacao),
-          resultCasa: pickScore(p, "casa"),
-          resultVisitante: pickScore(p, "visitante"),
+          kickoffAt: parseKickoffFromPartidaPayload(p),
+          resultCasa: pickScoreFromPartidaPayload(p, "casa"),
+          resultVisitante: pickScoreFromPartidaPayload(p, "visitante"),
         });
       }
     });
@@ -175,9 +146,9 @@ function parsePartidas(faseData: Record<string, any>): PalpitesInitialData["jogo
           status: mapStatus(String(p.status ?? "")),
           grupo: grupoLetra,
           rodada: rodadaIndex,
-          kickoffAt: parseKickoffISO(p.data_realizacao_iso, p.data_realizacao, p.hora_realizacao),
-          resultCasa: pickScore(p, "casa"),
-          resultVisitante: pickScore(p, "visitante"),
+          kickoffAt: parseKickoffFromPartidaPayload(p),
+          resultCasa: pickScoreFromPartidaPayload(p, "casa"),
+          resultVisitante: pickScoreFromPartidaPayload(p, "visitante"),
         });
       }
     });

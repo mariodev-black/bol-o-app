@@ -9,6 +9,7 @@ import {
   calcPredictionPoints,
 } from "./lib/predictionsStorage";
 import { inferBolaoTypeFromTicketPrefix } from "@/lib/ticket-kind";
+import { parseKickoffFromPartidaPayload, pickScoreFromPartidaPayload } from "@/lib/partida-placar";
 
 // ── Tipos ────────────────────────────────────────────────────
 type TabView = "jogos" | "tabela" | "ranking" | "resumo";
@@ -209,37 +210,6 @@ function mapStatus(s: string): StatusJogo {
   return "aberto";
 }
 
-function parseKickoffISO(
-  dataRealizacaoISO: string | null | undefined,
-  dataRealizacao: string | null | undefined,
-  hora: string | null | undefined
-): string | null {
-  if (dataRealizacaoISO) {
-    const parsed = new Date(dataRealizacaoISO);
-    if (!Number.isNaN(parsed.getTime())) return parsed.toISOString();
-  }
-  if (!dataRealizacao || !hora) return null;
-  const [d, m, y] = dataRealizacao.split("/");
-  if (!d || !m || !y) return null;
-  const hhmm = hora.slice(0, 5);
-  if (!/^\d{2}:\d{2}$/.test(hhmm)) return null;
-  return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}T${hhmm}:00-03:00`;
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function pickScore(p: any, side: "casa" | "visitante"): number | null {
-  const keys =
-    side === "casa"
-      ? ["placar_mandante", "placar", "gols_mandante", "resultado_mandante"]
-      : ["placar_visitante", "gols_visitante", "resultado_visitante"];
-  for (const k of keys) {
-    const v = p?.[k];
-    if (typeof v === "number") return v;
-    if (typeof v === "string" && v.trim() !== "" && !Number.isNaN(Number(v))) return Number(v);
-  }
-  return null;
-}
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parsePartidas(faseData: Record<string, any>): Jogo[] {
   const jogos: Jogo[] = [];
@@ -267,9 +237,9 @@ function parsePartidas(faseData: Record<string, any>): Jogo[] {
           status: mapStatus(String(p.status ?? "")),
           grupo: "GERAL",
           rodada: rodadaIndex,
-          kickoffAt: parseKickoffISO(p.data_realizacao_iso, p.data_realizacao, p.hora_realizacao),
-          resultCasa: pickScore(p, "casa"),
-          resultVisitante: pickScore(p, "visitante"),
+          kickoffAt: parseKickoffFromPartidaPayload(p),
+          resultCasa: pickScoreFromPartidaPayload(p, "casa"),
+          resultVisitante: pickScoreFromPartidaPayload(p, "visitante"),
         });
       }
     });
@@ -301,9 +271,9 @@ function parsePartidas(faseData: Record<string, any>): Jogo[] {
           status: mapStatus(String(p.status ?? "")),
           grupo: grupoLetra,
           rodada: rodadaIndex,
-          kickoffAt: parseKickoffISO(p.data_realizacao_iso, p.data_realizacao, p.hora_realizacao),
-          resultCasa: pickScore(p, "casa"),
-          resultVisitante: pickScore(p, "visitante"),
+          kickoffAt: parseKickoffFromPartidaPayload(p),
+          resultCasa: pickScoreFromPartidaPayload(p, "casa"),
+          resultVisitante: pickScoreFromPartidaPayload(p, "visitante"),
         });
       }
     });
@@ -501,6 +471,13 @@ function JogoCard({
   const hasInitialPrediction = Boolean(initialPrediction);
 
   const temPlacarOficial = jogo.resultCasa != null && jogo.resultVisitante != null;
+  const displayCasa = readOnly && temPlacarOficial ? jogo.resultCasa! : scoreCasa;
+  const displayVisitante = readOnly && temPlacarOficial ? jogo.resultVisitante! : scoreVisitante;
+  const showPalpiteHint =
+    readOnly &&
+    temPlacarOficial &&
+    hasInitialPrediction &&
+    (scoreCasa !== jogo.resultCasa! || scoreVisitante !== jogo.resultVisitante!);
   const review =
     readOnly && temPlacarOficial && hasInitialPrediction
       ? calcPredictionPoints(scoreCasa, scoreVisitante, jogo.resultCasa!, jogo.resultVisitante!)
@@ -634,7 +611,7 @@ function JogoCard({
               className="mt-2 w-10 h-10 rounded-lg flex items-center justify-center text-[22px] font-black"
               style={{ background: "rgba(255,255,255,0.08)", color: "#fff" }}
             >
-              {scoreCasa}
+              {displayCasa}
             </div>
           ) : predictionsLoading ? (
             <div className="mt-3 h-8 w-24 rounded-full animate-pulse" style={{ background: "rgba(255,255,255,0.06)" }} />
@@ -660,7 +637,7 @@ function JogoCard({
               className="mt-2 w-10 h-10 rounded-lg flex items-center justify-center text-[22px] font-black"
               style={{ background: "rgba(255,255,255,0.08)", color: "#fff" }}
             >
-              {scoreVisitante}
+              {displayVisitante}
             </div>
           ) : predictionsLoading ? (
             <div className="mt-3 h-8 w-24 rounded-full animate-pulse" style={{ background: "rgba(255,255,255,0.06)" }} />
@@ -670,6 +647,14 @@ function JogoCard({
         </div>
 
       </div>
+
+      {showPalpiteHint ? (
+        <div className="px-4 pb-1 -mt-1 text-center">
+          <span className="text-[10px] font-semibold tracking-wide" style={{ color: "rgba(255,255,255,0.42)" }}>
+            Seu palpite: {scoreCasa} x {scoreVisitante}
+          </span>
+        </div>
+      ) : null}
 
       <div className="mx-4 h-px bg-white/8 mb-3" />
 

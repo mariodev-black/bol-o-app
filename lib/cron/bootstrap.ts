@@ -1,3 +1,5 @@
+import { runMaintenanceTick } from "@/lib/cron/maintenance-tick";
+import { runGuaranteeResultsTask } from "@/lib/cron/tasks/guaranteeResultsTask";
 import { runSyncMatchesTask } from "@/lib/cron/tasks/syncMatchesTask";
 
 type CronHandle = {
@@ -23,19 +25,27 @@ function intEnv(name: string, fallback: number): number {
   return Number.isFinite(raw) && raw > 0 ? raw : fallback;
 }
 
+/** Em Vercel o processo nao fica vivo para intervalos longos; fora dali o default e ligado. */
+function internalCronDefaultEnabled(): boolean {
+  return !process.env.VERCEL;
+}
+
 export function startInternalCronScheduler(): CronHandle {
   if (globalThis.__bolaoCronHandle?.started) return globalThis.__bolaoCronHandle;
 
-  // Warmup inicial do cache ao subir a aplicação (inclusive em Vercel),
-  // evitando esperar até o próximo cron diário para primeira carga.
   if (!globalThis.__bolaoWarmupStarted) {
     globalThis.__bolaoWarmupStarted = true;
-    void runSyncMatchesTask(false).catch((error) => {
-      console.error("[internal-cron] initial warmup failed", error);
-    });
+    void (async () => {
+      try {
+        await runSyncMatchesTask(true);
+        await runGuaranteeResultsTask();
+      } catch (error) {
+        console.error("[internal-cron] initial warmup failed", error);
+      }
+    })();
   }
 
-  const enabled = boolEnv("INTERNAL_CRON_ENABLED", process.env.NODE_ENV !== "production");
+  const enabled = boolEnv("INTERNAL_CRON_ENABLED", internalCronDefaultEnabled());
   const runOnVercel = boolEnv("INTERNAL_CRON_RUN_ON_VERCEL", false);
   if (!enabled) {
     const handle = { started: false, stop: () => {} };
@@ -48,17 +58,20 @@ export function startInternalCronScheduler(): CronHandle {
     return handle;
   }
 
-  const intervalSeconds = intEnv("INTERNAL_CRON_SYNC_MATCHES_SECONDS", 60);
-  const intervalMs = intervalSeconds * 1000;
+  const tickSeconds = intEnv(
+    "INTERNAL_CRON_TICK_SECONDS",
+    intEnv("INTERNAL_CRON_SYNC_MATCHES_SECONDS", 300)
+  );
+  const intervalMs = tickSeconds * 1000;
   let running = false;
 
   const runNow = async () => {
     if (running) return;
     running = true;
     try {
-      await runSyncMatchesTask(true);
+      await runMaintenanceTick();
     } catch (error) {
-      console.error("[internal-cron] sync-partidas failed", error);
+      console.error("[internal-cron] maintenance tick failed", error);
     } finally {
       running = false;
     }

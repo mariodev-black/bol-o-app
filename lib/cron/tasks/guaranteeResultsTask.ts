@@ -9,8 +9,8 @@ export type GuaranteeResultsTaskResult = {
 };
 
 /**
- * Cron de garantia: (1) se o DB indicar atraso (palpite + carencia, ou encerrado sem placar),
- * forca sync com a API externa; (2) sempre tenta fechar premios (idempotente).
+ * Cron de garantia: (1) se o DB indicar atraso (palpite + carencia em horas, ou apito + minutos no relogio,
+ * ou encerrado sem placar), forca sync com a API; (2) sempre roda fechamento idempotente de premios.
  */
 export async function runGuaranteeResultsTask(): Promise<GuaranteeResultsTaskResult> {
   const forcedSync = await needsForcedResultSync();
