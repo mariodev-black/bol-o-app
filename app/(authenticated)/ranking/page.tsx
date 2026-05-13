@@ -769,13 +769,13 @@ export default function RankingPage() {
               <div className="min-w-0 flex-1">
                 <h1 className="mt-2 font-black uppercase leading-[0.95] tracking-tight">
                   <span className="block text-[1.65rem] text-white sm:text-[1.85rem]">
-                    Classificação
+                    Tabela
                   </span>
                   <span
                     className="block text-[1.65rem] sm:text-[1.85rem]"
                     style={{ color: PRIMARY }}
                   >
-                    total
+                    de classificação
                   </span>
                 </h1>
                 <p className="mt-2 max-w-66 text-[12px] font-medium leading-snug text-white">
