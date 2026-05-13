@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { fetchProviderMatches } from "@/lib/football-api";
-import { readMatchesCache, syncMatchesCache } from "@/lib/matches-cache";
+import { readMatchesCache, requestMatchesCacheSoftSync, syncMatchesCache } from "@/lib/matches-cache";
 
 export const runtime = "nodejs";
 
@@ -102,7 +102,8 @@ export async function GET() {
 
     // Caminho rápido: responde do cache imediatamente e sincroniza sem bloquear a UI.
     if (rows.length > 0) {
-      void syncMatchesCache({ fetchProviderMatches, force: false }).catch(() => {});
+      // Sync com API externa e limitado globalmente (ver requestMatchesCacheSoftSync); nao dispara a cada GET.
+      requestMatchesCacheSoftSync(fetchProviderMatches);
       const payload = buildPartidasPayload(rows);
       if (dbg) {
         console.log("[api/partidas] return-cache-fast", {
@@ -112,7 +113,7 @@ export async function GET() {
       }
       return NextResponse.json({ partidas: payload.partidas }, {
         headers: {
-          "Cache-Control": "private, max-age=30, stale-while-revalidate=300",
+          "Cache-Control": "private, max-age=120, stale-while-revalidate=600",
         },
       });
     }
@@ -151,7 +152,7 @@ export async function GET() {
 
     return NextResponse.json({ partidas: payload.partidas }, {
       headers: {
-        "Cache-Control": "private, max-age=30, stale-while-revalidate=300",
+        "Cache-Control": "private, max-age=120, stale-while-revalidate=600",
       },
     });
   } catch (error) {

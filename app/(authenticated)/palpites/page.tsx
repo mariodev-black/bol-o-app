@@ -83,6 +83,38 @@ function pickScore(p: any, side: "casa" | "visitante"): number | null {
   return null;
 }
 
+function parseLiveTempoFromPartida(p: any): number | null {
+  const v = p?.tempo ?? p?.tempo_partida ?? p?.numero_tempo;
+  if (v === 1 || v === "1") return 1;
+  if (v === 2 || v === "2") return 2;
+  const s = String(v ?? "").toUpperCase();
+  if (s.includes("PRIMEIRO") && s.includes("TEMPO")) return 1;
+  if (s.includes("SEGUNDO") && s.includes("TEMPO") && !s.includes("PRIMEIRO")) return 2;
+  return null;
+}
+
+function parseLiveMinutoFromPartida(p: any): number | null {
+  const tryNum = (x: unknown): number | null => {
+    if (typeof x === "number" && Number.isFinite(x)) return Math.max(0, Math.min(125, Math.trunc(x)));
+    if (typeof x === "string") {
+      const t = x.trim();
+      if (!t) return null;
+      if (/^\d{1,3}$/.test(t)) return Math.max(0, Math.min(125, parseInt(t, 10)));
+      const head = t.split(":")[0];
+      if (head && /^\d{1,3}$/.test(head)) return Math.max(0, Math.min(125, parseInt(head, 10)));
+    }
+    return null;
+  };
+  return (
+    tryNum(p?.minuto) ??
+    tryNum(p?.minute) ??
+    tryNum(p?.minuto_jogo) ??
+    tryNum(p?.jogo?.minuto) ??
+    tryNum(p?.placar_transmissao?.minuto) ??
+    null
+  );
+}
+
 function parsePartidas(faseData: Record<string, any>): PalpitesInitialData["jogos"] {
   const jogos: PalpitesInitialData["jogos"] = [];
   const grupoKeys = Object.keys(faseData).filter((k) => typeof faseData[k] === "object" && !Array.isArray(faseData[k]));
@@ -103,7 +135,10 @@ function parsePartidas(faseData: Record<string, any>): PalpitesInitialData["jogo
           data: formatData(p.data_realizacao, p.data_realizacao_iso),
           dataBR: String(p.data_realizacao ?? ""),
           hora: safeHourLabel(p.hora_realizacao),
-          status: mapStatus(p.status),
+          statusBruto: String(p.status ?? ""),
+          liveTempo: parseLiveTempoFromPartida(p),
+          liveMinuto: parseLiveMinutoFromPartida(p),
+          status: mapStatus(String(p.status ?? "")),
           grupo: "GERAL",
           rodada: rodadaIndex,
           kickoffAt: parseKickoffISO(p.data_realizacao_iso, p.data_realizacao, p.hora_realizacao),
@@ -132,7 +167,10 @@ function parsePartidas(faseData: Record<string, any>): PalpitesInitialData["jogo
           data: formatData(p.data_realizacao, p.data_realizacao_iso),
           dataBR: String(p.data_realizacao ?? ""),
           hora: safeHourLabel(p.hora_realizacao),
-          status: mapStatus(p.status),
+          statusBruto: String(p.status ?? ""),
+          liveTempo: parseLiveTempoFromPartida(p),
+          liveMinuto: parseLiveMinutoFromPartida(p),
+          status: mapStatus(String(p.status ?? "")),
           grupo: grupoLetra,
           rodada: rodadaIndex,
           kickoffAt: parseKickoffISO(p.data_realizacao_iso, p.data_realizacao, p.hora_realizacao),

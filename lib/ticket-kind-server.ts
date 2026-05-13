@@ -13,7 +13,7 @@ export async function inferBolaoTypeFromTicketId(ticketId: string): Promise<"pri
   try {
     const pool = getPool();
     const { rows } = await pool.query<{ ticket_type: "general" | "daily" }>(
-      `SELECT ticket_type FROM tickets WHERE id::text = $1 LIMIT 1`,
+      `SELECT ticket_type FROM tickets WHERE id = $1 LIMIT 1`,
       [forDb]
     );
     const t = rows[0]?.ticket_type;

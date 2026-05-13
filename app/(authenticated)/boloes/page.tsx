@@ -3,9 +3,8 @@ import { cookies } from "next/headers";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 import { listPaidTicketsForUser, type PaidTicketRow } from "@/lib/payments/user-tickets";
 import { getTicketPriceCents } from "@/lib/payments/ticket-config";
-import { calcPredictionPoints, listPredictions, type PredictionRow } from "@/lib/predictions";
+import { calcPredictionPoints, listPredictions, listAllPredictions, type PredictionRow } from "@/lib/predictions";
 import { fetchMatchesMap } from "@/lib/football-api";
-import { getPool } from "@/lib/db";
 import { BoloesClient, type BoloesScreenData } from "@/app/(authenticated)/boloes/BoloesClient";
 
 export const dynamic = "force-dynamic";
@@ -190,12 +189,6 @@ function buildRankingMap(predictions: PredictionRow[], matches: MatchMap): Map<s
   });
 
   return new Map(rows.map((row, index) => [row.ticketId, { pos: index + 1, points: row.totalPoints }]));
-}
-
-async function listAllPredictions(): Promise<PredictionRow[]> {
-  const pool = getPool();
-  const { rows } = await pool.query<PredictionRow>(`SELECT * FROM predictions ORDER BY submitted_at ASC`);
-  return rows;
 }
 
 async function loadBoloesData(userId: string): Promise<BoloesScreenData> {

@@ -37,6 +37,12 @@ interface Jogo {
   data: string;
   hora: string;
   status: StatusJogo;
+  /** Texto cru da API (andamento, intervalo, finalizado, …). */
+  statusBruto: string;
+  /** 1 ou 2 quando a API informa o tempo regulamentar. */
+  liveTempo: number | null;
+  /** Minuto de jogo quando a API informa (ou minuto acumulado). */
+  liveMinuto: number | null;
   grupo: string;
   rodada: number;
   dataBR: string;
@@ -99,6 +105,79 @@ function isLockedByKickoff(kickoffAt: string | null | undefined, nowMs: number):
   const kickoffMs = new Date(kickoffAt).getTime();
   if (!Number.isFinite(kickoffMs)) return false;
   return nowMs >= kickoffMs - 60 * 60 * 1000;
+}
+
+function kickoffMsFromJogo(jogo: Jogo): number | null {
+  if (!jogo.kickoffAt) return null;
+  const t = new Date(jogo.kickoffAt).getTime();
+  return Number.isFinite(t) ? t : null;
+}
+
+/** Partida com apito ja dado e ainda sem encerramento oficial (somente leitura / UX). */
+function isMatchLiveForDisplay(jogo: Jogo, nowMs: number): boolean {
+  const ko = kickoffMsFromJogo(jogo);
+  if (ko == null || nowMs < ko) return false;
+  if (jogo.resultCasa != null && jogo.resultVisitante != null) return false;
+  if (jogo.status === "encerrado") return false;
+  const raw = String(jogo.statusBruto ?? jogo.status ?? "").toLowerCase();
+  if (raw.includes("encerr") || raw.includes("finaliz")) return false;
+  return true;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function parseLiveTempoFromPartida(p: any): number | null {
+  const v = p?.tempo ?? p?.tempo_partida ?? p?.numero_tempo;
+  if (v === 1 || v === "1") return 1;
+  if (v === 2 || v === "2") return 2;
+  const s = String(v ?? "").toUpperCase();
+  if (s.includes("PRIMEIRO") && s.includes("TEMPO")) return 1;
+  if (s.includes("SEGUNDO") && s.includes("TEMPO") && !s.includes("PRIMEIRO")) return 2;
+  return null;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function parseLiveMinutoFromPartida(p: any): number | null {
+  const tryNum = (x: unknown): number | null => {
+    if (typeof x === "number" && Number.isFinite(x)) return Math.max(0, Math.min(125, Math.trunc(x)));
+    if (typeof x === "string") {
+      const t = x.trim();
+      if (!t) return null;
+      if (/^\d{1,3}$/.test(t)) return Math.max(0, Math.min(125, parseInt(t, 10)));
+      const head = t.split(":")[0];
+      if (head && /^\d{1,3}$/.test(head)) return Math.max(0, Math.min(125, parseInt(head, 10)));
+    }
+    return null;
+  };
+  return (
+    tryNum(p?.minuto) ??
+    tryNum(p?.minute) ??
+    tryNum(p?.minuto_jogo) ??
+    tryNum(p?.jogo?.minuto) ??
+    tryNum(p?.placar_transmissao?.minuto) ??
+    null
+  );
+}
+
+/** Ao vivo: texto ao lado da data (1º/2º tempo, minutos, intervalo). */
+function formatLiveClockLabel(jogo: Jogo, nowMs: number): string | null {
+  if (!isMatchLiveForDisplay(jogo, nowMs)) return null;
+  const raw = (jogo.statusBruto ?? "").toLowerCase();
+  if (raw.includes("intervalo")) return "Intervalo";
+
+  const t = jogo.liveTempo;
+  const mApi = jogo.liveMinuto;
+  if (t != null && mApi != null) return `${t}º tempo · ${mApi} min`;
+  if (mApi != null) {
+    const half = mApi <= 45 ? "1º tempo" : "2º tempo";
+    return `${half} · ${mApi} min`;
+  }
+
+  const ko = kickoffMsFromJogo(jogo);
+  if (ko == null) return "Ao vivo";
+  const wall = Math.max(0, Math.floor((nowMs - ko) / 60_000));
+  if (wall <= 52) return `1º tempo · ${Math.min(wall, 50)} min`;
+  if (wall < 62) return "Intervalo";
+  return `2º tempo · ${Math.min(wall - 61, 99)} min`;
 }
 
 function resolveDiarioPlayableDateFromJogos(jogos: Jogo[]): string {
@@ -180,7 +259,10 @@ function parsePartidas(faseData: Record<string, any>): Jogo[] {
           data: formatData(p.data_realizacao, p.data_realizacao_iso),
           dataBR: String(p.data_realizacao ?? ""),
           hora: safeHourLabel(p.hora_realizacao),
-          status: mapStatus(p.status),
+          statusBruto: String(p.status ?? ""),
+          liveTempo: parseLiveTempoFromPartida(p),
+          liveMinuto: parseLiveMinutoFromPartida(p),
+          status: mapStatus(String(p.status ?? "")),
           grupo: "GERAL",
           rodada: rodadaIndex,
           kickoffAt: parseKickoffISO(p.data_realizacao_iso, p.data_realizacao, p.hora_realizacao),
@@ -211,7 +293,10 @@ function parsePartidas(faseData: Record<string, any>): Jogo[] {
           data: formatData(p.data_realizacao, p.data_realizacao_iso),
           dataBR: String(p.data_realizacao ?? ""),
           hora: safeHourLabel(p.hora_realizacao),
-          status: mapStatus(p.status),
+          statusBruto: String(p.status ?? ""),
+          liveTempo: parseLiveTempoFromPartida(p),
+          liveMinuto: parseLiveMinutoFromPartida(p),
+          status: mapStatus(String(p.status ?? "")),
           grupo: grupoLetra,
           rodada: rodadaIndex,
           kickoffAt: parseKickoffISO(p.data_realizacao_iso, p.data_realizacao, p.hora_realizacao),
@@ -326,6 +411,8 @@ function JogoCard({
   initialPrediction,
   predictionsLoading = false,
   onSavePrediction,
+  scheduleIndex,
+  scheduleTotal,
 }: {
   jogo: Jogo;
   readOnly?: boolean;
@@ -333,6 +420,9 @@ function JogoCard({
   initialPrediction?: { scoreCasa: number; scoreVisitante: number } | null;
   predictionsLoading?: boolean;
   onSavePrediction?: (payload: { matchId: number; scoreCasa: number; scoreVisitante: number }) => Promise<void>;
+  /** Ordem na lista da rodada (0 = primeiro card). */
+  scheduleIndex?: number;
+  scheduleTotal?: number;
 }) {
   const [scoreCasa, setScoreCasa] = useState(0);
   const [scoreVisitante, setScoreVisitante] = useState(0);
@@ -353,15 +443,21 @@ function JogoCard({
   const lockAtMs = jogo.kickoffAt ? new Date(jogo.kickoffAt).getTime() - 60 * 60 * 1000 : null;
   const [nowMs, setNowMs] = useState(() => Date.now());
   useEffect(() => {
-    if (!lockAtMs) return;
-    // Update every minute when far away, every second when under 2 minutes
     const tick = () => setNowMs(Date.now());
-    const msUntilLock = lockAtMs - Date.now();
-    const interval = msUntilLock < 2 * 60 * 1000 ? 1000 : 30_000;
-    const id = setInterval(tick, interval);
-    return () => clearInterval(id);
-  }, [lockAtMs]);
+    if (lockAtMs != null) {
+      const msUntilLock = lockAtMs - Date.now();
+      const interval = msUntilLock < 2 * 60 * 1000 ? 1000 : 30_000;
+      const id = setInterval(tick, interval);
+      return () => clearInterval(id);
+    }
+    if (jogo.kickoffAt) {
+      const id = setInterval(tick, 60_000);
+      return () => clearInterval(id);
+    }
+    return undefined;
+  }, [lockAtMs, jogo.kickoffAt]);
   const isLockedByTime = lockAtMs != null ? nowMs >= lockAtMs : false;
+  /** Palpite so ate o instante em que falta 1h pro apito; na ultima hora e apos o inicio: nada de primeiro palpite nem alteracao (nao entra quem nao salvou a tempo). */
   const canEdit = !readOnly && jogo.status === "aberto" && !isLockedByTime;
 
   function formatTimeUntilLock(): string {
@@ -412,9 +508,24 @@ function JogoCard({
       ? calcPredictionPoints(scoreCasa, scoreVisitante, jogo.resultCasa, jogo.resultVisitante)
       : null;
 
+  const totalInRound = scheduleTotal ?? 0;
+  const hasSchedule = scheduleIndex != null && totalInRound > 0;
+  const isLastInRound = hasSchedule && scheduleIndex === totalInRound - 1;
+  const koMs = kickoffMsFromJogo(jogo);
+  const beforeKickoff = koMs != null && nowMs < koMs;
+  const matchLive = isMatchLiveForDisplay(jogo, nowMs);
+  const liveClockLabel = formatLiveClockLabel(jogo, nowMs);
+  /** Antes do apito: qualquer jogo na rodada (nao so o primeiro da lista). */
+  const readOnlyPending = readOnly && beforeKickoff;
+  const readOnlyLiveLast = readOnly && isLastInRound && matchLive;
+
   // Status badge label/style
   const statusBadge = readOnly
-    ? { label: "Resultado", color: "#B1EB0B", bg: "rgba(177,235,11,0.10)", border: "rgba(177,235,11,0.30)", dot: false }
+    ? readOnlyLiveLast
+      ? { label: "Em andamento", color: "#B1EB0B", bg: "rgba(177,235,11,0.10)", border: "rgba(177,235,11,0.30)", dot: true }
+      : readOnlyPending
+        ? { label: "Aguardando jogo", color: "#E8C840", bg: "rgba(232,200,64,0.12)", border: "rgba(232,200,64,0.38)", dot: true }
+        : { label: "Resultado", color: "#B1EB0B", bg: "rgba(177,235,11,0.10)", border: "rgba(177,235,11,0.30)", dot: false }
     : jogo.status === "encerrado"
     ? { label: "Encerrado", color: "rgba(255,255,255,0.30)", bg: "transparent", border: "rgba(255,255,255,0.08)", dot: false }
     : palpiteSalvo
@@ -450,14 +561,31 @@ function JogoCard({
     </div>
   );
 
+  const cardBorder = readOnly
+    ? readOnlyPending
+      ? "rgba(232,200,64,0.55)"
+      : readOnlyLiveLast
+        ? "rgba(177,235,11,0.48)"
+        : "rgba(177,235,11,0.15)"
+    : palpiteSalvo
+      ? "rgba(177,235,11,0.60)"
+      : "rgba(177,235,11,0.15)";
+  const cardShadow = readOnly
+    ? readOnlyPending
+      ? "0 0 0 1px rgba(232,200,64,0.10), 0 4px 18px rgba(0,0,0,0.32), 0 0 14px rgba(232,200,64,0.08)"
+      : readOnlyLiveLast
+        ? "0 0 0 1px rgba(177,235,11,0.12), 0 8px 24px rgba(0,0,0,0.40), 0 0 18px rgba(177,235,11,0.12)"
+        : "0 4px 16px rgba(0,0,0,0.28)"
+    : palpiteSalvo
+      ? "0 0 0 1px rgba(177,235,11,0.12), 0 8px 24px rgba(0,0,0,0.40), 0 0 18px rgba(177,235,11,0.12)"
+      : "0 4px 16px rgba(0,0,0,0.28)";
+
   return (
     <div
       className="rounded-xl overflow-hidden mb-2.5 bg-[#0B0D0C]"
       style={{
-        border: `1px solid ${palpiteSalvo ? "rgba(177,235,11,0.60)" : "rgba(177,235,11,0.15)"}`,
-        boxShadow: palpiteSalvo
-          ? "0 0 0 1px rgba(177,235,11,0.12), 0 8px 24px rgba(0,0,0,0.40), 0 0 18px rgba(177,235,11,0.12)"
-          : "0 4px 16px rgba(0,0,0,0.28)",
+        border: `1px solid ${cardBorder}`,
+        boxShadow: cardShadow,
       }}
     >
       {/* ── Top bar: status + date ── */}
@@ -477,10 +605,17 @@ function JogoCard({
             {statusBadge.label}
           </span>
         </div>
-        {/* Date / time */}
-        <span className="text-[11px] font-medium" style={{ color: "rgba(255,255,255,0.35)" }}>
-          {formatData(jogo.dataBR, jogo.kickoffAt)}, {safeHourLabel(jogo.hora)}
-        </span>
+        {/* Data / hora + relogio ao vivo (verde) */}
+        <div className="flex items-center justify-end gap-2 flex-wrap text-right max-w-[58%]">
+          <span className="text-[11px] font-medium leading-tight" style={{ color: "rgba(255,255,255,0.35)" }}>
+            {formatData(jogo.dataBR, jogo.kickoffAt)}, {safeHourLabel(jogo.hora)}
+          </span>
+          {liveClockLabel ? (
+            <span className="text-[10px] font-black leading-tight whitespace-nowrap" style={{ color: "#B1EB0B" }}>
+              {liveClockLabel}
+            </span>
+          ) : null}
+        </div>
       </div>
 
       {/* ── Teams + score: two columns with × between ── */}
@@ -536,23 +671,43 @@ function JogoCard({
 
       <div className="mx-4 h-px bg-white/8 mb-3" />
 
-      {/* ── Action button ── */}
+      {/* ── Rodape somente leitura / acao ── */}
       <div className="px-3 pb-3">
         {readOnly ? (
           <div
-            className="w-full py-2.5 rounded-lg flex items-center justify-center gap-2"
+            className="w-full py-2.5 px-2 rounded-lg flex items-center justify-center"
             style={{
-              background: review && review.points > 0 ? "rgba(177,235,11,0.12)" : "rgba(255,255,255,0.05)",
-              border: review && review.points > 0 ? "1px solid rgba(177,235,11,0.35)" : "1px solid rgba(255,255,255,0.10)",
+              background: readOnlyPending
+                ? "rgba(232,200,64,0.08)"
+                : review && review.points > 0
+                  ? "rgba(177,235,11,0.10)"
+                  : "rgba(255,255,255,0.03)",
+              border: readOnlyPending
+                ? "1px solid rgba(232,200,64,0.28)"
+                : review && review.points > 0
+                  ? "1px solid rgba(177,235,11,0.28)"
+                  : "1px solid rgba(255,255,255,0.06)",
             }}
           >
             <span
-              className="font-black text-[13px]"
-              style={{ color: review && review.points > 0 ? "#B1EB0B" : "rgba(255,255,255,0.72)" }}
+              className={`text-center leading-snug ${review && review.points > 0 && !readOnlyPending ? "font-black text-[13px]" : "font-semibold text-[12px]"}`}
+              style={{
+                color: readOnlyPending
+                  ? "rgba(232,216,120,0.92)"
+                  : review && review.points > 0
+                    ? "#B1EB0B"
+                    : readOnlyLiveLast
+                      ? "rgba(255,255,255,0.72)"
+                      : "rgba(255,255,255,0.42)",
+              }}
             >
-              {review && review.points > 0
-                ? `Voce ganhou ${review.points} pts nesta partida`
-                : "Sem pontuacao nesta partida"}
+              {readOnlyPending
+                ? "Aguardando o inicio da partida"
+                : review && review.points > 0
+                  ? `Voce ganhou ${review.points} pts nesta partida`
+                  : readOnlyLiveLast
+                    ? "Jogo em andamento — a pontuacao aparece apos o resultado oficial"
+                    : "Sem pontuacao nesta partida"}
             </span>
           </div>
         ) : palpiteSalvo ? (
@@ -579,7 +734,7 @@ function JogoCard({
         ) : (
           <button
             onClick={async () => {
-              if (!ticketId || !onSavePrediction) return;
+              if (!canEdit || !ticketId || !onSavePrediction) return;
               setSaveError(null);
               setIsSubmitting(true);
               try {
@@ -601,13 +756,25 @@ function JogoCard({
           >
             <span className="inline-flex items-center justify-center gap-2">
               {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-              {isSubmitting ? "Salvando palpite..."
-                : isLockedByTime ? "Apostas encerradas (1h antes)"
-                : hasInitialPrediction ? "Atualizar palpite"
-                : "Fazer Palpite"}
+              {isSubmitting
+                ? "Salvando palpite..."
+                : !canEdit && jogo.status !== "aberto"
+                  ? "Palpites encerrados"
+                  : !canEdit && isLockedByTime
+                    ? hasInitialPrediction
+                      ? "Fechado: prazo era ate 1h antes do jogo"
+                      : "Fora do prazo — sem palpite nao entra nesta partida"
+                    : hasInitialPrediction
+                      ? "Atualizar palpite"
+                      : "Fazer Palpite"}
             </span>
           </button>
         )}
+        {!readOnly && !palpiteSalvo && !canEdit && jogo.status === "aberto" && isLockedByTime && !hasInitialPrediction ? (
+          <p className="mt-2 text-[11px] text-center leading-snug" style={{ color: "rgba(255,255,255,0.38)" }}>
+            O limite e ate 1h antes do apito: na ultima hora e apos o inicio nao da para apostar. Sem palpite salvo ate la, voce nao entra nesta partida.
+          </p>
+        ) : null}
         {saveError ? <p className="mt-2 text-[11px] text-red-300">{saveError}</p> : null}
       </div>
     </div>
@@ -967,7 +1134,7 @@ function RankingView({ rows, stats }: { rows: RankingRowView[]; stats: ResumoSta
         <div>
           <p className="font-bold text-[13px]" style={{ color: "#D7FF59" }}>Prazo para palpitar</p>
           <p className="text-[12px] mt-1 leading-relaxed" style={{ color: "rgba(218,182,130,0.5)" }}>
-            Os palpites são bloqueados 1 hora antes do início de cada partida. Não esqueça de salvar!
+            Palpites so ate 1h antes do apito: na ultima hora antes do jogo e depois do inicio o sistema fecha. Quem nao tiver palpite salvo ate esse limite nao entra na partida.
           </p>
         </div>
       </div>
@@ -1457,7 +1624,7 @@ function DesktopSidebar({ grupo, tabela, grupos, onGrupo, rankingRows, stats }: 
         <div>
           <p className="font-bold text-[12px]" style={{ color: "#D7FF59" }}>Prazo para palpitar</p>
           <p className="text-[11px] mt-1 leading-relaxed" style={{ color: "rgba(218,182,130,0.5)" }}>
-            Os palpites são bloqueados 1 hora antes do início de cada partida. Não esqueça de salvar!
+            Palpites so ate 1h antes do apito: na ultima hora antes do jogo e depois do inicio o sistema fecha. Quem nao tiver palpite salvo ate esse limite nao entra na partida.
           </p>
         </div>
       </div>
@@ -1705,9 +1872,6 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
     return rodadas.find((r: number) => initialData.jogos.some((j: Jogo) => j.rodada === r && j.dataBR === todayStr)) ?? rodadas[0] ?? null;
   });
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const showJogos = resultMode ? resultTab === "jogos" : tab === "jogos";
-  const showRanking = resultMode ? resultTab === "ranking" : tab === "ranking";
-  const showResumo = resultMode ? resultTab === "resumo" : tab === "resumo";
   const showPredictionsSkeleton =
     Boolean(ticketId) && loadingPredictions && Object.keys(predictionsMap).length === 0;
 
@@ -1726,7 +1890,7 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
       .catch(() => {})
       .finally(() => setLoadingTabela(false));
 
-    fetch("/api/partidas")
+    fetch("/api/partidas", { cache: "default" })
       .then(async (r) => {
         const data = await r.json().catch(() => null);
         return { ok: r.ok, data };
@@ -1908,10 +2072,6 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
     }
   };
 
-  useEffect(() => {
-    if (resultMode) setResultTab("jogos");
-  }, [resultMode]);
-
   const today = todayBR();
   const diarioPlayableDate = resolveDiarioPlayableDateFromJogos(jogos);
   const todayMs = brDateToUtcMs(today);
@@ -1927,6 +2087,10 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
     jogosBase.length > 0 &&
     jogosBase.every((j) => j.status === "encerrado" || isLockedByKickoff(j.kickoffAt, nowMs));
   const readOnlyMode = resultMode || diarioLockedMode;
+  const showJogos = readOnlyMode ? resultTab === "jogos" : tab === "jogos";
+  const showRanking = readOnlyMode ? resultTab === "ranking" : tab === "ranking";
+  const showResumo = readOnlyMode ? resultTab === "resumo" : tab === "resumo";
+
   const jogosDisplayBase =
     bolaoType === "diario" && diarioLockedMode
       ? jogosBase.filter((j) => Boolean(predictionsMap[j.id]))
@@ -2188,7 +2352,7 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
             </div>
           )}
 
-          {/* Mobile: conteúdo com tabs — em resultMode NÃO usar tab==="jogos" (tab fica em jogos e quebrava o Ranking) */}
+          {/* Mobile: conteúdo com tabs — em readOnlyMode usar resultTab (tab principal pode ficar em "jogos" e quebrava Ranking/Resumo) */}
           <div key={readOnlyMode ? `result-${resultTab}` : tab} className="animate-tab-in lg:hidden">
             {showJogos && (
               <div>
@@ -2226,7 +2390,7 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                             <span className="text-[11px] font-bold tracking-widest uppercase shrink-0" style={{ color: "rgba(177,235,11,0.55)" }}>· Grupo {groupKey}</span>
                             <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.06)" }} />
                           </div>
-                          {rJogos.map((jogo) => (
+                          {rJogos.map((jogo, scheduleIndex) => (
                             <JogoCard
                               key={jogo.id}
                               jogo={jogo}
@@ -2235,6 +2399,8 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                               initialPrediction={predictionsMap[jogo.id] ?? null}
                               predictionsLoading={loadingPredictions}
                               onSavePrediction={savePrediction}
+                              scheduleIndex={scheduleIndex}
+                              scheduleTotal={rJogos.length}
                             />
                           ))}
                         </div>
@@ -2248,7 +2414,7 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                         <span className="text-[11px] font-bold text-white/30 tracking-widest uppercase shrink-0">{label}</span>
                         <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.06)" }} />
                       </div>
-                      {rJogos.map((jogo) => (
+                      {rJogos.map((jogo, scheduleIndex) => (
                         <JogoCard
                           key={jogo.id}
                           jogo={jogo}
@@ -2257,6 +2423,8 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                           initialPrediction={predictionsMap[jogo.id] ?? null}
                           predictionsLoading={loadingPredictions}
                           onSavePrediction={savePrediction}
+                          scheduleIndex={scheduleIndex}
+                          scheduleTotal={rJogos.length}
                         />
                       ))}
                     </div>
@@ -2370,7 +2538,7 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                         <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.06)" }} />
                       </div>
                       <div className="grid grid-cols-2 gap-4">
-                        {rJogos.map((jogo) => (
+                        {rJogos.map((jogo, scheduleIndex) => (
                           <JogoCard
                             key={jogo.id}
                             jogo={jogo}
@@ -2379,6 +2547,8 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                             initialPrediction={predictionsMap[jogo.id] ?? null}
                             predictionsLoading={loadingPredictions}
                             onSavePrediction={savePrediction}
+                            scheduleIndex={scheduleIndex}
+                            scheduleTotal={rJogos.length}
                           />
                         ))}
                       </div>
@@ -2394,7 +2564,7 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                     <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.06)" }} />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
-                    {rJogos.map((jogo) => (
+                    {rJogos.map((jogo, scheduleIndex) => (
                       <JogoCard
                         key={jogo.id}
                         jogo={jogo}
@@ -2403,6 +2573,8 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                         initialPrediction={predictionsMap[jogo.id] ?? null}
                         predictionsLoading={loadingPredictions}
                         onSavePrediction={savePrediction}
+                        scheduleIndex={scheduleIndex}
+                        scheduleTotal={rJogos.length}
                       />
                     ))}
                   </div>

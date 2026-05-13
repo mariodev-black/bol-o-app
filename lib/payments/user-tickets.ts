@@ -1,6 +1,6 @@
 import { getPool } from "@/lib/db";
 import { fetchMatchesMap } from "@/lib/football-api";
-import { listPredictions } from "@/lib/predictions";
+import { listPredictionTicketMatchPairsForUser } from "@/lib/predictions";
 
 export type PaidTicketRow = {
   id: string;
@@ -53,7 +53,8 @@ function todayBR(): string {
   return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo" }).format(new Date());
 }
 
-function resolveDiarioPlayableDate(matchMap: Awaited<ReturnType<typeof fetchMatchesMap>>): string {
+/** Dia “oficial” do bolão do dia (mesma regra do fluxo de palpites). */
+export function resolveDiarioPlayableDate(matchMap: Awaited<ReturnType<typeof fetchMatchesMap>>): string {
   const today = todayBR();
   const todayMs = brDateToUtcMs(today);
   const dates = new Set<string>();
@@ -72,19 +73,23 @@ function resolveDiarioPlayableDate(matchMap: Awaited<ReturnType<typeof fetchMatc
 export async function listPaidTicketsForUser(userId: string): Promise<PaidTicketRow[]> {
   const pool = getPool();
   try {
-    const { rows } = await pool.query<{
-      id: string;
-      ticket_type: "general" | "daily";
-      quantity: number;
-      paid_at: Date | null;
-      created_at: Date;
-    }>(
-      `SELECT id, ticket_type, quantity, paid_at, created_at
-       FROM tickets
-       WHERE user_id = $1 AND status = 'paid'
-       ORDER BY COALESCE(paid_at, created_at) DESC NULLS LAST, created_at DESC`,
-      [userId]
-    );
+    const [{ rows }, matchMap, preds] = await Promise.all([
+      pool.query<{
+        id: string;
+        ticket_type: "general" | "daily";
+        quantity: number;
+        paid_at: Date | null;
+        created_at: Date;
+      }>(
+        `SELECT id, ticket_type, quantity, paid_at, created_at
+         FROM tickets
+         WHERE user_id = $1 AND status = 'paid'
+         ORDER BY COALESCE(paid_at, created_at) DESC NULLS LAST, created_at DESC`,
+        [userId]
+      ),
+      fetchMatchesMap().catch(() => new Map()),
+      listPredictionTicketMatchPairsForUser(userId).catch(() => [] as { ticket_id: string; match_id: number }[]),
+    ]);
     const mapped = rows.map((r) => ({
       id: r.id,
       ticketType: r.ticket_type,
@@ -92,10 +97,6 @@ export async function listPaidTicketsForUser(userId: string): Promise<PaidTicket
       paidAt: r.paid_at ? r.paid_at.toISOString() : null,
       createdAt: r.created_at.toISOString(),
     }));
-    const [matchMap, preds] = await Promise.all([
-      fetchMatchesMap().catch(() => new Map()),
-      listPredictions({ userId }).catch(() => []),
-    ]);
     if (!matchMap.size) {
       return mapped.map((t) => ({
         ...t,
@@ -124,7 +125,7 @@ export async function listPaidTicketsForUser(userId: string): Promise<PaidTicket
       });
 
     const playableDate = resolveDiarioPlayableDate(matchMap);
-    const byTicket = new Map<string, typeof preds>();
+    const byTicket = new Map<string, { ticket_id: string; match_id: number }[]>();
     for (const p of preds) {
       const arr = byTicket.get(p.ticket_id) ?? [];
       arr.push(p);

@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
-import { fetchMatchesMap } from "@/lib/football-api";
-import { calcPredictionPoints, listPredictions } from "@/lib/predictions";
-import { inferBolaoTypeFromTicketId } from "@/lib/ticket-kind-server";
+import { computePalpitesResumo } from "@/lib/palpites/resumo-compute";
 
 export const runtime = "nodejs";
 
@@ -21,11 +19,10 @@ export async function GET(request: NextRequest) {
   if (!userId) return NextResponse.json({ error: "Nao autenticado" }, { status: 401 });
   const ticketId = request.nextUrl.searchParams.get("ticketId")?.trim() || undefined;
   const bolaoParam = request.nextUrl.searchParams.get("bolaoType");
+
   let bolaoType: "principal" | "diario" | undefined;
   if (ticketId) {
-    const inferred = await inferBolaoTypeFromTicketId(ticketId);
-    if (!inferred) return NextResponse.json({ error: "Ticket invalido" }, { status: 400 });
-    bolaoType = inferred;
+    bolaoType = undefined;
   } else if (bolaoParam === "diario") {
     bolaoType = "diario";
   } else if (bolaoParam === "principal") {
@@ -33,27 +30,7 @@ export async function GET(request: NextRequest) {
   } else {
     bolaoType = undefined;
   }
-  const preds = await listPredictions({ userId, bolaoType, ticketId });
-  const matches = await fetchMatchesMap();
 
-  let palpites = 0;
-  let acertos = 0;
-  let pontos = 0;
-  let exatos = 0;
-  for (const p of preds) {
-    palpites += 1;
-    const matchId = Number(p.match_id);
-    if (!Number.isFinite(matchId)) continue;
-    const m = matches.get(matchId);
-    if (!m || m.resultCasa == null || m.resultVisitante == null) continue;
-    const calc = calcPredictionPoints(p.score_casa, p.score_visitante, m.resultCasa, m.resultVisitante);
-    pontos += calc.points;
-    acertos += calc.outcomeHit ? 1 : 0;
-    exatos += calc.exact ? 1 : 0;
-  }
-
-  return NextResponse.json({
-    resumo: { palpites, acertos, pontos, exatos },
-  });
+  const resumo = await computePalpitesResumo(userId, { ticketId, bolaoType });
+  return NextResponse.json({ resumo });
 }
-

@@ -1,4 +1,4 @@
-import { readMatchesCache, syncMatchesCache } from "@/lib/matches-cache";
+import { readMatchesCache, requestMatchesCacheSoftSync, syncMatchesCache } from "@/lib/matches-cache";
 
 type MatchMap = Map<number, {
   id: number;
@@ -16,8 +16,9 @@ type MatchMap = Map<number, {
   hour: string;
 }>;
 
+/** Mapa em memoria: evita reler o DB e reavaliar sync a cada request (default 3 min). */
 const MATCH_MAP_MEMORY_TTL_MS =
-  Number.parseInt(process.env.MATCH_MAP_MEMORY_TTL_MS ?? "15000", 10) || 15_000;
+  Number.parseInt(process.env.MATCH_MAP_MEMORY_TTL_MS ?? `${3 * 60 * 1000}`, 10) || 3 * 60 * 1000;
 
 let matchMapMemoryCache: { at: number; map: MatchMap } | null = null;
 
@@ -46,6 +47,17 @@ function parseKickoffISO(dataRealizacao: string | null | undefined, hora: string
   const hhmm = hora.slice(0, 5);
   if (!/^\d{2}:\d{2}$/.test(hhmm)) return null;
   return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}T${hhmm}:00-03:00`;
+}
+
+/** ISO do apito: usa kickoff da API/cache; se nulo, monta a partir de data/hora BR (mesmo criterio do cliente). */
+export function resolveKickoffAtIso(match: {
+  kickoffAt: string | null;
+  dateBR: string;
+  hour: string;
+}): string | null {
+  const k = match.kickoffAt?.trim();
+  if (k) return match.kickoffAt;
+  return parseKickoffISO(match.dateBR, match.hour);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -149,7 +161,7 @@ export async function fetchMatchesMap(): Promise<MatchMap> {
   const cachedRows = await readMatchesCache().catch(() => []);
   debugLog("fetchMatchesMap:start", { cachedRows: cachedRows.length, competitionId: competitionId() });
   if (cachedRows.length > 0) {
-    void syncMatchesCache({ fetchProviderMatches: fetchProviderMatches, force: false }).catch(() => {});
+    requestMatchesCacheSoftSync(fetchProviderMatches);
     debugLog("fetchMatchesMap:return-cache", { count: cachedRows.length });
     const map = mapFromCacheRows(cachedRows);
     matchMapMemoryCache = { at: Date.now(), map };

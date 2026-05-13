@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { z } from "zod";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
-import { fetchMatchesMap } from "@/lib/football-api";
+import { fetchMatchesMap, resolveKickoffAtIso } from "@/lib/football-api";
 import { getPredictionByUserTicketMatch, listPredictions, upsertPrediction } from "@/lib/predictions";
 import { inferBolaoTypeFromTicketId } from "@/lib/ticket-kind-server";
 import { inferBolaoTypeFromTicketPrefix } from "@/lib/ticket-kind-shared";
@@ -154,13 +155,30 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Partida ja encerrada para palpites" }, { status: 400 });
   }
 
-  const lockMs = match.kickoffAt ? new Date(match.kickoffAt).getTime() - 60 * 60 * 1000 : null;
-  if (lockMs != null && Date.now() >= lockMs) {
-    return NextResponse.json({ error: "Palpite bloqueado: faltam menos de 1h para a partida" }, { status: 400 });
+  const kickoffIso = resolveKickoffAtIso({
+    kickoffAt: match.kickoffAt,
+    dateBR: match.dateBR,
+    hour: match.hour,
+  });
+  const lockMs = kickoffIso ? new Date(kickoffIso).getTime() - 60 * 60 * 1000 : null;
+  if (lockMs != null && Number.isFinite(lockMs) && Date.now() >= lockMs) {
+    return NextResponse.json(
+      {
+        error:
+          "Palpite recusado: o prazo maximo e ate 1h antes do apito. Na ultima hora antes do jogo nao aceita nem primeiro palpite nem alteracao; quem nao registrou a tempo nao entra nesta partida.",
+      },
+      { status: 400 }
+    );
   }
-  const kickoffMs = match.kickoffAt ? new Date(match.kickoffAt).getTime() : null;
+  const kickoffMs = kickoffIso ? new Date(kickoffIso).getTime() : null;
   if (kickoffMs != null && Number.isFinite(kickoffMs) && Date.now() >= kickoffMs) {
-    return NextResponse.json({ error: "Partida ja iniciada para palpites" }, { status: 400 });
+    return NextResponse.json(
+      {
+        error:
+          "Palpite recusado: partida ja iniciada. Nao e possivel registrar nem alterar palpite apos o apito.",
+      },
+      { status: 400 }
+    );
   }
   if (bolaoType === "diario") {
     const today = brToday();
@@ -221,6 +239,7 @@ export async function POST(request: NextRequest) {
     scoreCasa: data.scoreCasa,
     scoreVisitante: data.scoreVisitante,
   });
+  revalidateTag("leaderboard", "max");
   return NextResponse.json({
     prediction: {
       ticketId: row.ticket_id,

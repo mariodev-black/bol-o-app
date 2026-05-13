@@ -97,9 +97,11 @@ export function Header() {
                 const isActive =
                   baseHref === "/"
                     ? pathname === "/"
-                    : label === "Ranking" || label === "Palpites"
-                      ? pathname.startsWith("/meus-palpites") || pathname.startsWith("/palpites")
-                      : pathname === baseHref || pathname.startsWith(`${baseHref}/`);
+                    : label === "Ranking"
+                      ? pathname.startsWith("/ranking")
+                      : label === "Palpites"
+                        ? pathname.startsWith("/meus-palpites") || pathname.startsWith("/palpites")
+                        : pathname === baseHref || pathname.startsWith(`${baseHref}/`);
 
                 return (
                   <Link

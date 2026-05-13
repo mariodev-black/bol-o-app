@@ -42,9 +42,16 @@ type ProviderMatchInput = {
   awayLogo: string | null;
 };
 
-const CACHE_TTL_SECONDS = Number.parseInt(process.env.MATCHES_CACHE_TTL_SECONDS ?? "60", 10) || 60;
+/** Quanto tempo o cache DB e considerado "fresco" antes de outro sync com a API externa (default maior = menos rate). */
+const CACHE_TTL_SECONDS = Number.parseInt(process.env.MATCHES_CACHE_TTL_SECONDS ?? "120", 10) || 120;
 const IDLE_SYNC_SECONDS = Number.parseInt(process.env.MATCHES_CACHE_IDLE_SYNC_SECONDS ?? "900", 10) || 900;
-const ACTIVE_SYNC_SECONDS = Number.parseInt(process.env.MATCHES_CACHE_ACTIVE_SYNC_SECONDS ?? "60", 10) || 60;
+/** Janela ativa (ao vivo / perto do apito): intervalo minimo entre syncs bem-sucedidos na logica scheduleSaysFresh. */
+const ACTIVE_SYNC_SECONDS = Number.parseInt(process.env.MATCHES_CACHE_ACTIVE_SYNC_SECONDS ?? "120", 10) || 120;
+
+/** No maximo um disparo nao-bloqueante de sync por este intervalo (GET partidas, fetchMatchesMap, etc.). */
+const SOFT_SYNC_MIN_INTERVAL_MS =
+  Number.parseInt(process.env.MATCHES_SOFT_SYNC_MIN_INTERVAL_MS ?? `${10 * 60 * 1000}`, 10) || 10 * 60 * 1000;
+let lastSoftSyncRequestAt = 0;
 const PRE_KICKOFF_WINDOW_MINUTES =
   Number.parseInt(process.env.MATCHES_CACHE_PRE_KICKOFF_WINDOW_MINUTES ?? "30", 10) || 30;
 const LOCK_KEY = 72026;
@@ -98,34 +105,42 @@ export async function matchesCacheIsFresh(): Promise<boolean> {
   return Boolean(rows[0]?.fresh);
 }
 
-function isLiveStatus(status: string): boolean {
-  const s = status.toLowerCase();
-  return s.includes("andamento") || s.includes("ao vivo") || s.includes("intervalo");
-}
-
-function shouldUseActiveWindow(rows: CachedMatchRow[]): boolean {
-  const now = Date.now();
-  const preKickoffMs = PRE_KICKOFF_WINDOW_MINUTES * 60 * 1000;
-  for (const row of rows) {
-    if (isLiveStatus(row.status || "")) return true;
-    if (!row.kickoff_at) continue;
-    const kickoffMs = new Date(row.kickoff_at).getTime();
-    if (!Number.isFinite(kickoffMs)) continue;
-    if (kickoffMs >= now && kickoffMs - now <= preKickoffMs) return true;
-  }
-  return false;
-}
-
+/** Janela “quente” (ao vivo / perto do apito) calculada só no Postgres — sem puxar todas as linhas na app. */
 async function scheduleSaysFresh(): Promise<boolean> {
-  const rows = await readMatchesCache();
-  if (rows.length === 0) return false;
-  const activeWindow = shouldUseActiveWindow(rows);
+  const pool = getPool();
+  const comp = competitionId();
+  const preMin = PRE_KICKOFF_WINDOW_MINUTES;
+  const { rows: activeRows } = await pool.query<{ active: boolean }>(
+    `SELECT (
+       EXISTS (
+         SELECT 1 FROM matches_cache
+         WHERE competition_id = $1
+           AND (
+             lower(status) LIKE '%andamento%'
+             OR lower(status) LIKE '%ao vivo%'
+             OR lower(status) LIKE '%intervalo%'
+           )
+       )
+       OR EXISTS (
+         SELECT 1 FROM matches_cache
+         WHERE competition_id = $1
+           AND kickoff_at IS NOT NULL
+           AND kickoff_at::timestamptz > now()
+           AND kickoff_at::timestamptz <= now() + (($2::text || ' minutes')::interval)
+       )
+     ) AS active`,
+    [comp, String(preMin)]
+  );
+  const activeWindow = Boolean(activeRows[0]?.active);
   const freshnessSeconds = activeWindow ? ACTIVE_SYNC_SECONDS : IDLE_SYNC_SECONDS;
+  const { rows: maxRows } = await pool.query<{ latest: string | null }>(
+    `SELECT max(synced_at)::text AS latest FROM matches_cache WHERE competition_id = $1`,
+    [comp]
+  );
+  const latestMsRaw = maxRows[0]?.latest;
+  const latestSyncMs = latestMsRaw ? new Date(latestMsRaw).getTime() : 0;
+  if (!Number.isFinite(latestSyncMs)) return false;
   const thresholdMs = Date.now() - freshnessSeconds * 1000;
-  const latestSyncMs = rows.reduce((acc, row) => {
-    const v = new Date(row.synced_at).getTime();
-    return Number.isFinite(v) && v > acc ? v : acc;
-  }, 0);
   return latestSyncMs >= thresholdMs;
 }
 
@@ -167,9 +182,9 @@ async function upsertMatchesCache(matches: ProviderMatchInput[]) {
           group_key = EXCLUDED.group_key,
           round_key = EXCLUDED.round_key,
           status = EXCLUDED.status,
-          kickoff_at = EXCLUDED.kickoff_at,
-          date_br = EXCLUDED.date_br,
-          hour_br = EXCLUDED.hour_br,
+          kickoff_at = COALESCE(matches_cache.kickoff_at, EXCLUDED.kickoff_at),
+          date_br = COALESCE(NULLIF(matches_cache.date_br, ''), EXCLUDED.date_br),
+          hour_br = COALESCE(NULLIF(matches_cache.hour_br, ''), EXCLUDED.hour_br),
           result_casa = EXCLUDED.result_casa,
           result_visitante = EXCLUDED.result_visitante,
           home_name = EXCLUDED.home_name,
@@ -217,6 +232,17 @@ async function upsertMatchesCache(matches: ProviderMatchInput[]) {
   }
 }
 
+/**
+ * Agenda sync leve com a API externa (force: false), no maximo 1 vez por SOFT_SYNC_MIN_INTERVAL_MS.
+ * Evita rajadas de GET /api/partidas ou fetchMatchesMap dispararem rate limit.
+ */
+export function requestMatchesCacheSoftSync(fetchProviderMatches: () => Promise<ProviderMatchInput[]>): void {
+  const now = Date.now();
+  if (now - lastSoftSyncRequestAt < SOFT_SYNC_MIN_INTERVAL_MS) return;
+  lastSoftSyncRequestAt = now;
+  void syncMatchesCache({ fetchProviderMatches, force: false }).catch(() => {});
+}
+
 export async function syncMatchesCache(input: {
   fetchProviderMatches: () => Promise<ProviderMatchInput[]>;
   force?: boolean;
@@ -248,7 +274,7 @@ export async function syncMatchesCache(input: {
     }
     const providerMatches = await input.fetchProviderMatches();
     await upsertMatchesCache(providerMatches);
-    void processPrizeClosuresAfterMatchSync();
+    await processPrizeClosuresAfterMatchSync();
     return { refreshed: true as const, reason: "synced" as const, count: providerMatches.length };
   } finally {
     const unlockClient = await pool.connect();
