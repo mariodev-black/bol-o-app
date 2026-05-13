@@ -43,6 +43,8 @@ function mapStatus(s: string): StatusJogo {
   if (
     raw.includes("encerr") ||
     raw.includes("finaliz") ||
+    raw.includes("fim de jogo") ||
+    raw.includes("termino de jogo") ||
     raw.includes("cancel") ||
     raw.includes("adiad") ||
     raw.includes("suspens") ||

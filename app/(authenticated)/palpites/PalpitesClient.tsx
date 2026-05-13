@@ -197,6 +197,8 @@ function mapStatus(s: string): StatusJogo {
   if (
     raw.includes("encerr") ||
     raw.includes("finaliz") ||
+    raw.includes("fim de jogo") ||
+    raw.includes("termino de jogo") ||
     raw.includes("cancel") ||
     raw.includes("adiad") ||
     raw.includes("suspens") ||
@@ -411,8 +413,6 @@ function JogoCard({
   initialPrediction,
   predictionsLoading = false,
   onSavePrediction,
-  scheduleIndex,
-  scheduleTotal,
 }: {
   jogo: Jogo;
   readOnly?: boolean;
@@ -420,9 +420,6 @@ function JogoCard({
   initialPrediction?: { scoreCasa: number; scoreVisitante: number } | null;
   predictionsLoading?: boolean;
   onSavePrediction?: (payload: { matchId: number; scoreCasa: number; scoreVisitante: number }) => Promise<void>;
-  /** Ordem na lista da rodada (0 = primeiro card). */
-  scheduleIndex?: number;
-  scheduleTotal?: number;
 }) {
   const [scoreCasa, setScoreCasa] = useState(0);
   const [scoreVisitante, setScoreVisitante] = useState(0);
@@ -509,24 +506,24 @@ function JogoCard({
       ? calcPredictionPoints(scoreCasa, scoreVisitante, jogo.resultCasa!, jogo.resultVisitante!)
       : null;
 
-  const totalInRound = scheduleTotal ?? 0;
-  const hasSchedule = scheduleIndex != null && totalInRound > 0;
-  const isLastInRound = hasSchedule && scheduleIndex === totalInRound - 1;
   const koMs = kickoffMsFromJogo(jogo);
   const beforeKickoff = koMs != null && nowMs < koMs;
   const matchLive = isMatchLiveForDisplay(jogo, nowMs);
   const liveClockLabel = formatLiveClockLabel(jogo, nowMs);
   /** Antes do apito: qualquer jogo na rodada (nao so o primeiro da lista). */
   const readOnlyPending = readOnly && beforeKickoff;
-  const readOnlyLiveLast = readOnly && isLastInRound && matchLive;
+  const readOnlyMatchLive = readOnly && matchLive;
+  const readOnlyPlacarPendente = readOnly && !readOnlyPending && !readOnlyMatchLive && !temPlacarOficial && jogo.status === "encerrado";
 
   // Status badge label/style
   const statusBadge = readOnly
-    ? readOnlyLiveLast
-      ? { label: "Em andamento", color: "#B1EB0B", bg: "rgba(177,235,11,0.10)", border: "rgba(177,235,11,0.30)", dot: true }
-      : readOnlyPending
-        ? { label: "Aguardando jogo", color: "#E8C840", bg: "rgba(232,200,64,0.12)", border: "rgba(232,200,64,0.38)", dot: true }
-        : { label: "Resultado", color: "#B1EB0B", bg: "rgba(177,235,11,0.10)", border: "rgba(177,235,11,0.30)", dot: false }
+    ? readOnlyPending
+      ? { label: "Aguardando jogo", color: "#E8C840", bg: "rgba(232,200,64,0.12)", border: "rgba(232,200,64,0.38)", dot: true }
+      : readOnlyMatchLive
+        ? { label: "Em andamento", color: "#B1EB0B", bg: "rgba(177,235,11,0.10)", border: "rgba(177,235,11,0.30)", dot: true }
+        : readOnlyPlacarPendente
+          ? { label: "Placar pendente", color: "#E8C840", bg: "rgba(232,200,64,0.12)", border: "rgba(232,200,64,0.38)", dot: true }
+          : { label: "Resultado", color: "#B1EB0B", bg: "rgba(177,235,11,0.10)", border: "rgba(177,235,11,0.30)", dot: false }
     : jogo.status === "encerrado"
     ? { label: "Encerrado", color: "rgba(255,255,255,0.30)", bg: "transparent", border: "rgba(255,255,255,0.08)", dot: false }
     : palpiteSalvo
@@ -565,18 +562,22 @@ function JogoCard({
   const cardBorder = readOnly
     ? readOnlyPending
       ? "rgba(232,200,64,0.55)"
-      : readOnlyLiveLast
-        ? "rgba(177,235,11,0.48)"
-        : "rgba(177,235,11,0.15)"
+      : readOnlyPlacarPendente
+        ? "rgba(232,200,64,0.42)"
+        : readOnlyMatchLive
+          ? "rgba(177,235,11,0.48)"
+          : "rgba(177,235,11,0.15)"
     : palpiteSalvo
       ? "rgba(177,235,11,0.60)"
       : "rgba(177,235,11,0.15)";
   const cardShadow = readOnly
     ? readOnlyPending
       ? "0 0 0 1px rgba(232,200,64,0.10), 0 4px 18px rgba(0,0,0,0.32), 0 0 14px rgba(232,200,64,0.08)"
-      : readOnlyLiveLast
-        ? "0 0 0 1px rgba(177,235,11,0.12), 0 8px 24px rgba(0,0,0,0.40), 0 0 18px rgba(177,235,11,0.12)"
-        : "0 4px 16px rgba(0,0,0,0.28)"
+      : readOnlyPlacarPendente
+        ? "0 0 0 1px rgba(232,200,64,0.10), 0 4px 18px rgba(0,0,0,0.32), 0 0 12px rgba(232,200,64,0.06)"
+        : readOnlyMatchLive
+          ? "0 0 0 1px rgba(177,235,11,0.12), 0 8px 24px rgba(0,0,0,0.40), 0 0 18px rgba(177,235,11,0.12)"
+          : "0 4px 16px rgba(0,0,0,0.28)"
     : palpiteSalvo
       ? "0 0 0 1px rgba(177,235,11,0.12), 0 8px 24px rgba(0,0,0,0.40), 0 0 18px rgba(177,235,11,0.12)"
       : "0 4px 16px rgba(0,0,0,0.28)";
@@ -680,14 +681,18 @@ function JogoCard({
             style={{
               background: readOnlyPending
                 ? "rgba(232,200,64,0.08)"
-                : review && review.points > 0
-                  ? "rgba(177,235,11,0.10)"
-                  : "rgba(255,255,255,0.03)",
+                : readOnlyPlacarPendente
+                  ? "rgba(232,200,64,0.06)"
+                  : review && review.points > 0
+                    ? "rgba(177,235,11,0.10)"
+                    : "rgba(255,255,255,0.03)",
               border: readOnlyPending
                 ? "1px solid rgba(232,200,64,0.28)"
-                : review && review.points > 0
-                  ? "1px solid rgba(177,235,11,0.28)"
-                  : "1px solid rgba(255,255,255,0.06)",
+                : readOnlyPlacarPendente
+                  ? "1px solid rgba(232,200,64,0.22)"
+                  : review && review.points > 0
+                    ? "1px solid rgba(177,235,11,0.28)"
+                    : "1px solid rgba(255,255,255,0.06)",
             }}
           >
             <span
@@ -695,24 +700,26 @@ function JogoCard({
               style={{
                 color: readOnlyPending
                   ? "rgba(232,216,120,0.92)"
-                  : review && review.points > 0
-                    ? "#B1EB0B"
-                    : readOnlyLiveLast
-                      ? "rgba(255,255,255,0.72)"
-                      : "rgba(255,255,255,0.42)",
+                  : readOnlyPlacarPendente
+                    ? "rgba(232,216,120,0.85)"
+                    : review && review.points > 0
+                      ? "#B1EB0B"
+                      : readOnlyMatchLive
+                        ? "rgba(255,255,255,0.72)"
+                        : "rgba(255,255,255,0.42)",
               }}
             >
               {readOnlyPending
                 ? "Aguardando o inicio da partida"
-                : !temPlacarOficial && jogo.status === "encerrado"
+                : readOnlyPlacarPendente
                   ? "Sincronizando placar oficial..."
-                  : !hasInitialPrediction && (jogo.status === "encerrado" || temPlacarOficial)
-                    ? "Sem palpite nesta partida"
-                : review && review.points > 0
-                  ? `Voce ganhou ${review.points} pts nesta partida`
-                  : readOnlyLiveLast
+                  : readOnlyMatchLive
                     ? "Jogo em andamento — a pontuacao aparece apos o resultado oficial"
-                    : "Sem pontuacao nesta partida"}
+                    : !hasInitialPrediction && (jogo.status === "encerrado" || temPlacarOficial)
+                      ? "Sem palpite nesta partida"
+                      : review && review.points > 0
+                        ? `Voce ganhou ${review.points} pts nesta partida`
+                        : "Sem pontuacao nesta partida"}
             </span>
           </div>
         ) : palpiteSalvo ? (
@@ -2404,7 +2411,7 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                             <span className="text-[11px] font-bold tracking-widest uppercase shrink-0" style={{ color: "rgba(177,235,11,0.55)" }}>· Grupo {groupKey}</span>
                             <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.06)" }} />
                           </div>
-                          {rJogos.map((jogo, scheduleIndex) => (
+                          {rJogos.map((jogo) => (
                             <JogoCard
                               key={jogo.id}
                               jogo={jogo}
@@ -2413,8 +2420,6 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                               initialPrediction={predictionsMap[jogo.id] ?? null}
                               predictionsLoading={loadingPredictions}
                               onSavePrediction={savePrediction}
-                              scheduleIndex={scheduleIndex}
-                              scheduleTotal={rJogos.length}
                             />
                           ))}
                         </div>
@@ -2428,7 +2433,7 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                         <span className="text-[11px] font-bold text-white/30 tracking-widest uppercase shrink-0">{label}</span>
                         <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.06)" }} />
                       </div>
-                      {rJogos.map((jogo, scheduleIndex) => (
+                      {rJogos.map((jogo) => (
                         <JogoCard
                           key={jogo.id}
                           jogo={jogo}
@@ -2437,8 +2442,6 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                           initialPrediction={predictionsMap[jogo.id] ?? null}
                           predictionsLoading={loadingPredictions}
                           onSavePrediction={savePrediction}
-                          scheduleIndex={scheduleIndex}
-                          scheduleTotal={rJogos.length}
                         />
                       ))}
                     </div>
@@ -2552,7 +2555,7 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                         <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.06)" }} />
                       </div>
                       <div className="grid grid-cols-2 gap-4">
-                        {rJogos.map((jogo, scheduleIndex) => (
+                        {rJogos.map((jogo) => (
                           <JogoCard
                             key={jogo.id}
                             jogo={jogo}
@@ -2561,8 +2564,6 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                             initialPrediction={predictionsMap[jogo.id] ?? null}
                             predictionsLoading={loadingPredictions}
                             onSavePrediction={savePrediction}
-                            scheduleIndex={scheduleIndex}
-                            scheduleTotal={rJogos.length}
                           />
                         ))}
                       </div>
@@ -2578,7 +2579,7 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                     <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.06)" }} />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
-                    {rJogos.map((jogo, scheduleIndex) => (
+                    {rJogos.map((jogo) => (
                       <JogoCard
                         key={jogo.id}
                         jogo={jogo}
@@ -2587,8 +2588,6 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                         initialPrediction={predictionsMap[jogo.id] ?? null}
                         predictionsLoading={loadingPredictions}
                         onSavePrediction={savePrediction}
-                        scheduleIndex={scheduleIndex}
-                        scheduleTotal={rJogos.length}
                       />
                     ))}
                   </div>

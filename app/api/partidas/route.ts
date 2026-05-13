@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { fetchProviderMatches } from "@/lib/football-api";
-import { readMatchesCache, requestMatchesCacheSoftSync, syncMatchesCache } from "@/lib/matches-cache";
+import {
+  matchCacheRowsTerminalWithoutScores,
+  readMatchesCache,
+  requestMatchesCacheSoftSync,
+  syncMatchesCache,
+} from "@/lib/matches-cache";
 
 export const runtime = "nodejs";
 
@@ -100,10 +105,14 @@ export async function GET() {
     const dbg = ["1", "true", "yes"].includes((process.env.DEBUG_MATCHES_SYNC || "").trim().toLowerCase());
     let rows = await readMatchesCache();
 
-    // Caminho rápido: responde do cache imediatamente e sincroniza sem bloquear a UI.
+    // Caminho rápido: responde do cache; se houver inconsistência (ex.: "finalizado" sem placar), força 1 sync antes de responder.
     if (rows.length > 0) {
-      // Sync com API externa e limitado globalmente (ver requestMatchesCacheSoftSync); nao dispara a cada GET.
-      requestMatchesCacheSoftSync(fetchProviderMatches);
+      if (matchCacheRowsTerminalWithoutScores(rows)) {
+        await syncMatchesCache({ fetchProviderMatches, force: true }).catch(() => {});
+        rows = await readMatchesCache();
+      } else {
+        requestMatchesCacheSoftSync(fetchProviderMatches);
+      }
       const payload = buildPartidasPayload(rows);
       if (dbg) {
         console.log("[api/partidas] return-cache-fast", {

@@ -92,6 +92,20 @@ export async function readMatchesCache(): Promise<CachedMatchRow[]> {
   return rows;
 }
 
+/**
+ * Cache com status de fim de jogo mas sem mandante/visitante — GET /api/partidas deve forcar sync.
+ * Ignora cancelado/adiado/suspenso onde placar pode ser intencionalmente vazio.
+ */
+export function matchCacheRowsTerminalWithoutScores(rows: CachedMatchRow[]): boolean {
+  for (const r of rows) {
+    const s = String(r.status ?? "").toLowerCase();
+    if (s.includes("cancel") || s.includes("adiad") || s.includes("suspens") || s.includes("interromp")) continue;
+    const terminal = s.includes("encerr") || s.includes("finaliz");
+    if (terminal && (r.result_casa == null || r.result_visitante == null)) return true;
+  }
+  return false;
+}
+
 export async function matchesCacheIsFresh(): Promise<boolean> {
   const pool = getPool();
   const { rows } = await pool.query<{ fresh: boolean }>(
