@@ -7,6 +7,7 @@ import { getPredictionByUserTicketMatch, listPredictions, upsertPrediction } fro
 import { inferBolaoTypeFromTicketId } from "@/lib/ticket-kind-server";
 import { inferBolaoTypeFromTicketPrefix } from "@/lib/ticket-kind-shared";
 import { getPool } from "@/lib/db";
+import { brToday, resolveDiarioPlayableDate, utcMsForBrDate } from "@/lib/diario-playable-date";
 
 export const runtime = "nodejs";
 
@@ -26,35 +27,6 @@ const postSchema = z.object({
   scoreCasa: z.number().int().min(0).max(99),
   scoreVisitante: z.number().int().min(0).max(99),
 });
-
-function brToday(): string {
-  return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo" }).format(new Date());
-}
-
-function utcMsForBrDate(dateBR: string): number | null {
-  const [d, m, y] = dateBR.split("/");
-  if (!d || !m || !y) return null;
-  const day = Number(d);
-  const month = Number(m);
-  const year = Number(y);
-  if (!Number.isFinite(day) || !Number.isFinite(month) || !Number.isFinite(year)) return null;
-  return Date.UTC(year, month - 1, day);
-}
-
-function resolveDiarioPlayableDate(matchMap: Awaited<ReturnType<typeof fetchMatchesMap>>): string {
-  const today = brToday();
-  const todayMs = utcMsForBrDate(today);
-  const dates = new Set<string>();
-  for (const m of matchMap.values()) {
-    if (m.dateBR) dates.add(m.dateBR);
-  }
-  if (dates.has(today)) return today;
-  const sortedFuture = Array.from(dates)
-    .map((d) => ({ d, ms: utcMsForBrDate(d) }))
-    .filter((x): x is { d: string; ms: number } => x.ms != null && todayMs != null && x.ms >= todayMs)
-    .sort((a, b) => a.ms - b.ms);
-  return sortedFuture[0]?.d ?? today;
-}
 
 function isFinishedStatus(status: string): boolean {
   const s = status.trim().toLowerCase();
@@ -182,8 +154,9 @@ export async function POST(request: NextRequest) {
   }
   if (bolaoType === "diario") {
     const today = brToday();
-    const playableDate = resolveDiarioPlayableDate(matchMap);
     const ticketPreds = await listPredictions({ userId, ticketId: data.ticketId, bolaoType: "diario" });
+    const lockIds = ticketPreds.map((p) => Number(p.match_id)).filter(Number.isFinite);
+    const playableDate = resolveDiarioPlayableDate(matchMap, { lockToMatchIds: lockIds });
     if (ticketPreds.length > 0) {
       let hasDateMismatch = false;
       let allFinished = true;

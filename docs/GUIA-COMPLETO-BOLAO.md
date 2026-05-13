@@ -12,7 +12,7 @@ Este documento descreve **como o Bolão do Milhão funciona por baixo dos panos*
   - Tabela do campeonato + enriquecimento de fases: tabela **`football_api_cache`**
 - **Nenhuma** dessas rotas dispara a API `api.api-futebol.com.br` só porque o usuário abriu uma tela.
 - O servidor **enche** essas tabelas por:
-  1. **Warmup** ao subir o processo (`instrumentation` → `lib/cron/bootstrap.ts`)
+  1. **Warmup** ao subir o processo (`instrumentation.ts` e/ou `app/InternalCronBootstrap.tsx` no layout → `lib/cron/bootstrap.ts`)
   2. **Tick interno** a cada N segundos (default 300 = 5 min)
   3. **Crons HTTP** autenticados com `CRON_SECRET` (ou header Vercel Cron)
   4. **Após salvar palpite**: uma chamada leve só para **atualizar a tabela** (`lib/football-standings-refresh.ts`)
@@ -35,7 +35,8 @@ Arquivos-chave:
 
 ### 2.1 Como liga
 
-- Arquivo `instrumentation.ts` importa `startInternalCronScheduler()` de `lib/cron/bootstrap.ts` quando o runtime Node do Next sobe.
+- `instrumentation.ts` chama `startInternalCronScheduler()` quando o runtime Node sobe.
+- **`app/InternalCronBootstrap.tsx`** no `app/layout.tsx` chama de novo o mesmo starter (idempotente): em **PM2 + `next start`** isso garante o cron mesmo se o hook de instrumentation atrasar.
 - Variáveis: `INTERNAL_CRON_ENABLED`, `INTERNAL_CRON_TICK_SECONDS` (default 300), `INTERNAL_CRON_RUN_ON_VERCEL` (em Vercel o interno costuma ficar desligado salvo exceção).
 
 ### 2.2 O que roda no warmup (primeira subida)
@@ -59,7 +60,7 @@ Ordem em `lib/cron/maintenance-tick.ts`:
 2. **`runConditionalMatchesApiSync()`** (`lib/cron/tasks/conditionalMatchesSyncTask.ts`)  
    - Chama a API **somente se** `needsMatchApiRefreshForCron()` for verdadeiro (`lib/cron/match-result-guarantee.ts`):
      - **`needsForcedResultSync()`**: placar obrigatório atrasado (palpite + apito há X horas sem placar; ou relógio “fim de jogo”; ou status encerrado/finalizado sem gols na cache).
-     - **`needsStaleMatchCacheForApiSync()`**: partida **já iniciada**, linha em `matches_cache` com `synced_at` mais velha que `MATCH_CRON_STALE_REFRESH_MINUTES` (default 25), e (**há palpite** na partida **ou** status indica ao vivo/intervalo/em andamento), e não é cancelado/adiado com placar completo já resolvido.
+     - **`needsStaleMatchCacheForApiSync()`**: apito já passou, `synced_at` mais velho que `MATCH_CRON_STALE_REFRESH_MINUTES` (default **15**), partida com kickoff nas **últimas 48h**, ainda não finalizada com placar completo — puxa **GET partidas** para atualizar placar/status após o jogo (sem depender só de “em andamento” no DB).
    - Se **nenhuma** condição: retorna `reason: "cron-sem-pendencias-api"` e **não** gasta requisição de partidas.
 
 3. **`runGuaranteeResultsTask()`** (`lib/cron/tasks/guaranteeResultsTask.ts`)  

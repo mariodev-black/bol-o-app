@@ -20,8 +20,9 @@ function competitionIdNum(): number {
   return Number.parseInt(competitionIdStr(), 10) || 72;
 }
 
-/** Baixa tabela + todas as fases (enriquecimento) e grava em `football_api_cache`. Uso: cron diário ou rota /api/cron/football-snapshots. */
-export async function runFootballSnapshotsFromApi(): Promise<{ standingsOk: boolean; fasesCount: number }> {
+let snapshotFromApiInFlight: Promise<{ standingsOk: boolean; fasesCount: number }> | null = null;
+
+async function runFootballSnapshotsFromApiBody(): Promise<{ standingsOk: boolean; fasesCount: number }> {
   const apiToken = token();
   if (!apiToken) throw new Error("FOOTBALL_API_TOKEN nao configurado");
   const compStr = competitionIdStr();
@@ -34,6 +35,21 @@ export async function runFootballSnapshotsFromApi(): Promise<{ standingsOk: bool
   await upsertFootballApiCache(fasesEnrichmentCacheKey(compNum), compNum, { matches });
 
   return { standingsOk: true, fasesCount: matches.length };
+}
+
+/**
+ * Baixa tabela + todas as fases (enriquecimento) e grava em `football_api_cache`.
+ * Singleflight: chamadas em paralelo (warmup + tick noturno) compartilham a mesma Promise — evita N rajadas de /fases/{id}.
+ */
+export async function runFootballSnapshotsFromApi(): Promise<{ standingsOk: boolean; fasesCount: number }> {
+  if (snapshotFromApiInFlight) {
+    return snapshotFromApiInFlight;
+  }
+  const p = runFootballSnapshotsFromApiBody();
+  snapshotFromApiInFlight = p.finally(() => {
+    snapshotFromApiInFlight = null;
+  });
+  return snapshotFromApiInFlight;
 }
 
 /** Primeira subida: se não há linha de tabela no cache, baixa agora (1 sequência de API). */

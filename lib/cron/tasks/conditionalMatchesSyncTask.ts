@@ -10,5 +10,8 @@ export async function runConditionalMatchesApiSync() {
   if (!(await needsMatchApiRefreshForCron())) {
     return { refreshed: false as const, reason: "cron-sem-pendencias-api" as const };
   }
+  if (["1", "true", "yes"].includes((process.env.DEBUG_MATCHES_SYNC || "").trim().toLowerCase())) {
+    console.info("[internal-cron] sync partidas na API (pendencia ou cache > N min em jogo recente)");
+  }
   return syncMatchesCache({ fetchProviderMatches, force: true });
 }

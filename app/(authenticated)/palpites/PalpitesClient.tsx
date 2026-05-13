@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   ChevronDown,
@@ -30,6 +30,10 @@ import {
 import bgPalpitesDesk from "@/app/assets/bg-palpites-desktop.png";
 import { calcPredictionPoints } from "./lib/predictionsStorage";
 import { inferBolaoTypeFromTicketPrefix } from "@/lib/ticket-kind";
+import {
+  matchDateMapFromJogos,
+  resolveDiarioPlayableDate,
+} from "@/lib/diario-playable-date";
 import {
   parseKickoffFromPartidaPayload,
   pickScoreFromPartidaPayload,
@@ -240,21 +244,6 @@ function formatLiveClockLabel(jogo: Jogo, nowMs: number): string | null {
   if (wall <= 52) return `1º tempo · ${Math.min(wall, 50)} min`;
   if (wall < 62) return "Intervalo";
   return `2º tempo · ${Math.min(wall - 61, 99)} min`;
-}
-
-function resolveDiarioPlayableDateFromJogos(jogos: Jogo[]): string {
-  const today = todayBR();
-  const todayMs = brDateToUtcMs(today);
-  const dates = Array.from(new Set(jogos.map((j) => j.dataBR).filter(Boolean)));
-  if (dates.includes(today)) return today;
-  const future = dates
-    .map((d) => ({ d, ms: brDateToUtcMs(d) }))
-    .filter(
-      (x): x is { d: string; ms: number } =>
-        x.ms != null && todayMs != null && x.ms >= todayMs,
-    )
-    .sort((a, b) => a.ms - b.ms);
-  return future[0]?.d ?? today;
 }
 
 function mapStatus(s: string): StatusJogo {
@@ -2890,7 +2879,15 @@ function PalpitesPageContent({
   const [loadingResumo, setLoadingResumo] = useState(false);
   const [selectedRodada, setSelectedRodada] = useState<number | null>(() => {
     if (!initialData?.jogos?.length) return null;
-    const todayStr = resolveDiarioPlayableDateFromJogos(initialData.jogos);
+    const lockIds =
+      initialData.bolaoType === "diario"
+        ? Object.keys(initialData.predictionsMap ?? {})
+            .map(Number)
+            .filter(Number.isFinite)
+        : [];
+    const todayStr = resolveDiarioPlayableDate(matchDateMapFromJogos(initialData.jogos), {
+      lockToMatchIds: lockIds,
+    });
     const rodadas = Array.from(
       new Set(initialData.jogos.map((j: Jogo) => j.rodada)),
     ).sort((a: number, b: number) => a - b);
@@ -2909,6 +2906,11 @@ function PalpitesPageContent({
     Boolean(ticketId) &&
     loadingPredictions &&
     Object.keys(predictionsMap).length === 0;
+
+  const bolaoTypeRef = useRef(bolaoType);
+  bolaoTypeRef.current = bolaoType;
+  const predictionsMapRef = useRef(predictionsMap);
+  predictionsMapRef.current = predictionsMap;
 
   useEffect(() => {
     if (initialData && initialData.jogos.length > 0) {
@@ -2930,7 +2932,15 @@ function PalpitesPageContent({
     let intervalId: ReturnType<typeof setInterval> | undefined;
 
     function applyRodadaInicial(parsed: Jogo[]) {
-      const todayDateStr = resolveDiarioPlayableDateFromJogos(parsed);
+      const lockIds =
+        bolaoTypeRef.current === "diario"
+          ? Object.keys(predictionsMapRef.current)
+              .map(Number)
+              .filter(Number.isFinite)
+          : [];
+      const todayDateStr = resolveDiarioPlayableDate(matchDateMapFromJogos(parsed), {
+        lockToMatchIds: lockIds,
+      });
       const rodadasDispAll = Array.from(
         new Set(parsed.map((j) => j.rodada)),
       ).sort((a, b) => a - b);
@@ -3059,6 +3069,20 @@ function PalpitesPageContent({
     })();
   }, [ticketId, initialData]);
 
+  useEffect(() => {
+    if (bolaoType !== "diario" || jogos.length === 0) return;
+    const lockIds = Object.keys(predictionsMap).map(Number).filter(Number.isFinite);
+    const playable = resolveDiarioPlayableDate(matchDateMapFromJogos(jogos), {
+      lockToMatchIds: lockIds,
+    });
+    const rodadasDispAll = Array.from(new Set(jogos.map((j) => j.rodada))).sort((a, b) => a - b);
+    const rodadaContem = rodadasDispAll.find((r) =>
+      jogos.filter((j) => j.rodada === r).some((j) => j.dataBR === playable),
+    );
+    if (rodadaContem != null)
+      setSelectedRodada((prev) => (prev === rodadaContem ? prev : rodadaContem));
+  }, [bolaoType, jogos, predictionsMap]);
+
   const jogosPlacarSignature = useMemo(
     () =>
       jogos
@@ -3175,7 +3199,13 @@ function PalpitesPageContent({
   };
 
   const today = todayBR();
-  const diarioPlayableDate = resolveDiarioPlayableDateFromJogos(jogos);
+  const lockIdsForDiario =
+    bolaoType === "diario"
+      ? Object.keys(predictionsMap).map(Number).filter(Number.isFinite)
+      : [];
+  const diarioPlayableDate = resolveDiarioPlayableDate(matchDateMapFromJogos(jogos), {
+    lockToMatchIds: lockIdsForDiario,
+  });
   const todayMs = brDateToUtcMs(today);
   const jogosBase = jogos.filter((j) => {
     const ms = brDateToUtcMs(j.dataBR);

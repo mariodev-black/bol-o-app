@@ -38,6 +38,7 @@ export function startInternalCronScheduler(): CronHandle {
     globalThis.__bolaoWarmupStarted = true;
     void (async () => {
       try {
+        console.info("[internal-cron] warmup: snapshot se necessario + sync partidas + garantia");
         await runFootballSnapshotsIfCacheMissing();
         await runSyncMatchesTask(true);
         await runGuaranteeResultsTask();
@@ -52,11 +53,13 @@ export function startInternalCronScheduler(): CronHandle {
   if (!enabled) {
     const handle = { started: false, stop: () => {} };
     globalThis.__bolaoCronHandle = handle;
+    console.warn("[internal-cron] desligado (INTERNAL_CRON_ENABLED=false). Use GET /api/cron/tick com CRON_SECRET ou ligue o env.");
     return handle;
   }
   if (process.env.VERCEL && !runOnVercel) {
     const handle = { started: false, stop: () => {} };
     globalThis.__bolaoCronHandle = handle;
+    console.warn("[internal-cron] desligado em VERCEL (INTERNAL_CRON_RUN_ON_VERCEL!=true).");
     return handle;
   }
 
@@ -89,5 +92,6 @@ export function startInternalCronScheduler(): CronHandle {
     stop: () => clearInterval(timer),
   };
   globalThis.__bolaoCronHandle = handle;
+  console.info(`[internal-cron] ativo — tick a cada ${tickSeconds}s (maintenance + sync condicional + premios)`);
   return handle;
 }

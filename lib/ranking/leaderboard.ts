@@ -7,7 +7,7 @@ import {
   type PredictionAggregateRow,
 } from "@/lib/predictions";
 import { getPool } from "@/lib/db";
-import { resolveDiarioPlayableDate } from "@/lib/payments/user-tickets";
+import { resolveDiarioPlayableDate } from "@/lib/diario-playable-date";
 import { calculatePrizePoolCents } from "@/lib/prizes/distribution";
 import { clampAvatarIndex } from "@/lib/auth/avatar-index";
 import { isStoredAvatarUploadFilename } from "@/lib/user/avatar-filename";

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { DM_Sans, Montserrat } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
+import { InternalCronBootstrap } from "./InternalCronBootstrap";
 import { Providers } from "./providers";
 
 const montserrat = Montserrat({
@@ -108,6 +109,7 @@ export default function RootLayout({
         suppressHydrationWarning
         className="min-h-full flex flex-col bg-[#000000] text-foreground"
       >
+        <InternalCronBootstrap />
         <Providers>
           {children}
           {modal}

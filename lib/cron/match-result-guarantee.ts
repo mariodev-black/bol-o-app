@@ -16,11 +16,11 @@ export function guaranteeGraceHoursAfterKickoff(): number {
 /**
  * Minutos apos o apito em que assumimos que a partida ja deveria ter acabado (relógio do servidor / DB = instante correto).
  * A cada tick (ex.: 5 min), se passou esse tempo e ainda nao ha placar na cache mas ha palpite, forca sync para processar todos.
- * Ajuste via MATCH_END_CLOCK_AFTER_KICKOFF_MINUTES (default 150 = 2h30).
+ * Ajuste via MATCH_END_CLOCK_AFTER_KICKOFF_MINUTES (default 115 ≈ 1h55 apos apito).
  */
 export function matchEndClockMinutesAfterKickoff(): number {
-  const n = Number.parseInt((process.env.MATCH_END_CLOCK_AFTER_KICKOFF_MINUTES || "150").trim(), 10);
-  if (!Number.isFinite(n)) return 150;
+  const n = Number.parseInt((process.env.MATCH_END_CLOCK_AFTER_KICKOFF_MINUTES || "115").trim(), 10);
+  if (!Number.isFinite(n)) return 115;
   return Math.min(300, Math.max(45, n));
 }
 
@@ -92,18 +92,28 @@ export async function needsForcedResultSync(): Promise<boolean> {
   return Boolean(rows[0]?.needs);
 }
 
-/** Minutos sem atualizar `matches_cache.synced_at` para considerar “atrasado” no tick de 5 min (pode puxar API). */
+/** Minutos sem atualizar `matches_cache.synced_at` para considerar “atrasado” no tick (pode puxar API). Default 10. */
 export function matchCronStaleRefreshMinutes(): number {
-  const n = Number.parseInt((process.env.MATCH_CRON_STALE_REFRESH_MINUTES || "25").trim(), 10);
-  return Number.isFinite(n) && n >= 5 && n <= 180 ? n : 25;
+  const n = Number.parseInt((process.env.MATCH_CRON_STALE_REFRESH_MINUTES || "10").trim(), 10);
+  return Number.isFinite(n) && n >= 5 && n <= 180 ? n : 10;
 }
 
 /**
- * Há partida já iniciada com cache “velho”: palpite pendente de placar OU jogo ao vivo/intervalo.
- * Usado pelo cron interno — não dispara a API em GET de front.
+ * Após apito + N minutos: se ainda não houve sync desde esse instante, força refresh
+ * (garante tentativa de placar mesmo com horário/API defasados). Default 10.
+ */
+export function matchPostKickoffFirstSyncMinutes(): number {
+  const n = Number.parseInt((process.env.MATCH_POST_KICKOFF_FIRST_SYNC_MINUTES || "10").trim(), 10);
+  return Number.isFinite(n) && n >= 1 && n <= 120 ? n : 10;
+}
+
+/**
+ * Partida já iniciada com cache velho: palpite ou ao vivo, **ou** qualquer jogo com apito nas últimas 48h
+ * (atualiza placar após o fim sem depender só de “em andamento” no DB).
  */
 export async function needsStaleMatchCacheForApiSync(): Promise<boolean> {
-  const mins = matchCronStaleRefreshMinutes();
+  const staleMins = matchCronStaleRefreshMinutes();
+  const postKoMins = matchPostKickoffFirstSyncMinutes();
   const pool = getPool();
   const { rows } = await pool.query<{ needs: boolean }>(
     `SELECT EXISTS (
@@ -112,7 +122,7 @@ export async function needsStaleMatchCacheForApiSync(): Promise<boolean> {
        WHERE mc.competition_id = $1
          AND mc.kickoff_at IS NOT NULL
          AND mc.kickoff_at::timestamptz < now()
-         AND mc.synced_at < now() - ($2::text || ' minutes')::interval
+         AND mc.kickoff_at::timestamptz > now() - interval '48 hours'
          AND NOT (
            lower(coalesce(mc.status, '')) LIKE '%cancel%'
            OR lower(coalesce(mc.status, '')) LIKE '%adiad%'
@@ -125,13 +135,14 @@ export async function needsStaleMatchCacheForApiSync(): Promise<boolean> {
            AND mc.result_visitante IS NOT NULL
          )
          AND (
-           EXISTS (SELECT 1 FROM predictions p WHERE p.match_id = mc.match_id)
-           OR lower(coalesce(mc.status, '')) LIKE '%andamento%'
-           OR lower(coalesce(mc.status, '')) LIKE '%intervalo%'
-           OR lower(coalesce(mc.status, '')) LIKE '%ao vivo%'
+           mc.synced_at < now() - ($2::text || ' minutes')::interval
+           OR (
+             mc.kickoff_at::timestamptz + ($3::text || ' minutes')::interval < now()
+             AND mc.synced_at < mc.kickoff_at::timestamptz + ($3::text || ' minutes')::interval
+           )
          )
      ) AS needs`,
-    [competitionId(), String(mins)]
+    [competitionId(), String(staleMins), String(postKoMins)],
   );
   return Boolean(rows[0]?.needs);
 }

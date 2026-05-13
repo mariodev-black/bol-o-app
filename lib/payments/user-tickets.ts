@@ -1,4 +1,5 @@
 import { getPool } from "@/lib/db";
+import { brToday, minBrDate, resolveDiarioPlayableDate, utcMsForBrDate } from "@/lib/diario-playable-date";
 import { fetchMatchesMap } from "@/lib/football-api";
 import { listPredictionTicketMatchPairsForUser } from "@/lib/predictions";
 
@@ -39,36 +40,6 @@ function parseKickoffUtcMs(dateBR?: string, hourBR?: string): number | null {
   return Date.UTC(year, month - 1, day, hours + 3, minutes, 0);
 }
 
-function brDateToUtcMs(dateBR: string): number | null {
-  const [d, m, y] = String(dateBR || "").split("/");
-  if (!d || !m || !y) return null;
-  const day = Number(d);
-  const month = Number(m);
-  const year = Number(y);
-  if (!Number.isFinite(day) || !Number.isFinite(month) || !Number.isFinite(year)) return null;
-  return Date.UTC(year, month - 1, day);
-}
-
-function todayBR(): string {
-  return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo" }).format(new Date());
-}
-
-/** Dia “oficial” do bolão do dia (mesma regra do fluxo de palpites). */
-export function resolveDiarioPlayableDate(matchMap: Awaited<ReturnType<typeof fetchMatchesMap>>): string {
-  const today = todayBR();
-  const todayMs = brDateToUtcMs(today);
-  const dates = new Set<string>();
-  for (const m of matchMap.values()) {
-    if (m.dateBR) dates.add(m.dateBR);
-  }
-  if (dates.has(today)) return today;
-  const sortedFuture = Array.from(dates)
-    .map((d) => ({ d, ms: brDateToUtcMs(d) }))
-    .filter((x): x is { d: string; ms: number } => x.ms != null && todayMs != null && x.ms >= todayMs)
-    .sort((a, b) => a.ms - b.ms);
-  return sortedFuture[0]?.d ?? today;
-}
-
 /** Tickets com pagamento confirmado (origem do banco — fonte de verdade). */
 export async function listPaidTicketsForUser(userId: string): Promise<PaidTicketRow[]> {
   const pool = getPool();
@@ -101,14 +72,14 @@ export async function listPaidTicketsForUser(userId: string): Promise<PaidTicket
       return mapped.map((t) => ({
         ...t,
         dailyStatus: t.ticketType === "daily" ? "disponivel" : undefined,
-        playDate: t.ticketType === "daily" ? todayBR() : undefined,
+        playDate: t.ticketType === "daily" ? brToday() : undefined,
         availableGames: 0,
       }));
     }
 
     const now = Date.now();
-    const today = todayBR();
-    const todayMs = brDateToUtcMs(today) ?? now;
+    const today = brToday();
+    const todayMs = utcMsForBrDate(today) ?? now;
     const openMatches = Array.from(matchMap.entries())
       .map(([matchId, m]) => ({
         matchId: Number(matchId),
@@ -119,7 +90,7 @@ export async function listPaidTicketsForUser(userId: string): Promise<PaidTicket
       .filter((m) => {
         const finished = isFinishedStatus(m.status);
         const lockAt = m.kickoffAt != null ? m.kickoffAt - 60 * 60 * 1000 : null;
-        const dateMs = m.dateBR ? brDateToUtcMs(m.dateBR) : null;
+        const dateMs = m.dateBR ? utcMsForBrDate(m.dateBR) : null;
         const stillOpenByTime = lockAt != null ? lockAt > now : (dateMs ?? 0) >= todayMs;
         return !finished && stillOpenByTime;
       });
@@ -155,8 +126,11 @@ export async function listPaidTicketsForUser(userId: string): Promise<PaidTicket
         const finished = m ? isFinishedStatus(m.status) || (m.resultCasa != null && m.resultVisitante != null) : true;
         if (!finished) allFinished = false;
       }
-      const predDate = Array.from(matchDates)[0] ?? null;
-      const usedByDate = predDate != null && predDate !== playableDate;
+      const predDate = minBrDate(matchDates);
+      const predMinMs = predDate ? utcMsForBrDate(predDate) : null;
+      const todayCalMs = utcMsForBrDate(today);
+      const usedByDate =
+        predMinMs != null && todayCalMs != null && predMinMs < todayCalMs;
       const dailyStatus: NonNullable<PaidTicketRow["dailyStatus"]> = allFinished || usedByDate ? "usado" : "em_uso";
       const targetDate = predDate ?? playableDate;
       const availableGames = openMatches
