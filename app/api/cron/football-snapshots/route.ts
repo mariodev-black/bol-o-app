@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchProviderMatches } from "@/lib/football-api";
+import { fetchProviderMatchesForAllSyncedCompetitions } from "@/lib/football-api";
 import { syncMatchesCache } from "@/lib/matches-cache";
 import { runFootballSnapshotsFromApi } from "@/lib/cron/tasks/footballSnapshotsTask";
 
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
   }
   try {
     const result = await runFootballSnapshotsFromApi();
-    const matches = await syncMatchesCache({ fetchProviderMatches, force: true });
+    const matches = await syncMatchesCache({ fetchProviderMatches: fetchProviderMatchesForAllSyncedCompetitions, force: true });
     return NextResponse.json({ ok: true, result, matches });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Falha ao atualizar snapshots";

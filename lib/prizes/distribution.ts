@@ -89,17 +89,18 @@ function allocateProportionalRemainder(amounts: PrizeAwardAmount[], cents: numbe
 export function calculatePrizeAwards(
   poolCents: number,
   rankedCount: number,
-  bolaoType: "general" | "daily" = "general"
+  bolaoType: "general" | "daily" | "extra" = "general"
 ): PrizeAwardAmount[] {
   const safePool = Math.max(0, Math.trunc(poolCents));
-  const maxRank = bolaoType === "daily" ? DAILY_PRIZE_WEIGHTS.length : 2506;
+  const useDailyWeights = bolaoType === "daily" || bolaoType === "extra";
+  const maxRank = useDailyWeights ? DAILY_PRIZE_WEIGHTS.length : 2506;
   const eligibleCount = Math.max(0, Math.min(maxRank, Math.trunc(rankedCount)));
   if (safePool === 0 || eligibleCount === 0) return [];
 
   const awards: PrizeAwardAmount[] = [];
   let assignedCents = 0;
 
-  if (bolaoType === "daily") {
+  if (useDailyWeights) {
     const totalWeight = DAILY_PRIZE_WEIGHTS.reduce((sum, weight) => sum + weight, 0);
     for (let idx = 0; idx < eligibleCount; idx += 1) {
       const rank = idx + 1;

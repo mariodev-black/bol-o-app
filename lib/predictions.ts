@@ -1,10 +1,12 @@
 import { getPool } from "@/lib/db";
 
+export type PredictionBolaoType = "principal" | "diario" | "extra";
+
 export type PredictionRow = {
   id: string;
   user_id: string;
   ticket_id: string;
-  bolao_type: "principal" | "diario";
+  bolao_type: PredictionBolaoType;
   match_id: number;
   score_casa: number;
   score_visitante: number;
@@ -40,7 +42,7 @@ export function calcPredictionPoints(
 export async function upsertPrediction(input: {
   userId: string;
   ticketId: string;
-  bolaoType: "principal" | "diario";
+  bolaoType: PredictionBolaoType;
   matchId: number;
   scoreCasa: number;
   scoreVisitante: number;
@@ -59,7 +61,7 @@ export async function upsertPrediction(input: {
 
 export async function listPredictions(input: {
   userId: string;
-  bolaoType?: "principal" | "diario";
+  bolaoType?: PredictionBolaoType;
   ticketId?: string;
 }) {
   const pool = getPool();
@@ -120,7 +122,7 @@ export async function listMatchIdsForTicketPredictions(ticketId: string): Promis
   return out;
 }
 
-export async function listAllPredictionsByBolao(bolaoType: "principal" | "diario"): Promise<PredictionRow[]> {
+export async function listAllPredictionsByBolao(bolaoType: PredictionBolaoType): Promise<PredictionRow[]> {
   const pool = getPool();
   const { rows } = await pool.query<PredictionRow>(
     `SELECT * FROM predictions WHERE bolao_type = $1 ORDER BY submitted_at ASC`,
@@ -130,7 +132,9 @@ export async function listAllPredictionsByBolao(bolaoType: "principal" | "diario
 }
 
 /** Predições para agregação de ranking — sem SELECT *. */
-export async function listPredictionsAggregateByBolao(bolaoType: "principal" | "diario"): Promise<PredictionAggregateRow[]> {
+export async function listPredictionsAggregateByBolao(
+  bolaoType: "principal" | "diario" | "extra"
+): Promise<PredictionAggregateRow[]> {
   const pool = getPool();
   const { rows } = await pool.query<{
     ticket_id: string;

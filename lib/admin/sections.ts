@@ -1,3 +1,4 @@
+import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
 import { getPool } from "@/lib/db";
 
 export type AdminAffiliateStats = {
@@ -252,6 +253,7 @@ function bolaoUsageStatus(row: Pick<AdminBolaoRankingRow, "predictionsCount" | "
 
 export async function getAdminBoloesDashboardData(selectedDailyDate?: string | null): Promise<AdminBoloesDashboardData> {
   const pool = getPool();
+  const mainComp = getFootballMainCompetitionId();
   const { rows } = await pool.query<{
     ticket_id: string;
     user_id: string;
@@ -284,7 +286,7 @@ export async function getAdminBoloesDashboardData(selectedDailyDate?: string | n
        SELECT
          t.id,
          CASE
-           WHEN t.ticket_type = 'daily' THEN COALESCE(fpd.date_br, to_char(COALESCE(t.paid_at, t.created_at), 'DD/MM/YYYY'))
+           WHEN t.ticket_type IN ('daily', 'extra') THEN COALESCE(fpd.date_br, to_char(COALESCE(t.paid_at, t.created_at), 'DD/MM/YYYY'))
            ELSE 'GERAL'
          END AS group_date
        FROM tickets t
@@ -346,8 +348,12 @@ export async function getAdminBoloesDashboardData(selectedDailyDate?: string | n
        COALESCE(ps.goals_count, 0) AS goals_count,
        COALESCE(pc.predictions_count, 0) AS predictions_count,
        CASE
-         WHEN t.ticket_type = 'daily' THEN (SELECT COUNT(*) FROM matches_cache mc WHERE mc.date_br = tg.group_date)
-         ELSE (SELECT COUNT(*) FROM matches_cache)
+         WHEN t.ticket_type IN ('daily', 'extra') THEN (
+           SELECT COUNT(*) FROM matches_cache mc
+           WHERE mc.date_br = tg.group_date
+             AND mc.competition_id = CASE WHEN t.ticket_type = 'extra' THEN t.extra_championship_id ELSE ${mainComp} END
+         )
+         ELSE (SELECT COUNT(*) FROM matches_cache WHERE competition_id = ${mainComp})
        END AS total_matches_count,
        t.paid_at,
        t.created_at
@@ -782,6 +788,7 @@ export async function listAdminTransactions(limit = 120): Promise<AdminTransacti
 
 export async function listAdminTickets(limit = 80): Promise<AdminTicketListItem[]> {
   const pool = getPool();
+  const mainComp = getFootballMainCompetitionId();
   const { rows } = await pool.query<{
     id: string;
     user_name: string | null;
@@ -880,7 +887,7 @@ export async function listAdminTickets(limit = 80): Promise<AdminTicketListItem[
          SELECT
            t.id,
            t.ticket_type,
-           CASE WHEN t.ticket_type = 'daily' THEN COALESCE(fpd.date_br, 'SEM_DATA') ELSE 'GERAL' END AS ranking_group,
+           CASE WHEN t.ticket_type IN ('daily', 'extra') THEN COALESCE(fpd.date_br, 'SEM_DATA') || ':' || COALESCE(t.extra_championship_id::text, '') ELSE 'GERAL' END AS ranking_group,
            COALESCE(ps.score_points, 0) AS score_points,
            COALESCE(ps.exact_count, 0) AS exact_count,
            COALESCE(ps.outcome_count, 0) AS outcome_count,
@@ -908,22 +915,24 @@ export async function listAdminTickets(limit = 80): Promise<AdminTicketListItem[
        COALESCE(pc.predictions_count, 0) AS predictions_count,
        GREATEST(
          CASE
-           WHEN t.ticket_type = 'daily' THEN (
+           WHEN t.ticket_type IN ('daily', 'extra') THEN (
              SELECT COUNT(*)
              FROM matches_cache mc
              WHERE mc.date_br = COALESCE(fpd.date_br, (SELECT date_br FROM next_match_date))
+               AND mc.competition_id = CASE WHEN t.ticket_type = 'extra' THEN t.extra_championship_id ELSE ${mainComp} END
            )
-           ELSE (SELECT COUNT(*) FROM matches_cache)
+           ELSE (SELECT COUNT(*) FROM matches_cache WHERE competition_id = ${mainComp})
          END - COALESCE(pc.predictions_count, 0),
          0
        ) AS pending_predictions_count,
        CASE
-         WHEN t.ticket_type = 'daily' THEN (
+         WHEN t.ticket_type IN ('daily', 'extra') THEN (
            SELECT COUNT(*)
            FROM matches_cache mc
            WHERE mc.date_br = COALESCE(fpd.date_br, (SELECT date_br FROM next_match_date))
+             AND mc.competition_id = CASE WHEN t.ticket_type = 'extra' THEN t.extra_championship_id ELSE ${mainComp} END
          )
-         ELSE (SELECT COUNT(*) FROM matches_cache)
+         ELSE (SELECT COUNT(*) FROM matches_cache WHERE competition_id = ${mainComp})
        END AS total_matches_count,
        COALESCE(ps.score_points, 0) AS score_points,
        rp.ranking_position,
@@ -962,6 +971,7 @@ export async function listAdminTickets(limit = 80): Promise<AdminTicketListItem[
 
 export async function getAdminTicketDetail(ticketId: string): Promise<AdminTicketDetail | null> {
   const pool = getPool();
+  const mainComp = getFootballMainCompetitionId();
   const { rows } = await pool.query<{
     id: string;
     user_id: string;
@@ -1076,7 +1086,7 @@ export async function getAdminTicketDetail(ticketId: string): Promise<AdminTicke
          SELECT
            t.id,
            t.ticket_type,
-           CASE WHEN t.ticket_type = 'daily' THEN COALESCE(afpd.date_br, 'SEM_DATA') ELSE 'GERAL' END AS ranking_group,
+           CASE WHEN t.ticket_type IN ('daily', 'extra') THEN COALESCE(afpd.date_br, 'SEM_DATA') || ':' || COALESCE(t.extra_championship_id::text, '') ELSE 'GERAL' END AS ranking_group,
            COALESCE(ps.score_points, 0) AS score_points,
            COALESCE(ps.exact_count, 0) AS exact_count,
            COALESCE(ps.outcome_count, 0) AS outcome_count,
@@ -1107,22 +1117,24 @@ export async function getAdminTicketDetail(ticketId: string): Promise<AdminTicke
        COALESCE(pc.predictions_count, 0) AS predictions_count,
        GREATEST(
          CASE
-           WHEN t.ticket_type = 'daily' THEN (
+           WHEN t.ticket_type IN ('daily', 'extra') THEN (
              SELECT COUNT(*)
              FROM matches_cache mc
              WHERE mc.date_br = COALESCE((SELECT date_br FROM first_prediction_date), (SELECT date_br FROM next_match_date))
+               AND mc.competition_id = CASE WHEN t.ticket_type = 'extra' THEN t.extra_championship_id ELSE ${mainComp} END
            )
-           ELSE (SELECT COUNT(*) FROM matches_cache)
+           ELSE (SELECT COUNT(*) FROM matches_cache WHERE competition_id = ${mainComp})
          END - COALESCE(pc.predictions_count, 0),
          0
        ) AS pending_predictions_count,
        CASE
-         WHEN t.ticket_type = 'daily' THEN (
+         WHEN t.ticket_type IN ('daily', 'extra') THEN (
            SELECT COUNT(*)
            FROM matches_cache mc
            WHERE mc.date_br = COALESCE((SELECT date_br FROM first_prediction_date), (SELECT date_br FROM next_match_date))
+             AND mc.competition_id = CASE WHEN t.ticket_type = 'extra' THEN t.extra_championship_id ELSE ${mainComp} END
          )
-         ELSE (SELECT COUNT(*) FROM matches_cache)
+         ELSE (SELECT COUNT(*) FROM matches_cache WHERE competition_id = ${mainComp})
        END AS total_matches_count,
        COALESCE(ps.score_points, 0) AS score_points,
        rp.ranking_position,

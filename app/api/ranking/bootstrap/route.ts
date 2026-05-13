@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 import { computePalpitesResumo } from "@/lib/palpites/resumo-compute";
-import { buildLeaderboardDiarioForTicket, buildLeaderboardPrincipal } from "@/lib/ranking/leaderboard";
+import { buildLeaderboardDiarioForTicket, buildLeaderboardExtraForTicket, buildLeaderboardPrincipal } from "@/lib/ranking/leaderboard";
 import { buildRankingScopes } from "@/lib/ranking/scopes";
 import { getPool } from "@/lib/db";
 
@@ -49,27 +49,49 @@ export async function GET(request: NextRequest) {
     const boardPromise =
       opt.mode === "principal"
         ? buildLeaderboardPrincipal()
-        : (async () => {
-            const pool = getPool();
-            const { rows: ok } = await pool.query<{ ok: number }>(
-              `SELECT 1 AS ok FROM tickets WHERE id = $1 AND user_id = $2 AND status = 'paid' AND ticket_type = 'daily' LIMIT 1`,
-              [opt.ticketId ?? "", userId]
-            );
-            if (!ok[0]) {
-              return {
-                rows: [],
-                meta: {
-                  participantCount: 0,
-                  revenueCents: 0,
-                  poolCentsApprox: 0,
-                  nextPalpiteLockMs: null as number | null,
-                  approxPremiados: 0,
-                  hasResultedMatchesInPool: false,
-                },
-              };
-            }
-            return buildLeaderboardDiarioForTicket(opt.ticketId!);
-          })();
+        : opt.mode === "extra"
+          ? (async () => {
+              const pool = getPool();
+              const { rows: ok } = await pool.query<{ ok: number }>(
+                `SELECT 1 AS ok FROM tickets WHERE id = $1 AND user_id = $2 AND status = 'paid' AND ticket_type = 'extra' LIMIT 1`,
+                [opt.ticketId ?? "", userId]
+              );
+              if (!ok[0]) {
+                return {
+                  rows: [],
+                  meta: {
+                    participantCount: 0,
+                    revenueCents: 0,
+                    poolCentsApprox: 0,
+                    nextPalpiteLockMs: null as number | null,
+                    approxPremiados: 0,
+                    hasResultedMatchesInPool: false,
+                  },
+                };
+              }
+              return buildLeaderboardExtraForTicket(opt.ticketId!);
+            })()
+          : (async () => {
+              const pool = getPool();
+              const { rows: ok } = await pool.query<{ ok: number }>(
+                `SELECT 1 AS ok FROM tickets WHERE id = $1 AND user_id = $2 AND status = 'paid' AND ticket_type = 'daily' LIMIT 1`,
+                [opt.ticketId ?? "", userId]
+              );
+              if (!ok[0]) {
+                return {
+                  rows: [],
+                  meta: {
+                    participantCount: 0,
+                    revenueCents: 0,
+                    poolCentsApprox: 0,
+                    nextPalpiteLockMs: null as number | null,
+                    approxPremiados: 0,
+                    hasResultedMatchesInPool: false,
+                  },
+                };
+              }
+              return buildLeaderboardDiarioForTicket(opt.ticketId!);
+            })();
 
     const resumoPromise =
       opt.mode === "principal"

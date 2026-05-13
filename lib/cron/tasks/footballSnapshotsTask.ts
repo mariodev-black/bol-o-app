@@ -1,4 +1,4 @@
-import { fetchProviderMatches } from "@/lib/football-api";
+import { fetchProviderMatchesForAllSyncedCompetitions } from "@/lib/football-api";
 import { downloadFasesEnrichmentMatches, downloadStandingsJson } from "@/lib/football-external-downloads";
 import {
   fasesEnrichmentCacheKey,
@@ -117,7 +117,7 @@ export async function maybeRunFootballDailySnapshot(): Promise<{
   }
   try {
     await runFootballSnapshotsFromApi();
-    await syncMatchesCache({ fetchProviderMatches, force: true });
+    await syncMatchesCache({ fetchProviderMatches: fetchProviderMatchesForAllSyncedCompetitions, force: true });
     globalThis.__footballSnapshotBrtDate = day;
     return { ran: true, reason: "snapshot-diario-brt", matchesRefreshed: true };
   } catch (error) {

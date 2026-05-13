@@ -6,6 +6,7 @@ import {
   listPredictionsAggregateByBolao,
   type PredictionAggregateRow,
 } from "@/lib/predictions";
+import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
 import { getPool } from "@/lib/db";
 import { resolveDiarioPlayableDate } from "@/lib/diario-playable-date";
 import { calculatePrizePoolCents } from "@/lib/prizes/distribution";
@@ -84,8 +85,9 @@ function minBrDate(dates: Iterable<string>): string {
 type PaidTicketRow = {
   id: string;
   user_id: string;
-  ticket_type: "general" | "daily";
+  ticket_type: "general" | "daily" | "extra";
   total_amount_cents: number;
+  extra_championship_id?: number | null;
 };
 
 const RANKING_REVALIDATE_SEC = Math.min(
@@ -218,8 +220,34 @@ export type LeaderboardBoardMeta = {
   hasResultedMatchesInPool: boolean;
 };
 
-async function loadPaidTickets(ticketType: "general" | "daily"): Promise<PaidTicketRow[]> {
+async function loadPaidTickets(
+  ticketType: "general" | "daily" | "extra",
+  extraChampionshipId?: number
+): Promise<PaidTicketRow[]> {
   const pool = getPool();
+  if (ticketType === "extra" && extraChampionshipId != null) {
+    const { rows } = await pool.query<{
+      id: string;
+      user_id: string;
+      ticket_type: "extra";
+      extra_championship_id: number | null;
+      total_amount_cents: string | number | null;
+    }>(
+      `SELECT t.id::text AS id, t.user_id::text AS user_id, t.ticket_type,
+              t.extra_championship_id,
+              COALESCE(t.total_amount_cents, 0) AS total_amount_cents
+       FROM tickets t
+       WHERE t.status = 'paid' AND t.ticket_type = 'extra' AND t.extra_championship_id = $1`,
+      [extraChampionshipId]
+    );
+    return rows.map((r) => ({
+      id: r.id,
+      user_id: r.user_id,
+      ticket_type: r.ticket_type,
+      extra_championship_id: r.extra_championship_id,
+      total_amount_cents: Number(r.total_amount_cents ?? 0),
+    }));
+  }
   const { rows } = await pool.query<{
     id: string;
     user_id: string;
@@ -355,6 +383,8 @@ async function buildLeaderboardDiarioUncached(focusTicketId: string): Promise<{ 
     };
   }
 
+  const mainComp = getFootballMainCompetitionId();
+
   const [matches, paidDaily, focusMatchIds, allDiario] = await Promise.all([
     fetchMatchesMap().catch(() => new Map<number, MatchInfo>()),
     loadPaidTickets("daily"),
@@ -368,7 +398,7 @@ async function buildLeaderboardDiarioUncached(focusTicketId: string): Promise<{ 
     if (d) datesFromFocus.add(d);
   }
 
-  const playable = resolveDiarioPlayableDate(matches);
+  const playable = resolveDiarioPlayableDate(matches, { competitionId: mainComp });
   let poolPlayDate: string;
   if (datesFromFocus.size === 1) {
     poolPlayDate = [...datesFromFocus][0]!;
@@ -382,8 +412,9 @@ async function buildLeaderboardDiarioUncached(focusTicketId: string): Promise<{ 
 
   const cohortPreds = allDiario.filter((p) => {
     if (!allowedDailyIds.has(p.ticket_id)) return false;
-    const d = matches.get(Number(p.match_id))?.dateBR;
-    return d === poolPlayDate;
+    const mi = matches.get(Number(p.match_id));
+    if (!mi || Number(mi.competitionId) !== mainComp) return false;
+    return mi.dateBR === poolPlayDate;
   });
 
   const agg = aggregatePredictions(cohortPreds, matches, allowedDailyIds);
@@ -442,11 +473,158 @@ async function buildLeaderboardDiarioUncached(focusTicketId: string): Promise<{ 
   const dateSet = new Set([poolPlayDate]);
   const nextPalpiteLockMs = computeNextPalpiteLockMs(matches, (m) => {
     if (!m.dateBR) return false;
+    if (Number(m.competitionId) !== mainComp) return false;
     return dateSet.has(m.dateBR);
   });
 
   const approxPremiados = Math.max(1, Math.ceil(participantCount / 10));
   const hasResultedMatchesInPool = poolHasAnyResultedMatch(cohortPreds, matches, allowedDailyIds);
+
+  return {
+    rows,
+    meta: {
+      participantCount,
+      revenueCents,
+      poolCentsApprox,
+      nextPalpiteLockMs,
+      approxPremiados,
+      hasResultedMatchesInPool,
+    },
+  };
+}
+
+export async function buildLeaderboardExtraForTicket(
+  focusTicketId: string
+): Promise<{ rows: LeaderboardRow[]; meta: LeaderboardBoardMeta }> {
+  const getCached = unstable_cache(
+    async () => buildLeaderboardExtraUncached(focusTicketId),
+    ["leaderboard", "extra", focusTicketId, "v1"],
+    { revalidate: RANKING_REVALIDATE_SEC, tags: ["leaderboard"] }
+  );
+  return getCached();
+}
+
+async function buildLeaderboardExtraUncached(
+  focusTicketId: string
+): Promise<{ rows: LeaderboardRow[]; meta: LeaderboardBoardMeta }> {
+  const emptyMeta = (): LeaderboardBoardMeta => ({
+    participantCount: 0,
+    revenueCents: 0,
+    poolCentsApprox: 0,
+    nextPalpiteLockMs: null,
+    approxPremiados: 0,
+    hasResultedMatchesInPool: false,
+  });
+  const pool = getPool();
+  const { rows: ticketCheck } = await pool.query<{
+    id: string;
+    ticket_type: string;
+    extra_championship_id: number | null;
+  }>(
+    `SELECT id::text AS id, ticket_type::text AS ticket_type, extra_championship_id
+     FROM tickets WHERE id = $1 AND status = 'paid' LIMIT 1`,
+    [focusTicketId]
+  );
+  const ticketRow = ticketCheck[0];
+  if (!ticketRow || ticketRow.ticket_type !== "extra" || ticketRow.extra_championship_id == null) {
+    return { rows: [], meta: emptyMeta() };
+  }
+  const extraComp = Number(ticketRow.extra_championship_id);
+
+  const [matches, paidExtra, focusMatchIds, allExtra] = await Promise.all([
+    fetchMatchesMap().catch(() => new Map<number, MatchInfo>()),
+    loadPaidTickets("extra", extraComp),
+    listMatchIdsForTicketPredictions(focusTicketId),
+    listPredictionsAggregateByBolao("extra"),
+  ]);
+
+  const datesFromFocus = new Set<string>();
+  for (const mid of focusMatchIds) {
+    const d = matches.get(mid)?.dateBR;
+    if (d) datesFromFocus.add(d);
+  }
+
+  const playable = resolveDiarioPlayableDate(matches, { competitionId: extraComp });
+  let poolPlayDate: string;
+  if (datesFromFocus.size === 1) {
+    poolPlayDate = [...datesFromFocus][0]!;
+  } else if (datesFromFocus.size > 1) {
+    poolPlayDate = datesFromFocus.has(playable) ? playable : minBrDate(datesFromFocus);
+  } else {
+    poolPlayDate = playable;
+  }
+
+  const allowedExtraIds = new Set(paidExtra.map((t) => t.id));
+
+  const cohortPreds = allExtra.filter((p) => {
+    if (!allowedExtraIds.has(p.ticket_id)) return false;
+    const mi = matches.get(Number(p.match_id));
+    if (!mi || Number(mi.competitionId) !== extraComp) return false;
+    return mi.dateBR === poolPlayDate;
+  });
+
+  const agg = aggregatePredictions(cohortPreds, matches, allowedExtraIds);
+
+  const ticketIdsInCohort = new Set(cohortPreds.map((p) => p.ticket_id));
+
+  const sortedTickets = paidExtra
+    .filter((t) => ticketIdsInCohort.has(t.id))
+    .map((t) => {
+      const a = agg.get(t.id);
+      return {
+        ticketId: t.id,
+        userId: t.user_id,
+        totalPoints: a?.totalPoints ?? 0,
+        exactCount: a?.exactCount ?? 0,
+        outcomeCount: a?.outcomeCount ?? 0,
+        goalsCount: a?.goalsCount ?? 0,
+        bestStreak: a?.bestStreak ?? 0,
+        firstSubmitAt: a?.firstSubmitAt ?? Number.MAX_SAFE_INTEGER,
+      };
+    })
+    .sort((x, y) => {
+      if (y.totalPoints !== x.totalPoints) return y.totalPoints - x.totalPoints;
+      if (y.exactCount !== x.exactCount) return y.exactCount - x.exactCount;
+      if (y.outcomeCount !== x.outcomeCount) return y.outcomeCount - x.outcomeCount;
+      if (y.goalsCount !== x.goalsCount) return y.goalsCount - x.goalsCount;
+      if (y.bestStreak !== x.bestStreak) return y.bestStreak - x.bestStreak;
+      return x.firstSubmitAt - y.firstSubmitAt;
+    });
+
+  const userIds = [...new Set(sortedTickets.map((t) => t.userId))];
+  const usersMap = await loadUsersMap(userIds);
+
+  const rows: LeaderboardRow[] = sortedTickets.map((t, idx) => {
+    const u = usersMap.get(t.userId);
+    return {
+      pos: idx + 1,
+      ticketId: t.ticketId,
+      userId: t.userId,
+      displayName: displayNameFromUser(u),
+      totalPoints: t.totalPoints,
+      exactCount: t.exactCount,
+      outcomeCount: t.outcomeCount,
+      goalsCount: t.goalsCount,
+      bestStreak: t.bestStreak,
+      avatarIndex: avatarIndexFromDb(u?.avatar_index),
+      avatarUploadFilename: safeUploadFilename(u?.avatar_upload_filename),
+    };
+  });
+
+  const cohortTicketIds = new Set(sortedTickets.map((t) => t.ticketId));
+  const revenueCents = paidExtra.filter((t) => cohortTicketIds.has(t.id)).reduce((s, t) => s + t.total_amount_cents, 0);
+  const participantCount = sortedTickets.length;
+  const poolCentsApprox = calculatePrizePoolCents(revenueCents);
+
+  const dateSet = new Set([poolPlayDate]);
+  const nextPalpiteLockMs = computeNextPalpiteLockMs(matches, (m) => {
+    if (!m.dateBR) return false;
+    if (Number(m.competitionId) !== extraComp) return false;
+    return dateSet.has(m.dateBR);
+  });
+
+  const approxPremiados = Math.max(1, Math.ceil(participantCount / 10));
+  const hasResultedMatchesInPool = poolHasAnyResultedMatch(cohortPreds, matches, allowedExtraIds);
 
   return {
     rows,

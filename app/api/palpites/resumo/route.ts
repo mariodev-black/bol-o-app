@@ -20,13 +20,15 @@ export async function GET(request: NextRequest) {
   const ticketId = request.nextUrl.searchParams.get("ticketId")?.trim() || undefined;
   const bolaoParam = request.nextUrl.searchParams.get("bolaoType");
 
-  let bolaoType: "principal" | "diario" | undefined;
+  let bolaoType: "principal" | "diario" | "extra" | undefined;
   if (ticketId) {
     bolaoType = undefined;
   } else if (bolaoParam === "diario") {
     bolaoType = "diario";
   } else if (bolaoParam === "principal") {
     bolaoType = "principal";
+  } else if (bolaoParam === "extra") {
+    bolaoType = "extra";
   } else {
     bolaoType = undefined;
   }

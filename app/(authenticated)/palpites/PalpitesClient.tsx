@@ -1546,7 +1546,7 @@ type ResumoStats = {
 type HistoricoRowView = {
   matchId: number;
   ticketId: string;
-  bolaoType: "principal" | "diario";
+  bolaoType: "principal" | "diario" | "extra";
   mandante: string;
   visitante: string;
   jogoData: string;
@@ -1563,7 +1563,8 @@ type HistoricoRowView = {
 
 export type PalpitesInitialData = {
   ticketId: string | null;
-  bolaoType: "principal" | "diario";
+  bolaoType: "principal" | "diario" | "extra";
+  extraChampionshipId?: number | null;
   tabela: TabelaGrupos | null;
   jogos: Jogo[];
   grupos: string[];
@@ -1912,7 +1913,7 @@ function TicketResumoView({
 }: {
   ticketId: string | null;
   resultMode: boolean;
-  bolaoType: "principal" | "diario";
+  bolaoType: "principal" | "diario" | "extra";
   stats: ResumoStats;
   rankingPos: number | null;
   historico: HistoricoRowView[];
@@ -2844,7 +2845,7 @@ function PalpitesPageContent({
   const resultMode = searchParams.get("mode") === "resultado";
   const ticketId = searchParams.get("ticket");
   const hasBoloesFlow = Boolean(ticketId);
-  const [bolaoType, setBolaoType] = useState<"principal" | "diario">(
+  const [bolaoType, setBolaoType] = useState<"principal" | "diario" | "extra">(
     initialData?.bolaoType ?? "principal",
   );
   const [tab, setTab] = useState<TabView>("jogos");
@@ -2956,7 +2957,10 @@ function PalpitesPageContent({
 
     async function tick() {
       try {
-        const r = await fetch("/api/partidas", { cache: "no-store" });
+        const comp = initialData?.bolaoType === "extra" && initialData?.extraChampionshipId != null
+          ? `?competitionId=${encodeURIComponent(String(initialData.extraChampionshipId))}`
+          : "";
+        const r = await fetch(`/api/partidas${comp}`, { cache: "no-store" });
         const data = await r.json().catch(() => null);
         if (cancelled) return;
         if (!r.ok) {

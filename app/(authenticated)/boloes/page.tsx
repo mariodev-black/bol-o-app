@@ -2,10 +2,13 @@
 import { cookies } from "next/headers";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 import { listPaidTicketsForUser, type PaidTicketRow } from "@/lib/payments/user-tickets";
-import { getTicketPriceCents } from "@/lib/payments/ticket-config";
+import { getExtraBolaoUnitCents, getTicketPriceCents } from "@/lib/payments/ticket-config";
 import { calcPredictionPoints, listPredictions, listAllPredictions, type PredictionRow } from "@/lib/predictions";
 import { fetchMatchesMap } from "@/lib/football-api";
 import { BoloesClient, type BoloesScreenData } from "@/app/(authenticated)/boloes/BoloesClient";
+import { getFootballMainCompetitionId, parseExtraBolaoChampionshipIds } from "@/lib/boloes-extra-config";
+import { warmCompetitionMetadataCache } from "@/lib/competition-metadata-cache";
+import { resolveDiarioPlayableDate } from "@/lib/diario-playable-date";
 
 export const dynamic = "force-dynamic";
 
@@ -84,18 +87,6 @@ function isOpenMatch(match: MatchInfo, now = Date.now()): boolean {
   return matchDate != null && today != null && matchDate >= today;
 }
 
-function resolvePlayableDate(matches: MatchMap): string {
-  const today = todayBR();
-  const todayMs = brDateToUtcMs(today);
-  const dates = Array.from(new Set(Array.from(matches.values()).map((m) => m.dateBR).filter(Boolean)));
-  if (dates.includes(today)) return today;
-  const future = dates
-    .map((date) => ({ date, ms: brDateToUtcMs(date) }))
-    .filter((item): item is { date: string; ms: number } => item.ms != null && todayMs != null && item.ms >= todayMs)
-    .sort((a, b) => a.ms - b.ms);
-  return future[0]?.date ?? today;
-}
-
 function nextLockMs(matches: MatchInfo[], now = Date.now()): number | null {
   const locks = matches
     .map(lockMs)
@@ -115,9 +106,26 @@ function shortTicketId(id: string): string {
 }
 
 function totalMatchesForTicket(ticket: PaidTicketRow, matches: MatchMap): number {
+  const mainComp = getFootballMainCompetitionId();
   if (ticket.ticketType === "daily") {
-    const date = ticket.playDate || resolvePlayableDate(matches);
-    return Array.from(matches.values()).filter((match) => match.dateBR === date && !isFinishedStatus(match.status)).length;
+    const date = ticket.playDate || resolveDiarioPlayableDate(matches, { competitionId: mainComp });
+    return Array.from(matches.values()).filter(
+      (m) =>
+        m.dateBR === date &&
+        (Number(m.competitionId) || mainComp) === mainComp &&
+        !isFinishedStatus(m.status),
+    ).length;
+  }
+  if (ticket.ticketType === "extra") {
+    const comp = Number(ticket.extraChampionshipId);
+    if (!Number.isFinite(comp) || comp <= 0) return 0;
+    const date = ticket.playDate || resolveDiarioPlayableDate(matches, { competitionId: comp });
+    return Array.from(matches.values()).filter(
+      (m) =>
+        m.dateBR === date &&
+        (Number(m.competitionId) || comp) === comp &&
+        !isFinishedStatus(m.status),
+    ).length;
   }
   return Array.from(matches.values()).filter((match) => !isFinishedStatus(match.status)).length;
 }
@@ -192,11 +200,14 @@ function buildRankingMap(predictions: PredictionRow[], matches: MatchMap): Map<s
 }
 
 async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
-  const [tickets, matches, userPredictions, allPredictions] = await Promise.all([
+  const configuredExtraIds = parseExtraBolaoChampionshipIds();
+  const mainComp = getFootballMainCompetitionId();
+  const [tickets, matches, userPredictions, allPredictions, competitionLabels] = await Promise.all([
     listPaidTicketsForUser(userId),
     fetchMatchesMap().catch(() => new Map()),
     listPredictions({ userId }).catch(() => []),
     listAllPredictions().catch(() => []),
+    warmCompetitionMetadataCache(configuredExtraIds).catch(() => ({}) as Record<number, string>),
   ]);
 
   debugBoloes("load:start", {
@@ -258,8 +269,13 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
 
   const firstGeneral = tickets.find((ticket) => ticket.ticketType === "general") ?? null;
   const firstDaily = tickets.find((ticket) => ticket.ticketType === "daily") ?? null;
-  const playableDate = resolvePlayableDate(matches);
-  const playableDateMatches = Array.from(matches.values()).filter((match) => match.dateBR === playableDate && isOpenMatch(match));
+  const playableDate = resolveDiarioPlayableDate(matches, { competitionId: mainComp });
+  const playableDateMatches = Array.from(matches.values()).filter(
+    (match) =>
+      match.dateBR === playableDate &&
+      isOpenMatch(match) &&
+      (Number(match.competitionId) || mainComp) === mainComp,
+  );
   const dailyMatchesCount = playableDateMatches.length;
   const dailyCloseAtMs = nextLockMs(playableDateMatches);
   const generalOpenMatches = Array.from(matches.values()).filter((match) => isOpenMatch(match));
@@ -295,10 +311,48 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
       };
     }
 
+    if (ticket.ticketType === "extra") {
+      const compId = Number(ticket.extraChampionshipId);
+      const safeComp = Number.isFinite(compId) && compId > 0 ? compId : 0;
+      const title =
+        safeComp > 0 ? competitionLabels[safeComp] ?? "Bolão extra" : "Bolão extra";
+      const date =
+        ticket.playDate ||
+        (safeComp > 0 ? resolveDiarioPlayableDate(matches, { competitionId: safeComp }) : playableDate);
+      const dateMatches = Array.from(matches.values()).filter(
+        (m) =>
+          m.dateBR === date &&
+          (safeComp <= 0 || (Number(m.competitionId) || safeComp) === safeComp),
+      );
+      const closeAt = nextLockMs(dateMatches.filter((m) => isOpenMatch(m)));
+      const status: ActiveDailyStatus =
+        ticket.dailyStatus === "usado" ? "usado" : ticket.dailyStatus === "em_uso" ? "ativo" : "aguardando";
+      return {
+        id: ticket.id,
+        type: "extra",
+        championshipId: safeComp > 0 ? safeComp : undefined,
+        title,
+        cotaLabel: `Cota #${shortTicketId(ticket.id)}`,
+        href: `/palpites?${new URLSearchParams({ ticket: ticket.id }).toString()}`,
+        status,
+        statusLabel:
+          status === "usado" ? "Usado" : status === "ativo" ? "Em uso — seu dia" : "Aguardando início",
+        gamesCount: dateMatches.length,
+        countdownLabel: status === "aguardando" ? "Início em" : "Fecha em",
+        countdownTargetMs: closeAt,
+        position: metrics.position,
+        points: metrics.points,
+      };
+    }
+
     const date = ticket.playDate || playableDate;
-    const dateMatches = Array.from(matches.values()).filter((match) => match.dateBR === date);
+    const dateMatches = Array.from(matches.values()).filter(
+      (match) =>
+        match.dateBR === date && (Number(match.competitionId) || mainComp) === mainComp,
+    );
     const closeAt = nextLockMs(dateMatches.filter((match) => isOpenMatch(match)));
-    const status: ActiveDailyStatus = ticket.dailyStatus === "usado" ? "usado" : ticket.dailyStatus === "em_uso" ? "ativo" : "aguardando";
+    const status: ActiveDailyStatus =
+      ticket.dailyStatus === "usado" ? "usado" : ticket.dailyStatus === "em_uso" ? "ativo" : "aguardando";
     return {
       id: ticket.id,
       type: "diario",
@@ -306,7 +360,7 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
       cotaLabel: `Cota #${shortTicketId(ticket.id)}`,
       href: `/palpites?${new URLSearchParams({ ticket: ticket.id }).toString()}`,
       status,
-      statusLabel: status === "usado" ? "Usado" : status === "ativo" ? "Ativo" : "Aguardando início",
+      statusLabel: status === "usado" ? "Usado" : status === "ativo" ? "Em uso — seu dia" : "Aguardando início",
       gamesCount: dateMatches.length,
       countdownLabel: status === "aguardando" ? "Início em" : "Fecha em",
       countdownTargetMs: closeAt,
@@ -338,16 +392,21 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
       ? (() => {
           const metrics = metricsByTicket.get(firstDaily.id)!;
           const date = firstDaily.playDate || playableDate;
-          const dateMatches = Array.from(matches.values()).filter((match) => match.dateBR === date);
+          const dateMatches = Array.from(matches.values()).filter(
+            (match) =>
+              match.dateBR === date && (Number(match.competitionId) || mainComp) === mainComp,
+          );
           const closeAt = nextLockMs(dateMatches.filter((match) => isOpenMatch(match)));
-          const status: ActiveDailyStatus = firstDaily.dailyStatus === "usado" ? "usado" : firstDaily.dailyStatus === "em_uso" ? "ativo" : "aguardando";
+          const status: ActiveDailyStatus =
+            firstDaily.dailyStatus === "usado" ? "usado" : firstDaily.dailyStatus === "em_uso" ? "ativo" : "aguardando";
           return {
             id: firstDaily.id,
             title: "Bolão do Dia",
             cotaLabel: `Cota #${shortTicketId(firstDaily.id)}`,
             href: `/palpites?${new URLSearchParams({ ticket: firstDaily.id }).toString()}`,
             status,
-            statusLabel: status === "usado" ? "Usado" : status === "ativo" ? "Ativo" : "Aguardando início",
+            statusLabel:
+              status === "usado" ? "Usado" : status === "ativo" ? "Em uso — seu dia" : "Aguardando início",
             gamesCount: dateMatches.length,
             countdownLabel: status === "aguardando" ? "Início em" : "Fecha em",
             countdownTargetMs: closeAt,
@@ -378,6 +437,22 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
         priceLabel: formatBRL(getTicketPriceCents("general")),
         closesAtMs: generalCloseAtMs,
       },
+      extras: configuredExtraIds.map((championshipId) => {
+        const pd = resolveDiarioPlayableDate(matches, { competitionId: championshipId });
+        const dateMatches = Array.from(matches.values()).filter(
+          (m) =>
+            m.dateBR === pd && (Number(m.competitionId) || championshipId) === championshipId,
+        );
+        const openOnDate = dateMatches.filter((m) => isOpenMatch(m));
+        return {
+          championshipId,
+          title: competitionLabels[championshipId] ?? `Bolão extra`,
+          href: `/tickets?bolao=extra&championshipId=${championshipId}`,
+          gamesCount: openOnDate.length,
+          closesAtMs: nextLockMs(openOnDate),
+          priceLabel: formatBRL(getExtraBolaoUnitCents()),
+        };
+      }),
     },
   };
 

@@ -13,13 +13,15 @@ import {
   Ticket,
   Trophy,
   Users,
+  Sparkles,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import type { LucideIcon } from "lucide-react";
 import trofeuBoloes from "@/app/assets/trofeu-boloes.png";
 import bgPixel from "@/app/assets/bg-hero-pixels.png";
 import ticketGold from "@/app/assets/ticket-gold.png";
 import ticketBlue from "@/app/assets/Ticket-Blue.png";
 import { CotaCpa } from "../components/ui/cota_cpa";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 export type ActivePrincipalBolao = {
   id: string;
@@ -51,7 +53,9 @@ export type ActiveDailyBolao = {
 
 export type ActiveBolaoListItem = {
   id: string;
-  type: "principal" | "diario";
+  type: "principal" | "diario" | "extra";
+  /** Bolão extra: id do campeonato na API-Futebol. */
+  championshipId?: number;
   title: string;
   cotaLabel: string;
   href: string;
@@ -90,12 +94,21 @@ export type BoloesScreenData = {
       priceLabel: string;
       closesAtMs: number | null;
     };
+    extras: Array<{
+      championshipId: number;
+      title: string;
+      href: string;
+      gamesCount: number;
+      closesAtMs: number | null;
+      priceLabel: string;
+    }>;
   };
 };
 
 const GREEN = "#B1EB0B";
 const GREEN_SOFT = "#0AC96B";
 const YELLOW = "#E6B726";
+const EXTRA_VIOLET = "#C084FC";
 const CARD = "#111111";
 const CARD_ALT = "#0F0F0F";
 const BORDER = "rgba(255,255,255,0.06)";
@@ -228,10 +241,10 @@ function SectionTitle({
   );
 }
 
-function BolaoIcon({ type }: { type: "copa" | "dia" }) {
-  const Icon = type === "copa" ? Trophy : CalendarDays;
-  const label = type === "copa" ? "COPA\n2026" : "BOLÃO\nDO DIA";
-  const color = type === "copa" ? GREEN_SOFT : GREEN;
+function BolaoIcon({ type }: { type: "copa" | "dia" | "extra" }) {
+  const Icon = type === "copa" ? Trophy : type === "extra" ? Sparkles : CalendarDays;
+  const label = type === "copa" ? "COPA\n2026" : type === "extra" ? "BOLÃO\nEXTRA" : "BOLÃO\nDO DIA";
+  const color = type === "copa" ? GREEN_SOFT : type === "extra" ? EXTRA_VIOLET : GREEN;
 
   return (
     <div className="flex w-[58px] shrink-0 flex-col items-center justify-center text-center">
@@ -469,6 +482,7 @@ function ActiveBoloesList({
     >
       {items.map((item) => {
         const isPrincipal = item.type === "principal";
+        const isExtra = item.type === "extra";
         const progress = Math.max(0, Math.min(100, item.progress ?? 0));
 
         return (
@@ -478,7 +492,7 @@ function ActiveBoloesList({
                 className="flex items-center justify-center border-r"
                 style={{ borderColor: BORDER }}
               >
-                <BolaoIcon type={isPrincipal ? "copa" : "dia"} />
+                <BolaoIcon type={isPrincipal ? "copa" : isExtra ? "extra" : "dia"} />
               </div>
 
               <Link
@@ -519,7 +533,7 @@ function ActiveBoloesList({
                 ) : (
                   <div className="mt-5 space-y-2">
                     <p className="text-[14px] font-medium leading-none text-white/55">
-                      Jogos do dia:{" "}
+                      {isExtra ? "Jogos neste campeonato (data da cota): " : "Jogos do dia: "}
                       <span className="font-black text-white">
                         {item.gamesCount ?? 0} jogos
                       </span>
@@ -751,7 +765,7 @@ function ShowcaseSectionTitle({
   expanded,
   tone = GREEN,
 }: {
-  icon: typeof Trophy;
+  icon: LucideIcon;
   index: string;
   title: string;
   href: string;
@@ -815,12 +829,13 @@ function ActiveShowcaseCard({
 }: {
   item: ActiveBolaoListItem;
   now: number;
-  kind: "principal" | "diario";
+  kind: "principal" | "diario" | "extra";
   fullWidth?: boolean;
 }) {
   const isPrincipal = kind === "principal";
+  const isExtra = kind === "extra";
   const progress = Math.max(0, Math.min(100, item.progress ?? 0));
-  const tone = isPrincipal ? GREEN : YELLOW;
+  const tone = isPrincipal ? GREEN : isExtra ? EXTRA_VIOLET : YELLOW;
   const image = isPrincipal ? ticketGold : ticketBlue;
   const statusLabel = item.statusLabel;
 
@@ -858,7 +873,7 @@ function ActiveShowcaseCard({
           className="mt-1 whitespace-pre-line text-[12px] font-black uppercase leading-[0.9]"
           style={{ color: tone }}
         >
-          {isPrincipal ? "FIFA\nWorld Cup\n2026" : "Bolão\nDo Dia"}
+          {isPrincipal ? "FIFA\nWorld Cup\n2026" : isExtra ? "Bolão\nExtra" : "Bolão\nDo Dia"}
         </p>
                         </div>
 
@@ -901,7 +916,7 @@ function ActiveShowcaseCard({
         ) : (
           <div className="mt-4 space-y-1.5">
             <p className="text-[12px] font-medium text-white/55">
-              Jogos do dia:{" "}
+              {isExtra ? "Jogos neste campeonato (data da cota): " : "Jogos do dia: "}
               <span className="font-black text-white">
                 {item.gamesCount ?? 0} jogos
               </span>
@@ -1239,6 +1254,7 @@ export function BoloesClient({ data }: { data: BoloesScreenData | null }) {
   const [showAllActive, setShowAllActive] = useState(false);
   const [showAllPrincipal, setShowAllPrincipal] = useState(false);
   const [showAllDiario, setShowAllDiario] = useState(false);
+  const [showAllExtra, setShowAllExtra] = useState(false);
   const hasTickets = (data?.active.all.length ?? 0) > 0;
 
   const summary = data?.summary ?? {
@@ -1254,6 +1270,8 @@ export function BoloesClient({ data }: { data: BoloesScreenData | null }) {
   const diarioItems = (data?.active.all ?? []).filter(
     (item) => item.type === "diario",
   );
+  const extraItems = (data?.active.all ?? []).filter((item) => item.type === "extra");
+  const upcomingExtras = data?.upcoming.extras ?? [];
   const dailyCountdown = useMemo(
     () => formatCountdown(data?.upcoming.daily.closesAtMs ?? null, now),
     [data?.upcoming.daily.closesAtMs, now],
@@ -1351,7 +1369,7 @@ export function BoloesClient({ data }: { data: BoloesScreenData | null }) {
             title="Meu Bolão Principal"
             href="/boloes/tickets"
             expanded={showAllPrincipal}
-            onViewAll={() => setShowAllPrincipal((current) => !current)}
+            onViewAll={() => setShowAllPrincipal((current: boolean) => !current)}
           />
           {showAllPrincipal ? (
             <div className="space-y-3">
@@ -1397,7 +1415,7 @@ export function BoloesClient({ data }: { data: BoloesScreenData | null }) {
             href="/boloes/tickets"
             tone={YELLOW}
             expanded={showAllDiario}
-            onViewAll={() => setShowAllDiario((current) => !current)}
+            onViewAll={() => setShowAllDiario((current: boolean) => !current)}
           />
           {showAllDiario ? (
             <div className="space-y-3">
@@ -1434,6 +1452,63 @@ export function BoloesClient({ data }: { data: BoloesScreenData | null }) {
             </CarouselShell>
           )}
         </section>
+
+        {(extraItems.length > 0 || upcomingExtras.length > 0) && (
+          <section className="mt-4 mb-6">
+            <ShowcaseSectionTitle
+              icon={Sparkles}
+              index="3"
+              title={extraItems.length > 0 ? "Meus bolões extra" : "Bolões extra — comprar"}
+              href="/tickets"
+              tone={EXTRA_VIOLET}
+              expanded={extraItems.length > 1 ? showAllExtra : undefined}
+              onViewAll={extraItems.length > 1 ? () => setShowAllExtra((c: boolean) => !c) : undefined}
+            />
+            {extraItems.length > 0 ? (
+              showAllExtra ? (
+                <div className="space-y-3">
+                  {extraItems.map((item) => (
+                    <ActiveShowcaseCard
+                      key={item.id}
+                      item={item}
+                      now={now}
+                      kind="extra"
+                      fullWidth
+                    />
+                  ))}
+                </div>
+              ) : (
+                <CarouselShell tone={EXTRA_VIOLET}>
+                  {extraItems.map((item) => (
+                    <ActiveShowcaseCard key={item.id} item={item} now={now} kind="extra" />
+                  ))}
+                </CarouselShell>
+              )
+            ) : (
+              <div className="space-y-2">
+                {upcomingExtras.map((ex) => (
+                  <Link
+                    key={ex.championshipId}
+                    href={ex.href}
+                    className="flex flex-col gap-1 rounded-[14px] border border-white/10 bg-[#121212] px-4 py-3.5 shadow-[0_8px_26px_rgba(0,0,0,0.35)] transition-transform active:scale-[0.99]"
+                    style={{ borderColor: `${EXTRA_VIOLET}44` }}
+                  >
+                    <p className="text-[14px] font-black uppercase leading-tight text-white">{ex.title}</p>
+                    <p className="text-[12px] font-medium text-white/55">
+                      {ex.gamesCount} jogos na rodada · fecha em{" "}
+                      <span className="font-black text-white">
+                        {formatCountdown(ex.closesAtMs, now)}
+                      </span>
+                    </p>
+                    <p className="text-[12px] font-black" style={{ color: EXTRA_VIOLET }}>
+                      {ex.priceLabel} por cota
+                    </p>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
 
         <CotaCpa />
       </div>

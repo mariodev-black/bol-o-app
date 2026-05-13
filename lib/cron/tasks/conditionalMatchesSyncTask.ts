@@ -1,5 +1,5 @@
 import { needsMatchApiRefreshForCron } from "@/lib/cron/match-result-guarantee";
-import { fetchProviderMatches } from "@/lib/football-api";
+import { fetchProviderMatchesForAllSyncedCompetitions } from "@/lib/football-api";
 import { syncMatchesCache } from "@/lib/matches-cache";
 
 /**
@@ -13,5 +13,5 @@ export async function runConditionalMatchesApiSync() {
   if (["1", "true", "yes"].includes((process.env.DEBUG_MATCHES_SYNC || "").trim().toLowerCase())) {
     console.info("[internal-cron] sync partidas na API (pendencia ou cache > N min em jogo recente)");
   }
-  return syncMatchesCache({ fetchProviderMatches, force: true });
+  return syncMatchesCache({ fetchProviderMatches: fetchProviderMatchesForAllSyncedCompetitions, force: true });
 }

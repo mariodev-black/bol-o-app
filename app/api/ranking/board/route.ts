@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
-import { buildLeaderboardDiarioForTicket, buildLeaderboardPrincipal } from "@/lib/ranking/leaderboard";
+import { buildLeaderboardDiarioForTicket, buildLeaderboardExtraForTicket, buildLeaderboardPrincipal } from "@/lib/ranking/leaderboard";
 import { getPool } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -43,7 +43,24 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ rows: rowsWithMe, meta });
     }
 
-    return NextResponse.json({ error: "Use mode=principal ou mode=diario&ticketId=" }, { status: 400 });
+    if (mode === "extra" && ticketId) {
+      const pool = getPool();
+      const { rows: ok } = await pool.query<{ ok: number }>(
+        `SELECT 1 AS ok FROM tickets WHERE id = $1 AND user_id = $2 AND status = 'paid' AND ticket_type = 'extra' LIMIT 1`,
+        [ticketId, userId]
+      );
+      if (!ok[0]) {
+        return NextResponse.json({ error: "Cota nao encontrada" }, { status: 403 });
+      }
+      const { rows, meta } = await buildLeaderboardExtraForTicket(ticketId);
+      const rowsWithMe = rows.map((r) => ({ ...r, isMe: r.userId === userId }));
+      return NextResponse.json({ rows: rowsWithMe, meta });
+    }
+
+    return NextResponse.json(
+      { error: "Use mode=principal ou mode=diario&ticketId= ou mode=extra&ticketId=" },
+      { status: 400 }
+    );
   } catch (e) {
     console.error("[ranking/board]", e);
     return NextResponse.json({ error: "Erro interno" }, { status: 500 });

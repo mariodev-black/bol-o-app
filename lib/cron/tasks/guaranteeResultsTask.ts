@@ -1,5 +1,5 @@
 import { needsForcedResultSync } from "@/lib/cron/match-result-guarantee";
-import { fetchProviderMatches } from "@/lib/football-api";
+import { fetchProviderMatchesForAllSyncedCompetitions } from "@/lib/football-api";
 import { syncMatchesCache } from "@/lib/matches-cache";
 import { processPrizeClosuresAfterMatchSync } from "@/lib/prizes/processor";
 
@@ -16,7 +16,7 @@ export async function runGuaranteeResultsTask(): Promise<GuaranteeResultsTaskRes
   const forcedSync = await needsForcedResultSync();
   let sync: Awaited<ReturnType<typeof syncMatchesCache>> | null = null;
   if (forcedSync) {
-    sync = await syncMatchesCache({ fetchProviderMatches, force: true });
+    sync = await syncMatchesCache({ fetchProviderMatches: fetchProviderMatchesForAllSyncedCompetitions, force: true });
   }
   await processPrizeClosuresAfterMatchSync();
   return { forcedSync, sync };

@@ -1,4 +1,6 @@
 import { getPool } from "@/lib/db";
+import { getAllSyncedCompetitionIds, getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
+import { warmCompetitionMetadataCache } from "@/lib/competition-metadata-cache";
 import { invalidateMatchMapMemoryAfterDbWrite } from "@/lib/match-map-cache-invalidator";
 import { processPrizeClosuresAfterMatchSync } from "@/lib/prizes/processor";
 
@@ -41,6 +43,8 @@ type ProviderMatchInput = {
   awayName: string;
   awaySigla: string;
   awayLogo: string | null;
+  /** Campeonato API-Futebol; default = principal (`FOOTBALL_COMPETITION_ID`). */
+  competitionId?: number;
 };
 
 /** Quanto tempo o cache DB e considerado "fresco" antes de outro sync com a API externa (default maior = menos rate). */
@@ -58,11 +62,12 @@ const PRE_KICKOFF_WINDOW_MINUTES =
 const LOCK_KEY = 72026;
 
 function competitionId(): number {
-  return Number.parseInt((process.env.FOOTBALL_COMPETITION_ID || "72").trim(), 10) || 72;
+  return getFootballMainCompetitionId();
 }
 
 export async function readMatchesCache(): Promise<CachedMatchRow[]> {
   const pool = getPool();
+  const ids = getAllSyncedCompetitionIds();
   const { rows } = await pool.query<CachedMatchRow>(
     `SELECT
       competition_id,
@@ -85,22 +90,26 @@ export async function readMatchesCache(): Promise<CachedMatchRow[]> {
       source_updated_at::text,
       synced_at::text
      FROM matches_cache
-     WHERE competition_id = $1
-     ORDER BY match_id ASC`,
-    [competitionId()]
+     WHERE competition_id = ANY($1::int[])
+     ORDER BY competition_id ASC, match_id ASC`,
+    [ids]
   );
   return rows;
 }
 
 /** Quais `match_id` existem na `matches_cache` da competicao configurada (`FOOTBALL_COMPETITION_ID`). */
-export async function getExistingMatchIdsFromCache(matchIds: number[]): Promise<Set<number>> {
+export async function getExistingMatchIdsFromCache(
+  matchIds: number[],
+  opts?: { competitionId?: number }
+): Promise<Set<number>> {
   const uniq = [...new Set(matchIds.filter((id) => Number.isFinite(id) && id > 0))];
   if (uniq.length === 0) return new Set();
   const pool = getPool();
+  const comp = opts?.competitionId ?? competitionId();
   try {
     const { rows } = await pool.query<{ match_id: number }>(
       `SELECT match_id FROM matches_cache WHERE competition_id = $1 AND match_id = ANY($2::int[])`,
-      [competitionId(), uniq]
+      [comp, uniq]
     );
     return new Set(rows.map((r) => Number(r.match_id)));
   } catch (e) {
@@ -114,7 +123,8 @@ export async function getExistingMatchIdsFromCache(matchIds: number[]): Promise<
  * Se `matches_cache` estiver vazia para a competicao, devolve tudo intacto (sync ainda nao populou).
  */
 export async function filterPredictionsToOfficialMatchIds<T extends { match_id: number | string }>(
-  predictions: T[]
+  predictions: T[],
+  opts?: { competitionId?: number }
 ): Promise<T[]> {
   const ids = [
     ...new Set(
@@ -124,14 +134,14 @@ export async function filterPredictionsToOfficialMatchIds<T extends { match_id: 
   if (ids.length === 0) return predictions;
   const pool = getPool();
   try {
-    const comp = competitionId();
+    const comp = opts?.competitionId ?? competitionId();
     const { rows: cnt } = await pool.query<{ n: string }>(
       `SELECT count(*)::text AS n FROM matches_cache WHERE competition_id = $1`,
       [comp]
     );
     if (Number(cnt[0]?.n ?? 0) === 0) return predictions;
 
-    const existing = await getExistingMatchIdsFromCache(ids);
+    const existing = await getExistingMatchIdsFromCache(ids, { competitionId: comp });
     return predictions.filter((p) => existing.has(Number(p.match_id)));
   } catch (e) {
     console.error("[matches-cache] filterPredictionsToOfficialMatchIds", e);
@@ -219,9 +229,17 @@ async function upsertMatchesCache(matches: ProviderMatchInput[]) {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
+    const byComp = new Map<number, ProviderMatchInput[]>();
     for (const m of matches) {
-      await client.query(
-        `INSERT INTO matches_cache (
+      const cid = m.competitionId ?? competitionId();
+      const arr = byComp.get(cid) ?? [];
+      arr.push(m);
+      byComp.set(cid, arr);
+    }
+    for (const [cid, group] of byComp) {
+      for (const m of group) {
+        await client.query(
+          `INSERT INTO matches_cache (
           competition_id,
           match_id,
           phase_key,
@@ -264,34 +282,35 @@ async function upsertMatchesCache(matches: ProviderMatchInput[]) {
           away_logo = EXCLUDED.away_logo,
           source_updated_at = now(),
           synced_at = now()`,
-        [
-          competitionId(),
-          m.matchId,
-          m.phaseKey,
-          m.groupKey,
-          m.roundKey,
-          m.status,
-          m.kickoffAt,
-          m.dateBR,
-          m.hourBR,
-          m.resultCasa,
-          m.resultVisitante,
-          m.homeName,
-          m.homeSigla,
-          m.homeLogo,
-          m.awayName,
-          m.awaySigla,
-          m.awayLogo,
-        ]
-      );
-    }
-    await client.query(
-      `UPDATE matches_cache
+          [
+            cid,
+            m.matchId,
+            m.phaseKey,
+            m.groupKey,
+            m.roundKey,
+            m.status,
+            m.kickoffAt,
+            m.dateBR,
+            m.hourBR,
+            m.resultCasa,
+            m.resultVisitante,
+            m.homeName,
+            m.homeSigla,
+            m.homeLogo,
+            m.awayName,
+            m.awaySigla,
+            m.awayLogo,
+          ]
+        );
+      }
+      await client.query(
+        `UPDATE matches_cache
        SET synced_at = now()
        WHERE competition_id = $1
-         AND match_id NOT IN (${matches.map((_, idx) => `$${idx + 2}`).join(", ")})`,
-      [competitionId(), ...matches.map((m) => m.matchId)]
-    );
+         AND match_id NOT IN (${group.map((_, idx) => `$${idx + 2}`).join(", ")})`,
+        [cid, ...group.map((m) => m.matchId)]
+      );
+    }
     await client.query("COMMIT");
     invalidateMatchMapMemoryAfterDbWrite();
   } catch (error) {
@@ -352,6 +371,9 @@ export async function syncMatchesCache(input: {
     }
     const providerMatches = await input.fetchProviderMatches();
     await upsertMatchesCache(providerMatches);
+    void warmCompetitionMetadataCache(getAllSyncedCompetitionIds()).catch((err) =>
+      console.warn("[matches-cache] warmCompetitionMetadataCache", err)
+    );
     await processPrizeClosuresAfterMatchSync();
     return { refreshed: true as const, reason: "synced" as const, count: providerMatches.length };
   } finally {

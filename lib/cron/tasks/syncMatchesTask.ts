@@ -1,6 +1,6 @@
-import { fetchProviderMatches } from "@/lib/football-api";
+import { fetchProviderMatchesForAllSyncedCompetitions } from "@/lib/football-api";
 import { syncMatchesCache } from "@/lib/matches-cache";
 
 export async function runSyncMatchesTask(force = true) {
-  return syncMatchesCache({ fetchProviderMatches, force });
+  return syncMatchesCache({ fetchProviderMatches: fetchProviderMatchesForAllSyncedCompetitions, force });
 }

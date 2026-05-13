@@ -32,6 +32,14 @@ function truncatePixPayload(s: string, head = 36) {
   return `${s.slice(0, head)}…`;
 }
 
+export type TicketPixExtraLine = {
+  championshipId: number;
+  qty: number;
+  lineCents: number;
+  /** Texto amigável (nome do campeonato); evita mostrar só o id. */
+  displayLabel?: string;
+};
+
 export type TicketPixGeneratedScreenProps = {
   pixPayload: string;
   secondsLeft: number;
@@ -45,6 +53,8 @@ export type TicketPixGeneratedScreenProps = {
   error: string | null;
   principalQty: number;
   dailyQty: number;
+  /** Linhas de bolão extra (apenas itens com quantidade positiva). */
+  extraPixLines?: TicketPixExtraLine[];
   prices: { general: number; daily: number };
   principalUnitPriceCents: number;
   dailyUnitPriceCents: number;
@@ -64,13 +74,15 @@ export function TicketPixGeneratedScreen({
   error,
   principalQty,
   dailyQty,
+  extraPixLines = [],
   prices,
   principalUnitPriceCents,
   dailyUnitPriceCents,
   totalCents,
 }: TicketPixGeneratedScreenProps) {
   const toast = useBolaoToast();
-  const totalQty = principalQty + dailyQty;
+  const extraQtySum = extraPixLines.reduce((s, l) => s + l.qty, 0);
+  const totalQty = principalQty + dailyQty + extraQtySum;
 
   const handleCopyPix = useCallback(() => {
     if (pixExpired || !pixPayload.trim()) return;
@@ -83,6 +95,11 @@ export function TicketPixGeneratedScreen({
     orderDescriptionParts.push(`Geral | ${formatBRL(prices.general)}`);
   if (dailyQty > 0)
     orderDescriptionParts.push(`Cota ${formatBRL(prices.daily)}`);
+  for (const line of extraPixLines) {
+    if (line.qty <= 0) continue;
+    const label = line.displayLabel?.trim() || "Ticket extra";
+    orderDescriptionParts.push(`${label} | ${formatBRL(line.lineCents)}`);
+  }
   orderDescriptionParts.push(`${totalQty} ticket${totalQty === 1 ? "" : "s"}`);
   const orderDescriptionLine = orderDescriptionParts.join(" • ");
 
@@ -96,6 +113,13 @@ export function TicketPixGeneratedScreen({
     quantitySegments.push(
       `${dailyQty}x Cota @ ${formatBRL(dailyUnitPriceCents)}`,
     );
+  }
+  for (const line of extraPixLines) {
+    if (line.qty <= 0) continue;
+    const avg =
+      line.qty > 0 ? Math.round(line.lineCents / line.qty) : line.lineCents;
+    const label = line.displayLabel?.trim() || "Ticket extra";
+    quantitySegments.push(`${line.qty}x ${label} @ ${formatBRL(avg)}`);
   }
   const quantityRight = quantitySegments.join(" · ") || "—";
 

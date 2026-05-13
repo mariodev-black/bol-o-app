@@ -1,4 +1,4 @@
-import { ticketTypeLabel, type TicketType } from "@/lib/payments/ticket-config";
+import { ticketTypeLabel, type PurchaseTicketLine } from "@/lib/payments/ticket-config";
 
 export type SkaleCartLineItem = {
   title: string;
@@ -7,21 +7,21 @@ export type SkaleCartLineItem = {
   externalRef: string;
 };
 
-/** Agrupa linhas de tickets iguais (tipo + centavos) para o payload da Skale. */
+/** Agrupa linhas de tickets iguais (tipo + centavos + bolão extra) para o payload da Skale. */
 export function buildSkaleCartLineItems(
-  lines: { ticketType: TicketType; unitCents: number }[],
+  lines: PurchaseTicketLine[],
   externalRefPrefix: string
 ): SkaleCartLineItem[] {
   const map = new Map<string, SkaleCartLineItem>();
   let skuIdx = 0;
   for (const line of lines) {
-    const key = `${line.ticketType}:${line.unitCents}`;
+    const key = `${line.ticketType}:${line.unitCents}:${line.extraChampionshipId ?? ""}`;
     const existing = map.get(key);
     if (existing) {
       existing.quantity += 1;
     } else {
       map.set(key, {
-        title: ticketTypeLabel(line.ticketType),
+        title: ticketTypeLabel(line.ticketType, line.extraChampionshipId),
         unitPrice: line.unitCents,
         quantity: 1,
         externalRef: `${externalRefPrefix}_sku_${skuIdx++}`,
@@ -122,13 +122,15 @@ export async function createSkalePixTransaction(input: CreateSkalePixInput): Pro
 
   if (!response.ok || !json.id || !json.status) {
     const msg =
-      typeof json.message === "string" ? json.message : `Erro ao criar transacao na Skale (${response.status})`;
+      typeof (json as { message?: string }).message === "string"
+        ? (json as { message: string }).message
+        : `Erro ao criar transacao na Skale (${response.status})`;
     throw new Error(msg);
   }
 
   return {
-    providerTransactionId: json.id,
-    status: json.status,
+    providerTransactionId: String(json.id),
+    status: String(json.status),
     pixQrcode: json.pix?.qrcode ?? null,
     pixEnd2EndId: json.pix?.end2EndId ?? null,
     rawResponse: json,

@@ -2,7 +2,7 @@ import { listPaidTicketsForUser } from "@/lib/payments/user-tickets";
 
 export type RankingScopeOption = {
   key: string;
-  mode: "principal" | "diario";
+  mode: "principal" | "diario" | "extra";
   ticketId: string | null;
   label: string;
   meta: string;
@@ -31,6 +31,7 @@ export async function buildRankingScopes(
     const tickets = await listPaidTicketsForUser(userId);
     const general = tickets.filter((t) => t.ticketType === "general");
     const daily = tickets.filter((t) => t.ticketType === "daily");
+    const extra = tickets.filter((t) => t.ticketType === "extra");
 
     if (general.length > 0) {
       const unused = general.some((t) => (t.availableGames ?? 0) > 0);
@@ -53,6 +54,21 @@ export async function buildRankingScopes(
         mode: "diario",
         ticketId: t.id,
         label: `Bolão do dia — ${date}`,
+        meta: `Cota ${shortId(t.id)}`,
+        unusedPalpites: unused,
+        palpitesHref: palpitesHrefForTicket(t.id),
+      });
+    }
+
+    for (const t of extra) {
+      const date = t.playDate?.trim() || "Dia";
+      const comp = t.extraChampionshipId != null ? String(t.extraChampionshipId) : "?";
+      const unused = (t.availableGames ?? 0) > 0;
+      scopes.push({
+        key: `extra:${t.id}`,
+        mode: "extra",
+        ticketId: t.id,
+        label: `Bolão extra (${comp}) — ${date}`,
         meta: `Cota ${shortId(t.id)}`,
         unusedPalpites: unused,
         palpitesHref: palpitesHrefForTicket(t.id),

@@ -21,7 +21,7 @@ import { getAvatarPresetImage } from "@/lib/user/avatar-presets";
 
 type RankingScopeOption = {
   key: string;
-  mode: "principal" | "diario";
+  mode: "principal" | "diario" | "extra";
   ticketId: string | null;
   label: string;
   meta: string;
@@ -292,12 +292,18 @@ export default function RankingPage() {
       const boardUrl =
         opt.mode === "principal"
           ? "/api/ranking/board?mode=principal"
-          : `/api/ranking/board?mode=diario&ticketId=${encodeURIComponent(opt.ticketId ?? "")}`;
+          : opt.mode === "extra"
+            ? `/api/ranking/board?mode=extra&ticketId=${encodeURIComponent(opt.ticketId ?? "")}`
+            : `/api/ranking/board?mode=diario&ticketId=${encodeURIComponent(opt.ticketId ?? "")}`;
 
       const resumoQ = new URLSearchParams();
       if (opt.mode === "principal") resumoQ.set("bolaoType", "principal");
       if (opt.mode === "diario" && opt.ticketId) {
         resumoQ.set("bolaoType", "diario");
+        resumoQ.set("ticketId", opt.ticketId);
+      }
+      if (opt.mode === "extra" && opt.ticketId) {
+        resumoQ.set("bolaoType", "extra");
         resumoQ.set("ticketId", opt.ticketId);
       }
 

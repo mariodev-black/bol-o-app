@@ -12,6 +12,7 @@ import {
   setDiarioTicketPlayDate,
   type StoredTicket,
   type StoredTicketDiario,
+  type StoredTicketExtra,
   type StoredTicketGeral,
 } from "../lib/ownedTicketsStorage";
 
@@ -38,14 +39,16 @@ export function MyTicketsWallet({ refreshKey }: MyTicketsWalletProps) {
     };
   }, [refreshKey]);
 
-  const { gerais, diarios } = useMemo(() => {
+  const { gerais, diarios, extras } = useMemo(() => {
     const g: StoredTicketGeral[] = [];
     const d: StoredTicketDiario[] = [];
+    const e: StoredTicketExtra[] = [];
     for (const t of tickets) {
       if (t.kind === "geral") g.push(t);
-      else d.push(t);
+      else if (t.kind === "diario") d.push(t);
+      else if (t.kind === "extra") e.push(t);
     }
-    return { gerais: g, diarios: d };
+    return { gerais: g, diarios: d, extras: e };
   }, [tickets]);
 
 
@@ -91,6 +94,20 @@ export function MyTicketsWallet({ refreshKey }: MyTicketsWalletProps) {
           ))}
         </div>
       )}
+
+      {extras.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-white/40">Bolão extra</p>
+          {extras.map((t) => (
+            <DiarioTicketRow
+              key={t.id}
+              ticket={t}
+              onLinked={() => void loadOwnedTicketsMerged().then(setTickets)}
+              onNavigate={(path) => router.push(path)}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -114,10 +131,11 @@ function DiarioTicketRow({
   onLinked,
   onNavigate,
 }: {
-  ticket: Extract<StoredTicket, { kind: "diario" }>;
+  ticket: StoredTicketDiario | StoredTicketExtra;
   onLinked: () => void;
   onNavigate: (path: string) => void;
 }) {
+  const isExtra = ticket.kind === "extra";
   const [isoDate, setIsoDate] = useState("");
 
   const todayIso = useMemo(() => {
@@ -146,7 +164,11 @@ function DiarioTicketRow({
             <CalendarDays className="w-4 h-4 text-sky-300/90" />
             Dia: {ticket.playDate}
           </p>
-          <p className="text-[13px] text-white/80 mt-0.5">Ticket amarrado a esta data — palpites contam só para os jogos do dia.</p>
+          <p className="text-[13px] text-white/80 mt-0.5">
+            {isExtra
+              ? `Campeonato ${ticket.championshipId} — mesma lógica do bolão do dia.`
+              : "Ticket amarrado a esta data — palpites contam só para os jogos do dia."}
+          </p>
         </div>
         <Link
           href={palpitesUrlDiario(ticket.id)}
@@ -170,7 +192,9 @@ function DiarioTicketRow({
         <p className="font-mono text-[12px] text-white/40 truncate">{ticket.id}</p>
         <p className="text-[15px] font-semibold text-white">Ainda não amarrado a um dia</p>
         <p className="text-[13px] text-white/80 leading-relaxed">
-          O ticket do dia só entra em jogo quando você escolhe a data e vai aos palpites. Um ticket = um dia de rodada.
+          {isExtra
+            ? "Escolha o dia da rodada no calendário do campeonato extra e vá aos palpites."
+            : "O ticket do dia só entra em jogo quando você escolhe a data e vai aos palpites. Um ticket = um dia de rodada."}
         </p>
         <div className="flex flex-col sm:flex-row sm:items-end gap-2 pt-1">
           <label className="flex flex-col gap-1 min-w-0">

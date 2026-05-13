@@ -86,21 +86,55 @@ function mapRowToView(row: {
 }
 
 export type CreateDepositTransactionInput =
-  | { userId: string; ticketType: TicketType; quantity: number; amountCentsOverride?: number }
-  | { userId: string; generalQty: number; dailyQty: number; amountCentsOverride?: number };
+  | { userId: string; ticketType: "general" | "daily"; quantity: number; amountCentsOverride?: number }
+  | { userId: string; ticketType: "extra"; quantity: number; extraChampionshipId: number; amountCentsOverride?: number }
+  | {
+      userId: string;
+      generalQty: number;
+      dailyQty: number;
+      extraByChampionship?: Record<number, number>;
+      amountCentsOverride?: number;
+    };
 
-function resolvePurchaseQuantities(input: CreateDepositTransactionInput): { generalQty: number; dailyQty: number } {
+function normalizeExtraByChampionship(map: Record<number, number> | undefined): Record<number, number> {
+  const out: Record<number, number> = {};
+  if (!map) return out;
+  for (const [k, v] of Object.entries(map)) {
+    const id = Number(k);
+    if (!Number.isFinite(id)) continue;
+    out[id] = Math.max(0, Math.min(20, Math.trunc(Number(v) || 0)));
+  }
+  return out;
+}
+
+function resolvePurchaseQuantities(input: CreateDepositTransactionInput): {
+  generalQty: number;
+  dailyQty: number;
+  extraByChampionship: Record<number, number>;
+} {
   if ("generalQty" in input && "dailyQty" in input) {
     return {
       generalQty: Math.max(0, Math.min(20, Math.trunc(input.generalQty))),
       dailyQty: Math.max(0, Math.min(20, Math.trunc(input.dailyQty))),
+      extraByChampionship: normalizeExtraByChampionship(input.extraByChampionship),
     };
   }
-  const q = Math.max(1, Math.min(20, Math.trunc(input.quantity)));
-  return {
-    generalQty: input.ticketType === "general" ? q : 0,
-    dailyQty: input.ticketType === "daily" ? q : 0,
-  };
+  const single = input as
+    | { ticketType: "general"; quantity: number }
+    | { ticketType: "daily"; quantity: number }
+    | { ticketType: "extra"; quantity: number; extraChampionshipId: number };
+  const q = Math.max(1, Math.min(20, Math.trunc(single.quantity)));
+  if (single.ticketType === "general") {
+    return { generalQty: q, dailyQty: 0, extraByChampionship: {} };
+  }
+  if (single.ticketType === "daily") {
+    return { generalQty: 0, dailyQty: q, extraByChampionship: {} };
+  }
+  const cid = Math.trunc(single.extraChampionshipId);
+  if (!Number.isFinite(cid) || cid <= 0) {
+    return { generalQty: 0, dailyQty: 0, extraByChampionship: {} };
+  }
+  return { generalQty: 0, dailyQty: 0, extraByChampionship: { [cid]: q } };
 }
 
 export async function createDepositTransaction(input: CreateDepositTransactionInput): Promise<DepositTransactionView> {
@@ -117,8 +151,8 @@ export async function createDepositTransaction(input: CreateDepositTransactionIn
     throw new Error("Telefone do usuario invalido para pagamento");
   }
 
-  const { generalQty, dailyQty } = resolvePurchaseQuantities(input);
-  const lines = buildPurchaseTicketLines(generalQty, dailyQty);
+  const { generalQty, dailyQty, extraByChampionship } = resolvePurchaseQuantities(input);
+  const lines = buildPurchaseTicketLines(generalQty, dailyQty, extraByChampionship);
   if (lines.length === 0) {
     throw new Error("Selecione pelo menos um ticket");
   }
@@ -138,11 +172,12 @@ export async function createDepositTransaction(input: CreateDepositTransactionIn
 
   const ticketIds: string[] = [];
   for (const line of lines) {
+    const extraId = line.ticketType === "extra" ? line.extraChampionshipId ?? null : null;
     const ticketInsert = await pool.query<{ id: string }>(
-      `INSERT INTO tickets (user_id, ticket_type, unit_price_cents, quantity, total_amount_cents, status, external_ref)
-       VALUES ($1, $2, $3, 1, $4, 'pending_payment', $5)
+      `INSERT INTO tickets (user_id, ticket_type, extra_championship_id, unit_price_cents, quantity, total_amount_cents, status, external_ref)
+       VALUES ($1, $2, $3, $4, 1, $5, 'pending_payment', $6)
        RETURNING id`,
-      [input.userId, line.ticketType, line.unitCents, line.unitCents, externalRef]
+      [input.userId, line.ticketType, extraId, line.unitCents, line.unitCents, externalRef]
     );
     ticketIds.push(ticketInsert.rows[0]!.id);
   }
@@ -371,6 +406,6 @@ export async function updateTransactionStatusByProviderId(input: {
 
 export function parseTicketTypeOrThrow(input: unknown): TicketType {
   const t = parseTicketType(input);
-  if (!t) throw new Error("ticketType invalido. Use 'general' ou 'daily'.");
+  if (!t) throw new Error("ticketType invalido. Use 'general', 'daily' ou 'extra'.");
   return t;
 }

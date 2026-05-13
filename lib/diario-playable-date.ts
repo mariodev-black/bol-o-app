@@ -4,6 +4,8 @@
  * correspondentes — não “pula” para o próximo dia só porque o mapa não listou hoje.
  */
 
+import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
+
 export function brToday(): string {
   return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo" }).format(new Date());
 }
@@ -35,13 +37,16 @@ export function matchDateMapFromJogos(
   return m;
 }
 
+type PlayableMatchMeta = { dateBR?: string | null; competitionId?: number | null };
+
 /**
  * @param matchMap match_id -> metadados com dateBR (mapa da API ou derivado dos jogos)
  * @param opts.lockToMatchIds se não vazio, a data jogável é a das partidas desses ids (menor data se houver mais de uma)
+ * @param opts.competitionId se definido, só considera partidas desse campeonato (bolão extra). Se omitido, usa o campeonato principal (`FOOTBALL_COMPETITION_ID`) ao escanear datas (bolão do dia na Copa).
  */
 export function resolveDiarioPlayableDate(
-  matchMap: Map<number, { dateBR?: string | null }>,
-  opts?: { lockToMatchIds?: number[] },
+  matchMap: Map<number, PlayableMatchMeta>,
+  opts?: { lockToMatchIds?: number[]; competitionId?: number },
 ): string {
   const lockIds = (opts?.lockToMatchIds ?? []).filter((id) => Number.isFinite(id) && id > 0);
   if (lockIds.length > 0) {
@@ -55,10 +60,12 @@ export function resolveDiarioPlayableDate(
     return brToday();
   }
 
+  const scopeComp = opts?.competitionId ?? getFootballMainCompetitionId();
   const today = brToday();
   const todayMs = utcMsForBrDate(today);
   const dates = new Set<string>();
   for (const row of matchMap.values()) {
+    if (Number(row.competitionId) !== scopeComp) continue;
     const d = row.dateBR?.trim();
     if (d) dates.add(d);
   }

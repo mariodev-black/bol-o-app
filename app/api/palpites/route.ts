@@ -7,6 +7,7 @@ import { getPredictionByUserTicketMatch, listPredictions, upsertPrediction } fro
 import { inferBolaoTypeFromTicketId } from "@/lib/ticket-kind-server";
 import { inferBolaoTypeFromTicketPrefix } from "@/lib/ticket-kind-shared";
 import { getPool } from "@/lib/db";
+import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
 import { brToday, resolveDiarioPlayableDate, utcMsForBrDate } from "@/lib/diario-playable-date";
 import { filterPredictionsToOfficialMatchIds } from "@/lib/matches-cache";
 
@@ -45,18 +46,25 @@ function isUuidTicketId(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value.trim());
 }
 
-async function resolveOwnedTicketType(userId: string, ticketId: string): Promise<"principal" | "diario" | null> {
+async function resolveOwnedTicketMeta(
+  userId: string,
+  ticketId: string
+): Promise<{ bolao: "principal" | "diario" | "extra"; extraChampionshipId: number | null } | null> {
   const raw = ticketId.trim();
   if (!raw) return null;
 
-  // Legado local (TG/TD) continua suportado.
   const fromPrefix = inferBolaoTypeFromTicketPrefix(raw);
-  if (fromPrefix && !isUuidTicketId(raw)) return fromPrefix;
+  if (fromPrefix && !isUuidTicketId(raw)) {
+    return { bolao: fromPrefix, extraChampionshipId: null };
+  }
 
   if (isUuidTicketId(raw)) {
     const pool = getPool();
-    const { rows } = await pool.query<{ ticket_type: "general" | "daily" }>(
-      `SELECT ticket_type
+    const { rows } = await pool.query<{
+      ticket_type: "general" | "daily" | "extra";
+      extra_championship_id: number | null;
+    }>(
+      `SELECT ticket_type, extra_championship_id
        FROM tickets
        WHERE id::text = $1
          AND user_id = $2
@@ -65,32 +73,46 @@ async function resolveOwnedTicketType(userId: string, ticketId: string): Promise
       [raw, userId],
     );
     const tt = rows[0]?.ticket_type;
-    if (tt === "general") return "principal";
-    if (tt === "daily") return "diario";
+    if (tt === "general") return { bolao: "principal", extraChampionshipId: null };
+    if (tt === "daily") return { bolao: "diario", extraChampionshipId: null };
+    if (tt === "extra") {
+      const cid = rows[0]?.extra_championship_id;
+      if (cid == null || !Number.isFinite(Number(cid))) return null;
+      return { bolao: "extra", extraChampionshipId: Number(cid) };
+    }
     return null;
   }
 
-  // Fallback final para formatos antigos não UUID.
-  return inferBolaoTypeFromTicketId(raw);
+  const inferred = await inferBolaoTypeFromTicketId(raw);
+  if (!inferred) return null;
+  return { bolao: inferred, extraChampionshipId: null };
 }
 
 export async function GET(request: NextRequest) {
   const userId = await authUserId(request);
   if (!userId) return NextResponse.json({ error: "Nao autenticado" }, { status: 401 });
   const ticketId = request.nextUrl.searchParams.get("ticketId")?.trim() || undefined;
-  let bolaoType: "principal" | "diario" | undefined =
+  let bolaoType: "principal" | "diario" | "extra" | undefined =
     request.nextUrl.searchParams.get("bolaoType") === "diario"
       ? "diario"
       : request.nextUrl.searchParams.get("bolaoType") === "principal"
         ? "principal"
-        : undefined;
+        : request.nextUrl.searchParams.get("bolaoType") === "extra"
+          ? "extra"
+          : undefined;
+  let filterComp: number | undefined;
   if (ticketId) {
-    const inferred = await resolveOwnedTicketType(userId, ticketId);
+    const inferred = await resolveOwnedTicketMeta(userId, ticketId);
     if (!inferred) return NextResponse.json({ error: "Ticket invalido" }, { status: 400 });
-    bolaoType = inferred;
+    bolaoType = inferred.bolao;
+    if (inferred.bolao === "extra" && inferred.extraChampionshipId != null) {
+      filterComp = inferred.extraChampionshipId;
+    } else if (inferred.bolao === "principal") {
+      filterComp = getFootballMainCompetitionId();
+    }
   }
   const rows = await listPredictions({ userId, bolaoType, ticketId });
-  const rowsOfficial = await filterPredictionsToOfficialMatchIds(rows);
+  const rowsOfficial = await filterPredictionsToOfficialMatchIds(rows, { competitionId: filterComp });
   return NextResponse.json({
     predictions: rowsOfficial.map((r) => ({
       ticketId: r.ticket_id,
@@ -118,18 +140,39 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: "Dados invalidos" }, { status: 400 });
 
   const data = parsed.data;
-  const bolaoType = await resolveOwnedTicketType(userId, data.ticketId);
-  if (!bolaoType) return NextResponse.json({ error: "Ticket invalido" }, { status: 400 });
+  const meta = await resolveOwnedTicketMeta(userId, data.ticketId);
+  if (!meta) return NextResponse.json({ error: "Ticket invalido" }, { status: 400 });
+  const bolaoType = meta.bolao;
+  const extraChampionshipId = meta.extraChampionshipId;
   /** Sempre `matches_cache` no Postgres (nao usa mapa em memoria da API). */
   const matchMap = await fetchMatchesMapDirectFromDb();
   const match = matchMap.get(data.matchId);
+  const mainComp = getFootballMainCompetitionId();
   if (!match) {
-    const scope = bolaoType === "diario" ? "bolao do dia" : "bolao geral";
+    const scope =
+      bolaoType === "diario" ? "bolao do dia" : bolaoType === "extra" ? "bolao extra" : "bolao geral";
     return NextResponse.json(
       {
         error: `Partida nao encontrada no calendario oficial (${scope}, matches_cache / competicao do servidor). Verifique o id ou aguarde a sincronizacao.`,
       },
       { status: 404 },
+    );
+  }
+  if (bolaoType === "principal" && Number(match.competitionId) !== mainComp) {
+    return NextResponse.json(
+      {
+        error:
+          "Partida nao pertence ao campeonato principal (Copa). Use apenas jogos do bolao geral listados na competicao configurada.",
+      },
+      { status: 400 },
+    );
+  }
+  if (bolaoType === "extra" && extraChampionshipId != null && Number(match.competitionId) !== extraChampionshipId) {
+    return NextResponse.json(
+      {
+        error: `Partida nao pertence ao bolao extra (campeonato ${extraChampionshipId}).`,
+      },
+      { status: 400 },
     );
   }
 
@@ -174,11 +217,16 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
-  if (bolaoType === "diario") {
+  if (bolaoType === "diario" || bolaoType === "extra") {
     const today = brToday();
-    const ticketPreds = await listPredictions({ userId, ticketId: data.ticketId, bolaoType: "diario" });
+    const predBolao = bolaoType === "diario" ? "diario" : "extra";
+    const scopeComp = bolaoType === "diario" ? mainComp : (extraChampionshipId as number);
+    const ticketPreds = await listPredictions({ userId, ticketId: data.ticketId, bolaoType: predBolao });
     const lockIds = ticketPreds.map((p) => Number(p.match_id)).filter(Number.isFinite);
-    const playableDate = resolveDiarioPlayableDate(matchMap, { lockToMatchIds: lockIds });
+    const playableDate = resolveDiarioPlayableDate(matchMap, {
+      lockToMatchIds: lockIds,
+      competitionId: scopeComp,
+    });
     if (ticketPreds.length > 0) {
       let hasDateMismatch = false;
       let allFinished = true;
@@ -186,26 +234,29 @@ export async function POST(request: NextRequest) {
         const m = matchMap.get(Number(p.match_id));
         const date = m?.dateBR ?? null;
         if (date && date !== playableDate) hasDateMismatch = true;
-        const status = String(m?.status || "").toLowerCase();
+        const st = String(m?.status || "").toLowerCase();
         const finished =
           !m ||
-          status.includes("encerr") ||
-          status.includes("finaliz") ||
-          status.includes("cancel") ||
-          status.includes("adiad") ||
-          status.includes("suspens") ||
-          status.includes("interromp") ||
+          st.includes("encerr") ||
+          st.includes("finaliz") ||
+          st.includes("cancel") ||
+          st.includes("adiad") ||
+          st.includes("suspens") ||
+          st.includes("interromp") ||
           (m.resultCasa != null && m.resultVisitante != null);
         if (!finished) allFinished = false;
       }
       if (hasDateMismatch || allFinished) {
-        return NextResponse.json({ error: "Ticket diario ja usado e encerrado para novo uso" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Este ticket diario/extra ja foi encerrado para novo uso" },
+          { status: 400 },
+        );
       }
     }
     if (dateBrDb !== playableDate) {
       return NextResponse.json(
         {
-          error: `Ticket diario: esta partida esta no dia ${dateBrDb} (matches_cache); o ticket so aceita jogos do dia ${playableDate}.`,
+          error: `Ticket: esta partida esta no dia ${dateBrDb} (matches_cache); o ticket so aceita jogos do dia ${playableDate}.`,
         },
         { status: 400 },
       );
@@ -216,10 +267,12 @@ export async function POST(request: NextRequest) {
       matchId: data.matchId,
     });
     if (existing) {
-      const submittedDay = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo" }).format(existing.submitted_at);
+      const submittedDay = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo" }).format(
+        existing.submitted_at
+      );
       if (playableDate === today && submittedDay !== today) {
         return NextResponse.json(
-          { error: "Ticket diario so permite alterar palpites criados no dia atual" },
+          { error: "Ticket diario/extra so permite alterar palpites criados no dia atual" },
           { status: 400 }
         );
       }
@@ -227,7 +280,7 @@ export async function POST(request: NextRequest) {
     const matchDayMs = utcMsForBrDate(dateBrDb);
     const playableDayMs = utcMsForBrDate(playableDate);
     if (matchDayMs == null || playableDayMs == null || matchDayMs !== playableDayMs) {
-      return NextResponse.json({ error: "Ticket diario valido apenas para jogos do dia" }, { status: 400 });
+      return NextResponse.json({ error: "Ticket valido apenas para jogos do dia da rodada" }, { status: 400 });
     }
   }
 

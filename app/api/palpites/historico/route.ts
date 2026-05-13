@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 import { fetchMatchesMap } from "@/lib/football-api";
-import { calcPredictionPoints, listPredictions } from "@/lib/predictions";
+import { calcPredictionPoints, listPredictions, type PredictionBolaoType } from "@/lib/predictions";
 import { inferBolaoTypeFromTicketId } from "@/lib/ticket-kind-server";
 
 export const runtime = "nodejs";
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
   if (!userId) return NextResponse.json({ error: "Nao autenticado" }, { status: 401 });
   const ticketId = request.nextUrl.searchParams.get("ticketId")?.trim() || undefined;
   const bolaoParam = request.nextUrl.searchParams.get("bolaoType");
-  let bolaoType: "principal" | "diario" | undefined;
+  let bolaoType: PredictionBolaoType | undefined;
   if (ticketId) {
     const inferred = await inferBolaoTypeFromTicketId(ticketId);
     if (!inferred) return NextResponse.json({ error: "Ticket invalido" }, { status: 400 });
@@ -30,6 +30,8 @@ export async function GET(request: NextRequest) {
     bolaoType = "diario";
   } else if (bolaoParam === "principal") {
     bolaoType = "principal";
+  } else if (bolaoParam === "extra") {
+    bolaoType = "extra";
   } else {
     bolaoType = undefined;
   }

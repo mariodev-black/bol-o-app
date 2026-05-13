@@ -15,7 +15,17 @@ export type StoredTicketDiario = {
   availableGames?: number;
 };
 
-export type StoredTicket = StoredTicketGeral | StoredTicketDiario;
+export type StoredTicketExtra = {
+  id: string;
+  kind: "extra";
+  createdAt: number;
+  championshipId: number;
+  playDate: string | null;
+  dailyStatus?: "disponivel" | "em_uso" | "usado";
+  availableGames?: number;
+};
+
+export type StoredTicket = StoredTicketGeral | StoredTicketDiario | StoredTicketExtra;
 
 const STORAGE_KEY = "bolao_owned_tickets_v1";
 
@@ -46,6 +56,13 @@ function isStoredTicket(x: unknown): x is StoredTicket {
         (o.playDate === null || o.playDate === undefined || typeof o.playDate === "string")
       );
     }
+    if (o.kind === "extra") {
+      return (
+        typeof o.createdAt === "number" &&
+        typeof o.championshipId === "number" &&
+        (o.playDate === null || o.playDate === undefined || typeof o.playDate === "string")
+      );
+    }
   return false;
 }
 
@@ -61,13 +78,14 @@ export function isLikelyDbTicketId(id: string): boolean {
 
 type MineTicketDto = {
   id: string;
-  ticketType: "general" | "daily";
+  ticketType: "general" | "daily" | "extra";
   quantity: number;
   paidAt: string | null;
   createdAt: string;
   dailyStatus?: "disponivel" | "em_uso" | "usado";
   playDate?: string | null;
   availableGames?: number;
+  extraChampionshipId?: number | null;
 };
 
 function mapMineDtoToStored(row: MineTicketDto): StoredTicket {
@@ -77,6 +95,17 @@ function mapMineDtoToStored(row: MineTicketDto): StoredTicket {
       id: row.id,
       kind: "diario",
       createdAt,
+      playDate: row.playDate ?? null,
+      dailyStatus: row.dailyStatus ?? "disponivel",
+      availableGames: Math.max(0, Number(row.availableGames ?? 0)),
+    };
+  }
+  if (row.ticketType === "extra") {
+    return {
+      id: row.id,
+      kind: "extra",
+      createdAt,
+      championshipId: row.extraChampionshipId ?? 0,
       playDate: row.playDate ?? null,
       dailyStatus: row.dailyStatus ?? "disponivel",
       availableGames: Math.max(0, Number(row.availableGames ?? 0)),
@@ -116,7 +145,11 @@ function newId(prefix: string) {
 }
 
 /** Credita tickets na conta após pagamento (integração real viria do webhook). */
-export function appendTicketsFromPurchase(principalCount: number, diarioCount: number) {
+export function appendTicketsFromPurchase(
+  principalCount: number,
+  diarioCount: number,
+  extraByChampionship?: Record<number, number>,
+) {
   const list = loadOwnedTickets();
   const now = Date.now();
   for (let i = 0; i < principalCount; i++) {
@@ -125,13 +158,28 @@ export function appendTicketsFromPurchase(principalCount: number, diarioCount: n
   for (let i = 0; i < diarioCount; i++) {
     list.push({ id: newId("TD"), kind: "diario", createdAt: now, playDate: null });
   }
+  if (extraByChampionship) {
+    for (const [cid, qty] of Object.entries(extraByChampionship)) {
+      const championshipId = Number.parseInt(cid, 10);
+      if (!Number.isFinite(championshipId) || championshipId <= 0 || qty <= 0) continue;
+      for (let i = 0; i < qty; i++) {
+        list.push({
+          id: newId("TE"),
+          kind: "extra",
+          createdAt: now,
+          championshipId,
+          playDate: null,
+        });
+      }
+    }
+  }
   saveOwnedTickets(list);
 }
 
 export function setDiarioTicketPlayDate(ticketId: string, playDateBR: string) {
   const list = loadOwnedTickets();
-  const t = list.find((x) => x.id === ticketId && x.kind === "diario");
-  if (t && t.kind === "diario") {
+  const t = list.find((x) => x.id === ticketId && (x.kind === "diario" || x.kind === "extra"));
+  if (t && (t.kind === "diario" || t.kind === "extra")) {
     t.playDate = playDateBR;
     saveOwnedTickets(list);
   }

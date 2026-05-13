@@ -11,10 +11,10 @@ export type PalpitesResumo = {
 
 export async function computePalpitesResumo(
   userId: string,
-  params: { ticketId?: string; bolaoType?: "principal" | "diario" }
+  params: { ticketId?: string; bolaoType?: "principal" | "diario" | "extra" }
 ): Promise<PalpitesResumo> {
   const ticketId = params.ticketId?.trim() || undefined;
-  let bolaoType: "principal" | "diario" | undefined = params.bolaoType;
+  let bolaoType: "principal" | "diario" | "extra" | undefined = params.bolaoType;
   if (ticketId) {
     const inferred = await inferBolaoTypeFromTicketId(ticketId);
     if (!inferred) {

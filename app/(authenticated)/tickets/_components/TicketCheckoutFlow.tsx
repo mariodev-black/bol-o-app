@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import {
   ArrowRight,
@@ -32,7 +32,22 @@ import {
 
 const DEFAULT_PRINCIPAL_CENTS = 3990;
 const DEFAULT_DIARIO_CENTS = 2000;
-const DEFAULT_EXTRA_CENTS = 3990;
+const DEFAULT_EXTRA_CENTS = 1000;
+
+/** Mesmo espírito de `BOLOES_EXTRA_*` — permite cards no primeiro paint antes do GET (opcional). */
+function parseNextPublicExtraChampionshipIds(): number[] {
+  const raw =
+    (typeof process !== "undefined" ? process.env.NEXT_PUBLIC_BOLOES_EXTRA_CHAMPIONSHIP_IDS : "") ||
+    (typeof process !== "undefined" ? process.env.NEXT_PUBLIC_BOLOES_EXTRA : "") ||
+    "";
+  if (!String(raw).trim()) return [];
+  return String(raw)
+    .split(/[,;\s]+/)
+    .map((s) => Number.parseInt(s.trim(), 10))
+    .filter((n) => Number.isFinite(n) && n > 0);
+}
+
+type ExtraBolaoOption = { championshipId: number; unitCents: number; displayName?: string };
 
 function formatBRL(cents: number) {
   return (cents / 100).toLocaleString("pt-BR", {
@@ -85,21 +100,46 @@ type TransactionUpdatePayload = {
 };
 
 type TicketCheckoutFlowProps = {
-  initialTicketKind?: "general" | "daily";
+  initialTicketKind?: "general" | "daily" | "extra";
+  /** Com `initialTicketKind === "extra"`, pré-seleciona este campeonato (id da API). */
+  initialExtraChampionshipId?: number;
+  /** IDs extras vindos do servidor — alinhados a `BOLOES_EXTRA_*`. */
+  serverExtraChampionshipIds?: number[];
 };
 
 const MAX_QTY = 20;
 
 export function TicketCheckoutFlow({
   initialTicketKind = "general",
+  initialExtraChampionshipId,
+  serverExtraChampionshipIds = [],
 }: TicketCheckoutFlowProps) {
   const router = useRouter();
   const [principalQty, setPrincipalQty] = useState(() =>
-    initialTicketKind === "daily" ? 0 : 1,
+    initialTicketKind === "daily" || initialTicketKind === "extra" ? 0 : 1,
   );
   const [dailyQty, setDailyQty] = useState(() =>
     initialTicketKind === "daily" ? 1 : 0,
   );
+  const [extraBoloes, setExtraBoloes] = useState<ExtraBolaoOption[]>(() => {
+    const fromServer = (serverExtraChampionshipIds ?? []).filter((n) => Number.isFinite(n) && n > 0);
+    const fromPublic = parseNextPublicExtraChampionshipIds();
+    const ids = [...new Set([...fromServer, ...fromPublic])];
+    return ids.map((championshipId) => ({
+      championshipId,
+      unitCents: DEFAULT_EXTRA_CENTS,
+    }));
+  });
+  const [extraQty, setExtraQty] = useState<Record<number, number>>(() => {
+    if (
+      initialTicketKind === "extra" &&
+      initialExtraChampionshipId != null &&
+      initialExtraChampionshipId > 0
+    ) {
+      return { [initialExtraChampionshipId]: 1 };
+    }
+    return {};
+  });
   const [prices, setPrices] = useState({
     general: DEFAULT_PRINCIPAL_CENTS,
     daily: DEFAULT_DIARIO_CENTS,
@@ -119,6 +159,7 @@ export function TicketCheckoutFlow({
   const paidHandledRef = useRef(false);
   const purchasePrincipalRef = useRef(0);
   const purchaseDiarioRef = useRef(0);
+  const purchaseExtraRef = useRef<Record<number, number>>({});
 
   const handleTransactionUpdate = useCallback(
     (payload: TransactionUpdatePayload, source?: string) => {
@@ -146,6 +187,7 @@ export function TicketCheckoutFlow({
         appendTicketsFromPurchase(
           purchasePrincipalRef.current,
           purchaseDiarioRef.current,
+          purchaseExtraRef.current,
         );
         const q = new URLSearchParams({
           tx: transactionId,
@@ -181,6 +223,7 @@ export function TicketCheckoutFlow({
         });
         const d = (await r.json()) as {
           prices?: { general: number; daily: number; extra?: number };
+          extraBoloes?: Array<{ championshipId: number; unitCents: number; displayName?: string }>;
         };
         if (r.ok && d.prices) {
           setPrices({
@@ -189,11 +232,24 @@ export function TicketCheckoutFlow({
             extra: d.prices.extra ?? DEFAULT_EXTRA_CENTS,
           });
         }
+        if (r.ok && Array.isArray(d.extraBoloes) && d.extraBoloes.length > 0) {
+          setExtraBoloes(d.extraBoloes);
+        }
       } catch {
         // fallback nos valores default locais
       }
     })();
   }, []);
+
+  useEffect(() => {
+    if (initialTicketKind !== "extra" || initialExtraChampionshipId == null) return;
+    const hit = extraBoloes.some((b) => b.championshipId === initialExtraChampionshipId);
+    if (!hit) return;
+    setExtraQty((prev) => ({
+      ...prev,
+      [initialExtraChampionshipId]: Math.max(1, prev[initialExtraChampionshipId] ?? 0),
+    }));
+  }, [extraBoloes, initialTicketKind, initialExtraChampionshipId]);
 
   // SSE — canal primário (funciona em dev; pode não funcionar em serverless multi-instância)
   useEffect(() => {
@@ -279,8 +335,30 @@ export function TicketCheckoutFlow({
     principalQty,
   );
   const diarioLineCents = progressiveDiscountTotalCents(prices.daily, dailyQty);
-  const totalCents = principalLineCents + diarioLineCents;
-  const totalQty = principalQty + dailyQty;
+
+  const extraPixLines = useMemo(
+    () =>
+      extraBoloes.flatMap((b) => {
+        const q = extraQty[b.championshipId] ?? 0;
+        if (q <= 0) return [];
+        return [
+          {
+            championshipId: b.championshipId,
+            qty: q,
+            lineCents: progressiveDiscountTotalCents(b.unitCents, q),
+            displayLabel: b.displayName?.trim() || undefined,
+          },
+        ];
+      }),
+    [extraBoloes, extraQty],
+  );
+
+  const extraLinesCents = extraPixLines.reduce((s, l) => s + l.lineCents, 0);
+  const totalCents = principalLineCents + diarioLineCents + extraLinesCents;
+  const totalQty =
+    principalQty +
+    dailyQty +
+    extraBoloes.reduce((s, b) => s + (extraQty[b.championshipId] ?? 0), 0);
   const hasSelection = totalCents > 0 && totalQty >= 1;
   const geralDiscountPct = progressiveDiscountPercent(principalQty);
   const diarioDiscountPct = progressiveDiscountPercent(dailyQty);
@@ -300,15 +378,16 @@ export function TicketCheckoutFlow({
 
   const goGenerate = useCallback(() => {
     if (!hasSelection) return;
-    if (principalQty + dailyQty <= 0) {
-      setError("Selecione pelo menos um ticket.");
-      return;
-    }
     setError(null);
     setCouponHint(null);
     setStep("generating");
     void (async () => {
       try {
+        const extraByChampionship = Object.fromEntries(
+          extraBoloes
+            .map((b) => [String(b.championshipId), extraQty[b.championshipId] ?? 0] as const)
+            .filter(([, q]) => q > 0),
+        );
         const r = await fetch("/api/deposits/transactions", {
           method: "POST",
           credentials: "include",
@@ -316,6 +395,7 @@ export function TicketCheckoutFlow({
           body: JSON.stringify({
             generalQuantity: principalQty,
             dailyQuantity: dailyQty,
+            extraByChampionship,
             amountCents: totalCents,
           }),
         });
@@ -330,6 +410,11 @@ export function TicketCheckoutFlow({
         }
         purchasePrincipalRef.current = principalQty;
         purchaseDiarioRef.current = dailyQty;
+        purchaseExtraRef.current = Object.fromEntries(
+          extraBoloes
+            .map((b) => [b.championshipId, extraQty[b.championshipId] ?? 0] as const)
+            .filter(([, q]) => q > 0),
+        );
         setTransactionId(d.transaction.id);
         setPixPayload(d.transaction.pixQrcode);
         setPixDeadline(Date.now() + PIX_CHECKOUT_WINDOW_MS);
@@ -339,7 +424,7 @@ export function TicketCheckoutFlow({
         setStep("shop");
       }
     })();
-  }, [hasSelection, principalQty, dailyQty, totalCents]);
+  }, [hasSelection, principalQty, dailyQty, totalCents, extraBoloes, extraQty]);
 
   const copyPix = useCallback(() => {
     if (!pixPayload || pixExpired) return;
@@ -664,6 +749,107 @@ export function TicketCheckoutFlow({
                       </span>
                     </div>
               </div>
+
+              {extraBoloes.map((b) => {
+                const q = extraQty[b.championshipId] ?? 0;
+                const extraDiscPct = progressiveDiscountPercent(q);
+                const lineCents = progressiveDiscountTotalCents(b.unitCents, q);
+                const unit = q > 0 ? Math.round(lineCents / q) : b.unitCents;
+                const title = b.displayName?.trim() || "Ticket extra";
+                return (
+                  <div
+                    key={b.championshipId}
+                    className="overflow-hidden rounded-[16px] border border-white/10 bg-[#121212] shadow-[0_8px_26px_rgba(0,0,0,0.35)]"
+                  >
+                    <div className="grid grid-cols-[74px_minmax(0,1fr)] items-center gap-3 p-3 sm:grid-cols-[86px_minmax(0,1fr)] sm:p-3.5">
+                      <div className="flex flex-col items-center justify-center">
+                        <img
+                          src={ticketBlue.src}
+                          alt=""
+                          className="h-[72px] w-[52px] shrink-0 object-contain drop-shadow-[0_8px_24px_rgba(168,85,247,0.35)] sm:h-[86px] sm:w-[62px]"
+                        />
+                        <span className="mt-1 text-[8px] font-black uppercase leading-tight tracking-wide text-purple-300">
+                          Extra
+                        </span>
+                      </div>
+                      <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_88px] items-center gap-3 sm:grid-cols-[minmax(0,1fr)_96px]">
+                        <div className="min-w-0">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <h3 className="text-[14px] font-black uppercase leading-tight text-white sm:text-[15px]">
+                                {title}
+                              </h3>
+                            </div>
+                            <p className="mt-1 text-[12px] font-medium leading-snug text-white/80 sm:text-[11px]">
+                              Mesma lógica do Bolão do Dia, para outra competição.
+                            </p>
+                          </div>
+                          <div className="mt-3 flex w-fit items-center gap-1 rounded-[10px] border border-white/10 bg-[#0f0f0f] p-1">
+                            <button
+                              type="button"
+                              aria-label={`Diminuir ${title}`}
+                              disabled={q <= 0}
+                              onClick={() => {
+                                setError(null);
+                                setCouponHint(null);
+                                setExtraQty((prev) => ({
+                                  ...prev,
+                                  [b.championshipId]: Math.max(0, (prev[b.championshipId] ?? 0) - 1),
+                                }));
+                              }}
+                              className="flex h-8 w-8 items-center justify-center rounded-[8px] border border-primary/20 bg-black/40 text-primary transition-colors hover:bg-white/10 disabled:opacity-30"
+                            >
+                              <span className="text-[18px] font-black leading-none">-</span>
+                            </button>
+                            <span className="w-8 text-center text-[18px] font-black tabular-nums text-white sm:text-[20px]">
+                              {q}
+                            </span>
+                            <button
+                              type="button"
+                              aria-label={`Aumentar ${title}`}
+                              disabled={q >= MAX_QTY}
+                              onClick={() => {
+                                setError(null);
+                                setCouponHint(null);
+                                setExtraQty((prev) => ({
+                                  ...prev,
+                                  [b.championshipId]: Math.min(MAX_QTY, (prev[b.championshipId] ?? 0) + 1),
+                                }));
+                              }}
+                              className="flex h-8 w-8 items-center justify-center rounded-[8px] border border-primary/30 bg-black/40 text-primary transition-colors hover:bg-white/10 disabled:opacity-30"
+                            >
+                              <span className="text-[18px] font-black leading-none">+</span>
+                            </button>
+                          </div>
+                        </div>
+                        <div className="self-center text-right">
+                          <p className="text-[12px] font-semibold text-white/40">Preço unitário</p>
+                          <p className="mt-1 text-[14px] font-black tabular-nums text-white sm:text-[15px]">
+                            {formatBRL(unit)}
+                          </p>
+                          <p className="mt-1 text-[12px] font-semibold tabular-nums text-white/80 line-through">
+                            {extraDiscPct > 0 ? formatBRL(b.unitCents) : ""}
+                          </p>
+                          <p className="text-[12px] font-bold text-primary">{extraDiscPct}% OFF</p>
+                          <p className="mt-1 text-[9px] leading-tight text-white/40">
+                            a partir de 2 tickets
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 border-t border-white/6 bg-black/25 px-3.5 py-2.5 text-[12px] text-white/50 sm:px-4">
+                      <span>
+                        Desconto aplicado:{" "}
+                        <span className="font-bold text-primary">{extraDiscPct}%</span> OFF
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-right font-medium">
+                        Escolha a quantidade
+                        <ChevronRight className="size-3.5 text-white/80" strokeWidth={2.4} />
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
             {/* ── Resumo da compra ─────────────────────────────── */}
@@ -750,6 +936,23 @@ export function TicketCheckoutFlow({
                     {formatBRL(diarioLineCents)}
                   </span>
                 </div>
+                {extraBoloes.map((b) => {
+                  const q = extraQty[b.championshipId] ?? 0;
+                  if (q <= 0) return null;
+                  const line = progressiveDiscountTotalCents(b.unitCents, q);
+                  const label = b.displayName?.trim() || "Ticket extra";
+                  return (
+                    <div
+                      key={`sum-extra-${b.championshipId}`}
+                      className="flex items-center justify-between gap-2 text-[13px]"
+                    >
+                      <span className="font-semibold text-white/70">
+                        {label} · {q} {q === 1 ? "ticket" : "tickets"}
+                      </span>
+                      <span className="shrink-0 font-black tabular-nums text-white">{formatBRL(line)}</span>
+                    </div>
+                  );
+                })}
               </div>
               <div className="mt-3 flex items-center justify-between gap-2">
                 <span className="text-[13px] font-black uppercase tracking-wide text-white/50">
@@ -839,6 +1042,7 @@ export function TicketCheckoutFlow({
               error={error}
               principalQty={principalQty}
               dailyQty={dailyQty}
+              extraPixLines={extraPixLines}
               prices={prices}
               principalUnitPriceCents={principalUnitPriceCents}
               dailyUnitPriceCents={dailyUnitPriceCents}

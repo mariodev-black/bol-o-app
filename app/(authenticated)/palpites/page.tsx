@@ -5,6 +5,7 @@ import { inferBolaoTypeFromTicketId } from "@/lib/ticket-kind-server";
 import { calcPredictionPoints, listPredictions } from "@/lib/predictions";
 import { fetchMatchesMap } from "@/lib/football-api";
 import { getPartidasFasesFromDb } from "@/lib/partidas-cache-payload";
+import { getPool } from "@/lib/db";
 import { parseKickoffFromPartidaPayload, pickScoreFromPartidaPayload } from "@/lib/partida-placar";
 
 const MESES = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
@@ -233,7 +234,8 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
   const token = c.get(sessionCookieName())?.value;
   const userId = token ? await verifySessionToken(token).catch(() => null) : null;
 
-  let bolaoType: "principal" | "diario" = "principal";
+  let bolaoType: "principal" | "diario" | "extra" = "principal";
+  let extraChampionshipId: number | null = null;
   let predictionsMap: Record<number, { scoreCasa: number; scoreVisitante: number }> = {};
   let rankingRows: PalpitesInitialData["rankingRows"] = [];
   let resumoStats: PalpitesInitialData["resumoStats"] = { palpites: 0, acertos: 0, pontos: 0, exatos: 0 };
@@ -245,6 +247,15 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
     if (ticketId) {
       const inferred = await inferBolaoTypeFromTicketId(ticketId);
       if (inferred) bolaoType = inferred;
+      if (inferred === "extra" && userId) {
+        const pool = getPool();
+        const { rows: exRows } = await pool.query<{ cid: number | null }>(
+          `SELECT extra_championship_id AS cid FROM tickets WHERE id::text = $1 AND user_id = $2 AND status = 'paid' LIMIT 1`,
+          [ticketId, userId]
+        );
+        const cid = exRows[0]?.cid;
+        extraChampionshipId = cid != null && Number.isFinite(Number(cid)) ? Number(cid) : null;
+      }
 
       const preds = await listPredictions({ userId, ticketId, bolaoType: inferred ?? undefined });
       predictionsMap = preds.reduce((acc, p) => {
@@ -298,7 +309,7 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
     }
 
     let rankingPreds = await listPredictions({ userId, bolaoType: ticketId ? bolaoType : undefined });
-    if (ticketId && bolaoType === "diario") {
+    if (ticketId && (bolaoType === "diario" || bolaoType === "extra")) {
       const selectedDates = new Set(
         rankingPreds
           .filter((p) => p.ticket_id === ticketId)
@@ -388,6 +399,7 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
   return {
     ticketId,
     bolaoType,
+    extraChampionshipId,
     tabela: pickTabelaGrupos(tabelaRes.data as any),
     jogos: jogosFiltrados,
     grupos,

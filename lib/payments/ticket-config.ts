@@ -1,4 +1,6 @@
-export type TicketType = "general" | "daily";
+import { getExtraBolaoTicketUnitCents, parseExtraBolaoChampionshipIds } from "@/lib/boloes-extra-config";
+
+export type TicketType = "general" | "daily" | "extra";
 
 function env(name: string): string {
   const raw = process.env[name];
@@ -11,23 +13,33 @@ function parsePositiveInt(value: string, fallback: number): number {
   return n;
 }
 
-export function getTicketPriceCents(type: TicketType): number {
+export function getTicketPriceCents(type: "general" | "daily"): number {
   if (type === "daily") {
     return parsePositiveInt(env("TICKET_PRICE_DAILY_CENTS"), 2000);
   }
   return parsePositiveInt(env("TICKET_PRICE_GENERAL_CENTS"), 3990);
 }
 
-export function getExtraTicketPriceCents(): number {
-  return parsePositiveInt(env("TICKET_PRICE_EXTRA_CENTS"), 3990);
+/** Preço unitário dos bolões extra (default R$ 10). */
+export function getExtraBolaoUnitCents(): number {
+  return getExtraBolaoTicketUnitCents();
 }
 
-export function ticketTypeLabel(type: TicketType): string {
-  return type === "daily" ? "Ticket Diario" : "Ticket Geral";
+/** Legado: algumas telas ainda leem `extra` como preço único — alinhado ao bolão extra. */
+export function getExtraTicketPriceCents(): number {
+  return getExtraBolaoUnitCents();
+}
+
+export function ticketTypeLabel(type: TicketType, extraChampionshipId?: number): string {
+  if (type === "daily") return "Ticket Diario";
+  if (type === "general") return "Ticket Geral";
+  return extraChampionshipId != null
+    ? `Bolao extra (campeonato ${extraChampionshipId})`
+    : "Bolao extra";
 }
 
 export function parseTicketType(input: unknown): TicketType | null {
-  if (input === "general" || input === "daily") return input;
+  if (input === "general" || input === "daily" || input === "extra") return input;
   return null;
 }
 
@@ -57,13 +69,21 @@ function distributeDiscountedTicketAmounts(unitCents: number, quantity: number):
 }
 
 /** Uma linha de ticket no pedido (valor unitário já considera desconto progressivo, quando aplicável). */
-export type PurchaseTicketLine = { ticketType: TicketType; unitCents: number };
+export type PurchaseTicketLine = {
+  ticketType: TicketType;
+  unitCents: number;
+  extraChampionshipId?: number;
+};
 
 /**
- * Monta as linhas de tickets para um carrinho (0–20 de cada tipo).
- * Desconto progressivo por tipo: 1 = 0%, 2 = 5%, 3 = 10%, 4+ = 15%.
+ * Monta as linhas de tickets para um carrinho (0–20 de cada tipo / por campeonato extra).
+ * Desconto progressivo por tipo (e por bolão extra separado): 1 = 0%, 2 = 5%, 3 = 10%, 4+ = 15%.
  */
-export function buildPurchaseTicketLines(generalQty: number, dailyQty: number): PurchaseTicketLine[] {
+export function buildPurchaseTicketLines(
+  generalQty: number,
+  dailyQty: number,
+  extraByChampionship?: Record<number, number>
+): PurchaseTicketLine[] {
   const g = Math.max(0, Math.min(20, Math.trunc(generalQty)));
   const d = Math.max(0, Math.min(20, Math.trunc(dailyQty)));
   const lines: PurchaseTicketLine[] = [];
@@ -78,9 +98,24 @@ export function buildPurchaseTicketLines(generalQty: number, dailyQty: number): 
     lines.push({ ticketType: "daily", unitCents });
   }
 
+  const extraUnit = getExtraBolaoUnitCents();
+  const allowedExtra = new Set(parseExtraBolaoChampionshipIds());
+  const extraMap = extraByChampionship ?? {};
+  for (const compId of allowedExtra) {
+    const raw = extraMap[compId] ?? 0;
+    const q = Math.max(0, Math.min(20, Math.trunc(raw)));
+    for (const unitCents of distributeDiscountedTicketAmounts(extraUnit, q)) {
+      lines.push({ ticketType: "extra", unitCents, extraChampionshipId: compId });
+    }
+  }
+
   return lines;
 }
 
-export function expectedPurchaseAmountCents(generalQty: number, dailyQty: number): number {
-  return buildPurchaseTicketLines(generalQty, dailyQty).reduce((s, l) => s + l.unitCents, 0);
+export function expectedPurchaseAmountCents(
+  generalQty: number,
+  dailyQty: number,
+  extraByChampionship?: Record<number, number>
+): number {
+  return buildPurchaseTicketLines(generalQty, dailyQty, extraByChampionship).reduce((s, l) => s + l.unitCents, 0);
 }

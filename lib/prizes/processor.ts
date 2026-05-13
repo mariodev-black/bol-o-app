@@ -1,9 +1,10 @@
 import type { PoolClient } from "pg";
+import { getFootballMainCompetitionId, parseExtraBolaoChampionshipIds } from "@/lib/boloes-extra-config";
 import { getPool } from "@/lib/db";
 import { calcPredictionPoints } from "@/lib/predictions";
 import { calculatePrizeAwards, calculatePrizePoolCents } from "@/lib/prizes/distribution";
 
-type BolaoPrizeType = "general" | "daily";
+type BolaoPrizeType = "general" | "daily" | "extra";
 
 type MatchRow = {
   match_id: number;
@@ -43,10 +44,6 @@ type RankingRow = {
 };
 
 const PROCESS_LOCK_KEY = 7202602;
-
-function competitionId(): number {
-  return Number.parseInt((process.env.FOOTBALL_COMPETITION_ID || "72").trim(), 10) || 72;
-}
 
 /**
  * Partida "resolvida" para premiacao: placar oficial preenchido OU situacao sem placar valido (cancel/adiado/suspens).
@@ -116,9 +113,9 @@ function generalPoolReadyForClosure(matches: MatchRow[], nowMs: number): boolean
 }
 
 function closureKey(input: { competitionId: number; type: BolaoPrizeType; dateBR?: string | null }): string {
-  return input.type === "general"
-    ? `${input.competitionId}:general`
-    : `${input.competitionId}:daily:${input.dateBR ?? "SEM_DATA"}`;
+  if (input.type === "general") return `${input.competitionId}:general`;
+  if (input.type === "extra") return `${input.competitionId}:extra:${input.dateBR ?? "SEM_DATA"}`;
+  return `${input.competitionId}:daily:${input.dateBR ?? "SEM_DATA"}`;
 }
 
 async function ensurePrizeSchema(client: PoolClient) {
@@ -128,7 +125,7 @@ async function ensurePrizeSchema(client: PoolClient) {
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       closure_key text NOT NULL UNIQUE,
       competition_id integer NOT NULL,
-      bolao_type text NOT NULL CHECK (bolao_type IN ('general', 'daily')),
+      bolao_type text NOT NULL CHECK (bolao_type IN ('general', 'daily', 'extra')),
       date_br text,
       status text NOT NULL DEFAULT 'processed',
       total_revenue_cents integer NOT NULL DEFAULT 0,
@@ -206,7 +203,7 @@ async function insertClosure(
 
 async function listTicketsForClosure(
   client: PoolClient,
-  input: { type: BolaoPrizeType; dateBR?: string | null }
+  input: { type: BolaoPrizeType; dateBR?: string | null; competitionId: number }
 ): Promise<TicketRow[]> {
   if (input.type === "general") {
     const { rows } = await client.query<TicketRow>(
@@ -219,13 +216,12 @@ async function listTicketsForClosure(
     return rows;
   }
 
-  // Pool diário: soma APENAS tickets tipo daily pagos/aprovados que participam deste dia
-  // (data da primeira partida apostada = dateBR). Não inclui ticket geral nem outros dias.
-  const { rows } = await client.query<TicketRow>(
-    `WITH first_prediction_dates AS (
+  if (input.type === "daily") {
+    const { rows } = await client.query<TicketRow>(
+      `WITH first_prediction_dates AS (
        SELECT DISTINCT ON (p.ticket_id) p.ticket_id, mc.date_br
        FROM predictions p
-       JOIN matches_cache mc ON mc.match_id = p.match_id
+       JOIN matches_cache mc ON mc.match_id = p.match_id AND mc.competition_id = $2
        WHERE mc.date_br IS NOT NULL
        ORDER BY p.ticket_id, p.submitted_at ASC
      )
@@ -236,7 +232,31 @@ async function listTicketsForClosure(
        AND t.status IN ('paid', 'approved')
        AND fpd.date_br = $1
      ORDER BY t.paid_at ASC NULLS LAST, t.created_at ASC`,
-    [input.dateBR]
+      [input.dateBR, input.competitionId]
+    );
+    return rows;
+  }
+
+  const { rows } = await client.query<TicketRow>(
+    `WITH first_prediction_dates AS (
+       SELECT DISTINCT ON (p.ticket_id) p.ticket_id, mc.date_br
+       FROM predictions p
+       JOIN tickets t ON t.id::text = p.ticket_id::text
+       JOIN matches_cache mc ON mc.match_id = p.match_id AND mc.competition_id = t.extra_championship_id
+       WHERE p.bolao_type = 'extra'
+         AND t.ticket_type = 'extra'
+         AND t.extra_championship_id = $2
+       ORDER BY p.ticket_id, p.submitted_at ASC
+     )
+     SELECT t.id::text AS id, t.user_id::text AS user_id, t.total_amount_cents, t.paid_at, t.created_at
+     FROM tickets t
+     JOIN first_prediction_dates fpd ON fpd.ticket_id::text = t.id::text
+     WHERE t.ticket_type = 'extra'
+       AND t.status IN ('paid', 'approved')
+       AND fpd.date_br = $1
+       AND t.extra_championship_id = $2
+     ORDER BY t.paid_at ASC NULLS LAST, t.created_at ASC`,
+    [input.dateBR, input.competitionId]
   );
   return rows;
 }
@@ -337,7 +357,9 @@ async function creditAward(
   const description =
     input.type === "general"
       ? `Premiacao Bolao Geral - Ticket ${input.ranking.ticketId} - ${input.rank} lugar`
-      : `Premiacao Bolao Diario ${input.dateBR} - Ticket ${input.ranking.ticketId} - ${input.rank} lugar`;
+      : input.type === "extra"
+        ? `Premiacao Bolao Extra (${input.compId}) ${input.dateBR} - Ticket ${input.ranking.ticketId} - ${input.rank} lugar`
+        : `Premiacao Bolao Diario ${input.dateBR} - Ticket ${input.ranking.ticketId} - ${input.rank} lugar`;
   const metadata = {
     description,
     competitionId: input.compId,
@@ -380,7 +402,7 @@ async function creditAward(
     [
       input.ranking.userId,
       input.ranking.ticketId,
-      input.type === "general" ? "general" : "daily",
+      input.type === "general" ? "general" : input.type === "extra" ? "extra" : "daily",
       input.amountCents,
       `prize_${awardId}`,
       JSON.stringify(metadata),
@@ -411,7 +433,11 @@ async function processClosure(
     metadataExtra?: Record<string, unknown>;
   }
 ) {
-  const tickets = await listTicketsForClosure(client, { type: input.type, dateBR: input.dateBR });
+  const tickets = await listTicketsForClosure(client, {
+    type: input.type,
+    dateBR: input.dateBR,
+    competitionId: input.compId,
+  });
   const totalRevenueCents = tickets.reduce((sum, ticket) => sum + Number(ticket.total_amount_cents || 0), 0);
   const poolCents = calculatePrizePoolCents(totalRevenueCents);
   const closureId = await insertClosure(client, {
@@ -456,33 +482,54 @@ export async function processPrizeClosuresAfterMatchSync(): Promise<void> {
     locked = Boolean(lockResult.rows[0]?.locked);
     if (!locked) return;
 
-    const compId = competitionId();
+    const compId = getFootballMainCompetitionId();
     const matches = await listMatches(client, compId);
-    if (matches.length === 0) return;
-
     const nowMs = Date.now();
 
-    const byDate = new Map<string, MatchRow[]>();
-    for (const match of matches) {
-      if (!match.date_br) continue;
-      const arr = byDate.get(match.date_br) ?? [];
-      arr.push(match);
-      byDate.set(match.date_br, arr);
-    }
+    if (matches.length > 0) {
+      const byDate = new Map<string, MatchRow[]>();
+      for (const match of matches) {
+        if (!match.date_br) continue;
+        const arr = byDate.get(match.date_br) ?? [];
+        arr.push(match);
+        byDate.set(match.date_br, arr);
+      }
 
-    for (const [dateBR, dateMatches] of byDate) {
-      if (dailyPoolReadyForClosure(dateMatches, nowMs)) {
+      for (const [dateBR, dateMatches] of byDate) {
+        if (dailyPoolReadyForClosure(dateMatches, nowMs)) {
+          await client.query("BEGIN");
+          try {
+            await processClosure(client, {
+              compId,
+              type: "daily",
+              dateBR,
+              matches: dateMatches,
+              metadataExtra: {
+                prizeGate: "daily",
+                lastKickoffMs: lastKickoffMs(dateMatches),
+                graceMinutesAfterLastKickoff: prizeDailyGraceAfterLastKickoffMinutes(),
+              },
+            });
+            await client.query("COMMIT");
+          } catch (error) {
+            await client.query("ROLLBACK");
+            throw error;
+          }
+        }
+      }
+
+      if (generalPoolReadyForClosure(matches, nowMs)) {
         await client.query("BEGIN");
         try {
           await processClosure(client, {
             compId,
-            type: "daily",
-            dateBR,
-            matches: dateMatches,
+            type: "general",
+            dateBR: null,
+            matches,
             metadataExtra: {
-              prizeGate: "daily",
-              lastKickoffMs: lastKickoffMs(dateMatches),
-              graceMinutesAfterLastKickoff: prizeDailyGraceAfterLastKickoffMinutes(),
+              prizeGate: "general",
+              lastKickoffMs: lastKickoffMs(matches),
+              graceHoursAfterLastKickoff: prizeGeneralGraceHoursAfterLastKickoff(),
             },
           });
           await client.query("COMMIT");
@@ -493,24 +540,36 @@ export async function processPrizeClosuresAfterMatchSync(): Promise<void> {
       }
     }
 
-    if (generalPoolReadyForClosure(matches, nowMs)) {
-      await client.query("BEGIN");
-      try {
-        await processClosure(client, {
-          compId,
-          type: "general",
-          dateBR: null,
-          matches,
-          metadataExtra: {
-            prizeGate: "general",
-            lastKickoffMs: lastKickoffMs(matches),
-            graceHoursAfterLastKickoff: prizeGeneralGraceHoursAfterLastKickoff(),
-          },
-        });
-        await client.query("COMMIT");
-      } catch (error) {
-        await client.query("ROLLBACK");
-        throw error;
+    for (const extraComp of parseExtraBolaoChampionshipIds()) {
+      const matchesExtra = await listMatches(client, extraComp);
+      if (matchesExtra.length === 0) continue;
+      const byDateExtra = new Map<string, MatchRow[]>();
+      for (const match of matchesExtra) {
+        if (!match.date_br) continue;
+        const arr = byDateExtra.get(match.date_br) ?? [];
+        arr.push(match);
+        byDateExtra.set(match.date_br, arr);
+      }
+      for (const [dateBR, dateMatches] of byDateExtra) {
+        if (!dailyPoolReadyForClosure(dateMatches, nowMs)) continue;
+        await client.query("BEGIN");
+        try {
+          await processClosure(client, {
+            compId: extraComp,
+            type: "extra",
+            dateBR,
+            matches: dateMatches,
+            metadataExtra: {
+              prizeGate: "extra",
+              lastKickoffMs: lastKickoffMs(dateMatches),
+              graceMinutesAfterLastKickoff: prizeDailyGraceAfterLastKickoffMinutes(),
+            },
+          });
+          await client.query("COMMIT");
+        } catch (error) {
+          await client.query("ROLLBACK");
+          throw error;
+        }
       }
     }
   } catch (error) {

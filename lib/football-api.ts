@@ -18,6 +18,8 @@ type MatchMap = Map<number, {
   awayLogo: string | null;
   dateBR: string;
   hour: string;
+  /** `matches_cache.competition_id` — necessário para bolões extra. */
+  competitionId: number;
 }>;
 
 /** Mapa em memoria: evita reler o DB e reavaliar sync a cada request (default 3 min). */
@@ -78,6 +80,8 @@ export type ProviderMatch = {
   awayLogo: string | null;
   dateBR: string;
   hourBR: string;
+  /** Preenchido no sync multi-campeonato. */
+  competitionId?: number;
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -197,15 +201,29 @@ function mapFromCacheRows(rows: Awaited<ReturnType<typeof readMatchesCache>>): M
       awayLogo: r.away_logo ?? null,
       dateBR: r.date_br || "",
       hour: r.hour_br || "",
+      competitionId: Number(r.competition_id) || Number(competitionId()),
     });
   }
   return out;
 }
 
-export async function fetchProviderMatches(): Promise<ProviderMatch[]> {
+/** Partidas de todos os campeonatos sincronizados (principal + `BOLOES_EXTRA_CHAMPIONSHIP_IDS`). */
+export async function fetchProviderMatchesForAllSyncedCompetitions(): Promise<ProviderMatch[]> {
+  const { getAllSyncedCompetitionIds } = await import("@/lib/boloes-extra-config");
+  const merged: ProviderMatch[] = [];
+  for (const id of getAllSyncedCompetitionIds()) {
+    const chunk = await fetchProviderMatches(String(id));
+    for (const m of chunk) {
+      merged.push({ ...m, competitionId: id });
+    }
+  }
+  return merged;
+}
+
+export async function fetchProviderMatches(overrideCompetitionId?: string): Promise<ProviderMatch[]> {
   const apiToken = token();
   if (!apiToken) throw new Error("FOOTBALL_API_TOKEN nao configurado");
-  const compId = competitionId();
+  const compId = (overrideCompetitionId ?? competitionId()).trim();
   debugLog("fetchProviderMatches:start", { competitionId: compId });
 
   const url = `https://api.api-futebol.com.br/v1/campeonatos/${compId}/partidas`;
