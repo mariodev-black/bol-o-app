@@ -32,6 +32,7 @@ import { calcPredictionPoints } from "./lib/predictionsStorage";
 import { inferBolaoTypeFromTicketPrefix } from "@/lib/ticket-kind";
 import {
   matchDateMapFromJogos,
+  matchDateMapFromJogosWithCompetition,
   resolveDiarioPlayableDate,
 } from "@/lib/diario-playable-date";
 import {
@@ -2845,6 +2846,8 @@ function PalpitesPageContent({
   const resultMode = searchParams.get("mode") === "resultado";
   const ticketId = searchParams.get("ticket");
   const hasBoloesFlow = Boolean(ticketId);
+  const initialDataRef = useRef(initialData);
+  initialDataRef.current = initialData;
   const [bolaoType, setBolaoType] = useState<"principal" | "diario" | "extra">(
     initialData?.bolaoType ?? "principal",
   );
@@ -2880,14 +2883,24 @@ function PalpitesPageContent({
   const [loadingResumo, setLoadingResumo] = useState(false);
   const [selectedRodada, setSelectedRodada] = useState<number | null>(() => {
     if (!initialData?.jogos?.length) return null;
+    const bt = initialData.bolaoType;
     const lockIds =
-      initialData.bolaoType === "diario"
+      bt === "diario" || bt === "extra"
         ? Object.keys(initialData.predictionsMap ?? {})
             .map(Number)
             .filter(Number.isFinite)
         : [];
-    const todayStr = resolveDiarioPlayableDate(matchDateMapFromJogos(initialData.jogos), {
+    const extraId =
+      bt === "extra" && initialData.extraChampionshipId != null
+        ? initialData.extraChampionshipId
+        : null;
+    const map =
+      extraId != null
+        ? matchDateMapFromJogosWithCompetition(initialData.jogos, extraId)
+        : matchDateMapFromJogos(initialData.jogos);
+    const todayStr = resolveDiarioPlayableDate(map, {
       lockToMatchIds: lockIds,
+      ...(extraId != null ? { competitionId: extraId } : {}),
     });
     const rodadas = Array.from(
       new Set(initialData.jogos.map((j: Jogo) => j.rodada)),
@@ -2933,14 +2946,24 @@ function PalpitesPageContent({
     let intervalId: ReturnType<typeof setInterval> | undefined;
 
     function applyRodadaInicial(parsed: Jogo[]) {
+      const bt = bolaoTypeRef.current;
       const lockIds =
-        bolaoTypeRef.current === "diario"
+        bt === "diario" || bt === "extra"
           ? Object.keys(predictionsMapRef.current)
               .map(Number)
               .filter(Number.isFinite)
           : [];
-      const todayDateStr = resolveDiarioPlayableDate(matchDateMapFromJogos(parsed), {
+      const extraId =
+        bt === "extra" && initialDataRef.current?.extraChampionshipId != null
+          ? initialDataRef.current.extraChampionshipId
+          : null;
+      const map =
+        bt === "extra" && extraId != null
+          ? matchDateMapFromJogosWithCompetition(parsed, extraId)
+          : matchDateMapFromJogos(parsed);
+      const todayDateStr = resolveDiarioPlayableDate(map, {
         lockToMatchIds: lockIds,
+        ...(bt === "extra" && extraId != null ? { competitionId: extraId } : {}),
       });
       const rodadasDispAll = Array.from(
         new Set(parsed.map((j) => j.rodada)),
@@ -2957,9 +2980,11 @@ function PalpitesPageContent({
 
     async function tick() {
       try {
-        const comp = initialData?.bolaoType === "extra" && initialData?.extraChampionshipId != null
-          ? `?competitionId=${encodeURIComponent(String(initialData.extraChampionshipId))}`
-          : "";
+        const id = initialDataRef.current?.extraChampionshipId;
+        const comp =
+          bolaoTypeRef.current === "extra" && id != null
+            ? `?competitionId=${encodeURIComponent(String(id))}`
+            : "";
         const r = await fetch(`/api/partidas${comp}`, { cache: "no-store" });
         const data = await r.json().catch(() => null);
         if (cancelled) return;
@@ -3003,6 +3028,11 @@ function PalpitesPageContent({
   }, [resultMode]);
 
   useEffect(() => {
+    if (!initialData?.ticketId || initialData.ticketId !== ticketId) return;
+    setBolaoType(initialData.bolaoType);
+  }, [initialData?.ticketId, initialData?.bolaoType, ticketId]);
+
+  useEffect(() => {
     if (initialData && initialData.ticketId === ticketId) return;
     if (!ticketId) {
       setBolaoType("principal");
@@ -3018,7 +3048,12 @@ function PalpitesPageContent({
           { credentials: "include", cache: "no-store" },
         );
         const d = (await r.json()) as { bolaoType?: string };
-        const b = d.bolaoType === "diario" ? "diario" : "principal";
+        const b =
+          d.bolaoType === "diario"
+            ? "diario"
+            : d.bolaoType === "extra"
+              ? "extra"
+              : "principal";
         if (!cancelled) setBolaoType(b);
       } catch {
         if (!cancelled) setBolaoType(prefix ?? "principal");
@@ -3074,10 +3109,19 @@ function PalpitesPageContent({
   }, [ticketId, initialData]);
 
   useEffect(() => {
-    if (bolaoType !== "diario" || jogos.length === 0) return;
+    if ((bolaoType !== "diario" && bolaoType !== "extra") || jogos.length === 0) return;
     const lockIds = Object.keys(predictionsMap).map(Number).filter(Number.isFinite);
-    const playable = resolveDiarioPlayableDate(matchDateMapFromJogos(jogos), {
+    const extraId =
+      bolaoType === "extra" && initialData?.extraChampionshipId != null
+        ? initialData.extraChampionshipId
+        : null;
+    const map =
+      bolaoType === "extra" && extraId != null
+        ? matchDateMapFromJogosWithCompetition(jogos, extraId)
+        : matchDateMapFromJogos(jogos);
+    const playable = resolveDiarioPlayableDate(map, {
       lockToMatchIds: lockIds,
+      ...(bolaoType === "extra" && extraId != null ? { competitionId: extraId } : {}),
     });
     const rodadasDispAll = Array.from(new Set(jogos.map((j) => j.rodada))).sort((a, b) => a - b);
     const rodadaContem = rodadasDispAll.find((r) =>
@@ -3085,7 +3129,7 @@ function PalpitesPageContent({
     );
     if (rodadaContem != null)
       setSelectedRodada((prev) => (prev === rodadaContem ? prev : rodadaContem));
-  }, [bolaoType, jogos, predictionsMap]);
+  }, [bolaoType, jogos, predictionsMap, initialData?.extraChampionshipId]);
 
   const jogosPlacarSignature = useMemo(
     () =>
@@ -3203,25 +3247,38 @@ function PalpitesPageContent({
   };
 
   const today = todayBR();
-  const lockIdsForDiario =
-    bolaoType === "diario"
-      ? Object.keys(predictionsMap).map(Number).filter(Number.isFinite)
-      : [];
-  const diarioPlayableDate = resolveDiarioPlayableDate(matchDateMapFromJogos(jogos), {
-    lockToMatchIds: lockIdsForDiario,
+  const dailyLike = bolaoType === "diario" || bolaoType === "extra";
+  const extraPlayCompId =
+    bolaoType === "extra" && initialData?.extraChampionshipId != null
+      ? initialData.extraChampionshipId
+      : null;
+
+  const lockIdsForDailyLike = dailyLike
+    ? Object.keys(predictionsMap).map(Number).filter(Number.isFinite)
+    : [];
+
+  const matchMapForPlayable =
+    extraPlayCompId != null
+      ? matchDateMapFromJogosWithCompetition(jogos, extraPlayCompId)
+      : matchDateMapFromJogos(jogos);
+
+  const diarioPlayableDate = resolveDiarioPlayableDate(matchMapForPlayable, {
+    lockToMatchIds: lockIdsForDailyLike,
+    ...(extraPlayCompId != null ? { competitionId: extraPlayCompId } : {}),
   });
   const todayMs = brDateToUtcMs(today);
-  const jogosBase = jogos.filter((j) => {
+  const jogosOnPlayableDate = jogos.filter((j) => {
+    if (bolaoType === "principal") return true;
+    if (!dailyLike) return true;
     const ms = brDateToUtcMs(j.dataBR);
     if (ms == null || todayMs == null) return true;
-    if (bolaoType === "diario") return j.dataBR === diarioPlayableDate;
-    return true;
+    return j.dataBR === diarioPlayableDate;
   });
   const nowMs = Date.now();
   const diarioLockedMode =
-    bolaoType === "diario" &&
-    jogosBase.length > 0 &&
-    jogosBase.every(
+    dailyLike &&
+    jogosOnPlayableDate.length > 0 &&
+    jogosOnPlayableDate.every(
       (j) => j.status === "encerrado" || isLockedByKickoff(j.kickoffAt, nowMs),
     );
   const readOnlyMode = resultMode || diarioLockedMode;
@@ -3231,8 +3288,14 @@ function PalpitesPageContent({
     : tab === "ranking";
   const showResumo = readOnlyMode ? resultTab === "resumo" : tab === "resumo";
 
+  const jogosBase = jogosOnPlayableDate.filter((j) => {
+    if (!dailyLike) return true;
+    if (readOnlyMode) return true;
+    return j.status !== "encerrado";
+  });
+
   const jogosDisplayBase =
-    bolaoType === "diario" && diarioLockedMode
+    dailyLike && diarioLockedMode
       ? jogosBase.filter((j) => Boolean(predictionsMap[j.id]))
       : jogosBase;
   const shouldFilterByGroup = !hasBoloesFlow && grupos.length > 0;
@@ -3582,8 +3645,8 @@ function PalpitesPageContent({
                       strokeWidth={1.5}
                     />
                     <p className="text-white/30 text-sm">
-                      {bolaoType === "diario" && diarioLockedMode
-                        ? "Nenhum palpite encontrado para este ticket diário"
+                      {dailyLike && diarioLockedMode
+                        ? "Nenhum palpite encontrado para este ticket"
                         : hasBoloesFlow
                           ? "Nenhum jogo disponível hoje"
                           : "Nenhum jogo neste grupo"}
@@ -3777,8 +3840,8 @@ function PalpitesPageContent({
                   strokeWidth={1.5}
                 />
                 <p className="text-white/30 text-sm">
-                  {bolaoType === "diario" && diarioLockedMode
-                    ? "Nenhum palpite encontrado para este ticket diário"
+                  {dailyLike && diarioLockedMode
+                    ? "Nenhum palpite encontrado para este ticket"
                     : hasBoloesFlow
                       ? "Nenhum jogo disponível hoje"
                       : "Nenhum jogo neste grupo"}

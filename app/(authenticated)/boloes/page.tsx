@@ -1,4 +1,5 @@
 
+import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 import { listPaidTicketsForUser, type PaidTicketRow } from "@/lib/payments/user-tickets";
@@ -6,6 +7,7 @@ import { getExtraBolaoUnitCents, getTicketPriceCents } from "@/lib/payments/tick
 import { calcPredictionPoints, listPredictions, listAllPredictions, type PredictionRow } from "@/lib/predictions";
 import { fetchMatchesMap } from "@/lib/football-api";
 import { BoloesClient, type BoloesScreenData } from "@/app/(authenticated)/boloes/BoloesClient";
+import { BoloesPurchaseSync } from "@/app/(authenticated)/boloes/_components/BoloesPurchaseSync";
 import { getFootballMainCompetitionId, parseExtraBolaoChampionshipIds } from "@/lib/boloes-extra-config";
 import { warmCompetitionMetadataCache } from "@/lib/competition-metadata-cache";
 import { resolveDiarioPlayableDate } from "@/lib/diario-playable-date";
@@ -479,5 +481,12 @@ export default async function BoloesPage() {
   debugBoloes("request", { hasToken: Boolean(token), userId });
   const data = userId ? await loadBoloesData(userId) : null;
   if (!userId) debugBoloes("no authenticated user", {});
-  return <BoloesClient data={data} />;
+  return (
+    <>
+      <Suspense fallback={null}>
+        <BoloesPurchaseSync />
+      </Suspense>
+      <BoloesClient data={data} />
+    </>
+  );
 }

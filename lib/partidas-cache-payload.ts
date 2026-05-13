@@ -1,4 +1,5 @@
 import { readMatchesCache, type CachedMatchRow } from "@/lib/matches-cache";
+import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
 
 type NestedRounds = Record<string, Array<Record<string, unknown>>>;
 type PhaseMap = Record<string, NestedRounds | Record<string, NestedRounds>>;
@@ -86,8 +87,16 @@ export function buildPartidasFasesFromRows(rows: CachedMatchRow[]): PhaseMap {
   return fases;
 }
 
-/** Mesmo formato do GET /api/partidas, montado só a partir do Postgres (sem API futebol). */
-export async function getPartidasFasesFromDb(): Promise<PhaseMap> {
+/**
+ * Mesmo formato do GET /api/partidas, montado só a partir do Postgres (sem API futebol).
+ * Por omissão usa o campeonato principal (alinhado ao default de `/api/partidas`).
+ */
+export async function getPartidasFasesFromDb(competitionId?: number): Promise<PhaseMap> {
   const rows = await readMatchesCache();
-  return buildPartidasFasesFromRows(rows);
+  const comp =
+    competitionId != null && Number.isFinite(Number(competitionId))
+      ? Number(competitionId)
+      : getFootballMainCompetitionId();
+  const filtered = rows.filter((r) => Number(r.competition_id) === comp);
+  return buildPartidasFasesFromRows(filtered);
 }

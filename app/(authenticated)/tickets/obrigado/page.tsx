@@ -13,14 +13,16 @@ function TicketObrigadoContent() {
   const params = useSearchParams();
   const principal = Number.parseInt(params.get("principal") ?? "0", 10) || 0;
   const diario = Number.parseInt(params.get("diario") ?? "0", 10) || 0;
-  const total = principal + diario;
+  const extra = Number.parseInt(params.get("extra") ?? "0", 10) || 0;
+  const total = principal + diario + extra;
 
   const resumo = useMemo(() => {
     const parts: string[] = [];
     if (principal > 0) parts.push(`${principal} geral`);
     if (diario > 0) parts.push(`${diario} diário`);
+    if (extra > 0) parts.push(`${extra} bolão extra`);
     return parts.join(" + ");
-  }, [principal, diario]);
+  }, [principal, diario, extra]);
 
   return (
     <div className="min-h-screen px-4 sm:px-6 py-8">
@@ -59,7 +61,7 @@ function TicketObrigadoContent() {
 
           <div className="mt-5 grid gap-2">
             <Link
-              href="/boloes"
+              href="/boloes?fromPurchase=1"
               className="w-full inline-flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl text-[13px] font-bold"
               style={{ background: `linear-gradient(180deg, ${GOLD_LIGHT} 0%, ${GOLD} 100%)`, color: "#0E141B" }}
             >

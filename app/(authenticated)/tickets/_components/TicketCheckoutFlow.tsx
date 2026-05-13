@@ -188,6 +188,8 @@ export function TicketCheckoutFlow({
           principal: String(purchasePrincipalRef.current),
           diario: String(purchaseDiarioRef.current),
         });
+        const extraTotal = Object.values(purchaseExtraRef.current).reduce((s, n) => s + n, 0);
+        if (extraTotal > 0) q.set("extra", String(extraTotal));
         // Pequeno delay para o usuário ver o feedback "Pagamento confirmado!"
         window.setTimeout(() => {
           router.replace(`/tickets/obrigado?${q.toString()}`);

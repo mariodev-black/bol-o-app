@@ -2,9 +2,11 @@ import { cookies, headers } from "next/headers";
 import PalpitesClient, { type PalpitesInitialData } from "./PalpitesClient";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 import { inferBolaoTypeFromTicketId } from "@/lib/ticket-kind-server";
+import { inferBolaoTypeFromTicketPrefix } from "@/lib/ticket-kind-shared";
 import { calcPredictionPoints, listPredictions } from "@/lib/predictions";
 import { fetchMatchesMap } from "@/lib/football-api";
 import { getPartidasFasesFromDb } from "@/lib/partidas-cache-payload";
+import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
 import { getPool } from "@/lib/db";
 import { parseKickoffFromPartidaPayload, pickScoreFromPartidaPayload } from "@/lib/partida-placar";
 
@@ -219,10 +221,38 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
 
   const tabelaRes = await fetchJson(baseUrl, "/api/tabela", cookieHeader);
 
+  const token = c.get(sessionCookieName())?.value;
+  const userId = token ? await verifySessionToken(token).catch(() => null) : null;
+
+  let bolaoType: "principal" | "diario" | "extra" = "principal";
+  let extraChampionshipId: number | null = null;
+  const tid = ticketId?.trim() ?? "";
+  if (tid) {
+    const fromPrefix = inferBolaoTypeFromTicketPrefix(tid);
+    if (fromPrefix) bolaoType = fromPrefix;
+    if (userId) {
+      const inferred = await inferBolaoTypeFromTicketId(tid);
+      if (inferred) bolaoType = inferred;
+      if (inferred === "extra") {
+        const pool = getPool();
+        const { rows: exRows } = await pool.query<{ cid: number | null }>(
+          `SELECT extra_championship_id AS cid FROM tickets WHERE id::text = $1 AND user_id = $2 AND status = 'paid' LIMIT 1`,
+          [tid, userId],
+        );
+        const cid = exRows[0]?.cid;
+        extraChampionshipId = cid != null && Number.isFinite(Number(cid)) ? Number(cid) : null;
+      }
+    }
+  }
+
   let partidasOk = true;
   let fases: Record<string, any> = {};
   try {
-    fases = (await getPartidasFasesFromDb()) as Record<string, any>;
+    const compId =
+      bolaoType === "extra" && extraChampionshipId != null
+        ? extraChampionshipId
+        : getFootballMainCompetitionId();
+    fases = (await getPartidasFasesFromDb(compId)) as Record<string, any>;
   } catch {
     partidasOk = false;
   }
@@ -231,11 +261,6 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
   const jogosFiltrados = jogos;
   const grupos = parsedPartidas.grupos;
 
-  const token = c.get(sessionCookieName())?.value;
-  const userId = token ? await verifySessionToken(token).catch(() => null) : null;
-
-  let bolaoType: "principal" | "diario" | "extra" = "principal";
-  let extraChampionshipId: number | null = null;
   let predictionsMap: Record<number, { scoreCasa: number; scoreVisitante: number }> = {};
   let rankingRows: PalpitesInitialData["rankingRows"] = [];
   let resumoStats: PalpitesInitialData["resumoStats"] = { palpites: 0, acertos: 0, pontos: 0, exatos: 0 };
@@ -244,20 +269,8 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
   if (userId) {
     const matches = await fetchMatchesMap();
 
-    if (ticketId) {
-      const inferred = await inferBolaoTypeFromTicketId(ticketId);
-      if (inferred) bolaoType = inferred;
-      if (inferred === "extra" && userId) {
-        const pool = getPool();
-        const { rows: exRows } = await pool.query<{ cid: number | null }>(
-          `SELECT extra_championship_id AS cid FROM tickets WHERE id::text = $1 AND user_id = $2 AND status = 'paid' LIMIT 1`,
-          [ticketId, userId]
-        );
-        const cid = exRows[0]?.cid;
-        extraChampionshipId = cid != null && Number.isFinite(Number(cid)) ? Number(cid) : null;
-      }
-
-      const preds = await listPredictions({ userId, ticketId, bolaoType: inferred ?? undefined });
+    if (tid) {
+      const preds = await listPredictions({ userId, ticketId: tid, bolaoType });
       predictionsMap = preds.reduce((acc, p) => {
         const matchId = Number(p.match_id);
         if (!Number.isFinite(matchId)) return acc;

@@ -4,8 +4,6 @@
  * correspondentes — não “pula” para o próximo dia só porque o mapa não listou hoje.
  */
 
-import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
-
 export function brToday(): string {
   return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo" }).format(new Date());
 }
@@ -39,10 +37,23 @@ export function matchDateMapFromJogos(
 
 type PlayableMatchMeta = { dateBR?: string | null; competitionId?: number | null };
 
+/** Mapa com `competitionId` fixo em cada partida (bolão extra no mesmo calendário). */
+export function matchDateMapFromJogosWithCompetition(
+  jogos: Iterable<{ id: number; dataBR?: string | null }>,
+  competitionId: number,
+): Map<number, PlayableMatchMeta> {
+  const m = new Map<number, PlayableMatchMeta>();
+  for (const j of jogos) {
+    const d = j.dataBR?.trim();
+    if (d) m.set(j.id, { dateBR: d, competitionId });
+  }
+  return m;
+}
+
 /**
  * @param matchMap match_id -> metadados com dateBR (mapa da API ou derivado dos jogos)
  * @param opts.lockToMatchIds se não vazio, a data jogável é a das partidas desses ids (menor data se houver mais de uma)
- * @param opts.competitionId se definido, só considera partidas desse campeonato (bolão extra). Se omitido, usa o campeonato principal (`FOOTBALL_COMPETITION_ID`) ao escanear datas (bolão do dia na Copa).
+ * @param opts.competitionId se definido, só considera linhas do mapa com esse `competitionId` (bolão extra). Se omitido, considera todas as datas do mapa (bolão do dia no calendário já filtrado).
  */
 export function resolveDiarioPlayableDate(
   matchMap: Map<number, PlayableMatchMeta>,
@@ -60,15 +71,14 @@ export function resolveDiarioPlayableDate(
     return brToday();
   }
 
-  const scopeComp = opts?.competitionId ?? getFootballMainCompetitionId();
-  const today = brToday();
-  const todayMs = utcMsForBrDate(today);
   const dates = new Set<string>();
   for (const row of matchMap.values()) {
-    if (Number(row.competitionId) !== scopeComp) continue;
+    if (opts?.competitionId != null && Number(row.competitionId) !== opts.competitionId) continue;
     const d = row.dateBR?.trim();
     if (d) dates.add(d);
   }
+  const today = brToday();
+  const todayMs = utcMsForBrDate(today);
   if (dates.has(today)) return today;
   const sortedFuture = [...dates]
     .map((d) => ({ d, ms: utcMsForBrDate(d) }))
