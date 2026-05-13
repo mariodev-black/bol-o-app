@@ -2,14 +2,38 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { ChevronDown, ChevronUp, BarChart2, Trophy, AlignJustify, Target, CircleCheck, Star, Bell, Coins, AlertTriangle, Disc, Pencil, Loader2, ChevronLeft, ChevronRight, Check, Sparkles } from "lucide-react";
-import { TrophyGold, TrophySilver, TrophyBronze } from "@/app/components/RankingTrophies";
-import bgPalpitesDesk from "@/app/assets/bg-palpites-desktop.png";
 import {
-  calcPredictionPoints,
-} from "./lib/predictionsStorage";
+  ChevronDown,
+  ChevronUp,
+  BarChart2,
+  Trophy,
+  AlignJustify,
+  Target,
+  CircleCheck,
+  Star,
+  Bell,
+  Coins,
+  AlertTriangle,
+  Disc,
+  Pencil,
+  Loader2,
+  ChevronLeft,
+  ChevronRight,
+  Check,
+  Sparkles,
+} from "lucide-react";
+import {
+  TrophyGold,
+  TrophySilver,
+  TrophyBronze,
+} from "@/app/components/RankingTrophies";
+import bgPalpitesDesk from "@/app/assets/bg-palpites-desktop.png";
+import { calcPredictionPoints } from "./lib/predictionsStorage";
 import { inferBolaoTypeFromTicketPrefix } from "@/lib/ticket-kind";
-import { parseKickoffFromPartidaPayload, pickScoreFromPartidaPayload } from "@/lib/partida-placar";
+import {
+  parseKickoffFromPartidaPayload,
+  pickScoreFromPartidaPayload,
+} from "@/lib/partida-placar";
 
 // ── Tipos ────────────────────────────────────────────────────
 type TabView = "jogos" | "tabela" | "ranking" | "resumo";
@@ -19,7 +43,12 @@ type StatusJogo = "aberto" | "encerrado";
 interface ClassificacaoTime {
   posicao: number;
   pontos: number;
-  time: { time_id: number; nome_popular: string; sigla: string; escudo: string };
+  time: {
+    time_id: number;
+    nome_popular: string;
+    sigla: string;
+    escudo: string;
+  };
   jogos: number;
   vitorias: number;
   empates: number;
@@ -53,14 +82,32 @@ interface Jogo {
 }
 
 // ── Helpers ──────────────────────────────────────────────────
-const MESES = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
+const MESES = [
+  "JAN",
+  "FEV",
+  "MAR",
+  "ABR",
+  "MAI",
+  "JUN",
+  "JUL",
+  "AGO",
+  "SET",
+  "OUT",
+  "NOV",
+  "DEZ",
+];
 function rodadaLabel(idx: number): string {
   return `${idx + 1}ª Rodada`;
 }
 
 function formatData(dataStr?: string | null, isoStr?: string | null): string {
   const normalized = String(dataStr ?? "").trim();
-  if (normalized && normalized !== "undefined" && normalized !== "null" && normalized.includes("/")) {
+  if (
+    normalized &&
+    normalized !== "undefined" &&
+    normalized !== "null" &&
+    normalized.includes("/")
+  ) {
     const [day, month] = normalized.split("/");
     const d = Number.parseInt(day, 10);
     const m = Number.parseInt(month, 10);
@@ -88,7 +135,9 @@ function safeHourLabel(value: unknown): string {
 }
 
 function todayBR(): string {
-  return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo" }).format(new Date());
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+  }).format(new Date());
 }
 
 function brDateToUtcMs(dateBR: string): number | null {
@@ -97,11 +146,19 @@ function brDateToUtcMs(dateBR: string): number | null {
   const day = Number(d);
   const month = Number(m);
   const year = Number(y);
-  if (!Number.isFinite(day) || !Number.isFinite(month) || !Number.isFinite(year)) return null;
+  if (
+    !Number.isFinite(day) ||
+    !Number.isFinite(month) ||
+    !Number.isFinite(year)
+  )
+    return null;
   return Date.UTC(year, month - 1, day);
 }
 
-function isLockedByKickoff(kickoffAt: string | null | undefined, nowMs: number): boolean {
+function isLockedByKickoff(
+  kickoffAt: string | null | undefined,
+  nowMs: number,
+): boolean {
   if (!kickoffAt) return false;
   const kickoffMs = new Date(kickoffAt).getTime();
   if (!Number.isFinite(kickoffMs)) return false;
@@ -132,20 +189,24 @@ function parseLiveTempoFromPartida(p: any): number | null {
   if (v === 2 || v === "2") return 2;
   const s = String(v ?? "").toUpperCase();
   if (s.includes("PRIMEIRO") && s.includes("TEMPO")) return 1;
-  if (s.includes("SEGUNDO") && s.includes("TEMPO") && !s.includes("PRIMEIRO")) return 2;
+  if (s.includes("SEGUNDO") && s.includes("TEMPO") && !s.includes("PRIMEIRO"))
+    return 2;
   return null;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parseLiveMinutoFromPartida(p: any): number | null {
   const tryNum = (x: unknown): number | null => {
-    if (typeof x === "number" && Number.isFinite(x)) return Math.max(0, Math.min(125, Math.trunc(x)));
+    if (typeof x === "number" && Number.isFinite(x))
+      return Math.max(0, Math.min(125, Math.trunc(x)));
     if (typeof x === "string") {
       const t = x.trim();
       if (!t) return null;
-      if (/^\d{1,3}$/.test(t)) return Math.max(0, Math.min(125, parseInt(t, 10)));
+      if (/^\d{1,3}$/.test(t))
+        return Math.max(0, Math.min(125, parseInt(t, 10)));
       const head = t.split(":")[0];
-      if (head && /^\d{1,3}$/.test(head)) return Math.max(0, Math.min(125, parseInt(head, 10)));
+      if (head && /^\d{1,3}$/.test(head))
+        return Math.max(0, Math.min(125, parseInt(head, 10)));
     }
     return null;
   };
@@ -188,7 +249,10 @@ function resolveDiarioPlayableDateFromJogos(jogos: Jogo[]): string {
   if (dates.includes(today)) return today;
   const future = dates
     .map((d) => ({ d, ms: brDateToUtcMs(d) }))
-    .filter((x): x is { d: string; ms: number } => x.ms != null && todayMs != null && x.ms >= todayMs)
+    .filter(
+      (x): x is { d: string; ms: number } =>
+        x.ms != null && todayMs != null && x.ms >= todayMs,
+    )
     .sort((a, b) => a.ms - b.ms);
   return future[0]?.d ?? today;
 }
@@ -213,8 +277,12 @@ function mapStatus(s: string): StatusJogo {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parsePartidas(faseData: Record<string, any>): Jogo[] {
   const jogos: Jogo[] = [];
-  const grupoKeys = Object.keys(faseData).filter((k) => typeof faseData[k] === "object" && !Array.isArray(faseData[k]));
-  const rodadaDiretaKeys = Object.keys(faseData).filter((k) => Array.isArray(faseData[k]));
+  const grupoKeys = Object.keys(faseData).filter(
+    (k) => typeof faseData[k] === "object" && !Array.isArray(faseData[k]),
+  );
+  const rodadaDiretaKeys = Object.keys(faseData).filter((k) =>
+    Array.isArray(faseData[k]),
+  );
 
   if (rodadaDiretaKeys.length > 0) {
     rodadaDiretaKeys.forEach((rodadaKey, rodadaIndex) => {
@@ -248,7 +316,9 @@ function parsePartidas(faseData: Record<string, any>): Jogo[] {
   for (const grupoKey of grupoKeys) {
     const grupoLetra = grupoKey.replace("grupo-", "").toUpperCase();
     const grupoData = faseData[grupoKey];
-    const rodadaKeys = Object.keys(grupoData ?? {}).filter((k) => Array.isArray(grupoData[k]));
+    const rodadaKeys = Object.keys(grupoData ?? {}).filter((k) =>
+      Array.isArray(grupoData[k]),
+    );
 
     rodadaKeys.forEach((rodadaKey, rodadaIndex) => {
       const partidas = grupoData[rodadaKey] ?? [];
@@ -282,9 +352,14 @@ function parsePartidas(faseData: Record<string, any>): Jogo[] {
   return jogos;
 }
 
-function parseAllPartidas(fases: Record<string, any> | undefined): { jogos: Jogo[]; grupos: string[] } {
+function parseAllPartidas(fases: Record<string, any> | undefined): {
+  jogos: Jogo[];
+  grupos: string[];
+} {
   if (!fases || typeof fases !== "object") return { jogos: [], grupos: [] };
-  const phaseValues = Object.values(fases).filter((value) => value && typeof value === "object") as Record<string, any>[];
+  const phaseValues = Object.values(fases).filter(
+    (value) => value && typeof value === "object",
+  ) as Record<string, any>[];
   let rodadaOffset = 0;
   const grupos = new Set<string>();
   const jogos = phaseValues.flatMap((faseData) => {
@@ -312,17 +387,32 @@ function pickTabelaGrupos(data: any): TabelaGrupos | null {
       value &&
       typeof value === "object" &&
       !Array.isArray(value) &&
-      Object.keys(value as Record<string, unknown>).some((key) => key.startsWith("grupo-"))
+      Object.keys(value as Record<string, unknown>).some((key) =>
+        key.startsWith("grupo-"),
+      ),
   );
   return (firstGrouped as TabelaGrupos) ?? null;
 }
 
 // ── Escudo do time ────────────────────────────────────────────
-function Escudo({ url, alt, size = "md" }: { url: string; alt: string; size?: "sm" | "md" | "lg" }) {
-  const imgSize = size === "sm" ? "w-12 h-12" : size === "lg" ? "w-16 h-16" : "w-14 h-14";
+function Escudo({
+  url,
+  alt,
+  size = "md",
+}: {
+  url: string;
+  alt: string;
+  size?: "sm" | "md" | "lg";
+}) {
+  const imgSize =
+    size === "sm" ? "w-12 h-12" : size === "lg" ? "w-16 h-16" : "w-14 h-14";
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={url} alt={alt} className={`${imgSize} object-contain shrink-0 drop-shadow-sm`} />
+    <img
+      src={url}
+      alt={alt}
+      className={`${imgSize} object-contain shrink-0 drop-shadow-sm`}
+    />
   );
 }
 
@@ -383,12 +473,13 @@ function copyPontuacaoPartida(
   predCasa: number,
   predVis: number,
   realCasa: number,
-  realVis: number
+  realVis: number,
 ): { title: string; subtitle?: string; tone: "win" | "partial" | "miss" } {
   if (review.exact) {
     return {
       title: `Placar exato: +${review.points} pontos`,
-      subtitle: "Você acertou quantos gols o time da casa fez e quantos o visitante fez.",
+      subtitle:
+        "Você acertou quantos gols o time da casa fez e quantos o visitante fez.",
       tone: "win",
     };
   }
@@ -436,7 +527,11 @@ function JogoCard({
   ticketId: string | null;
   initialPrediction?: { scoreCasa: number; scoreVisitante: number } | null;
   predictionsLoading?: boolean;
-  onSavePrediction?: (payload: { matchId: number; scoreCasa: number; scoreVisitante: number }) => Promise<void>;
+  onSavePrediction?: (payload: {
+    matchId: number;
+    scoreCasa: number;
+    scoreVisitante: number;
+  }) => Promise<void>;
 }) {
   const [scoreCasa, setScoreCasa] = useState(0);
   const [scoreVisitante, setScoreVisitante] = useState(0);
@@ -454,7 +549,9 @@ function JogoCard({
     setPalpiteSalvo(true);
   }, [initialPrediction]);
 
-  const lockAtMs = jogo.kickoffAt ? new Date(jogo.kickoffAt).getTime() - 60 * 60 * 1000 : null;
+  const lockAtMs = jogo.kickoffAt
+    ? new Date(jogo.kickoffAt).getTime() - 60 * 60 * 1000
+    : null;
   const [nowMs, setNowMs] = useState(() => Date.now());
   useEffect(() => {
     const tick = () => setNowMs(Date.now());
@@ -514,15 +611,24 @@ function JogoCard({
     }
   }
 
-  const disabled = readOnly || !canEdit || palpiteSalvo || isSubmitting || predictionsLoading;
+  const disabled =
+    readOnly || !canEdit || palpiteSalvo || isSubmitting || predictionsLoading;
   const hasInitialPrediction = Boolean(initialPrediction);
 
-  const temPlacarOficial = jogo.resultCasa != null && jogo.resultVisitante != null;
-  const displayCasa = readOnly && temPlacarOficial ? jogo.resultCasa! : scoreCasa;
-  const displayVisitante = readOnly && temPlacarOficial ? jogo.resultVisitante! : scoreVisitante;
+  const temPlacarOficial =
+    jogo.resultCasa != null && jogo.resultVisitante != null;
+  const displayCasa =
+    readOnly && temPlacarOficial ? jogo.resultCasa! : scoreCasa;
+  const displayVisitante =
+    readOnly && temPlacarOficial ? jogo.resultVisitante! : scoreVisitante;
   const review =
     readOnly && temPlacarOficial && hasInitialPrediction
-      ? calcPredictionPoints(scoreCasa, scoreVisitante, jogo.resultCasa!, jogo.resultVisitante!)
+      ? calcPredictionPoints(
+          scoreCasa,
+          scoreVisitante,
+          jogo.resultCasa!,
+          jogo.resultVisitante!,
+        )
       : null;
 
   const koMs = kickoffMsFromJogo(jogo);
@@ -532,7 +638,12 @@ function JogoCard({
   /** Antes do apito: qualquer jogo na rodada (nao so o primeiro da lista). */
   const readOnlyPending = readOnly && beforeKickoff;
   const readOnlyMatchLive = readOnly && matchLive;
-  const readOnlyPlacarPendente = readOnly && !readOnlyPending && !readOnlyMatchLive && !temPlacarOficial && jogo.status === "encerrado";
+  const readOnlyPlacarPendente =
+    readOnly &&
+    !readOnlyPending &&
+    !readOnlyMatchLive &&
+    !temPlacarOficial &&
+    jogo.status === "encerrado";
   const resultadoResumo =
     readOnly &&
     temPlacarOficial &&
@@ -541,30 +652,90 @@ function JogoCard({
     !readOnlyPending &&
     !readOnlyMatchLive &&
     !readOnlyPlacarPendente
-      ? copyPontuacaoPartida(review, scoreCasa, scoreVisitante, jogo.resultCasa!, jogo.resultVisitante!)
+      ? copyPontuacaoPartida(
+          review,
+          scoreCasa,
+          scoreVisitante,
+          jogo.resultCasa!,
+          jogo.resultVisitante!,
+        )
       : null;
 
   // Status badge label/style
   const statusBadge = readOnly
     ? readOnlyPending
-      ? { label: "Aguardando jogo", color: "#E8C840", bg: "rgba(232,200,64,0.12)", border: "rgba(232,200,64,0.38)", dot: true }
+      ? {
+          label: "Aguardando jogo",
+          color: "#E8C840",
+          bg: "rgba(232,200,64,0.12)",
+          border: "rgba(232,200,64,0.38)",
+          dot: true,
+        }
       : readOnlyMatchLive
-        ? { label: "Em andamento", color: "#B1EB0B", bg: "rgba(177,235,11,0.10)", border: "rgba(177,235,11,0.30)", dot: true }
+        ? {
+            label: "Em andamento",
+            color: "#B1EB0B",
+            bg: "rgba(177,235,11,0.10)",
+            border: "rgba(177,235,11,0.30)",
+            dot: true,
+          }
         : readOnlyPlacarPendente
-          ? { label: "Placar pendente", color: "#E8C840", bg: "rgba(232,200,64,0.12)", border: "rgba(232,200,64,0.38)", dot: true }
-          : { label: "Resultado", color: "#B1EB0B", bg: "rgba(177,235,11,0.10)", border: "rgba(177,235,11,0.30)", dot: false }
+          ? {
+              label: "Placar pendente",
+              color: "#E8C840",
+              bg: "rgba(232,200,64,0.12)",
+              border: "rgba(232,200,64,0.38)",
+              dot: true,
+            }
+          : {
+              label: "Resultado",
+              color: "#B1EB0B",
+              bg: "rgba(177,235,11,0.10)",
+              border: "rgba(177,235,11,0.30)",
+              dot: false,
+            }
     : jogo.status === "encerrado"
-    ? { label: "Encerrado", color: "rgba(255,255,255,0.30)", bg: "transparent", border: "rgba(255,255,255,0.08)", dot: false }
-    : palpiteSalvo
-    ? { label: "Salvo", color: "#B1EB0B", bg: "rgba(177,235,11,0.10)", border: "rgba(177,235,11,0.34)", dot: true }
-    : isLockedByTime
-    ? { label: "Fechado", color: "rgba(255,255,255,0.40)", bg: "rgba(255,255,255,0.06)", border: "rgba(255,255,255,0.10)", dot: false }
-    : { label: formatTimeUntilLock(), color: "#B1EB0B", bg: "rgba(177,235,11,0.10)", border: "rgba(177,235,11,0.34)", dot: true };
+      ? {
+          label: "Encerrado",
+          color: "rgba(255,255,255,0.30)",
+          bg: "transparent",
+          border: "rgba(255,255,255,0.08)",
+          dot: false,
+        }
+      : palpiteSalvo
+        ? {
+            label: "Salvo",
+            color: "#B1EB0B",
+            bg: "rgba(177,235,11,0.10)",
+            border: "rgba(177,235,11,0.34)",
+            dot: true,
+          }
+        : isLockedByTime
+          ? {
+              label: "Fechado",
+              color: "rgba(255,255,255,0.40)",
+              bg: "rgba(255,255,255,0.06)",
+              border: "rgba(255,255,255,0.10)",
+              dot: false,
+            }
+          : {
+              label: formatTimeUntilLock(),
+              color: "#B1EB0B",
+              bg: "rgba(177,235,11,0.10)",
+              border: "rgba(177,235,11,0.34)",
+              dot: true,
+            };
 
   // Horizontal stepper — áreas de toque maiores (acessibilidade)
   const HorizStepper = ({
-    value, onInc, onDec,
-  }: { value: number; onInc: () => void; onDec: () => void }) => (
+    value,
+    onInc,
+    onDec,
+  }: {
+    value: number;
+    onInc: () => void;
+    onDec: () => void;
+  }) => (
     <div className="mt-3 flex items-center gap-2.5">
       <button
         type="button"
@@ -572,18 +743,28 @@ function JogoCard({
         disabled={disabled}
         aria-label="Diminuir gols"
         className="min-h-11 min-w-11 h-11 w-11 rounded-lg flex items-center justify-center transition-opacity"
-        style={{ opacity: disabled ? 0.3 : 1, background: "#111411", border: "1px solid rgba(177,235,11,0.2)" }}
+        style={{
+          opacity: disabled ? 0.3 : 1,
+          background: "#111411",
+          border: "1px solid rgba(177,235,11,0.2)",
+        }}
       >
         <ChevronDown className="w-5 h-5 text-primary" aria-hidden />
       </button>
-      <span className="min-w-10 text-center text-[26px] font-black text-white tabular-nums leading-none">{value}</span>
+      <span className="min-w-10 text-center text-[26px] font-black text-white tabular-nums leading-none">
+        {value}
+      </span>
       <button
         type="button"
         onClick={onInc}
         disabled={disabled}
         aria-label="Aumentar gols"
         className="min-h-11 min-w-11 h-11 w-11 rounded-lg flex items-center justify-center transition-opacity"
-        style={{ opacity: disabled ? 0.3 : 1, background: "#111411", border: "1px solid rgba(177,235,11,0.2)" }}
+        style={{
+          opacity: disabled ? 0.3 : 1,
+          background: "#111411",
+          border: "1px solid rgba(177,235,11,0.2)",
+        }}
       >
         <ChevronUp className="w-5 h-5 text-primary" aria-hidden />
       </button>
@@ -637,21 +818,38 @@ function JogoCard({
       <div className="flex items-start justify-between gap-3 px-4 sm:px-5 pt-4 pb-1">
         <div
           className="flex items-center gap-2 px-3 py-2 rounded-full shrink-0"
-          style={{ background: statusBadge.bg, border: `1px solid ${statusBadge.border}` }}
+          style={{
+            background: statusBadge.bg,
+            border: `1px solid ${statusBadge.border}`,
+          }}
         >
           {statusBadge.dot && (
-            <span className="w-2 h-2 rounded-full animate-pulse shrink-0" style={{ background: statusBadge.color }} aria-hidden />
+            <span
+              className="w-2 h-2 rounded-full animate-pulse shrink-0"
+              style={{ background: statusBadge.color }}
+              aria-hidden
+            />
           )}
-          <span className="text-sm font-semibold leading-tight tracking-normal" style={{ color: statusBadge.color }}>
+          <span
+            className="text-sm font-semibold leading-tight tracking-normal"
+            style={{ color: statusBadge.color }}
+          >
             {statusBadge.label}
           </span>
         </div>
         <div className="flex flex-col items-end justify-start gap-1 text-right min-w-0 flex-1">
-          <span className="text-sm font-medium leading-snug" style={{ color: "rgba(255,255,255,0.78)" }}>
-            {formatData(jogo.dataBR, jogo.kickoffAt)}, {safeHourLabel(jogo.hora)}
+          <span
+            className="text-sm font-medium leading-snug"
+            style={{ color: "rgba(255,255,255,0.78)" }}
+          >
+            {formatData(jogo.dataBR, jogo.kickoffAt)},{" "}
+            {safeHourLabel(jogo.hora)}
           </span>
           {liveClockLabel ? (
-            <span className="text-sm font-bold leading-snug text-pretty sm:whitespace-nowrap" style={{ color: "#B1EB0B" }}>
+            <span
+              className="text-sm font-bold leading-snug text-pretty sm:whitespace-nowrap"
+              style={{ color: "#B1EB0B" }}
+            >
               {liveClockLabel}
             </span>
           ) : null}
@@ -659,59 +857,101 @@ function JogoCard({
       </div>
 
       {readOnly && temPlacarOficial ? (
-        <p className="px-4 sm:px-5 pt-1 pb-0.5 text-center text-base font-semibold leading-snug" style={{ color: "rgba(255,255,255,0.82)" }}>
+        <p
+          className="px-4 sm:px-5 pt-1 pb-0.5 text-center text-base font-semibold leading-snug"
+          style={{ color: "rgba(255,255,255,0.82)" }}
+        >
           Placar oficial do jogo
         </p>
       ) : null}
 
       {/* ── Times + placar ── */}
       <div className="flex items-end px-4 sm:px-5 py-4 gap-2">
-
         <div className="flex flex-1 flex-col items-center min-w-0">
-          <Escudo url={jogo.escudoCasa} alt={jogo.timeCasa} size={readOnly ? "lg" : "md"} />
+          <Escudo
+            url={jogo.escudoCasa}
+            alt={jogo.timeCasa}
+            size={readOnly ? "lg" : "md"}
+          />
           <p className="mt-3 text-[15px] sm:text-base font-semibold text-white text-center leading-snug line-clamp-2 px-0.5">
             {jogo.timeCasa}
           </p>
           {readOnly ? (
             <div
               className="mt-3 min-h-13 min-w-13 px-2 rounded-xl flex items-center justify-center text-[1.75rem] sm:text-[2rem] font-black tabular-nums leading-none"
-              style={{ background: "rgba(255,255,255,0.12)", color: "#fff", border: "1px solid rgba(255,255,255,0.14)" }}
+              style={{
+                background: "rgba(255,255,255,0.12)",
+                color: "#fff",
+                border: "1px solid rgba(255,255,255,0.14)",
+              }}
               aria-label={`Gols ${jogo.timeCasa}: ${displayCasa}`}
             >
               {displayCasa}
             </div>
           ) : predictionsLoading ? (
-            <div className="mt-3 h-11 w-28 rounded-full animate-pulse" style={{ background: "rgba(255,255,255,0.06)" }} />
+            <div
+              className="mt-3 h-11 w-28 rounded-full animate-pulse"
+              style={{ background: "rgba(255,255,255,0.06)" }}
+            />
           ) : (
-            <HorizStepper value={scoreCasa} onInc={() => increment("casa")} onDec={() => decrement("casa")} />
+            <HorizStepper
+              value={scoreCasa}
+              onInc={() => increment("casa")}
+              onDec={() => decrement("casa")}
+            />
           )}
         </div>
 
-        <svg className="mb-2 shrink-0 opacity-95" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <svg
+          className="mb-2 shrink-0 opacity-95"
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="rgba(255,255,255,0.45)"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
           <line x1="18" y1="6" x2="6" y2="18" />
           <line x1="6" y1="6" x2="18" y2="18" />
         </svg>
 
         <div className="flex flex-1 flex-col items-center min-w-0">
-          <Escudo url={jogo.escudoVisitante} alt={jogo.timeVisitante} size={readOnly ? "lg" : "md"} />
+          <Escudo
+            url={jogo.escudoVisitante}
+            alt={jogo.timeVisitante}
+            size={readOnly ? "lg" : "md"}
+          />
           <p className="mt-3 text-[15px] sm:text-base font-semibold text-white text-center leading-snug line-clamp-2 px-0.5">
             {jogo.timeVisitante}
           </p>
           {readOnly ? (
             <div
               className="mt-3 min-h-13 min-w-13 px-2 rounded-xl flex items-center justify-center text-[1.75rem] sm:text-[2rem] font-black tabular-nums leading-none"
-              style={{ background: "rgba(255,255,255,0.12)", color: "#fff", border: "1px solid rgba(255,255,255,0.14)" }}
+              style={{
+                background: "rgba(255,255,255,0.12)",
+                color: "#fff",
+                border: "1px solid rgba(255,255,255,0.14)",
+              }}
               aria-label={`Gols ${jogo.timeVisitante}: ${displayVisitante}`}
             >
               {displayVisitante}
             </div>
           ) : predictionsLoading ? (
-            <div className="mt-3 h-11 w-28 rounded-full animate-pulse" style={{ background: "rgba(255,255,255,0.06)" }} />
+            <div
+              className="mt-3 h-11 w-28 rounded-full animate-pulse"
+              style={{ background: "rgba(255,255,255,0.06)" }}
+            />
           ) : (
-            <HorizStepper value={scoreVisitante} onInc={() => increment("visitante")} onDec={() => decrement("visitante")} />
+            <HorizStepper
+              value={scoreVisitante}
+              onInc={() => increment("visitante")}
+              onDec={() => decrement("visitante")}
+            />
           )}
         </div>
-
       </div>
 
       {readOnly && temPlacarOficial && hasInitialPrediction ? (
@@ -719,49 +959,90 @@ function JogoCard({
           <section
             className="rounded-xl px-4 py-4"
             style={{
-              background: "linear-gradient(180deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.03) 100%)",
+              background:
+                "linear-gradient(180deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.03) 100%)",
               border: "1px solid rgba(255,255,255,0.12)",
             }}
             aria-label="Seu palpite em relação ao resultado do jogo"
           >
-            <p className="text-sm sm:text-[15px] leading-relaxed text-center font-medium mb-3" style={{ color: "rgba(255,255,255,0.82)" }}>
-              Os números grandes acima mostram como o jogo terminou. Aqui está o que você tinha escolhido.
+            <p
+              className="text-sm sm:text-[15px] leading-relaxed text-center font-medium mb-3"
+              style={{ color: "rgba(255,255,255,0.82)" }}
+            >
+              Os números grandes acima mostram como o jogo terminou. Aqui está o
+              que você tinha escolhido.
             </p>
-            <p className="text-base font-bold text-center text-white mb-3">Seu palpite</p>
+            <p className="text-base font-bold text-center text-white mb-3">
+              Seu palpite
+            </p>
             <div className="flex flex-col items-center justify-center gap-3">
-              <div className="flex items-center justify-center gap-2.5" role="group" aria-label="Placar do seu palpite">
+              <div
+                className="flex items-center justify-center gap-2.5"
+                role="group"
+                aria-label="Placar do seu palpite"
+              >
                 <span
                   className="min-w-12 min-h-12 h-12 px-2 rounded-xl flex items-center justify-center text-2xl sm:text-[1.65rem] font-black tabular-nums"
                   style={{
-                    background: scoreCasa === jogo.resultCasa ? "rgba(177,235,11,0.22)" : "rgba(255,255,255,0.08)",
-                    color: scoreCasa === jogo.resultCasa ? "#D4F862" : "rgba(255,255,255,0.92)",
+                    background:
+                      scoreCasa === jogo.resultCasa
+                        ? "rgba(177,235,11,0.22)"
+                        : "rgba(255,255,255,0.08)",
+                    color:
+                      scoreCasa === jogo.resultCasa
+                        ? "#D4F862"
+                        : "rgba(255,255,255,0.92)",
                     border: `2px solid ${
-                      scoreCasa === jogo.resultCasa ? "rgba(177,235,11,0.55)" : "rgba(255,255,255,0.14)"
+                      scoreCasa === jogo.resultCasa
+                        ? "rgba(177,235,11,0.55)"
+                        : "rgba(255,255,255,0.14)"
                     }`,
-                    boxShadow: scoreCasa === jogo.resultCasa ? "0 0 14px rgba(177,235,11,0.15)" : "none",
+                    boxShadow:
+                      scoreCasa === jogo.resultCasa
+                        ? "0 0 14px rgba(177,235,11,0.15)"
+                        : "none",
                   }}
                 >
                   {scoreCasa}
                 </span>
-                <span className="text-xl font-black" style={{ color: "rgba(255,255,255,0.45)" }} aria-hidden>
+                <span
+                  className="text-xl font-black"
+                  style={{ color: "rgba(255,255,255,0.45)" }}
+                  aria-hidden
+                >
                   ×
                 </span>
                 <span
                   className="min-w-12 min-h-12 h-12 px-2 rounded-xl flex items-center justify-center text-2xl sm:text-[1.65rem] font-black tabular-nums"
                   style={{
-                    background: scoreVisitante === jogo.resultVisitante ? "rgba(177,235,11,0.22)" : "rgba(255,255,255,0.08)",
-                    color: scoreVisitante === jogo.resultVisitante ? "#D4F862" : "rgba(255,255,255,0.92)",
+                    background:
+                      scoreVisitante === jogo.resultVisitante
+                        ? "rgba(177,235,11,0.22)"
+                        : "rgba(255,255,255,0.08)",
+                    color:
+                      scoreVisitante === jogo.resultVisitante
+                        ? "#D4F862"
+                        : "rgba(255,255,255,0.92)",
                     border: `2px solid ${
-                      scoreVisitante === jogo.resultVisitante ? "rgba(177,235,11,0.55)" : "rgba(255,255,255,0.14)"
+                      scoreVisitante === jogo.resultVisitante
+                        ? "rgba(177,235,11,0.55)"
+                        : "rgba(255,255,255,0.14)"
                     }`,
-                    boxShadow: scoreVisitante === jogo.resultVisitante ? "0 0 14px rgba(177,235,11,0.15)" : "none",
+                    boxShadow:
+                      scoreVisitante === jogo.resultVisitante
+                        ? "0 0 14px rgba(177,235,11,0.15)"
+                        : "none",
                   }}
                 >
                   {scoreVisitante}
                 </span>
               </div>
-              <p className="text-xs sm:text-sm text-center leading-snug max-w-sm px-1" style={{ color: "rgba(255,255,255,0.62)" }}>
-                Quando um número fica em verde claro, você acertou quantos gols aquele time fez.
+              <p
+                className="text-xs sm:text-sm text-center leading-snug max-w-sm px-1"
+                style={{ color: "rgba(255,255,255,0.62)" }}
+              >
+                Quando um número fica em verde claro, você acertou quantos gols
+                aquele time fez.
               </p>
             </div>
           </section>
@@ -808,40 +1089,81 @@ function JogoCard({
             }}
           >
             {readOnlyPending ? (
-              <span className="text-center leading-relaxed font-semibold text-base px-1" style={{ color: "rgba(252,234,160,0.98)" }}>
+              <span
+                className="text-center leading-relaxed font-semibold text-base px-1"
+                style={{ color: "rgba(252,234,160,0.98)" }}
+              >
                 Aguardando o início da partida.
               </span>
             ) : readOnlyPlacarPendente ? (
-              <span className="text-center leading-relaxed font-semibold text-base px-1" style={{ color: "rgba(252,234,160,0.95)" }}>
+              <span
+                className="text-center leading-relaxed font-semibold text-base px-1"
+                style={{ color: "rgba(252,234,160,0.95)" }}
+              >
                 Estamos sincronizando o placar oficial. Volte daqui a pouco.
               </span>
             ) : readOnlyMatchLive ? (
-              <span className="text-center leading-relaxed font-semibold text-base px-1" style={{ color: "rgba(255,255,255,0.88)" }}>
-                Jogo em andamento. A pontuação do seu palpite aparece depois que o resultado oficial estiver disponível.
+              <span
+                className="text-center leading-relaxed font-semibold text-base px-1"
+                style={{ color: "rgba(255,255,255,0.88)" }}
+              >
+                Jogo em andamento. A pontuação do seu palpite aparece depois que
+                o resultado oficial estiver disponível.
               </span>
-            ) : !hasInitialPrediction && (jogo.status === "encerrado" || temPlacarOficial) ? (
-              <span className="text-center leading-relaxed font-semibold text-base px-1" style={{ color: "rgba(255,255,255,0.78)" }}>
+            ) : !hasInitialPrediction &&
+              (jogo.status === "encerrado" || temPlacarOficial) ? (
+              <span
+                className="text-center leading-relaxed font-semibold text-base px-1"
+                style={{ color: "rgba(255,255,255,0.78)" }}
+              >
                 Você não fez palpite nesta partida.
               </span>
             ) : resultadoResumo ? (
-              <div className="flex flex-col items-center gap-2 w-full" role="status" aria-live="polite">
+              <div
+                className="flex flex-col items-center gap-2 w-full"
+                role="status"
+                aria-live="polite"
+              >
                 <div className="flex items-center justify-center gap-2.5 flex-wrap px-1">
                   {resultadoResumo.tone === "win" && review?.exact ? (
-                    <Sparkles className="w-6 h-6 shrink-0" style={{ color: "#D4F862" }} strokeWidth={2.2} aria-hidden />
+                    <Sparkles
+                      className="w-6 h-6 shrink-0"
+                      style={{ color: "#D4F862" }}
+                      strokeWidth={2.2}
+                      aria-hidden
+                    />
                   ) : null}
                   {resultadoResumo.tone === "win" && review && !review.exact ? (
-                    <Target className="w-6 h-6 shrink-0" style={{ color: "#D4F862" }} strokeWidth={2.2} aria-hidden />
+                    <Target
+                      className="w-6 h-6 shrink-0"
+                      style={{ color: "#D4F862" }}
+                      strokeWidth={2.2}
+                      aria-hidden
+                    />
                   ) : null}
                   {resultadoResumo.tone === "partial" ? (
-                    <Star className="w-6 h-6 shrink-0" style={{ color: "#D4F862" }} strokeWidth={2.2} aria-hidden />
+                    <Star
+                      className="w-6 h-6 shrink-0"
+                      style={{ color: "#D4F862" }}
+                      strokeWidth={2.2}
+                      aria-hidden
+                    />
                   ) : null}
                   {resultadoResumo.tone === "miss" ? (
-                    <Disc className="w-6 h-6 shrink-0" style={{ color: "rgba(255,255,255,0.55)" }} strokeWidth={2.2} aria-hidden />
+                    <Disc
+                      className="w-6 h-6 shrink-0"
+                      style={{ color: "rgba(255,255,255,0.55)" }}
+                      strokeWidth={2.2}
+                      aria-hidden
+                    />
                   ) : null}
                   <span
                     className={`text-center leading-snug text-pretty ${resultadoResumo.tone !== "miss" ? "font-bold text-[17px] sm:text-lg" : "font-semibold text-base"}`}
                     style={{
-                      color: resultadoResumo.tone === "miss" ? "rgba(255,255,255,0.88)" : "#D4F862",
+                      color:
+                        resultadoResumo.tone === "miss"
+                          ? "rgba(255,255,255,0.88)"
+                          : "#D4F862",
                     }}
                   >
                     {resultadoResumo.title}
@@ -857,11 +1179,17 @@ function JogoCard({
                 ) : null}
               </div>
             ) : review && review.points > 0 ? (
-              <span className="text-center leading-relaxed font-bold text-lg px-1" style={{ color: "#D4F862" }}>
+              <span
+                className="text-center leading-relaxed font-bold text-lg px-1"
+                style={{ color: "#D4F862" }}
+              >
                 Você ganhou {review.points} pontos nesta partida.
               </span>
             ) : (
-              <span className="text-center leading-relaxed font-semibold text-base px-1" style={{ color: "rgba(255,255,255,0.78)" }}>
+              <span
+                className="text-center leading-relaxed font-semibold text-base px-1"
+                style={{ color: "rgba(255,255,255,0.78)" }}
+              >
                 Sem pontuação nesta partida.
               </span>
             )}
@@ -870,23 +1198,46 @@ function JogoCard({
           <div className="flex flex-col sm:flex-row items-stretch gap-2">
             <div
               className="flex-1 min-h-[48px] py-3 rounded-xl flex items-center justify-center gap-2"
-              style={{ background: "rgba(177,235,11,0.12)", border: "1px solid rgba(177,235,11,0.30)" }}
+              style={{
+                background: "rgba(177,235,11,0.12)",
+                border: "1px solid rgba(177,235,11,0.30)",
+              }}
             >
-              <CircleCheck className="w-5 h-5 shrink-0" style={{ color: "#D4F862" }} strokeWidth={2.5} aria-hidden />
-              <span className="font-bold text-base" style={{ color: "#D4F862" }}>
+              <CircleCheck
+                className="w-5 h-5 shrink-0"
+                style={{ color: "#D4F862" }}
+                strokeWidth={2.5}
+                aria-hidden
+              />
+              <span
+                className="font-bold text-base"
+                style={{ color: "#D4F862" }}
+              >
                 Palpite salvo
               </span>
             </div>
             {canEdit && (
               <button
                 type="button"
-                onClick={() => { setSaveError(null); setPalpiteSalvo(false); }}
+                onClick={() => {
+                  setSaveError(null);
+                  setPalpiteSalvo(false);
+                }}
                 disabled={isSubmitting}
                 className="min-h-[48px] px-4 rounded-xl flex items-center justify-center gap-2 transition-all duration-200 disabled:opacity-40"
-                style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.14)" }}
+                style={{
+                  background: "rgba(255,255,255,0.08)",
+                  border: "1px solid rgba(255,255,255,0.14)",
+                }}
               >
-                <Pencil className="w-4 h-4 text-white/70" strokeWidth={2} aria-hidden />
-                <span className="text-base font-semibold text-white/80">Editar palpite</span>
+                <Pencil
+                  className="w-4 h-4 text-white/70"
+                  strokeWidth={2}
+                  aria-hidden
+                />
+                <span className="text-base font-semibold text-white/80">
+                  Editar palpite
+                </span>
               </button>
             )}
           </div>
@@ -898,10 +1249,18 @@ function JogoCard({
               setSaveError(null);
               setIsSubmitting(true);
               try {
-                await onSavePrediction({ matchId: jogo.id, scoreCasa, scoreVisitante });
+                await onSavePrediction({
+                  matchId: jogo.id,
+                  scoreCasa,
+                  scoreVisitante,
+                });
                 setPalpiteSalvo(true);
               } catch (error) {
-                setSaveError(error instanceof Error ? error.message : "Erro ao salvar palpite");
+                setSaveError(
+                  error instanceof Error
+                    ? error.message
+                    : "Erro ao salvar palpite",
+                );
               } finally {
                 setIsSubmitting(false);
               }
@@ -909,13 +1268,26 @@ function JogoCard({
             disabled={!canEdit || !ticketId || isSubmitting}
             className="w-full min-h-[52px] py-3.5 rounded-xl font-bold text-base transition-all duration-200"
             style={{
-              background: !canEdit || !ticketId || isSubmitting ? "#1A1A1A" : hasInitialPrediction ? "#B1EB0B" : "#E6E6E6",
-              color: !canEdit || !ticketId || isSubmitting ? "rgba(255,255,255,0.22)" : "#0E141B",
-              boxShadow: !canEdit || !ticketId || isSubmitting || !hasInitialPrediction ? "none" : "0 0 16px rgba(177,235,11,0.22)",
+              background:
+                !canEdit || !ticketId || isSubmitting
+                  ? "#1A1A1A"
+                  : hasInitialPrediction
+                    ? "#B1EB0B"
+                    : "#E6E6E6",
+              color:
+                !canEdit || !ticketId || isSubmitting
+                  ? "rgba(255,255,255,0.22)"
+                  : "#0E141B",
+              boxShadow:
+                !canEdit || !ticketId || isSubmitting || !hasInitialPrediction
+                  ? "none"
+                  : "0 0 16px rgba(177,235,11,0.22)",
             }}
           >
             <span className="inline-flex items-center justify-center gap-2">
-              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              {isSubmitting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : null}
               {isSubmitting
                 ? "Salvando palpite..."
                 : !canEdit && jogo.status !== "aberto"
@@ -930,12 +1302,26 @@ function JogoCard({
             </span>
           </button>
         )}
-        {!readOnly && !palpiteSalvo && !canEdit && jogo.status === "aberto" && isLockedByTime && !hasInitialPrediction ? (
-          <p className="mt-3 text-sm text-center leading-relaxed px-1" style={{ color: "rgba(255,255,255,0.72)" }}>
-            O prazo termina 1 hora antes do apito. Depois disso não dá para apostar. Se você não tiver salvo um palpite antes desse horário, não entra nesta partida.
+        {!readOnly &&
+        !palpiteSalvo &&
+        !canEdit &&
+        jogo.status === "aberto" &&
+        isLockedByTime &&
+        !hasInitialPrediction ? (
+          <p
+            className="mt-3 text-sm text-center leading-relaxed px-1"
+            style={{ color: "rgba(255,255,255,0.72)" }}
+          >
+            O prazo termina 1 hora antes do apito. Depois disso não dá para
+            apostar. Se você não tiver salvo um palpite antes desse horário, não
+            entra nesta partida.
           </p>
         ) : null}
-        {saveError ? <p className="mt-3 text-sm text-center leading-relaxed text-red-300 px-1">{saveError}</p> : null}
+        {saveError ? (
+          <p className="mt-3 text-sm text-center leading-relaxed text-red-300 px-1">
+            {saveError}
+          </p>
+        ) : null}
       </div>
     </div>
   );
@@ -981,16 +1367,27 @@ function TabelaView({
       {/* Classificação do grupo selecionado */}
       <div
         className="rounded-2xl overflow-hidden mb-5"
-        style={{ background: "#0B0D0C", border: "1px solid rgba(177,235,11,0.16)" }}
+        style={{
+          background: "#0B0D0C",
+          border: "1px solid rgba(177,235,11,0.16)",
+        }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+        <div
+          className="flex items-center justify-between px-4 py-3"
+          style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+        >
           <span className="text-white font-bold text-[14px]">
             Classificação — Grupo {grupo}
           </span>
           <div className="flex gap-4">
             {["PTS", "J", "V", "E", "D"].map((col) => (
-              <span key={col} className="text-[11px] font-bold text-white/30 w-5 text-center">{col}</span>
+              <span
+                key={col}
+                className="text-[11px] font-bold text-white/30 w-5 text-center"
+              >
+                {col}
+              </span>
             ))}
           </div>
         </div>
@@ -1002,14 +1399,20 @@ function TabelaView({
             className="flex items-center justify-between px-4 py-3"
             style={{
               background: i < 2 ? "rgba(177,235,11,0.04)" : "transparent",
-              borderBottom: i < times.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none",
+              borderBottom:
+                i < times.length - 1
+                  ? "1px solid rgba(255,255,255,0.04)"
+                  : "none",
             }}
           >
             <div className="flex items-center gap-3">
               <span
                 className="w-5 h-5 rounded-[6px] flex items-center justify-center text-[11px] font-bold shrink-0"
                 style={{
-                  background: i === 0 ? "rgba(177,235,11,0.14)" : "rgba(255,255,255,0.06)",
+                  background:
+                    i === 0
+                      ? "rgba(177,235,11,0.14)"
+                      : "rgba(255,255,255,0.06)",
                   color: i === 0 ? "#B1EB0B" : "rgba(255,255,255,0.4)",
                 }}
               >
@@ -1020,20 +1423,30 @@ function TabelaView({
                 style={{ background: "rgba(255,255,255,0.9)" }}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={t.time.escudo} alt={t.time.sigla} className="w-5 h-5 object-contain" />
+                <img
+                  src={t.time.escudo}
+                  alt={t.time.sigla}
+                  className="w-5 h-5 object-contain"
+                />
               </div>
-              <span className="text-white font-bold text-[13px] tracking-wide">{t.time.sigla}</span>
+              <span className="text-white font-bold text-[13px] tracking-wide">
+                {t.time.sigla}
+              </span>
             </div>
             <div className="flex gap-4">
-              {[t.pontos, t.jogos, t.vitorias, t.empates, t.derrotas].map((val, vi) => (
-                <span
-                  key={vi}
-                  className="w-5 text-center text-[13px] font-bold"
-                  style={{ color: vi === 0 ? "#fff" : "rgba(255,255,255,0.35)" }}
-                >
-                  {val}
-                </span>
-              ))}
+              {[t.pontos, t.jogos, t.vitorias, t.empates, t.derrotas].map(
+                (val, vi) => (
+                  <span
+                    key={vi}
+                    className="w-5 text-center text-[13px] font-bold"
+                    style={{
+                      color: vi === 0 ? "#fff" : "rgba(255,255,255,0.35)",
+                    }}
+                  >
+                    {val}
+                  </span>
+                ),
+              )}
             </div>
           </div>
         ))}
@@ -1052,8 +1465,9 @@ function TabelaView({
             Grupos
           </p>
           <div className="flex flex-col gap-2">
-            {Array.from({ length: Math.ceil(todosGrupos.length / 2) }, (_, ri) =>
-              todosGrupos.slice(ri * 2, ri * 2 + 2)
+            {Array.from(
+              { length: Math.ceil(todosGrupos.length / 2) },
+              (_, ri) => todosGrupos.slice(ri * 2, ri * 2 + 2),
             ).map((row, ri) => (
               <div key={ri} className="flex gap-2">
                 {row.map(([key, rowTimes]) => {
@@ -1068,13 +1482,17 @@ function TabelaView({
                       className="flex-1 flex items-center gap-2.5 px-3 py-3 rounded-xl text-left transition-all duration-150"
                       style={{
                         background: ativo ? "rgba(177,235,11,0.08)" : "#0B0D0C",
-                        border: ativo ? "1px solid rgba(177,235,11,0.25)" : "1px solid rgba(255,255,255,0.05)",
+                        border: ativo
+                          ? "1px solid rgba(177,235,11,0.25)"
+                          : "1px solid rgba(255,255,255,0.05)",
                       }}
                     >
                       <span
                         className="w-6 h-6 rounded-lg flex items-center justify-center text-[12px] font-black shrink-0"
                         style={{
-                          background: ativo ? "rgba(177,235,11,0.2)" : "rgba(255,255,255,0.07)",
+                          background: ativo
+                            ? "rgba(177,235,11,0.2)"
+                            : "rgba(255,255,255,0.07)",
                           color: ativo ? "#B1EB0B" : "rgba(255,255,255,0.5)",
                         }}
                       >
@@ -1085,10 +1503,26 @@ function TabelaView({
                         style={{ background: "rgba(255,255,255,0.9)" }}
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={lider.time.escudo} alt={lider.time.sigla} className="w-5 h-5 object-contain" />
+                        <img
+                          src={lider.time.escudo}
+                          alt={lider.time.sigla}
+                          className="w-5 h-5 object-contain"
+                        />
                       </div>
-                      <span className="font-bold text-[12px] flex-1 truncate" style={{ color: ativo ? "#E8FF8A" : "#fff" }}>{lider.time.sigla}</span>
-                      <span className="text-[11px] font-light" style={{ color: ativo ? "#B1EB0B" : "rgba(255,255,255,0.35)" }}>Lidera</span>
+                      <span
+                        className="font-bold text-[12px] flex-1 truncate"
+                        style={{ color: ativo ? "#E8FF8A" : "#fff" }}
+                      >
+                        {lider.time.sigla}
+                      </span>
+                      <span
+                        className="text-[11px] font-light"
+                        style={{
+                          color: ativo ? "#B1EB0B" : "rgba(255,255,255,0.35)",
+                        }}
+                      >
+                        Lidera
+                      </span>
                     </button>
                   );
                 })}
@@ -1156,10 +1590,25 @@ function RankingMedal({ pos, size = 28 }: { pos: number; size?: number }) {
   if (pos === 1) return <TrophyGold size={size} />;
   if (pos === 2) return <TrophySilver size={size} />;
   if (pos === 3) return <TrophyBronze size={size} />;
-  return <span className="text-[11px] font-bold" style={{ color: "rgba(255,255,255,0.25)" }}>#{pos}</span>;
+  return (
+    <span
+      className="text-[11px] font-bold"
+      style={{ color: "rgba(255,255,255,0.25)" }}
+    >
+      #{pos}
+    </span>
+  );
 }
 
-function RankingAvatar({ iniciais, isMe, size = 32 }: { iniciais: string; isMe?: boolean; size?: number }) {
+function RankingAvatar({
+  iniciais,
+  isMe,
+  size = 32,
+}: {
+  iniciais: string;
+  isMe?: boolean;
+  size?: number;
+}) {
   return (
     <div
       className="rounded-full flex items-center justify-center font-bold shrink-0"
@@ -1169,24 +1618,42 @@ function RankingAvatar({ iniciais, isMe, size = 32 }: { iniciais: string; isMe?:
         fontSize: size * 0.38,
         background: isMe ? "rgba(218,182,130,0.15)" : "rgba(255,255,255,0.07)",
         color: isMe ? "#D7FF59" : "rgba(255,255,255,0.5)",
-        border: isMe ? "1px solid rgba(218,182,130,0.25)" : "1px solid rgba(255,255,255,0.08)",
+        border: isMe
+          ? "1px solid rgba(218,182,130,0.25)"
+          : "1px solid rgba(255,255,255,0.08)",
       }}
     >
       {iniciais}
     </div>
   );
-};
+}
 
-
-function RankingView({ rows, stats }: { rows: RankingRowView[]; stats: ResumoStats }) {
-  const MEU = rows.find((r) => r.isMe) ?? rows[0] ?? { pos: 0, nome: "Você", iniciais: "VO", acertos: 0, pts: 0, exact: 0, gols: 0 };
+function RankingView({
+  rows,
+  stats,
+}: {
+  rows: RankingRowView[];
+  stats: ResumoStats;
+}) {
+  const MEU = rows.find((r) => r.isMe) ??
+    rows[0] ?? {
+      pos: 0,
+      nome: "Você",
+      iniciais: "VO",
+      acertos: 0,
+      pts: 0,
+      exact: 0,
+      gols: 0,
+    };
   return (
     <div className="flex flex-col gap-3">
-
       {/* Minha posição */}
       <div
         className="rounded-2xl px-4 py-4"
-        style={{ background: "linear-gradient(135deg, #F6D13B2E 0%, #F1E8631F 100%)", border: "1px solid rgba(80,120,40,0.25)" }}
+        style={{
+          background: "linear-gradient(135deg, #F6D13B2E 0%, #F1E8631F 100%)",
+          border: "1px solid rgba(80,120,40,0.25)",
+        }}
       >
         <p className="text-[10px] text-[#FFFFFF8C] font-bold tracking-widest uppercase mb-3">
           Sua posição atual
@@ -1199,18 +1666,29 @@ function RankingView({ rows, stats }: { rows: RankingRowView[]; stats: ResumoSta
                 className="absolute -bottom-1 -right-1 w-[18px] h-[18px] rounded-full flex items-center justify-center"
                 style={{ background: "#B1EB0B" }}
               >
-                <Coins className="w-2.5 h-2.5" style={{ color: "#0E141B" }} strokeWidth={2.5} />
+                <Coins
+                  className="w-2.5 h-2.5"
+                  style={{ color: "#0E141B" }}
+                  strokeWidth={2.5}
+                />
               </div>
             </div>
             <div>
-              <p className="text-white font-black text-[18px] leading-tight">#{MEU.pos} no Ranking</p>
+              <p className="text-white font-black text-[18px] leading-tight">
+                #{MEU.pos} no Ranking
+              </p>
               <p className="text-[12px] mt-0.5 text-[#E8FF8A]">
                 {MEU.acertos} acertos · {MEU.pts} pontos
               </p>
             </div>
           </div>
           <div className="text-right">
-            <p className="font-black text-[34px] leading-none" style={{ color: "#E8FF8A" }}>{MEU.pts}</p>
+            <p
+              className="font-black text-[34px] leading-none"
+              style={{ color: "#E8FF8A" }}
+            >
+              {MEU.pts}
+            </p>
             <p className="text-[10px] mt-0.5 text-[#FFFFFF59]">pontos</p>
           </div>
         </div>
@@ -1219,18 +1697,38 @@ function RankingView({ rows, stats }: { rows: RankingRowView[]; stats: ResumoSta
       {/* Stats */}
       <div className="grid grid-cols-3 gap-2">
         {[
-          { Icon: Target, val: stats.palpites, label: "Palpites", color: "#B1EB0B" },
-          { Icon: CircleCheck, val: stats.acertos, label: "Acertos", color: "#B1EB0B" },
+          {
+            Icon: Target,
+            val: stats.palpites,
+            label: "Palpites",
+            color: "#B1EB0B",
+          },
+          {
+            Icon: CircleCheck,
+            val: stats.acertos,
+            label: "Acertos",
+            color: "#B1EB0B",
+          },
           { Icon: Star, val: stats.pontos, label: "Pontos", color: "#D7FF59" },
         ].map(({ Icon, val, label, color }) => (
           <div
             key={label}
             className="rounded-2xl py-4 flex flex-col items-center gap-1"
-            style={{ background: "#0B0D0C", border: "1px solid rgba(177,235,11,0.12)" }}
+            style={{
+              background: "#0B0D0C",
+              border: "1px solid rgba(177,235,11,0.12)",
+            }}
           >
             <Icon className="w-5 h-5 mb-1" style={{ color }} strokeWidth={2} />
-            <span className="text-white font-black text-[22px] leading-none">{val}</span>
-            <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.3)" }}>{label}</span>
+            <span className="text-white font-black text-[22px] leading-none">
+              {val}
+            </span>
+            <span
+              className="text-[11px]"
+              style={{ color: "rgba(255,255,255,0.3)" }}
+            >
+              {label}
+            </span>
           </div>
         ))}
       </div>
@@ -1238,14 +1736,24 @@ function RankingView({ rows, stats }: { rows: RankingRowView[]; stats: ResumoSta
       {/* Top Palpiteiros */}
       <div
         className="rounded-2xl overflow-hidden"
-        style={{ background: "#0B0D0C", border: "1px solid rgba(177,235,11,0.14)" }}
+        style={{
+          background: "#0B0D0C",
+          border: "1px solid rgba(177,235,11,0.14)",
+        }}
       >
         <div
           className="flex items-center justify-between px-4 py-3"
           style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
         >
-          <span className="text-white font-bold text-[14px]">Top Palpiteiros</span>
-          <button className="text-[13px] font-semibold" style={{ color: "#B1EB0B" }}>Ver todos</button>
+          <span className="text-white font-bold text-[14px]">
+            Top Palpiteiros
+          </span>
+          <button
+            className="text-[13px] font-semibold"
+            style={{ color: "#B1EB0B" }}
+          >
+            Ver todos
+          </button>
         </div>
 
         {rows.map((r, i) => (
@@ -1254,7 +1762,10 @@ function RankingView({ rows, stats }: { rows: RankingRowView[]; stats: ResumoSta
             className="flex items-center gap-3 px-4 py-3"
             style={{
               background: r.isMe ? "rgba(177,235,11,0.06)" : "transparent",
-              borderBottom: i < rows.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none",
+              borderBottom:
+                i < rows.length - 1
+                  ? "1px solid rgba(255,255,255,0.04)"
+                  : "none",
             }}
           >
             <div className="w-7 h-7 flex items-center justify-center shrink-0">
@@ -1265,12 +1776,20 @@ function RankingView({ rows, stats }: { rows: RankingRowView[]; stats: ResumoSta
               <p className="text-white font-semibold text-[13px] truncate">
                 {r.nome}
                 {r.isMe && (
-                  <span className="text-[11px] font-normal ml-1" style={{ color: "rgba(255,255,255,0.3)" }}>
+                  <span
+                    className="text-[11px] font-normal ml-1"
+                    style={{ color: "rgba(255,255,255,0.3)" }}
+                  >
                     (você)
                   </span>
                 )}
               </p>
-              <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.3)" }}>{r.acertos} acertos</p>
+              <p
+                className="text-[11px]"
+                style={{ color: "rgba(255,255,255,0.3)" }}
+              >
+                {r.acertos} acertos
+              </p>
             </div>
             <div className="shrink-0 flex items-baseline gap-0.5">
               <span
@@ -1279,7 +1798,12 @@ function RankingView({ rows, stats }: { rows: RankingRowView[]; stats: ResumoSta
               >
                 {r.pts}
               </span>
-              <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.2)" }}>pts</span>
+              <span
+                className="text-[10px]"
+                style={{ color: "rgba(255,255,255,0.2)" }}
+              >
+                pts
+              </span>
             </div>
           </div>
         ))}
@@ -1288,17 +1812,30 @@ function RankingView({ rows, stats }: { rows: RankingRowView[]; stats: ResumoSta
       {/* Prazo */}
       <div
         className="rounded-2xl px-4 py-4 flex items-start gap-3"
-        style={{ background: "rgba(218,182,130,0.06)", border: "1px solid rgba(218,182,130,0.18)" }}
+        style={{
+          background: "rgba(218,182,130,0.06)",
+          border: "1px solid rgba(218,182,130,0.18)",
+        }}
       >
-        <Bell className="w-5 h-5 shrink-0 mt-0.5" style={{ color: "#D7FF59" }} strokeWidth={2} />
+        <Bell
+          className="w-5 h-5 shrink-0 mt-0.5"
+          style={{ color: "#D7FF59" }}
+          strokeWidth={2}
+        />
         <div>
-          <p className="font-bold text-[13px]" style={{ color: "#D7FF59" }}>Prazo para palpitar</p>
-          <p className="text-[12px] mt-1 leading-relaxed" style={{ color: "rgba(218,182,130,0.5)" }}>
-            Palpites so ate 1h antes do apito: na ultima hora antes do jogo e depois do inicio o sistema fecha. Quem nao tiver palpite salvo ate esse limite nao entra na partida.
+          <p className="font-bold text-[13px]" style={{ color: "#D7FF59" }}>
+            Prazo para palpitar
+          </p>
+          <p
+            className="text-[12px] mt-1 leading-relaxed"
+            style={{ color: "rgba(218,182,130,0.5)" }}
+          >
+            Palpites so ate 1h antes do apito: na ultima hora antes do jogo e
+            depois do inicio o sistema fecha. Quem nao tiver palpite salvo ate
+            esse limite nao entra na partida.
           </p>
         </div>
       </div>
-
     </div>
   );
 }
@@ -1328,7 +1865,10 @@ function TicketPerforationLine() {
 function TicketBarcodeMini() {
   const w = [2, 3, 2, 4, 2, 3, 2, 2, 4, 3, 2, 3, 2, 2, 4, 2, 3];
   return (
-    <div className="flex items-end justify-center gap-[2px] h-6 opacity-45 mt-3" aria-hidden>
+    <div
+      className="flex items-end justify-center gap-[2px] h-6 opacity-45 mt-3"
+      aria-hidden
+    >
       {w.map((width, i) => (
         <span
           key={i}
@@ -1347,7 +1887,10 @@ function HistoricoSkeletonRows() {
         <div
           key={i}
           className="rounded-lg px-3.5 py-3.5 animate-pulse"
-          style={{ background: "rgba(0,0,0,0.2)", border: "1px dashed rgba(177,235,11,0.2)" }}
+          style={{
+            background: "rgba(0,0,0,0.2)",
+            border: "1px dashed rgba(177,235,11,0.2)",
+          }}
         >
           <div className="flex items-start justify-between gap-2 mb-3">
             <div className="flex items-center gap-2 min-w-0">
@@ -1387,23 +1930,29 @@ function TicketResumoView({
   loadingHistorico: boolean;
   jogosById: Record<number, Jogo>;
 }) {
-  const [resumoSecao, setResumoSecao] = useState<"geral" | "historico">("geral");
+  const [resumoSecao, setResumoSecao] = useState<"geral" | "historico">(
+    "geral",
+  );
 
   return (
     <div
       className="relative rounded-[14px]"
       style={{
         border: "1px solid rgba(177,235,11,0.45)",
-        boxShadow: "0 16px 48px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)",
-        background: "linear-gradient(165deg, #101710 0%, #0B0D0C 42%, #050605 100%)",
+        boxShadow:
+          "0 16px 48px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)",
+        background:
+          "linear-gradient(165deg, #101710 0%, #0B0D0C 42%, #050605 100%)",
       }}
     >
-
       <div className="relative z-1 pl-[18px] pr-4 pt-4 pb-3 sm:pr-5 flex items-start justify-between gap-3">
         <p className="text-[11px] uppercase tracking-[0.14em] font-bold text-white/45 font-mono leading-snug">
           {resultMode ? "Resumo do ticket (resultado)" : "Resumo do ticket"}
         </p>
-        <span className="text-[8px] font-bold uppercase tracking-[0.28em] text-white/25 shrink-0 pt-0.5" aria-hidden>
+        <span
+          className="text-[8px] font-bold uppercase tracking-[0.28em] text-white/25 shrink-0 pt-0.5"
+          aria-hidden
+        >
           Ingresso
         </span>
       </div>
@@ -1411,46 +1960,102 @@ function TicketResumoView({
       <div className="relative z-1 px-4 pb-3 sm:px-5 sm:pb-3 -mt-0.5">
         <div className="mt-2 grid grid-cols-2 lg:grid-cols-4 gap-2">
           {ticketId && (
-            <div className="rounded-md px-2.5 py-2 text-[12px]" style={{ background: "rgba(0,0,0,0.25)", border: "1px dashed rgba(177,235,11,0.22)" }}>
+            <div
+              className="rounded-md px-2.5 py-2 text-[12px]"
+              style={{
+                background: "rgba(0,0,0,0.25)",
+                border: "1px dashed rgba(177,235,11,0.22)",
+              }}
+            >
               Ticket
-              <p className="text-white font-semibold mt-0.5 truncate font-mono" title={ticketId}>{ticketId}</p>
+              <p
+                className="text-white font-semibold mt-0.5 truncate font-mono"
+                title={ticketId}
+              >
+                {ticketId}
+              </p>
             </div>
           )}
           {rankingPos != null && (
-            <div className="rounded-md px-2.5 py-2 text-[12px]" style={{ background: "rgba(0,0,0,0.25)", border: "1px dashed rgba(177,235,11,0.22)" }}>
+            <div
+              className="rounded-md px-2.5 py-2 text-[12px]"
+              style={{
+                background: "rgba(0,0,0,0.25)",
+                border: "1px dashed rgba(177,235,11,0.22)",
+              }}
+            >
               Ranking
-              <p className="text-white font-semibold mt-0.5 font-mono">#{rankingPos}</p>
+              <p className="text-white font-semibold mt-0.5 font-mono">
+                #{rankingPos}
+              </p>
             </div>
           )}
-          <div className="rounded-md px-2.5 py-2 text-[12px]" style={{ background: "rgba(34,197,94,0.08)", border: "1px dashed rgba(34,197,94,0.28)" }}>
+          <div
+            className="rounded-md px-2.5 py-2 text-[12px]"
+            style={{
+              background: "rgba(34,197,94,0.08)",
+              border: "1px dashed rgba(34,197,94,0.28)",
+            }}
+          >
             Pontos
-            <p className="text-[#4ADE80] font-semibold mt-0.5 font-mono">{stats.pontos} pts</p>
+            <p className="text-[#4ADE80] font-semibold mt-0.5 font-mono">
+              {stats.pontos} pts
+            </p>
           </div>
-          <div className="rounded-md px-2.5 py-2 text-[12px]" style={{ background: "rgba(0,0,0,0.25)", border: "1px dashed rgba(177,235,11,0.22)" }}>
+          <div
+            className="rounded-md px-2.5 py-2 text-[12px]"
+            style={{
+              background: "rgba(0,0,0,0.25)",
+              border: "1px dashed rgba(177,235,11,0.22)",
+            }}
+          >
             Acertos
-            <p className="text-white font-semibold mt-0.5 font-mono">{stats.acertos}</p>
+            <p className="text-white font-semibold mt-0.5 font-mono">
+              {stats.acertos}
+            </p>
           </div>
-          <div className="rounded-md px-2.5 py-2 text-[12px]" style={{ background: "rgba(0,0,0,0.25)", border: "1px dashed rgba(177,235,11,0.22)" }}>
+          <div
+            className="rounded-md px-2.5 py-2 text-[12px]"
+            style={{
+              background: "rgba(0,0,0,0.25)",
+              border: "1px dashed rgba(177,235,11,0.22)",
+            }}
+          >
             Placar exato
-            <p className="text-white font-semibold mt-0.5 font-mono">{stats.exatos}</p>
+            <p className="text-white font-semibold mt-0.5 font-mono">
+              {stats.exatos}
+            </p>
           </div>
-          <div className="rounded-md px-2.5 py-2 text-[12px]" style={{ background: "rgba(0,0,0,0.25)", border: "1px dashed rgba(177,235,11,0.22)" }}>
+          <div
+            className="rounded-md px-2.5 py-2 text-[12px]"
+            style={{
+              background: "rgba(0,0,0,0.25)",
+              border: "1px dashed rgba(177,235,11,0.22)",
+            }}
+          >
             Palpites
-            <p className="text-white font-semibold mt-0.5 font-mono">{stats.palpites}</p>
+            <p className="text-white font-semibold mt-0.5 font-mono">
+              {stats.palpites}
+            </p>
           </div>
         </div>
       </div>
 
       <TicketPerforationLine />
 
-      <div className="relative z-1 flex w-full overflow-hidden border-t border-white/6" style={{ background: "rgba(0,0,0,0.2)" }}>
+      <div
+        className="relative z-1 flex w-full overflow-hidden border-t border-white/6"
+        style={{ background: "rgba(0,0,0,0.2)" }}
+      >
         <button
           type="button"
           onClick={() => setResumoSecao("geral")}
           className="flex-1 py-3.5 px-2 text-[11px] font-bold font-mono uppercase tracking-wide transition-colors border-r border-dashed border-white/15"
           style={{
-            background: resumoSecao === "geral" ? "rgba(177,235,11,0.1)" : "transparent",
-            color: resumoSecao === "geral" ? "#E8FF8A" : "rgba(255,255,255,0.4)",
+            background:
+              resumoSecao === "geral" ? "rgba(177,235,11,0.1)" : "transparent",
+            color:
+              resumoSecao === "geral" ? "#E8FF8A" : "rgba(255,255,255,0.4)",
           }}
         >
           Resumo
@@ -1460,8 +2065,12 @@ function TicketResumoView({
           onClick={() => setResumoSecao("historico")}
           className="flex-1 py-3.5 px-2 text-[11px] font-bold font-mono uppercase tracking-wide transition-colors"
           style={{
-            background: resumoSecao === "historico" ? "rgba(177,235,11,0.1)" : "transparent",
-            color: resumoSecao === "historico" ? "#E8FF8A" : "rgba(255,255,255,0.4)",
+            background:
+              resumoSecao === "historico"
+                ? "rgba(177,235,11,0.1)"
+                : "transparent",
+            color:
+              resumoSecao === "historico" ? "#E8FF8A" : "rgba(255,255,255,0.4)",
           }}
         >
           Histórico
@@ -1472,135 +2081,223 @@ function TicketResumoView({
 
       <div
         className="relative z-1 px-4 pb-4 pt-3 sm:px-5"
-        style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.35) 100%)" }}
+        style={{
+          background:
+            "linear-gradient(180deg, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.35) 100%)",
+        }}
       >
-      {resumoSecao === "geral" ? (
-        <div className="text-[12px] leading-relaxed rounded-lg px-3 py-3" style={{ border: "1px dashed rgba(255,255,255,0.12)", background: "rgba(0,0,0,0.15)" }}>
-          <p className="text-[10px] uppercase tracking-[0.14em] font-bold text-white/40 mb-2 font-mono">Informações</p>
-          <ul className="space-y-2.5 text-white/75">
-            <li className="flex justify-between gap-3">
-              <span className="text-white/45 shrink-0">Bolão</span>
-              <span className="text-right font-medium text-white/90">
-                {bolaoType === "principal"
-                  ? "Copa do Mundo 2026 — jogos do dia (Copa inteira)"
-                  : "Copa do Mundo 2026 — jogos do dia"}
-              </span>
-            </li>
-            <li className="flex justify-between gap-3">
-              <span className="text-white/45 shrink-0">Regra</span>
-              <span className="text-right font-medium text-white/90">
-                {bolaoType === "principal"
-                  ? "Ticket válido durante toda a Copa: todo dia você palpita em todos os jogos do dia."
-                  : "Ticket diário: você palpita apenas nos jogos daquele dia."}
-              </span>
-            </li>
-            <li className="flex justify-between gap-3">
-              <span className="text-white/45 shrink-0">Status do ticket</span>
-              <span className="text-right font-medium text-white/90 font-mono">{resultMode ? "Resultado disponível" : "Em andamento"}</span>
-            </li>
-          </ul>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {loadingHistorico ? (
-            <HistoricoSkeletonRows />
-          ) : historico.length === 0 ? (
-            <div className="rounded-lg px-4 py-4 text-[12px] text-white/45 font-mono" style={{ border: "1px dashed rgba(255,255,255,0.14)", background: "rgba(0,0,0,0.15)" }}>
-              Nenhum palpite registrado ainda.
-            </div>
-          ) : (
-            historico.map((item) => (
-              (() => {
-                const jogo = jogosById[item.matchId];
-                return (
+        {resumoSecao === "geral" ? (
+          <div
+            className="text-[12px] leading-relaxed rounded-lg px-3 py-3"
+            style={{
+              border: "1px dashed rgba(255,255,255,0.12)",
+              background: "rgba(0,0,0,0.15)",
+            }}
+          >
+            <p className="text-[10px] uppercase tracking-[0.14em] font-bold text-white/40 mb-2 font-mono">
+              Informações
+            </p>
+            <ul className="space-y-2.5 text-white/75">
+              <li className="flex justify-between gap-3">
+                <span className="text-white/45 shrink-0">Bolão</span>
+                <span className="text-right font-medium text-white/90">
+                  {bolaoType === "principal"
+                    ? "Copa do Mundo 2026 — jogos do dia (Copa inteira)"
+                    : "Copa do Mundo 2026 — jogos do dia"}
+                </span>
+              </li>
+              <li className="flex justify-between gap-3">
+                <span className="text-white/45 shrink-0">Regra</span>
+                <span className="text-right font-medium text-white/90">
+                  {bolaoType === "principal"
+                    ? "Ticket válido durante toda a Copa: todo dia você palpita em todos os jogos do dia."
+                    : "Ticket diário: você palpita apenas nos jogos daquele dia."}
+                </span>
+              </li>
+              <li className="flex justify-between gap-3">
+                <span className="text-white/45 shrink-0">Status do ticket</span>
+                <span className="text-right font-medium text-white/90 font-mono">
+                  {resultMode ? "Resultado disponível" : "Em andamento"}
+                </span>
+              </li>
+            </ul>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {loadingHistorico ? (
+              <HistoricoSkeletonRows />
+            ) : historico.length === 0 ? (
               <div
-                key={`${item.matchId}-${item.submittedAt}`}
-                className="rounded-lg px-3.5 py-3.5"
-                style={{ background: "rgba(0,0,0,0.2)", border: "1px dashed rgba(177,235,11,0.2)" }}
+                className="rounded-lg px-4 py-4 text-[12px] text-white/45 font-mono"
+                style={{
+                  border: "1px dashed rgba(255,255,255,0.14)",
+                  background: "rgba(0,0,0,0.15)",
+                }}
               >
-                <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      {jogo?.escudoCasa ? (
-                        <div className="w-7 h-7 rounded-full bg-white/90 flex items-center justify-center overflow-hidden shrink-0">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={jogo.escudoCasa} alt={item.mandante} className="w-5 h-5 object-contain" />
-                        </div>
-                      ) : null}
-                      <p className="text-[13px] font-bold text-white leading-snug">
-                        {item.mandante} <span className="text-white/35 font-normal">vs</span> {item.visitante}
-                      </p>
-                      {jogo?.escudoVisitante ? (
-                        <div className="w-7 h-7 rounded-full bg-white/90 flex items-center justify-center overflow-hidden shrink-0">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={jogo.escudoVisitante} alt={item.visitante} className="w-5 h-5 object-contain" />
-                        </div>
-                      ) : null}
-                    </div>
-                    <p className="text-[11px] text-white/40 mt-0.5">{item.jogoData} · {item.jogoHora}</p>
-                  </div>
-                  <span
-                    className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full shrink-0"
-                    style={{
-                      background: item.resultadoCasa != null && item.resultadoVisitante != null ? "rgba(148,163,184,0.12)" : "rgba(34,197,94,0.12)",
-                      color: item.resultadoCasa != null && item.resultadoVisitante != null ? "rgba(226,232,240,0.85)" : "#86EFAC",
-                      border: `1px solid ${item.resultadoCasa != null && item.resultadoVisitante != null ? "rgba(148,163,184,0.25)" : "rgba(34,197,94,0.28)"}`,
-                    }}
-                  >
-                    {item.resultadoCasa != null && item.resultadoVisitante != null ? "Encerrado" : "Aberto"}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
-                  <div className="rounded-lg px-2.5 py-2" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                    <p className="text-white/40 font-bold uppercase tracking-wide">Palpite enviado em</p>
-                    <p className="text-white/90 font-semibold mt-0.5">
-                      {new Date(item.submittedAt).toLocaleDateString("pt-BR")} às {new Date(item.submittedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-                    </p>
-                  </div>
-                  <div className="rounded-lg px-2.5 py-2" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                    <p className="text-white/40 font-bold uppercase tracking-wide">Jogo</p>
-                    <p className="text-white/90 font-semibold mt-0.5">{item.jogoData}, {item.jogoHora}</p>
-                  </div>
-                </div>
-
-                <div className="mt-2 flex flex-wrap items-center gap-3 text-[12px]">
-                  <div>
-                    <span className="text-white/40">Seu palpite</span>
-                    <p className="font-black text-white mt-0.5">
-                      {item.palpiteCasa} <span className="text-white/30 font-normal">x</span> {item.palpiteVisitante}
-                    </p>
-                  </div>
-                  <div className="h-8 w-px bg-white/10 hidden sm:block" />
-                  <div>
-                    <span className="text-white/40">Resultado</span>
-                    <p className="font-black text-white mt-0.5">
-                      {item.resultadoCasa ?? "-"} <span className="text-white/30 font-normal">x</span> {item.resultadoVisitante ?? "-"}
-                    </p>
-                  </div>
-                  <div className="sm:ml-auto flex items-center gap-2">
-                    <span
-                      className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                Nenhum palpite registrado ainda.
+              </div>
+            ) : (
+              historico.map((item) =>
+                (() => {
+                  const jogo = jogosById[item.matchId];
+                  return (
+                    <div
+                      key={`${item.matchId}-${item.submittedAt}`}
+                      className="rounded-lg px-3.5 py-3.5"
                       style={{
-                        background: item.pontos > 0 ? "rgba(34,197,94,0.1)" : "rgba(255,255,255,0.06)",
-                        color: item.pontos > 0 ? "#86EFAC" : "rgba(255,255,255,0.45)",
-                        border: `1px solid ${item.pontos > 0 ? "rgba(34,197,94,0.25)" : "rgba(255,255,255,0.1)"}`,
+                        background: "rgba(0,0,0,0.2)",
+                        border: "1px dashed rgba(177,235,11,0.2)",
                       }}
                     >
-                      {item.exact ? "Placar exato" : item.pontos > 0 ? "Acerto parcial" : "Sem pontos"}
-                    </span>
-                    <span className={`text-[13px] font-black ${item.pontos > 0 ? "text-[#4ADE80]" : "text-white/40"}`}>
-                      {item.pontos > 0 ? `+${item.pontos} pts` : "0 pts"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-                );
-              })()
-            ))
-          )}
-        </div>
-      )}
+                      <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            {jogo?.escudoCasa ? (
+                              <div className="w-7 h-7 rounded-full bg-white/90 flex items-center justify-center overflow-hidden shrink-0">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={jogo.escudoCasa}
+                                  alt={item.mandante}
+                                  className="w-5 h-5 object-contain"
+                                />
+                              </div>
+                            ) : null}
+                            <p className="text-[13px] font-bold text-white leading-snug">
+                              {item.mandante}{" "}
+                              <span className="text-white/35 font-normal">
+                                vs
+                              </span>{" "}
+                              {item.visitante}
+                            </p>
+                            {jogo?.escudoVisitante ? (
+                              <div className="w-7 h-7 rounded-full bg-white/90 flex items-center justify-center overflow-hidden shrink-0">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={jogo.escudoVisitante}
+                                  alt={item.visitante}
+                                  className="w-5 h-5 object-contain"
+                                />
+                              </div>
+                            ) : null}
+                          </div>
+                          <p className="text-[11px] text-white/40 mt-0.5">
+                            {item.jogoData} · {item.jogoHora}
+                          </p>
+                        </div>
+                        <span
+                          className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full shrink-0"
+                          style={{
+                            background:
+                              item.resultadoCasa != null &&
+                              item.resultadoVisitante != null
+                                ? "rgba(148,163,184,0.12)"
+                                : "rgba(34,197,94,0.12)",
+                            color:
+                              item.resultadoCasa != null &&
+                              item.resultadoVisitante != null
+                                ? "rgba(226,232,240,0.85)"
+                                : "#86EFAC",
+                            border: `1px solid ${item.resultadoCasa != null && item.resultadoVisitante != null ? "rgba(148,163,184,0.25)" : "rgba(34,197,94,0.28)"}`,
+                          }}
+                        >
+                          {item.resultadoCasa != null &&
+                          item.resultadoVisitante != null
+                            ? "Encerrado"
+                            : "Aberto"}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                        <div
+                          className="rounded-lg px-2.5 py-2"
+                          style={{
+                            background: "rgba(255,255,255,0.03)",
+                            border: "1px solid rgba(255,255,255,0.08)",
+                          }}
+                        >
+                          <p className="text-white/40 font-bold uppercase tracking-wide">
+                            Palpite enviado em
+                          </p>
+                          <p className="text-white/90 font-semibold mt-0.5">
+                            {new Date(item.submittedAt).toLocaleDateString(
+                              "pt-BR",
+                            )}{" "}
+                            às{" "}
+                            {new Date(item.submittedAt).toLocaleTimeString(
+                              "pt-BR",
+                              { hour: "2-digit", minute: "2-digit" },
+                            )}
+                          </p>
+                        </div>
+                        <div
+                          className="rounded-lg px-2.5 py-2"
+                          style={{
+                            background: "rgba(255,255,255,0.03)",
+                            border: "1px solid rgba(255,255,255,0.08)",
+                          }}
+                        >
+                          <p className="text-white/40 font-bold uppercase tracking-wide">
+                            Jogo
+                          </p>
+                          <p className="text-white/90 font-semibold mt-0.5">
+                            {item.jogoData}, {item.jogoHora}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="mt-2 flex flex-wrap items-center gap-3 text-[12px]">
+                        <div>
+                          <span className="text-white/40">Seu palpite</span>
+                          <p className="font-black text-white mt-0.5">
+                            {item.palpiteCasa}{" "}
+                            <span className="text-white/30 font-normal">x</span>{" "}
+                            {item.palpiteVisitante}
+                          </p>
+                        </div>
+                        <div className="h-8 w-px bg-white/10 hidden sm:block" />
+                        <div>
+                          <span className="text-white/40">Resultado</span>
+                          <p className="font-black text-white mt-0.5">
+                            {item.resultadoCasa ?? "-"}{" "}
+                            <span className="text-white/30 font-normal">x</span>{" "}
+                            {item.resultadoVisitante ?? "-"}
+                          </p>
+                        </div>
+                        <div className="sm:ml-auto flex items-center gap-2">
+                          <span
+                            className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                            style={{
+                              background:
+                                item.pontos > 0
+                                  ? "rgba(34,197,94,0.1)"
+                                  : "rgba(255,255,255,0.06)",
+                              color:
+                                item.pontos > 0
+                                  ? "#86EFAC"
+                                  : "rgba(255,255,255,0.45)",
+                              border: `1px solid ${item.pontos > 0 ? "rgba(34,197,94,0.25)" : "rgba(255,255,255,0.1)"}`,
+                            }}
+                          >
+                            {item.exact
+                              ? "Placar exato"
+                              : item.pontos > 0
+                                ? "Acerto parcial"
+                                : "Sem pontos"}
+                          </span>
+                          <span
+                            className={`text-[13px] font-black ${item.pontos > 0 ? "text-[#4ADE80]" : "text-white/40"}`}
+                          >
+                            {item.pontos > 0 ? `+${item.pontos} pts` : "0 pts"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })(),
+              )
+            )}
+          </div>
+        )}
         <TicketBarcodeMini />
       </div>
     </div>
@@ -1608,7 +2305,14 @@ function TicketResumoView({
 }
 
 // ── Sidebar desktop ───────────────────────────────────────────
-function DesktopSidebar({ grupo, tabela, grupos, onGrupo, rankingRows, stats }: {
+function DesktopSidebar({
+  grupo,
+  tabela,
+  grupos,
+  onGrupo,
+  rankingRows,
+  stats,
+}: {
   grupo: string;
   tabela: TabelaGrupos | null;
   grupos: string[];
@@ -1624,28 +2328,57 @@ function DesktopSidebar({ grupo, tabela, grupos, onGrupo, rankingRows, stats }: 
 
   return (
     <div className="flex flex-col gap-3 sticky top-6">
-
       {/* Stats */}
       <div className="grid grid-cols-3 gap-2">
         {[
-          { Icon: Target, val: stats.palpites, label: "Palpites", color: "#B1EB0B" },
-          { Icon: CircleCheck, val: stats.acertos, label: "Acertos", color: "#B1EB0B" },
+          {
+            Icon: Target,
+            val: stats.palpites,
+            label: "Palpites",
+            color: "#B1EB0B",
+          },
+          {
+            Icon: CircleCheck,
+            val: stats.acertos,
+            label: "Acertos",
+            color: "#B1EB0B",
+          },
           { Icon: Star, val: stats.pontos, label: "Pontos", color: "#D7FF59" },
         ].map(({ Icon, val, label, color }) => (
           <div
             key={label}
             className="rounded-xl py-3 flex flex-col items-center gap-0.5"
-            style={{ background: "#0B0D0C", border: "1px solid rgba(177,235,11,0.12)" }}
+            style={{
+              background: "#0B0D0C",
+              border: "1px solid rgba(177,235,11,0.12)",
+            }}
           >
-            <Icon className="w-4 h-4 mb-0.5" style={{ color }} strokeWidth={2} />
-            <span className="text-white font-black text-[20px] leading-none">{val}</span>
-            <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.3)" }}>{label}</span>
+            <Icon
+              className="w-4 h-4 mb-0.5"
+              style={{ color }}
+              strokeWidth={2}
+            />
+            <span className="text-white font-black text-[20px] leading-none">
+              {val}
+            </span>
+            <span
+              className="text-[10px]"
+              style={{ color: "rgba(255,255,255,0.3)" }}
+            >
+              {label}
+            </span>
           </div>
         ))}
       </div>
 
       {/* Classificação */}
-      <div className="rounded-2xl overflow-hidden" style={{ background: "#0B0D0C", border: "1px solid rgba(177,235,11,0.16)" }}>
+      <div
+        className="rounded-2xl overflow-hidden"
+        style={{
+          background: "#0B0D0C",
+          border: "1px solid rgba(177,235,11,0.16)",
+        }}
+      >
         <div
           className="flex items-center justify-between px-4 py-3 gap-2"
           style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
@@ -1655,7 +2388,10 @@ function DesktopSidebar({ grupo, tabela, grupos, onGrupo, rankingRows, stats }: 
             onClick={() => prev && onGrupo(prev)}
             disabled={!prev}
             className="w-6 h-6 rounded-md flex items-center justify-center shrink-0 transition-opacity"
-            style={{ background: "rgba(255,255,255,0.06)", opacity: prev ? 1 : 0.25 }}
+            style={{
+              background: "rgba(255,255,255,0.06)",
+              opacity: prev ? 1 : 0.25,
+            }}
           >
             <ChevronDown className="w-3 h-3 text-white/60 rotate-90" />
           </button>
@@ -1670,7 +2406,10 @@ function DesktopSidebar({ grupo, tabela, grupos, onGrupo, rankingRows, stats }: 
             onClick={() => next && onGrupo(next)}
             disabled={!next}
             className="w-6 h-6 rounded-md flex items-center justify-center shrink-0 transition-opacity"
-            style={{ background: "rgba(255,255,255,0.06)", opacity: next ? 1 : 0.25 }}
+            style={{
+              background: "rgba(255,255,255,0.06)",
+              opacity: next ? 1 : 0.25,
+            }}
           >
             <ChevronDown className="w-3 h-3 text-white/60 -rotate-90" />
           </button>
@@ -1678,7 +2417,12 @@ function DesktopSidebar({ grupo, tabela, grupos, onGrupo, rankingRows, stats }: 
           {/* Colunas */}
           <div className="flex gap-2 shrink-0">
             {["PTS", "J", "V", "E", "D"].map((col) => (
-              <span key={col} className="text-[9px] font-bold text-white/30 w-5 text-center">{col}</span>
+              <span
+                key={col}
+                className="text-[9px] font-bold text-white/30 w-5 text-center"
+              >
+                {col}
+              </span>
             ))}
           </div>
         </div>
@@ -1695,14 +2439,18 @@ function DesktopSidebar({ grupo, tabela, grupos, onGrupo, rankingRows, stats }: 
             className="flex items-center px-4 py-2.5 gap-2"
             style={{
               background: i < 2 ? "rgba(177,235,11,0.04)" : "transparent",
-              borderBottom: i < times.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none",
+              borderBottom:
+                i < times.length - 1
+                  ? "1px solid rgba(255,255,255,0.04)"
+                  : "none",
             }}
           >
             {/* Posição */}
             <span
               className="w-5 h-5 rounded-[5px] flex items-center justify-center text-[10px] font-bold shrink-0"
               style={{
-                background: i === 0 ? "rgba(177,235,11,0.14)" : "rgba(255,255,255,0.06)",
+                background:
+                  i === 0 ? "rgba(177,235,11,0.14)" : "rgba(255,255,255,0.06)",
                 color: i === 0 ? "#B1EB0B" : "rgba(255,255,255,0.4)",
               }}
             >
@@ -1714,34 +2462,57 @@ function DesktopSidebar({ grupo, tabela, grupos, onGrupo, rankingRows, stats }: 
               style={{ background: "rgba(255,255,255,0.92)" }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={t.time.escudo} alt={t.time.sigla} className="w-5 h-5 object-contain" />
+              <img
+                src={t.time.escudo}
+                alt={t.time.sigla}
+                className="w-5 h-5 object-contain"
+              />
             </div>
             {/* Sigla */}
-            <span className="text-white font-bold text-[12px] flex-1 min-w-0 truncate">{t.time.sigla}</span>
+            <span className="text-white font-bold text-[12px] flex-1 min-w-0 truncate">
+              {t.time.sigla}
+            </span>
             {/* Stats */}
             <div className="flex gap-2 shrink-0">
-              {[t.pontos, t.jogos, t.vitorias, t.empates, t.derrotas].map((val, vi) => (
-                <span
-                  key={vi}
-                  className="w-5 text-center text-[12px] font-bold"
-                  style={{ color: vi === 0 ? "#fff" : "rgba(255,255,255,0.35)" }}
-                >
-                  {val}
-                </span>
-              ))}
+              {[t.pontos, t.jogos, t.vitorias, t.empates, t.derrotas].map(
+                (val, vi) => (
+                  <span
+                    key={vi}
+                    className="w-5 text-center text-[12px] font-bold"
+                    style={{
+                      color: vi === 0 ? "#fff" : "rgba(255,255,255,0.35)",
+                    }}
+                  >
+                    {val}
+                  </span>
+                ),
+              )}
             </div>
           </div>
         ))}
       </div>
 
       {/* Top Palpiteiros */}
-      <div className="rounded-2xl overflow-hidden" style={{ background: "#0B0D0C", border: "1px solid rgba(177,235,11,0.14)" }}>
+      <div
+        className="rounded-2xl overflow-hidden"
+        style={{
+          background: "#0B0D0C",
+          border: "1px solid rgba(177,235,11,0.14)",
+        }}
+      >
         <div
           className="flex items-center justify-between px-4 py-3"
           style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
         >
-          <span className="text-white font-bold text-[13px]">Top Palpiteiros</span>
-          <button className="text-[12px] font-semibold" style={{ color: "#B1EB0B" }}>Ver todos</button>
+          <span className="text-white font-bold text-[13px]">
+            Top Palpiteiros
+          </span>
+          <button
+            className="text-[12px] font-semibold"
+            style={{ color: "#B1EB0B" }}
+          >
+            Ver todos
+          </button>
         </div>
         {rankingRows.map((r, i) => (
           <div
@@ -1749,7 +2520,10 @@ function DesktopSidebar({ grupo, tabela, grupos, onGrupo, rankingRows, stats }: 
             className="flex items-center gap-2.5 px-3 py-2.5"
             style={{
               background: r.isMe ? "rgba(177,235,11,0.07)" : "transparent",
-              borderBottom: i < rankingRows.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none",
+              borderBottom:
+                i < rankingRows.length - 1
+                  ? "1px solid rgba(255,255,255,0.04)"
+                  : "none",
             }}
           >
             {/* Medal / position */}
@@ -1762,14 +2536,34 @@ function DesktopSidebar({ grupo, tabela, grupos, onGrupo, rankingRows, stats }: 
               <p className="text-white font-semibold text-[12px] truncate">
                 {r.nome}
                 {r.isMe && (
-                  <span className="text-[10px] font-normal ml-0.5" style={{ color: "rgba(255,255,255,0.3)" }}>(você)</span>
+                  <span
+                    className="text-[10px] font-normal ml-0.5"
+                    style={{ color: "rgba(255,255,255,0.3)" }}
+                  >
+                    (você)
+                  </span>
                 )}
               </p>
-              <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.3)" }}>{r.acertos} acertos</p>
+              <p
+                className="text-[10px]"
+                style={{ color: "rgba(255,255,255,0.3)" }}
+              >
+                {r.acertos} acertos
+              </p>
             </div>
             <div className="shrink-0 flex items-baseline gap-0.5">
-              <span className="font-black text-[14px]" style={{ color: r.isMe ? "#B1EB0B" : "#fff" }}>{r.pts}</span>
-              <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.2)" }}>pts</span>
+              <span
+                className="font-black text-[14px]"
+                style={{ color: r.isMe ? "#B1EB0B" : "#fff" }}
+              >
+                {r.pts}
+              </span>
+              <span
+                className="text-[9px]"
+                style={{ color: "rgba(255,255,255,0.2)" }}
+              >
+                pts
+              </span>
             </div>
           </div>
         ))}
@@ -1778,17 +2572,30 @@ function DesktopSidebar({ grupo, tabela, grupos, onGrupo, rankingRows, stats }: 
       {/* Prazo */}
       <div
         className="rounded-2xl px-4 py-4 flex items-start gap-3"
-        style={{ background: "rgba(218,182,130,0.06)", border: "1px solid rgba(218,182,130,0.18)" }}
+        style={{
+          background: "rgba(218,182,130,0.06)",
+          border: "1px solid rgba(218,182,130,0.18)",
+        }}
       >
-        <Bell className="w-4 h-4 shrink-0 mt-0.5" style={{ color: "#D7FF59" }} strokeWidth={2} />
+        <Bell
+          className="w-4 h-4 shrink-0 mt-0.5"
+          style={{ color: "#D7FF59" }}
+          strokeWidth={2}
+        />
         <div>
-          <p className="font-bold text-[12px]" style={{ color: "#D7FF59" }}>Prazo para palpitar</p>
-          <p className="text-[11px] mt-1 leading-relaxed" style={{ color: "rgba(218,182,130,0.5)" }}>
-            Palpites so ate 1h antes do apito: na ultima hora antes do jogo e depois do inicio o sistema fecha. Quem nao tiver palpite salvo ate esse limite nao entra na partida.
+          <p className="font-bold text-[12px]" style={{ color: "#D7FF59" }}>
+            Prazo para palpitar
+          </p>
+          <p
+            className="text-[11px] mt-1 leading-relaxed"
+            style={{ color: "rgba(218,182,130,0.5)" }}
+          >
+            Palpites so ate 1h antes do apito: na ultima hora antes do jogo e
+            depois do inicio o sistema fecha. Quem nao tiver palpite salvo ate
+            esse limite nao entra na partida.
           </p>
         </div>
       </div>
-
     </div>
   );
 }
@@ -1833,7 +2640,7 @@ function RoundPhaseNav({
 }) {
   const rodadas = useMemo(
     () => Array.from(new Set(jogos.map((j) => j.rodada))).sort((a, b) => a - b),
-    [jogos]
+    [jogos],
   );
   const rodadaIdx = rodadas.indexOf(selectedRodada);
   const canPrev = rodadaIdx > 0;
@@ -1841,7 +2648,7 @@ function RoundPhaseNav({
 
   const jogosNaRodada = useMemo(
     () => jogos.filter((j) => j.rodada === selectedRodada),
-    [jogos, selectedRodada]
+    [jogos, selectedRodada],
   );
 
   const datas = useMemo(
@@ -1849,13 +2656,16 @@ function RoundPhaseNav({
       Array.from(new Set(jogosNaRodada.map((j) => j.dataBR)))
         .filter(Boolean)
         .sort((a, b) => (brDateToUtcMs(a) ?? 0) - (brDateToUtcMs(b) ?? 0)),
-    [jogosNaRodada]
+    [jogosNaRodada],
   );
 
   // Progress always reflects the full round so users see overall completion
   const totalJogos = jogosNaRodada.length;
-  const jogosPalpitados = jogosNaRodada.filter((j) => Boolean(predictionsMap[j.id])).length;
-  const pct = totalJogos > 0 ? Math.round((jogosPalpitados / totalJogos) * 100) : 0;
+  const jogosPalpitados = jogosNaRodada.filter((j) =>
+    Boolean(predictionsMap[j.id]),
+  ).length;
+  const pct =
+    totalJogos > 0 ? Math.round((jogosPalpitados / totalJogos) * 100) : 0;
 
   function dateStatus(d: string): "done" | "partial" | "pending" {
     const jd = jogosNaRodada.filter((j) => j.dataBR === d);
@@ -1867,18 +2677,23 @@ function RoundPhaseNav({
 
   return (
     <div className="mb-5 flex flex-col gap-2.5">
-
       {/* ── 1. Navegação de fase / rodada ── */}
       <div
         className="flex items-center justify-between rounded-[14px] px-4 py-3"
-        style={{ background: "#0B0D0C", border: "1px solid rgba(255,255,255,0.08)" }}
+        style={{
+          background: "#0B0D0C",
+          border: "1px solid rgba(255,255,255,0.08)",
+        }}
       >
         <button
           type="button"
           onClick={() => canPrev && onRodada(rodadas[rodadaIdx - 1]!)}
           disabled={!canPrev}
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-opacity"
-          style={{ background: "rgba(255,255,255,0.06)", opacity: canPrev ? 1 : 0.25 }}
+          style={{
+            background: "rgba(255,255,255,0.06)",
+            opacity: canPrev ? 1 : 0.25,
+          }}
         >
           <ChevronLeft className="h-4 w-4 text-white/70" strokeWidth={2.5} />
         </button>
@@ -1890,7 +2705,10 @@ function RoundPhaseNav({
           onClick={() => canNext && onRodada(rodadas[rodadaIdx + 1]!)}
           disabled={!canNext}
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-opacity"
-          style={{ background: "rgba(255,255,255,0.06)", opacity: canNext ? 1 : 0.25 }}
+          style={{
+            background: "rgba(255,255,255,0.06)",
+            opacity: canNext ? 1 : 0.25,
+          }}
         >
           <ChevronRight className="h-4 w-4 text-white/70" strokeWidth={2.5} />
         </button>
@@ -1900,7 +2718,10 @@ function RoundPhaseNav({
       {datas.length > 0 && (
         <div
           className="overflow-hidden rounded-[14px]"
-          style={{ background: "#0B0D0C", border: "1px solid rgba(255,255,255,0.08)" }}
+          style={{
+            background: "#0B0D0C",
+            border: "1px solid rgba(255,255,255,0.08)",
+          }}
         >
           <div className="flex gap-2 overflow-x-auto px-3 py-3 scrollbar-hide">
             {datas.map((d) => {
@@ -1936,7 +2757,10 @@ function RoundPhaseNav({
                         className="flex h-4 w-4 items-center justify-center rounded-full"
                         style={{ background: "rgba(177,235,11,0.25)" }}
                       >
-                        <Check className="h-2.5 w-2.5 text-primary" strokeWidth={3} />
+                        <Check
+                          className="h-2.5 w-2.5 text-primary"
+                          strokeWidth={3}
+                        />
                       </span>
                     ) : (
                       <span
@@ -1947,19 +2771,25 @@ function RoundPhaseNav({
                   </span>
                   <span
                     className="text-[9px] font-black uppercase tracking-wider"
-                    style={{ color: isSelected ? "#B1EB0B" : "rgba(255,255,255,0.40)" }}
+                    style={{
+                      color: isSelected ? "#B1EB0B" : "rgba(255,255,255,0.40)",
+                    }}
                   >
                     {fmt.diaSemana}
                   </span>
                   <span
                     className="text-[14px] font-black leading-tight"
-                    style={{ color: isSelected ? "#fff" : "rgba(255,255,255,0.85)" }}
+                    style={{
+                      color: isSelected ? "#fff" : "rgba(255,255,255,0.85)",
+                    }}
                   >
                     {fmt.dia}
                   </span>
                   <span
                     className="text-[9px] font-semibold uppercase"
-                    style={{ color: isSelected ? "#B1EB0B" : "rgba(255,255,255,0.30)" }}
+                    style={{
+                      color: isSelected ? "#B1EB0B" : "rgba(255,255,255,0.30)",
+                    }}
                   >
                     {fmt.mes}
                   </span>
@@ -1973,20 +2803,32 @@ function RoundPhaseNav({
       {/* ── 3. Progress bar ── */}
       <div
         className="rounded-[14px] px-4 py-3"
-        style={{ background: "#0B0D0C", border: "1px solid rgba(255,255,255,0.08)" }}
+        style={{
+          background: "#0B0D0C",
+          border: "1px solid rgba(255,255,255,0.08)",
+        }}
       >
         <div className="mb-2 flex items-center justify-between">
-          <span className="text-[12px] font-semibold" style={{ color: "rgba(255,255,255,0.50)" }}>
-            <span className="font-black text-white">{jogosPalpitados}</span> / {totalJogos} palpites feitos
+          <span
+            className="text-[12px] font-semibold"
+            style={{ color: "rgba(255,255,255,0.50)" }}
+          >
+            <span className="font-black text-white">{jogosPalpitados}</span> /{" "}
+            {totalJogos} palpites feitos
           </span>
           <span
             className="text-[12px] font-black"
-            style={{ color: pct === 100 ? "#B1EB0B" : "rgba(255,255,255,0.40)" }}
+            style={{
+              color: pct === 100 ? "#B1EB0B" : "rgba(255,255,255,0.40)",
+            }}
           >
             {pct}%
           </span>
         </div>
-        <div className="h-[5px] overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.07)" }}>
+        <div
+          className="h-[5px] overflow-hidden rounded-full"
+          style={{ background: "rgba(255,255,255,0.07)" }}
+        >
           <div
             className="h-full rounded-full transition-[width] duration-500"
             style={{
@@ -2004,36 +2846,69 @@ function RoundPhaseNav({
 }
 
 // ── Página ───────────────────────────────────────────────────
-function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData | null }) {
+function PalpitesPageContent({
+  initialData,
+}: {
+  initialData: PalpitesInitialData | null;
+}) {
   const searchParams = useSearchParams();
   const resultMode = searchParams.get("mode") === "resultado";
   const ticketId = searchParams.get("ticket");
   const hasBoloesFlow = Boolean(ticketId);
-  const [bolaoType, setBolaoType] = useState<"principal" | "diario">(initialData?.bolaoType ?? "principal");
+  const [bolaoType, setBolaoType] = useState<"principal" | "diario">(
+    initialData?.bolaoType ?? "principal",
+  );
   const [tab, setTab] = useState<TabView>("jogos");
   const [grupo, setGrupo] = useState(initialData?.grupo ?? "");
   const [jogos, setJogos] = useState<Jogo[]>(initialData?.jogos ?? []);
   const [grupos, setGrupos] = useState<string[]>(initialData?.grupos ?? []);
   const [loading, setLoading] = useState(!initialData);
   const [erro, setErro] = useState(initialData?.erro ?? false);
-  const [tabela, setTabela] = useState<TabelaGrupos | null>(initialData?.tabela ?? null);
+  const [tabela, setTabela] = useState<TabelaGrupos | null>(
+    initialData?.tabela ?? null,
+  );
   const [loadingTabela, setLoadingTabela] = useState(false);
   const [resultTab, setResultTab] = useState<ResultTabView>("jogos");
-  const [rankingRows, setRankingRows] = useState<RankingRowView[]>(initialData?.rankingRows ?? []);
-  const [resumoStats, setResumoStats] = useState<ResumoStats>(initialData?.resumoStats ?? { palpites: 0, acertos: 0, pontos: 0, exatos: 0 });
-  const [historicoRows, setHistoricoRows] = useState<HistoricoRowView[]>(initialData?.historicoRows ?? []);
-  const [predictionsMap, setPredictionsMap] = useState<Record<number, { scoreCasa: number; scoreVisitante: number }>>(initialData?.predictionsMap ?? {});
+  const [rankingRows, setRankingRows] = useState<RankingRowView[]>(
+    initialData?.rankingRows ?? [],
+  );
+  const [resumoStats, setResumoStats] = useState<ResumoStats>(
+    initialData?.resumoStats ?? {
+      palpites: 0,
+      acertos: 0,
+      pontos: 0,
+      exatos: 0,
+    },
+  );
+  const [historicoRows, setHistoricoRows] = useState<HistoricoRowView[]>(
+    initialData?.historicoRows ?? [],
+  );
+  const [predictionsMap, setPredictionsMap] = useState<
+    Record<number, { scoreCasa: number; scoreVisitante: number }>
+  >(initialData?.predictionsMap ?? {});
   const [loadingPredictions, setLoadingPredictions] = useState(false);
   const [loadingResumo, setLoadingResumo] = useState(false);
   const [selectedRodada, setSelectedRodada] = useState<number | null>(() => {
     if (!initialData?.jogos?.length) return null;
     const todayStr = resolveDiarioPlayableDateFromJogos(initialData.jogos);
-    const rodadas = Array.from(new Set(initialData.jogos.map((j: Jogo) => j.rodada))).sort((a: number, b: number) => a - b);
-    return rodadas.find((r: number) => initialData.jogos.some((j: Jogo) => j.rodada === r && j.dataBR === todayStr)) ?? rodadas[0] ?? null;
+    const rodadas = Array.from(
+      new Set(initialData.jogos.map((j: Jogo) => j.rodada)),
+    ).sort((a: number, b: number) => a - b);
+    return (
+      rodadas.find((r: number) =>
+        initialData.jogos.some(
+          (j: Jogo) => j.rodada === r && j.dataBR === todayStr,
+        ),
+      ) ??
+      rodadas[0] ??
+      null
+    );
   });
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const showPredictionsSkeleton =
-    Boolean(ticketId) && loadingPredictions && Object.keys(predictionsMap).length === 0;
+    Boolean(ticketId) &&
+    loadingPredictions &&
+    Object.keys(predictionsMap).length === 0;
 
   useEffect(() => {
     if (initialData && initialData.jogos.length > 0) {
@@ -2056,11 +2931,17 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
 
     function applyRodadaInicial(parsed: Jogo[]) {
       const todayDateStr = resolveDiarioPlayableDateFromJogos(parsed);
-      const rodadasDispAll = Array.from(new Set(parsed.map((j) => j.rodada))).sort((a, b) => a - b);
+      const rodadasDispAll = Array.from(
+        new Set(parsed.map((j) => j.rodada)),
+      ).sort((a, b) => a - b);
       const rodadaContemHoje = rodadasDispAll.find((r) =>
-        parsed.filter((j) => j.rodada === r).some((j) => j.dataBR === todayDateStr)
+        parsed
+          .filter((j) => j.rodada === r)
+          .some((j) => j.dataBR === todayDateStr),
       );
-      setSelectedRodada((prev) => (prev != null ? prev : rodadaContemHoje ?? rodadasDispAll[0] ?? 0));
+      setSelectedRodada((prev) =>
+        prev != null ? prev : (rodadaContemHoje ?? rodadasDispAll[0] ?? 0),
+      );
     }
 
     async function tick() {
@@ -2083,7 +2964,9 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
         }
         setJogos(parsed);
         setGrupos(letras);
-        setGrupo((prev) => (letras.includes(prev) ? prev : letras[0] ?? "GERAL"));
+        setGrupo((prev) =>
+          letras.includes(prev) ? prev : (letras[0] ?? "GERAL"),
+        );
         setErro(false);
         applyRodadaInicial(parsed);
       } catch {
@@ -2118,7 +3001,7 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
       try {
         const r = await fetch(
           `/api/tickets/bolao-type?ticketId=${encodeURIComponent(ticketId)}`,
-          { credentials: "include", cache: "no-store" }
+          { credentials: "include", cache: "no-store" },
         );
         const d = (await r.json()) as { bolaoType?: string };
         const b = d.bolaoType === "diario" ? "diario" : "principal";
@@ -2142,15 +3025,30 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
     (async () => {
       setLoadingPredictions(true);
       try {
-        const r = await fetch(`/api/palpites?ticketId=${encodeURIComponent(ticketId)}`, {
-          credentials: "include",
-          cache: "no-store",
-        });
-        const d = (await r.json()) as { predictions?: Array<{ matchId: number; scoreCasa: number; scoreVisitante: number }> };
+        const r = await fetch(
+          `/api/palpites?ticketId=${encodeURIComponent(ticketId)}`,
+          {
+            credentials: "include",
+            cache: "no-store",
+          },
+        );
+        const d = (await r.json()) as {
+          predictions?: Array<{
+            matchId: number;
+            scoreCasa: number;
+            scoreVisitante: number;
+          }>;
+        };
         if (!r.ok || !Array.isArray(d.predictions)) return;
-        const next: Record<number, { scoreCasa: number; scoreVisitante: number }> = {};
+        const next: Record<
+          number,
+          { scoreCasa: number; scoreVisitante: number }
+        > = {};
         for (const p of d.predictions) {
-          next[p.matchId] = { scoreCasa: p.scoreCasa, scoreVisitante: p.scoreVisitante };
+          next[p.matchId] = {
+            scoreCasa: p.scoreCasa,
+            scoreVisitante: p.scoreVisitante,
+          };
         }
         setPredictionsMap(next);
       } catch {
@@ -2164,10 +3062,13 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
   const jogosPlacarSignature = useMemo(
     () =>
       jogos
-        .map((j) => `${j.id}:${j.resultCasa ?? ""}:${j.resultVisitante ?? ""}:${j.status}`)
+        .map(
+          (j) =>
+            `${j.id}:${j.resultCasa ?? ""}:${j.resultVisitante ?? ""}:${j.status}`,
+        )
         .sort()
         .join("|"),
-    [jogos]
+    [jogos],
   );
 
   useEffect(() => {
@@ -2175,8 +3076,21 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
       try {
         const q = new URLSearchParams();
         if (ticketId) q.set("ticketId", ticketId);
-        const r = await fetch(`/api/palpites/ranking?${q.toString()}`, { credentials: "include", cache: "no-store" });
-        const d = (await r.json()) as { ranking?: Array<{ pos: number; ticketId: string; totalPoints: number; outcomeCount: number; exactCount: number; goalsCount: number; isMe: boolean }> };
+        const r = await fetch(`/api/palpites/ranking?${q.toString()}`, {
+          credentials: "include",
+          cache: "no-store",
+        });
+        const d = (await r.json()) as {
+          ranking?: Array<{
+            pos: number;
+            ticketId: string;
+            totalPoints: number;
+            outcomeCount: number;
+            exactCount: number;
+            goalsCount: number;
+            isMe: boolean;
+          }>;
+        };
         if (!r.ok || !Array.isArray(d.ranking)) return;
         setRankingRows(
           d.ranking.map((row) => ({
@@ -2188,7 +3102,7 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
             exact: row.exactCount,
             gols: row.goalsCount,
             isMe: row.isMe,
-          }))
+          })),
         );
       } catch {}
     })();
@@ -2201,20 +3115,36 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
       try {
         const q = new URLSearchParams({ ticketId });
         const [resumoResp, historicoResp] = await Promise.all([
-          fetch(`/api/palpites/resumo?${q.toString()}`, { credentials: "include", cache: "no-store" }),
-          fetch(`/api/palpites/historico?${q.toString()}&limit=30`, { credentials: "include", cache: "no-store" }),
+          fetch(`/api/palpites/resumo?${q.toString()}`, {
+            credentials: "include",
+            cache: "no-store",
+          }),
+          fetch(`/api/palpites/historico?${q.toString()}&limit=30`, {
+            credentials: "include",
+            cache: "no-store",
+          }),
         ]);
-        const resumoData = (await resumoResp.json().catch(() => ({}))) as { resumo?: ResumoStats };
-        const histData = (await historicoResp.json().catch(() => ({}))) as { historico?: HistoricoRowView[] };
-        if (resumoResp.ok && resumoData.resumo) setResumoStats(resumoData.resumo);
-        if (historicoResp.ok && Array.isArray(histData.historico)) setHistoricoRows(histData.historico);
+        const resumoData = (await resumoResp.json().catch(() => ({}))) as {
+          resumo?: ResumoStats;
+        };
+        const histData = (await historicoResp.json().catch(() => ({}))) as {
+          historico?: HistoricoRowView[];
+        };
+        if (resumoResp.ok && resumoData.resumo)
+          setResumoStats(resumoData.resumo);
+        if (historicoResp.ok && Array.isArray(histData.historico))
+          setHistoricoRows(histData.historico);
       } finally {
         setLoadingResumo(false);
       }
     })();
   }, [ticketId, jogosPlacarSignature]);
 
-  const savePrediction = async (payload: { matchId: number; scoreCasa: number; scoreVisitante: number }) => {
+  const savePrediction = async (payload: {
+    matchId: number;
+    scoreCasa: number;
+    scoreVisitante: number;
+  }) => {
     if (!ticketId) return;
     const isNewPrediction = !predictionsMap[payload.matchId];
     const r = await fetch("/api/palpites", {
@@ -2234,7 +3164,10 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
     }
     setPredictionsMap((prev) => ({
       ...prev,
-      [payload.matchId]: { scoreCasa: payload.scoreCasa, scoreVisitante: payload.scoreVisitante },
+      [payload.matchId]: {
+        scoreCasa: payload.scoreCasa,
+        scoreVisitante: payload.scoreVisitante,
+      },
     }));
     if (isNewPrediction) {
       setResumoStats((prev) => ({ ...prev, palpites: prev.palpites + 1 }));
@@ -2254,10 +3187,14 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
   const diarioLockedMode =
     bolaoType === "diario" &&
     jogosBase.length > 0 &&
-    jogosBase.every((j) => j.status === "encerrado" || isLockedByKickoff(j.kickoffAt, nowMs));
+    jogosBase.every(
+      (j) => j.status === "encerrado" || isLockedByKickoff(j.kickoffAt, nowMs),
+    );
   const readOnlyMode = resultMode || diarioLockedMode;
   const showJogos = readOnlyMode ? resultTab === "jogos" : tab === "jogos";
-  const showRanking = readOnlyMode ? resultTab === "ranking" : tab === "ranking";
+  const showRanking = readOnlyMode
+    ? resultTab === "ranking"
+    : tab === "ranking";
   const showResumo = readOnlyMode ? resultTab === "resumo" : tab === "resumo";
 
   const jogosDisplayBase =
@@ -2265,11 +3202,17 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
       ? jogosBase.filter((j) => Boolean(predictionsMap[j.id]))
       : jogosBase;
   const shouldFilterByGroup = !hasBoloesFlow && grupos.length > 0;
-  const matchesGroup = (j: Jogo) => (shouldFilterByGroup ? j.grupo === grupo : true);
-  const rodadasDisponiveis = Array.from(new Set(jogosDisplayBase.filter((j) => matchesGroup(j)).map((j) => j.rodada))).sort((a, b) => a - b);
+  const matchesGroup = (j: Jogo) =>
+    shouldFilterByGroup ? j.grupo === grupo : true;
+  const rodadasDisponiveis = Array.from(
+    new Set(
+      jogosDisplayBase.filter((j) => matchesGroup(j)).map((j) => j.rodada),
+    ),
+  ).sort((a, b) => a - b);
   const jogosPorRodada = rodadasDisponiveis.map((idx) => {
-    const jogosDaRodada = jogosDisplayBase
-      .filter((j) => matchesGroup(j) && j.rodada === idx);
+    const jogosDaRodada = jogosDisplayBase.filter(
+      (j) => matchesGroup(j) && j.rodada === idx,
+    );
     return {
       label: rodadaLabel(idx),
       jogos: jogosDaRodada,
@@ -2290,50 +3233,72 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
     hasBoloesFlow,
     readOnlyMode,
     diarioLockedMode,
-    sampleDates: Array.from(new Set(jogos.map((j) => j.dataBR).filter(Boolean))).slice(0, 10),
+    sampleDates: Array.from(
+      new Set(jogos.map((j) => j.dataBR).filter(Boolean)),
+    ).slice(0, 10),
   };
 
   useEffect(() => {
     if (rodadasDisponiveis.length === 0) return;
-    if (selectedRodada == null || !rodadasDisponiveis.includes(selectedRodada)) {
+    if (
+      selectedRodada == null ||
+      !rodadasDisponiveis.includes(selectedRodada)
+    ) {
       setSelectedRodada(rodadasDisponiveis[0] ?? null);
       setSelectedDate(null);
     }
   }, [rodadasDisponiveis, selectedRodada]);
-  
+
   const predictionsLoadedOnce = Object.keys(predictionsMap).length > 0;
   useEffect(() => {
     if (!showGroupedByGroup) return;
     if (selectedRodada === null) return;
-    const jogosNaRodadaAtual = jogosDisplayBase.filter((j) => j.rodada === selectedRodada);
+    const jogosNaRodadaAtual = jogosDisplayBase.filter(
+      (j) => j.rodada === selectedRodada,
+    );
     const datas = Array.from(new Set(jogosNaRodadaAtual.map((j) => j.dataBR)))
       .filter(Boolean)
       .sort((a, b) => (brDateToUtcMs(a) ?? 0) - (brDateToUtcMs(b) ?? 0));
     // Pick the first date that still has at least one game without a prediction
     const nextPending = datas.find((d) =>
-      jogosNaRodadaAtual.filter((j) => j.dataBR === d).some((j) => !predictionsMap[j.id])
+      jogosNaRodadaAtual
+        .filter((j) => j.dataBR === d)
+        .some((j) => !predictionsMap[j.id]),
     );
     setSelectedDate(nextPending ?? datas[0] ?? null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedRodada, predictionsLoadedOnce, showGroupedByGroup]);
 
-  const gruposComJogos = Array.from(new Set(jogosDisplayBase.map((j) => j.grupo).filter(Boolean))).sort();
+  const gruposComJogos = Array.from(
+    new Set(jogosDisplayBase.map((j) => j.grupo).filter(Boolean)),
+  ).sort();
   // When showGroupedByGroup, filter by selected round and date
   const jogosFiltradosParaGrupos = showGroupedByGroup
     ? jogosDisplayBase.filter((j) => {
-        if (selectedRodada !== null && j.rodada !== selectedRodada) return false;
+        if (selectedRodada !== null && j.rodada !== selectedRodada)
+          return false;
         if (selectedDate && j.dataBR !== selectedDate) return false;
         return true;
       })
     : jogosDisplayBase;
-  const gruposComJogosFiltrados = Array.from(new Set(jogosFiltradosParaGrupos.map((j) => j.grupo).filter(Boolean))).sort();
+  const gruposComJogosFiltrados = Array.from(
+    new Set(jogosFiltradosParaGrupos.map((j) => j.grupo).filter(Boolean)),
+  ).sort();
   const jogosPorGrupoRodada = gruposComJogosFiltrados.map((groupKey) => {
-    const rodadasDoGrupo = Array.from(new Set(jogosFiltradosParaGrupos.filter((j) => j.grupo === groupKey).map((j) => j.rodada))).sort((a, b) => a - b);
+    const rodadasDoGrupo = Array.from(
+      new Set(
+        jogosFiltradosParaGrupos
+          .filter((j) => j.grupo === groupKey)
+          .map((j) => j.rodada),
+      ),
+    ).sort((a, b) => a - b);
     return {
       groupKey,
       rodadas: rodadasDoGrupo.map((idx) => ({
         label: rodadaLabel(idx),
-        jogos: jogosFiltradosParaGrupos.filter((j) => j.grupo === groupKey && j.rodada === idx),
+        jogos: jogosFiltradosParaGrupos.filter(
+          (j) => j.grupo === groupKey && j.rodada === idx,
+        ),
       })),
     };
   });
@@ -2341,28 +3306,38 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
   const scrollToGroup = (groupKey: string) => {
     setGrupo(groupKey);
     if (typeof window === "undefined") return;
-    const targetId = window.matchMedia("(min-width: 1024px)").matches ? `desk-group-${groupKey}` : `mob-group-${groupKey}`;
+    const targetId = window.matchMedia("(min-width: 1024px)").matches
+      ? `desk-group-${groupKey}`
+      : `mob-group-${groupKey}`;
     const el = document.getElementById(targetId);
     if (!el) return;
     // small delay so render happens first when filtering by date/round
-    setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
+    setTimeout(
+      () => el.scrollIntoView({ behavior: "smooth", block: "start" }),
+      60,
+    );
   };
   const jogosById = useMemo(
     () =>
-      jogos.reduce((acc, j) => {
-        acc[j.id] = j;
-        return acc;
-      }, {} as Record<number, Jogo>),
-    [jogos]
+      jogos.reduce(
+        (acc, j) => {
+          acc[j.id] = j;
+          return acc;
+        },
+        {} as Record<number, Jogo>,
+      ),
+    [jogos],
   );
 
   const BotoesGrupo = ({ className }: { className?: string }) => (
     <div className={className}>
-      <span className="text-[11px] font-bold text-white/30 tracking-widest uppercase block mb-2">Grupo</span>
+      <span className="text-[11px] font-bold text-white/30 tracking-widest uppercase block mb-2">
+        Grupo
+      </span>
       {/* Mobile: chunked rows of 6 */}
       <div className="flex flex-col gap-1.5 lg:hidden">
         {Array.from({ length: Math.ceil(grupos.length / 6) }, (_, ri) =>
-          grupos.slice(ri * 6, ri * 6 + 6)
+          grupos.slice(ri * 6, ri * 6 + 6),
         ).map((row, ri) => (
           <div key={ri} className="flex gap-1.5">
             {row.map((g) => (
@@ -2371,11 +3346,17 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                 onClick={() => setGrupo(g)}
                 className="flex-1 h-9 rounded-lg text-[13px] font-bold transition-all duration-200"
                 style={{
-                  background: grupo === g ? "linear-gradient(180deg, #E8FF8A 0%, #B1EB0B 100%)" : "#0B0D0C",
+                  background:
+                    grupo === g
+                      ? "linear-gradient(180deg, #E8FF8A 0%, #B1EB0B 100%)"
+                      : "#0B0D0C",
                   color: grupo === g ? "#0E141B" : "rgba(255,255,255,0.4)",
-                  boxShadow: grupo === g ? "0 0 14px rgba(177,235,11,0.45)" : "none",
+                  boxShadow:
+                    grupo === g ? "0 0 14px rgba(177,235,11,0.45)" : "none",
                 }}
-              >{g}</button>
+              >
+                {g}
+              </button>
             ))}
           </div>
         ))}
@@ -2388,11 +3369,17 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
             onClick={() => setGrupo(g)}
             className="w-9 h-9 rounded-lg text-[13px] font-bold transition-all duration-200"
             style={{
-              background: grupo === g ? "linear-gradient(180deg, #E8FF8A 0%, #B1EB0B 100%)" : "#0B0D0C",
+              background:
+                grupo === g
+                  ? "linear-gradient(180deg, #E8FF8A 0%, #B1EB0B 100%)"
+                  : "#0B0D0C",
               color: grupo === g ? "#0E141B" : "rgba(255,255,255,0.4)",
-              boxShadow: grupo === g ? "0 0 14px rgba(177,235,11,0.45)" : "none",
+              boxShadow:
+                grupo === g ? "0 0 14px rgba(177,235,11,0.45)" : "none",
             }}
-          >{g}</button>
+          >
+            {g}
+          </button>
         ))}
       </div>
     </div>
@@ -2413,7 +3400,8 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
           backgroundImage:
             "linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px)",
           backgroundSize: "18px 18px",
-          maskImage: "linear-gradient(180deg, #000 0%, rgba(0,0,0,0.7) 48%, transparent 100%)",
+          maskImage:
+            "linear-gradient(180deg, #000 0%, rgba(0,0,0,0.7) 48%, transparent 100%)",
         }}
       />
 
@@ -2437,31 +3425,32 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
           {hasBoloesFlow
             ? bolaoType === "principal"
               ? "Jogos do dia · Copa inteira"
-                  : "Jogos do dia atual"
+              : "Jogos do dia atual"
             : "Fase de Grupos"}
         </p>
       </div>
 
       <div className="lg:grid lg:grid-cols-[1fr_360px] lg:gap-8 lg:items-start">
-
         {/* ── COLUNA ESQUERDA ─────────────────────────── */}
         <div>
-
           {/* Mobile: tabs */}
           {readOnlyMode ? (
             <div className="lg:hidden flex items-center gap-1 mb-5 p-1 rounded-xl bg-[#0B0D0C] border border-white/8">
-              {([
-                { key: "jogos", label: "Jogos", icon: AlignJustify },
-                { key: "ranking", label: "Ranking", icon: Trophy },
-                { key: "resumo", label: "Resumo", icon: BarChart2 },
-              ] as const).map(({ key, label, icon: Icon }) => (
+              {(
+                [
+                  { key: "jogos", label: "Jogos", icon: AlignJustify },
+                  { key: "ranking", label: "Ranking", icon: Trophy },
+                  { key: "resumo", label: "Resumo", icon: BarChart2 },
+                ] as const
+              ).map(({ key, label, icon: Icon }) => (
                 <button
                   key={key}
                   onClick={() => setResultTab(key)}
                   className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[13px] font-semibold transition-all duration-200"
                   style={{
                     background: resultTab === key ? "#B1EB0B" : "transparent",
-                    color: resultTab === key ? "#0E141B" : "rgba(255,255,255,0.45)",
+                    color:
+                      resultTab === key ? "#0E141B" : "rgba(255,255,255,0.45)",
                   }}
                 >
                   <Icon className="w-3.5 h-3.5" />
@@ -2471,12 +3460,14 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
             </div>
           ) : (
             <div className="lg:hidden flex items-center gap-1 mb-5 p-1 rounded-xl bg-[#0B0D0C] border border-white/8">
-              {([
-                { key: "jogos", label: "Jogos", icon: AlignJustify },
-                { key: "tabela", label: "Tabela", icon: BarChart2 },
-                { key: "ranking", label: "Ranking", icon: Trophy },
-                { key: "resumo", label: "Resumo", icon: BarChart2 },
-              ] as const).map(({ key, label, icon: Icon }) => (
+              {(
+                [
+                  { key: "jogos", label: "Jogos", icon: AlignJustify },
+                  { key: "tabela", label: "Tabela", icon: BarChart2 },
+                  { key: "ranking", label: "Ranking", icon: Trophy },
+                  { key: "resumo", label: "Resumo", icon: BarChart2 },
+                ] as const
+              ).map(({ key, label, icon: Icon }) => (
                 <button
                   key={key}
                   onClick={() => setTab(key)}
@@ -2494,18 +3485,25 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
           )}
 
           {/* Mobile: filtro grupos (exceto ranking) */}
-          {grupos.length > 0 && tab !== "ranking" && tab !== "resumo" && !readOnlyMode && !hasBoloesFlow && (
-            <div className="mb-5 lg:hidden">
-              <BotoesGrupo />
-            </div>
-          )}
+          {grupos.length > 0 &&
+            tab !== "ranking" &&
+            tab !== "resumo" &&
+            !readOnlyMode &&
+            !hasBoloesFlow && (
+              <div className="mb-5 lg:hidden">
+                <BotoesGrupo />
+              </div>
+            )}
 
           {showGroupedByGroup && showJogos && (
             <RoundPhaseNav
               jogos={jogosDisplayBase}
               predictionsMap={predictionsMap}
               selectedRodada={selectedRodada ?? 0}
-              onRodada={(r) => { setSelectedRodada(r); setSelectedDate(null); }}
+              onRodada={(r) => {
+                setSelectedRodada(r);
+                setSelectedDate(null);
+              }}
               selectedDate={selectedDate}
               onDate={setSelectedDate}
               grupo={grupo}
@@ -2522,25 +3520,33 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
           )}
 
           {/* Mobile: conteúdo com tabs — em readOnlyMode usar resultTab (tab principal pode ficar em "jogos" e quebrava Ranking/Resumo) */}
-          <div key={readOnlyMode ? `result-${resultTab}` : tab} className="animate-tab-in lg:hidden">
+          <div
+            key={readOnlyMode ? `result-${resultTab}` : tab}
+            className="animate-tab-in lg:hidden"
+          >
             {showJogos && (
               <div>
-                <details className="mb-3 rounded-xl border border-primary/20 bg-primary/5 p-3 text-[11px] text-white/70">
-                  <summary className="cursor-pointer font-black uppercase text-primary">Debug diário</summary>
-                  <pre className="mt-2 max-h-56 overflow-auto whitespace-pre-wrap wrap-break-word text-[10px] leading-relaxed">
-                    {JSON.stringify(debugInfo, null, 2)}
-                  </pre>
-                </details>
                 {erro ? (
                   <div className="flex flex-col items-center py-16">
-                    <AlertTriangle className="w-10 h-10 mb-3 text-white/20" strokeWidth={1.5} />
-                    <p className="text-white/30 text-sm">Erro ao carregar partidas</p>
+                    <AlertTriangle
+                      className="w-10 h-10 mb-3 text-white/20"
+                      strokeWidth={1.5}
+                    />
+                    <p className="text-white/30 text-sm">
+                      Erro ao carregar partidas
+                    </p>
                   </div>
                 ) : loading || showPredictionsSkeleton ? (
-                  <><CardSkeleton /><CardSkeleton /></>
+                  <>
+                    <CardSkeleton />
+                    <CardSkeleton />
+                  </>
                 ) : jogosPorRodada.length === 0 ? (
                   <div className="flex flex-col items-center py-16">
-                    <Disc className="w-10 h-10 mb-3 text-white/20" strokeWidth={1.5} />
+                    <Disc
+                      className="w-10 h-10 mb-3 text-white/20"
+                      strokeWidth={1.5}
+                    />
                     <p className="text-white/30 text-sm">
                       {bolaoType === "diario" && diarioLockedMode
                         ? "Nenhum palpite encontrado para este ticket diário"
@@ -2551,13 +3557,30 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                   </div>
                 ) : showGroupedByGroup ? (
                   jogosPorGrupoRodada.map(({ groupKey, rodadas }) => (
-                    <div key={`group-${groupKey}`} id={`mob-group-${groupKey}`} className="scroll-mt-28">
+                    <div
+                      key={`group-${groupKey}`}
+                      id={`mob-group-${groupKey}`}
+                      className="scroll-mt-28"
+                    >
                       {rodadas.map(({ label, jogos: rJogos }) => (
                         <div key={`${groupKey}-${label}`}>
                           <div className="flex items-center gap-3 mb-3 mt-1">
-                            <span className="text-[11px] font-bold tracking-widest uppercase shrink-0" style={{ color: "rgba(255,255,255,0.45)" }}>{label}</span>
-                            <span className="text-[11px] font-bold tracking-widest uppercase shrink-0" style={{ color: "rgba(177,235,11,0.55)" }}>· Grupo {groupKey}</span>
-                            <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.06)" }} />
+                            <span
+                              className="text-[11px] font-bold tracking-widest uppercase shrink-0"
+                              style={{ color: "rgba(255,255,255,0.45)" }}
+                            >
+                              {label}
+                            </span>
+                            <span
+                              className="text-[11px] font-bold tracking-widest uppercase shrink-0"
+                              style={{ color: "rgba(177,235,11,0.55)" }}
+                            >
+                              · Grupo {groupKey}
+                            </span>
+                            <div
+                              className="flex-1 h-px"
+                              style={{ background: "rgba(255,255,255,0.06)" }}
+                            />
                           </div>
                           {rJogos.map((jogo) => (
                             <JogoCard
@@ -2565,7 +3588,9 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                               jogo={jogo}
                               readOnly={readOnlyMode}
                               ticketId={ticketId}
-                              initialPrediction={predictionsMap[jogo.id] ?? null}
+                              initialPrediction={
+                                predictionsMap[jogo.id] ?? null
+                              }
                               predictionsLoading={loadingPredictions}
                               onSavePrediction={savePrediction}
                             />
@@ -2578,8 +3603,13 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                   jogosPorRodada.map(({ label, jogos: rJogos }) => (
                     <div key={label}>
                       <div className="flex items-center gap-3 mb-3 mt-1">
-                        <span className="text-[11px] font-bold text-white/30 tracking-widest uppercase shrink-0">{label}</span>
-                        <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.06)" }} />
+                        <span className="text-[11px] font-bold text-white/30 tracking-widest uppercase shrink-0">
+                          {label}
+                        </span>
+                        <div
+                          className="flex-1 h-px"
+                          style={{ background: "rgba(255,255,255,0.06)" }}
+                        />
                       </div>
                       {rJogos.map((jogo) => (
                         <JogoCard
@@ -2598,9 +3628,16 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
               </div>
             )}
             {tab === "tabela" && !readOnlyMode && (
-              <TabelaView grupo={grupo} tabela={tabela} onGrupo={setGrupo} loading={loadingTabela} />
+              <TabelaView
+                grupo={grupo}
+                tabela={tabela}
+                onGrupo={setGrupo}
+                loading={loadingTabela}
+              />
             )}
-            {showRanking ? <RankingView rows={rankingRows} stats={resumoStats} /> : null}
+            {showRanking ? (
+              <RankingView rows={rankingRows} stats={resumoStats} />
+            ) : null}
             {showResumo ? (
               <TicketResumoView
                 ticketId={ticketId}
@@ -2622,7 +3659,10 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
                 jogos={jogosDisplayBase}
                 predictionsMap={predictionsMap}
                 selectedRodada={selectedRodada ?? 0}
-                onRodada={(r) => { setSelectedRodada(r); setSelectedDate(null); }}
+                onRodada={(r) => {
+                  setSelectedRodada(r);
+                  setSelectedDate(null);
+                }}
                 selectedDate={selectedDate}
                 onDate={setSelectedDate}
                 grupo={grupo}
@@ -2632,18 +3672,23 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
             )}
             {readOnlyMode && (
               <div className="flex items-center gap-1 mb-5 p-1 rounded-xl bg-[#0B0D0C] border border-white/8 w-[280px]">
-                {([
-                  { key: "jogos", label: "Jogos", icon: AlignJustify },
-                  { key: "ranking", label: "Ranking", icon: Trophy },
-                  { key: "resumo", label: "Resumo", icon: BarChart2 },
-                ] as const).map(({ key, label, icon: Icon }) => (
+                {(
+                  [
+                    { key: "jogos", label: "Jogos", icon: AlignJustify },
+                    { key: "ranking", label: "Ranking", icon: Trophy },
+                    { key: "resumo", label: "Resumo", icon: BarChart2 },
+                  ] as const
+                ).map(({ key, label, icon: Icon }) => (
                   <button
                     key={key}
                     onClick={() => setResultTab(key)}
                     className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[13px] font-semibold transition-all duration-200"
                     style={{
                       background: resultTab === key ? "#B1EB0B" : "transparent",
-                      color: resultTab === key ? "#0E141B" : "rgba(255,255,255,0.45)",
+                      color:
+                        resultTab === key
+                          ? "#0E141B"
+                          : "rgba(255,255,255,0.45)",
                     }}
                   >
                     <Icon className="w-3.5 h-3.5" />
@@ -2668,22 +3713,35 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
               <RankingView rows={rankingRows} stats={resumoStats} />
             ) : erro ? (
               <div className="flex flex-col items-center py-16">
-                <AlertTriangle className="w-10 h-10 mb-3 text-white/20" strokeWidth={1.5} />
-                <p className="text-white/30 text-sm">Erro ao carregar partidas</p>
+                <AlertTriangle
+                  className="w-10 h-10 mb-3 text-white/20"
+                  strokeWidth={1.5}
+                />
+                <p className="text-white/30 text-sm">
+                  Erro ao carregar partidas
+                </p>
               </div>
             ) : loading || showPredictionsSkeleton ? (
               <div className="grid grid-cols-2 gap-4">
-                <CardSkeleton /><CardSkeleton /><CardSkeleton /><CardSkeleton />
+                <CardSkeleton />
+                <CardSkeleton />
+                <CardSkeleton />
+                <CardSkeleton />
               </div>
             ) : jogosPorRodada.length === 0 ? (
               <div className="flex flex-col items-center py-16">
                 <details className="mb-4 w-full rounded-xl border border-primary/20 bg-primary/5 p-3 text-left text-[11px] text-white/70">
-                  <summary className="cursor-pointer font-black uppercase text-primary">Debug diário</summary>
+                  <summary className="cursor-pointer font-black uppercase text-primary">
+                    Debug diário
+                  </summary>
                   <pre className="mt-2 max-h-56 overflow-auto whitespace-pre-wrap wrap-break-word text-[10px] leading-relaxed">
                     {JSON.stringify(debugInfo, null, 2)}
                   </pre>
                 </details>
-                <Disc className="w-10 h-10 mb-3 text-white/20" strokeWidth={1.5} />
+                <Disc
+                  className="w-10 h-10 mb-3 text-white/20"
+                  strokeWidth={1.5}
+                />
                 <p className="text-white/30 text-sm">
                   {bolaoType === "diario" && diarioLockedMode
                     ? "Nenhum palpite encontrado para este ticket diário"
@@ -2694,13 +3752,30 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
               </div>
             ) : showGroupedByGroup ? (
               jogosPorGrupoRodada.map(({ groupKey, rodadas }) => (
-                <div key={`desk-group-${groupKey}`} id={`desk-group-${groupKey}`} className="mb-6 scroll-mt-28">
+                <div
+                  key={`desk-group-${groupKey}`}
+                  id={`desk-group-${groupKey}`}
+                  className="mb-6 scroll-mt-28"
+                >
                   {rodadas.map(({ label, jogos: rJogos }) => (
                     <div key={`desk-${groupKey}-${label}`} className="mb-5">
                       <div className="flex items-center gap-3 mb-4">
-                        <span className="text-[11px] font-bold tracking-widest uppercase shrink-0" style={{ color: "rgba(255,255,255,0.45)" }}>{label}</span>
-                        <span className="text-[11px] font-bold tracking-widest uppercase shrink-0" style={{ color: "rgba(177,235,11,0.55)" }}>· Grupo {groupKey}</span>
-                        <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.06)" }} />
+                        <span
+                          className="text-[11px] font-bold tracking-widest uppercase shrink-0"
+                          style={{ color: "rgba(255,255,255,0.45)" }}
+                        >
+                          {label}
+                        </span>
+                        <span
+                          className="text-[11px] font-bold tracking-widest uppercase shrink-0"
+                          style={{ color: "rgba(177,235,11,0.55)" }}
+                        >
+                          · Grupo {groupKey}
+                        </span>
+                        <div
+                          className="flex-1 h-px"
+                          style={{ background: "rgba(255,255,255,0.06)" }}
+                        />
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         {rJogos.map((jogo) => (
@@ -2723,8 +3798,13 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
               jogosPorRodada.map(({ label, jogos: rJogos }) => (
                 <div key={label} className="mb-6">
                   <div className="flex items-center gap-3 mb-4">
-                    <span className="text-[11px] font-bold text-white/30 tracking-widest uppercase shrink-0">{label}</span>
-                    <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.06)" }} />
+                    <span className="text-[11px] font-bold text-white/30 tracking-widest uppercase shrink-0">
+                      {label}
+                    </span>
+                    <div
+                      className="flex-1 h-px"
+                      style={{ background: "rgba(255,255,255,0.06)" }}
+                    />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     {rJogos.map((jogo) => (
@@ -2743,7 +3823,6 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
               ))
             )}
           </div>
-
         </div>
 
         {/* ── SIDEBAR DIREITA (desktop only) ───────────── */}
@@ -2759,13 +3838,16 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
             />
           </div>
         )}
-
       </div>
     </div>
   );
 }
 
-export default function PalpitesClient({ initialData }: { initialData: PalpitesInitialData | null }) {
+export default function PalpitesClient({
+  initialData,
+}: {
+  initialData: PalpitesInitialData | null;
+}) {
   return (
     <Suspense fallback={<PalpitesPageShell />}>
       <PalpitesPageContent initialData={initialData} />
