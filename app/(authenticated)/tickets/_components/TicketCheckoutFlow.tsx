@@ -2,15 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import QRCode from "react-qr-code";
 import {
   ArrowRight,
   Check,
   ChevronDown,
   ChevronRight,
   ChevronUp,
-  Copy,
-  Loader2,
   Lock,
   Percent,
   Shield,
@@ -26,29 +23,22 @@ import bannerCheckout from "@/app/assets/banner-chekout.png";
 import ticketBlue from "@/app/assets/Ticket-Blue.png";
 import ticketGold from "@/app/assets/ticket-gold.png";
 import { appendTicketsFromPurchase } from "../lib/ownedTicketsStorage";
+import { TicketPixGeneratedScreen } from "./pix/TicketPixGeneratedScreen";
+import { TicketPixGeneratingPanel } from "./pix/TicketPixGeneratingPanel";
+import {
+  PIX_CHECKOUT_TOTAL_SEC,
+  PIX_CHECKOUT_WINDOW_MS,
+} from "./pix/ticket-pix-ui-constants";
 
-const GOLD = "#B1EB0B";
-const GOLD_LIGHT = "#E8FF8A";
-const CARD = "#101010";
 const DEFAULT_PRINCIPAL_CENTS = 3990;
 const DEFAULT_DIARIO_CENTS = 2000;
 const DEFAULT_EXTRA_CENTS = 3990;
-const PIX_WINDOW_MS = 5 * 60 * 1000;
-const PIX_TOTAL_SEC = 5 * 60;
-const montserrat =
-  "var(--font-montserrat), ui-sans-serif, system-ui, sans-serif";
 
 function formatBRL(cents: number) {
   return (cents / 100).toLocaleString("pt-BR", {
     style: "currency",
     currency: "BRL",
   });
-}
-
-function formatCountdown(totalSeconds: number) {
-  const m = Math.floor(totalSeconds / 60);
-  const s = totalSeconds % 60;
-  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
 function isPaidStatus(s: string): boolean {
@@ -60,17 +50,6 @@ function isPaidStatus(s: string): boolean {
     v === "completed" ||
     v === "confirmed"
   );
-}
-
-function statusLabelPt(status: string): string {
-  const s = (status || "").toLowerCase();
-  if (s === "waiting_payment" || s === "pending_payment" || s === "creating")
-    return "Aguardando pagamento";
-  if (s === "paid" || s === "approved") return "Pago";
-  if (s === "failed") return "Falhou";
-  if (s === "expired") return "Expirado";
-  if (s === "cancelled" || s === "canceled") return "Cancelado";
-  return "Em processamento";
 }
 
 function progressiveDiscountPercent(quantity: number): number {
@@ -127,11 +106,8 @@ export function TicketCheckoutFlow({
     extra: DEFAULT_EXTRA_CENTS,
   });
   const [step, setStep] = useState<FlowStep>("shop");
-  const [orderRef, setOrderRef] = useState("");
   const [transactionId, setTransactionId] = useState<string | null>(null);
-  const [txStatus, setTxStatus] = useState<string>("");
   const [pixPayload, setPixPayload] = useState("");
-  const [copied, setCopied] = useState(false);
   const [pixDeadline, setPixDeadline] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [error, setError] = useState<string | null>(null);
@@ -152,11 +128,8 @@ export function TicketCheckoutFlow({
           status: payload.status,
           transactionId,
         });
-        setTxStatus(payload.status);
       }
       if (payload.pixQrcode) setPixPayload(payload.pixQrcode);
-      if (payload.providerTransactionId)
-        setOrderRef(payload.providerTransactionId);
 
       if (
         transactionId &&
@@ -195,7 +168,7 @@ export function TicketCheckoutFlow({
   }, [step]);
 
   useEffect(() => {
-    if (step !== "shop" && step !== "pix") return;
+    if (step !== "pix") return;
     const id = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(id);
   }, [step]);
@@ -322,7 +295,7 @@ export function TicketCheckoutFlow({
   const pixExpired = step === "pix" && pixDeadline != null && secondsLeft === 0;
   const pixProgressPct =
     step === "pix" && pixDeadline != null
-      ? Math.min(100, Math.max(0, (secondsLeft / PIX_TOTAL_SEC) * 100))
+      ? Math.min(100, Math.max(0, (secondsLeft / PIX_CHECKOUT_TOTAL_SEC) * 100))
       : 0;
 
   const goGenerate = useCallback(() => {
@@ -333,7 +306,6 @@ export function TicketCheckoutFlow({
     }
     setError(null);
     setCouponHint(null);
-    setCopied(false);
     setStep("generating");
     void (async () => {
       try {
@@ -359,10 +331,8 @@ export function TicketCheckoutFlow({
         purchasePrincipalRef.current = principalQty;
         purchaseDiarioRef.current = dailyQty;
         setTransactionId(d.transaction.id);
-        setTxStatus(d.transaction.status);
         setPixPayload(d.transaction.pixQrcode);
-        setOrderRef(d.transaction.providerTransactionId ?? d.transaction.id);
-        setPixDeadline(Date.now() + PIX_WINDOW_MS);
+        setPixDeadline(Date.now() + PIX_CHECKOUT_WINDOW_MS);
         setStep("pix");
       } catch {
         setError("Erro de rede ao gerar o PIX.");
@@ -374,9 +344,50 @@ export function TicketCheckoutFlow({
   const copyPix = useCallback(() => {
     if (!pixPayload || pixExpired) return;
     void navigator.clipboard.writeText(pixPayload);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 2200);
   }, [pixPayload, pixExpired]);
+
+  const goBackFromPix = useCallback(() => {
+    setStep("shop");
+    setPixPayload("");
+    setTransactionId(null);
+    setPixDeadline(null);
+    setConfirmedPaid(false);
+    paidHandledRef.current = false;
+    setError(null);
+  }, []);
+
+  const handleVerifyPaidClick = useCallback(async () => {
+    if (!transactionId || checkingManually) return;
+    setCheckingManually(true);
+    try {
+      const r = await fetch(`/api/deposits/transactions/${transactionId}`, {
+        credentials: "include",
+        cache: "no-store",
+      });
+      const data = (await r.json()) as {
+        transaction?: DepositTransaction;
+      };
+      if (r.ok && data.transaction) {
+        console.log("[PIX] verificação manual status:", data.transaction.status);
+        handleTransactionUpdate(
+          {
+            status: data.transaction.status,
+            pixQrcode: data.transaction.pixQrcode,
+          },
+          "manual",
+        );
+        if (!isPaidStatus(data.transaction.status)) {
+          setError("Pagamento ainda não confirmado. Aguarde ou tente novamente.");
+          window.setTimeout(() => setError(null), 4000);
+        }
+      }
+    } catch {
+      setError("Erro ao verificar. Tente novamente.");
+      window.setTimeout(() => setError(null), 3000);
+    } finally {
+      setCheckingManually(false);
+    }
+  }, [transactionId, checkingManually, handleTransactionUpdate]);
 
   return (
     <>
@@ -812,314 +823,28 @@ export function TicketCheckoutFlow({
               </div>
             </div>
       ) : (
-        <div className="mx-auto flex min-h-screen w-full max-w-md flex-1 flex-col justify-start bg-black px-4 py-8 sm:px-6 sm:py-10">
-          <section className="w-full">
-          {step === "generating" && (
-            <div
-              className="flex flex-col items-center justify-center py-20 px-6 rounded-2xl"
-              style={{
-                border: "1px solid rgba(177,235,11,0.18)",
-                background: `linear-gradient(180deg, rgba(14,20,32,0.96) 0%, ${CARD} 100%)`,
-              }}
-            >
-                <Loader2
-                  className="w-12 h-12 animate-spin mb-5"
-                  style={{ color: GOLD_LIGHT }}
-                  strokeWidth={2}
-                />
-                <p
-                  className="text-lg font-semibold text-white text-center"
-                  style={{ fontFamily: montserrat }}
-                >
-                Emitindo cobrança PIX
-              </p>
-                <p
-                  className="text-[15px] text-center mt-2 max-w-sm leading-relaxed"
-                  style={{ color: "rgba(226,213,184,0.5)" }}
-                >
-                Registrando pedido no sistema Bolão do Milhão…
-              </p>
-            </div>
-          )}
-
+        <div className="min-h-screen w-full bg-black">
+          {step === "generating" && <TicketPixGeneratingPanel />}
           {step === "pix" && pixPayload && (
-            <div className="space-y-4">
-                {/* overlay de confirmação */}
-                {confirmedPaid && (
-                  <div className="flex flex-col items-center gap-3 rounded-2xl border border-[#0AC96B]/40 bg-[#0AC96B]/10 px-6 py-8 text-center">
-                    <span className="flex size-14 items-center justify-center rounded-full bg-[#0AC96B]/20 border border-[#0AC96B]/40">
-                      <Check
-                        className="size-7 text-[#0AC96B]"
-                        strokeWidth={2.5}
-                      />
-                    </span>
-                    <p className="text-[18px] font-black text-white">
-                      Pagamento confirmado!
-                    </p>
-                    <p className="text-[13px] text-white/55">
-                      Redirecionando para seus tickets…
-                    </p>
-                    <Loader2 className="size-5 animate-spin text-[#0AC96B]/70" />
-                  </div>
-                )}
-
-              <div>
-                <div className="flex items-center justify-between gap-2 mb-1.5">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-white/45">
-                      PIX
-                    </span>
-                    <span className="text-[12px] font-mono text-white/55 truncate max-w-[55%]">
-                      {orderRef}
-                    </span>
-                </div>
-                  <div
-                    className="flex items-center justify-between text-[13px] mb-1"
-                    style={{ color: "rgba(226,213,184,0.55)" }}
-                  >
-                  <span>{pixExpired ? "Expirado" : "Válido 5 min"}</span>
-                    <span className="font-mono tabular-nums text-white/65">
-                      {pixExpired ? "0:00" : formatCountdown(secondsLeft)}
-                    </span>
-                </div>
-                  <p className="text-[12px] text-white/50 mt-0.5 mb-1">
-                    Status:{" "}
-                    <span
-                      className={
-                        isPaidStatus(txStatus || "")
-                          ? "font-bold text-[#0AC96B]"
-                          : "font-semibold text-white/80"
-                      }
-                    >
-                      {statusLabelPt(txStatus || "waiting_payment")}
-                    </span>
-                </p>
-                <div
-                  className="h-1.5 rounded-full overflow-hidden"
-                    style={{
-                      background: pixExpired
-                        ? "rgba(127,29,29,0.35)"
-                        : "rgba(255,255,255,0.08)",
-                    }}
-                  role="progressbar"
-                  aria-valuenow={pixExpired ? 0 : Math.round(pixProgressPct)}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                >
-                  <div
-                    className="h-full rounded-full transition-[width] duration-1000 ease-linear"
-                    style={{
-                      width: `${pixProgressPct}%`,
-                      background: pixExpired
-                        ? "rgba(248,113,113,0.5)"
-                        : secondsLeft <= 60
-                          ? "linear-gradient(90deg, #FBBF24, #F59E0B)"
-                          : `linear-gradient(90deg, ${GOLD_LIGHT}, ${GOLD})`,
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div
-                className="rounded-xl p-3 sm:p-4 space-y-4"
-                style={{
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  background: `linear-gradient(180deg, rgba(16,22,36,0.95) 0%, ${CARD} 100%)`,
-                }}
-              >
-                <div className="relative mx-auto w-fit">
-                  <div
-                    className={`p-3.5 rounded-2xl bg-white shadow-xl ${pixExpired ? "opacity-35 grayscale" : ""}`}
-                    style={{ boxShadow: "0 20px 50px rgba(0,0,0,0.45)" }}
-                  >
-                    <QRCode value={pixPayload} size={196} level="M" />
-                  </div>
-                  {pixExpired && (
-                    <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/55 px-4">
-                      <p className="text-center text-[15px] font-semibold text-white leading-snug px-1">
-                        QR expirado — gere outro para pagar
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-white/40 mb-1">
-                      Pedido
-                    </p>
-                    <p
-                      className="text-[12px] mb-2 leading-snug"
-                      style={{ color: "rgba(226,213,184,0.45)" }}
-                    >
-                      Geral {formatBRL(prices.general)} · Diário{" "}
-                      {formatBRL(prices.daily)} · {totalQty} ticket
-                    {totalQty === 1 ? "" : "s"}
-                  </p>
-                  <div className="space-y-1.5 text-[14px]">
-                    {principalQty > 0 && (
-                      <div className="flex justify-between gap-2 text-white/65">
-                        <span>
-                            <span className="font-mono text-white">
-                              {principalQty}×
-                            </span>{" "}
-                            Geral
-                            <span className="text-white/35 font-normal">
-                              {" "}
-                              @ {formatBRL(prices.general)}
-                        </span>
-                          </span>
-                          <span
-                            className="tabular-nums font-medium"
-                            style={{ color: GOLD_LIGHT }}
-                          >
-                            {formatBRL(principalLineCents)}
-                        </span>
-                      </div>
-                    )}
-                      {dailyQty > 0 && (
-                      <div className="flex justify-between gap-2 text-white/65">
-                        <span>
-                            <span className="font-mono text-white">
-                              {dailyQty}×
-                            </span>{" "}
-                            Diário
-                            <span className="text-white/35 font-normal">
-                              {" "}
-                              @ {formatBRL(prices.daily)}
-                        </span>
-                          </span>
-                          <span
-                            className="tabular-nums font-medium"
-                            style={{ color: GOLD_LIGHT }}
-                          >
-                            {formatBRL(diarioLineCents)}
-                        </span>
-                      </div>
-                    )}
-                    <div className="flex justify-between gap-2 pt-2 mt-1 border-t border-white/10 text-[15px] font-bold text-white">
-                      <span>Total</span>
-                        <span
-                          className="tabular-nums"
-                          style={{ color: GOLD_LIGHT }}
-                        >
-                        {formatBRL(totalCents)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-white/45 mb-2">
-                      PIX copia e cola
-                    </label>
-                  <div
-                    className="rounded-xl p-3.5 max-h-[100px] overflow-y-auto"
-                    style={{
-                      background: "rgba(0,0,0,0.42)",
-                      border: "1px solid rgba(255,255,255,0.08)",
-                    }}
-                  >
-                      <p className="text-[11px] sm:text-[12px] font-mono text-white/75 break-all leading-relaxed">
-                        {pixPayload}
-                      </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={copyPix}
-                    disabled={pixExpired}
-                    className="mt-3 w-full py-4 rounded-xl text-[15px] font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-35"
-                    style={{
-                        background: copied
-                          ? "rgba(34,197,94,0.18)"
-                          : "rgba(177,235,11,0.12)",
-                      border: `1px solid ${copied ? "rgba(34,197,94,0.4)" : "rgba(177,235,11,0.32)"}`,
-                      color: copied ? "#86EFAC" : GOLD_LIGHT,
-                    }}
-                  >
-                    {copied ? (
-                      <>
-                        <Check className="w-5 h-5" strokeWidth={2.5} />
-                        Copiado
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-5 h-5" strokeWidth={2} />
-                        Copiar código PIX
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-
-                {/* Botão de verificação manual */}
-                {!confirmedPaid && !pixExpired && (
-                  <button
-                    type="button"
-                    disabled={checkingManually}
-                    onClick={async () => {
-                      if (!transactionId || checkingManually) return;
-                      setCheckingManually(true);
-                      try {
-                        const r = await fetch(
-                          `/api/deposits/transactions/${transactionId}`,
-                          {
-                            credentials: "include",
-                            cache: "no-store",
-                          },
-                        );
-                        const data = (await r.json()) as {
-                          transaction?: DepositTransaction;
-                        };
-                        if (r.ok && data.transaction) {
-                          console.log(
-                            "[PIX] verificação manual status:",
-                            data.transaction.status,
-                          );
-                          handleTransactionUpdate(
-                            {
-                              status: data.transaction.status,
-                              pixQrcode: data.transaction.pixQrcode,
-                              providerTransactionId:
-                                data.transaction.providerTransactionId,
-                            },
-                            "manual",
-                          );
-                          if (!isPaidStatus(data.transaction.status)) {
-                            setError(
-                              "Pagamento ainda não confirmado. Aguarde ou tente novamente.",
-                            );
-                            window.setTimeout(() => setError(null), 4000);
-                          }
-                        }
-                      } catch {
-                        setError("Erro ao verificar. Tente novamente.");
-                        window.setTimeout(() => setError(null), 3000);
-                      } finally {
-                        setCheckingManually(false);
-                      }
-                    }}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 py-3.5 text-[13px] font-bold text-white/70 transition-colors hover:bg-white/8 disabled:opacity-50"
-                  >
-                    {checkingManually ? (
-                      <>
-                        <Loader2 className="size-4 animate-spin" />
-                        Verificando…
-                      </>
-                    ) : (
-                      <>
-                        <Check className="size-4" strokeWidth={2.5} />
-                        Já paguei — verificar agora
-                      </>
-                    )}
-                  </button>
-                )}
-                {error && (
-                  <p className="text-center text-[12px] font-semibold text-red-300">
-                    {error}
-                  </p>
-                )}
-        </div>
-            )}
-          </section>
+            <TicketPixGeneratedScreen
+              pixPayload={pixPayload}
+              secondsLeft={secondsLeft}
+              pixExpired={pixExpired}
+              pixProgressPct={pixProgressPct}
+              onCopy={copyPix}
+              onBack={goBackFromPix}
+              onVerifyPaid={() => void handleVerifyPaidClick()}
+              checkingManually={checkingManually}
+              confirmedPaid={confirmedPaid}
+              error={error}
+              principalQty={principalQty}
+              dailyQty={dailyQty}
+              prices={prices}
+              principalUnitPriceCents={principalUnitPriceCents}
+              dailyUnitPriceCents={dailyUnitPriceCents}
+              totalCents={totalCents}
+            />
+          )}
         </div>
       )}
     </>

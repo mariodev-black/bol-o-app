@@ -37,6 +37,8 @@ export function ProfileCompletionHost({ children }: { children: React.ReactNode 
   const [loading, setLoading] = useState(false);
 
   const needsGate = Boolean(ready && user && user.profileComplete === false);
+  /** Nome já vindo do Google: campo só editável se estiver vazio. */
+  const nameFieldDisabled = Boolean(user && (user.name?.trim().length ?? 0) >= 2);
 
   useEffect(() => {
     if (!needsGate || !user) return;
@@ -131,9 +133,10 @@ export function ProfileCompletionHost({ children }: { children: React.ReactNode 
                   autoComplete="name"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  className="h-11 w-full rounded-lg border border-white/10 bg-black/40 px-3 text-sm text-white outline-none ring-primary/30 focus:ring-2"
+                  disabled={nameFieldDisabled}
+                  className="h-11 w-full rounded-lg border border-white/10 bg-black/40 px-3 text-sm text-white outline-none ring-primary/30 focus:ring-2 disabled:cursor-not-allowed disabled:opacity-60"
                   placeholder="Seu nome"
-                  required
+                  required={!nameFieldDisabled}
                   minLength={2}
                   maxLength={120}
                 />
