@@ -6,7 +6,10 @@ import {
   findUserByEmail,
   findUserByGoogleSub,
   linkGoogleToExistingUser,
+  syncGoogleProfileFields,
+  tryPersistGooglePictureAsAvatarUpload,
 } from "@/lib/auth/users";
+import { GOOGLE_OAUTH_CALLBACK_PATH } from "@/lib/google/oauth-config";
 
 export const runtime = "nodejs";
 
@@ -95,7 +98,7 @@ export async function GET(request: NextRequest) {
     return failRedirect("google_state");
   }
 
-  const redirectUri = `${base}/api/auth/google/callback`;
+  const redirectUri = `${base}${GOOGLE_OAUTH_CALLBACK_PATH}`;
   const tokens = await exchangeCode(code, redirectUri);
   if (!tokens?.access_token) {
     return failRedirect("google_token");
@@ -124,6 +127,7 @@ export async function GET(request: NextRequest) {
     const bySub = await findUserByGoogleSub(googleSub);
     if (bySub) {
       userId = bySub.id;
+      await syncGoogleProfileFields(userId, name, picture, emailVerified).catch(() => {});
     } else {
       const byEmail = await findUserByEmail(email);
       if (byEmail) {
@@ -150,6 +154,8 @@ export async function GET(request: NextRequest) {
         userId = created.id;
       }
     }
+
+    await tryPersistGooglePictureAsAvatarUpload(userId, picture).catch(() => {});
 
     const returnTo = safeReturnPath(request.cookies.get(RETURN_COOKIE)?.value);
     const res = NextResponse.redirect(`${base}${returnTo ?? "/boloes"}`);

@@ -1,8 +1,10 @@
 import { getPool } from "@/lib/db";
 import { allocateUniqueReferralCode, findUserIdByReferralCode } from "@/lib/auth/referral-code";
 import { clampAvatarIndex, randomPresetAvatarIndex } from "@/lib/auth/avatar-index";
+import { isValidCpf, normalizeCpf } from "@/lib/auth/cpf";
 import { isStoredAvatarUploadFilename } from "@/lib/user/avatar-filename";
 import { deleteUserAvatarFile, newRandomAvatarFilename, assertAvatarUploadBuffer } from "@/lib/user/avatar-upload-storage";
+import { fetchPictureAsBuffer } from "@/lib/google/fetch-picture-as-buffer";
 
 const U =
   "id, email, cpf, password_hash, name, phone, avatar_url, avatar_index, avatar_upload_filename, google_sub, email_verified_at, referral_code, referred_by_user_id";
@@ -17,6 +19,10 @@ export type PublicUser = {
   /** Basename estável (UUID + ext.); bytes em `avatar_upload_data` ou legado em `public/avataruploads/`. */
   avatarUploadFilename: string | null;
   referralCode: string;
+  /**
+   * Contas Google (`google_sub`) precisam informar CPF no app; contas só senha seguem como completas.
+   */
+  profileComplete: boolean;
 };
 
 type UserRow = {
@@ -51,6 +57,13 @@ function rowAvatarUploadFilename(row: UserRow): string | null {
   return isStoredAvatarUploadFilename(v) ? v : null;
 }
 
+function computeProfileComplete(row: UserRow): boolean {
+  if (!row.google_sub) return true;
+  const nameOk = (row.name?.trim().length ?? 0) >= 2;
+  const cpfOk = row.cpf != null && isValidCpf(normalizeCpf(row.cpf));
+  return nameOk && cpfOk;
+}
+
 function toPublic(row: UserRow): PublicUser {
   return {
     id: row.id,
@@ -60,6 +73,7 @@ function toPublic(row: UserRow): PublicUser {
     avatarIndex: rowAvatarIndex(row),
     avatarUploadFilename: rowAvatarUploadFilename(row),
     referralCode: row.referral_code ?? "",
+    profileComplete: computeProfileComplete(row),
   };
 }
 
@@ -233,6 +247,88 @@ export async function linkGoogleToExistingUser(
   return toPublic(rows[0]!);
 }
 
+/** Atualiza nome/foto do Google em logins recorrentes (conta já existente por `google_sub`). */
+export async function syncGoogleProfileFields(
+  userId: string,
+  name: string | null,
+  avatarUrl: string | null,
+  emailVerified: boolean
+): Promise<void> {
+  const pool = getPool();
+  const verified = emailVerified ? new Date() : null;
+  await pool.query(
+    `UPDATE users SET
+       name = CASE WHEN $2::text IS NOT NULL AND length(trim($2::text)) > 0 THEN trim($2::text) ELSE name END,
+       avatar_url = CASE WHEN $3::text IS NOT NULL AND $3::text <> '' THEN $3 ELSE avatar_url END,
+       email_verified_at = COALESCE(email_verified_at, $4::timestamptz),
+       updated_at = now()
+     WHERE id = $1`,
+    [userId, name, avatarUrl, verified]
+  );
+}
+
+async function isCpfTakenByOtherUser(cpf11: string, exceptUserId: string): Promise<boolean> {
+  const pool = getPool();
+  const { rows } = await pool.query<{ ok: boolean }>(
+    `SELECT EXISTS (SELECT 1 FROM users WHERE cpf = $1 AND id <> $2::uuid) AS ok`,
+    [cpf11, exceptUserId]
+  );
+  return Boolean(rows[0]?.ok);
+}
+
+/**
+ * Primeiro preenchimento de CPF (e telefone opcional) para quem entrou com Google.
+ */
+export async function completeGoogleProfile(input: {
+  userId: string;
+  cpf: string;
+  phone: string | null;
+  fullName: string | null;
+}): Promise<{ ok: true; user: PublicUser } | { ok: false; error: string }> {
+  const cpfNorm = normalizeCpf(input.cpf);
+  if (!isValidCpf(cpfNorm)) return { ok: false, error: "CPF inválido" };
+
+  const pool = getPool();
+  const { rows: before } = await pool.query<UserRow>(`SELECT ${U} FROM users WHERE id = $1 LIMIT 1`, [
+    input.userId,
+  ]);
+  const row = before[0];
+  if (!row) return { ok: false, error: "Usuário não encontrado" };
+  if (!row.google_sub) {
+    return { ok: false, error: "Esta ação é só para contas que entraram com Google." };
+  }
+  if (row.cpf != null && isValidCpf(normalizeCpf(row.cpf))) {
+    return { ok: true, user: toPublic(row) };
+  }
+
+  const taken = await isCpfTakenByOtherUser(cpfNorm, input.userId);
+  if (taken) return { ok: false, error: "Este CPF já está cadastrado em outra conta." };
+
+  const phoneTrim = input.phone?.trim() ?? "";
+  const phoneVal = phoneTrim.length > 0 ? phoneTrim.slice(0, 40) : null;
+
+  const fn = input.fullName?.trim() ?? "";
+  const nameParam = fn.length >= 2 ? fn.slice(0, 120) : null;
+
+  const { rows } = await pool.query<UserRow>(
+    `UPDATE users SET
+       cpf = $2,
+       phone = COALESCE($3, phone),
+       name = CASE WHEN $4::text IS NOT NULL AND length(trim($4::text)) >= 2 THEN trim($4::text) ELSE name END,
+       updated_at = now()
+     WHERE id = $1::uuid AND google_sub IS NOT NULL AND cpf IS NULL
+     RETURNING ${U}`,
+    [input.userId, cpfNorm, phoneVal, nameParam]
+  );
+  const updated = rows[0];
+  if (!updated) {
+    const again = await findUserById(input.userId);
+    if (again?.profileComplete) return { ok: true, user: again };
+    return { ok: false, error: "Não foi possível salvar. Tente novamente." };
+  }
+  return { ok: true, user: toPublic(updated) };
+}
+
 export async function updateUserAvatarIndex(userId: string, avatarIndex: number): Promise<PublicUser | null> {
   const idx = clampAvatarIndex(avatarIndex);
   const pool = getPool();
@@ -278,6 +374,33 @@ export async function setUserAvatarUploadFromBuffer(
     deleteUserAvatarFile(oldUpload);
   }
   return toPublic(row);
+}
+
+/**
+ * Baixa a URL `picture` do Google e grava em `avatar_upload_*` (ranking/perfil usam esse pipeline).
+ * Não substitui se o usuário já tem upload customizado.
+ */
+export async function tryPersistGooglePictureAsAvatarUpload(
+  userId: string,
+  pictureUrl: string | null
+): Promise<void> {
+  const url = pictureUrl?.trim() ?? "";
+  if (!url) return;
+  const pool = getPool();
+  const { rows: peek } = await pool.query<{ f: string | null }>(
+    `SELECT avatar_upload_filename AS f FROM users WHERE id = $1 LIMIT 1`,
+    [userId]
+  );
+  const existing = peek[0]?.f?.trim() ?? null;
+  if (existing && isStoredAvatarUploadFilename(existing)) return;
+
+  const got = await fetchPictureAsBuffer(url);
+  if (!got) return;
+  try {
+    await setUserAvatarUploadFromBuffer(userId, got.buffer, got.mime);
+  } catch (e) {
+    console.warn("[tryPersistGooglePictureAsAvatarUpload]", e);
+  }
 }
 
 export async function clearUserAvatarUpload(userId: string): Promise<PublicUser | null> {

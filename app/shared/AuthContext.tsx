@@ -23,6 +23,8 @@ export type AuthUser = {
   avatarUploadFilename: string | null;
   /** Código de indicação deste usuário (para compartilhar). */
   referralCode: string;
+  /** Contas Google sem CPF ainda: `false` até completar o cadastro no modal. */
+  profileComplete: boolean;
 };
 
 type AuthContextValue = {
@@ -47,6 +49,7 @@ function normalizeSessionUser(u: AuthUser): AuthUser {
     referralCode: u.referralCode ?? "",
     avatarIndex: clampAvatarIndex(Number(u.avatarIndex)),
     avatarUploadFilename: raw && isStoredAvatarUploadFilename(raw) ? raw : null,
+    profileComplete: typeof u.profileComplete === "boolean" ? u.profileComplete : true,
   };
 }
 

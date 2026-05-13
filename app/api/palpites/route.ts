@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { z } from "zod";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
-import { fetchMatchesMap, resolveKickoffAtIso } from "@/lib/football-api";
+import { fetchMatchesMapDirectFromDb, resolveKickoffAtIso } from "@/lib/football-api";
 import { getPredictionByUserTicketMatch, listPredictions, upsertPrediction } from "@/lib/predictions";
 import { inferBolaoTypeFromTicketId } from "@/lib/ticket-kind-server";
 import { inferBolaoTypeFromTicketPrefix } from "@/lib/ticket-kind-shared";
 import { getPool } from "@/lib/db";
 import { brToday, resolveDiarioPlayableDate, utcMsForBrDate } from "@/lib/diario-playable-date";
+import { filterPredictionsToOfficialMatchIds } from "@/lib/matches-cache";
 
 export const runtime = "nodejs";
 
@@ -89,8 +90,9 @@ export async function GET(request: NextRequest) {
     bolaoType = inferred;
   }
   const rows = await listPredictions({ userId, bolaoType, ticketId });
+  const rowsOfficial = await filterPredictionsToOfficialMatchIds(rows);
   return NextResponse.json({
-    predictions: rows.map((r) => ({
+    predictions: rowsOfficial.map((r) => ({
       ticketId: r.ticket_id,
       bolaoType: r.bolao_type,
       matchId: Number(r.match_id),
@@ -118,9 +120,29 @@ export async function POST(request: NextRequest) {
   const data = parsed.data;
   const bolaoType = await resolveOwnedTicketType(userId, data.ticketId);
   if (!bolaoType) return NextResponse.json({ error: "Ticket invalido" }, { status: 400 });
-  const matchMap = await fetchMatchesMap();
+  /** Sempre `matches_cache` no Postgres (nao usa mapa em memoria da API). */
+  const matchMap = await fetchMatchesMapDirectFromDb();
   const match = matchMap.get(data.matchId);
-  if (!match) return NextResponse.json({ error: "Partida nao encontrada" }, { status: 404 });
+  if (!match) {
+    const scope = bolaoType === "diario" ? "bolao do dia" : "bolao geral";
+    return NextResponse.json(
+      {
+        error: `Partida nao encontrada no calendario oficial (${scope}, matches_cache / competicao do servidor). Verifique o id ou aguarde a sincronizacao.`,
+      },
+      { status: 404 },
+    );
+  }
+
+  const dateBrDb = String(match.dateBR || "").trim();
+  if (!dateBrDb) {
+    return NextResponse.json(
+      {
+        error:
+          "Partida sem data no banco (matches_cache.date_br). Nao e possivel validar o dia; aguarde sincronizacao ou contate suporte.",
+      },
+      { status: 400 },
+    );
+  }
 
   const status = String(match.status || "");
   if (isFinishedStatus(status) || (match.resultCasa != null && match.resultVisitante != null)) {
@@ -129,7 +151,7 @@ export async function POST(request: NextRequest) {
 
   const kickoffIso = resolveKickoffAtIso({
     kickoffAt: match.kickoffAt,
-    dateBR: match.dateBR,
+    dateBR: dateBrDb,
     hour: match.hour,
   });
   const lockMs = kickoffIso ? new Date(kickoffIso).getTime() - 60 * 60 * 1000 : null;
@@ -180,8 +202,13 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Ticket diario ja usado e encerrado para novo uso" }, { status: 400 });
       }
     }
-    if (match.dateBR !== playableDate) {
-      return NextResponse.json({ error: "Ticket diario so permite jogos do dia atual" }, { status: 400 });
+    if (dateBrDb !== playableDate) {
+      return NextResponse.json(
+        {
+          error: `Ticket diario: esta partida esta no dia ${dateBrDb} (matches_cache); o ticket so aceita jogos do dia ${playableDate}.`,
+        },
+        { status: 400 },
+      );
     }
     const existing = await getPredictionByUserTicketMatch({
       userId,
@@ -197,7 +224,7 @@ export async function POST(request: NextRequest) {
         );
       }
     }
-    const matchDayMs = utcMsForBrDate(match.dateBR);
+    const matchDayMs = utcMsForBrDate(dateBrDb);
     const playableDayMs = utcMsForBrDate(playableDate);
     if (matchDayMs == null || playableDayMs == null || matchDayMs !== playableDayMs) {
       return NextResponse.json({ error: "Ticket diario valido apenas para jogos do dia" }, { status: 400 });

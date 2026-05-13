@@ -170,6 +170,16 @@ export async function fetchMatchesMap(): Promise<MatchMap> {
   return new Map(map);
 }
 
+/**
+ * Mapa direto do Postgres (`matches_cache`), sem cache em memoria.
+ * Usar em validacoes criticas (ex.: POST /api/palpites) para apostar/editar
+ * com a mesma fonte que o cron grava (`date_br`, status, placar).
+ */
+export async function fetchMatchesMapDirectFromDb(): Promise<MatchMap> {
+  const cachedRows = await readMatchesCache().catch(() => []);
+  return new Map(mapFromCacheRows(cachedRows));
+}
+
 function mapFromCacheRows(rows: Awaited<ReturnType<typeof readMatchesCache>>): MatchMap {
   const out: MatchMap = new Map();
   for (const r of rows) {

@@ -1,6 +1,7 @@
 import { randomBytes } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { normalizeReferralCodeInput } from "@/lib/auth/referral-code";
+import { GOOGLE_OAUTH_CALLBACK_PATH, GOOGLE_OAUTH_SCOPES } from "@/lib/google/oauth-config";
 
 export const runtime = "nodejs";
 
@@ -35,13 +36,13 @@ export async function GET(request: NextRequest) {
   }
 
   const state = randomBytes(24).toString("hex");
-  const redirectUri = `${appUrl}/api/auth/google/callback`;
+  const redirectUri = `${appUrl}${GOOGLE_OAUTH_CALLBACK_PATH}`;
 
   const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
   url.searchParams.set("client_id", clientId);
   url.searchParams.set("redirect_uri", redirectUri);
   url.searchParams.set("response_type", "code");
-  url.searchParams.set("scope", "openid email profile");
+  url.searchParams.set("scope", GOOGLE_OAUTH_SCOPES);
   url.searchParams.set("state", state);
   url.searchParams.set("access_type", "online");
   url.searchParams.set("prompt", "select_account");

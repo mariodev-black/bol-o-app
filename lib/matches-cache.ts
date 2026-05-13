@@ -92,6 +92,53 @@ export async function readMatchesCache(): Promise<CachedMatchRow[]> {
   return rows;
 }
 
+/** Quais `match_id` existem na `matches_cache` da competicao configurada (`FOOTBALL_COMPETITION_ID`). */
+export async function getExistingMatchIdsFromCache(matchIds: number[]): Promise<Set<number>> {
+  const uniq = [...new Set(matchIds.filter((id) => Number.isFinite(id) && id > 0))];
+  if (uniq.length === 0) return new Set();
+  const pool = getPool();
+  try {
+    const { rows } = await pool.query<{ match_id: number }>(
+      `SELECT match_id FROM matches_cache WHERE competition_id = $1 AND match_id = ANY($2::int[])`,
+      [competitionId(), uniq]
+    );
+    return new Set(rows.map((r) => Number(r.match_id)));
+  } catch (e) {
+    console.error("[matches-cache] getExistingMatchIdsFromCache", e);
+    return new Set(uniq);
+  }
+}
+
+/**
+ * Remove palpites cujo `match_id` nao esta no calendario oficial (bolao geral ou diario na UI).
+ * Se `matches_cache` estiver vazia para a competicao, devolve tudo intacto (sync ainda nao populou).
+ */
+export async function filterPredictionsToOfficialMatchIds<T extends { match_id: number | string }>(
+  predictions: T[]
+): Promise<T[]> {
+  const ids = [
+    ...new Set(
+      predictions.map((p) => Number(p.match_id)).filter((n) => Number.isFinite(n) && n > 0),
+    ),
+  ];
+  if (ids.length === 0) return predictions;
+  const pool = getPool();
+  try {
+    const comp = competitionId();
+    const { rows: cnt } = await pool.query<{ n: string }>(
+      `SELECT count(*)::text AS n FROM matches_cache WHERE competition_id = $1`,
+      [comp]
+    );
+    if (Number(cnt[0]?.n ?? 0) === 0) return predictions;
+
+    const existing = await getExistingMatchIdsFromCache(ids);
+    return predictions.filter((p) => existing.has(Number(p.match_id)));
+  } catch (e) {
+    console.error("[matches-cache] filterPredictionsToOfficialMatchIds", e);
+    return predictions;
+  }
+}
+
 /**
  * Cache com status de fim de jogo mas sem mandante/visitante — GET /api/partidas deve forcar sync.
  * Ignora cancelado/adiado/suspenso onde placar pode ser intencionalmente vazio.
