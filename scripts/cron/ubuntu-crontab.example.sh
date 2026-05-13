@@ -13,4 +13,5 @@ curl -fsS "${APP_URL}/api/cron/garantia-resultados?secret=${CRON_SECRET}" >/dev/
 # --- Sugestao de crontab (rodar como usuario que tem rede ao app) ---
 # Sync geral da competicao (ex.: a cada 6h); garantia a cada 15 min (so forca API se o DB detectar atraso).
 # 0 */6 * * * APP_URL=https://seu-dominio CRON_SECRET=xxx /opt/bolao/scripts/cron/sync-partidas-only.sh
+# */5 * * * * = a cada 5 min (mais rapido para placar e ranking apos o jogo)
 # */15 * * * * APP_URL=https://seu-dominio CRON_SECRET=xxx /opt/bolao/scripts/cron/garantia-only.sh

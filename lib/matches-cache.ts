@@ -1,4 +1,5 @@
 import { getPool } from "@/lib/db";
+import { invalidateMatchMapMemoryAfterDbWrite } from "@/lib/match-map-cache-invalidator";
 import { processPrizeClosuresAfterMatchSync } from "@/lib/prizes/processor";
 
 export type CachedMatchRow = {
@@ -224,6 +225,7 @@ async function upsertMatchesCache(matches: ProviderMatchInput[]) {
       [competitionId(), ...matches.map((m) => m.matchId)]
     );
     await client.query("COMMIT");
+    invalidateMatchMapMemoryAfterDbWrite();
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;

@@ -503,9 +503,10 @@ function JogoCard({
   const disabled = readOnly || !canEdit || palpiteSalvo || isSubmitting || predictionsLoading;
   const hasInitialPrediction = Boolean(initialPrediction);
 
+  const temPlacarOficial = jogo.resultCasa != null && jogo.resultVisitante != null;
   const review =
-    readOnly && jogo.resultCasa != null && jogo.resultVisitante != null
-      ? calcPredictionPoints(scoreCasa, scoreVisitante, jogo.resultCasa, jogo.resultVisitante)
+    readOnly && temPlacarOficial && hasInitialPrediction
+      ? calcPredictionPoints(scoreCasa, scoreVisitante, jogo.resultCasa!, jogo.resultVisitante!)
       : null;
 
   const totalInRound = scheduleTotal ?? 0;
@@ -703,6 +704,10 @@ function JogoCard({
             >
               {readOnlyPending
                 ? "Aguardando o inicio da partida"
+                : !temPlacarOficial && jogo.status === "encerrado"
+                  ? "Sincronizando placar oficial..."
+                  : !hasInitialPrediction && (jogo.status === "encerrado" || temPlacarOficial)
+                    ? "Sem palpite nesta partida"
                 : review && review.points > 0
                   ? `Voce ganhou ${review.points} pts nesta partida`
                   : readOnlyLiveLast
@@ -1877,8 +1882,6 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
 
   useEffect(() => {
     if (initialData && initialData.jogos.length > 0) {
-      setLoading(false);
-      setLoadingTabela(false);
       return;
     }
     setLoadingTabela(true);
@@ -1889,14 +1892,28 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
       })
       .catch(() => {})
       .finally(() => setLoadingTabela(false));
+  }, [initialData]);
 
-    fetch("/api/partidas", { cache: "default" })
-      .then(async (r) => {
+  /** Partidas: sempre atualizar (SSR pode ficar velho; placar e ranking dependem disso). */
+  useEffect(() => {
+    let cancelled = false;
+    let intervalId: ReturnType<typeof setInterval> | undefined;
+
+    function applyRodadaInicial(parsed: Jogo[]) {
+      const todayDateStr = resolveDiarioPlayableDateFromJogos(parsed);
+      const rodadasDispAll = Array.from(new Set(parsed.map((j) => j.rodada))).sort((a, b) => a - b);
+      const rodadaContemHoje = rodadasDispAll.find((r) =>
+        parsed.filter((j) => j.rodada === r).some((j) => j.dataBR === todayDateStr)
+      );
+      setSelectedRodada((prev) => (prev != null ? prev : rodadaContemHoje ?? rodadasDispAll[0] ?? 0));
+    }
+
+    async function tick() {
+      try {
+        const r = await fetch("/api/partidas", { cache: "no-store" });
         const data = await r.json().catch(() => null);
-        return { ok: r.ok, data };
-      })
-      .then(({ ok, data }) => {
-        if (!ok) {
+        if (cancelled) return;
+        if (!r.ok) {
           setErro(true);
           return;
         }
@@ -1909,23 +1926,25 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
           setErro(false);
           return;
         }
-
         setJogos(parsed);
         setGrupos(letras);
-        setGrupo(letras[0] ?? "GERAL");
+        setGrupo((prev) => (letras.includes(prev) ? prev : letras[0] ?? "GERAL"));
         setErro(false);
-        // initialize the round to today's games or, if there are no games today,
-        // the next playable daily date.
-        const todayDateStr = resolveDiarioPlayableDateFromJogos(parsed);
-        const rodadasDispAll = Array.from(new Set(parsed.map((j) => j.rodada))).sort((a, b) => a - b);
-        const rodadaContemHoje = rodadasDispAll.find((r) =>
-          parsed.filter((j) => j.rodada === r).some((j) => j.dataBR === todayDateStr)
-        );
-        setSelectedRodada(rodadaContemHoje ?? rodadasDispAll[0] ?? 0);
-      })
-      .catch(() => setErro(true))
-      .finally(() => setLoading(false));
-  }, [initialData]);
+        applyRodadaInicial(parsed);
+      } catch {
+        if (!cancelled) setErro(true);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    void tick();
+    intervalId = setInterval(tick, 45_000);
+    return () => {
+      cancelled = true;
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, []);
 
   useEffect(() => {
     if (resultMode) setTab("jogos");
@@ -1987,12 +2006,16 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
     })();
   }, [ticketId, initialData]);
 
+  const jogosPlacarSignature = useMemo(
+    () =>
+      jogos
+        .map((j) => `${j.id}:${j.resultCasa ?? ""}:${j.resultVisitante ?? ""}:${j.status}`)
+        .sort()
+        .join("|"),
+    [jogos]
+  );
+
   useEffect(() => {
-    const hasServerRanking =
-      initialData &&
-      initialData.ticketId === ticketId &&
-      initialData.rankingRows.length > 0;
-    if (hasServerRanking) return;
     (async () => {
       try {
         const q = new URLSearchParams();
@@ -2014,19 +2037,10 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
         );
       } catch {}
     })();
-  }, [bolaoType, ticketId, initialData]);
+  }, [bolaoType, ticketId, jogosPlacarSignature]);
 
   useEffect(() => {
     if (!ticketId) return;
-    const hasServerResumo =
-      initialData &&
-      initialData.ticketId === ticketId &&
-      initialData.resumoStats.palpites >= 0;
-    const hasServerHistorico =
-      initialData &&
-      initialData.ticketId === ticketId &&
-      initialData.historicoRows.length > 0;
-    if (hasServerResumo && hasServerHistorico) return;
     (async () => {
       setLoadingResumo(true);
       try {
@@ -2043,7 +2057,7 @@ function PalpitesPageContent({ initialData }: { initialData: PalpitesInitialData
         setLoadingResumo(false);
       }
     })();
-  }, [ticketId, initialData]);
+  }, [ticketId, jogosPlacarSignature]);
 
   const savePrediction = async (payload: { matchId: number; scoreCasa: number; scoreVisitante: number }) => {
     if (!ticketId) return;

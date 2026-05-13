@@ -1,3 +1,4 @@
+import { registerMatchMapMemoryInvalidate } from "@/lib/match-map-cache-invalidator";
 import { readMatchesCache, requestMatchesCacheSoftSync, syncMatchesCache } from "@/lib/matches-cache";
 
 type MatchMap = Map<number, {
@@ -21,6 +22,10 @@ const MATCH_MAP_MEMORY_TTL_MS =
   Number.parseInt(process.env.MATCH_MAP_MEMORY_TTL_MS ?? `${3 * 60 * 1000}`, 10) || 3 * 60 * 1000;
 
 let matchMapMemoryCache: { at: number; map: MatchMap } | null = null;
+
+registerMatchMapMemoryInvalidate(() => {
+  matchMapMemoryCache = null;
+});
 
 function token(): string {
   return (process.env.FOOTBALL_API_TOKEN || "").trim();
