@@ -242,10 +242,10 @@ export async function fetchProviderMatches(): Promise<ProviderMatch[]> {
   });
   if (!res.ok) {
     debugLog("fetchProviderMatches:bulk-failed", { status: res.status });
-    const fromRounds = await fetchProviderMatchesFromRounds(compId, apiToken).catch(() => []);
-    if (fromRounds.length > 0) {
-      debugLog("fetchProviderMatches:fallback-from-rounds", { count: fromRounds.length });
-      return mergeProviderMatchesWithRoundsAndDetail(compId, apiToken, fromRounds);
+    const supplement = await fetchSupplementalProviderMatchesForMerge(compId, apiToken);
+    if (supplement.length > 0) {
+      debugLog("fetchProviderMatches:fallback-supplement", { count: supplement.length });
+      return mergeProviderMatchesWithRoundsAndDetail(compId, apiToken, supplement);
     }
     throw new Error(`Falha ao buscar partidas (${res.status})`);
   }
@@ -259,10 +259,10 @@ export async function fetchProviderMatches(): Promise<ProviderMatch[]> {
     phaseCount: fases && typeof fases === "object" && !Array.isArray(fases) ? Object.keys(fases).length : 1,
   });
   if (out.length === 0) {
-    const fromRounds = await fetchProviderMatchesFromRounds(compId, apiToken).catch(() => []);
-    if (fromRounds.length > 0) {
-      debugLog("fetchProviderMatches:bulk-empty-fallback-rounds", { count: fromRounds.length });
-      return mergeProviderMatchesWithRoundsAndDetail(compId, apiToken, fromRounds);
+    const supplement = await fetchSupplementalProviderMatchesForMerge(compId, apiToken);
+    if (supplement.length > 0) {
+      debugLog("fetchProviderMatches:bulk-empty-fallback-supplement", { count: supplement.length });
+      return mergeProviderMatchesWithRoundsAndDetail(compId, apiToken, supplement);
     }
   }
   return mergeProviderMatchesWithRoundsAndDetail(compId, apiToken, out);
@@ -275,6 +275,93 @@ type RodadaListItem = {
   _link?: string;
   proxima_rodada?: { slug?: string; rodada?: number; status?: string } | null;
 };
+
+/** Lista de rodadas: a API costuma devolver um array; alguns proxies/planos podem embrulhar o corpo. */
+function parseRodadasListPayload(raw: unknown): RodadaListItem[] {
+  if (Array.isArray(raw)) return raw as RodadaListItem[];
+  if (raw && typeof raw === "object") {
+    const o = raw as Record<string, unknown>;
+    for (const key of ["rodadas", "data", "items", "result"]) {
+      const v = o[key];
+      if (Array.isArray(v)) return v as RodadaListItem[];
+    }
+  }
+  return [];
+}
+
+type FaseListItem = { fase_id?: number; slug?: string; nome?: string };
+
+function parseFasesListPayload(raw: unknown): FaseListItem[] {
+  if (Array.isArray(raw)) return raw as FaseListItem[];
+  if (raw && typeof raw === "object") {
+    const o = raw as Record<string, unknown>;
+    for (const key of ["fases", "data", "items", "result"]) {
+      const v = o[key];
+      if (Array.isArray(v)) return v as FaseListItem[];
+    }
+  }
+  return [];
+}
+
+/** Campeonatos tipo mata-mata (ex.: Copa do Brasil) muitas vezes nao expoem /rodadas; as partidas ficam em /fases/{id}. */
+async function fetchProviderMatchesFromFases(compId: string, apiToken: string): Promise<ProviderMatch[]> {
+  const listUrl = `https://api.api-futebol.com.br/v1/campeonatos/${compId}/fases`;
+  debugLog("fases:list:request", { url: listUrl });
+  const listRes = await fetch(listUrl, {
+    headers: { Authorization: `Bearer ${apiToken}` },
+    cache: "no-store",
+  });
+  if (!listRes.ok) {
+    debugLog("fases:list:failed", { status: listRes.status });
+    return [];
+  }
+  const raw = await listRes.json().catch(() => null);
+  const fasesList = parseFasesListPayload(raw);
+  if (fasesList.length === 0) {
+    debugLog("fases:list:empty");
+    if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+      debugLog("fases:list:shape", { keys: Object.keys(raw as object).slice(0, 24) });
+    }
+    return [];
+  }
+  debugLog("fases:list:ok", { count: fasesList.length });
+  const maxFases = Number.parseInt(process.env.FOOTBALL_FASES_SYNC_LIMIT ?? "32", 10) || 32;
+  const byId = new Map<number, ProviderMatch>();
+  for (const f of fasesList.slice(0, maxFases)) {
+    const faseId = Number(f?.fase_id);
+    if (!Number.isFinite(faseId)) continue;
+    const detailUrl = `https://api.api-futebol.com.br/v1/campeonatos/${compId}/fases/${faseId}`;
+    try {
+      const detailRes = await fetch(detailUrl, {
+        headers: { Authorization: `Bearer ${apiToken}` },
+        cache: "no-store",
+      });
+      if (!detailRes.ok) {
+        debugLog("fases:detail:failed", { faseId, status: detailRes.status });
+        continue;
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const parsed = (await detailRes.json().catch(() => null)) as any;
+      const chunk = collectProviderMatches(parsed);
+      debugLog("fases:detail:ok", { faseId, partidas: chunk.length });
+      for (const m of chunk) {
+        byId.set(m.matchId, m);
+      }
+    } catch {
+      debugLog("fases:detail:error", { faseId });
+    }
+  }
+  const out = Array.from(byId.values());
+  debugLog("fases:merge:result", { count: out.length });
+  return out;
+}
+
+/** Enriquecimento em lista: rodadas (turno/regular) ou, se vazio, detalhe por fase (mata-mata). */
+async function fetchSupplementalProviderMatchesForMerge(compId: string, apiToken: string): Promise<ProviderMatch[]> {
+  const fromRounds = await fetchProviderMatchesFromRounds(compId, apiToken).catch(() => []);
+  if (fromRounds.length > 0) return fromRounds;
+  return fetchProviderMatchesFromFases(compId, apiToken).catch(() => []);
+}
 
 function mapPartidaItem(p: any, phaseKey: string, roundSlug: string): ProviderMatch | null {
   const id = Number(p?.partida_id);
@@ -310,9 +397,13 @@ async function fetchProviderMatchesFromRounds(compId: string, apiToken: string) 
     debugLog("rounds:list:failed", { status: roundsRes.status });
     return [];
   }
-  const rounds = (await roundsRes.json().catch(() => [])) as RodadaListItem[];
-  if (!Array.isArray(rounds) || rounds.length === 0) {
+  const raw = await roundsRes.json().catch(() => null);
+  const rounds = parseRodadasListPayload(raw);
+  if (rounds.length === 0) {
     debugLog("rounds:list:empty");
+    if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+      debugLog("rounds:list:shape", { keys: Object.keys(raw as object).slice(0, 24) });
+    }
     return [];
   }
   debugLog("rounds:list:ok", { count: rounds.length });
@@ -392,9 +483,9 @@ async function mergeProviderMatchesWithRoundsAndDetail(
   let next = rows;
   if (next.length === 0 || !next.some(providerTerminalSemPlacar)) return next;
   debugLog("fetchProviderMatches:enrich-missing-scores", { bulk: next.length });
-  const fromRounds = await fetchProviderMatchesFromRounds(compId, apiToken).catch(() => []);
-  if (fromRounds.length > 0) {
-    const byId = new Map(fromRounds.map((x) => [x.matchId, x]));
+  const supplement = await fetchSupplementalProviderMatchesForMerge(compId, apiToken).catch(() => []);
+  if (supplement.length > 0) {
+    const byId = new Map(supplement.map((x) => [x.matchId, x]));
     next = next.map((m) => {
       if (!providerTerminalSemPlacar(m)) return m;
       const r = byId.get(m.matchId);
