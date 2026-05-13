@@ -1,3 +1,4 @@
+import { warmCompetitionMetadataCache } from "@/lib/competition-metadata-cache";
 import { listPaidTicketsForUser } from "@/lib/payments/user-tickets";
 
 export type RankingScopeOption = {
@@ -69,18 +70,45 @@ export async function buildRankingScopes(
       });
     }
 
-    for (const t of extra) {
+    const extraSorted = [...extra].sort((a, b) => {
+      const ta = String(a.paidAt || a.createdAt || "");
+      const tb = String(b.paidAt || b.createdAt || "");
+      if (ta !== tb) return ta.localeCompare(tb);
+      return a.id.localeCompare(b.id);
+    });
+
+    const uniqExtraCompIds = [
+      ...new Set(
+        extraSorted
+          .map((t) => t.extraChampionshipId)
+          .filter((n): n is number => n != null && Number.isFinite(n) && n > 0),
+      ),
+    ];
+    const compNames: Record<number, string> =
+      uniqExtraCompIds.length > 0
+        ? await warmCompetitionMetadataCache(uniqExtraCompIds).catch(() => ({}))
+        : {};
+
+    for (let i = 0; i < extraSorted.length; i++) {
+      const t = extraSorted[i]!;
       const date = t.playDate?.trim() || "Dia";
-      const comp = t.extraChampionshipId != null ? String(t.extraChampionshipId) : "?";
+      const compId = t.extraChampionshipId;
+      const championshipName =
+        compId != null && Number.isFinite(compId) && compNames[compId]
+          ? compNames[compId]!
+          : compId != null && Number.isFinite(compId)
+            ? `Campeonato ${compId}`
+            : "Bolão extra";
+      const ordinalSuffix = extraSorted.length > 1 ? ` · #${i + 1}` : "";
       const unused = (t.availableGames ?? 0) > 0;
       scopes.push({
         key: `extra:${t.id}`,
         mode: "extra",
         ticketId: t.id,
-        label: `Bolão extra (${comp}) — ${date}`,
+        label: `${championshipName} — ${date}${ordinalSuffix}`,
         meta: `Cota ${shortId(t.id)}`,
-        selectPrimary: `Bolão extra (${comp})`,
-        selectSecondary: date,
+        selectPrimary: championshipName,
+        selectSecondary: `${date}${ordinalSuffix}`,
         unusedPalpites: unused,
         palpitesHref: palpitesHrefForTicket(t.id),
       });

@@ -31,6 +31,10 @@ import {
   TrophyBronze,
 } from "@/app/components/RankingTrophies";
 import { RankingPromoCards } from "@/app/(authenticated)/ranking/_components/RankingPromoCards";
+import {
+  RankingBoardSkeleton,
+  RankingFullPageSkeleton,
+} from "@/app/(authenticated)/ranking/_components/RankingPageSkeletons";
 import type { RankingScopeOption } from "@/lib/ranking/scopes";
 import { getAvatarPresetImage } from "@/lib/user/avatar-presets";
 
@@ -576,6 +580,8 @@ export default function RankingPage() {
     }
 
     setLoadingBoard(true);
+    setRankingRows([]);
+    setMeta(null);
     setError(null);
     try {
       const boardUrl =
@@ -741,11 +747,20 @@ export default function RankingPage() {
       </div>
     ) : null;
 
+  if (loadingScopes) {
+    return (
+      <main className="font-helvetica-now-display min-h-screen bg-black pb-28 text-white">
+        <div className="mx-auto w-full max-w-[430px] px-3.5 pt-1">
+          <RankingFullPageSkeleton />
+        </div>
+      </main>
+    );
+  }
+
   return (
-    <main className="font-helvetica-now-display bg-black pb-28 text-white">
+    <main className="font-helvetica-now-display min-h-screen bg-black pb-28 text-white">
       <div className="mx-auto w-full max-w-[430px] px-3.5 pt-1">
-        {!loadingScopes ? (
-          <section className="relative mt-1 overflow-hidden rounded-2xl border border-white/9 bg-[#0a0a0a] px-4 pb-5 pt-4">
+        <section className="relative mt-1 overflow-hidden rounded-2xl border border-white/9 bg-[#0a0a0a] px-4 pb-5 pt-4">
             <div
               className="pointer-events-none absolute -right-6 top-6 h-28 w-28 opacity-[0.14] blur-3xl"
               style={{ background: PRIMARY }}
@@ -776,17 +791,11 @@ export default function RankingPage() {
                   </span>{" "}
                   durante toda a Copa.
                 </p>
-              </div>
             </div>
-          </section>
-        ) : null}
-        {loadingScopes ? (
-          <p className="mt-6 text-center text-[12px] font-medium text-white/80">
-            Carregando seus bolões…
-          </p>
-        ) : null}
+          </div>
+        </section>
 
-        {!loadingScopes && scopes.length === 0 ? (
+        {scopes.length === 0 ? (
           <section
             className="mt-6 flex flex-col items-center rounded-2xl border border-dashed border-white/15 bg-white/[0.03] px-5 py-10 text-center"
             style={{ borderColor: "rgba(255,255,255,0.12)" }}
@@ -820,7 +829,7 @@ export default function RankingPage() {
           </section>
         ) : null}
 
-        {!loadingScopes && scopes.length > 0 ? (
+        {scopes.length > 0 ? (
           <>
             <section
               className={`relative mt-4 rounded-2xl border border-white/10 bg-[#0a0a0a] px-5 pb-5 pt-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ${
@@ -1023,44 +1032,6 @@ export default function RankingPage() {
                 </button>
               </div>
 
-              <div className="relative border-t border-white/8 bg-linear-to-b from-black/50 to-black/80 px-3.5 pb-3.5 pt-3">
-                <div
-                  className="pointer-events-none absolute inset-x-0 top-0 h-px opacity-60"
-                  style={{
-                    background:
-                      "linear-gradient(90deg, transparent, rgba(177,235,11,0.35), transparent)",
-                  }}
-                />
-                <div className="relative flex gap-3">
-                  <div className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-primary/30 bg-primary/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-                    {rankingViewTab === "tabela" ? (
-                      <Trophy
-                        className="size-[18px] text-primary"
-                        strokeWidth={2.3}
-                        aria-hidden
-                      />
-                    ) : (
-                      <Sparkles
-                        className="size-[18px] text-primary"
-                        strokeWidth={2.3}
-                        aria-hidden
-                      />
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1 pt-0.5">
-                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">
-                      {rankingViewTab === "tabela"
-                        ? "Top 10 neste bolão"
-                        : "Painel completo"}
-                    </p>
-                    <p className="mt-1.5 text-[11px] font-medium leading-relaxed text-white/52">
-                      {rankingViewTab === "tabela"
-                        ? "Pódio com os 3 primeiros e lista até o 10º. Se você estiver abaixo, um card destaca sua posição e pontos."
-                        : "Participantes, prêmios estimados, pódio, tabela e seus números — tudo para acompanhar o bolão de perto."}
-                    </p>
-                  </div>
-                </div>
-              </div>
             </div>
 
             {selectedScope?.unusedPalpites ? (
@@ -1103,117 +1074,107 @@ export default function RankingPage() {
 
             {rankingViewTab === "tabela" ? (
               <>
-                {loadingBoard && rankingRows.length === 0 ? (
-                  <p className="mt-6 text-center text-[12px] font-medium text-white/80">
-                    Carregando ranking…
-                  </p>
-                ) : null}
+                {loadingBoard ? (
+                  <RankingBoardSkeleton showStatsStrip={false} />
+                ) : (
+                  <>
+                    {rankingRows.length === 0 ? (
+                      <p className="mt-6 text-center text-[12px] font-medium text-white/80">
+                        Ainda não há participantes classificados neste bolão.
+                      </p>
+                    ) : null}
 
-                {!loadingBoard && rankingRows.length === 0 ? (
-                  <p className="mt-6 text-center text-[12px] font-medium text-white/80">
-                    Ainda não há participantes classificados neste bolão.
-                  </p>
-                ) : null}
-
-                {rankingRows.length > 0 ? (
-                  <section className="mt-4">
-                    <RankingPodiumAndTable
-                      provisional={
-                        provisionalRankingNote ? (
-                          <div className="mb-3">{provisionalRankingNote}</div>
-                        ) : null
-                      }
-                      padTopThree={padTopThree}
-                      rowsFourToTen={rowsFourToTen}
-                      myRow={myRow}
-                    />
-                  </section>
-                ) : null}
+                    {rankingRows.length > 0 ? (
+                      <section className="mt-4">
+                        <RankingPodiumAndTable
+                          provisional={
+                            provisionalRankingNote ? (
+                              <div className="mb-3">{provisionalRankingNote}</div>
+                            ) : null
+                          }
+                          padTopThree={padTopThree}
+                          rowsFourToTen={rowsFourToTen}
+                          myRow={myRow}
+                        />
+                      </section>
+                    ) : null}
+                  </>
+                )}
               </>
             ) : (
               <>
-                <section
-                  className="mt-3 grid grid-cols-4 overflow-hidden rounded-2xl border"
-                  style={{ background: CARD, borderColor: BORDER }}
-                >
-                  <StatMarqueeItem
-                    icon={Users}
-                    title={`+${statParticipants}`}
-                    subtitle="Participantes"
-                  />
-                  <StatMarqueeItem
-                    icon={Trophy}
-                    title={statPool === "—" ? "—" : statPool}
-                    subtitle="Em prêmios (est.)"
-                  />
-                  <StatMarqueeItem
-                    icon={CalendarClock}
-                    title={`Fecham em ${statClose}`}
-                    subtitle="Palpites"
-                  />
-                  <StatMarqueeItem
-                    icon={Star}
-                    title="1 em cada 10"
-                    subtitle={`~${statPremiados} premiados`}
-                  />
-                </section>
+                {loadingBoard ? (
+                  <RankingBoardSkeleton showStatsStrip />
+                ) : (
+                  <>
+                    <section
+                      className="mt-3 grid grid-cols-4 overflow-hidden rounded-2xl border"
+                      style={{ background: CARD, borderColor: BORDER }}
+                    >
+                      <StatMarqueeItem
+                        icon={Users}
+                        title={`+${statParticipants}`}
+                        subtitle="Participantes"
+                      />
+                      <StatMarqueeItem
+                        icon={Trophy}
+                        title={statPool === "—" ? "—" : statPool}
+                        subtitle="Em prêmios (est.)"
+                      />
+                      <StatMarqueeItem
+                        icon={CalendarClock}
+                        title={`Fecham em ${statClose}`}
+                        subtitle="Palpites"
+                      />
+                      <StatMarqueeItem
+                        icon={Star}
+                        title="1 em cada 10"
+                        subtitle={`~${statPremiados} premiados`}
+                      />
+                    </section>
 
-                {loadingBoard && rankingRows.length === 0 ? (
-                  <p className="mt-6 text-center text-[12px] font-medium text-white/80">
-                    Carregando ranking…
-                  </p>
-                ) : null}
+                    {rankingRows.length === 0 ? (
+                      <p className="mt-6 text-center text-[12px] font-medium text-white/80">
+                        Ainda não há participantes classificados neste bolão.
+                      </p>
+                    ) : null}
 
-                {!loadingBoard && rankingRows.length === 0 ? (
-                  <p className="mt-6 text-center text-[12px] font-medium text-white/80">
-                    Ainda não há participantes classificados neste bolão.
-                  </p>
-                ) : null}
+                    {rankingRows.length > 0 ? (
+                      <section className="mt-4">
+                        <RankingPodiumAndTable
+                          provisional={
+                            provisionalRankingNote ? (
+                              <div className="mb-3">{provisionalRankingNote}</div>
+                            ) : null
+                          }
+                          padTopThree={padTopThree}
+                          rowsFourToTen={rowsFourToTen}
+                          myRow={myRow}
+                        />
+                      </section>
+                    ) : null}
 
-                {rankingRows.length > 0 ? (
-                  <section className="mt-4">
-                    <RankingPodiumAndTable
-                      provisional={
-                        provisionalRankingNote ? (
-                          <div className="mb-3">{provisionalRankingNote}</div>
-                        ) : null
-                      }
-                      padTopThree={padTopThree}
-                      rowsFourToTen={rowsFourToTen}
-                      myRow={myRow}
-                    />
-                  </section>
-                ) : null}
-
-                <section
-                  className="mt-4 grid grid-cols-3 overflow-hidden rounded-2xl border"
-                  style={{ background: CARD, borderColor: BORDER }}
-                >
-                  <div className="border-r border-white/8 py-3 text-center">
-                    <p className="text-[9px] font-black uppercase text-white/80">
-                      Palpites (você)
-                    </p>
-                    <p className="mt-1 text-xl font-black text-primary">
-                      {loadingBoard ? "—" : stats.palpites}
-                    </p>
-                  </div>
-                  <div className="border-r border-white/8 py-3 text-center">
-                    <p className="text-[9px] font-black uppercase text-white/80">
-                      Acertos
-                    </p>
-                    <p className="mt-1 text-xl font-black text-primary">
-                      {loadingBoard ? "—" : stats.acertos}
-                    </p>
-                  </div>
-                  <div className="py-3 text-center">
-                    <p className="text-[9px] font-black uppercase text-white/80">
-                      Pontos
-                    </p>
-                    <p className="mt-1 text-xl font-black text-primary">
-                      {loadingBoard ? "—" : stats.pontos}
-                    </p>
-                  </div>
-                </section>
+                    <section
+                      className="mt-4 grid grid-cols-3 overflow-hidden rounded-2xl border"
+                      style={{ background: CARD, borderColor: BORDER }}
+                    >
+                      <div className="border-r border-white/8 py-3 text-center">
+                        <p className="text-[9px] font-black uppercase text-white/80">
+                          Palpites (você)
+                        </p>
+                        <p className="mt-1 text-xl font-black text-primary">{stats.palpites}</p>
+                      </div>
+                      <div className="border-r border-white/8 py-3 text-center">
+                        <p className="text-[9px] font-black uppercase text-white/80">Acertos</p>
+                        <p className="mt-1 text-xl font-black text-primary">{stats.acertos}</p>
+                      </div>
+                      <div className="py-3 text-center">
+                        <p className="text-[9px] font-black uppercase text-white/80">Pontos</p>
+                        <p className="mt-1 text-xl font-black text-primary">{stats.pontos}</p>
+                      </div>
+                    </section>
+                  </>
+                )}
               </>
             )}
 
