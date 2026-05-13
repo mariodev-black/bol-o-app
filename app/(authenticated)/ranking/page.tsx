@@ -423,9 +423,6 @@ export default function RankingPage() {
                 Acompanhe posição, acertos e pontos.
               </p>
             </div>
-            <div className="relative mt-1 h-[100px] w-[108px] shrink-0">
-              <Image src={bannerRanking} alt="" fill className="object-contain object-right" sizes="120px" priority />
-            </div>
           </div>
         </section>
 

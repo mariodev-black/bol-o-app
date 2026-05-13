@@ -83,16 +83,6 @@ function TicketObrigadoContent() {
       />
 
       <div className="relative z-10 mx-auto flex min-h-screen max-w-[440px] flex-col justify-center px-5 py-10 sm:px-6">
-        <div className="text-center">
-          <span
-            className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em]"
-            style={{ borderColor: BORDER, color: PRIMARY_SOFT, background: "rgba(177,235,11,0.06)" }}
-          >
-            <Sparkles className="size-3.5 shrink-0" strokeWidth={2.2} style={{ color: PRIMARY }} />
-            Pagamento confirmado
-          </span>
-        </div>
-
         <section
           className="relative mt-7 rounded-[22px] border p-6 shadow-[0_24px_80px_rgba(0,0,0,0.65)] sm:p-8"
           style={{
@@ -224,7 +214,7 @@ function TicketObrigadoContent() {
 
 function TicketObrigadoFallback() {
   return (
-    <div className="min-h-screen bg-black px-5 py-10">
+    <div className="bg-black px-5 py-10">
       <div className="mx-auto max-w-[440px]">
         <div
           className="animate-pulse rounded-[22px] border p-8"
