@@ -481,6 +481,40 @@ function providerNeedsScoreEnrichment(m: ProviderMatch, clockMinAfterKickoff: nu
   return ko + clockMinAfterKickoff * 60_000 < nowMs;
 }
 
+/** Minutos após o apito: listagem `/campeonatos/.../partidas` pode manter "andamento" com placar já preenchido — forçamos GET `/partidas/{id}` para alinhar status (ex.: finalizado). Default 150. */
+function staleListingDetailMinutes(): number {
+  const n = Number.parseInt((process.env.FOOTBALL_STALE_LISTING_DETAIL_MINUTES || "150").trim(), 10);
+  return Number.isFinite(n) && n >= 60 && n <= 240 ? n : 150;
+}
+
+function providerLiveLikeListingStatus(m: ProviderMatch): boolean {
+  const s = String(m.status || "").toLowerCase();
+  return (
+    s.includes("andamento") ||
+    s.includes("intervalo") ||
+    s.includes("em curso") ||
+    s.includes("ao vivo") ||
+    s.includes("rolando")
+  );
+}
+
+/** Placar já veio no bulk mas status ainda parece ao vivo e já passou muito do apito — detalhe da partida costuma trazer `finalizado`. */
+function providerNeedsStaleListingStatusRefresh(m: ProviderMatch, nowMs: number): boolean {
+  if (providerExcludedFromScoreDetail(m.status)) return false;
+  if (providerMissingOfficialScore(m)) return false;
+  if (!providerLiveLikeListingStatus(m)) return false;
+  const ko = providerKickoffMs(m);
+  if (ko == null) return false;
+  return nowMs > ko + staleListingDetailMinutes() * 60_000;
+}
+
+function providerNeedsDetailEnrichment(m: ProviderMatch, clockMinAfterKickoff: number, nowMs: number): boolean {
+  return (
+    providerNeedsScoreEnrichment(m, clockMinAfterKickoff, nowMs) ||
+    providerNeedsStaleListingStatusRefresh(m, nowMs)
+  );
+}
+
 async function mergeProviderMatchesWithRoundsAndDetail(
   compId: string,
   apiToken: string,
@@ -489,14 +523,14 @@ async function mergeProviderMatchesWithRoundsAndDetail(
   let next = rows;
   const clockMin = matchEndClockMinutesAfterKickoff();
   const nowMs = Date.now();
-  if (next.length === 0 || !next.some((m) => providerNeedsScoreEnrichment(m, clockMin, nowMs))) return next;
-  const enrichCount = next.filter((m) => providerNeedsScoreEnrichment(m, clockMin, nowMs)).length;
+  if (next.length === 0 || !next.some((m) => providerNeedsDetailEnrichment(m, clockMin, nowMs))) return next;
+  const enrichCount = next.filter((m) => providerNeedsDetailEnrichment(m, clockMin, nowMs)).length;
   debugLog("fetchProviderMatches:enrich-missing-scores", { bulk: next.length, candidates: enrichCount });
   const supplement = await fetchSupplementalProviderMatchesForMerge(compId, apiToken).catch(() => []);
   if (supplement.length > 0) {
     const byId = new Map(supplement.map((x) => [x.matchId, x]));
     next = next.map((m) => {
-      if (!providerNeedsScoreEnrichment(m, clockMin, nowMs)) return m;
+      if (!providerNeedsDetailEnrichment(m, clockMin, nowMs)) return m;
       const r = byId.get(m.matchId);
       if (!r) return m;
       return {
@@ -509,11 +543,11 @@ async function mergeProviderMatchesWithRoundsAndDetail(
     });
   }
   const nowAfter = Date.now();
-  let still = next.filter((m) => providerNeedsScoreEnrichment(m, clockMin, nowAfter));
+  let still = next.filter((m) => providerNeedsDetailEnrichment(m, clockMin, nowAfter));
   if (still.length === 0) return next;
   still = still.slice().sort((a, b) => {
-    const ta = providerTerminalSemPlacar(a) ? 0 : 1;
-    const tb = providerTerminalSemPlacar(b) ? 0 : 1;
+    const ta = providerTerminalSemPlacar(a) ? 0 : providerNeedsStaleListingStatusRefresh(a, nowAfter) ? 1 : 2;
+    const tb = providerTerminalSemPlacar(b) ? 0 : providerNeedsStaleListingStatusRefresh(b, nowAfter) ? 1 : 2;
     if (ta !== tb) return ta - tb;
     return (providerKickoffMs(a) ?? Infinity) - (providerKickoffMs(b) ?? Infinity);
   });
@@ -528,7 +562,10 @@ async function mergeProviderMatchesWithRoundsAndDetail(
       if (!p?.partida_id) continue;
       const casa = pickScoreFromPartidaPayload(p, "casa");
       const vis = pickScoreFromPartidaPayload(p, "visitante");
-      if (casa == null && vis == null) continue;
+      const statusRaw = typeof p?.status === "string" ? p.status.trim() : "";
+      const statusHit = statusRaw !== "" && statusRaw !== m.status;
+      const scoreHit = casa != null || vis != null;
+      if (!scoreHit && !statusHit) continue;
       next = next.map((row) =>
         row.matchId !== m.matchId
           ? row
@@ -536,9 +573,9 @@ async function mergeProviderMatchesWithRoundsAndDetail(
               ...row,
               resultCasa: row.resultCasa ?? casa,
               resultVisitante: row.resultVisitante ?? vis,
-              status: String(p?.status ?? row.status),
+              status: statusRaw !== "" ? statusRaw : row.status,
               kickoffAt: row.kickoffAt ?? parseKickoffFromPartidaPayload(p),
-            }
+            },
       );
     } catch {
       /* ignore */
