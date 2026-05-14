@@ -1,5 +1,5 @@
 import { fetchFootballApiV1 } from "@/lib/football-api-fetch";
-import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
+import { getFootballMainCompetitionId, getAllSyncedCompetitionIds } from "@/lib/boloes-extra-config";
 import { registerMatchMapMemoryInvalidate } from "@/lib/match-map-cache-invalidator";
 import { parseKickoffFromPartidaPayload, pickScoreFromPartidaPayload } from "@/lib/partida-placar";
 import { fasesEnrichmentCacheKey, readFootballApiCacheJson } from "@/lib/football-api-cache-store";
@@ -14,7 +14,7 @@ export { getMatchFromMap, matchMapKey } from "@/lib/match-map-types";
 const MATCH_MAP_MEMORY_TTL_MS =
   Number.parseInt(process.env.MATCH_MAP_MEMORY_TTL_MS ?? `${3 * 60 * 1000}`, 10) || 3 * 60 * 1000;
 
-let matchMapMemoryCache: { at: number; map: MatchMap } | null = null;
+let matchMapMemoryCache: { at: number; map: MatchMap; scopeKey: string } | null = null;
 
 registerMatchMapMemoryInvalidate(() => {
   matchMapMemoryCache = null;
@@ -148,17 +148,35 @@ export function collectProviderMatches(node: any, path: string[] = [], out: Prov
   return out;
 }
 
+function mergeCompetitionIdsForMatchMap(ensureCompetitionIds?: number[]): { scopeIds: number[]; scopeKey: string } {
+  const base = getAllSyncedCompetitionIds();
+  const extra = (ensureCompetitionIds ?? []).filter((n) => Number.isFinite(n) && n > 0);
+  const scopeIds = [...new Set([...base, ...extra])];
+  const scopeKey = scopeIds.slice().sort((a, b) => a - b).join(",");
+  return { scopeIds, scopeKey };
+}
+
 /** Mapa de partidas só a partir do Postgres (`matches_cache`). Servidor preenche via cron/bootstrap. */
-export async function fetchMatchesMap(): Promise<MatchMap> {
-  if (matchMapMemoryCache && Date.now() - matchMapMemoryCache.at < MATCH_MAP_MEMORY_TTL_MS) {
-    debugLog("fetchMatchesMap:return-memory-cache", { count: matchMapMemoryCache.map.size });
+export async function fetchMatchesMap(opts?: { ensureCompetitionIds?: number[] }): Promise<MatchMap> {
+  const { scopeIds, scopeKey } = mergeCompetitionIdsForMatchMap(opts?.ensureCompetitionIds);
+  if (
+    matchMapMemoryCache &&
+    matchMapMemoryCache.scopeKey === scopeKey &&
+    Date.now() - matchMapMemoryCache.at < MATCH_MAP_MEMORY_TTL_MS
+  ) {
+    debugLog("fetchMatchesMap:return-memory-cache", { count: matchMapMemoryCache.map.size, scopeKey });
     return new Map(matchMapMemoryCache.map);
   }
 
-  const cachedRows = await readMatchesCache().catch(() => []);
-  debugLog("fetchMatchesMap:start", { cachedRows: cachedRows.length, competitionId: competitionId() });
+  const cachedRows = await readMatchesCache({ competitionIds: scopeIds }).catch(() => []);
+  debugLog("fetchMatchesMap:start", {
+    cachedRows: cachedRows.length,
+    competitionId: competitionId(),
+    scopeIds,
+    scopeKey,
+  });
   const map = mapFromCacheRows(cachedRows);
-  matchMapMemoryCache = { at: Date.now(), map };
+  matchMapMemoryCache = { at: Date.now(), map, scopeKey };
   return new Map(map);
 }
 
@@ -168,7 +186,8 @@ export async function fetchMatchesMap(): Promise<MatchMap> {
  * com a mesma fonte que o cron grava (`date_br`, status, placar).
  */
 export async function fetchMatchesMapDirectFromDb(): Promise<MatchMap> {
-  const cachedRows = await readMatchesCache().catch(() => []);
+  const { scopeIds } = mergeCompetitionIdsForMatchMap();
+  const cachedRows = await readMatchesCache({ competitionIds: scopeIds }).catch(() => []);
   return new Map(mapFromCacheRows(cachedRows));
 }
 

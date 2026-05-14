@@ -77,9 +77,13 @@ function competitionId(): number {
   return getFootballMainCompetitionId();
 }
 
-export async function readMatchesCache(): Promise<CachedMatchRow[]> {
+export async function readMatchesCache(opts?: { competitionIds?: number[] }): Promise<CachedMatchRow[]> {
   const pool = getPool();
-  const ids = getAllSyncedCompetitionIds();
+  const ids =
+    opts?.competitionIds != null && opts.competitionIds.length > 0
+      ? [...new Set(opts.competitionIds.filter((n) => Number.isFinite(n) && n > 0))]
+      : getAllSyncedCompetitionIds();
+  if (ids.length === 0) return [];
   const { rows } = await pool.query<CachedMatchRow>(
     `SELECT
       competition_id,
