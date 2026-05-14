@@ -4,11 +4,15 @@ import Link from "next/link";
 import Image from "next/image";
 import {
   ArrowRight,
+  BarChart3,
   CalendarDays,
   Check,
+  ChevronDown,
   ChevronRight,
   ClipboardList,
+  Clock,
   Lock,
+  MousePointerClick,
   Shield,
   Ticket,
   Trophy,
@@ -192,7 +196,7 @@ function SummaryCard({
           strokeWidth={2.1}
         />
       </div>
-      <p className="whitespace-pre-line text-[9px] font-black uppercase leading-[1.12] tracking-[0.08em] text-white/42 min-[380px]:text-[12px]">
+      <p className="whitespace-pre-line text-[9px] font-black uppercase leading-[1.12] tracking-[0.08em] text-white/82 min-[380px]:text-[12px]">
         {label}
       </p>
       <p
@@ -863,6 +867,30 @@ function CarouselShell({
   );
 }
 
+function MiniSoccerBallIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      aria-hidden
+    >
+      <circle
+        cx="12"
+        cy="12"
+        r="9.25"
+        fill="#f4f4f5"
+        stroke="#18181b"
+        strokeWidth="0.65"
+      />
+      <path
+        fill="#18181b"
+        d="M12 6.35 14.42 8.12v3.52L12 13.65 9.58 11.64V8.12L12 6.35zm-5.9 2.78 2.95 1.05v4.64l-2.95 1.05-1.82-3.37 1.82-3.37zm11.8 0 1.82 3.37-1.82 3.37-2.95-1.05v-4.64l2.95-1.05z"
+      />
+    </svg>
+  );
+}
+
 function UpcomingExtraOfferCard({
   ex,
   now,
@@ -872,159 +900,144 @@ function UpcomingExtraOfferCard({
   now: number;
   fullWidth?: boolean;
 }) {
-  const tone = EXTRA_ACCENT;
   const isCopaBr = isCopaDoBrasilChampionshipTitle(ex.title);
+  const accent = isCopaBr ? GREEN : EXTRA_ACCENT;
   const ticketImg = isCopaBr ? iconCopaBrasil : ticketBlue;
+  const ink = "#0E141B";
+
   return (
     <Link
       href={ex.href}
       className={[
-        "group relative grid min-h-[126px] grid-cols-[102px_minmax(0,1fr)_78px] overflow-hidden rounded-[14px] border bg-[#080A07] shadow-[0_18px_42px_rgba(0,0,0,0.55)] transition-transform duration-300 active:scale-[0.985]",
+        "group relative flex min-h-0 flex-col overflow-hidden rounded-[18px] border bg-[#060806] shadow-[0_20px_48px_rgba(0,0,0,0.55)] transition-transform duration-300 active:scale-[0.985]",
         fullWidth ? "w-full" : "w-[368px] max-w-[88vw] shrink-0 snap-center",
       ].join(" ")}
       style={{
-        borderColor: `${tone}42`,
-        boxShadow: `0 18px 42px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.05), 0 0 26px ${tone}0F`,
+        borderColor: accent,
+        boxShadow: `0 20px 48px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.04), 0 0 28px ${accent}22`,
       }}
     >
       <div
-        className="pointer-events-none absolute -left-20 -top-16 size-40 rounded-full blur-3xl transition-opacity duration-500 group-hover:opacity-90"
-        style={{ background: `${tone}18` }}
+        className="pointer-events-none absolute -left-16 -top-12 size-36 rounded-full blur-3xl transition-opacity duration-500 group-hover:opacity-95"
+        style={{ background: `${accent}22` }}
         aria-hidden
       />
 
-      <div
-        className="relative z-10 flex flex-col items-center justify-center px-2 text-center"
-        style={{
-          background: `radial-gradient(circle at 50% 42%, ${tone}18 0%, rgba(255,255,255,0.03) 35%, transparent 66%)`,
-        }}
-      >
-        <Image
-          src={ticketImg}
-          alt=""
-          className="h-[78px] w-[60px] object-contain transition-transform duration-500 group-hover:scale-105"
-          style={{ filter: `drop-shadow(0 8px 24px ${tone}42)` }}
-        />
-      </div>
-
-      <div
-        className="relative z-10 min-w-0 border-l px-3.5 py-4"
-        style={{ borderColor: "rgba(255,255,255,0.08)" }}
-      >
-        <h3 className="text-[15px] font-black uppercase leading-none tracking-[-0.03em] text-white min-[380px]:text-[16px]">
-          {ex.title}
-        </h3>
-        <p className="mt-2 font-mono text-[11px] font-semibold leading-none text-white/50">
-          Nova cota
-        </p>
-        <div className="mt-3">
-          <StatusPill status="ativo" label="À venda" />
-        </div>
-        <div className="mt-4 space-y-1.5">
-          <p className="text-[12px] font-medium text-white/55">
-            Jogos na rodada:{" "}
-            <span className="font-black text-white">{ex.gamesCount} jogos</span>
-          </p>
-          <p className="text-[12px] font-medium text-white/55">
-            Fecha em:{" "}
-            <span className="font-black" style={{ color: GREEN_SOFT }}>
-              {formatCountdown(ex.closesAtMs, now)}
-            </span>
-          </p>
-        </div>
-      </div>
-
-      <div
-        className="relative z-10 flex min-w-0 flex-col items-center justify-center border-l px-2 text-center"
-        style={{ borderColor: "rgba(255,255,255,0.08)" }}
-      >
-        <p className="text-[7px] font-black uppercase leading-[0.95] tracking-[0.08em] text-white/40">
-          Valor
-          <br />
-          por cota
-        </p>
-        <p
-          className="mt-2 max-w-[72px] text-[11px] font-black leading-tight text-white min-[380px]:text-[12px]"
-          style={{ color: tone }}
+      <div className="relative z-10 grid min-h-[132px] grid-cols-[minmax(0,92px)_minmax(0,1fr)_minmax(0,78px)] min-[380px]:grid-cols-[100px_minmax(0,1fr)_84px]">
+        {/* Coluna esquerda — arte + rótulo */}
+        <div
+          className="relative flex flex-col items-center justify-center border-r border-white/8 px-2 py-4"
+          style={{
+            background: `radial-gradient(circle at 50% 38%, ${accent}24 0%, rgba(255,255,255,0.02) 42%, transparent 70%)`,
+          }}
         >
-          {ex.priceLabel}
-        </p>
-        <div className="my-3 h-px w-[50px] bg-white/8" />
-        <p className="text-[7px] font-black uppercase tracking-[0.08em] text-white/40">
-          Ver oferta
-        </p>
-        <ChevronRight
-          className="mt-1 size-4 text-white/55"
-          strokeWidth={2.4}
-          aria-hidden
-        />
+          <Image
+            src={ticketImg}
+            alt=""
+            width={88}
+            height={88}
+            className="h-[76px] w-[68px] object-contain transition-transform duration-300 group-hover:scale-[1.03]"
+            style={{
+              filter: `drop-shadow(0 0 18px ${accent}88) drop-shadow(0 6px 20px ${accent}55)`,
+            }}
+          />
+          {isCopaBr ? (
+            <div className="mt-1.5 text-center leading-tight">
+              
+            </div>
+          ) : (
+            <div className="mt-1.5 text-center leading-tight">
+              <p className="text-[9px] font-semibold text-white/85">Bolão</p>
+              <p
+                className="text-[11px] font-black uppercase tracking-wide"
+                style={{ color: accent }}
+              >
+                Extra
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Meio — título, status, infos */}
+        <div className="relative z-10 flex min-w-0 flex-col justify-center border-r border-white/8 px-3 py-3.5 min-[380px]:px-3.5">
+          <h3 className="text-[13px] font-black uppercase leading-[1.05] tracking-[-0.02em] text-white min-[380px]:text-[15px]">
+            {ex.title}
+          </h3>
+
+          <span
+            className="mt-2.5 inline-flex w-fit items-center gap-1 rounded-[4px] px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.06em] sm:px-3 sm:text-[10px]"
+            style={{ background: GREEN, color: ink }}
+          >
+            <span aria-hidden>🔥</span>
+            Palpites abertos
+          </span>
+
+          <div className="mt-3 space-y-2">
+            <p className="flex items-center gap-2 text-[11px] font-medium leading-snug text-white min-[380px]:text-[12px]">
+              <MiniSoccerBallIcon className="size-4 shrink-0" />
+              <span>
+                <span className="font-black">{ex.gamesCount}</span> jogos nesta
+                rodada
+              </span>
+            </p>
+            <p className="flex items-center gap-2 text-[11px] font-medium leading-snug text-white min-[380px]:text-[12px]">
+              <Clock
+                className="size-4 shrink-0 text-white/90"
+                strokeWidth={2.1}
+                aria-hidden
+              />
+              <span>
+                Fecha em:{" "}
+                <span
+                  className="font-mono text-[12px] font-black tabular-nums min-[380px]:text-[13px]"
+                  style={{ color: GREEN }}
+                >
+                  {formatCountdown(ex.closesAtMs, now)}
+                </span>
+              </span>
+            </p>
+          </div>
+
+          <p className="mt-2.5 text-[10px] font-medium leading-none text-white/45">
+            A partir de{" "}
+            <span className="font-bold text-white/70">{ex.priceLabel}</span>
+          </p>
+        </div>
+
+        {/* Direita — stats (placeholder até ter cota) */}
+        <div className="relative z-10 flex min-w-0 flex-col items-center justify-center px-1.5 py-3 text-center min-[380px]:px-2">
+          <p className="text-[7px] font-black uppercase leading-none tracking-[0.08em] text-white/55 min-[380px]:text-[8px]">
+            Sua posição
+          </p>
+          <p
+            className="mt-1.5 text-[17px] font-black leading-none min-[380px]:text-[19px]"
+            style={{ color: GREEN }}
+          >
+            —
+          </p>
+          <div className="my-2.5 h-px w-[46px] bg-white/10 min-[380px]:w-[52px]" />
+          <p className="text-[7px] font-black uppercase tracking-[0.08em] text-white/55 min-[380px]:text-[8px]">
+            Pontos
+          </p>
+          <p
+            className="mt-1.5 text-[13px] font-black leading-none min-[380px]:text-[14px]"
+            style={{ color: GREEN }}
+          >
+            —
+          </p>
+        </div>
+      </div>
+
+      <div className="relative z-10 px-3 pb-3.5 pt-1">
+        <span
+          className="flex h-11 w-full items-center justify-center gap-2 rounded-[10px] text-[11px] font-black uppercase tracking-[0.06em] shadow-[0_6px_22px_rgba(177,235,11,0.32)] transition-[filter] group-hover:brightness-105 min-[380px]:h-12 min-[380px]:text-[12px]"
+          style={{ background: GREEN, color: ink }}
+        >
+          Fazer palpites
+          <ArrowRight className="size-4 shrink-0" strokeWidth={2.6} aria-hidden />
+        </span>
       </div>
     </Link>
-  );
-}
-
-function ShowcaseSectionTitle({
-  icon: Icon,
-  index,
-  title,
-  href,
-  onViewAll,
-  expanded,
-  tone = GREEN,
-}: {
-  icon: LucideIcon;
-  index: string;
-  title: string;
-  href: string;
-  onViewAll?: () => void;
-  expanded?: boolean;
-  tone?: string;
-}) {
-  const content = (
-    <>
-      {expanded ? "Ocultar" : "Ver todos"}{" "}
-      <ChevronRight
-        className={`size-3 transition-transform ${expanded ? "rotate-90" : ""}`}
-        strokeWidth={2.5}
-      />
-    </>
-  );
-
-  return (
-    <div className="mb-2.5 flex items-center justify-between gap-3">
-      <div className="flex min-w-0 items-center gap-2">
-        <Icon
-          className="size-4 shrink-0"
-          style={{ color: tone }}
-          strokeWidth={2.2}
-        />
-        <h2
-          className="truncate text-[12px] font-black uppercase tracking-wide"
-          style={{ color: tone }}
-        >
-          {index}. {title}
-        </h2>
-      </div>
-      {onViewAll ? (
-        <button
-          type="button"
-          onClick={onViewAll}
-          className="inline-flex shrink-0 items-center gap-1 text-[9px] font-bold"
-          style={{ color: tone }}
-          aria-expanded={expanded}
-        >
-          {content}
-        </button>
-      ) : (
-        <Link
-          href={href}
-          className="inline-flex shrink-0 items-center gap-1 text-[9px] font-bold"
-          style={{ color: tone }}
-        >
-          {content}
-        </Link>
-      )}
-    </div>
   );
 }
 
@@ -1178,6 +1191,91 @@ function ActiveShowcaseCard({
   );
 }
 
+function ComoFuncionaPalpitesCard() {
+  const ink = "#0E141B";
+  const steps = [
+    {
+      n: 1 as const,
+      Icon: MousePointerClick,
+      label: "Escolha um bolão abaixo",
+    },
+    {
+      n: 2 as const,
+      Icon: ClipboardList,
+      label: "Clique em \u201CFazer palpites\u201D",
+    },
+    {
+      n: 3 as const,
+      Icon: BarChart3,
+      label: "Acompanhe sua posição no ranking",
+    },
+  ];
+
+  return (
+    <section
+      className="mt-6 mb-6"
+      aria-labelledby="como-funciona-palpites-heading"
+    >
+      <div
+        className="overflow-hidden rounded-[14px] border py-5 shadow-[0_16px_36px_rgba(0,0,0,0.35)] sm:py-6"
+        style={{ background: CARD_ALT, borderColor: BORDER }}
+      >
+        <h2
+          id="como-funciona-palpites-heading"
+          className="px-1 text-center text-[13px] font-black uppercase leading-tight tracking-[0.08em] text-balance sm:text-[12px]"
+          style={{ color: GREEN }}
+        >
+          Como funciona? É rápido e fácil!
+        </h2>
+
+        <div
+          className="mt-5 grid grid-cols-3 gap-0 sm:mt-6"
+          role="list"
+          aria-label="Passos para palpitar"
+        >
+          {steps.map((step, idx) => {
+            const Icon = step.Icon;
+            return (
+              <div
+                key={step.n}
+                role="listitem"
+                className={[
+                  "flex flex-col items-center px-[2px] pb-3 pt-1 text-center sm:px-2 sm:pb-4 relative",
+                  idx > 0 ? "border-l border-white/8" : "",
+                ].join(" ")}
+              >
+                <span
+                  className="flex absolute top-0 left-4 size-[20px] shrink-0 items-center justify-center rounded-full text-[14px] font-black leading-none sm:size-5 sm:text-[10px]"
+                  style={{
+                    background: GREEN,
+                    color: ink,
+                    boxShadow: `0 0 10px ${GREEN}45`,
+                  }}
+                  aria-hidden
+                >
+                  {step.n}
+                </span>
+                
+                <div className="mb-3 relative flex shrink-0 items-center justify-center gap-2 sm:mb-3.5 sm:gap-2.5">
+                  <Icon
+                    className="size-8 shrink-0 sm:size-9"
+                    style={{ color: GREEN }}
+                    strokeWidth={2}
+                    aria-hidden
+                  />
+                </div>
+                <p className="w-full px-0.5 text-[13px] font-medium leading-snug text-white/92 text-balance sm:text-[16px]">
+                  {step.label}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function NoTicketsState({ priceLabel }: { priceLabel: string }) {
   const [selectedPkg, setSelectedPkg] = useState<1 | 3 | 5>(1);
   const currentPkg = PACKAGES.find((p) => p.qty === selectedPkg)!;
@@ -1275,7 +1373,7 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
                 <p className="text-[16px] font-black leading-none text-white">
                   {value}
                 </p>
-                <p className="mt-1 text-[9px] font-semibold leading-tight text-white/42">
+                <p className="mt-1 text-[9px] font-semibold leading-tight text-white/82">
                   {label}
                 </p>
               </div>
@@ -1603,16 +1701,6 @@ export function BoloesClient({
         {!ticketsExtraOnly && (
           <>
             <section className="mt-6">
-              <ShowcaseSectionTitle
-                icon={Trophy}
-                index="1"
-                title="Meu Bolão Principal"
-                href="/boloes/tickets"
-                expanded={showAllPrincipal}
-                onViewAll={() =>
-                  setShowAllPrincipal((current: boolean) => !current)
-                }
-              />
               {showAllPrincipal ? (
                 <div className="space-y-3">
                   {principalItems.length > 0 ? (
@@ -1654,17 +1742,6 @@ export function BoloesClient({
             </section>
 
             <section className="mt-4 mb-6">
-              <ShowcaseSectionTitle
-                icon={CalendarDays}
-                index="2"
-                title="Meu Bolão do Dia"
-                href="/boloes/tickets"
-                tone={YELLOW}
-                expanded={showAllDiario}
-                onViewAll={() =>
-                  setShowAllDiario((current: boolean) => !current)
-                }
-              />
               {showAllDiario ? (
                 <div className="space-y-3">
                   {diarioItems.length > 0 ? (
@@ -1710,21 +1787,31 @@ export function BoloesClient({
           </>
         )}
 
+        <ComoFuncionaPalpitesCard />
+
+        <header className="mt-6">
+          <div className="flex items-start gap-3 sm:gap-3.5">
+            <ChevronDown
+              className="mt-0.5 size-6 shrink-0 sm:size-7"
+              style={{ color: GREEN }}
+              strokeWidth={2.75}
+              aria-hidden
+            />
+            <div className="flex min-w-0 flex-col gap-1">
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0">
+                <h2 className="text-[14px] font-black uppercase leading-none tracking-[-0.02em] text-white min-[380px]:text-[16px]">
+                  Selecione seu bolão
+                </h2>
+              </div>
+              <p className="text-[12px] font-normal leading-snug text-[#888888]">
+                Escolha abaixo onde deseja palpitar
+              </p>
+            </div>
+          </div>
+        </header>
+
         {hasExtraSection && (
           <section className={ticketsExtraOnly ? "mt-6 mb-6" : "mt-4 mb-6"}>
-            <ShowcaseSectionTitle
-              icon={Sparkles}
-              index={ticketsExtraOnly ? "1" : "3"}
-              title={
-                extraItems.length > 0
-                  ? "Meus bolões extra"
-                  : "Bolões extra — comprar"
-              }
-              href="/tickets"
-              tone={EXTRA_ACCENT}
-              expanded={showAllExtra}
-              onViewAll={() => setShowAllExtra((c: boolean) => !c)}
-            />
             {(() => {
               const extraCollapsedCount =
                 extraShowcaseItems.length > 0

@@ -583,13 +583,13 @@ export default function IndiqueGanhePage() {
               <div>
                 <p className="text-[9px] font-black uppercase text-white/80">Agora</p>
                 <p className="mt-1 text-[19px] font-black leading-none text-primary">{porIndicacaoFmt}</p>
-                <p className="mt-1 text-[9px] text-white/42">por indicação</p>
+                <p className="mt-1 text-[9px] text-white/82">por indicação</p>
               </div>
               <span className="text-center text-white/25">→</span>
               <div className="text-right">
                 <p className="text-[9px] font-black uppercase text-white/80">No {nextTierLabelStr}</p>
                 <p className="mt-1 text-[19px] font-black leading-none text-white">{nextTierRewardFmt}</p>
-                <p className="mt-1 text-[9px] text-white/42">por indicação</p>
+                <p className="mt-1 text-[9px] text-white/82">por indicação</p>
               </div>
             </div>
             <p className="mt-3 text-[12px] font-medium text-white/40">

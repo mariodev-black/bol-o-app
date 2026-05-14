@@ -328,7 +328,7 @@ function HomeStatCard({
       <p className="mt-2 text-[13px] font-black leading-none text-primary">
         {value}
       </p>
-      <p className="mt-1 text-[8px] font-black uppercase tracking-[0.07em] text-white/42">
+      <p className="mt-1 text-[8px] font-black uppercase tracking-[0.07em] text-white/82">
         {label}
       </p>
     </div>

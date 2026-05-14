@@ -474,7 +474,7 @@ function RankingPodiumAndTable({
       {myRowsFooter.length > 0 ? (
         <section className="mt-3 space-y-2">
           {myRowsFooter.length > 1 ? (
-            <p className="px-0.5 text-[9px] font-black uppercase tracking-widest text-white/42">
+            <p className="px-0.5 text-[9px] font-black uppercase tracking-widest text-white/82">
               Suas cotas neste bolão
             </p>
           ) : null}

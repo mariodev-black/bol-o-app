@@ -364,7 +364,7 @@ function PrizeTableDiario() {
           </div>
         ))}
       </div>
-      <p className="border-t border-white/8 px-3 py-2.5 text-[11px] font-medium leading-snug text-white/42 sm:px-4 sm:py-3 sm:text-[11px] md:px-5">
+      <p className="border-t border-white/8 px-3 py-2.5 text-[11px] font-medium leading-snug text-white/82 sm:px-4 sm:py-3 sm:text-[11px] md:px-5">
         {DAILY_FOOTNOTE}
       </p>
     </div>

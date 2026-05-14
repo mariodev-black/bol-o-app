@@ -224,7 +224,7 @@ export function AdminDateRangePicker({
           {isPending ? (
             <span className="ml-2 h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary/25 border-t-primary" />
           ) : (
-            <span className={["ml-2 text-[13px] text-white/42 transition-transform", menuOpen ? "rotate-180" : ""].join(" ")}>⌄</span>
+            <span className={["ml-2 text-[13px] text-white/82 transition-transform", menuOpen ? "rotate-180" : ""].join(" ")}>⌄</span>
           )}
         </button>
 
@@ -285,7 +285,7 @@ export function AdminDateRangePicker({
               <div>
                 <p className="text-[12px] font-black uppercase tracking-[0.2em] text-primary">Filtrar dashboard</p>
                 <h3 className="mt-3 text-[24px] font-black tracking-[-0.04em] text-white">Selecione o período</h3>
-                <p className="mt-2 text-[13px] font-medium text-white/42">Escolha duas datas para recalcular os indicadores.</p>
+                <p className="mt-2 text-[13px] font-medium text-white/82">Escolha duas datas para recalcular os indicadores.</p>
               </div>
             </div>
 
