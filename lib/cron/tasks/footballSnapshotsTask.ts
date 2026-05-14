@@ -117,7 +117,11 @@ export async function maybeRunFootballDailySnapshot(): Promise<{
   }
   try {
     await runFootballSnapshotsFromApi();
-    await syncMatchesCache({ fetchProviderMatches: fetchProviderMatchesForAllSyncedCompetitions, force: true });
+    await syncMatchesCache({
+      fetchProviderMatches: fetchProviderMatchesForAllSyncedCompetitions,
+      force: true,
+      cronTrace: "football-daily-snapshot",
+    });
     globalThis.__footballSnapshotBrtDate = day;
     return { ran: true, reason: "snapshot-diario-brt", matchesRefreshed: true };
   } catch (error) {

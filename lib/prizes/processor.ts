@@ -1,5 +1,6 @@
 import type { PoolClient } from "pg";
 import { getFootballMainCompetitionId, parseExtraBolaoChampionshipIds } from "@/lib/boloes-extra-config";
+import { cronTickLog } from "@/lib/cron/cron-tick-log";
 import { getPool } from "@/lib/db";
 import { calcPredictionPoints } from "@/lib/predictions";
 import { calculatePrizeAwards, calculatePrizePoolCents } from "@/lib/prizes/distribution";
@@ -472,7 +473,13 @@ async function processClosure(
   }
 }
 
-export async function processPrizeClosuresAfterMatchSync(): Promise<void> {
+export async function processPrizeClosuresAfterMatchSync(
+  logCtx?: { tickId?: string; source?: string }
+): Promise<void> {
+  const plog = (phase: string, fields: Record<string, unknown> = {}) => {
+    if (!logCtx?.source) return;
+    cronTickLog(`prizes:${phase}`, { ...logCtx, ...fields });
+  };
   const pool = getPool();
   const client = await pool.connect();
   let locked = false;
@@ -480,7 +487,11 @@ export async function processPrizeClosuresAfterMatchSync(): Promise<void> {
     await ensurePrizeSchema(client);
     const lockResult = await client.query<{ locked: boolean }>("SELECT pg_try_advisory_lock($1) AS locked", [PROCESS_LOCK_KEY]);
     locked = Boolean(lockResult.rows[0]?.locked);
-    if (!locked) return;
+    if (!locked) {
+      plog("skip-lock-busy", {});
+      return;
+    }
+    plog("lock-acquired", {});
 
     const compId = getFootballMainCompetitionId();
     const matches = await listMatches(client, compId);
@@ -572,7 +583,9 @@ export async function processPrizeClosuresAfterMatchSync(): Promise<void> {
         }
       }
     }
+    plog("complete", {});
   } catch (error) {
+    plog("error", { message: error instanceof Error ? error.message : String(error) });
     console.error("[prizes] failed to process prize closures", error);
   } finally {
     if (locked) {

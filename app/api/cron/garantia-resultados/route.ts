@@ -1,4 +1,6 @@
+import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { cronTickLog } from "@/lib/cron/cron-tick-log";
 import { runGuaranteeResultsTask } from "@/lib/cron/tasks/guaranteeResultsTask";
 
 export const runtime = "nodejs";
@@ -19,10 +21,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Nao autorizado" }, { status: 401 });
   }
   try {
-    const result = await runGuaranteeResultsTask();
+    const tickId = randomUUID();
+    cronTickLog("http-garantia-start", { tickId });
+    const result = await runGuaranteeResultsTask({ tickId });
+    cronTickLog("http-garantia-done", { tickId, ok: true });
     return NextResponse.json({ ok: true, result });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Falha no cron de garantia de resultados";
+    cronTickLog("http-garantia-error", { message });
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }

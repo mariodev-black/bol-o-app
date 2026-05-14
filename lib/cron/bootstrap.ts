@@ -1,4 +1,5 @@
 import { runMaintenanceTick } from "@/lib/cron/maintenance-tick";
+import { cronTickLog } from "@/lib/cron/cron-tick-log";
 import { runFootballSnapshotsIfCacheMissing } from "@/lib/cron/tasks/footballSnapshotsTask";
 import { runGuaranteeResultsTask } from "@/lib/cron/tasks/guaranteeResultsTask";
 import { runSyncMatchesTask } from "@/lib/cron/tasks/syncMatchesTask";
@@ -42,6 +43,7 @@ export function startInternalCronScheduler(): CronHandle {
         await runFootballSnapshotsIfCacheMissing();
         await runSyncMatchesTask(true);
         await runGuaranteeResultsTask();
+        cronTickLog("internal-warmup-done", { ok: true });
       } catch (error) {
         console.error("[internal-cron] initial warmup failed", error);
       }
@@ -71,7 +73,10 @@ export function startInternalCronScheduler(): CronHandle {
   let running = false;
 
   const runNow = async () => {
-    if (running) return;
+    if (running) {
+      cronTickLog("internal-interval-skipped", { reason: "overlap-previous-tick" });
+      return;
+    }
     running = true;
     try {
       await runMaintenanceTick();

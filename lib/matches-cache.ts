@@ -1,8 +1,10 @@
 import { getPool } from "@/lib/db";
 import { getAllSyncedCompetitionIds, getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
+import { cronTickLog } from "@/lib/cron/cron-tick-log";
 import { warmCompetitionMetadataCache } from "@/lib/competition-metadata-cache";
 import { invalidateMatchMapMemoryAfterDbWrite } from "@/lib/match-map-cache-invalidator";
 import { processPrizeClosuresAfterMatchSync } from "@/lib/prizes/processor";
+import { revalidateTag } from "next/cache";
 
 export type CachedMatchRow = {
   competition_id: number;
@@ -335,15 +337,30 @@ export function requestMatchesCacheSoftSync(fetchProviderMatches: () => Promise<
 export async function syncMatchesCache(input: {
   fetchProviderMatches: () => Promise<ProviderMatchInput[]>;
   force?: boolean;
+  /** Se definido, emite linhas `[cron-tick]` para este sync (cron / warmup). */
+  cronTrace?: string;
+  tickId?: string;
 }) {
+  const cronTrace = input.cronTrace;
+  const mlog = (sub: string, extra: Record<string, unknown> = {}) => {
+    if (!cronTrace) return;
+    cronTickLog(`matches-cache:${sub}`, { cronTrace, tickId: input.tickId, ...extra });
+  };
+
   if (!input.force) {
     const rowsPeek = await readMatchesCache().catch(() => []);
     const placarPendente = matchCacheRowsTerminalWithoutScores(rowsPeek);
     if (!placarPendente) {
       const scheduledFresh = await scheduleSaysFresh().catch(() => false);
-      if (scheduledFresh) return { refreshed: false as const, reason: "scheduled-fresh" as const };
+      if (scheduledFresh) {
+        mlog("skip", { reason: "scheduled-fresh" });
+        return { refreshed: false as const, reason: "scheduled-fresh" as const };
+      }
       const fresh = await matchesCacheIsFresh();
-      if (fresh) return { refreshed: false as const, reason: "fresh" as const };
+      if (fresh) {
+        mlog("skip", { reason: "fresh" });
+        return { refreshed: false as const, reason: "fresh" as const };
+      }
     }
   }
 
@@ -353,7 +370,10 @@ export async function syncMatchesCache(input: {
   try {
     const lockResult = await client.query<{ locked: boolean }>("SELECT pg_try_advisory_lock($1) AS locked", [LOCK_KEY]);
     locked = Boolean(lockResult.rows[0]?.locked);
-    if (!locked) return { refreshed: false as const, reason: "locked" as const };
+    if (!locked) {
+      mlog("skip", { reason: "locked" });
+      return { refreshed: false as const, reason: "locked" as const };
+    }
   } finally {
     client.release();
   }
@@ -364,17 +384,34 @@ export async function syncMatchesCache(input: {
       const placarPendente2 = matchCacheRowsTerminalWithoutScores(rowsPeek2);
       if (!placarPendente2) {
         const scheduledFresh = await scheduleSaysFresh().catch(() => false);
-        if (scheduledFresh) return { refreshed: false as const, reason: "scheduled-fresh-after-lock" as const };
+        if (scheduledFresh) {
+          mlog("skip", { reason: "scheduled-fresh-after-lock" });
+          return { refreshed: false as const, reason: "scheduled-fresh-after-lock" as const };
+        }
         const fresh = await matchesCacheIsFresh();
-        if (fresh) return { refreshed: false as const, reason: "fresh-after-lock" as const };
+        if (fresh) {
+          mlog("skip", { reason: "fresh-after-lock" });
+          return { refreshed: false as const, reason: "fresh-after-lock" as const };
+        }
       }
     }
+    mlog("fetch-start", { force: Boolean(input.force) });
     const providerMatches = await input.fetchProviderMatches();
     await upsertMatchesCache(providerMatches);
     void warmCompetitionMetadataCache(getAllSyncedCompetitionIds()).catch((err) =>
       console.warn("[matches-cache] warmCompetitionMetadataCache", err)
     );
-    await processPrizeClosuresAfterMatchSync();
+    await processPrizeClosuresAfterMatchSync(
+      cronTrace ? { tickId: input.tickId, source: cronTrace } : undefined
+    );
+    let leaderboardRevalidated = false;
+    try {
+      revalidateTag("leaderboard", "max");
+      leaderboardRevalidated = true;
+    } catch {
+      /* outside Next request context — ok */
+    }
+    mlog("fetch-done", { count: providerMatches.length, leaderboardRevalidated });
     return { refreshed: true as const, reason: "synced" as const, count: providerMatches.length };
   } finally {
     const unlockClient = await pool.connect();
