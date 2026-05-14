@@ -205,6 +205,24 @@ function kickoffMsFromJogo(jogo: Jogo): number | null {
   return Number.isFinite(t) ? t : null;
 }
 
+/**
+ * Depois deste intervalo desde o apito, não exibimos mais "ao vivo" só com o status da listagem
+ * (a API pode ficar em "andamento" e minuto parado — ex.: 2º tempo 63 min com 2h+ de relógio).
+ * Default 150 min ≈ jogo + acréscimos + atraso de sync.
+ */
+const DISPLAY_LIVE_MAX_MS_AFTER_KICKOFF = (() => {
+  const raw = process.env.NEXT_PUBLIC_MATCH_DISPLAY_LIVE_MAX_MINUTES;
+  const n = raw != null && String(raw).trim() !== "" ? Number.parseInt(String(raw).trim(), 10) : 150;
+  if (!Number.isFinite(n)) return 150 * 60_000;
+  return Math.min(240, Math.max(95, n)) * 60_000;
+})();
+
+function isPastDisplayLiveWindow(jogo: Jogo, nowMs: number): boolean {
+  const ko = kickoffMsFromJogo(jogo);
+  if (ko == null) return false;
+  return nowMs > ko + DISPLAY_LIVE_MAX_MS_AFTER_KICKOFF;
+}
+
 /** Partida com apito ja dado e ainda sem encerramento oficial (somente leitura / UX). */
 function isMatchLiveForDisplay(jogo: Jogo, nowMs: number): boolean {
   const ko = kickoffMsFromJogo(jogo);
@@ -213,6 +231,7 @@ function isMatchLiveForDisplay(jogo: Jogo, nowMs: number): boolean {
   if (jogo.status === "encerrado") return false;
   const raw = String(jogo.statusBruto ?? jogo.status ?? "").toLowerCase();
   if (raw.includes("encerr") || raw.includes("finaliz")) return false;
+  if (isPastDisplayLiveWindow(jogo, nowMs)) return false;
   return true;
 }
 
@@ -585,11 +604,13 @@ function JogoCard({
       return () => clearInterval(id);
     }
     if (jogo.kickoffAt) {
-      const id = setInterval(tick, 60_000);
+      const awaitingPlacar =
+        readOnly && (jogo.resultCasa == null || jogo.resultVisitante == null);
+      const id = setInterval(tick, awaitingPlacar ? 30_000 : 60_000);
       return () => clearInterval(id);
     }
     return undefined;
-  }, [lockAtMs, jogo.kickoffAt]);
+  }, [lockAtMs, jogo.kickoffAt, readOnly, jogo.resultCasa, jogo.resultVisitante]);
   const isLockedByTime = lockAtMs != null ? nowMs >= lockAtMs : false;
   /** Palpite até instantes antes do apito (1h no geral/dia, 5 min no extra). */
   const canEdit = !readOnly && jogo.status === "aberto" && !isLockedByTime;
@@ -667,6 +688,15 @@ function JogoCard({
     !readOnlyMatchLive &&
     !temPlacarOficial &&
     jogo.status === "encerrado";
+  /** API/listagem ainda diz "andamento" mas já passou o tempo razoável de partida — aguardando placar na cache. */
+  const readOnlyAguardandoPlacarPosTempo =
+    readOnly &&
+    !readOnlyPending &&
+    !readOnlyMatchLive &&
+    !readOnlyPlacarPendente &&
+    !temPlacarOficial &&
+    koMs != null &&
+    nowMs >= koMs;
   const resultadoResumo =
     readOnly &&
     temPlacarOficial &&
@@ -702,6 +732,14 @@ function JogoCard({
             border: "rgba(177,235,11,0.30)",
             dot: true,
           }
+        : readOnlyAguardandoPlacarPosTempo
+          ? {
+              label: "Aguardando placar",
+              color: "#E8C840",
+              bg: "rgba(232,200,64,0.12)",
+              border: "rgba(232,200,64,0.38)",
+              dot: true,
+            }
         : readOnlyPlacarPendente
           ? {
               label: "Placar pendente",
@@ -797,7 +835,7 @@ function JogoCard({
   const cardBorder = readOnly
     ? readOnlyPending
       ? "rgba(232,200,64,0.55)"
-      : readOnlyPlacarPendente
+      : readOnlyPlacarPendente || readOnlyAguardandoPlacarPosTempo
         ? "rgba(232,200,64,0.42)"
         : readOnlyMatchLive
           ? "rgba(177,235,11,0.48)"
@@ -816,7 +854,7 @@ function JogoCard({
   const cardShadow = readOnly
     ? readOnlyPending
       ? "0 0 0 1px rgba(232,200,64,0.10), 0 4px 18px rgba(0,0,0,0.32), 0 0 14px rgba(232,200,64,0.08)"
-      : readOnlyPlacarPendente
+      : readOnlyPlacarPendente || readOnlyAguardandoPlacarPosTempo
         ? "0 0 0 1px rgba(232,200,64,0.10), 0 4px 18px rgba(0,0,0,0.32), 0 0 12px rgba(232,200,64,0.06)"
         : readOnlyMatchLive
           ? "0 0 0 1px rgba(177,235,11,0.12), 0 8px 24px rgba(0,0,0,0.40), 0 0 18px rgba(177,235,11,0.12)"
@@ -1081,7 +1119,7 @@ function JogoCard({
             style={{
               background: readOnlyPending
                 ? "rgba(232,200,64,0.08)"
-                : readOnlyPlacarPendente
+                : readOnlyPlacarPendente || readOnlyAguardandoPlacarPosTempo
                   ? "rgba(232,200,64,0.06)"
                   : resultadoResumo?.tone === "win"
                     ? review?.exact
@@ -1096,7 +1134,7 @@ function JogoCard({
                           : "rgba(255,255,255,0.03)",
               border: readOnlyPending
                 ? "1px solid rgba(232,200,64,0.28)"
-                : readOnlyPlacarPendente
+                : readOnlyPlacarPendente || readOnlyAguardandoPlacarPosTempo
                   ? "1px solid rgba(232,200,64,0.22)"
                   : resultadoResumo?.tone === "win"
                     ? review?.exact
@@ -1124,6 +1162,15 @@ function JogoCard({
                 style={{ color: "rgba(252,234,160,0.95)" }}
               >
                 Estamos sincronizando o placar oficial. Volte daqui a pouco.
+              </span>
+            ) : readOnlyAguardandoPlacarPosTempo ? (
+              <span
+                className="text-center leading-relaxed font-semibold text-base px-1"
+                style={{ color: "rgba(252,234,160,0.95)" }}
+              >
+                O jogo já deve ter terminado; a listagem da API pode atrasar. Estamos
+                atualizando o placar oficial — a pontuação do palpite aparece quando o
+                resultado estiver disponível.
               </span>
             ) : readOnlyMatchLive ? (
               <span
