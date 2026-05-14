@@ -16,6 +16,7 @@ import {
   mergeExtraChampionshipFromPaidTickets,
 } from "@/lib/ticket-competition-server";
 import { resolveDiarioPlayableDate } from "@/lib/diario-playable-date";
+import { matchEndClockMinutesAfterKickoff } from "@/lib/cron/match-result-guarantee";
 
 export const dynamic = "force-dynamic";
 
@@ -316,11 +317,47 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
           match_id: mid,
           resolvedComp: comp,
           cacheHit: Boolean(m),
+          status: m?.status ?? null,
           resultCasa: m?.resultCasa ?? null,
           resultVisitante: m?.resultVisitante ?? null,
           dateBR: m?.dateBR ?? null,
+          hour: m?.hour ?? null,
         };
       })
+  );
+  const clockMinBoloes = matchEndClockMinutesAfterKickoff();
+  const nowBoloesDbg = Date.now();
+  debugBoloes(
+    "ranking:extra-sem-placar-completo",
+    userPredictions
+      .filter((p) => extraTicketIdSet.has(String(p.ticket_id).trim()))
+      .map((p) => {
+        const comp = matchCompetitionForRankingPrediction(p, extraChampionshipByTicketId, mainComp);
+        const mid = Number(p.match_id);
+        const m =
+          comp != null && Number.isFinite(comp) && comp > 0 && Number.isFinite(mid)
+            ? getMatchFromMap(matches, comp, mid)
+            : undefined;
+        const ko = m ? kickoffMs(m) : null;
+        const missing = Boolean(m && (m.resultCasa == null || m.resultVisitante == null));
+        const pastEndClock =
+          missing && ko != null ? ko + clockMinBoloes * 60_000 < nowBoloesDbg : false;
+        return {
+          ticket_id: String(p.ticket_id).trim(),
+          match_id: mid,
+          resolvedComp: comp,
+          cacheHit: Boolean(m),
+          status: m?.status ?? null,
+          resultCasa: m?.resultCasa ?? null,
+          resultVisitante: m?.resultVisitante ?? null,
+          kickoffMs: ko,
+          matchEndClockAfterKickoffMin: clockMinBoloes,
+          pastMatchEndClockNoFullScore: pastEndClock,
+          dateBR: m?.dateBR ?? null,
+          hour: m?.hour ?? null,
+        };
+      })
+      .filter((row) => row.cacheHit && (row.resultCasa == null || row.resultVisitante == null))
   );
   const predictionsByTicket = new Map<string, PredictionRow[]>();
   for (const prediction of userPredictions) {

@@ -4,6 +4,7 @@ import { registerMatchMapMemoryInvalidate } from "@/lib/match-map-cache-invalida
 import { parseKickoffFromPartidaPayload, pickScoreFromPartidaPayload } from "@/lib/partida-placar";
 import { fasesEnrichmentCacheKey, readFootballApiCacheJson } from "@/lib/football-api-cache-store";
 import { readMatchesCache } from "@/lib/matches-cache";
+import { matchEndClockMinutesAfterKickoff } from "@/lib/cron/match-result-guarantee";
 import type { MatchMap } from "@/lib/match-map-types";
 import { matchMapKey } from "@/lib/match-map-types";
 
@@ -430,6 +431,37 @@ async function fetchProviderMatchesFromRounds(compId: string, apiToken: string) 
   return out;
 }
 
+function providerKickoffMs(m: ProviderMatch): number | null {
+  if (m.kickoffAt) {
+    const t = Date.parse(m.kickoffAt);
+    if (Number.isFinite(t)) return t;
+  }
+  const [d, mo, y] = String(m.dateBR || "").split("/");
+  const [hh, mm] = String(m.hourBR || "").split(":");
+  if (!d || !mo || !y) return null;
+  const day = Number(d);
+  const month = Number(mo);
+  const year = Number(y);
+  const hours = Number(hh || 0);
+  const minutes = Number(mm || 0);
+  if (![day, month, year, hours, minutes].every(Number.isFinite)) return null;
+  return Date.UTC(year, month - 1, day, hours + 3, minutes, 0);
+}
+
+function providerExcludedFromScoreDetail(status: string): boolean {
+  const s = String(status || "").toLowerCase();
+  return (
+    s.includes("cancel") ||
+    s.includes("adiad") ||
+    s.includes("suspens") ||
+    s.includes("interromp")
+  );
+}
+
+function providerMissingOfficialScore(m: ProviderMatch): boolean {
+  return m.resultCasa == null || m.resultVisitante == null;
+}
+
 function providerTerminalSemPlacar(m: ProviderMatch): boolean {
   const s = m.status.toLowerCase();
   if (s.includes("cancel") || s.includes("adiad") || s.includes("suspens") || s.includes("interromp")) return false;
@@ -439,19 +471,32 @@ function providerTerminalSemPlacar(m: ProviderMatch): boolean {
   );
 }
 
+/** Inclui “finalizado na API sem placar no bulk” e jogos já após apito + MATCH_END_CLOCK sem placar completo (lista /partidas costuma atrasar status). */
+function providerNeedsScoreEnrichment(m: ProviderMatch, clockMinAfterKickoff: number, nowMs: number): boolean {
+  if (providerExcludedFromScoreDetail(m.status)) return false;
+  if (!providerMissingOfficialScore(m)) return false;
+  if (providerTerminalSemPlacar(m)) return true;
+  const ko = providerKickoffMs(m);
+  if (ko == null) return false;
+  return ko + clockMinAfterKickoff * 60_000 < nowMs;
+}
+
 async function mergeProviderMatchesWithRoundsAndDetail(
   compId: string,
   apiToken: string,
   rows: ProviderMatch[]
 ): Promise<ProviderMatch[]> {
   let next = rows;
-  if (next.length === 0 || !next.some(providerTerminalSemPlacar)) return next;
-  debugLog("fetchProviderMatches:enrich-missing-scores", { bulk: next.length });
+  const clockMin = matchEndClockMinutesAfterKickoff();
+  const nowMs = Date.now();
+  if (next.length === 0 || !next.some((m) => providerNeedsScoreEnrichment(m, clockMin, nowMs))) return next;
+  const enrichCount = next.filter((m) => providerNeedsScoreEnrichment(m, clockMin, nowMs)).length;
+  debugLog("fetchProviderMatches:enrich-missing-scores", { bulk: next.length, candidates: enrichCount });
   const supplement = await fetchSupplementalProviderMatchesForMerge(compId, apiToken).catch(() => []);
   if (supplement.length > 0) {
     const byId = new Map(supplement.map((x) => [x.matchId, x]));
     next = next.map((m) => {
-      if (!providerTerminalSemPlacar(m)) return m;
+      if (!providerNeedsScoreEnrichment(m, clockMin, nowMs)) return m;
       const r = byId.get(m.matchId);
       if (!r) return m;
       return {
@@ -463,8 +508,15 @@ async function mergeProviderMatchesWithRoundsAndDetail(
       };
     });
   }
-  const still = next.filter(providerTerminalSemPlacar);
+  const nowAfter = Date.now();
+  let still = next.filter((m) => providerNeedsScoreEnrichment(m, clockMin, nowAfter));
   if (still.length === 0) return next;
+  still = still.slice().sort((a, b) => {
+    const ta = providerTerminalSemPlacar(a) ? 0 : 1;
+    const tb = providerTerminalSemPlacar(b) ? 0 : 1;
+    if (ta !== tb) return ta - tb;
+    return (providerKickoffMs(a) ?? Infinity) - (providerKickoffMs(b) ?? Infinity);
+  });
   const maxDetail = Number.parseInt(process.env.FOOTBALL_PARTIDA_DETAIL_LOOKUP_LIMIT ?? "16", 10) || 16;
   for (const m of still.slice(0, maxDetail)) {
     try {
