@@ -55,7 +55,8 @@ const EFFECTIVE_KICKOFF_SQL = `COALESCE(
  * - partida com palpite, apito + carencia em horas, ainda sem placar na cache; ou
  * - apito + MATCH_END_CLOCK (minutos) ja passou no relogio atual, com palpite e sem placar (jogo devia ter terminado); ou
  * - status ja indica encerrado/finalizado mas placar ainda nulo; ou
- * - status parece ao vivo (andamento/intervalo), sem placar, apito + MATCH_LIVE_STUCK_FORCE_MINUTES (default 95).
+ * - status parece ao vivo (andamento/intervalo/...) OU "agendado" (listagem API-Futebol costuma manter agendado ate atrasar),
+ *   sem placar, apito + MATCH_LIVE_STUCK_FORCE_MINUTES (default 95), com palpite.
  */
 export async function needsForcedResultSync(): Promise<boolean> {
   const compIds = syncedCompetitionIdsForCron();
@@ -132,6 +133,7 @@ export async function needsForcedResultSync(): Promise<boolean> {
              OR lower(coalesce(mc.status, '')) LIKE '%ao_vivo%'
              OR lower(coalesce(mc.status, '')) LIKE '%ao vivo%'
              OR lower(coalesce(mc.status, '')) LIKE '%em curso%'
+             OR lower(coalesce(mc.status, '')) LIKE '%agendado%'
            )
            AND NOT (
              lower(mc.status) LIKE '%cancel%'
