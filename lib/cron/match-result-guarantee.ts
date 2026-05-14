@@ -231,7 +231,15 @@ async function logMatchRefreshDebugSnapshot(breakdown: {
         (${EFFECTIVE_KICKOFF_SQL})::text AS eff_ko,
         mc.synced_at::text AS synced_at,
         ((${EFFECTIVE_KICKOFF_SQL}) + ($2::text || ' minutes')::interval) < now() AS past_match_end_clock,
-        ((${EFFECTIVE_KICKOFF_SQL}) + ($3::text || ' minutes')::interval) < now() AS past_live_stuck_force
+        ((${EFFECTIVE_KICKOFF_SQL}) + ($3::text || ' minutes')::interval) < now() AS past_live_stuck_force,
+        (
+          lower(coalesce(mc.status, '')) LIKE '%andamento%'
+          OR lower(coalesce(mc.status, '')) LIKE '%intervalo%'
+          OR lower(coalesce(mc.status, '')) LIKE '%ao_vivo%'
+          OR lower(coalesce(mc.status, '')) LIKE '%ao vivo%'
+          OR lower(coalesce(mc.status, '')) LIKE '%em curso%'
+          OR lower(coalesce(mc.status, '')) LIKE '%agendado%'
+        ) AS stuck_branch_status_match
      FROM matches_cache mc
      INNER JOIN predictions p ON p.match_id = mc.match_id
      WHERE mc.competition_id = ANY($1::int[])
