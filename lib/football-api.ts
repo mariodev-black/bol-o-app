@@ -4,39 +4,11 @@ import { registerMatchMapMemoryInvalidate } from "@/lib/match-map-cache-invalida
 import { parseKickoffFromPartidaPayload, pickScoreFromPartidaPayload } from "@/lib/partida-placar";
 import { fasesEnrichmentCacheKey, readFootballApiCacheJson } from "@/lib/football-api-cache-store";
 import { readMatchesCache } from "@/lib/matches-cache";
+import type { MatchMap } from "@/lib/match-map-types";
+import { matchMapKey } from "@/lib/match-map-types";
 
-export type MatchMapEntry = {
-  id: number;
-  kickoffAt: string | null;
-  status: string;
-  resultCasa: number | null;
-  resultVisitante: number | null;
-  home: string;
-  away: string;
-  homeName: string;
-  awayName: string;
-  homeLogo: string | null;
-  awayLogo: string | null;
-  dateBR: string;
-  hour: string;
-  /** `matches_cache.competition_id` — necessário para bolões extra. */
-  competitionId: number;
-};
-
-/** Chave `${competition_id}:${partida_id}` — evita colisão de `partida_id` entre campeonatos na API. */
-export type MatchMap = Map<string, MatchMapEntry>;
-
-export function matchMapKey(competitionId: number, matchId: number): string {
-  return `${competitionId}:${matchId}`;
-}
-
-export function getMatchFromMap(
-  map: MatchMap,
-  competitionId: number,
-  matchId: number
-): MatchMapEntry | undefined {
-  return map.get(matchMapKey(competitionId, matchId));
-}
+export type { MatchMap, MatchMapEntry } from "@/lib/match-map-types";
+export { getMatchFromMap, matchMapKey } from "@/lib/match-map-types";
 
 /** Mapa em memoria: evita reler o DB e reavaliar sync a cada request (default 3 min). */
 const MATCH_MAP_MEMORY_TTL_MS =

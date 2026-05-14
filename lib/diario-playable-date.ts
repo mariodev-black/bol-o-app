@@ -4,8 +4,8 @@
  * correspondentes — não “pula” para o próximo dia só porque o mapa não listou hoje.
  */
 
-import type { MatchMap } from "@/lib/football-api";
-import { getMatchFromMap } from "@/lib/football-api";
+import type { MatchMap } from "@/lib/match-map-types";
+import { getMatchFromMap } from "@/lib/match-map-types";
 import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
 
 function isCompositeMatchMap(matchMap: unknown): matchMap is MatchMap {
