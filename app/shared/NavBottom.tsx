@@ -1,41 +1,57 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ElementType } from "react";
-import Image, { type StaticImageData } from "next/image";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ArrowRight, BarChart2, CalendarClock, ChevronDown, FileText, Gift, Home, LogOut, Shield, Ticket, Trophy, User, X } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import {
+  ArrowRight,
+  Award,
+  BarChart2,
+  BarChart3,
+  ChevronDown,
+  FileText,
+  Gift,
+  Home,
+  LogOut,
+  Share2,
+  Ticket,
+  Trophy,
+  User,
+  X,
+} from "lucide-react";
 import { useAuth } from "@/app/shared/AuthContext";
 import { useSidenav } from "@/app/shared/SidenavContext";
 import logo from "@/app/assets/logo.svg";
-import homeIcon from "@/app/assets/navbottom/home.svg";
-import afiliadoIcon from "@/app/assets/navbottom/afiliado.svg";
-import myBoloesIcon from "@/app/assets/navbottom/meus-bolao.svg";
-import rankingIcon from "@/app/assets/navbottom/ranking.svg";
-import premiacaoIcon from "@/app/assets/navbottom/premiacao.svg";
-
-const BOTTOM_ITEMS_PROFILE = [
-  { label: "Início", href: "/", icon: homeIcon, iconSize: 21 },
-  { label: "Afiliado", href: "/indique", icon: afiliadoIcon, iconSize: 22 },
-  { label: "Meus Bolões", href: "/boloes", icon: myBoloesIcon, iconSize: 25 },
-  { label: "Premiação", href: "/premiacao", icon: premiacaoIcon, iconSize: 22 },
-  { label: "Classificação", href: "/ranking", icon: rankingIcon, iconSize: 21 },
-] as const;
-
-const BOTTOM_ITEMS_PUBLIC = [
-  { label: "Início", href: "/", icon: homeIcon, iconSize: 21 },
-  { label: "Afiliado", href: "/cadastrar?from=%2Findique", icon: afiliadoIcon, iconSize: 22 },
-  { label: "Meus Bolões", href: "/boloes", icon: myBoloesIcon, iconSize: 25 },
-  { label: "Premiação", href: "/premiacao", icon: premiacaoIcon, iconSize: 22 },
-  { label: "Classificação", href: "/ranking", icon: rankingIcon, iconSize: 21 },
-] as const;
 
 type BottomItem = {
   label: string;
+  ariaLabel: string;
   href: string;
-  icon: StaticImageData;
-  iconSize: number;
+  icon: LucideIcon;
 };
+
+const BOTTOM_ITEMS_PROFILE: BottomItem[] = [
+  { label: "Início", ariaLabel: "Início", href: "/", icon: Home },
+  { label: "Indicar", ariaLabel: "Afiliado — indique e ganhe", href: "/indique", icon: Share2 },
+  { label: "Palpites", ariaLabel: "Meus bolões e palpites", href: "/boloes", icon: Trophy },
+  { label: "Prêmios", ariaLabel: "Premiação", href: "/premiacao", icon: Award },
+  { label: "Ranking", ariaLabel: "Ranking", href: "/ranking", icon: BarChart3 },
+];
+
+const BOTTOM_ITEMS_PUBLIC: BottomItem[] = [
+  { label: "Início", ariaLabel: "Início", href: "/", icon: Home },
+  {
+    label: "Indicar",
+    ariaLabel: "Afiliado — cadastre-se para indicar",
+    href: "/cadastrar?from=%2Findique",
+    icon: Share2,
+  },
+  { label: "Palpites", ariaLabel: "Meus bolões e palpites", href: "/boloes", icon: Trophy },
+  { label: "Prêmios", ariaLabel: "Premiação", href: "/premiacao", icon: Award },
+  { label: "Ranking", ariaLabel: "Ranking", href: "/ranking", icon: BarChart3 },
+];
 
 type MenuItem = {
   label: string;
@@ -93,20 +109,12 @@ export function NavBottom() {
   const openAnimRafRef = useRef<number | null>(null);
   const panelRef = useRef<HTMLElement | null>(null);
   const normalizedPath = useMemo(() => pathname ?? "", [pathname]);
-  const { ready, isLoggedIn, user, logout } = useAuth();
+  const { ready, isLoggedIn, logout } = useAuth();
   const { open, closeSidenav } = useSidenav();
   const bottomItems = useMemo(
-    () => ((isLoggedIn ? BOTTOM_ITEMS_PROFILE : BOTTOM_ITEMS_PUBLIC) as readonly BottomItem[]),
-    [isLoggedIn]
+    () => (isLoggedIn ? BOTTOM_ITEMS_PROFILE : BOTTOM_ITEMS_PUBLIC),
+    [isLoggedIn],
   );
-  const userName = user?.name?.trim() || "Minha Conta";
-  const initials = userName
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part: string) => part[0]?.toUpperCase() ?? "")
-    .join("")
-    .slice(0, 2) || "MC";
 
   const isItemActive = (href: string) => {
     const baseHref = href.split("?")[0] ?? href;
@@ -344,65 +352,78 @@ export function NavBottom() {
       )}
 
       <nav
-        className="fixed bottom-0 left-0 right-0 z-60 mx-auto flex h-[58px] w-full items-end overflow-visible rounded-t-[13px] border border-[#2A2A2A] bg-[#101010] md:hidden"
-        style={{
-          boxShadow: "0 -12px 26px rgba(0,0,0,0.36), inset 0 1px 0 rgba(255,255,255,0.04)",
-        }}
+        className="pointer-events-none fixed bottom-0 left-0 right-0 z-60 md:hidden"
         aria-label="Navegação inferior"
       >
-        {bottomItems.map(({ label, href, icon, iconSize }) => {
-          const active = isBottomItemActive(href);
+        <div className="pointer-events-auto mx-auto max-w-lg px-3 pb-[max(10px,env(safe-area-inset-bottom))] pt-2">
+          <div
+            className={[
+              "relative flex items-stretch gap-0.5 rounded-[20px] border border-white/10 p-1",
+              "bg-[#060a0e]/94 shadow-[0_-20px_50px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.06)]",
+              "backdrop-blur-xl backdrop-saturate-150 motion-safe:transition-[box-shadow,transform] motion-safe:duration-300",
+            ].join(" ")}
+          >
+            {bottomItems.map(({ label, ariaLabel, href, icon: ItemIcon }) => {
+              const active = isBottomItemActive(href);
 
-          return (
-            <Link
-              key={href + label}
-              href={href}
-              aria-current={active ? "page" : undefined}
-              prefetch
-              onClick={() => handleBottomNavigate(href)}
-              onPointerEnter={() => router.prefetch(href)}
-              onFocus={() => router.prefetch(href)}
-              className="relative flex h-[58px] min-w-0 flex-1 items-end justify-center overflow-visible"
-            >
-              {active ? (
-                <span
-                  aria-hidden="true"
-                  className="absolute top-[4px] bottom-[4px] left-1/2 w-[59px] -translate-x-1/2"
-                  style={{
-                    background: "linear-gradient(180deg, #173006 0%, #102903 100%)",
-                    clipPath: "polygon(12px 0, calc(100% - 12px) 0, 100% 8px, 100% 100%, 0 100%, 0 8px)",
-                    boxShadow: "inset 0 1px 0 rgba(177,235,11,0.18), 0 0 20px rgba(177,235,11,0.12)",
-                  }}
-                />
-              ) : null}
-
-              <span className="relative z-1 flex h-[54px] w-full flex-col items-center justify-center gap-[3px] px-2">
-                <Image
-                  src={icon}
-                  alt=""
-                  width={iconSize}
-                  height={iconSize}
-                  className="h-auto w-auto transition-all duration-200"
-                  style={{
-                    filter: active
-                      ? "brightness(0) saturate(100%) invert(78%) sepia(77%) saturate(833%) hue-rotate(21deg) brightness(101%) contrast(93%)"
-                      : "brightness(0) saturate(100%) invert(61%) sepia(0%) saturate(0%) hue-rotate(180deg) brightness(95%) contrast(88%)",
-                  }}
-                  aria-hidden="true"
-                />
-                <span
+              return (
+                <Link
+                  key={href + label}
+                  href={href}
+                  aria-label={ariaLabel}
+                  aria-current={active ? "page" : undefined}
+                  prefetch
+                  onClick={() => handleBottomNavigate(href)}
+                  onPointerEnter={() => router.prefetch(href)}
+                  onFocus={() => router.prefetch(href)}
                   className={[
-                    "block max-w-full truncate text-center leading-none",
-                    active ? "text-[12px] font-black" : "text-[12px] font-semibold",
+                    "group relative flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center rounded-[14px] py-1.5 outline-none",
+                    "motion-safe:transition-[transform,color,background-color] motion-safe:duration-200 motion-safe:ease-out",
+                    "active:scale-[0.94] motion-reduce:active:scale-100",
+                    "focus-visible:ring-2 focus-visible:ring-primary/35 focus-visible:ring-offset-2 focus-visible:ring-offset-[#060a0e]",
                   ].join(" ")}
-                  style={{ color: active ? "#B1EB0B" : "#929292" }}
                 >
-                  {label}
-                </span>
-              </span>
-            </Link>
-          );
-        })}
+                  <span
+                    aria-hidden
+                    className={[
+                      "pointer-events-none absolute inset-x-0 top-0.5 bottom-0.5 rounded-[12px] motion-safe:transition-all motion-safe:duration-300 motion-safe:ease-[cubic-bezier(0.34,1.2,0.64,1)]",
+                      active
+                        ? "bg-primary/16 opacity-100 shadow-[0_0_28px_rgba(177,235,11,0.14)]"
+                        : "bg-transparent opacity-0 group-hover:bg-white/4 group-hover:opacity-100",
+                    ].join(" ")}
+                  />
+                  <span
+                    aria-hidden
+                    className={[
+                      "pointer-events-none absolute left-1/2 top-1.5 h-[3px] w-6 -translate-x-1/2 rounded-full motion-safe:transition-all motion-safe:duration-300 motion-safe:ease-out",
+                      active
+                        ? "bg-primary opacity-100 shadow-[0_0_12px_rgba(177,235,11,0.75)]"
+                        : "scale-x-50 bg-primary/0 opacity-0",
+                    ].join(" ")}
+                  />
+                  <span className="relative z-10 flex flex-col items-center gap-0.5">
+                    <span
+                      className={[
+                        "grid size-9 shrink-0 place-items-center rounded-xl motion-safe:transition-[transform,color] motion-safe:duration-300 motion-safe:ease-[cubic-bezier(0.34,1.35,0.64,1)]",
+                        active ? "text-primary motion-safe:scale-110" : "text-white/40 group-hover:text-white/65",
+                      ].join(" ")}
+                    >
+                      <ItemIcon className="size-[21px]" strokeWidth={active ? 2.35 : 2} />
+                    </span>
+                    <span
+                      className={[
+                        "max-w-full px-0.5 text-center text-[9px] font-bold uppercase leading-tight tracking-[0.04em] min-[360px]:text-[10px]",
+                        active ? "text-primary" : "text-white/45 group-hover:text-white/70",
+                      ].join(" ")}
+                    >
+                      {label}
+                    </span>
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
       </nav>
     </>
   );
