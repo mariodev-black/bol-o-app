@@ -286,9 +286,16 @@ function ActiveRowBolaoIcon({
 }
 
 function BolaoIcon({ type }: { type: "copa" | "dia" | "extra" }) {
-  const Icon = type === "copa" ? Trophy : type === "extra" ? Sparkles : CalendarDays;
-  const label = type === "copa" ? "COPA\n2026" : type === "extra" ? "BOLÃO\nEXTRA" : "BOLÃO\nDO DIA";
-  const color = type === "copa" ? GREEN_SOFT : type === "extra" ? EXTRA_ACCENT : GREEN;
+  const Icon =
+    type === "copa" ? Trophy : type === "extra" ? Sparkles : CalendarDays;
+  const label =
+    type === "copa"
+      ? "COPA\n2026"
+      : type === "extra"
+        ? "BOLÃO\nEXTRA"
+        : "BOLÃO\nDO DIA";
+  const color =
+    type === "copa" ? GREEN_SOFT : type === "extra" ? EXTRA_ACCENT : GREEN;
 
   return (
     <div className="flex w-[58px] shrink-0 flex-col items-center justify-center text-center">
@@ -392,7 +399,8 @@ function EmptyBolaoShowcaseCard({
         {title}
       </p>
       <p className="mx-auto mt-2.5 max-w-[280px] text-[11px] leading-[1.45] text-white/48">
-        Compre seu ingresso na área de tickets para liberar palpites e acompanhar sua posição no ranking.
+        Compre seu ingresso na área de tickets para liberar palpites e
+        acompanhar sua posição no ranking.
       </p>
       <Link
         href="/tickets"
@@ -430,8 +438,8 @@ function ActiveBoloesCard({
             style={{ borderColor: BORDER }}
           >
             <BolaoIcon type="copa" />
-              </div>
-                <Link
+          </div>
+          <Link
             href={principal.href}
             className="min-w-0 px-3 py-[13px] transition-colors hover:bg-white/3 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-primary active:bg-white/5"
           >
@@ -458,12 +466,12 @@ function ActiveBoloesCard({
                 style={{ width: `${principal.progress}%`, background: GREEN }}
               />
             </div>
-                </Link>
+          </Link>
           <RankingPanel
             position={principal.position}
             points={principal.points}
           />
-              </div>
+        </div>
       )}
 
       {principal && diario && <div className="h-px bg-white/6" />}
@@ -475,7 +483,7 @@ function ActiveBoloesCard({
             style={{ borderColor: BORDER }}
           >
             <BolaoIcon type="dia" />
-            </div>
+          </div>
           <Link
             href={diario.href}
             className="min-w-0 px-3 py-[13px] transition-colors hover:bg-white/3 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-primary active:bg-white/5"
@@ -530,8 +538,8 @@ function ActiveBoloesList({
     return <EmptyBolaoShowcaseCard variant="lista" />;
   }
 
-                  return (
-                    <article
+  return (
+    <article
       className="overflow-hidden rounded-[15px] border shadow-[0_18px_38px_rgba(0,0,0,0.42)]"
       style={{ background: CARD_ALT, borderColor: BORDER }}
     >
@@ -547,7 +555,11 @@ function ActiveBoloesList({
                 className="flex items-center justify-center border-r"
                 style={{ borderColor: BORDER }}
               >
-                <ActiveRowBolaoIcon isPrincipal={isPrincipal} isExtra={isExtra} title={item.title} />
+                <ActiveRowBolaoIcon
+                  isPrincipal={isPrincipal}
+                  isExtra={isExtra}
+                  title={item.title}
+                />
               </div>
 
               <Link
@@ -576,8 +588,8 @@ function ActiveBoloesList({
                       </span>
                       <span className="whitespace-nowrap text-[15px] font-black leading-none text-white min-[380px]:text-[16px]">
                         {item.sent ?? 0} / {item.total ?? 0}
-                          </span>
-                        </div>
+                      </span>
+                    </div>
                     <div className="mt-2 h-[6px] overflow-hidden rounded-full bg-white/8">
                       <div
                         className="h-full rounded-full"
@@ -588,7 +600,9 @@ function ActiveBoloesList({
                 ) : (
                   <div className="mt-5 space-y-2">
                     <p className="text-[14px] font-medium leading-none text-white/55">
-                      {isExtra ? "Jogos neste campeonato (data da cota): " : "Jogos do dia: "}
+                      {isExtra
+                        ? "Jogos neste campeonato (data da cota): "
+                        : "Jogos do dia: "}
                       <span className="font-black text-white">
                         {item.gamesCount ?? 0} jogos
                       </span>
@@ -601,8 +615,8 @@ function ActiveBoloesList({
                       >
                         {formatCountdown(item.countdownTargetMs ?? null, now)}
                       </span>
-                          </p>
-                        </div>
+                    </p>
+                  </div>
                 )}
               </Link>
 
@@ -656,7 +670,7 @@ function AvailableCard({
         style={{ background: badgeColor, color: "#0E141B" }}
       >
         {badge}
-                          </div>
+      </div>
       <div
         className="flex size-[38px] items-center justify-center rounded-[11px]"
         style={{
@@ -709,7 +723,7 @@ function AvailableCard({
         >
           Entrar
         </Link>
-                          </div>
+      </div>
     </article>
   );
 }
@@ -783,7 +797,9 @@ function CarouselShell({
         return;
       }
       const t = el.scrollLeft / max;
-      setActiveIdx(Math.min(itemCount - 1, Math.max(0, Math.round(t * (itemCount - 1)))));
+      setActiveIdx(
+        Math.min(itemCount - 1, Math.max(0, Math.round(t * (itemCount - 1)))),
+      );
     };
     el.addEventListener("scroll", onScroll, { passive: true });
     onScroll();
@@ -889,12 +905,6 @@ function UpcomingExtraOfferCard({
           className="h-[78px] w-[60px] object-contain transition-transform duration-500 group-hover:scale-105"
           style={{ filter: `drop-shadow(0 8px 24px ${tone}42)` }}
         />
-        <p
-          className="mt-1 whitespace-pre-line text-[12px] font-black uppercase leading-[0.9]"
-          style={{ color: tone }}
-        >
-          {isCopaBr ? "Copa do\nBrasil" : "Bolão\nExtra"}
-        </p>
       </div>
 
       <div
@@ -943,7 +953,11 @@ function UpcomingExtraOfferCard({
         <p className="text-[7px] font-black uppercase tracking-[0.08em] text-white/40">
           Ver oferta
         </p>
-        <ChevronRight className="mt-1 size-4 text-white/55" strokeWidth={2.4} aria-hidden />
+        <ChevronRight
+          className="mt-1 size-4 text-white/55"
+          strokeWidth={2.4}
+          aria-hidden
+        />
       </div>
     </Link>
   );
@@ -971,8 +985,8 @@ function ShowcaseSectionTitle({
       {expanded ? "Ocultar" : "Ver todos"}{" "}
       <ChevronRight
         className={`size-3 transition-transform ${expanded ? "rotate-90" : ""}`}
-                            strokeWidth={2.5}
-                          />
+        strokeWidth={2.5}
+      />
     </>
   );
 
@@ -990,7 +1004,7 @@ function ShowcaseSectionTitle({
         >
           {index}. {title}
         </h2>
-                          </div>
+      </div>
       {onViewAll ? (
         <button
           type="button"
@@ -1009,8 +1023,8 @@ function ShowcaseSectionTitle({
         >
           {content}
         </Link>
-                        )}
-                      </div>
+      )}
+    </div>
   );
 }
 
@@ -1038,13 +1052,13 @@ function ActiveShowcaseCard({
   const statusLabel = item.statusLabel;
 
   return (
-                          <Link
+    <Link
       href={item.href}
       className={[
         "group relative grid min-h-[126px] grid-cols-[102px_minmax(0,1fr)_78px] overflow-hidden rounded-[14px] border bg-[#080A07] shadow-[0_18px_42px_rgba(0,0,0,0.55)] transition-transform duration-300 active:scale-[0.985]",
         fullWidth ? "w-full" : "w-[368px] max-w-[88vw] shrink-0 snap-center",
       ].join(" ")}
-                            style={{
+      style={{
         borderColor: `${tone}42`,
         boxShadow: `0 18px 42px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.05), 0 0 26px ${tone}0F`,
       }}
@@ -1079,7 +1093,7 @@ function ActiveShowcaseCard({
                 ? "Bolão\nExtra"
                 : "Bolão\nDo Dia"}
         </p>
-                        </div>
+      </div>
 
       <div
         className="relative z-10 min-w-0 border-l px-3.5 py-4"
@@ -1094,7 +1108,7 @@ function ActiveShowcaseCard({
 
         <div className="mt-3">
           <StatusPill status={item.status} label={statusLabel} />
-                      </div>
+        </div>
 
         {isPrincipal ? (
           <div className="mt-4">
@@ -1105,7 +1119,7 @@ function ActiveShowcaseCard({
               <span className="text-[11px] font-black leading-none text-white">
                 {item.sent ?? 0} / {item.total ?? 0}
               </span>
-              </div>
+            </div>
             <div className="mt-2 h-[5px] overflow-hidden rounded-full bg-white/10">
               <div
                 className="h-full rounded-full transition-[width] duration-700"
@@ -1120,7 +1134,9 @@ function ActiveShowcaseCard({
         ) : (
           <div className="mt-4 space-y-1.5">
             <p className="text-[12px] font-medium text-white/55">
-              {isExtra ? "Jogos neste campeonato (data da cota): " : "Jogos do dia: "}
+              {isExtra
+                ? "Jogos neste campeonato (data da cota): "
+                : "Jogos do dia: "}
               <span className="font-black text-white">
                 {item.gamesCount ?? 0} jogos
               </span>
@@ -1131,8 +1147,8 @@ function ActiveShowcaseCard({
                 {formatCountdown(item.countdownTargetMs ?? null, now)}
               </span>
             </p>
-            </div>
-          )}
+          </div>
+        )}
       </div>
 
       <div
@@ -1166,7 +1182,7 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
   const [selectedPkg, setSelectedPkg] = useState<1 | 3 | 5>(1);
   const currentPkg = PACKAGES.find((p) => p.qty === selectedPkg)!;
 
-                  return (
+  return (
     <div className="min-h-screen bg-black pb-10 text-white">
       {/* ── Banner ──────────────────────────────────── */}
       <div className="w-full bg-black">
@@ -1202,7 +1218,7 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
         {/* Pricing card */}
         <div
           className="rounded-[16px] px-5 py-5 text-center"
-                      style={{
+          style={{
             background: "#111",
             border: "1px solid rgba(177,235,11,0.18)",
             boxShadow: "0 0 32px rgba(177,235,11,0.06) inset",
@@ -1241,8 +1257,8 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
           <span className="flex items-center gap-1.5 text-[11px] font-semibold text-white/80">
             <Lock className="size-3.5 shrink-0" strokeWidth={1.8} />
             Dados protegidos
-                          </span>
-                        </div>
+          </span>
+        </div>
 
         {/* Stats 2×2 */}
         <div className="grid grid-cols-2 gap-2.5">
@@ -1261,8 +1277,8 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
                 </p>
                 <p className="mt-1 text-[9px] font-semibold leading-tight text-white/42">
                   {label}
-                          </p>
-                        </div>
+                </p>
+              </div>
             </div>
           ))}
         </div>
@@ -1288,7 +1304,7 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
                 <span className="mt-1.5 inline-flex items-center rounded-[5px] bg-primary/15 px-2 py-0.5 text-[8px] font-black uppercase tracking-wider text-primary">
                   Cota Oficial Copa 2026
                 </span>
-                          </div>
+              </div>
             </div>
 
             {/* itens */}
@@ -1303,17 +1319,17 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
                   </span>
                   <p className="text-[12px] font-medium leading-snug text-white/75">
                     {item}
-                            </p>
-                          </div>
+                  </p>
+                </div>
               ))}
-                        </div>
+            </div>
 
             {/* footer */}
             <div className="flex items-start gap-2.5 border-t border-white/7 px-4 py-3.5">
               <ArrowRight
                 className="mt-0.5 size-3.5 shrink-0 text-primary"
-                            strokeWidth={2.5}
-                          />
+                strokeWidth={2.5}
+              />
               <p className="text-[11px] font-medium leading-snug text-white/50">
                 Você concorre ao ranking geral e pode ser um dos{" "}
                 <span className="font-bold text-white/80">
@@ -1344,7 +1360,7 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
               <p className="mt-1.5 text-[12px] font-medium leading-snug text-white/80">
                 Mais cotas = mais posições no ranking = mais chances de ganhar
               </p>
-                          </div>
+            </div>
 
             <div className="mx-4 h-px bg-white/8" />
 
@@ -1382,8 +1398,8 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
                         <span className="rounded-full bg-primary/20 px-1.5 py-0.5 text-[8px] font-black text-primary">
                           {pkg.saving}
                         </span>
-                        )}
-                      </div>
+                      )}
+                    </div>
 
                     {/* label */}
                     <p
@@ -1415,7 +1431,7 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
 
             {/* CTA button inside the card */}
             <div className="px-4 pb-2">
-                          <Link
+              <Link
                 href="/tickets"
                 className="flex h-[56px] w-full items-center justify-center gap-2.5 rounded-[14px] bg-primary text-[13px] font-black uppercase tracking-[0.05em] text-[#0E141B] shadow-[0_4px_24px_rgba(177,235,11,0.45)] transition-[filter] hover:brightness-105 active:scale-[0.98]"
               >
@@ -1423,8 +1439,8 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
                 {currentPkg.priceMain}
                 {currentPkg.priceDec}
                 <ChevronRight className="size-5 shrink-0" strokeWidth={2.8} />
-                          </Link>
-                        </div>
+              </Link>
+            </div>
 
             {/* trust bar inside the card */}
             <div className="flex items-center justify-around px-4 py-4">
@@ -1442,7 +1458,7 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
                 <Check className="size-3 shrink-0" strokeWidth={2.2} />
                 Oficial
               </span>
-                      </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1481,7 +1497,9 @@ export function BoloesClient({
   const diarioItems = (data?.active.all ?? []).filter(
     (item) => item.type === "diario",
   );
-  const extraItems = (data?.active.all ?? []).filter((item) => item.type === "extra");
+  const extraItems = (data?.active.all ?? []).filter(
+    (item) => item.type === "extra",
+  );
   const upcomingExtras = data?.upcoming.extras ?? [];
   const diarioShowcaseItems = useMemo(
     () => sortBoloesByAvailabilityForShowcase(diarioItems),
@@ -1491,8 +1509,7 @@ export function BoloesClient({
     () => sortBoloesByAvailabilityForShowcase(extraItems),
     [extraItems],
   );
-  const hasExtraSection =
-    extraItems.length > 0 || upcomingExtras.length > 0;
+  const hasExtraSection = extraItems.length > 0 || upcomingExtras.length > 0;
   const dailyCountdown = useMemo(
     () => formatCountdown(data?.upcoming.daily.closesAtMs ?? null, now),
     [data?.upcoming.daily.closesAtMs, now],
@@ -1540,10 +1557,10 @@ export function BoloesClient({
                 Voltar{" "}
                 <ChevronRight className="size-3 rotate-180" strokeWidth={2.6} />
               </button>
-              </div>
+            </div>
             <ActiveBoloesList items={data?.active.all ?? []} now={now} />
           </section>
-            </div>
+        </div>
       </div>
     );
   }
@@ -1585,104 +1602,111 @@ export function BoloesClient({
 
         {!ticketsExtraOnly && (
           <>
-        <section className="mt-6">
-          <ShowcaseSectionTitle
-            icon={Trophy}
-            index="1"
-            title="Meu Bolão Principal"
-            href="/boloes/tickets"
-            expanded={showAllPrincipal}
-            onViewAll={() => setShowAllPrincipal((current: boolean) => !current)}
-          />
-          {showAllPrincipal ? (
-            <div className="space-y-3">
-              {principalItems.length > 0 ? (
-                principalItems.map((item) => (
-                  <ActiveShowcaseCard
-                    key={item.id}
-                    item={item}
-                    now={now}
-                    kind="principal"
-                    fullWidth
-                  />
-                ))
-              ) : (
+            <section className="mt-6">
+              <ShowcaseSectionTitle
+                icon={Trophy}
+                index="1"
+                title="Meu Bolão Principal"
+                href="/boloes/tickets"
+                expanded={showAllPrincipal}
+                onViewAll={() =>
+                  setShowAllPrincipal((current: boolean) => !current)
+                }
+              />
+              {showAllPrincipal ? (
+                <div className="space-y-3">
+                  {principalItems.length > 0 ? (
+                    principalItems.map((item) => (
+                      <ActiveShowcaseCard
+                        key={item.id}
+                        item={item}
+                        now={now}
+                        kind="principal"
+                        fullWidth
+                      />
+                    ))
+                  ) : (
+                    <EmptyBolaoShowcaseCard variant="principal" />
+                  )}
+                </div>
+              ) : principalItems.length === 0 ? (
                 <EmptyBolaoShowcaseCard variant="principal" />
-              )}
-            </div>
-          ) : principalItems.length === 0 ? (
-            <EmptyBolaoShowcaseCard variant="principal" />
-          ) : principalItems.length === 1 ? (
-            <ActiveShowcaseCard
-              key={principalItems[0].id}
-              item={principalItems[0]}
-              now={now}
-              kind="principal"
-              fullWidth
-            />
-          ) : (
-            <CarouselShell itemCount={principalItems.length}>
-              {principalItems.map((item) => (
+              ) : principalItems.length === 1 ? (
                 <ActiveShowcaseCard
-                  key={item.id}
-                  item={item}
+                  key={principalItems[0].id}
+                  item={principalItems[0]}
                   now={now}
                   kind="principal"
+                  fullWidth
                 />
-              ))}
-            </CarouselShell>
-          )}
-        </section>
-
-        <section className="mt-4 mb-6">
-          <ShowcaseSectionTitle
-            icon={CalendarDays}
-            index="2"
-            title="Meu Bolão do Dia"
-            href="/boloes/tickets"
-            tone={YELLOW}
-            expanded={showAllDiario}
-            onViewAll={() => setShowAllDiario((current: boolean) => !current)}
-          />
-          {showAllDiario ? (
-            <div className="space-y-3">
-              {diarioItems.length > 0 ? (
-                diarioShowcaseItems.map((item) => (
-                  <ActiveShowcaseCard
-                    key={item.id}
-                    item={item}
-                    now={now}
-                    kind="diario"
-                    fullWidth
-                  />
-                ))
               ) : (
-                <EmptyBolaoShowcaseCard variant="diario" />
+                <CarouselShell itemCount={principalItems.length}>
+                  {principalItems.map((item) => (
+                    <ActiveShowcaseCard
+                      key={item.id}
+                      item={item}
+                      now={now}
+                      kind="principal"
+                    />
+                  ))}
+                </CarouselShell>
               )}
-            </div>
-          ) : diarioItems.length === 0 ? (
-            <EmptyBolaoShowcaseCard variant="diario" />
-          ) : diarioShowcaseItems.length === 1 ? (
-            <ActiveShowcaseCard
-              key={diarioShowcaseItems[0].id}
-              item={diarioShowcaseItems[0]}
-              now={now}
-              kind="diario"
-              fullWidth
-            />
-          ) : (
-            <CarouselShell tone={YELLOW} itemCount={diarioShowcaseItems.length}>
-              {diarioShowcaseItems.map((item) => (
+            </section>
+
+            <section className="mt-4 mb-6">
+              <ShowcaseSectionTitle
+                icon={CalendarDays}
+                index="2"
+                title="Meu Bolão do Dia"
+                href="/boloes/tickets"
+                tone={YELLOW}
+                expanded={showAllDiario}
+                onViewAll={() =>
+                  setShowAllDiario((current: boolean) => !current)
+                }
+              />
+              {showAllDiario ? (
+                <div className="space-y-3">
+                  {diarioItems.length > 0 ? (
+                    diarioShowcaseItems.map((item) => (
+                      <ActiveShowcaseCard
+                        key={item.id}
+                        item={item}
+                        now={now}
+                        kind="diario"
+                        fullWidth
+                      />
+                    ))
+                  ) : (
+                    <EmptyBolaoShowcaseCard variant="diario" />
+                  )}
+                </div>
+              ) : diarioItems.length === 0 ? (
+                <EmptyBolaoShowcaseCard variant="diario" />
+              ) : diarioShowcaseItems.length === 1 ? (
                 <ActiveShowcaseCard
-                  key={item.id}
-                  item={item}
+                  key={diarioShowcaseItems[0].id}
+                  item={diarioShowcaseItems[0]}
                   now={now}
                   kind="diario"
+                  fullWidth
                 />
-              ))}
-            </CarouselShell>
-          )}
-        </section>
+              ) : (
+                <CarouselShell
+                  tone={YELLOW}
+                  itemCount={diarioShowcaseItems.length}
+                >
+                  {diarioShowcaseItems.map((item) => (
+                    <ActiveShowcaseCard
+                      key={item.id}
+                      item={item}
+                      now={now}
+                      kind="diario"
+                    />
+                  ))}
+                </CarouselShell>
+              )}
+            </section>
           </>
         )}
 
@@ -1692,7 +1716,9 @@ export function BoloesClient({
               icon={Sparkles}
               index={ticketsExtraOnly ? "1" : "3"}
               title={
-                extraItems.length > 0 ? "Meus bolões extra" : "Bolões extra — comprar"
+                extraItems.length > 0
+                  ? "Meus bolões extra"
+                  : "Bolões extra — comprar"
               }
               href="/tickets"
               tone={EXTRA_ACCENT}
@@ -1706,26 +1732,24 @@ export function BoloesClient({
                   : upcomingExtras.length;
               return showAllExtra ? (
                 <div className="space-y-3">
-                  {extraShowcaseItems.length > 0 ? (
-                    extraShowcaseItems.map((item) => (
-                      <ActiveShowcaseCard
-                        key={item.id}
-                        item={item}
-                        now={now}
-                        kind="extra"
-                        fullWidth
-                      />
-                    ))
-                  ) : (
-                    upcomingExtras.map((ex) => (
-                      <UpcomingExtraOfferCard
-                        key={ex.championshipId}
-                        ex={ex}
-                        now={now}
-                        fullWidth
-                      />
-                    ))
-                  )}
+                  {extraShowcaseItems.length > 0
+                    ? extraShowcaseItems.map((item) => (
+                        <ActiveShowcaseCard
+                          key={item.id}
+                          item={item}
+                          now={now}
+                          kind="extra"
+                          fullWidth
+                        />
+                      ))
+                    : upcomingExtras.map((ex) => (
+                        <UpcomingExtraOfferCard
+                          key={ex.championshipId}
+                          ex={ex}
+                          now={now}
+                          fullWidth
+                        />
+                      ))}
                 </div>
               ) : extraCollapsedCount <= 1 ? (
                 extraShowcaseItems.length === 1 ? (
@@ -1744,7 +1768,10 @@ export function BoloesClient({
                   />
                 )
               ) : (
-                <CarouselShell tone={EXTRA_ACCENT} itemCount={extraCollapsedCount}>
+                <CarouselShell
+                  tone={EXTRA_ACCENT}
+                  itemCount={extraCollapsedCount}
+                >
                   {extraShowcaseItems.length > 0
                     ? extraShowcaseItems.map((item) => (
                         <ActiveShowcaseCard
@@ -1755,7 +1782,11 @@ export function BoloesClient({
                         />
                       ))
                     : upcomingExtras.map((ex) => (
-                        <UpcomingExtraOfferCard key={ex.championshipId} ex={ex} now={now} />
+                        <UpcomingExtraOfferCard
+                          key={ex.championshipId}
+                          ex={ex}
+                          now={now}
+                        />
                       ))}
                 </CarouselShell>
               );
