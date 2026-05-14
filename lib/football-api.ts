@@ -4,7 +4,10 @@ import { registerMatchMapMemoryInvalidate } from "@/lib/match-map-cache-invalida
 import { parseKickoffFromPartidaPayload, pickScoreFromPartidaPayload } from "@/lib/partida-placar";
 import { fasesEnrichmentCacheKey, readFootballApiCacheJson } from "@/lib/football-api-cache-store";
 import { readMatchesCache } from "@/lib/matches-cache";
-import { matchEndClockMinutesAfterKickoff } from "@/lib/cron/match-result-guarantee";
+import {
+  matchEndClockMinutesAfterKickoff,
+  matchLiveStuckForceMinutes,
+} from "@/lib/cron/match-result-guarantee";
 import type { MatchMap } from "@/lib/match-map-types";
 import { matchMapKey } from "@/lib/match-map-types";
 
@@ -471,13 +474,22 @@ function providerTerminalSemPlacar(m: ProviderMatch): boolean {
   );
 }
 
-/** Inclui “finalizado na API sem placar no bulk” e jogos já após apito + MATCH_END_CLOCK sem placar completo (lista /partidas costuma atrasar status). */
-function providerNeedsScoreEnrichment(m: ProviderMatch, clockMinAfterKickoff: number, nowMs: number): boolean {
+/**
+ * Inclui finalizado sem placar no bulk; após apito + MATCH_END_CLOCK; e após apito + MATCH_LIVE_STUCK_FORCE_MINUTES
+ * (lista `/campeonatos/.../partidas` pode manter “agendado”/“andamento” sem `placar_oficial` — sem isto o GET `/partidas/{id}` nem entrava na fila antes dos 150 min).
+ */
+function providerNeedsScoreEnrichment(
+  m: ProviderMatch,
+  clockMinAfterKickoff: number,
+  stuckMinAfterKickoff: number,
+  nowMs: number
+): boolean {
   if (providerExcludedFromScoreDetail(m.status)) return false;
   if (!providerMissingOfficialScore(m)) return false;
   if (providerTerminalSemPlacar(m)) return true;
   const ko = providerKickoffMs(m);
   if (ko == null) return false;
+  if (ko + stuckMinAfterKickoff * 60_000 < nowMs) return true;
   return ko + clockMinAfterKickoff * 60_000 < nowMs;
 }
 
@@ -508,11 +520,31 @@ function providerNeedsStaleListingStatusRefresh(m: ProviderMatch, nowMs: number)
   return nowMs > ko + staleListingDetailMinutes() * 60_000;
 }
 
-function providerNeedsDetailEnrichment(m: ProviderMatch, clockMinAfterKickoff: number, nowMs: number): boolean {
+function providerNeedsDetailEnrichment(
+  m: ProviderMatch,
+  clockMinAfterKickoff: number,
+  stuckMinAfterKickoff: number,
+  nowMs: number
+): boolean {
   return (
-    providerNeedsScoreEnrichment(m, clockMinAfterKickoff, nowMs) ||
+    providerNeedsScoreEnrichment(m, clockMinAfterKickoff, stuckMinAfterKickoff, nowMs) ||
     providerNeedsStaleListingStatusRefresh(m, nowMs)
   );
+}
+
+function detailEnrichmentSortKey(
+  m: ProviderMatch,
+  clockMin: number,
+  stuckMin: number,
+  nowMs: number
+): number {
+  if (providerTerminalSemPlacar(m)) return 0;
+  if (providerMissingOfficialScore(m) && !providerExcludedFromScoreDetail(m.status)) {
+    const ko = providerKickoffMs(m);
+    if (ko != null && ko + stuckMin * 60_000 < nowMs) return 1;
+  }
+  if (providerNeedsStaleListingStatusRefresh(m, nowMs)) return 2;
+  return 3;
 }
 
 async function mergeProviderMatchesWithRoundsAndDetail(
@@ -522,15 +554,22 @@ async function mergeProviderMatchesWithRoundsAndDetail(
 ): Promise<ProviderMatch[]> {
   let next = rows;
   const clockMin = matchEndClockMinutesAfterKickoff();
+  const stuckMin = matchLiveStuckForceMinutes();
   const nowMs = Date.now();
-  if (next.length === 0 || !next.some((m) => providerNeedsDetailEnrichment(m, clockMin, nowMs))) return next;
-  const enrichCount = next.filter((m) => providerNeedsDetailEnrichment(m, clockMin, nowMs)).length;
-  debugLog("fetchProviderMatches:enrich-missing-scores", { bulk: next.length, candidates: enrichCount });
+  if (next.length === 0 || !next.some((m) => providerNeedsDetailEnrichment(m, clockMin, stuckMin, nowMs)))
+    return next;
+  const enrichCount = next.filter((m) => providerNeedsDetailEnrichment(m, clockMin, stuckMin, nowMs)).length;
+  debugLog("fetchProviderMatches:enrich-missing-scores", {
+    bulk: next.length,
+    candidates: enrichCount,
+    clockMin,
+    stuckMin,
+  });
   const supplement = await fetchSupplementalProviderMatchesForMerge(compId, apiToken).catch(() => []);
   if (supplement.length > 0) {
     const byId = new Map(supplement.map((x) => [x.matchId, x]));
     next = next.map((m) => {
-      if (!providerNeedsDetailEnrichment(m, clockMin, nowMs)) return m;
+      if (!providerNeedsDetailEnrichment(m, clockMin, stuckMin, nowMs)) return m;
       const r = byId.get(m.matchId);
       if (!r) return m;
       return {
@@ -543,11 +582,11 @@ async function mergeProviderMatchesWithRoundsAndDetail(
     });
   }
   const nowAfter = Date.now();
-  let still = next.filter((m) => providerNeedsDetailEnrichment(m, clockMin, nowAfter));
+  let still = next.filter((m) => providerNeedsDetailEnrichment(m, clockMin, stuckMin, nowAfter));
   if (still.length === 0) return next;
   still = still.slice().sort((a, b) => {
-    const ta = providerTerminalSemPlacar(a) ? 0 : providerNeedsStaleListingStatusRefresh(a, nowAfter) ? 1 : 2;
-    const tb = providerTerminalSemPlacar(b) ? 0 : providerNeedsStaleListingStatusRefresh(b, nowAfter) ? 1 : 2;
+    const ta = detailEnrichmentSortKey(a, clockMin, stuckMin, nowAfter);
+    const tb = detailEnrichmentSortKey(b, clockMin, stuckMin, nowAfter);
     if (ta !== tb) return ta - tb;
     return (providerKickoffMs(a) ?? Infinity) - (providerKickoffMs(b) ?? Infinity);
   });
