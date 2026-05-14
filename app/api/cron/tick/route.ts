@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { cronTickLog } from "@/lib/cron/cron-tick-log";
 import { runMaintenanceTick } from "@/lib/cron/maintenance-tick";
@@ -23,15 +24,16 @@ export async function GET(request: NextRequest) {
   if (!authorized(request)) {
     return NextResponse.json({ error: "Nao autorizado" }, { status: 401 });
   }
+  const tickId = randomUUID();
   try {
     const via = request.headers.get("x-vercel-cron") === "1" ? "vercel-cron" : "authorized";
-    cronTickLog("http-cron-tick-start", { via });
-    const result = await runMaintenanceTick();
-    cronTickLog("http-cron-tick-done", { via, ok: true });
+    cronTickLog("http-cron-tick-start", { via, tickId });
+    const result = await runMaintenanceTick({ tickId });
+    cronTickLog("http-cron-tick-done", { via, tickId, ok: true });
     return NextResponse.json({ ok: true, result });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Falha no tick de manutencao";
-    cronTickLog("http-cron-tick-error", { message });
+    cronTickLog("http-cron-tick-error", { tickId, message });
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }

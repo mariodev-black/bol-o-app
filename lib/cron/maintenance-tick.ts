@@ -15,8 +15,8 @@ export type MaintenanceTickResult = {
  * ou cache defasado (`needsMatchApiRefreshForCron`); (3) garantia de placar + prêmios.
  * Usado pelo scheduler interno (`instrumentation.ts`) e por GET /api/cron/tick.
  */
-export async function runMaintenanceTick(): Promise<MaintenanceTickResult> {
-  const tickId = randomUUID();
+export async function runMaintenanceTick(opts?: { tickId?: string }): Promise<MaintenanceTickResult> {
+  const tickId = opts?.tickId ?? randomUUID();
   const t0 = Date.now();
   cronTickLog("maintenance-start", { tickId });
 
