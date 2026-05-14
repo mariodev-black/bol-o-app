@@ -8,6 +8,7 @@ import {
   readCompetitionDisplayNamesFromDb,
   warmCompetitionMetadataCache,
 } from "@/lib/competition-metadata-cache";
+import { extraBolaoRoundPlayDatesByChampionship } from "@/lib/ticket-shop-extra-play-dates";
 
 export const runtime = "nodejs";
 
@@ -44,7 +45,10 @@ const createLegacySchema = z.object({
 export async function GET() {
   const ids = parseExtraBolaoChampionshipIds();
   const unit = getExtraBolaoUnitCents();
-  const labels = await readCompetitionDisplayNamesFromDb(ids).catch(() => ({} as Record<number, string>));
+  const [labels, playDates] = await Promise.all([
+    readCompetitionDisplayNamesFromDb(ids).catch(() => ({} as Record<number, string>)),
+    extraBolaoRoundPlayDatesByChampionship(ids).catch(() => ({} as Record<number, string>)),
+  ]);
   void warmCompetitionMetadataCache(ids).catch(() => {});
   return NextResponse.json({
     prices: {
@@ -56,6 +60,7 @@ export async function GET() {
       championshipId,
       unitCents: unit,
       ...(labels[championshipId] ? { displayName: labels[championshipId] } : {}),
+      ...(playDates[championshipId] ? { roundPlayDateBR: playDates[championshipId] } : {}),
     })),
   });
 }

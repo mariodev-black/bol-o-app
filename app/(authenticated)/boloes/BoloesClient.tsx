@@ -20,6 +20,8 @@ import trofeuBoloes from "@/app/assets/trofeu-boloes.png";
 import bgPixel from "@/app/assets/bg-hero-pixels.png";
 import ticketGold from "@/app/assets/ticket-gold.png";
 import ticketBlue from "@/app/assets/Ticket-Blue.png";
+import iconCopaBrasil from "@/app/assets/icon-copa-brasil.png";
+import { isCopaDoBrasilChampionshipTitle } from "@/lib/boloes-copa-brasil-branding";
 import { CotaCpa } from "../components/ui/cota_cpa";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -253,6 +255,34 @@ function SectionTitle({
       )}
     </div>
   );
+}
+
+function ActiveRowBolaoIcon({
+  isPrincipal,
+  isExtra,
+  title,
+}: {
+  isPrincipal: boolean;
+  isExtra: boolean;
+  title: string;
+}) {
+  if (isExtra && isCopaDoBrasilChampionshipTitle(title)) {
+    return (
+      <div className="flex w-[58px] shrink-0 flex-col items-center justify-center px-0.5 text-center">
+        <Image
+          src={iconCopaBrasil}
+          alt=""
+          width={44}
+          height={44}
+          className="h-11 w-11 object-contain"
+        />
+        <p className="mt-1 whitespace-pre-line text-[8px] font-black uppercase leading-[0.96] text-primary">
+          {"Copa do\nBrasil"}
+        </p>
+      </div>
+    );
+  }
+  return <BolaoIcon type={isPrincipal ? "copa" : isExtra ? "extra" : "dia"} />;
 }
 
 function BolaoIcon({ type }: { type: "copa" | "dia" | "extra" }) {
@@ -517,7 +547,7 @@ function ActiveBoloesList({
                 className="flex items-center justify-center border-r"
                 style={{ borderColor: BORDER }}
               >
-                <BolaoIcon type={isPrincipal ? "copa" : isExtra ? "extra" : "dia"} />
+                <ActiveRowBolaoIcon isPrincipal={isPrincipal} isExtra={isExtra} title={item.title} />
               </div>
 
               <Link
@@ -827,6 +857,8 @@ function UpcomingExtraOfferCard({
   fullWidth?: boolean;
 }) {
   const tone = EXTRA_ACCENT;
+  const isCopaBr = isCopaDoBrasilChampionshipTitle(ex.title);
+  const ticketImg = isCopaBr ? iconCopaBrasil : ticketBlue;
   return (
     <Link
       href={ex.href}
@@ -852,7 +884,7 @@ function UpcomingExtraOfferCard({
         }}
       >
         <Image
-          src={ticketBlue}
+          src={ticketImg}
           alt=""
           className="h-[78px] w-[60px] object-contain transition-transform duration-500 group-hover:scale-105"
           style={{ filter: `drop-shadow(0 8px 24px ${tone}42)` }}
@@ -861,7 +893,7 @@ function UpcomingExtraOfferCard({
           className="mt-1 whitespace-pre-line text-[12px] font-black uppercase leading-[0.9]"
           style={{ color: tone }}
         >
-          Bolão{"\n"}Extra
+          {isCopaBr ? "Copa do\nBrasil" : "Bolão\nExtra"}
         </p>
       </div>
 
@@ -997,7 +1029,12 @@ function ActiveShowcaseCard({
   const isExtra = kind === "extra";
   const progress = Math.max(0, Math.min(100, item.progress ?? 0));
   const tone = isPrincipal ? GREEN : isExtra ? EXTRA_ACCENT : YELLOW;
-  const image = isPrincipal ? ticketGold : ticketBlue;
+  const isCopaBrExtra = isExtra && isCopaDoBrasilChampionshipTitle(item.title);
+  const image = isPrincipal
+    ? ticketGold
+    : isCopaBrExtra
+      ? iconCopaBrasil
+      : ticketBlue;
   const statusLabel = item.statusLabel;
 
   return (
@@ -1034,7 +1071,13 @@ function ActiveShowcaseCard({
           className="mt-1 whitespace-pre-line text-[12px] font-black uppercase leading-[0.9]"
           style={{ color: tone }}
         >
-          {isPrincipal ? "FIFA\nWorld Cup\n2026" : isExtra ? "Bolão\nExtra" : "Bolão\nDo Dia"}
+          {isPrincipal
+            ? "FIFA\nWorld Cup\n2026"
+            : isCopaBrExtra
+              ? "Copa do\nBrasil"
+              : isExtra
+                ? "Bolão\nExtra"
+                : "Bolão\nDo Dia"}
         </p>
                         </div>
 

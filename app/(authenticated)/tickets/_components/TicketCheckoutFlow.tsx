@@ -20,8 +20,10 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import bannerCheckout from "@/app/assets/banner-chekout.png";
+import iconCopaBrasil from "@/app/assets/icon-copa-brasil.png";
 import ticketBlue from "@/app/assets/Ticket-Blue.png";
 import ticketGold from "@/app/assets/ticket-gold.png";
+import { isCopaDoBrasilChampionshipTitle } from "@/lib/boloes-copa-brasil-branding";
 import { championshipCountsFromExtraQuantity } from "@/lib/payments/ticket-config";
 import { appendTicketsFromPurchase } from "../lib/ownedTicketsStorage";
 import { TicketPixGeneratedScreen } from "./pix/TicketPixGeneratedScreen";
@@ -48,7 +50,13 @@ function parseNextPublicExtraChampionshipIds(): number[] {
     .filter((n) => Number.isFinite(n) && n > 0);
 }
 
-type ExtraBolaoOption = { championshipId: number; unitCents: number; displayName?: string };
+type ExtraBolaoOption = {
+  championshipId: number;
+  unitCents: number;
+  displayName?: string;
+  /** Data da rodada em aberto (dd/MM/yyyy), do servidor — mesma regra do bolão extra. */
+  roundPlayDateBR?: string;
+};
 
 function formatBRL(cents: number) {
   return (cents / 100).toLocaleString("pt-BR", {
@@ -234,7 +242,12 @@ export function TicketCheckoutFlow({
         });
         const d = (await r.json()) as {
           prices?: { general: number; daily: number; extra?: number };
-          extraBoloes?: Array<{ championshipId: number; unitCents: number; displayName?: string }>;
+          extraBoloes?: Array<{
+            championshipId: number;
+            unitCents: number;
+            displayName?: string;
+            roundPlayDateBR?: string;
+          }>;
         };
         if (r.ok && d.prices) {
           setPrices({
@@ -350,11 +363,21 @@ export function TicketCheckoutFlow({
     return "Bolão extra";
   }, [extraBoloes, extraPrimaryBolao]);
 
+  const extraRoundPlayDateBR = useMemo(() => {
+    const fromPrimary = extraPrimaryBolao?.roundPlayDateBR?.trim();
+    if (fromPrimary) return fromPrimary;
+    const first = extraBoloes.map((b) => b.roundPlayDateBR?.trim()).find(Boolean);
+    return first ?? null;
+  }, [extraBoloes, extraPrimaryBolao]);
+
   const extraTicketHeadline = useMemo(() => {
     const base = extraResumoShortLabel.trim();
-    if (!base || base === "Bolão extra") return "TICKET BOLÃO EXTRA";
-    return `TICKET ${base.toUpperCase()}`;
-  }, [extraResumoShortLabel]);
+    let headline =
+      !base || base === "Bolão extra" ? "TICKET BOLÃO EXTRA" : `TICKET ${base.toUpperCase()}`;
+    const d = extraRoundPlayDateBR?.trim();
+    if (d) headline = `${headline} - ${d}`;
+    return headline;
+  }, [extraResumoShortLabel, extraRoundPlayDateBR]);
 
   const extraIconBadge = useMemo(() => {
     const s = extraResumoShortLabel.trim();
@@ -368,6 +391,14 @@ export function TicketCheckoutFlow({
     () => [...new Set(extraBoloes.map((b) => b.displayName?.trim()).filter(Boolean))],
     [extraBoloes],
   );
+
+  const extraCardUsesCopaBrasilIcon = useMemo(() => {
+    const label = extraResumoShortLabel.trim();
+    if (isCopaDoBrasilChampionshipTitle(label)) return true;
+    return extraBoloes.some((b) => isCopaDoBrasilChampionshipTitle(b.displayName));
+  }, [extraBoloes, extraResumoShortLabel]);
+
+  const extraCardIconSrc = extraCardUsesCopaBrasilIcon ? iconCopaBrasil.src : ticketBlue.src;
 
   const principalLineCents = progressiveDiscountTotalCents(
     prices.general,
@@ -783,29 +814,31 @@ export function TicketCheckoutFlow({
 
               {extraBoloes.length > 0 && (
                 <div className="overflow-hidden rounded-[16px] border border-white/10 bg-[#121212] shadow-[0_8px_26px_rgba(0,0,0,0.35)]">
-                  <div className="grid grid-cols-[74px_minmax(0,1fr)] items-center gap-3 p-3 sm:grid-cols-[86px_minmax(0,1fr)] sm:p-3.5">
-                    <div className="flex flex-col items-center justify-center">
+                  <div className="min-w-0 overflow-x-auto border-b border-white/6 px-3 pb-2.5 pt-3 [-ms-overflow-style:none] [scrollbar-width:none] sm:px-3.5 sm:pb-3 sm:pt-3.5 [&::-webkit-scrollbar]:hidden">
+                    <h3 className="inline-block w-max max-w-none whitespace-nowrap text-[12px] font-black uppercase leading-none tracking-[-0.03em] text-white min-[380px]:text-[13px] sm:text-[15px]">
+                      {extraTicketHeadline}
+                    </h3>
+                  </div>
+                  <div className="grid grid-cols-[74px_minmax(0,1fr)] items-start gap-3 p-3 sm:grid-cols-[86px_minmax(0,1fr)] sm:p-3.5">
+                    <div className="flex flex-col items-center justify-center pt-0.5">
                       <img
-                        src={ticketBlue.src}
+                        src={extraCardIconSrc}
                         alt=""
-                        className="h-[72px] w-[52px] shrink-0 object-contain drop-shadow-[0_8px_24px_rgba(177,235,11,0.28)] sm:h-[86px] sm:w-[62px]"
+                        className={
+                          extraCardUsesCopaBrasilIcon
+                            ? "h-[68px] w-[68px] shrink-0 rounded-[12px] object-contain drop-shadow-[0_8px_24px_rgba(59,130,246,0.35)] sm:h-[78px] sm:w-[78px]"
+                            : "h-[72px] w-[52px] shrink-0 object-contain drop-shadow-[0_8px_24px_rgba(177,235,11,0.28)] sm:h-[86px] sm:w-[62px]"
+                        }
                       />
-                      <span className="mt-1 max-w-[72px] truncate text-center text-[8px] font-black uppercase leading-tight tracking-wide text-primary">
-                        {extraIconBadge}
-                      </span>
                     </div>
                     <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_88px] items-center gap-3 sm:grid-cols-[minmax(0,1fr)_96px]">
                       <div className="min-w-0">
-                        <div className="min-w-0">
-                          <h3 className="text-[14px] font-black uppercase leading-tight text-white sm:text-[15px]">
-                            {extraTicketHeadline}
-                          </h3>
-                          <p className="mt-1 text-[12px] font-medium leading-snug text-white/80 sm:text-[11px]">
-                            Uma cota extra vale para os bolões extras disponíveis no app — palpites na rodada em
-                            aberto do campeonato.
+                        <div className="min-w-0 space-y-1.5">
+                          <p className="text-[12px] font-medium leading-snug text-white/80 sm:text-[11px]">
+                            Cota extra na rodada atual do campeonato.
                           </p>
                           {extraNamesUnique.length > 1 && (
-                            <p className="mt-1.5 text-[10px] font-medium leading-snug text-white/50">
+                            <p className="text-[10px] font-medium leading-snug text-white/50">
                               Inclui: {extraNamesUnique.join(" · ")}
                             </p>
                           )}
