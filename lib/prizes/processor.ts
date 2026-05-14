@@ -129,6 +129,7 @@ async function ensurePrizeSchema(client: PoolClient) {
       bolao_type text NOT NULL CHECK (bolao_type IN ('general', 'daily', 'extra')),
       date_br text,
       status text NOT NULL DEFAULT 'processed',
+      processado boolean NOT NULL DEFAULT false,
       total_revenue_cents integer NOT NULL DEFAULT 0,
       pool_cents integer NOT NULL DEFAULT 0,
       metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
@@ -136,6 +137,15 @@ async function ensurePrizeSchema(client: PoolClient) {
       created_at timestamptz NOT NULL DEFAULT now(),
       updated_at timestamptz NOT NULL DEFAULT now()
     )
+  `);
+  await client.query(
+    `ALTER TABLE prize_closures ADD COLUMN IF NOT EXISTS processado boolean NOT NULL DEFAULT false`
+  );
+  await client.query(`
+    UPDATE prize_closures pc
+    SET processado = true, updated_at = now()
+    WHERE pc.processado = false
+      AND EXISTS (SELECT 1 FROM prize_awards pa WHERE pa.closure_id = pc.id)
   `);
   await client.query(`
     CREATE TABLE IF NOT EXISTS prize_awards (
@@ -185,8 +195,8 @@ async function insertClosure(
   const key = closureKey({ competitionId: input.compId, type: input.type, dateBR: input.dateBR });
   const { rows } = await client.query<{ id: string }>(
     `INSERT INTO prize_closures (
-       closure_key, competition_id, bolao_type, date_br, status, total_revenue_cents, pool_cents, metadata
-     ) VALUES ($1, $2, $3, $4, 'processed', $5, $6, $7::jsonb)
+       closure_key, competition_id, bolao_type, date_br, status, processado, total_revenue_cents, pool_cents, metadata
+     ) VALUES ($1, $2, $3, $4, 'processed', false, $5, $6, $7::jsonb)
      ON CONFLICT (closure_key) DO NOTHING
      RETURNING id`,
     [
@@ -395,6 +405,23 @@ async function creditAward(
   const awardId = awardInsert.rows[0]?.id;
   if (!awardId) return;
 
+  /** Uma linha de crédito por fechamento+colocação: evita saldo em duplicidade se o job repetir ou houver reentrância. */
+  const externalRef = `internal_prize:${input.closureId}:rank:${input.rank}`;
+  const existingTx = await client.query<{ id: string }>(
+    `SELECT id FROM transactions
+     WHERE provider = 'internal_prize' AND external_ref = $1 AND user_id = $2::uuid
+     LIMIT 1`,
+    [externalRef, input.ranking.userId]
+  );
+  const priorTxId = existingTx.rows[0]?.id;
+  if (priorTxId) {
+    await client.query(
+      `UPDATE prize_awards SET transaction_id = COALESCE(transaction_id, $2::uuid) WHERE id = $1`,
+      [awardId, priorTxId]
+    );
+    return;
+  }
+
   const tx = await client.query<{ id: string }>(
     `INSERT INTO transactions (
        user_id, ticket_id, ticket_type, provider, status, amount_cents, payment_method, external_ref, raw_request, raw_response
@@ -405,7 +432,7 @@ async function creditAward(
       input.ranking.ticketId,
       input.type === "general" ? "general" : input.type === "extra" ? "extra" : "daily",
       input.amountCents,
-      `prize_${awardId}`,
+      externalRef,
       JSON.stringify(metadata),
     ]
   );
@@ -441,6 +468,8 @@ async function processClosure(
   });
   const totalRevenueCents = tickets.reduce((sum, ticket) => sum + Number(ticket.total_amount_cents || 0), 0);
   const poolCents = calculatePrizePoolCents(totalRevenueCents);
+  if (tickets.length === 0 || poolCents <= 0) return;
+
   const closureId = await insertClosure(client, {
     compId: input.compId,
     type: input.type,
@@ -453,7 +482,7 @@ async function processClosure(
       ...(input.metadataExtra ?? {}),
     },
   });
-  if (!closureId || tickets.length === 0 || poolCents <= 0) return;
+  if (!closureId) return;
 
   const predictions = await listPredictionsForTickets(client, tickets.map((ticket) => ticket.id));
   const ranking = buildRanking({ tickets, predictions, matches: input.matches });
@@ -471,6 +500,11 @@ async function processClosure(
       ranking: row,
     });
   }
+
+  await client.query(
+    `UPDATE prize_closures SET processado = true, updated_at = now() WHERE id = $1 AND processado = false`,
+    [closureId]
+  );
 }
 
 export async function processPrizeClosuresAfterMatchSync(

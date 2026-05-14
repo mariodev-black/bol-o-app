@@ -160,6 +160,11 @@ function formatClosingCountdown(lockMs: number | null): string {
   return `${h}h ${String(m).padStart(2, "0")}m`;
 }
 
+function rankingTicketShortLabel(ticketId: string): string {
+  const hex = String(ticketId).replace(/-/g, "");
+  return hex.slice(0, 6).toUpperCase();
+}
+
 function PlayerAvatar({
   userId,
   displayName,
@@ -347,16 +352,60 @@ function RankingDataRow({ row }: { row: BoardRow }) {
   );
 }
 
+function RankingMyCotaFooterCard({ row }: { row: BoardRow }) {
+  return (
+    <div
+      className="relative grid grid-cols-[40px_minmax(0,1fr)_64px_56px] items-start gap-x-1 gap-y-0 overflow-hidden rounded-2xl border px-3 py-2.5"
+      style={{
+        background: "linear-gradient(90deg, rgba(177,235,11,0.18), rgba(177,235,11,0.05))",
+        borderColor: "rgba(177,235,11,0.35)",
+        boxShadow: "0 0 24px rgba(177,235,11,0.12)",
+      }}
+    >
+      <span
+        className="absolute left-2 top-2.5 z-1 rounded px-1 py-0.5 text-[7px] font-black uppercase text-[#0E141B]"
+        style={{ background: PRIMARY }}
+      >
+        Você
+      </span>
+      <span className="pl-10 pt-0.5 text-[13px] font-black tabular-nums text-white">{row.pos}</span>
+      <div className="min-w-0 pt-0.5">
+        <div className="flex items-center gap-2">
+          <PlayerAvatar
+            userId={row.userId}
+            displayName={row.displayName}
+            isMe
+            avatarIndex={row.avatarIndex}
+            avatarUploadFilename={row.avatarUploadFilename}
+            sizeClass="size-8"
+          />
+          <span className="truncate text-[12px] font-black text-white">{row.displayName}</span>
+          <Check className="size-3 shrink-0 text-primary" strokeWidth={3} aria-hidden />
+        </div>
+        <p className="mt-0.5 truncate pl-10 text-[10px] font-bold uppercase tracking-wide text-white/45">
+          Cota #{rankingTicketShortLabel(row.ticketId)}
+        </p>
+      </div>
+      <span className="pt-0.5 text-right text-[12px] font-bold tabular-nums text-white/85">
+        {row.outcomeCount}
+      </span>
+      <span className="pt-0.5 text-right text-[14px] font-black tabular-nums text-primary">
+        {row.totalPoints}
+      </span>
+    </div>
+  );
+}
+
 function RankingPodiumAndTable({
   provisional,
   padTopThree,
   rowsFourToTen,
-  myRow,
+  myRowsFooter,
 }: {
   provisional: ReactNode;
   padTopThree: readonly [BoardRow | null, BoardRow | null, BoardRow | null];
   rowsFourToTen: BoardRow[];
-  myRow: BoardRow | null;
+  myRowsFooter: BoardRow[];
 }) {
   return (
     <>
@@ -396,51 +445,16 @@ function RankingPodiumAndTable({
         </div>
       </section>
 
-      {myRow != null && myRow.pos > 10 ? (
-        <section className="mt-3">
-          <div
-            className="relative grid grid-cols-[40px_minmax(0,1fr)_64px_56px] items-center gap-1 overflow-hidden rounded-2xl border px-3 py-3"
-            style={{
-              background:
-                "linear-gradient(90deg, rgba(177,235,11,0.18), rgba(177,235,11,0.05))",
-              borderColor: "rgba(177,235,11,0.35)",
-              boxShadow: "0 0 24px rgba(177,235,11,0.12)",
-            }}
-          >
-            <span
-              className="absolute left-2 top-1/2 z-1 -translate-y-1/2 rounded px-1 py-0.5 text-[7px] font-black uppercase text-[#0E141B]"
-              style={{ background: PRIMARY }}
-            >
-              Você
-            </span>
-            <span className="pl-10 text-[13px] font-black tabular-nums text-white">
-              {myRow.pos}
-            </span>
-            <div className="flex min-w-0 items-center gap-2">
-              <PlayerAvatar
-                userId={myRow.userId}
-                displayName={myRow.displayName}
-                isMe
-                avatarIndex={myRow.avatarIndex}
-                avatarUploadFilename={myRow.avatarUploadFilename}
-                sizeClass="size-8"
-              />
-              <span className="truncate text-[12px] font-black text-white">
-                {myRow.displayName}
-              </span>
-              <Check
-                className="size-3 shrink-0 text-primary"
-                strokeWidth={3}
-                aria-hidden
-              />
-            </div>
-            <span className="text-right text-[12px] font-bold tabular-nums text-white/85">
-              {myRow.outcomeCount}
-            </span>
-            <span className="text-right text-[14px] font-black tabular-nums text-primary">
-              {myRow.totalPoints}
-            </span>
-          </div>
+      {myRowsFooter.length > 0 ? (
+        <section className="mt-3 space-y-2">
+          {myRowsFooter.length > 1 ? (
+            <p className="px-0.5 text-[9px] font-black uppercase tracking-widest text-white/42">
+              Suas cotas neste bolão
+            </p>
+          ) : null}
+          {myRowsFooter.map((row) => (
+            <RankingMyCotaFooterCard key={row.ticketId} row={row} />
+          ))}
         </section>
       ) : null}
     </>
@@ -670,15 +684,15 @@ export default function RankingPage() {
     [rankingRows],
   );
 
-  const myRow = useMemo(() => {
-    if (myRows.length === 0) return null;
-    const tid = selectedScope?.ticketId ?? null;
-    if (tid) {
-      const exact = myRows.find((r) => r.ticketId === tid);
-      if (exact) return exact;
-    }
-    return myRows.reduce((a, b) => (a.pos <= b.pos ? a : b));
-  }, [myRows, selectedScope?.ticketId]);
+  /** Todas as cotas do usuário neste bolão. Várias cotas: sempre lista embaixo; uma só fora do top 10: bloco único. */
+  const myRowsFooter = useMemo(() => {
+    const sorted = [...myRows].sort(
+      (a, b) => a.pos - b.pos || String(a.ticketId).localeCompare(String(b.ticketId)),
+    );
+    if (sorted.length === 0) return [];
+    if (sorted.length >= 2) return sorted;
+    return sorted[0]!.pos > 10 ? sorted : [];
+  }, [myRows]);
 
   const { primary: poolSelectPrimary, secondary: poolSelectSecondary } =
     useMemo(() => {
@@ -1094,7 +1108,7 @@ export default function RankingPage() {
                           }
                           padTopThree={padTopThree}
                           rowsFourToTen={rowsFourToTen}
-                          myRow={myRow}
+                          myRowsFooter={myRowsFooter}
                         />
                       </section>
                     ) : null}
@@ -1149,7 +1163,7 @@ export default function RankingPage() {
                           }
                           padTopThree={padTopThree}
                           rowsFourToTen={rowsFourToTen}
-                          myRow={myRow}
+                          myRowsFooter={myRowsFooter}
                         />
                       </section>
                     ) : null}
