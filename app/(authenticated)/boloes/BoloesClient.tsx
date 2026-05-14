@@ -143,6 +143,11 @@ function formatCountdown(targetMs: number | null, now: number): string {
     .join(":");
 }
 
+/** Prazo de palpite / fechamento já ocorreu (ex.: jogo já aconteceu). */
+function lockHasPassed(targetMs: number | null, now: number): boolean {
+  return targetMs != null && now >= targetMs;
+}
+
 function positionLabel(position: number | null) {
   return position == null ? "--" : `#${position}`;
 }
@@ -904,22 +909,24 @@ function UpcomingExtraOfferCard({
   const isCopaBr = isCopaDoBrasilChampionshipTitle(ex.title);
   const accent = isCopaBr ? GREEN : EXTRA_ACCENT;
   const ticketImg = isCopaBr ? iconCopaBrasil : ticketBlue;
+  const showVerResultados = lockHasPassed(ex.closesAtMs, now);
 
   return (
     <Link
       href={ex.href}
+      aria-label={showVerResultados ? "Ver resultados" : "Fazer palpites"}
       className={[
         "group relative flex min-h-0 flex-col overflow-hidden rounded-[18px] border bg-[#121212] shadow-[0_20px_48px_rgba(0,0,0,0.55)] transition-transform duration-300 active:scale-[0.985]",
         fullWidth ? "w-full" : "w-[368px] max-w-[88vw] shrink-0 snap-center",
       ].join(" ")}
       style={{
         borderColor: accent,
-        boxShadow: `0 20px 48px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.04), 0 0 28px ${accent}22`,
+        boxShadow: `0 20px 48px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.04), 0 0 28px ${GREEN}33`,
       }}
     >
       <div
         className="pointer-events-none absolute -left-16 -top-12 size-36 rounded-full blur-3xl transition-opacity duration-500 group-hover:opacity-95"
-        style={{ background: `${accent}22` }}
+        style={{ background: `${GREEN}22` }}
         aria-hidden
       />
 
@@ -928,7 +935,7 @@ function UpcomingExtraOfferCard({
         <div
           className="relative flex flex-col items-center justify-center border-r border-white/8 px-2 py-4"
           style={{
-            background: `radial-gradient(circle at 50% 38%, ${accent}24 0%, rgba(255,255,255,0.02) 42%, transparent 70%)`,
+            background: `radial-gradient(circle at 50% 38%, ${GREEN}28 0%, rgba(255,255,255,0.02) 42%, transparent 70%)`,
           }}
         >
           <Image
@@ -937,13 +944,16 @@ function UpcomingExtraOfferCard({
             width={88}
             height={88}
             className="h-[76px] w-[68px] object-contain transition-transform duration-300 group-hover:scale-[1.03]"
-            style={{
-              filter: `drop-shadow(0 0 18px ${accent}88) drop-shadow(0 6px 20px ${accent}55)`,
-            }}
           />
           {isCopaBr ? (
             <div className="mt-1.5 text-center leading-tight">
-              
+              <p className="text-[9px] font-semibold text-white/85">Copa do</p>
+              <p
+                className="text-[11px] font-black uppercase tracking-wide"
+                style={{ color: GREEN }}
+              >
+                Brasil
+              </p>
             </div>
           ) : (
             <div className="mt-1.5 text-center leading-tight">
@@ -988,12 +998,18 @@ function UpcomingExtraOfferCard({
               />
               <span>
                 Fecha em:{" "}
-                <span
-                  className="font-mono text-[12px] font-black tabular-nums min-[380px]:text-[13px]"
-                  style={{ color: GREEN }}
-                >
-                  {formatCountdown(ex.closesAtMs, now)}
-                </span>
+                {lockHasPassed(ex.closesAtMs, now) ? (
+                  <span className="text-[12px] font-black uppercase tracking-wide text-white/55 min-[380px]:text-[13px]">
+                    Fechado
+                  </span>
+                ) : (
+                  <span
+                    className="font-mono text-[12px] font-black tabular-nums min-[380px]:text-[13px]"
+                    style={{ color: GREEN }}
+                  >
+                    {formatCountdown(ex.closesAtMs, now)}
+                  </span>
+                )}
               </span>
             </p>
           </div>
@@ -1033,7 +1049,7 @@ function UpcomingExtraOfferCard({
           className="flex h-11 w-full items-center justify-center gap-2 rounded-[10px] text-[11px] font-black uppercase tracking-[0.06em] shadow-[0_6px_22px_rgba(177,235,11,0.32)] transition-[filter] group-hover:brightness-105 min-[380px]:h-12 min-[380px]:text-[12px]"
           style={{ background: GREEN, color: INK }}
         >
-          Fazer palpites
+          {showVerResultados ? "Ver resultados" : "Fazer palpites"}
           <ArrowRight className="size-4 shrink-0" strokeWidth={2.6} aria-hidden />
         </span>
       </div>
@@ -1104,22 +1120,26 @@ function ActiveShowcaseCard({
     : isCopaBrExtra
       ? iconCopaBrasil
       : ticketBlue;
+  const showVerResultados =
+    item.status === "usado" ||
+    lockHasPassed(item.countdownTargetMs ?? null, now);
 
   return (
     <Link
       href={item.href}
+      aria-label={showVerResultados ? "Ver resultados" : "Fazer palpites"}
       className={[
         "group relative flex min-h-0 flex-col overflow-hidden rounded-[18px] border bg-[#121212] shadow-[0_20px_48px_rgba(0,0,0,0.55)] transition-transform duration-300 active:scale-[0.985]",
         fullWidth ? "w-full" : "w-[368px] max-w-[88vw] shrink-0 snap-center",
       ].join(" ")}
       style={{
         borderColor: tone,
-        boxShadow: `0 20px 48px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.04), 0 0 28px ${tone}22`,
+        boxShadow: `0 20px 48px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.04), 0 0 28px ${GREEN}33`,
       }}
     >
       <div
         className="pointer-events-none absolute -left-16 -top-12 size-36 rounded-full blur-3xl transition-opacity duration-500 group-hover:opacity-95"
-        style={{ background: `${tone}22` }}
+        style={{ background: `${GREEN}22` }}
         aria-hidden
       />
 
@@ -1127,7 +1147,7 @@ function ActiveShowcaseCard({
         <div
           className="relative flex flex-col items-center justify-center border-r border-white/8 px-2 py-4"
           style={{
-            background: `radial-gradient(circle at 50% 38%, ${tone}24 0%, rgba(255,255,255,0.02) 42%, transparent 70%)`,
+            background: `radial-gradient(circle at 50% 38%, ${GREEN}28 0%, rgba(255,255,255,0.02) 42%, transparent 70%)`,
           }}
         >
           <Image
@@ -1136,9 +1156,6 @@ function ActiveShowcaseCard({
             width={88}
             height={88}
             className="h-[76px] w-[68px] object-contain transition-transform duration-300 group-hover:scale-[1.03]"
-            style={{
-              filter: `drop-shadow(0 0 18px ${tone}88) drop-shadow(0 6px 20px ${tone}55)`,
-            }}
           />
           {isPrincipal ? (
             <div className="mt-1.5 text-center leading-tight">
@@ -1154,7 +1171,13 @@ function ActiveShowcaseCard({
             </div>
           ) : isCopaBrExtra ? (
             <div className="mt-1.5 text-center leading-tight">
-              
+              <p className="text-[9px] font-semibold text-white/85">Copa do</p>
+              <p
+                className="text-[11px] font-black uppercase tracking-wide"
+                style={{ color: GREEN }}
+              >
+                Brasil
+              </p>
             </div>
           ) : (
             <div className="mt-1.5 text-center leading-tight">
@@ -1201,15 +1224,21 @@ function ActiveShowcaseCard({
                   />
                   <span>
                     Fecha em:{" "}
-                    <span
-                      className="font-mono text-[12px] font-black tabular-nums min-[380px]:text-[13px]"
-                      style={{ color: GREEN }}
-                    >
-                      {formatCountdown(
-                        item.countdownTargetMs ?? null,
-                        now,
-                      )}
-                    </span>
+                    {lockHasPassed(item.countdownTargetMs ?? null, now) ? (
+                      <span className="text-[12px] font-black uppercase tracking-wide text-white/55 min-[380px]:text-[13px]">
+                        Fechado
+                      </span>
+                    ) : (
+                      <span
+                        className="font-mono text-[12px] font-black tabular-nums min-[380px]:text-[13px]"
+                        style={{ color: GREEN }}
+                      >
+                        {formatCountdown(
+                          item.countdownTargetMs ?? null,
+                          now,
+                        )}
+                      </span>
+                    )}
                   </span>
                 </p>
                 <div className="pt-0.5">
@@ -1244,15 +1273,21 @@ function ActiveShowcaseCard({
                   />
                   <span>
                     {item.countdownLabel ?? "Fecha em"}:{" "}
-                    <span
-                      className="font-mono text-[12px] font-black tabular-nums min-[380px]:text-[13px]"
-                      style={{ color: GREEN }}
-                    >
-                      {formatCountdown(
-                        item.countdownTargetMs ?? null,
-                        now,
-                      )}
-                    </span>
+                    {lockHasPassed(item.countdownTargetMs ?? null, now) ? (
+                      <span className="text-[12px] font-black uppercase tracking-wide text-white/55 min-[380px]:text-[13px]">
+                        Fechado
+                      </span>
+                    ) : (
+                      <span
+                        className="font-mono text-[12px] font-black tabular-nums min-[380px]:text-[13px]"
+                        style={{ color: GREEN }}
+                      >
+                        {formatCountdown(
+                          item.countdownTargetMs ?? null,
+                          now,
+                        )}
+                      </span>
+                    )}
                   </span>
                 </p>
               </>
@@ -1288,7 +1323,7 @@ function ActiveShowcaseCard({
           className="flex h-11 w-full items-center justify-center gap-2 rounded-[10px] text-[11px] font-black uppercase tracking-[0.06em] shadow-[0_6px_22px_rgba(177,235,11,0.32)] transition-[filter] group-hover:brightness-105 min-[380px]:h-12 min-[380px]:text-[12px]"
           style={{ background: GREEN, color: INK }}
         >
-          Fazer palpites
+          {showVerResultados ? "Ver resultados" : "Fazer palpites"}
           <ArrowRight className="size-4 shrink-0" strokeWidth={2.6} aria-hidden />
         </span>
       </div>
@@ -1875,7 +1910,7 @@ export function BoloesClient({
                 />
               ) : (
                 <CarouselShell
-                  tone={YELLOW}
+                  tone={GREEN}
                   itemCount={diarioShowcaseItems.length}
                 >
                   {diarioShowcaseItems.map((item) => (
@@ -1961,7 +1996,7 @@ export function BoloesClient({
                 )
               ) : (
                 <CarouselShell
-                  tone={EXTRA_ACCENT}
+                  tone={GREEN}
                   itemCount={extraCollapsedCount}
                 >
                   {extraShowcaseItems.length > 0
