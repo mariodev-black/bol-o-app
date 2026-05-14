@@ -997,18 +997,20 @@ function UpcomingExtraOfferCard({
                 aria-hidden
               />
               <span>
-                Fecha em:{" "}
-                {lockHasPassed(ex.closesAtMs, now) ? (
+                {showVerResultados ? (
                   <span className="text-[12px] font-black uppercase tracking-wide text-white/55 min-[380px]:text-[13px]">
-                    Fechado
+                    Finalizado
                   </span>
                 ) : (
-                  <span
-                    className="font-mono text-[12px] font-black tabular-nums min-[380px]:text-[13px]"
-                    style={{ color: GREEN }}
-                  >
-                    {formatCountdown(ex.closesAtMs, now)}
-                  </span>
+                  <>
+                    Fecha em:{" "}
+                    <span
+                      className="font-mono text-[12px] font-black tabular-nums min-[380px]:text-[13px]"
+                      style={{ color: GREEN }}
+                    >
+                      {formatCountdown(ex.closesAtMs, now)}
+                    </span>
+                  </>
                 )}
               </span>
             </p>
@@ -1113,8 +1115,14 @@ function ActiveShowcaseCard({
   const isPrincipal = kind === "principal";
   const isExtra = kind === "extra";
   const progress = Math.max(0, Math.min(100, item.progress ?? 0));
-  const tone = isPrincipal ? GREEN : isExtra ? EXTRA_ACCENT : YELLOW;
   const isCopaBrExtra = isExtra && isCopaDoBrasilChampionshipTitle(item.title);
+  const tone = isPrincipal
+    ? GREEN
+    : isCopaBrExtra
+      ? GREEN
+      : isExtra
+        ? EXTRA_ACCENT
+        : YELLOW;
   const image = isPrincipal
     ? ticketGold
     : isCopaBrExtra
@@ -1223,21 +1231,23 @@ function ActiveShowcaseCard({
                     aria-hidden
                   />
                   <span>
-                    Fecha em:{" "}
-                    {lockHasPassed(item.countdownTargetMs ?? null, now) ? (
+                    {showVerResultados ? (
                       <span className="text-[12px] font-black uppercase tracking-wide text-white/55 min-[380px]:text-[13px]">
-                        Fechado
+                        Finalizado
                       </span>
                     ) : (
-                      <span
-                        className="font-mono text-[12px] font-black tabular-nums min-[380px]:text-[13px]"
-                        style={{ color: GREEN }}
-                      >
-                        {formatCountdown(
-                          item.countdownTargetMs ?? null,
-                          now,
-                        )}
-                      </span>
+                      <>
+                        Fecha em:{" "}
+                        <span
+                          className="font-mono text-[12px] font-black tabular-nums min-[380px]:text-[13px]"
+                          style={{ color: GREEN }}
+                        >
+                          {formatCountdown(
+                            item.countdownTargetMs ?? null,
+                            now,
+                          )}
+                        </span>
+                      </>
                     )}
                   </span>
                 </p>
@@ -1272,21 +1282,23 @@ function ActiveShowcaseCard({
                     aria-hidden
                   />
                   <span>
-                    {item.countdownLabel ?? "Fecha em"}:{" "}
-                    {lockHasPassed(item.countdownTargetMs ?? null, now) ? (
+                    {showVerResultados ? (
                       <span className="text-[12px] font-black uppercase tracking-wide text-white/55 min-[380px]:text-[13px]">
-                        Fechado
+                        Finalizado
                       </span>
                     ) : (
-                      <span
-                        className="font-mono text-[12px] font-black tabular-nums min-[380px]:text-[13px]"
-                        style={{ color: GREEN }}
-                      >
-                        {formatCountdown(
-                          item.countdownTargetMs ?? null,
-                          now,
-                        )}
-                      </span>
+                      <>
+                        {item.countdownLabel ?? "Fecha em"}:{" "}
+                        <span
+                          className="font-mono text-[12px] font-black tabular-nums min-[380px]:text-[13px]"
+                          style={{ color: GREEN }}
+                        >
+                          {formatCountdown(
+                            item.countdownTargetMs ?? null,
+                            now,
+                          )}
+                        </span>
+                      </>
                     )}
                   </span>
                 </p>
