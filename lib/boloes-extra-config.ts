@@ -38,3 +38,9 @@ export function getExtraBolaoTicketUnitCents(): number {
 export function isConfiguredExtraChampionshipId(id: number): boolean {
   return parseExtraBolaoChampionshipIds().includes(id);
 }
+
+/** Um único extra em env (ex. `BOLOES_EXTRA_CHAMPIONSHIP_IDS=2`) — fallback quando o ticket não tem `extra_championship_id`. */
+export function getSoleConfiguredExtraChampionshipId(): number | null {
+  const ids = parseExtraBolaoChampionshipIds();
+  return ids.length === 1 ? ids[0] ?? null : null;
+}

@@ -10,7 +10,11 @@ import { BoloesClient, type BoloesScreenData } from "@/app/(authenticated)/boloe
 import { BoloesPurchaseSync } from "@/app/(authenticated)/boloes/_components/BoloesPurchaseSync";
 import { getFootballMainCompetitionId, parseExtraBolaoChampionshipIds } from "@/lib/boloes-extra-config";
 import { warmCompetitionMetadataCache } from "@/lib/competition-metadata-cache";
-import { fetchExtraChampionshipIdByTicketIds } from "@/lib/ticket-competition-server";
+import {
+  fetchExtraChampionshipIdByTicketIds,
+  matchCompetitionForRankingPrediction,
+  mergeExtraChampionshipFromPaidTickets,
+} from "@/lib/ticket-competition-server";
 import { resolveDiarioPlayableDate } from "@/lib/diario-playable-date";
 
 export const dynamic = "force-dynamic";
@@ -162,10 +166,7 @@ function buildRankingMap(
   for (const prediction of predictions) {
     const matchId = Number(prediction.match_id);
     if (!Number.isFinite(matchId)) continue;
-    const comp =
-      prediction.bolao_type === "extra"
-        ? extraChampionshipByTicketId.get(prediction.ticket_id)
-        : mainComp;
+    const comp = matchCompetitionForRankingPrediction(prediction, extraChampionshipByTicketId, mainComp);
     if (comp == null || !Number.isFinite(comp) || comp <= 0) continue;
     const match = getMatchFromMap(matches, comp, matchId);
     if (!match || match.resultCasa == null || match.resultVisitante == null) continue;
@@ -254,8 +255,15 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
     }))
   );
 
-  const extraTicketIds = [...new Set(allPredictions.filter((p) => p.bolao_type === "extra").map((p) => p.ticket_id))];
+  const extraTicketIds = [
+    ...new Set(
+      allPredictions
+        .filter((p) => String(p.bolao_type ?? "").toLowerCase() === "extra")
+        .map((p) => String(p.ticket_id ?? "").trim()),
+    ),
+  ];
   const extraChampionshipByTicketId = await fetchExtraChampionshipIdByTicketIds(extraTicketIds);
+  mergeExtraChampionshipFromPaidTickets(extraChampionshipByTicketId, tickets);
   const ranking = buildRankingMap(allPredictions, matches, extraChampionshipByTicketId);
   const predictionsByTicket = new Map<string, PredictionRow[]>();
   for (const prediction of userPredictions) {
