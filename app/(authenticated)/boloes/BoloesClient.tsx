@@ -119,6 +119,7 @@ const EXTRA_ACCENT = "#2DD4BF";
 const CARD = "#111111";
 const CARD_ALT = "#0F0F0F";
 const BORDER = "rgba(255,255,255,0.06)";
+const INK = "#0E141B";
 
 function useNow(intervalMs = 1000) {
   const [now, setNow] = useState(() => Date.now());
@@ -903,13 +904,12 @@ function UpcomingExtraOfferCard({
   const isCopaBr = isCopaDoBrasilChampionshipTitle(ex.title);
   const accent = isCopaBr ? GREEN : EXTRA_ACCENT;
   const ticketImg = isCopaBr ? iconCopaBrasil : ticketBlue;
-  const ink = "#0E141B";
 
   return (
     <Link
       href={ex.href}
       className={[
-        "group relative flex min-h-0 flex-col overflow-hidden rounded-[18px] border bg-[#060806] shadow-[0_20px_48px_rgba(0,0,0,0.55)] transition-transform duration-300 active:scale-[0.985]",
+        "group relative flex min-h-0 flex-col overflow-hidden rounded-[18px] border bg-[#121212] shadow-[0_20px_48px_rgba(0,0,0,0.55)] transition-transform duration-300 active:scale-[0.985]",
         fullWidth ? "w-full" : "w-[368px] max-w-[88vw] shrink-0 snap-center",
       ].join(" ")}
       style={{
@@ -966,7 +966,7 @@ function UpcomingExtraOfferCard({
 
           <span
             className="mt-2.5 inline-flex w-fit items-center gap-1 rounded-[4px] px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.06em] sm:px-3 sm:text-[10px]"
-            style={{ background: GREEN, color: ink }}
+            style={{ background: GREEN, color: INK }}
           >
             <span aria-hidden>🔥</span>
             Palpites abertos
@@ -1031,13 +1031,55 @@ function UpcomingExtraOfferCard({
       <div className="relative z-10 px-3 pb-3.5 pt-1">
         <span
           className="flex h-11 w-full items-center justify-center gap-2 rounded-[10px] text-[11px] font-black uppercase tracking-[0.06em] shadow-[0_6px_22px_rgba(177,235,11,0.32)] transition-[filter] group-hover:brightness-105 min-[380px]:h-12 min-[380px]:text-[12px]"
-          style={{ background: GREEN, color: ink }}
+          style={{ background: GREEN, color: INK }}
         >
           Fazer palpites
           <ArrowRight className="size-4 shrink-0" strokeWidth={2.6} aria-hidden />
         </span>
       </div>
     </Link>
+  );
+}
+
+function ShowcaseHeroStatusPill({
+  status,
+  label,
+}: {
+  status: ActiveBolaoListItem["status"];
+  label: string;
+}) {
+  if (status === "ativo") {
+    return (
+      <span
+        className="mt-2.5 inline-flex w-fit items-center gap-1 rounded-[4px] px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.06em] sm:px-3 sm:text-[10px]"
+        style={{ background: GREEN, color: INK }}
+      >
+        <span aria-hidden>🔥</span>
+        Palpites abertos
+      </span>
+    );
+  }
+  if (status === "aguardando") {
+    return (
+      <span
+        className="mt-2.5 inline-flex w-fit items-center gap-1 rounded-[4px] px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.06em] sm:px-3 sm:text-[10px]"
+        style={{ background: YELLOW, color: INK }}
+      >
+        {label}
+      </span>
+    );
+  }
+  return (
+    <span
+      className="mt-2.5 inline-flex w-fit items-center gap-1 rounded-[4px] px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.06em] sm:px-3 sm:text-[10px]"
+      style={{ background: "#F87171", color: "#fff" }}
+    >
+      <span
+        className="mr-0.5 inline-block size-1.5 shrink-0 rounded-full bg-white/90"
+        aria-hidden
+      />
+      {label}
+    </span>
   );
 }
 
@@ -1062,130 +1104,193 @@ function ActiveShowcaseCard({
     : isCopaBrExtra
       ? iconCopaBrasil
       : ticketBlue;
-  const statusLabel = item.statusLabel;
 
   return (
     <Link
       href={item.href}
       className={[
-        "group relative grid min-h-[126px] grid-cols-[102px_minmax(0,1fr)_78px] overflow-hidden rounded-[14px] border bg-[#080A07] shadow-[0_18px_42px_rgba(0,0,0,0.55)] transition-transform duration-300 active:scale-[0.985]",
+        "group relative flex min-h-0 flex-col overflow-hidden rounded-[18px] border bg-[#121212] shadow-[0_20px_48px_rgba(0,0,0,0.55)] transition-transform duration-300 active:scale-[0.985]",
         fullWidth ? "w-full" : "w-[368px] max-w-[88vw] shrink-0 snap-center",
       ].join(" ")}
       style={{
-        borderColor: `${tone}42`,
-        boxShadow: `0 18px 42px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.05), 0 0 26px ${tone}0F`,
+        borderColor: tone,
+        boxShadow: `0 20px 48px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.04), 0 0 28px ${tone}22`,
       }}
     >
       <div
-        className="pointer-events-none absolute -left-20 -top-16 size-40 rounded-full blur-3xl transition-opacity duration-500 group-hover:opacity-90"
-        style={{ background: `${tone}18` }}
+        className="pointer-events-none absolute -left-16 -top-12 size-36 rounded-full blur-3xl transition-opacity duration-500 group-hover:opacity-95"
+        style={{ background: `${tone}22` }}
         aria-hidden
       />
 
-      <div
-        className="relative z-10 flex flex-col items-center justify-center px-2 text-center"
-        style={{
-          background: `radial-gradient(circle at 50% 42%, ${tone}18 0%, rgba(255,255,255,0.03) 35%, transparent 66%)`,
-        }}
-      >
-        <Image
-          src={image}
-          alt=""
-          className="h-[78px] w-[60px] object-contain transition-transform duration-500 group-hover:scale-105"
-          style={{ filter: `drop-shadow(0 8px 24px ${tone}42)` }}
-        />
-        <p
-          className="mt-1 whitespace-pre-line text-[12px] font-black uppercase leading-[0.9]"
-          style={{ color: tone }}
+      <div className="relative z-10 grid min-h-[132px] grid-cols-[minmax(0,92px)_minmax(0,1fr)_minmax(0,78px)] min-[380px]:grid-cols-[100px_minmax(0,1fr)_84px]">
+        <div
+          className="relative flex flex-col items-center justify-center border-r border-white/8 px-2 py-4"
+          style={{
+            background: `radial-gradient(circle at 50% 38%, ${tone}24 0%, rgba(255,255,255,0.02) 42%, transparent 70%)`,
+          }}
         >
-          {isPrincipal
-            ? "FIFA\nWorld Cup\n2026"
-            : isCopaBrExtra
-              ? ""
-              : isExtra
-                ? "Bolão\nExtra"
-                : "Bolão\nDo Dia"}
-        </p>
-      </div>
-
-      <div
-        className="relative z-10 min-w-0 border-l px-3.5 py-4"
-        style={{ borderColor: "rgba(255,255,255,0.08)" }}
-      >
-        <h3 className="text-[15px] font-black uppercase leading-none tracking-[-0.03em] text-white min-[380px]:text-[16px]">
-          {item.title}
-        </h3>
-        <p className="mt-2 font-mono text-[11px] font-semibold leading-none text-white/50">
-          {item.cotaLabel}
-        </p>
-
-        <div className="mt-3">
-          <StatusPill status={item.status} label={statusLabel} />
+          <Image
+            src={image}
+            alt=""
+            width={88}
+            height={88}
+            className="h-[76px] w-[68px] object-contain transition-transform duration-300 group-hover:scale-[1.03]"
+            style={{
+              filter: `drop-shadow(0 0 18px ${tone}88) drop-shadow(0 6px 20px ${tone}55)`,
+            }}
+          />
+          {isPrincipal ? (
+            <div className="mt-1.5 text-center leading-tight">
+              <p className="whitespace-pre-line text-[9px] font-semibold text-white/85">
+                {"FIFA\nWorld Cup"}
+              </p>
+              <p
+                className="text-[11px] font-black uppercase tracking-wide"
+                style={{ color: GREEN }}
+              >
+                2026
+              </p>
+            </div>
+          ) : isCopaBrExtra ? (
+            <div className="mt-1.5 text-center leading-tight">
+              
+            </div>
+          ) : (
+            <div className="mt-1.5 text-center leading-tight">
+              <p className="text-[9px] font-semibold text-white/85">Bolão</p>
+              <p
+                className="text-[11px] font-black uppercase tracking-wide"
+                style={{ color: tone }}
+              >
+                {isExtra ? "Extra" : "Do dia"}
+              </p>
+            </div>
+          )}
         </div>
 
-        {isPrincipal ? (
-          <div className="mt-4">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-[12px] font-semibold leading-none text-white/55">
-                Palpites enviados
-              </span>
-              <span className="text-[11px] font-black leading-none text-white">
-                {item.sent ?? 0} / {item.total ?? 0}
-              </span>
-            </div>
-            <div className="mt-2 h-[5px] overflow-hidden rounded-full bg-white/10">
-              <div
-                className="h-full rounded-full transition-[width] duration-700"
-                style={{
-                  width: `${progress}%`,
-                  background: `linear-gradient(90deg, ${tone}, #F3FF8A)`,
-                  boxShadow: `0 0 12px ${tone}70`,
-                }}
-              />
-            </div>
+        <div className="relative z-10 flex min-w-0 flex-col justify-center border-r border-white/8 px-3 py-3.5 min-[380px]:px-3.5">
+          <h3 className="text-[13px] font-black uppercase leading-[1.05] tracking-[-0.02em] text-white min-[380px]:text-[15px]">
+            {item.title}
+          </h3>
+          <p className="mt-1.5 font-mono text-[10px] font-semibold leading-none text-white/50 min-[380px]:text-[11px]">
+            {item.cotaLabel}
+          </p>
+
+          <ShowcaseHeroStatusPill
+            status={item.status}
+            label={item.statusLabel}
+          />
+
+          <div className="mt-3 space-y-2">
+            {isPrincipal ? (
+              <>
+                <p className="flex items-center gap-2 text-[11px] font-medium leading-snug text-white min-[380px]:text-[12px]">
+                  <MiniSoccerBallIcon className="size-4 shrink-0" />
+                  <span>
+                    <span className="font-black">{item.sent ?? 0}</span> /{" "}
+                    <span className="font-black">{item.total ?? 0}</span>{" "}
+                    palpites enviados
+                  </span>
+                </p>
+                <p className="flex items-center gap-2 text-[11px] font-medium leading-snug text-white min-[380px]:text-[12px]">
+                  <Clock
+                    className="size-4 shrink-0 text-white/90"
+                    strokeWidth={2.1}
+                    aria-hidden
+                  />
+                  <span>
+                    Fecha em:{" "}
+                    <span
+                      className="font-mono text-[12px] font-black tabular-nums min-[380px]:text-[13px]"
+                      style={{ color: GREEN }}
+                    >
+                      {formatCountdown(
+                        item.countdownTargetMs ?? null,
+                        now,
+                      )}
+                    </span>
+                  </span>
+                </p>
+                <div className="pt-0.5">
+                  <div className="h-[5px] overflow-hidden rounded-full bg-white/10">
+                    <div
+                      className="h-full rounded-full transition-[width] duration-700"
+                      style={{
+                        width: `${progress}%`,
+                        background: `linear-gradient(90deg, ${tone}, #F3FF8A)`,
+                        boxShadow: `0 0 10px ${tone}70`,
+                      }}
+                    />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="flex items-center gap-2 text-[11px] font-medium leading-snug text-white min-[380px]:text-[12px]">
+                  <MiniSoccerBallIcon className="size-4 shrink-0" />
+                  <span>
+                    <span className="font-black">{item.gamesCount ?? 0}</span>{" "}
+                    {isExtra
+                      ? "jogos nesta rodada"
+                      : "jogos neste dia"}
+                  </span>
+                </p>
+                <p className="flex items-center gap-2 text-[11px] font-medium leading-snug text-white min-[380px]:text-[12px]">
+                  <Clock
+                    className="size-4 shrink-0 text-white/90"
+                    strokeWidth={2.1}
+                    aria-hidden
+                  />
+                  <span>
+                    {item.countdownLabel ?? "Fecha em"}:{" "}
+                    <span
+                      className="font-mono text-[12px] font-black tabular-nums min-[380px]:text-[13px]"
+                      style={{ color: GREEN }}
+                    >
+                      {formatCountdown(
+                        item.countdownTargetMs ?? null,
+                        now,
+                      )}
+                    </span>
+                  </span>
+                </p>
+              </>
+            )}
           </div>
-        ) : (
-          <div className="mt-4 space-y-1.5">
-            <p className="text-[12px] font-medium text-white/55">
-              {isExtra
-                ? "Jogos neste campeonato (data da cota): "
-                : "Jogos do dia: "}
-              <span className="font-black text-white">
-                {item.gamesCount ?? 0} jogos
-              </span>
-            </p>
-            <p className="text-[12px] font-medium text-white/55">
-              {item.countdownLabel ?? "Início em"}:{" "}
-              <span className="font-black" style={{ color: GREEN_SOFT }}>
-                {formatCountdown(item.countdownTargetMs ?? null, now)}
-              </span>
-            </p>
-          </div>
-        )}
+        </div>
+
+        <div className="relative z-10 flex min-w-0 flex-col items-center justify-center px-1.5 py-3 text-center min-[380px]:px-2">
+          <p className="text-[7px] font-black uppercase leading-none tracking-[0.08em] text-white/55 min-[380px]:text-[8px]">
+            Sua posição
+          </p>
+          <p
+            className="mt-1.5 text-[17px] font-black leading-none min-[380px]:text-[19px]"
+            style={{ color: GREEN }}
+          >
+            {positionLabel(item.position)}
+          </p>
+          <div className="my-2.5 h-px w-[46px] bg-white/10 min-[380px]:w-[52px]" />
+          <p className="text-[7px] font-black uppercase tracking-[0.08em] text-white/55 min-[380px]:text-[8px]">
+            Pontos
+          </p>
+          <p
+            className="mt-1.5 text-[13px] font-black leading-none min-[380px]:text-[14px]"
+            style={{ color: GREEN }}
+          >
+            {pointsLabel(item.points)}
+          </p>
+        </div>
       </div>
 
-      <div
-        className="relative z-10 flex min-w-0 flex-col items-center justify-center border-l px-2 text-center"
-        style={{ borderColor: "rgba(255,255,255,0.08)" }}
-      >
-        <p className="text-[7px] font-black uppercase leading-[0.95] tracking-[0.08em] text-white/40">
-          Sua
-          <br />
-          posição
-        </p>
-        <p className="mt-2 text-[18px] font-black leading-none text-white">
-          {positionLabel(item.position)}
-        </p>
-        <div className="my-3 h-px w-[50px] bg-white/8" />
-        <p className="text-[7px] font-black uppercase tracking-[0.08em] text-white/40">
-          Pontos
-        </p>
-        <p
-          className="mt-1 whitespace-nowrap text-[14px] font-black leading-none"
-          style={{ color: tone }}
+      <div className="relative z-10 px-3 pb-3.5 pt-1">
+        <span
+          className="flex h-11 w-full items-center justify-center gap-2 rounded-[10px] text-[11px] font-black uppercase tracking-[0.06em] shadow-[0_6px_22px_rgba(177,235,11,0.32)] transition-[filter] group-hover:brightness-105 min-[380px]:h-12 min-[380px]:text-[12px]"
+          style={{ background: GREEN, color: INK }}
         >
-          {pointsLabel(item.points)}
-        </p>
+          Fazer palpites
+          <ArrowRight className="size-4 shrink-0" strokeWidth={2.6} aria-hidden />
+        </span>
       </div>
     </Link>
   );
