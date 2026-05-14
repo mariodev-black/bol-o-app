@@ -67,10 +67,13 @@ function summarizeSyncForLog(sync: MaintenanceTickResult["sync"]): Record<string
   if ("skipped" in sync && sync.skipped) {
     return { skipped: true, reason: sync.reason };
   }
-  return {
-    skipped: false,
-    refreshed: sync.refreshed,
-    reason: sync.reason,
-    ...("count" in sync && sync.count != null ? { count: sync.count } : {}),
-  };
+  if ("refreshed" in sync) {
+    return {
+      skipped: false,
+      refreshed: sync.refreshed,
+      reason: sync.reason,
+      ...("count" in sync && typeof sync.count === "number" ? { count: sync.count } : {}),
+    };
+  }
+  return { skipped: false, note: "unexpected-sync-shape" };
 }
