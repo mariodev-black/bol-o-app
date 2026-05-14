@@ -165,6 +165,11 @@ function rankingTicketShortLabel(ticketId: string): string {
   return hex.slice(0, 6).toUpperCase();
 }
 
+function formatRankingPlaceLabel(pos: number): string {
+  if (!Number.isFinite(pos) || pos < 1) return "—";
+  return `${pos}º lugar`;
+}
+
 function PlayerAvatar({
   userId,
   displayName,
@@ -384,6 +389,9 @@ function RankingMyCotaFooterCard({ row }: { row: BoardRow }) {
         </div>
         <p className="mt-0.5 truncate pl-10 text-[10px] font-bold uppercase tracking-wide text-white/45">
           Cota #{rankingTicketShortLabel(row.ticketId)}
+        </p>
+        <p className="mt-0.5 truncate pl-10 text-[11px] font-black text-primary">
+          Posição: {formatRankingPlaceLabel(row.pos)}
         </p>
       </div>
       <span className="pt-0.5 text-right text-[12px] font-bold tabular-nums text-white/85">
