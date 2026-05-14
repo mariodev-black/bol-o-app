@@ -1081,6 +1081,18 @@ function ActiveShowcaseCard({
           className="h-[78px] w-[60px] object-contain transition-transform duration-500 group-hover:scale-105"
           style={{ filter: `drop-shadow(0 8px 24px ${tone}42)` }}
         />
+        <p
+          className="mt-1 whitespace-pre-line text-[12px] font-black uppercase leading-[0.9]"
+          style={{ color: tone }}
+        >
+          {isPrincipal
+            ? "FIFA\nWorld Cup\n2026"
+            : isCopaBrExtra
+              ? ""
+              : isExtra
+                ? "Bolão\nExtra"
+                : "Bolão\nDo Dia"}
+        </p>
       </div>
 
       <div
