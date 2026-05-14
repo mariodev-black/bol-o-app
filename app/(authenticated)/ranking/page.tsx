@@ -30,12 +30,14 @@ import {
   TrophySilver,
   TrophyBronze,
 } from "@/app/components/RankingTrophies";
+import iconCopaBrasil from "@/app/assets/icon-copa-brasil.png";
 import { RankingPromoCards } from "@/app/(authenticated)/ranking/_components/RankingPromoCards";
 import {
   RankingBoardSkeleton,
   RankingFullPageSkeleton,
 } from "@/app/(authenticated)/ranking/_components/RankingPageSkeletons";
 import type { RankingScopeOption } from "@/lib/ranking/scopes";
+import { isCopaDoBrasilChampionshipTitle } from "@/lib/boloes-copa-brasil-branding";
 import { getAvatarPresetImage } from "@/lib/user/avatar-presets";
 
 type BoardRow = {
@@ -97,6 +99,7 @@ function SoccerBallIcon({ className }: { className?: string }) {
 function scopeGlyphForMode(
   mode: RankingScopeOption["mode"] | undefined,
   size: "md" | "sm" = "md",
+  extraSelectPrimary?: string | null,
 ) {
   const dim = size === "md" ? "size-[22px]" : "size-[18px]";
   if (mode === "principal")
@@ -107,7 +110,21 @@ function scopeGlyphForMode(
         aria-hidden
       />
     );
-  if (mode === "extra")
+  if (mode === "extra") {
+    const copaBr =
+      extraSelectPrimary != null &&
+      isCopaDoBrasilChampionshipTitle(extraSelectPrimary);
+    if (copaBr) {
+      return (
+        <Image
+          src={iconCopaBrasil}
+          alt=""
+          width={size === "md" ? 22 : 18}
+          height={size === "md" ? 22 : 18}
+          className={`${dim} shrink-0 object-contain`}
+        />
+      );
+    }
     return (
       <Sparkles
         className={`${dim} shrink-0 text-primary`}
@@ -115,6 +132,7 @@ function scopeGlyphForMode(
         aria-hidden
       />
     );
+  }
   return <SoccerBallIcon className={dim} />;
 }
 
@@ -902,7 +920,13 @@ export default function RankingPage() {
                       className="flex size-11 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-black/50 shadow-inner"
                       aria-hidden
                     >
-                      {scopeGlyphForMode(selectedScope?.mode, "md")}
+                      {scopeGlyphForMode(
+                        selectedScope?.mode,
+                        "md",
+                        selectedScope?.mode === "extra"
+                          ? selectedScope.selectPrimary
+                          : null,
+                      )}
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[14px] font-black leading-tight text-white">
@@ -970,7 +994,13 @@ export default function RankingPage() {
                                 >
                                   <span className="flex min-w-0 items-center gap-3">
                                     <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-white/12 bg-linear-to-b from-zinc-900/90 to-black/90 shadow-inner">
-                                      {scopeGlyphForMode(option.mode, "sm")}
+                                      {scopeGlyphForMode(
+                                      option.mode,
+                                      "sm",
+                                      option.mode === "extra"
+                                        ? option.selectPrimary
+                                        : null,
+                                    )}
                                     </span>
                                     <span className="min-w-0">
                                       {(() => {
