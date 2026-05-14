@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
-import { fetchMatchesMap } from "@/lib/football-api";
+import { fetchMatchesMap, getMatchFromMap } from "@/lib/football-api";
 import { calcPredictionPoints, listPredictions, type PredictionBolaoType } from "@/lib/predictions";
 import { inferBolaoTypeFromTicketId } from "@/lib/ticket-kind-server";
+import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
+import { fetchExtraChampionshipIdByTicketIds } from "@/lib/ticket-competition-server";
+import { getPool } from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -38,22 +41,38 @@ export async function GET(request: NextRequest) {
 
   let preds = await listPredictions({ userId, bolaoType });
   const matches = await fetchMatchesMap();
+  const mainComp = getFootballMainCompetitionId();
   if (ticketId && (bolaoType === "diario" || bolaoType === "extra")) {
+    const pool = getPool();
+    const { rows } = await pool.query<{ extra_championship_id: number | null }>(
+      `SELECT extra_championship_id FROM tickets WHERE id::text = $1 AND status = 'paid' LIMIT 1`,
+      [ticketId],
+    );
+    const extraCid = rows[0]?.extra_championship_id;
+    const filterComp =
+      bolaoType === "diario"
+        ? mainComp
+        : extraCid != null && Number.isFinite(Number(extraCid)) && Number(extraCid) > 0
+          ? Number(extraCid)
+          : mainComp;
     const selectedDates = new Set(
       preds
         .filter((p) => p.ticket_id === ticketId)
-        .map((p) => matches.get(Number(p.match_id))?.dateBR)
+        .map((p) => getMatchFromMap(matches, filterComp, Number(p.match_id))?.dateBR)
         .filter((d): d is string => Boolean(d))
     );
     if (selectedDates.size > 0) {
       preds = preds.filter((p) => {
-        const d = matches.get(Number(p.match_id))?.dateBR;
+        const d = getMatchFromMap(matches, filterComp, Number(p.match_id))?.dateBR;
         return d ? selectedDates.has(d) : false;
       });
     } else {
       preds = preds.filter((p) => p.ticket_id === ticketId);
     }
   }
+  const extraForRanking = await fetchExtraChampionshipIdByTicketIds([
+    ...new Set(preds.filter((p) => p.bolao_type === "extra").map((p) => p.ticket_id)),
+  ]);
   const byTicket = new Map<string, {
     ticketId: string;
     totalPoints: number;
@@ -68,7 +87,9 @@ export async function GET(request: NextRequest) {
   for (const p of preds) {
     const matchId = Number(p.match_id);
     if (!Number.isFinite(matchId)) continue;
-    const m = matches.get(matchId);
+    const comp = p.bolao_type === "extra" ? extraForRanking.get(p.ticket_id) ?? null : mainComp;
+    if (comp == null || !Number.isFinite(comp) || comp <= 0) continue;
+    const m = getMatchFromMap(matches, comp, matchId);
     if (!m || m.resultCasa == null || m.resultVisitante == null) continue;
     const cur =
       byTicket.get(p.ticket_id) ??

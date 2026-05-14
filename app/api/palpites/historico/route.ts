@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
-import { fetchMatchesMap } from "@/lib/football-api";
+import { fetchMatchesMap, getMatchFromMap } from "@/lib/football-api";
 import { calcPredictionPoints, listPredictions, type PredictionBolaoType } from "@/lib/predictions";
 import { inferBolaoTypeFromTicketId } from "@/lib/ticket-kind-server";
+import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
+import { fetchExtraChampionshipIdByTicketIds } from "@/lib/ticket-competition-server";
 
 export const runtime = "nodejs";
 
@@ -38,12 +40,20 @@ export async function GET(request: NextRequest) {
   const limit = Math.min(100, Math.max(1, Number.parseInt(request.nextUrl.searchParams.get("limit") ?? "20", 10) || 20));
   const preds = await listPredictions({ userId, bolaoType, ticketId });
   const matches = await fetchMatchesMap();
+  const mainComp = getFootballMainCompetitionId();
+  const extraMap = await fetchExtraChampionshipIdByTicketIds(
+    [...new Set(preds.filter((p) => p.bolao_type === "extra").map((p) => p.ticket_id))],
+  );
 
   const rows = preds
     .map((p) => {
       const matchId = Number(p.match_id);
       const normalizedMatchId = Number.isFinite(matchId) ? matchId : null;
-      const m = normalizedMatchId != null ? matches.get(normalizedMatchId) : undefined;
+      const comp = p.bolao_type === "extra" ? extraMap.get(p.ticket_id) ?? null : mainComp;
+      const m =
+        normalizedMatchId != null && comp != null && Number.isFinite(comp) && comp > 0
+          ? getMatchFromMap(matches, comp, normalizedMatchId)
+          : undefined;
       const scored = m?.resultCasa != null && m?.resultVisitante != null;
       const calc =
         scored && m

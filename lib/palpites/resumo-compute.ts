@@ -1,6 +1,8 @@
-import { fetchMatchesMap } from "@/lib/football-api";
+import { fetchMatchesMap, getMatchFromMap } from "@/lib/football-api";
 import { calcPredictionPoints, listPredictions } from "@/lib/predictions";
 import { inferBolaoTypeFromTicketId } from "@/lib/ticket-kind-server";
+import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
+import { fetchExtraChampionshipIdByTicketIds } from "@/lib/ticket-competition-server";
 
 export type PalpitesResumo = {
   palpites: number;
@@ -28,6 +30,11 @@ export async function computePalpitesResumo(
     fetchMatchesMap(),
   ]);
 
+  const mainComp = getFootballMainCompetitionId();
+  const extraMap = await fetchExtraChampionshipIdByTicketIds(
+    [...new Set(preds.filter((p) => p.bolao_type === "extra").map((p) => p.ticket_id))],
+  );
+
   let palpites = 0;
   let acertos = 0;
   let pontos = 0;
@@ -37,7 +44,9 @@ export async function computePalpitesResumo(
     palpites += 1;
     const matchId = Number(p.match_id);
     if (!Number.isFinite(matchId)) continue;
-    const m = matches.get(matchId);
+    const comp = p.bolao_type === "extra" ? extraMap.get(p.ticket_id) ?? null : mainComp;
+    if (comp == null || !Number.isFinite(comp) || comp <= 0) continue;
+    const m = getMatchFromMap(matches, comp, matchId);
     if (!m || m.resultCasa == null || m.resultVisitante == null) continue;
     const calc = calcPredictionPoints(p.score_casa, p.score_visitante, m.resultCasa, m.resultVisitante);
     pontos += calc.points;

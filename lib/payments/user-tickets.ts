@@ -1,7 +1,7 @@
 import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
 import { getPool } from "@/lib/db";
 import { brToday, minBrDate, resolveDiarioPlayableDate, utcMsForBrDate } from "@/lib/diario-playable-date";
-import { fetchMatchesMap } from "@/lib/football-api";
+import { fetchMatchesMap, getMatchFromMap, type MatchMap } from "@/lib/football-api";
 import { listPredictionTicketMatchPairsForUser, palpiteLockBeforeKickoffMs } from "@/lib/predictions";
 
 export type PaidTicketRow = {
@@ -70,7 +70,7 @@ export async function listPaidTicketsForUser(userId: string): Promise<PaidTicket
          ORDER BY COALESCE(paid_at, created_at) DESC NULLS LAST, created_at DESC`,
         [userId]
       ),
-      fetchMatchesMap().catch(() => new Map()),
+      fetchMatchesMap().catch(() => new Map() as MatchMap),
       listPredictionTicketMatchPairsForUser(userId).catch(() => [] as { ticket_id: string; match_id: number }[]),
     ]);
     const mapped = rows.map((r) => ({
@@ -96,9 +96,9 @@ export async function listPaidTicketsForUser(userId: string): Promise<PaidTicket
     const todayMs = utcMsForBrDate(today) ?? now;
 
     const buildOpenMatches = (leadMs: number): OpenMatch[] =>
-      Array.from(matchMap.entries())
-        .map(([matchId, m]) => ({
-          matchId: Number(matchId),
+      Array.from(matchMap.values())
+        .map((m) => ({
+          matchId: m.id,
           dateBR: m.dateBR,
           status: m.status,
           competitionId: Number(m.competitionId) || mainComp,
@@ -152,7 +152,7 @@ export async function listPaidTicketsForUser(userId: string): Promise<PaidTicket
       const matchDates = new Set<string>();
       let allFinished = true;
       for (const p of ticketPreds) {
-        const m = matchMap.get(Number(p.match_id));
+        const m = getMatchFromMap(matchMap, scopeComp, Number(p.match_id));
         if (m?.dateBR) matchDates.add(m.dateBR);
         const finished = m ? isFinishedStatus(m.status) || (m.resultCasa != null && m.resultVisitante != null) : true;
         if (!finished) allFinished = false;

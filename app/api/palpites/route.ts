@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { z } from "zod";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
-import { fetchMatchesMapDirectFromDb, resolveKickoffAtIso } from "@/lib/football-api";
+import { fetchMatchesMapDirectFromDb, getMatchFromMap, resolveKickoffAtIso } from "@/lib/football-api";
 import { getPredictionByUserTicketMatch, listPredictions, palpiteLockBeforeKickoffMs, upsertPrediction } from "@/lib/predictions";
 import { inferBolaoTypeFromTicketId } from "@/lib/ticket-kind-server";
 import { inferBolaoTypeFromTicketPrefix } from "@/lib/ticket-kind-shared";
@@ -146,8 +146,15 @@ export async function POST(request: NextRequest) {
   const extraChampionshipId = meta.extraChampionshipId;
   /** Sempre `matches_cache` no Postgres (nao usa mapa em memoria da API). */
   const matchMap = await fetchMatchesMapDirectFromDb();
-  const match = matchMap.get(data.matchId);
   const mainComp = getFootballMainCompetitionId();
+  const scopedComp =
+    bolaoType === "extra" &&
+    extraChampionshipId != null &&
+    Number.isFinite(Number(extraChampionshipId)) &&
+    Number(extraChampionshipId) > 0
+      ? Number(extraChampionshipId)
+      : mainComp;
+  const match = getMatchFromMap(matchMap, scopedComp, data.matchId);
   if (!match) {
     const scope =
       bolaoType === "diario" ? "bolao do dia" : bolaoType === "extra" ? "bolao extra" : "bolao geral";
@@ -230,7 +237,7 @@ export async function POST(request: NextRequest) {
       let hasDateMismatch = false;
       let allFinished = true;
       for (const p of ticketPreds) {
-        const m = matchMap.get(Number(p.match_id));
+        const m = getMatchFromMap(matchMap, scopeComp, Number(p.match_id));
         const date = m?.dateBR ?? null;
         if (date && date !== playableDate) hasDateMismatch = true;
         const st = String(m?.status || "").toLowerCase();

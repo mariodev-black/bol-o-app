@@ -4,6 +4,16 @@
  * correspondentes — não “pula” para o próximo dia só porque o mapa não listou hoje.
  */
 
+import type { MatchMap } from "@/lib/football-api";
+import { getMatchFromMap } from "@/lib/football-api";
+import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
+
+function isCompositeMatchMap(matchMap: unknown): matchMap is MatchMap {
+  if (!(matchMap instanceof Map) || matchMap.size === 0) return false;
+  const first = matchMap.keys().next().value;
+  return typeof first === "string" && String(first).includes(":");
+}
+
 export function brToday(): string {
   return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo" }).format(new Date());
 }
@@ -51,20 +61,31 @@ export function matchDateMapFromJogosWithCompetition(
 }
 
 /**
- * @param matchMap match_id -> metadados com dateBR (mapa da API ou derivado dos jogos)
+ * @param matchMap match_id -> metadados com dateBR (mapa da API ou derivado dos jogos), ou `MatchMap` do Postgres (`competition_id:match_id`)
  * @param opts.lockToMatchIds se não vazio, a data jogável é a das partidas desses ids (menor data se houver mais de uma)
  * @param opts.competitionId se definido, só considera linhas do mapa com esse `competitionId` (bolão extra). Se omitido, considera todas as datas do mapa (bolão do dia no calendário já filtrado).
  */
 export function resolveDiarioPlayableDate(
-  matchMap: Map<number, PlayableMatchMeta>,
+  matchMap: Map<number, PlayableMatchMeta> | MatchMap,
   opts?: { lockToMatchIds?: number[]; competitionId?: number },
 ): string {
   const lockIds = (opts?.lockToMatchIds ?? []).filter((id) => Number.isFinite(id) && id > 0);
   if (lockIds.length > 0) {
     const dates = new Set<string>();
-    for (const id of lockIds) {
-      const d = matchMap.get(id)?.dateBR?.trim();
-      if (d) dates.add(d);
+    const compForLock =
+      opts?.competitionId != null && Number.isFinite(opts.competitionId) && opts.competitionId > 0
+        ? opts.competitionId
+        : getFootballMainCompetitionId();
+    if (isCompositeMatchMap(matchMap)) {
+      for (const id of lockIds) {
+        const d = getMatchFromMap(matchMap, compForLock, id)?.dateBR?.trim();
+        if (d) dates.add(d);
+      }
+    } else {
+      for (const id of lockIds) {
+        const d = matchMap.get(id)?.dateBR?.trim();
+        if (d) dates.add(d);
+      }
     }
     const locked = minBrDate(dates);
     if (locked) return locked;

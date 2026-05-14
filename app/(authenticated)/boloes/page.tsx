@@ -5,11 +5,12 @@ import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 import { listPaidTicketsForUser, type PaidTicketRow } from "@/lib/payments/user-tickets";
 import { getExtraBolaoUnitCents, getTicketPriceCents } from "@/lib/payments/ticket-config";
 import { calcPredictionPoints, listPredictions, listAllPredictions, palpiteLockBeforeKickoffMs, type PredictionRow } from "@/lib/predictions";
-import { fetchMatchesMap } from "@/lib/football-api";
+import { fetchMatchesMap, getMatchFromMap, type MatchMapEntry } from "@/lib/football-api";
 import { BoloesClient, type BoloesScreenData } from "@/app/(authenticated)/boloes/BoloesClient";
 import { BoloesPurchaseSync } from "@/app/(authenticated)/boloes/_components/BoloesPurchaseSync";
 import { getFootballMainCompetitionId, parseExtraBolaoChampionshipIds } from "@/lib/boloes-extra-config";
 import { warmCompetitionMetadataCache } from "@/lib/competition-metadata-cache";
+import { fetchExtraChampionshipIdByTicketIds } from "@/lib/ticket-competition-server";
 import { resolveDiarioPlayableDate } from "@/lib/diario-playable-date";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +25,7 @@ const PALPITE_LOCK_MS_DIARIO = palpiteLockBeforeKickoffMs("diario");
 const PALPITE_LOCK_MS_EXTRA = palpiteLockBeforeKickoffMs("extra");
 
 type MatchMap = Awaited<ReturnType<typeof fetchMatchesMap>>;
-type MatchInfo = MatchMap extends Map<number, infer T> ? T : never;
+type MatchInfo = MatchMapEntry;
 
 type TicketMetrics = {
   sent: number;
@@ -141,7 +142,12 @@ function totalMatchesForTicket(ticket: PaidTicketRow, matches: MatchMap): number
   return Array.from(matches.values()).filter((match) => !isFinishedStatus(match.status)).length;
 }
 
-function buildRankingMap(predictions: PredictionRow[], matches: MatchMap): Map<string, { pos: number; points: number }> {
+function buildRankingMap(
+  predictions: PredictionRow[],
+  matches: MatchMap,
+  extraChampionshipByTicketId: Map<string, number>
+): Map<string, { pos: number; points: number }> {
+  const mainComp = getFootballMainCompetitionId();
   const byTicket = new Map<string, {
     ticketId: string;
     totalPoints: number;
@@ -156,7 +162,12 @@ function buildRankingMap(predictions: PredictionRow[], matches: MatchMap): Map<s
   for (const prediction of predictions) {
     const matchId = Number(prediction.match_id);
     if (!Number.isFinite(matchId)) continue;
-    const match = matches.get(matchId);
+    const comp =
+      prediction.bolao_type === "extra"
+        ? extraChampionshipByTicketId.get(prediction.ticket_id)
+        : mainComp;
+    if (comp == null || !Number.isFinite(comp) || comp <= 0) continue;
+    const match = getMatchFromMap(matches, comp, matchId);
     if (!match || match.resultCasa == null || match.resultVisitante == null) continue;
 
     const current = byTicket.get(prediction.ticket_id) ?? {
@@ -243,7 +254,9 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
     }))
   );
 
-  const ranking = buildRankingMap(allPredictions, matches);
+  const extraTicketIds = [...new Set(allPredictions.filter((p) => p.bolao_type === "extra").map((p) => p.ticket_id))];
+  const extraChampionshipByTicketId = await fetchExtraChampionshipIdByTicketIds(extraTicketIds);
+  const ranking = buildRankingMap(allPredictions, matches, extraChampionshipByTicketId);
   const predictionsByTicket = new Map<string, PredictionRow[]>();
   for (const prediction of userPredictions) {
     const arr = predictionsByTicket.get(prediction.ticket_id) ?? [];

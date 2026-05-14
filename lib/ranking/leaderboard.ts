@@ -1,5 +1,5 @@
 import { unstable_cache } from "next/cache";
-import { fetchMatchesMap } from "@/lib/football-api";
+import { fetchMatchesMap, getMatchFromMap, matchMapKey } from "@/lib/football-api";
 import {
   calcPredictionPoints,
   listMatchIdsForTicketPredictions,
@@ -110,7 +110,8 @@ type AggRow = {
 function aggregatePredictions(
   predictions: PredictionAggregateRow[],
   matches: MatchMap,
-  allowedTicketIds: Set<string>
+  allowedTicketIds: Set<string>,
+  competitionId: number
 ): Map<string, AggRow> {
   const byTicket = new Map<string, AggRow>();
 
@@ -118,7 +119,7 @@ function aggregatePredictions(
     if (!allowedTicketIds.has(prediction.ticket_id)) continue;
     const matchId = Number(prediction.match_id);
     if (!Number.isFinite(matchId)) continue;
-    const match = matches.get(matchId);
+    const match = getMatchFromMap(matches, competitionId, matchId);
     const submitMs = new Date(prediction.submitted_at).getTime();
     if (!Number.isFinite(submitMs)) continue;
 
@@ -192,15 +193,18 @@ function computeNextPalpiteLockMs(
 function poolHasAnyResultedMatch(
   poolPreds: PredictionAggregateRow[],
   matches: MatchMap,
-  allowedTicketIds: Set<string>
+  allowedTicketIds: Set<string>,
+  competitionId: number
 ): boolean {
-  const seen = new Set<number>();
+  const seen = new Set<string>();
   for (const p of poolPreds) {
     if (!allowedTicketIds.has(p.ticket_id)) continue;
     const mid = Number(p.match_id);
-    if (!Number.isFinite(mid) || seen.has(mid)) continue;
-    seen.add(mid);
-    const m = matches.get(mid);
+    if (!Number.isFinite(mid)) continue;
+    const key = matchMapKey(competitionId, mid);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const m = getMatchFromMap(matches, competitionId, mid);
     if (m && m.resultCasa != null && m.resultVisitante != null) return true;
   }
   return false;
@@ -281,15 +285,16 @@ async function loadPaidTickets(
 export async function buildLeaderboardPrincipal(): Promise<{ rows: LeaderboardRow[]; meta: LeaderboardBoardMeta }> {
   const getCached = unstable_cache(
     async () => buildLeaderboardPrincipalUncached(),
-    ["leaderboard", "principal", "v4"],
+    ["leaderboard", "principal", "v5"],
     { revalidate: RANKING_REVALIDATE_SEC, tags: ["leaderboard"] }
   );
   return getCached();
 }
 
 async function buildLeaderboardPrincipalUncached(): Promise<{ rows: LeaderboardRow[]; meta: LeaderboardBoardMeta }> {
+  const mainComp = getFootballMainCompetitionId();
   const [matches, paidTickets, preds] = await Promise.all([
-    fetchMatchesMap().catch(() => new Map<number, MatchInfo>()),
+    fetchMatchesMap().catch(() => new Map<string, MatchInfo>()),
     loadPaidTickets("general"),
     listPredictionsAggregateByBolao("principal"),
   ]);
@@ -298,7 +303,7 @@ async function buildLeaderboardPrincipalUncached(): Promise<{ rows: LeaderboardR
   const paidInPool = paidTickets.filter((t) => ticketIdsWithPalpite.has(t.id));
 
   const allowed = new Set(paidInPool.map((t) => t.id));
-  const agg = aggregatePredictions(preds, matches, allowed);
+  const agg = aggregatePredictions(preds, matches, allowed, mainComp);
 
   const sortedTickets = paidInPool
     .map((t) => {
@@ -348,7 +353,7 @@ async function buildLeaderboardPrincipalUncached(): Promise<{ rows: LeaderboardR
   const poolCentsApprox = calculatePrizePoolCents(revenueCents);
   const nextPalpiteLockMs = computeNextPalpiteLockMs(matches, () => true, palpiteLockBeforeKickoffMs("principal"));
   const approxPremiados = Math.max(1, Math.ceil(participantCount / 10));
-  const hasResultedMatchesInPool = poolHasAnyResultedMatch(preds, matches, allowed);
+  const hasResultedMatchesInPool = poolHasAnyResultedMatch(preds, matches, allowed, mainComp);
 
   return {
     rows,
@@ -366,7 +371,7 @@ async function buildLeaderboardPrincipalUncached(): Promise<{ rows: LeaderboardR
 export async function buildLeaderboardDiarioForTicket(focusTicketId: string): Promise<{ rows: LeaderboardRow[]; meta: LeaderboardBoardMeta }> {
   const getCached = unstable_cache(
     async () => buildLeaderboardDiarioUncached(focusTicketId),
-    ["leaderboard", "diario", focusTicketId, "v4"],
+    ["leaderboard", "diario", focusTicketId, "v5"],
     { revalidate: RANKING_REVALIDATE_SEC, tags: ["leaderboard"] }
   );
   return getCached();
@@ -396,7 +401,7 @@ async function buildLeaderboardDiarioUncached(focusTicketId: string): Promise<{ 
   const mainComp = getFootballMainCompetitionId();
 
   const [matches, paidDaily, focusMatchIds, allDiario] = await Promise.all([
-    fetchMatchesMap().catch(() => new Map<number, MatchInfo>()),
+    fetchMatchesMap().catch(() => new Map<string, MatchInfo>()),
     loadPaidTickets("daily"),
     listMatchIdsForTicketPredictions(focusTicketId),
     listPredictionsAggregateByBolao("diario"),
@@ -404,7 +409,7 @@ async function buildLeaderboardDiarioUncached(focusTicketId: string): Promise<{ 
 
   const datesFromFocus = new Set<string>();
   for (const mid of focusMatchIds) {
-    const d = matches.get(mid)?.dateBR;
+    const d = getMatchFromMap(matches, mainComp, mid)?.dateBR;
     if (d) datesFromFocus.add(d);
   }
 
@@ -422,12 +427,12 @@ async function buildLeaderboardDiarioUncached(focusTicketId: string): Promise<{ 
 
   const cohortPreds = allDiario.filter((p) => {
     if (!allowedDailyIds.has(p.ticket_id)) return false;
-    const mi = matches.get(Number(p.match_id));
+    const mi = getMatchFromMap(matches, mainComp, Number(p.match_id));
     if (!mi || Number(mi.competitionId) !== mainComp) return false;
     return mi.dateBR === poolPlayDate;
   });
 
-  const agg = aggregatePredictions(cohortPreds, matches, allowedDailyIds);
+  const agg = aggregatePredictions(cohortPreds, matches, allowedDailyIds, mainComp);
 
   const ticketIdsInCohort = new Set(cohortPreds.map((p) => p.ticket_id));
 
@@ -488,7 +493,7 @@ async function buildLeaderboardDiarioUncached(focusTicketId: string): Promise<{ 
   }, palpiteLockBeforeKickoffMs("diario"));
 
   const approxPremiados = Math.max(1, Math.ceil(participantCount / 10));
-  const hasResultedMatchesInPool = poolHasAnyResultedMatch(cohortPreds, matches, allowedDailyIds);
+  const hasResultedMatchesInPool = poolHasAnyResultedMatch(cohortPreds, matches, allowedDailyIds, mainComp);
 
   return {
     rows,
@@ -508,7 +513,7 @@ export async function buildLeaderboardExtraForTicket(
 ): Promise<{ rows: LeaderboardRow[]; meta: LeaderboardBoardMeta }> {
   const getCached = unstable_cache(
     async () => buildLeaderboardExtraUncached(focusTicketId),
-    ["leaderboard", "extra", focusTicketId, "v2"],
+    ["leaderboard", "extra", focusTicketId, "v3"],
     { revalidate: RANKING_REVALIDATE_SEC, tags: ["leaderboard"] }
   );
   return getCached();
@@ -542,7 +547,7 @@ async function buildLeaderboardExtraUncached(
   const extraComp = Number(ticketRow.extra_championship_id);
 
   const [matches, paidExtra, focusMatchIds, allExtra] = await Promise.all([
-    fetchMatchesMap().catch(() => new Map<number, MatchInfo>()),
+    fetchMatchesMap().catch(() => new Map<string, MatchInfo>()),
     loadPaidTickets("extra", extraComp),
     listMatchIdsForTicketPredictions(focusTicketId),
     listPredictionsAggregateByBolao("extra"),
@@ -550,7 +555,7 @@ async function buildLeaderboardExtraUncached(
 
   const datesFromFocus = new Set<string>();
   for (const mid of focusMatchIds) {
-    const d = matches.get(mid)?.dateBR;
+    const d = getMatchFromMap(matches, extraComp, mid)?.dateBR;
     if (d) datesFromFocus.add(d);
   }
 
@@ -568,12 +573,12 @@ async function buildLeaderboardExtraUncached(
 
   const cohortPreds = allExtra.filter((p) => {
     if (!allowedExtraIds.has(p.ticket_id)) return false;
-    const mi = matches.get(Number(p.match_id));
+    const mi = getMatchFromMap(matches, extraComp, Number(p.match_id));
     if (!mi || Number(mi.competitionId) !== extraComp) return false;
     return mi.dateBR === poolPlayDate;
   });
 
-  const agg = aggregatePredictions(cohortPreds, matches, allowedExtraIds);
+  const agg = aggregatePredictions(cohortPreds, matches, allowedExtraIds, extraComp);
 
   const ticketIdsInCohort = new Set(cohortPreds.map((p) => p.ticket_id));
 
@@ -634,7 +639,7 @@ async function buildLeaderboardExtraUncached(
   }, palpiteLockBeforeKickoffMs("extra"));
 
   const approxPremiados = Math.max(1, Math.ceil(participantCount / 10));
-  const hasResultedMatchesInPool = poolHasAnyResultedMatch(cohortPreds, matches, allowedExtraIds);
+  const hasResultedMatchesInPool = poolHasAnyResultedMatch(cohortPreds, matches, allowedExtraIds, extraComp);
 
   return {
     rows,

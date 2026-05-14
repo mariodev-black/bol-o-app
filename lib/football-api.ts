@@ -1,10 +1,11 @@
 import { fetchFootballApiV1 } from "@/lib/football-api-fetch";
+import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
 import { registerMatchMapMemoryInvalidate } from "@/lib/match-map-cache-invalidator";
 import { parseKickoffFromPartidaPayload, pickScoreFromPartidaPayload } from "@/lib/partida-placar";
 import { fasesEnrichmentCacheKey, readFootballApiCacheJson } from "@/lib/football-api-cache-store";
 import { readMatchesCache } from "@/lib/matches-cache";
 
-type MatchMap = Map<number, {
+export type MatchMapEntry = {
   id: number;
   kickoffAt: string | null;
   status: string;
@@ -20,7 +21,22 @@ type MatchMap = Map<number, {
   hour: string;
   /** `matches_cache.competition_id` — necessário para bolões extra. */
   competitionId: number;
-}>;
+};
+
+/** Chave `${competition_id}:${partida_id}` — evita colisão de `partida_id` entre campeonatos na API. */
+export type MatchMap = Map<string, MatchMapEntry>;
+
+export function matchMapKey(competitionId: number, matchId: number): string {
+  return `${competitionId}:${matchId}`;
+}
+
+export function getMatchFromMap(
+  map: MatchMap,
+  competitionId: number,
+  matchId: number
+): MatchMapEntry | undefined {
+  return map.get(matchMapKey(competitionId, matchId));
+}
 
 /** Mapa em memoria: evita reler o DB e reavaliar sync a cada request (default 3 min). */
 const MATCH_MAP_MEMORY_TTL_MS =
@@ -37,7 +53,7 @@ function token(): string {
 }
 
 function competitionId(): string {
-  return (process.env.FOOTBALL_COMPETITION_ID || "72").trim();
+  return String(getFootballMainCompetitionId());
 }
 
 function debugEnabled(): boolean {
@@ -187,8 +203,10 @@ export async function fetchMatchesMapDirectFromDb(): Promise<MatchMap> {
 function mapFromCacheRows(rows: Awaited<ReturnType<typeof readMatchesCache>>): MatchMap {
   const out: MatchMap = new Map();
   for (const r of rows) {
-    out.set(Number(r.match_id), {
-      id: Number(r.match_id),
+    const cid = Number(r.competition_id) || getFootballMainCompetitionId();
+    const mid = Number(r.match_id);
+    out.set(matchMapKey(cid, mid), {
+      id: mid,
       kickoffAt: r.kickoff_at,
       status: String(r.status || "aberto"),
       resultCasa: r.result_casa,
@@ -201,7 +219,7 @@ function mapFromCacheRows(rows: Awaited<ReturnType<typeof readMatchesCache>>): M
       awayLogo: r.away_logo ?? null,
       dateBR: r.date_br || "",
       hour: r.hour_br || "",
-      competitionId: Number(r.competition_id) || Number(competitionId()),
+      competitionId: cid,
     });
   }
   return out;

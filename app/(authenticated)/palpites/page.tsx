@@ -4,11 +4,12 @@ import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 import { inferBolaoTypeFromTicketId } from "@/lib/ticket-kind-server";
 import { inferBolaoTypeFromTicketPrefix } from "@/lib/ticket-kind-shared";
 import { calcPredictionPoints, listPredictions } from "@/lib/predictions";
-import { fetchMatchesMap } from "@/lib/football-api";
+import { fetchMatchesMap, getMatchFromMap } from "@/lib/football-api";
 import { getPartidasFasesFromDb } from "@/lib/partidas-cache-payload";
 import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
 import { getPool } from "@/lib/db";
 import { parseKickoffFromPartidaPayload, pickScoreFromPartidaPayload } from "@/lib/partida-placar";
+import { fetchExtraChampionshipIdByTicketIds } from "@/lib/ticket-competition-server";
 
 const MESES = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
 type StatusJogo = "aberto" | "encerrado";
@@ -268,9 +269,17 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
 
   if (userId) {
     const matches = await fetchMatchesMap();
+    const mainComp = getFootballMainCompetitionId();
 
     if (tid) {
       const preds = await listPredictions({ userId, ticketId: tid, bolaoType });
+      const histComp =
+        bolaoType === "extra" &&
+        extraChampionshipId != null &&
+        Number.isFinite(Number(extraChampionshipId)) &&
+        Number(extraChampionshipId) > 0
+          ? Number(extraChampionshipId)
+          : mainComp;
       predictionsMap = preds.reduce((acc, p) => {
         const matchId = Number(p.match_id);
         if (!Number.isFinite(matchId)) return acc;
@@ -287,7 +296,8 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
           palpites += 1;
           const matchId = Number(p.match_id);
           const normalizedMatchId = Number.isFinite(matchId) ? matchId : null;
-          const m = normalizedMatchId != null ? matches.get(normalizedMatchId) : undefined;
+          const m =
+            normalizedMatchId != null ? getMatchFromMap(matches, histComp, normalizedMatchId) : undefined;
           const scored = m?.resultCasa != null && m?.resultVisitante != null;
           const calc =
             scored && m
@@ -321,23 +331,34 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
       resumoStats = { palpites, acertos, pontos, exatos };
     }
 
-    let rankingPreds = await listPredictions({ userId, bolaoType: ticketId ? bolaoType : undefined });
-    if (ticketId && (bolaoType === "diario" || bolaoType === "extra")) {
+    let rankingPreds = await listPredictions({ userId, bolaoType: tid ? bolaoType : undefined });
+    if (tid && (bolaoType === "diario" || bolaoType === "extra")) {
+      const filterComp =
+        bolaoType === "diario"
+          ? mainComp
+          : extraChampionshipId != null &&
+              Number.isFinite(Number(extraChampionshipId)) &&
+              Number(extraChampionshipId) > 0
+            ? Number(extraChampionshipId)
+            : mainComp;
       const selectedDates = new Set(
         rankingPreds
-          .filter((p) => p.ticket_id === ticketId)
-          .map((p) => matches.get(Number(p.match_id))?.dateBR)
+          .filter((p) => p.ticket_id === tid)
+          .map((p) => getMatchFromMap(matches, filterComp, Number(p.match_id))?.dateBR)
           .filter((d): d is string => Boolean(d))
       );
       if (selectedDates.size > 0) {
         rankingPreds = rankingPreds.filter((p) => {
-          const d = matches.get(Number(p.match_id))?.dateBR;
+          const d = getMatchFromMap(matches, filterComp, Number(p.match_id))?.dateBR;
           return d ? selectedDates.has(d) : false;
         });
       } else {
-        rankingPreds = rankingPreds.filter((p) => p.ticket_id === ticketId);
+        rankingPreds = rankingPreds.filter((p) => p.ticket_id === tid);
       }
     }
+    const extraForRanking = await fetchExtraChampionshipIdByTicketIds([
+      ...new Set(rankingPreds.filter((p) => p.bolao_type === "extra").map((p) => p.ticket_id)),
+    ]);
     const byTicket = new Map<string, {
       ticketId: string;
       totalPoints: number;
@@ -351,7 +372,9 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
     for (const p of rankingPreds) {
       const matchId = Number(p.match_id);
       if (!Number.isFinite(matchId)) continue;
-      const m = matches.get(matchId);
+      const comp = p.bolao_type === "extra" ? extraForRanking.get(p.ticket_id) ?? null : mainComp;
+      if (comp == null || !Number.isFinite(comp) || comp <= 0) continue;
+      const m = getMatchFromMap(matches, comp, matchId);
       if (!m || m.resultCasa == null || m.resultVisitante == null) continue;
       const cur =
         byTicket.get(p.ticket_id) ??
@@ -405,7 +428,7 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
       pts: r.totalPoints,
       exact: r.exactCount,
       gols: r.goalsCount,
-      isMe: ticketId ? ticketId === r.ticketId : false,
+      isMe: tid ? tid === r.ticketId : false,
     }));
   }
 
