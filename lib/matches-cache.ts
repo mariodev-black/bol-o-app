@@ -62,6 +62,16 @@ let lastSoftSyncRequestAt = 0;
 const PRE_KICKOFF_WINDOW_MINUTES =
   Number.parseInt(process.env.MATCHES_CACHE_PRE_KICKOFF_WINDOW_MINUTES ?? "30", 10) || 30;
 const LOCK_KEY = 72026;
+/** `force:true`: tentativas de `pg_try_advisory_lock` antes de desistir (sync cron concorrente). */
+const LOCK_RETRY_ATTEMPTS = Math.max(1, Number.parseInt(process.env.MATCHES_CACHE_LOCK_RETRY_ATTEMPTS || "40", 10) || 40);
+const LOCK_RETRY_DELAY_MS = Math.max(
+  50,
+  Number.parseInt(process.env.MATCHES_CACHE_LOCK_RETRY_DELAY_MS || "150", 10) || 150
+);
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function competitionId(): number {
   return getFootballMainCompetitionId();
@@ -365,60 +375,72 @@ export async function syncMatchesCache(input: {
   }
 
   const pool = getPool();
-  const client = await pool.connect();
-  let locked = false;
-  try {
-    const lockResult = await client.query<{ locked: boolean }>("SELECT pg_try_advisory_lock($1) AS locked", [LOCK_KEY]);
-    locked = Boolean(lockResult.rows[0]?.locked);
-    if (!locked) {
-      mlog("skip", { reason: "locked" });
-      return { refreshed: false as const, reason: "locked" as const };
-    }
-  } finally {
-    client.release();
-  }
+  const maxLockAttempts = input.force ? LOCK_RETRY_ATTEMPTS : 1;
 
-  try {
-    if (!input.force) {
-      const rowsPeek2 = await readMatchesCache().catch(() => []);
-      const placarPendente2 = matchCacheRowsTerminalWithoutScores(rowsPeek2);
-      if (!placarPendente2) {
-        const scheduledFresh = await scheduleSaysFresh().catch(() => false);
-        if (scheduledFresh) {
-          mlog("skip", { reason: "scheduled-fresh-after-lock" });
-          return { refreshed: false as const, reason: "scheduled-fresh-after-lock" as const };
-        }
-        const fresh = await matchesCacheIsFresh();
-        if (fresh) {
-          mlog("skip", { reason: "fresh-after-lock" });
-          return { refreshed: false as const, reason: "fresh-after-lock" as const };
+  for (let attempt = 1; attempt <= maxLockAttempts; attempt++) {
+    let acquiredLock = false;
+    const lockClient = await pool.connect();
+    try {
+      const lockResult = await lockClient.query<{ locked: boolean }>(
+        "SELECT pg_try_advisory_lock($1) AS locked",
+        [LOCK_KEY]
+      );
+      acquiredLock = Boolean(lockResult.rows[0]?.locked);
+      if (!acquiredLock) {
+        mlog("lock-wait", { attempt, maxLockAttempts });
+      } else {
+        try {
+          if (!input.force) {
+            const rowsPeek2 = await readMatchesCache().catch(() => []);
+            const placarPendente2 = matchCacheRowsTerminalWithoutScores(rowsPeek2);
+            if (!placarPendente2) {
+              const scheduledFresh = await scheduleSaysFresh().catch(() => false);
+              if (scheduledFresh) {
+                mlog("skip", { reason: "scheduled-fresh-after-lock" });
+                return { refreshed: false as const, reason: "scheduled-fresh-after-lock" as const };
+              }
+              const fresh = await matchesCacheIsFresh();
+              if (fresh) {
+                mlog("skip", { reason: "fresh-after-lock" });
+                return { refreshed: false as const, reason: "fresh-after-lock" as const };
+              }
+            }
+          }
+          mlog("fetch-start", { force: Boolean(input.force), lockAttempt: attempt });
+          const providerMatches = await input.fetchProviderMatches();
+          await upsertMatchesCache(providerMatches);
+          void warmCompetitionMetadataCache(getAllSyncedCompetitionIds()).catch((err) =>
+            console.warn("[matches-cache] warmCompetitionMetadataCache", err)
+          );
+          await processPrizeClosuresAfterMatchSync(
+            cronTrace ? { tickId: input.tickId, source: cronTrace } : undefined
+          );
+          let leaderboardRevalidated = false;
+          try {
+            revalidateTag("leaderboard", "max");
+            leaderboardRevalidated = true;
+          } catch (err) {
+            if (cronTrace) {
+              console.warn(
+                "[matches-cache] revalidateTag(leaderboard) ignorado fora do contexto de request:",
+                err instanceof Error ? err.message : err
+              );
+            }
+          }
+          mlog("fetch-done", { count: providerMatches.length, leaderboardRevalidated });
+          return { refreshed: true as const, reason: "synced" as const, count: providerMatches.length };
+        } finally {
+          await lockClient.query("SELECT pg_advisory_unlock($1)", [LOCK_KEY]).catch(() => {});
         }
       }
-    }
-    mlog("fetch-start", { force: Boolean(input.force) });
-    const providerMatches = await input.fetchProviderMatches();
-    await upsertMatchesCache(providerMatches);
-    void warmCompetitionMetadataCache(getAllSyncedCompetitionIds()).catch((err) =>
-      console.warn("[matches-cache] warmCompetitionMetadataCache", err)
-    );
-    await processPrizeClosuresAfterMatchSync(
-      cronTrace ? { tickId: input.tickId, source: cronTrace } : undefined
-    );
-    let leaderboardRevalidated = false;
-    try {
-      revalidateTag("leaderboard", "max");
-      leaderboardRevalidated = true;
-    } catch {
-      /* outside Next request context — ok */
-    }
-    mlog("fetch-done", { count: providerMatches.length, leaderboardRevalidated });
-    return { refreshed: true as const, reason: "synced" as const, count: providerMatches.length };
-  } finally {
-    const unlockClient = await pool.connect();
-    try {
-      await unlockClient.query("SELECT pg_advisory_unlock($1)", [LOCK_KEY]);
     } finally {
-      unlockClient.release();
+      lockClient.release();
+    }
+    if (!acquiredLock && attempt < maxLockAttempts) {
+      await sleep(LOCK_RETRY_DELAY_MS);
     }
   }
+
+  mlog("skip", { reason: "locked", attempts: maxLockAttempts });
+  return { refreshed: false as const, reason: "locked" as const };
 }

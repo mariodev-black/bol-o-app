@@ -1,8 +1,6 @@
 import { runMaintenanceTick } from "@/lib/cron/maintenance-tick";
 import { cronTickLog } from "@/lib/cron/cron-tick-log";
 import { runFootballSnapshotsIfCacheMissing } from "@/lib/cron/tasks/footballSnapshotsTask";
-import { runGuaranteeResultsTask } from "@/lib/cron/tasks/guaranteeResultsTask";
-import { runSyncMatchesTask } from "@/lib/cron/tasks/syncMatchesTask";
 
 type CronHandle = {
   started: boolean;
@@ -35,43 +33,16 @@ function internalCronDefaultEnabled(): boolean {
 export function startInternalCronScheduler(): CronHandle {
   if (globalThis.__bolaoCronHandle?.started) return globalThis.__bolaoCronHandle;
 
-  if (!globalThis.__bolaoWarmupStarted) {
-    globalThis.__bolaoWarmupStarted = true;
-    void (async () => {
-      try {
-        console.info("[internal-cron] warmup: snapshot se necessario + sync partidas + garantia");
-        await runFootballSnapshotsIfCacheMissing();
-        await runSyncMatchesTask(true);
-        await runGuaranteeResultsTask();
-        cronTickLog("internal-warmup-done", { ok: true });
-      } catch (error) {
-        console.error("[internal-cron] initial warmup failed", error);
-      }
-    })();
-  }
-
   const enabled = boolEnv("INTERNAL_CRON_ENABLED", internalCronDefaultEnabled());
   const runOnVercel = boolEnv("INTERNAL_CRON_RUN_ON_VERCEL", false);
-  if (!enabled) {
-    const handle = { started: false, stop: () => {} };
-    globalThis.__bolaoCronHandle = handle;
-    console.warn("[internal-cron] desligado (INTERNAL_CRON_ENABLED=false). Use GET /api/cron/tick com CRON_SECRET ou ligue o env.");
-    return handle;
-  }
-  if (process.env.VERCEL && !runOnVercel) {
-    const handle = { started: false, stop: () => {} };
-    globalThis.__bolaoCronHandle = handle;
-    console.warn("[internal-cron] desligado em VERCEL (INTERNAL_CRON_RUN_ON_VERCEL!=true).");
-    return handle;
-  }
-
+  const vercelBlocks = Boolean(process.env.VERCEL && !runOnVercel);
   const tickSeconds = intEnv(
     "INTERNAL_CRON_TICK_SECONDS",
     intEnv("INTERNAL_CRON_SYNC_MATCHES_SECONDS", 300)
   );
   const intervalMs = tickSeconds * 1000;
-  let running = false;
 
+  let running = false;
   const runNow = async () => {
     if (running) {
       cronTickLog("internal-interval-skipped", { reason: "overlap-previous-tick" });
@@ -87,14 +58,55 @@ export function startInternalCronScheduler(): CronHandle {
     }
   };
 
-  void runNow();
-  const timer = setInterval(() => {
-    void runNow();
-  }, intervalMs);
+  let intervalHandle: ReturnType<typeof setInterval> | undefined;
+  const beginScheduledTicks = () => {
+    if (intervalHandle !== undefined) return;
+    if (!enabled || vercelBlocks) return;
+    intervalHandle = setInterval(() => {
+      void runNow();
+    }, intervalMs);
+  };
+
+  if (!globalThis.__bolaoWarmupStarted) {
+    globalThis.__bolaoWarmupStarted = true;
+    void (async () => {
+      try {
+        console.info(
+          "[internal-cron] warmup: snapshot se necessario + primeiro ciclo completo (sem disputar lock com o intervalo)"
+        );
+        await runFootballSnapshotsIfCacheMissing();
+        await runMaintenanceTick();
+        cronTickLog("internal-warmup-done", { ok: true });
+      } catch (error) {
+        console.error("[internal-cron] initial warmup failed", error);
+      } finally {
+        beginScheduledTicks();
+      }
+    })();
+  } else {
+    beginScheduledTicks();
+  }
+
+  if (!enabled) {
+    const handle = { started: false, stop: () => {} };
+    globalThis.__bolaoCronHandle = handle;
+    console.warn(
+      "[internal-cron] desligado (INTERNAL_CRON_ENABLED=false). Use GET /api/cron/tick com CRON_SECRET ou ligue o env."
+    );
+    return handle;
+  }
+  if (process.env.VERCEL && !runOnVercel) {
+    const handle = { started: false, stop: () => {} };
+    globalThis.__bolaoCronHandle = handle;
+    console.warn("[internal-cron] desligado em VERCEL (INTERNAL_CRON_RUN_ON_VERCEL!=true).");
+    return handle;
+  }
 
   const handle: CronHandle = {
     started: true,
-    stop: () => clearInterval(timer),
+    stop: () => {
+      if (intervalHandle !== undefined) clearInterval(intervalHandle);
+    },
   };
   globalThis.__bolaoCronHandle = handle;
   console.info(`[internal-cron] ativo — tick a cada ${tickSeconds}s (maintenance + sync condicional + premios)`);
