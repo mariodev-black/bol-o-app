@@ -114,8 +114,6 @@ export type BoloesScreenData = {
 const GREEN = "#B1EB0B";
 const GREEN_SOFT = "#0AC96B";
 const YELLOW = "#E6B726";
-/** Bolão extra: teal claro alinhado ao verde primário (#B1EB0B) e ao tema escuro do app. */
-const EXTRA_ACCENT = "#2DD4BF";
 const CARD = "#111111";
 const CARD_ALT = "#0F0F0F";
 const BORDER = "rgba(255,255,255,0.06)";
@@ -184,7 +182,7 @@ function SummaryCard({
 }) {
   return (
     <div
-      className="flex h-[121px] flex-1 flex-col items-center justify-center rounded-[13px] border px-2 text-center shadow-[0_16px_28px_rgba(0,0,0,0.28)] transition-transform active:scale-[0.98]"
+      className="flex h-[121px] flex-1 flex-col items-center justify-center rounded-[13px] border px-2 text-center transition-transform active:scale-[0.98]"
       style={{ background: CARD, borderColor: BORDER }}
     >
       <div
@@ -192,7 +190,6 @@ function SummaryCard({
         style={{
           background: `${tone}18`,
           borderColor: `${tone}22`,
-          boxShadow: `0 0 14px ${tone}1F`,
         }}
         aria-hidden
       >
@@ -304,14 +301,13 @@ function BolaoIcon({ type }: { type: "copa" | "dia" | "extra" }) {
       : type === "extra"
         ? "BOLÃO\nEXTRA"
         : "BOLÃO\nDO DIA";
-  const color =
-    type === "copa" ? GREEN_SOFT : type === "extra" ? EXTRA_ACCENT : GREEN;
+  const color = GREEN;
 
   return (
     <div className="flex w-[58px] shrink-0 flex-col items-center justify-center text-center">
       <div
         className="mb-2 flex size-[38px] items-center justify-center rounded-[11px]"
-        style={{ background: `${color}22`, boxShadow: `0 0 20px ${color}24` }}
+        style={{ background: `${color}22` }}
         aria-hidden
       >
         <Icon className="size-[19px]" style={{ color }} strokeWidth={2.1} />
@@ -402,7 +398,7 @@ function EmptyBolaoShowcaseCard({
 
   return (
     <div
-      className="rounded-[15px] border px-5 py-6 text-center shadow-[0_18px_38px_rgba(0,0,0,0.42)]"
+      className="rounded-[15px] border px-5 py-6 text-center"
       style={{ background: CARD_ALT, borderColor: BORDER }}
     >
       <p className="text-[14px] font-black uppercase leading-tight tracking-[0.04em] text-white">
@@ -414,7 +410,7 @@ function EmptyBolaoShowcaseCard({
       </p>
       <Link
         href="/tickets"
-        className="mt-4 flex h-[40px] w-full items-center justify-center gap-2 rounded-[10px] bg-primary text-[12px] font-black uppercase tracking-[0.05em] text-[#0E141B] shadow-[0_4px_20px_rgba(177,235,11,0.35)] transition-[filter] hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[0.99]"
+        className="mt-4 flex h-[40px] w-full items-center justify-center gap-2 rounded-[10px] bg-primary text-[12px] font-black uppercase tracking-[0.05em] text-[#0E141B] transition-[filter] hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[0.99]"
       >
         Ir para tickets
         <ArrowRight className="size-4 shrink-0" strokeWidth={2.6} />
@@ -438,7 +434,7 @@ function ActiveBoloesCard({
 
   return (
     <article
-      className="overflow-hidden rounded-[15px] border shadow-[0_18px_38px_rgba(0,0,0,0.42)]"
+      className="overflow-hidden rounded-[15px] border"
       style={{ background: CARD_ALT, borderColor: BORDER }}
     >
       {principal && (
@@ -550,7 +546,7 @@ function ActiveBoloesList({
 
   return (
     <article
-      className="overflow-hidden rounded-[15px] border shadow-[0_18px_38px_rgba(0,0,0,0.42)]"
+      className="overflow-hidden rounded-[15px] border"
       style={{ background: CARD_ALT, borderColor: BORDER }}
     >
       {items.map((item) => {
@@ -672,7 +668,7 @@ function AvailableCard({
 
   return (
     <article
-      className="relative flex min-h-[255px] flex-1 flex-col items-center rounded-[14px] border px-4 pb-4 pt-[41px] text-center shadow-[0_18px_36px_rgba(0,0,0,0.38)]"
+      className="relative flex min-h-[255px] flex-1 flex-col items-center rounded-[14px] border px-4 pb-4 pt-[41px] text-center"
       style={{ background: CARD, borderColor: BORDER }}
     >
       <div
@@ -685,7 +681,6 @@ function AvailableCard({
         className="flex size-[38px] items-center justify-center rounded-[11px]"
         style={{
           background: `${buttonColor}18`,
-          boxShadow: `0 0 18px ${buttonColor}20`,
         }}
         aria-hidden
       >
@@ -838,7 +833,7 @@ function CarouselShell({
           <button
             type="button"
             onClick={() => scrollByPage(-1)}
-            className="absolute -left-2 top-1/2 z-10 flex size-7 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-black/70 text-white/80 shadow-[0_8px_22px_rgba(0,0,0,0.45)] backdrop-blur"
+            className="absolute -left-2 top-1/2 z-10 flex size-7 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-black/70 text-white/80 backdrop-blur"
             aria-label="Item anterior"
           >
             <ChevronRight className="size-4 rotate-180" strokeWidth={2.6} />
@@ -846,7 +841,7 @@ function CarouselShell({
           <button
             type="button"
             onClick={() => scrollByPage(1)}
-            className="absolute -right-2 top-1/2 z-10 flex size-7 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-black/70 text-white/80 shadow-[0_8px_22px_rgba(0,0,0,0.45)] backdrop-blur"
+            className="absolute -right-2 top-1/2 z-10 flex size-7 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-black/70 text-white/80 backdrop-blur"
             aria-label="Próximo item"
           >
             <ChevronRight className="size-4" strokeWidth={2.6} />
@@ -907,7 +902,7 @@ function UpcomingExtraOfferCard({
   fullWidth?: boolean;
 }) {
   const isCopaBr = isCopaDoBrasilChampionshipTitle(ex.title);
-  const accent = isCopaBr ? GREEN : EXTRA_ACCENT;
+  const accent = GREEN;
   const ticketImg = isCopaBr ? iconCopaBrasil : ticketBlue;
   const showVerResultados = lockHasPassed(ex.closesAtMs, now);
 
@@ -916,28 +911,16 @@ function UpcomingExtraOfferCard({
       href={ex.href}
       aria-label={showVerResultados ? "Ver resultados" : "Fazer palpites"}
       className={[
-        "group relative flex min-h-0 flex-col overflow-hidden rounded-[18px] border bg-[#121212] shadow-[0_20px_48px_rgba(0,0,0,0.55)] transition-transform duration-300 active:scale-[0.985]",
+        "group relative flex min-h-0 flex-col overflow-hidden rounded-[18px] border bg-[#121212] transition-transform duration-300 active:scale-[0.985]",
         fullWidth ? "w-full" : "w-[368px] max-w-[88vw] shrink-0 snap-center",
       ].join(" ")}
       style={{
         borderColor: accent,
-        boxShadow: `0 20px 48px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.04), 0 0 28px ${GREEN}33`,
       }}
     >
-      <div
-        className="pointer-events-none absolute -left-16 -top-12 size-36 rounded-full blur-3xl transition-opacity duration-500 group-hover:opacity-95"
-        style={{ background: `${GREEN}22` }}
-        aria-hidden
-      />
-
       <div className="relative z-10 grid min-h-[132px] grid-cols-[minmax(0,92px)_minmax(0,1fr)_minmax(0,78px)] min-[380px]:grid-cols-[100px_minmax(0,1fr)_84px]">
         {/* Coluna esquerda — arte + rótulo */}
-        <div
-          className="relative flex flex-col items-center justify-center border-r border-white/8 px-2 py-4"
-          style={{
-            background: `radial-gradient(circle at 50% 38%, ${GREEN}28 0%, rgba(255,255,255,0.02) 42%, transparent 70%)`,
-          }}
-        >
+        <div className="relative flex flex-col items-center justify-center border-r border-white/8 bg-white/2 px-2 py-4">
           <Image
             src={ticketImg}
             alt=""
@@ -1048,7 +1031,7 @@ function UpcomingExtraOfferCard({
 
       <div className="relative z-10 px-3 pb-3.5 pt-1">
         <span
-          className="flex h-11 w-full items-center justify-center gap-2 rounded-[10px] text-[11px] font-black uppercase tracking-[0.06em] shadow-[0_6px_22px_rgba(177,235,11,0.32)] transition-[filter] group-hover:brightness-105 min-[380px]:h-12 min-[380px]:text-[12px]"
+          className="flex h-11 w-full items-center justify-center gap-2 rounded-[10px] text-[11px] font-black uppercase tracking-[0.06em] transition-[filter] group-hover:brightness-105 min-[380px]:h-12 min-[380px]:text-[12px]"
           style={{ background: GREEN, color: INK }}
         >
           {showVerResultados ? "Ver resultados" : "Fazer palpites"}
@@ -1116,13 +1099,7 @@ function ActiveShowcaseCard({
   const isExtra = kind === "extra";
   const progress = Math.max(0, Math.min(100, item.progress ?? 0));
   const isCopaBrExtra = isExtra && isCopaDoBrasilChampionshipTitle(item.title);
-  const tone = isPrincipal
-    ? GREEN
-    : isCopaBrExtra
-      ? GREEN
-      : isExtra
-        ? EXTRA_ACCENT
-        : YELLOW;
+  const tone = GREEN;
   const image = isPrincipal
     ? ticketGold
     : isCopaBrExtra
@@ -1137,27 +1114,15 @@ function ActiveShowcaseCard({
       href={item.href}
       aria-label={showVerResultados ? "Ver resultados" : "Fazer palpites"}
       className={[
-        "group relative flex min-h-0 flex-col overflow-hidden rounded-[18px] border bg-[#121212] shadow-[0_20px_48px_rgba(0,0,0,0.55)] transition-transform duration-300 active:scale-[0.985]",
+        "group relative flex min-h-0 flex-col overflow-hidden rounded-[18px] border bg-[#121212] transition-transform duration-300 active:scale-[0.985]",
         fullWidth ? "w-full" : "w-[368px] max-w-[88vw] shrink-0 snap-center",
       ].join(" ")}
       style={{
         borderColor: tone,
-        boxShadow: `0 20px 48px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.04), 0 0 28px ${GREEN}33`,
       }}
     >
-      <div
-        className="pointer-events-none absolute -left-16 -top-12 size-36 rounded-full blur-3xl transition-opacity duration-500 group-hover:opacity-95"
-        style={{ background: `${GREEN}22` }}
-        aria-hidden
-      />
-
       <div className="relative z-10 grid min-h-[132px] grid-cols-[minmax(0,92px)_minmax(0,1fr)_minmax(0,78px)] min-[380px]:grid-cols-[100px_minmax(0,1fr)_84px]">
-        <div
-          className="relative flex flex-col items-center justify-center border-r border-white/8 px-2 py-4"
-          style={{
-            background: `radial-gradient(circle at 50% 38%, ${GREEN}28 0%, rgba(255,255,255,0.02) 42%, transparent 70%)`,
-          }}
-        >
+        <div className="relative flex flex-col items-center justify-center border-r border-white/8 bg-white/2 px-2 py-4">
           <Image
             src={image}
             alt=""
@@ -1258,7 +1223,6 @@ function ActiveShowcaseCard({
                       style={{
                         width: `${progress}%`,
                         background: `linear-gradient(90deg, ${tone}, #F3FF8A)`,
-                        boxShadow: `0 0 10px ${tone}70`,
                       }}
                     />
                   </div>
@@ -1332,7 +1296,7 @@ function ActiveShowcaseCard({
 
       <div className="relative z-10 px-3 pb-3.5 pt-1">
         <span
-          className="flex h-11 w-full items-center justify-center gap-2 rounded-[10px] text-[11px] font-black uppercase tracking-[0.06em] shadow-[0_6px_22px_rgba(177,235,11,0.32)] transition-[filter] group-hover:brightness-105 min-[380px]:h-12 min-[380px]:text-[12px]"
+          className="flex h-11 w-full items-center justify-center gap-2 rounded-[10px] text-[11px] font-black uppercase tracking-[0.06em] transition-[filter] group-hover:brightness-105 min-[380px]:h-12 min-[380px]:text-[12px]"
           style={{ background: GREEN, color: INK }}
         >
           {showVerResultados ? "Ver resultados" : "Fazer palpites"}
@@ -1369,7 +1333,7 @@ function ComoFuncionaPalpitesCard() {
       aria-labelledby="como-funciona-palpites-heading"
     >
       <div
-        className="overflow-hidden rounded-[14px] border py-5 shadow-[0_16px_36px_rgba(0,0,0,0.35)] sm:py-6"
+        className="overflow-hidden rounded-[14px] border py-5 sm:py-6"
         style={{ background: CARD_ALT, borderColor: BORDER }}
       >
         <h2
@@ -1401,7 +1365,6 @@ function ComoFuncionaPalpitesCard() {
                   style={{
                     background: GREEN,
                     color: ink,
-                    boxShadow: `0 0 10px ${GREEN}45`,
                   }}
                   aria-hidden
                 >
@@ -1471,7 +1434,6 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
           style={{
             background: "#111",
             border: "1px solid rgba(177,235,11,0.18)",
-            boxShadow: "0 0 32px rgba(177,235,11,0.06) inset",
           }}
         >
           <p className="text-[11px] font-black uppercase tracking-[0.2em] text-white">
@@ -1491,7 +1453,7 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
         {/* CTA principal */}
         <Link
           href="/tickets"
-          className="flex h-[58px] w-full items-center justify-center gap-2.5 rounded-[14px] bg-primary text-[14px] font-black uppercase tracking-[0.04em] text-[#0E141B] shadow-[0_4px_28px_rgba(177,235,11,0.55)] transition-[filter] hover:brightness-105 active:scale-[0.98]"
+          className="flex h-[58px] w-full items-center justify-center gap-2.5 rounded-[14px] bg-primary text-[14px] font-black uppercase tracking-[0.04em] text-[#0E141B] transition-[filter] hover:brightness-105 active:scale-[0.98]"
         >
           Quero disputar o milhão
           <ArrowRight className="size-[18px]" strokeWidth={2.8} />
@@ -1626,7 +1588,7 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
                     className={[
                       "relative flex flex-col rounded-[12px] border p-2.5 text-left transition-all active:scale-[0.97]",
                       active
-                        ? "border-primary bg-primary/10 shadow-[0_0_18px_rgba(177,235,11,0.15)]"
+                        ? "border-primary bg-primary/10"
                         : "border-white/10 bg-white/3",
                     ].join(" ")}
                   >
@@ -1683,7 +1645,7 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
             <div className="px-4 pb-2">
               <Link
                 href="/tickets"
-                className="flex h-[56px] w-full items-center justify-center gap-2.5 rounded-[14px] bg-primary text-[13px] font-black uppercase tracking-[0.05em] text-[#0E141B] shadow-[0_4px_24px_rgba(177,235,11,0.45)] transition-[filter] hover:brightness-105 active:scale-[0.98]"
+                className="flex h-[56px] w-full items-center justify-center gap-2.5 rounded-[14px] bg-primary text-[13px] font-black uppercase tracking-[0.05em] text-[#0E141B] transition-[filter] hover:brightness-105 active:scale-[0.98]"
               >
                 Garantir {currentPkg.label.toLowerCase()} —{" "}
                 {currentPkg.priceMain}
@@ -1846,7 +1808,7 @@ export function BoloesClient({
             label="Sua melhor posição"
             value={bestPosition}
             helper="Ranking"
-            tone={GREEN_SOFT}
+            tone={GREEN}
           />
         </section>
 
