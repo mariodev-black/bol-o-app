@@ -208,13 +208,13 @@ function kickoffMsFromJogo(jogo: Jogo): number | null {
 /**
  * Depois deste intervalo desde o apito, não exibimos mais "ao vivo" só com o status da listagem
  * (a API pode ficar em "andamento" e minuto parado — ex.: 2º tempo 63 min com 2h+ de relógio).
- * Default 150 min ≈ jogo + acréscimos + atraso de sync.
+ * Default 115 min (alinhado ao MATCH_END_CLOCK no servidor). Ajuste NEXT_PUBLIC_MATCH_DISPLAY_LIVE_MAX_MINUTES.
  */
 const DISPLAY_LIVE_MAX_MS_AFTER_KICKOFF = (() => {
   const raw = process.env.NEXT_PUBLIC_MATCH_DISPLAY_LIVE_MAX_MINUTES;
-  const n = raw != null && String(raw).trim() !== "" ? Number.parseInt(String(raw).trim(), 10) : 150;
-  if (!Number.isFinite(n)) return 150 * 60_000;
-  return Math.min(240, Math.max(95, n)) * 60_000;
+  const n = raw != null && String(raw).trim() !== "" ? Number.parseInt(String(raw).trim(), 10) : 115;
+  if (!Number.isFinite(n)) return 115 * 60_000;
+  return Math.min(240, Math.max(60, n)) * 60_000;
 })();
 
 function isPastDisplayLiveWindow(jogo: Jogo, nowMs: number): boolean {

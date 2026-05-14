@@ -26,10 +26,36 @@ export function matchEndClockMinutesAfterKickoff(): number {
 }
 
 /**
+ * Listagem pode ficar em "andamento" sem placar oficial na cache; com MATCH_END_CLOCK alto (ex.: 150)
+ * o cron nao puxava a API antes do fim do jogo real. Este limite menor (default 95) forca sync so nesses casos.
+ * Ajuste via MATCH_LIVE_STUCK_FORCE_MINUTES.
+ */
+export function matchLiveStuckForceMinutes(): number {
+  const n = Number.parseInt((process.env.MATCH_LIVE_STUCK_FORCE_MINUTES || "95").trim(), 10);
+  if (!Number.isFinite(n)) return 95;
+  return Math.min(180, Math.max(60, n));
+}
+
+/** `kickoff_at` na cache ou, se nulo, data/hora BR (America/Sao_Paulo). */
+const EFFECTIVE_KICKOFF_SQL = `COALESCE(
+  mc.kickoff_at::timestamptz,
+  CASE
+    WHEN mc.date_br ~ '^[0-3][0-9]/[0-1][0-9]/[0-9]{4}$'
+      AND left(btrim(mc.hour_br), 5) ~ '^[0-2][0-9]:[0-5][0-9]$'
+    THEN (
+      to_timestamp(mc.date_br || ' ' || left(btrim(mc.hour_br), 5), 'DD/MM/YYYY HH24:MI')
+      AT TIME ZONE 'America/Sao_Paulo'
+    )
+    ELSE NULL::timestamptz
+  END
+)`;
+
+/**
  * True se precisamos puxar a API agora:
  * - partida com palpite, apito + carencia em horas, ainda sem placar na cache; ou
  * - apito + MATCH_END_CLOCK (minutos) ja passou no relogio atual, com palpite e sem placar (jogo devia ter terminado); ou
- * - status ja indica encerrado/finalizado mas placar ainda nulo.
+ * - status ja indica encerrado/finalizado mas placar ainda nulo; ou
+ * - status parece ao vivo (andamento/intervalo), sem placar, apito + MATCH_LIVE_STUCK_FORCE_MINUTES (default 95).
  */
 export async function needsForcedResultSync(): Promise<boolean> {
   const compIds = syncedCompetitionIdsForCron();
@@ -37,6 +63,7 @@ export async function needsForcedResultSync(): Promise<boolean> {
 
   const hours = guaranteeGraceHoursAfterKickoff();
   const clockMin = matchEndClockMinutesAfterKickoff();
+  const stuckMin = matchLiveStuckForceMinutes();
   const pool = getPool();
   const { rows } = await pool.query<{ needs: boolean }>(
     `SELECT (
@@ -45,8 +72,8 @@ export async function needsForcedResultSync(): Promise<boolean> {
          FROM matches_cache mc
          INNER JOIN predictions p ON p.match_id = mc.match_id
          WHERE mc.competition_id = ANY($1::int[])
-           AND mc.kickoff_at IS NOT NULL
-           AND (mc.kickoff_at::timestamptz + ($2::text || ' hours')::interval) < now()
+           AND (${EFFECTIVE_KICKOFF_SQL}) IS NOT NULL
+           AND ((${EFFECTIVE_KICKOFF_SQL}) + ($2::text || ' hours')::interval) < now()
            AND mc.result_casa IS NULL
            AND mc.result_visitante IS NULL
            AND NOT (
@@ -63,8 +90,8 @@ export async function needsForcedResultSync(): Promise<boolean> {
          FROM matches_cache mc
          INNER JOIN predictions p ON p.match_id = mc.match_id
          WHERE mc.competition_id = ANY($1::int[])
-           AND mc.kickoff_at IS NOT NULL
-           AND (mc.kickoff_at::timestamptz + ($3::text || ' minutes')::interval) < now()
+           AND (${EFFECTIVE_KICKOFF_SQL}) IS NOT NULL
+           AND ((${EFFECTIVE_KICKOFF_SQL}) + ($3::text || ' minutes')::interval) < now()
            AND mc.result_casa IS NULL
            AND mc.result_visitante IS NULL
            AND NOT (
@@ -90,8 +117,31 @@ export async function needsForcedResultSync(): Promise<boolean> {
              OR lower(mc.status) LIKE '%interromp%'
            )
        )
+       OR EXISTS (
+         SELECT 1
+         FROM matches_cache mc
+         INNER JOIN predictions p ON p.match_id = mc.match_id
+         WHERE mc.competition_id = ANY($1::int[])
+           AND (${EFFECTIVE_KICKOFF_SQL}) IS NOT NULL
+           AND ((${EFFECTIVE_KICKOFF_SQL}) + ($4::text || ' minutes')::interval) < now()
+           AND mc.result_casa IS NULL
+           AND mc.result_visitante IS NULL
+           AND (
+             lower(coalesce(mc.status, '')) LIKE '%andamento%'
+             OR lower(coalesce(mc.status, '')) LIKE '%intervalo%'
+             OR lower(coalesce(mc.status, '')) LIKE '%ao_vivo%'
+             OR lower(coalesce(mc.status, '')) LIKE '%ao vivo%'
+             OR lower(coalesce(mc.status, '')) LIKE '%em curso%'
+           )
+           AND NOT (
+             lower(mc.status) LIKE '%cancel%'
+             OR lower(mc.status) LIKE '%adiad%'
+             OR lower(mc.status) LIKE '%suspens%'
+             OR lower(mc.status) LIKE '%interromp%'
+           )
+       )
      ) AS needs`,
-    [compIds, String(hours), String(clockMin)]
+    [compIds, String(hours), String(clockMin), String(stuckMin)]
   );
   return Boolean(rows[0]?.needs);
 }
@@ -127,9 +177,9 @@ export async function needsStaleMatchCacheForApiSync(): Promise<boolean> {
        SELECT 1
        FROM matches_cache mc
        WHERE mc.competition_id = ANY($1::int[])
-         AND mc.kickoff_at IS NOT NULL
-         AND mc.kickoff_at::timestamptz < now()
-         AND mc.kickoff_at::timestamptz > now() - interval '48 hours'
+         AND (${EFFECTIVE_KICKOFF_SQL}) IS NOT NULL
+         AND (${EFFECTIVE_KICKOFF_SQL}) < now()
+         AND (${EFFECTIVE_KICKOFF_SQL}) > now() - interval '48 hours'
          AND NOT (
            lower(coalesce(mc.status, '')) LIKE '%cancel%'
            OR lower(coalesce(mc.status, '')) LIKE '%adiad%'
@@ -144,14 +194,61 @@ export async function needsStaleMatchCacheForApiSync(): Promise<boolean> {
          AND (
            mc.synced_at < now() - ($2::text || ' minutes')::interval
            OR (
-             mc.kickoff_at::timestamptz + ($3::text || ' minutes')::interval < now()
-             AND mc.synced_at < mc.kickoff_at::timestamptz + ($3::text || ' minutes')::interval
+             (${EFFECTIVE_KICKOFF_SQL}) + ($3::text || ' minutes')::interval < now()
+             AND mc.synced_at < (${EFFECTIVE_KICKOFF_SQL}) + ($3::text || ' minutes')::interval
            )
          )
      ) AS needs`,
     [compIds, String(staleMins), String(postKoMins)],
   );
   return Boolean(rows[0]?.needs);
+}
+
+async function logMatchRefreshDebugSnapshot(breakdown: {
+  needsRefresh: boolean;
+  forcedResultSync: boolean;
+  staleCache: boolean;
+}): Promise<void> {
+  const raw = (process.env.MATCH_REFRESH_DEBUG || "").trim().toLowerCase();
+  if (!["1", "true", "yes"].includes(raw)) return;
+  const compIds = syncedCompetitionIdsForCron();
+  if (compIds.length === 0) return;
+  const stuckMin = matchLiveStuckForceMinutes();
+  const clockMin = matchEndClockMinutesAfterKickoff();
+  const pool = getPool();
+  const { rows } = await pool.query(
+    `SELECT DISTINCT ON (mc.competition_id, mc.match_id)
+        mc.competition_id,
+        mc.match_id,
+        mc.status,
+        mc.result_casa,
+        mc.result_visitante,
+        mc.kickoff_at::text AS kickoff_at,
+        mc.date_br,
+        mc.hour_br,
+        (${EFFECTIVE_KICKOFF_SQL})::text AS eff_ko,
+        mc.synced_at::text AS synced_at,
+        ((${EFFECTIVE_KICKOFF_SQL}) + ($2::text || ' minutes')::interval) < now() AS past_match_end_clock,
+        ((${EFFECTIVE_KICKOFF_SQL}) + ($3::text || ' minutes')::interval) < now() AS past_live_stuck_force
+     FROM matches_cache mc
+     INNER JOIN predictions p ON p.match_id = mc.match_id
+     WHERE mc.competition_id = ANY($1::int[])
+       AND (${EFFECTIVE_KICKOFF_SQL}) IS NOT NULL
+       AND mc.result_casa IS NULL
+       AND mc.result_visitante IS NULL
+     ORDER BY mc.competition_id, mc.match_id, (${EFFECTIVE_KICKOFF_SQL}) ASC NULLS LAST
+     LIMIT 30`,
+    [compIds, String(clockMin), String(stuckMin)]
+  );
+  console.info(
+    "[match-refresh-debug]",
+    JSON.stringify({
+      breakdown,
+      clockMin,
+      stuckMin,
+      sampleNullScorePredicted: rows,
+    })
+  );
 }
 
 /** Diagnóstico em uma rodada (evita duas idas ao DB em sequência). */
@@ -164,11 +261,13 @@ export async function getMatchApiRefreshBreakdown(): Promise<{
     needsForcedResultSync(),
     needsStaleMatchCacheForApiSync(),
   ]);
-  return {
+  const out = {
     needsRefresh: forcedResultSync || staleCache,
     forcedResultSync,
     staleCache,
   };
+  await logMatchRefreshDebugSnapshot(out).catch(() => {});
+  return out;
 }
 
 /** Tick de manutenção: só vale gastar cota da API se há pendência real ou cache defasado. */
