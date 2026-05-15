@@ -453,10 +453,10 @@ function EmptyBolaoShowcaseCard({
       className="rounded-[15px] border px-5 py-6 text-center"
       style={{ background: CARD_ALT, borderColor: BORDER }}
     >
-      <p className="text-[14px] font-black uppercase leading-tight tracking-[0.04em] text-white">
+      <p className="text-[16px] font-black uppercase leading-tight tracking-[0.04em] text-white">
         {title}
       </p>
-      <p className="mx-auto mt-2.5 max-w-[280px] text-[11px] leading-[1.45] text-white/48">
+      <p className="mx-auto mt-2.5 max-w-[280px] text-[14px] leading-[1.45] text-white/48">
         Compre seu ingresso na área de tickets para liberar palpites e
         acompanhar sua posição no ranking.
       </p>
@@ -468,120 +468,6 @@ function EmptyBolaoShowcaseCard({
         <ArrowRight className="size-4 shrink-0" strokeWidth={2.6} />
       </Link>
     </div>
-  );
-}
-
-function ActiveBoloesCard({
-  principal,
-  diario,
-  now,
-}: {
-  principal: ActivePrincipalBolao | null;
-  diario: ActiveDailyBolao | null;
-  now: number;
-}) {
-  const detailsHref = principal?.href ?? diario?.href ?? "/tickets";
-
-  if (!principal && !diario) return <EmptyBolaoShowcaseCard variant="resumo" />;
-
-  return (
-    <article
-      className="overflow-hidden rounded-[15px] border"
-      style={{ background: CARD_ALT, borderColor: BORDER }}
-    >
-      {principal && (
-        <div className="grid grid-cols-[58px_minmax(0,1fr)_72px]">
-          <div
-            className="flex items-center justify-center border-r"
-            style={{ borderColor: BORDER }}
-          >
-            <ActiveRowBolaoIcon isPrincipal isExtra={false} title="" />
-          </div>
-          <Link
-            href={principal.href}
-            className="min-w-0 px-3 py-[13px] transition-colors hover:bg-white/3 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-primary active:bg-white/5"
-          >
-            <p className="text-[13px] font-black uppercase leading-none text-white">
-              {principal.title}
-            </p>
-            <p className="mt-1.5 text-[12px] font-medium leading-none text-white/58">
-              {principal.cotaLabel}
-            </p>
-            <div className="mt-3">
-              <StatusPill status="ativo" label={principal.statusLabel} />
-            </div>
-            <div className="mt-3 flex items-center justify-between gap-2">
-              <span className="text-[12px] font-semibold leading-none text-white/58">
-                Palpites enviados
-              </span>
-              <span className="text-[12px] font-black leading-none text-white">
-                {principal.sent} / {principal.total}
-              </span>
-            </div>
-            <div className="mt-1.5 h-[5px] overflow-hidden rounded-full bg-white/8">
-              <div
-                className="h-full rounded-full"
-                style={{ width: `${principal.progress}%`, background: GREEN }}
-              />
-            </div>
-          </Link>
-          <RankingPanel
-            position={principal.position}
-            points={principal.points}
-          />
-        </div>
-      )}
-
-      {principal && diario && <div className="h-px bg-white/6" />}
-
-      {diario && (
-        <div className="grid grid-cols-[58px_minmax(0,1fr)_72px]">
-          <div
-            className="flex items-center justify-center border-r"
-            style={{ borderColor: BORDER }}
-          >
-            <ActiveRowBolaoIcon isPrincipal={false} isExtra={false} title="" />
-          </div>
-          <Link
-            href={diario.href}
-            className="min-w-0 px-3 py-[13px] transition-colors hover:bg-white/3 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-primary active:bg-white/5"
-          >
-            <p className="text-[13px] font-black uppercase leading-none text-white">
-              {diario.title}
-            </p>
-            <p className="mt-1.5 text-[12px] font-medium leading-none text-white/58">
-              {diario.cotaLabel}
-            </p>
-            <div className="mt-3">
-              <StatusPill status={diario.status} label={diario.statusLabel} />
-            </div>
-            <p className="mt-3 text-[12px] font-medium leading-none text-white/58">
-              Jogos do dia:{" "}
-              <span className="font-black text-white">
-                {diario.gamesCount} jogos
-              </span>
-            </p>
-            <p className="mt-1.5 text-[12px] font-medium leading-none text-white/58">
-              {diario.countdownLabel}:{" "}
-              <span className="font-black" style={{ color: GREEN_SOFT }}>
-                {formatCountdown(diario.countdownTargetMs, now)}
-              </span>
-            </p>
-          </Link>
-          <RankingPanel position={diario.position} points={diario.points} />
-        </div>
-      )}
-
-      <div className="px-3 pb-3 pt-2">
-        <Link
-          href={detailsHref}
-          className="flex h-[36px] w-full items-center justify-center rounded-[8px] border text-[12px] font-black uppercase tracking-[0.04em] text-white/62 transition-colors hover:bg-white/3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[0.99] active:bg-white/5"
-          style={{ borderColor: "rgba(177,235,11,0.18)" }}
-        >
-          Ver detalhes
-        </Link>
-      </div>
-    </article>
   );
 }
 
@@ -1967,13 +1853,9 @@ export function BoloesClient({
                 </div>
               ) : extraCollapsedCount <= 1 ? (
                 extraShowcaseItems.length === 1 ? (
-                  <ActiveShowcaseCard
-                    key={extraShowcaseItems[0].id}
-                    item={extraShowcaseItems[0]}
-                    now={now}
-                    kind="extra"
-                    fullWidth
-                  />
+                  <div>
+                    
+                  </div>
                 ) : (
                   <UpcomingExtraOfferCard
                     ex={upcomingExtras[0]}
