@@ -67,3 +67,28 @@ export function extraBolaoFallbackDisplayName(championshipId: number): string {
   if (brasileiraoExtraIdSet().has(championshipId)) return "Brasileirão";
   return `Campeonato ${championshipId}`;
 }
+
+/** Ícone do card de extra no checkout: Copa BR > Brasileirão > ticket genérico. */
+export type CheckoutExtraBolaoIconVariant = "copa_brasil" | "brasileirao" | "generic";
+
+export function resolveCheckoutExtraBolaoIconVariant(
+  extraBoloes: ReadonlyArray<{ championshipId: number; displayName?: string | undefined }>,
+  resumoShortLabel: string,
+): CheckoutExtraBolaoIconVariant {
+  const label = resumoShortLabel.trim();
+  for (const b of extraBoloes) {
+    if (getExtraBolaoHeroSideVariant(b.championshipId, b.displayName) === "copa_brasil") {
+      return "copa_brasil";
+    }
+  }
+  if (isCopaDoBrasilChampionshipTitle(label)) return "copa_brasil";
+
+  for (const b of extraBoloes) {
+    if (getExtraBolaoHeroSideVariant(b.championshipId, b.displayName) === "brasileirao") {
+      return "brasileirao";
+    }
+  }
+  if (isBrasileiraoChampionshipTitle(label)) return "brasileirao";
+
+  return "generic";
+}

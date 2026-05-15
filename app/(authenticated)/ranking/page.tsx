@@ -31,7 +31,7 @@ import {
   TrophyBronze,
 } from "@/app/components/RankingTrophies";
 import iconCopaBrasil from "@/app/assets/icon-copa-brasil.png";
-import ticketBlue from "@/app/assets/Ticket-Blue.png";
+import iconBrasileirao from "@/app/assets/icon-brasileirao.png";
 import { RankingPromoCards } from "@/app/(authenticated)/ranking/_components/RankingPromoCards";
 import {
   RankingBoardSkeleton,
@@ -128,7 +128,7 @@ function scopeGlyphForMode(
     if (variant === "brasileirao") {
       return (
         <Image
-          src={ticketBlue}
+          src={iconBrasileirao}
           alt=""
           width={size === "md" ? 22 : 18}
           height={size === "md" ? 22 : 18}

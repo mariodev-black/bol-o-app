@@ -22,9 +22,10 @@ import {
 import type { LucideIcon } from "lucide-react";
 import trofeuBoloes from "@/app/assets/trofeu-boloes.png";
 import bgPixel from "@/app/assets/bg-hero-pixels.png";
-import ticketGold from "@/app/assets/ticket-gold.png";
-import ticketBlue from "@/app/assets/Ticket-Blue.png";
+import iconBrasileirao from "@/app/assets/icon-brasileirao.png";
 import iconCopaBrasil from "@/app/assets/icon-copa-brasil.png";
+import iconCopaMundo from "@/app/assets/icon-copa-mundo.png";
+import ticketBlue from "@/app/assets/Ticket-Blue.png";
 import { getExtraBolaoHeroSideVariant } from "@/lib/boloes-extra-competition-branding";
 import { CotaCpa } from "../components/ui/cota_cpa";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -275,7 +276,39 @@ function ActiveRowBolaoIcon({
   title: string;
   championshipId?: number | null;
 }) {
-  const side = isExtra ? getExtraBolaoHeroSideVariant(championshipId ?? undefined, title) : "generic";
+  if (isPrincipal) {
+    return (
+      <div className="flex w-[58px] shrink-0 flex-col items-center justify-center px-0.5 text-center">
+        <Image
+          src={iconCopaMundo}
+          alt=""
+          width={44}
+          height={44}
+          className="h-11 w-11 object-contain"
+        />
+        <p className="mt-1 whitespace-pre-line text-[8px] font-black uppercase leading-[0.96] text-primary">
+          {"FIFA\nWorld Cup"}
+        </p>
+      </div>
+    );
+  }
+  if (!isExtra) {
+    return (
+      <div className="flex w-[58px] shrink-0 flex-col items-center justify-center px-0.5 text-center">
+        <Image
+          src={iconCopaMundo}
+          alt=""
+          width={44}
+          height={44}
+          className="h-11 w-11 object-contain"
+        />
+        <p className="mt-1 whitespace-pre-line text-[8px] font-black uppercase leading-[0.96] text-primary">
+          {"Bolão do\ndia"}
+        </p>
+      </div>
+    );
+  }
+  const side = getExtraBolaoHeroSideVariant(championshipId ?? undefined, title);
   if (side === "copa_brasil") {
     return (
       <div className="flex w-[58px] shrink-0 flex-col items-center justify-center px-0.5 text-center">
@@ -296,7 +329,7 @@ function ActiveRowBolaoIcon({
     return (
       <div className="flex w-[58px] shrink-0 flex-col items-center justify-center px-0.5 text-center">
         <Image
-          src={ticketBlue}
+          src={iconBrasileirao}
           alt=""
           width={44}
           height={44}
@@ -308,7 +341,7 @@ function ActiveRowBolaoIcon({
       </div>
     );
   }
-  return <BolaoIcon type={isPrincipal ? "copa" : isExtra ? "extra" : "dia"} />;
+  return <BolaoIcon type="extra" />;
 }
 
 function BolaoIcon({ type }: { type: "copa" | "dia" | "extra" }) {
@@ -462,7 +495,7 @@ function ActiveBoloesCard({
             className="flex items-center justify-center border-r"
             style={{ borderColor: BORDER }}
           >
-            <BolaoIcon type="copa" />
+            <ActiveRowBolaoIcon isPrincipal isExtra={false} title="" />
           </div>
           <Link
             href={principal.href}
@@ -507,7 +540,7 @@ function ActiveBoloesCard({
             className="flex items-center justify-center border-r"
             style={{ borderColor: BORDER }}
           >
-            <BolaoIcon type="dia" />
+            <ActiveRowBolaoIcon isPrincipal={false} isExtra={false} title="" />
           </div>
           <Link
             href={diario.href}
@@ -923,7 +956,12 @@ function UpcomingExtraOfferCard({
 }) {
   const extraSide = getExtraBolaoHeroSideVariant(ex.championshipId, ex.title);
   const accent = GREEN;
-  const ticketImg = extraSide === "copa_brasil" ? iconCopaBrasil : ticketBlue;
+  const ticketImg =
+    extraSide === "copa_brasil"
+      ? iconCopaBrasil
+      : extraSide === "brasileirao"
+        ? iconBrasileirao
+        : ticketBlue;
   const showVerResultados = lockHasPassed(ex.closesAtMs, now);
 
   return (
@@ -1133,10 +1171,14 @@ function ActiveShowcaseCard({
     : "generic";
   const tone = GREEN;
   const image = isPrincipal
-    ? ticketGold
-    : extraHero === "copa_brasil"
-      ? iconCopaBrasil
-      : ticketBlue;
+    ? iconCopaMundo
+    : isExtra
+      ? extraHero === "copa_brasil"
+        ? iconCopaBrasil
+        : extraHero === "brasileirao"
+          ? iconBrasileirao
+          : ticketBlue
+      : iconCopaMundo;
   const showVerResultados =
     item.status === "usado" ||
     lockHasPassed(item.countdownTargetMs ?? null, now);

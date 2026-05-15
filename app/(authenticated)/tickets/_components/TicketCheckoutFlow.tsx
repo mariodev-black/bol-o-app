@@ -20,10 +20,11 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import bannerCheckout from "@/app/assets/banner-chekout.png";
+import iconBrasileirao from "@/app/assets/icon-brasileirao.png";
 import iconCopaBrasil from "@/app/assets/icon-copa-brasil.png";
+import iconCopaMundo from "@/app/assets/icon-copa-mundo.png";
 import ticketBlue from "@/app/assets/Ticket-Blue.png";
-import ticketGold from "@/app/assets/ticket-gold.png";
-import { isCopaDoBrasilChampionshipTitle } from "@/lib/boloes-copa-brasil-branding";
+import { resolveCheckoutExtraBolaoIconVariant } from "@/lib/boloes-extra-competition-branding";
 import { championshipCountsFromExtraQuantity } from "@/lib/payments/ticket-config";
 import { appendTicketsFromPurchase } from "../lib/ownedTicketsStorage";
 import { TicketPixGeneratedScreen } from "./pix/TicketPixGeneratedScreen";
@@ -392,13 +393,19 @@ export function TicketCheckoutFlow({
     [extraBoloes],
   );
 
-  const extraCardUsesCopaBrasilIcon = useMemo(() => {
-    const label = extraResumoShortLabel.trim();
-    if (isCopaDoBrasilChampionshipTitle(label)) return true;
-    return extraBoloes.some((b) => isCopaDoBrasilChampionshipTitle(b.displayName));
-  }, [extraBoloes, extraResumoShortLabel]);
+  const extraCheckoutIconVariant = useMemo(
+    () => resolveCheckoutExtraBolaoIconVariant(extraBoloes, extraResumoShortLabel),
+    [extraBoloes, extraResumoShortLabel],
+  );
 
-  const extraCardIconSrc = extraCardUsesCopaBrasilIcon ? iconCopaBrasil.src : ticketBlue.src;
+  const extraCardIconSrc =
+    extraCheckoutIconVariant === "copa_brasil"
+      ? iconCopaBrasil.src
+      : extraCheckoutIconVariant === "brasileirao"
+        ? iconBrasileirao.src
+        : ticketBlue.src;
+
+  const extraCardBrandedIcon = extraCheckoutIconVariant !== "generic";
 
   const principalLineCents = progressiveDiscountTotalCents(
     prices.general,
@@ -621,7 +628,7 @@ export function TicketCheckoutFlow({
                 <div className="grid grid-cols-[74px_minmax(0,1fr)] items-center gap-3 p-3 sm:grid-cols-[86px_minmax(0,1fr)] sm:p-3.5">
                   <div className="flex flex-col items-center justify-center">
                     <img
-                      src={ticketGold.src}
+                      src={iconCopaMundo.src}
                       alt=""
                       className="h-[72px] w-[52px] shrink-0 object-contain drop-shadow-[0_8px_24px_rgba(177,235,11,0.35)] sm:h-[86px] sm:w-[62px]"
                     />
@@ -718,9 +725,9 @@ export function TicketCheckoutFlow({
                 <div className="grid grid-cols-[74px_minmax(0,1fr)] items-center gap-3 p-3 sm:grid-cols-[86px_minmax(0,1fr)] sm:p-3.5">
                   <div className="flex flex-col items-center justify-center">
                     <img
-                      src={ticketBlue.src}
+                      src={iconCopaMundo.src}
                       alt=""
-                      className="h-[72px] w-[52px] shrink-0 object-contain drop-shadow-[0_8px_24px_rgba(59,130,246,0.35)] sm:h-[86px] sm:w-[62px]"
+                      className="h-[72px] w-[52px] shrink-0 object-contain drop-shadow-[0_8px_24px_rgba(177,235,11,0.35)] sm:h-[86px] sm:w-[62px]"
                     />
                     <span className="mt-1 text-[8px] font-black uppercase leading-tight tracking-wide text-primary">
                       Bolão do dia
@@ -825,7 +832,7 @@ export function TicketCheckoutFlow({
                         src={extraCardIconSrc}
                         alt=""
                         className={
-                          extraCardUsesCopaBrasilIcon
+                          extraCardBrandedIcon
                             ? "h-[68px] w-[68px] shrink-0 rounded-[12px] object-contain sm:h-[78px] sm:w-[78px]"
                             : "h-[72px] w-[52px] shrink-0 object-contain sm:h-[86px] sm:w-[62px]"
                         }
