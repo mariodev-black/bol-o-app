@@ -453,10 +453,10 @@ function EmptyBolaoShowcaseCard({
       className="rounded-[15px] border px-5 py-6 text-center"
       style={{ background: CARD_ALT, borderColor: BORDER }}
     >
-      <p className="text-[16px] font-black uppercase leading-tight tracking-[0.04em] text-white">
+      <p className="text-[14px] font-black uppercase leading-tight tracking-[0.04em] text-white">
         {title}
       </p>
-      <p className="mx-auto mt-2.5 max-w-[280px] text-[14px] leading-[1.45] text-white/48">
+      <p className="mx-auto mt-2.5 max-w-[280px] text-[11px] leading-[1.45] text-white/48">
         Compre seu ingresso na área de tickets para liberar palpites e
         acompanhar sua posição no ranking.
       </p>
@@ -1854,7 +1854,13 @@ export function BoloesClient({
               ) : extraCollapsedCount <= 1 ? (
                 extraShowcaseItems.length === 1 ? (
                   <div>
-                    
+                    <ActiveShowcaseCard
+                      key={extraShowcaseItems[0].id}
+                      item={extraShowcaseItems[0]}
+                      now={now}
+                      kind="extra"
+                      fullWidth
+                    />
                   </div>
                 ) : (
                   <UpcomingExtraOfferCard
