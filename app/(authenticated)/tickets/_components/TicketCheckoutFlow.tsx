@@ -647,11 +647,9 @@ export function TicketCheckoutFlow({
                     <img
                       src={iconCopaMundo.src}
                       alt=""
-                      className="h-[72px] w-[52px] shrink-0 object-contain drop-shadow-[0_8px_24px_rgba(177,235,11,0.35)] sm:h-[86px] sm:w-[62px]"
+                      className="h-[82px] w-[62px] shrink-0 object-contain sm:h-[86px] sm:w-[62px]"
                     />
-                    <span className="mt-1 text-[8px] font-black uppercase leading-tight tracking-wide text-primary">
-                      Copa 2026
-                    </span>
+                    
                   </div>
 
                   <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_88px] items-center gap-3 sm:grid-cols-[minmax(0,1fr)_96px]">
@@ -744,11 +742,9 @@ export function TicketCheckoutFlow({
                     <img
                       src={iconCopaMundo.src}
                       alt=""
-                      className="h-[72px] w-[52px] shrink-0 object-contain drop-shadow-[0_8px_24px_rgba(177,235,11,0.35)] sm:h-[86px] sm:w-[62px]"
+                      className="h-[82px] w-[62px] shrink-0 object-contain sm:h-[86px] sm:w-[62px]"
                     />
-                    <span className="mt-1 text-[8px] font-black uppercase leading-tight tracking-wide text-primary">
-                      Bolão do dia
-                    </span>
+                   
                   </div>
 
                   <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_88px] items-center gap-3 sm:grid-cols-[minmax(0,1fr)_96px]">
@@ -851,7 +847,7 @@ export function TicketCheckoutFlow({
                         className={
                           extraCardBrandedIcon
                             ? "h-[68px] w-[68px] shrink-0 rounded-[12px] object-contain sm:h-[78px] sm:w-[78px]"
-                            : "h-[72px] w-[52px] shrink-0 object-contain sm:h-[86px] sm:w-[62px]"
+                            : "h-[82px] w-[62px] shrink-0 object-contain sm:h-[86px] sm:w-[62px]"
                         }
                       />
                     </div>
