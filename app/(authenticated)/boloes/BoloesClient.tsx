@@ -969,7 +969,7 @@ function UpcomingExtraOfferCard({
       href={ex.href}
       aria-label={showVerResultados ? "Ver resultados" : "Fazer palpites"}
       className={[
-        "group relative flex min-h-0 flex-col overflow-hidden rounded-[18px] border bg-[#121212] transition-transform duration-300 active:scale-[0.985]",
+        "group relative flex min-h-0 flex-col overflow-hidden rounded-[18px] border bg-[#000] transition-transform duration-300 active:scale-[0.985]",
         fullWidth ? "w-full" : "w-[368px] max-w-[88vw] shrink-0 snap-center",
       ].join(" ")}
       style={{
@@ -1157,7 +1157,7 @@ function ActiveShowcaseCard({
       href={item.href}
       aria-label={showVerResultados ? "Ver resultados" : "Fazer palpites"}
       className={[
-        "group relative flex min-h-0 flex-col overflow-hidden rounded-[18px] border bg-[#121212] transition-transform duration-300 active:scale-[0.985]",
+        "group relative flex min-h-0 flex-col overflow-hidden rounded-[18px] border bg-[#000] transition-transform duration-300 active:scale-[0.985]",
         fullWidth ? "w-full" : "w-[368px] max-w-[88vw] shrink-0 snap-center",
       ].join(" ")}
       style={{
