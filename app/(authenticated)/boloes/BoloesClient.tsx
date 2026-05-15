@@ -986,37 +986,6 @@ function UpcomingExtraOfferCard({
             height={88}
             className="h-[76px] w-[68px] object-contain transition-transform duration-300 group-hover:scale-[1.03]"
           />
-          {extraSide === "copa_brasil" ? (
-            <div className="mt-1.5 text-center leading-tight">
-              <p className="text-[9px] font-semibold text-white/85">Copa do</p>
-              <p
-                className="text-[11px] font-black uppercase tracking-wide"
-                style={{ color: GREEN }}
-              >
-                Brasil
-              </p>
-            </div>
-          ) : extraSide === "brasileirao" ? (
-            <div className="mt-1.5 text-center leading-tight">
-              <p className="text-[9px] font-semibold text-white/85">Campeonato</p>
-              <p
-                className="text-[11px] font-black uppercase tracking-wide"
-                style={{ color: GREEN }}
-              >
-                Brasileirão
-              </p>
-            </div>
-          ) : (
-            <div className="mt-1.5 text-center leading-tight">
-              <p className="text-[9px] font-semibold text-white/85">Bolão</p>
-              <p
-                className="text-[11px] font-black uppercase tracking-wide"
-                style={{ color: accent }}
-              >
-                Extra
-              </p>
-            </div>
-          )}
         </div>
 
         {/* Meio — título, status, infos */}
@@ -1204,49 +1173,7 @@ function ActiveShowcaseCard({
             height={88}
             className="h-[76px] w-[68px] object-contain transition-transform duration-300 group-hover:scale-[1.03]"
           />
-          {isPrincipal ? (
-            <div className="mt-1.5 text-center leading-tight">
-              <p className="whitespace-pre-line text-[9px] font-semibold text-white/85">
-                {"FIFA\nWorld Cup"}
-              </p>
-              <p
-                className="text-[11px] font-black uppercase tracking-wide"
-                style={{ color: GREEN }}
-              >
-                2026
-              </p>
-            </div>
-          ) : extraHero === "copa_brasil" ? (
-            <div className="mt-1.5 text-center leading-tight">
-              <p className="text-[9px] font-semibold text-white/85">Copa do</p>
-              <p
-                className="text-[11px] font-black uppercase tracking-wide"
-                style={{ color: GREEN }}
-              >
-                Brasil
-              </p>
-            </div>
-          ) : extraHero === "brasileirao" ? (
-            <div className="mt-1.5 text-center leading-tight">
-              <p className="text-[9px] font-semibold text-white/85">Campeonato</p>
-              <p
-                className="text-[11px] font-black uppercase tracking-wide"
-                style={{ color: GREEN }}
-              >
-                Brasileirão
-              </p>
-            </div>
-          ) : (
-            <div className="mt-1.5 text-center leading-tight">
-              <p className="text-[9px] font-semibold text-white/85">Bolão</p>
-              <p
-                className="text-[11px] font-black uppercase tracking-wide"
-                style={{ color: tone }}
-              >
-                {isExtra ? "Extra" : "Do dia"}
-              </p>
-            </div>
-          )}
+          
         </div>
 
         <div className="relative z-10 flex min-w-0 flex-col justify-center border-r border-white/8 px-3 py-3.5 min-[380px]:px-3.5">
@@ -1896,6 +1823,28 @@ export function BoloesClient({
           />
         </section>
 
+        <ComoFuncionaPalpitesCard />
+        <header className="mt-6">
+          <div className="flex items-start gap-3 sm:gap-3.5">
+            <ChevronDown
+              className="mt-0.5 size-6 shrink-0 sm:size-7"
+              style={{ color: GREEN }}
+              strokeWidth={2.75}
+              aria-hidden
+            />
+            <div className="flex min-w-0 flex-col gap-1">
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0">
+                <h2 className="text-[14px] font-black uppercase leading-none tracking-[-0.02em] text-white min-[380px]:text-[16px]">
+                  Selecione seu bolão
+                </h2>
+              </div>
+              <p className="text-[12px] font-normal leading-snug text-[#888888]">
+                Escolha abaixo onde deseja palpitar
+              </p>
+            </div>
+          </div>
+        </header>
+
         {!ticketsExtraOnly && (
           <>
             <section className="mt-6">
@@ -1985,28 +1934,8 @@ export function BoloesClient({
           </>
         )}
 
-        <ComoFuncionaPalpitesCard />
 
-        <header className="mt-6">
-          <div className="flex items-start gap-3 sm:gap-3.5">
-            <ChevronDown
-              className="mt-0.5 size-6 shrink-0 sm:size-7"
-              style={{ color: GREEN }}
-              strokeWidth={2.75}
-              aria-hidden
-            />
-            <div className="flex min-w-0 flex-col gap-1">
-              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0">
-                <h2 className="text-[14px] font-black uppercase leading-none tracking-[-0.02em] text-white min-[380px]:text-[16px]">
-                  Selecione seu bolão
-                </h2>
-              </div>
-              <p className="text-[12px] font-normal leading-snug text-[#888888]">
-                Escolha abaixo onde deseja palpitar
-              </p>
-            </div>
-          </div>
-        </header>
+       
 
         {hasExtraSection && (
           <section className={ticketsExtraOnly ? "mt-6 mb-6" : "mt-4 mb-6"}>
