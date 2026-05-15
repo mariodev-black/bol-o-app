@@ -31,13 +31,14 @@ import {
   TrophyBronze,
 } from "@/app/components/RankingTrophies";
 import iconCopaBrasil from "@/app/assets/icon-copa-brasil.png";
+import ticketBlue from "@/app/assets/Ticket-Blue.png";
 import { RankingPromoCards } from "@/app/(authenticated)/ranking/_components/RankingPromoCards";
 import {
   RankingBoardSkeleton,
   RankingFullPageSkeleton,
 } from "@/app/(authenticated)/ranking/_components/RankingPageSkeletons";
 import type { RankingScopeOption } from "@/lib/ranking/scopes";
-import { isCopaDoBrasilChampionshipTitle } from "@/lib/boloes-copa-brasil-branding";
+import { getExtraBolaoHeroSideVariant } from "@/lib/boloes-extra-competition-branding";
 import { getAvatarPresetImage } from "@/lib/user/avatar-presets";
 
 type BoardRow = {
@@ -100,6 +101,7 @@ function scopeGlyphForMode(
   mode: RankingScopeOption["mode"] | undefined,
   size: "md" | "sm" = "md",
   extraSelectPrimary?: string | null,
+  extraChampionshipId?: number | null,
 ) {
   const dim = size === "md" ? "size-[22px]" : "size-[18px]";
   if (mode === "principal")
@@ -111,13 +113,22 @@ function scopeGlyphForMode(
       />
     );
   if (mode === "extra") {
-    const copaBr =
-      extraSelectPrimary != null &&
-      isCopaDoBrasilChampionshipTitle(extraSelectPrimary);
-    if (copaBr) {
+    const variant = getExtraBolaoHeroSideVariant(extraChampionshipId, extraSelectPrimary);
+    if (variant === "copa_brasil") {
       return (
         <Image
           src={iconCopaBrasil}
+          alt=""
+          width={size === "md" ? 22 : 18}
+          height={size === "md" ? 22 : 18}
+          className={`${dim} shrink-0 object-contain`}
+        />
+      );
+    }
+    if (variant === "brasileirao") {
+      return (
+        <Image
+          src={ticketBlue}
           alt=""
           width={size === "md" ? 22 : 18}
           height={size === "md" ? 22 : 18}
@@ -926,6 +937,9 @@ export default function RankingPage() {
                         selectedScope?.mode === "extra"
                           ? selectedScope.selectPrimary
                           : null,
+                        selectedScope?.mode === "extra"
+                          ? selectedScope.extraChampionshipId
+                          : null,
                       )}
                     </span>
                     <span className="min-w-0 flex-1">
@@ -995,12 +1009,15 @@ export default function RankingPage() {
                                   <span className="flex min-w-0 items-center gap-3">
                                     <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-white/12 bg-linear-to-b from-zinc-900/90 to-black/90 shadow-inner">
                                       {scopeGlyphForMode(
-                                      option.mode,
-                                      "sm",
-                                      option.mode === "extra"
-                                        ? option.selectPrimary
-                                        : null,
-                                    )}
+                                        option.mode,
+                                        "sm",
+                                        option.mode === "extra"
+                                          ? option.selectPrimary
+                                          : null,
+                                        option.mode === "extra"
+                                          ? option.extraChampionshipId
+                                          : null,
+                                      )}
                                     </span>
                                     <span className="min-w-0">
                                       {(() => {

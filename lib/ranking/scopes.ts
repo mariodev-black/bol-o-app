@@ -1,3 +1,4 @@
+import { extraBolaoFallbackDisplayName } from "@/lib/boloes-extra-competition-branding";
 import { warmCompetitionMetadataCache } from "@/lib/competition-metadata-cache";
 import { listPaidTicketsForUser } from "@/lib/payments/user-tickets";
 
@@ -12,6 +13,8 @@ export type RankingScopeOption = {
   selectPrimary: string;
   /** Segunda linha: data (dia/extra) ou subtítulo do bolão (ex.: competição no geral). */
   selectSecondary: string;
+  /** Bolão extra: id do campeonato na API (selo / ícone no ranking). */
+  extraChampionshipId?: number | null;
   unusedPalpites: boolean;
   palpitesHref: string;
 };
@@ -49,6 +52,7 @@ export async function buildRankingScopes(
         meta: `${general.length} cota${general.length === 1 ? "" : "s"} no bolão principal`,
         selectPrimary: "Bolão geral",
         selectSecondary: "Copa do Mundo 2026",
+        extraChampionshipId: null,
         unusedPalpites: unused,
         palpitesHref: "/palpites",
       });
@@ -65,6 +69,7 @@ export async function buildRankingScopes(
         meta: `Cota ${shortId(t.id)}`,
         selectPrimary: "Bolão do dia",
         selectSecondary: date,
+        extraChampionshipId: null,
         unusedPalpites: unused,
         palpitesHref: palpitesHrefForTicket(t.id),
       });
@@ -97,7 +102,7 @@ export async function buildRankingScopes(
         compId != null && Number.isFinite(compId) && compNames[compId]
           ? compNames[compId]!
           : compId != null && Number.isFinite(compId)
-            ? `Campeonato ${compId}`
+            ? extraBolaoFallbackDisplayName(compId)
             : "Bolão extra";
       const ordinalSuffix = extraSorted.length > 1 ? ` · #${i + 1}` : "";
       const unused = (t.availableGames ?? 0) > 0;
@@ -109,6 +114,7 @@ export async function buildRankingScopes(
         meta: `Cota ${shortId(t.id)}`,
         selectPrimary: championshipName,
         selectSecondary: `${date}${ordinalSuffix}`,
+        extraChampionshipId: compId ?? null,
         unusedPalpites: unused,
         palpitesHref: palpitesHrefForTicket(t.id),
       });

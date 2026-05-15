@@ -25,7 +25,7 @@ import bgPixel from "@/app/assets/bg-hero-pixels.png";
 import ticketGold from "@/app/assets/ticket-gold.png";
 import ticketBlue from "@/app/assets/Ticket-Blue.png";
 import iconCopaBrasil from "@/app/assets/icon-copa-brasil.png";
-import { isCopaDoBrasilChampionshipTitle } from "@/lib/boloes-copa-brasil-branding";
+import { getExtraBolaoHeroSideVariant } from "@/lib/boloes-extra-competition-branding";
 import { CotaCpa } from "../components/ui/cota_cpa";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -268,12 +268,15 @@ function ActiveRowBolaoIcon({
   isPrincipal,
   isExtra,
   title,
+  championshipId,
 }: {
   isPrincipal: boolean;
   isExtra: boolean;
   title: string;
+  championshipId?: number | null;
 }) {
-  if (isExtra && isCopaDoBrasilChampionshipTitle(title)) {
+  const side = isExtra ? getExtraBolaoHeroSideVariant(championshipId ?? undefined, title) : "generic";
+  if (side === "copa_brasil") {
     return (
       <div className="flex w-[58px] shrink-0 flex-col items-center justify-center px-0.5 text-center">
         <Image
@@ -285,6 +288,22 @@ function ActiveRowBolaoIcon({
         />
         <p className="mt-1 whitespace-pre-line text-[8px] font-black uppercase leading-[0.96] text-primary">
           {"Copa do\nBrasil"}
+        </p>
+      </div>
+    );
+  }
+  if (side === "brasileirao") {
+    return (
+      <div className="flex w-[58px] shrink-0 flex-col items-center justify-center px-0.5 text-center">
+        <Image
+          src={ticketBlue}
+          alt=""
+          width={44}
+          height={44}
+          className="h-11 w-11 object-contain"
+        />
+        <p className="mt-1 whitespace-pre-line text-[8px] font-black uppercase leading-[0.96] text-primary">
+          {"Campeonato\nBrasileirão"}
         </p>
       </div>
     );
@@ -565,6 +584,7 @@ function ActiveBoloesList({
                   isPrincipal={isPrincipal}
                   isExtra={isExtra}
                   title={item.title}
+                  championshipId={item.championshipId}
                 />
               </div>
 
@@ -901,9 +921,9 @@ function UpcomingExtraOfferCard({
   now: number;
   fullWidth?: boolean;
 }) {
-  const isCopaBr = isCopaDoBrasilChampionshipTitle(ex.title);
+  const extraSide = getExtraBolaoHeroSideVariant(ex.championshipId, ex.title);
   const accent = GREEN;
-  const ticketImg = isCopaBr ? iconCopaBrasil : ticketBlue;
+  const ticketImg = extraSide === "copa_brasil" ? iconCopaBrasil : ticketBlue;
   const showVerResultados = lockHasPassed(ex.closesAtMs, now);
 
   return (
@@ -928,7 +948,7 @@ function UpcomingExtraOfferCard({
             height={88}
             className="h-[76px] w-[68px] object-contain transition-transform duration-300 group-hover:scale-[1.03]"
           />
-          {isCopaBr ? (
+          {extraSide === "copa_brasil" ? (
             <div className="mt-1.5 text-center leading-tight">
               <p className="text-[9px] font-semibold text-white/85">Copa do</p>
               <p
@@ -936,6 +956,16 @@ function UpcomingExtraOfferCard({
                 style={{ color: GREEN }}
               >
                 Brasil
+              </p>
+            </div>
+          ) : extraSide === "brasileirao" ? (
+            <div className="mt-1.5 text-center leading-tight">
+              <p className="text-[9px] font-semibold text-white/85">Campeonato</p>
+              <p
+                className="text-[11px] font-black uppercase tracking-wide"
+                style={{ color: GREEN }}
+              >
+                Brasileirão
               </p>
             </div>
           ) : (
@@ -1098,11 +1128,13 @@ function ActiveShowcaseCard({
   const isPrincipal = kind === "principal";
   const isExtra = kind === "extra";
   const progress = Math.max(0, Math.min(100, item.progress ?? 0));
-  const isCopaBrExtra = isExtra && isCopaDoBrasilChampionshipTitle(item.title);
+  const extraHero = isExtra
+    ? getExtraBolaoHeroSideVariant(item.championshipId, item.title)
+    : "generic";
   const tone = GREEN;
   const image = isPrincipal
     ? ticketGold
-    : isCopaBrExtra
+    : extraHero === "copa_brasil"
       ? iconCopaBrasil
       : ticketBlue;
   const showVerResultados =
@@ -1142,7 +1174,7 @@ function ActiveShowcaseCard({
                 2026
               </p>
             </div>
-          ) : isCopaBrExtra ? (
+          ) : extraHero === "copa_brasil" ? (
             <div className="mt-1.5 text-center leading-tight">
               <p className="text-[9px] font-semibold text-white/85">Copa do</p>
               <p
@@ -1150,6 +1182,16 @@ function ActiveShowcaseCard({
                 style={{ color: GREEN }}
               >
                 Brasil
+              </p>
+            </div>
+          ) : extraHero === "brasileirao" ? (
+            <div className="mt-1.5 text-center leading-tight">
+              <p className="text-[9px] font-semibold text-white/85">Campeonato</p>
+              <p
+                className="text-[11px] font-black uppercase tracking-wide"
+                style={{ color: GREEN }}
+              >
+                Brasileirão
               </p>
             </div>
           ) : (

@@ -373,7 +373,7 @@ export function TicketCheckoutFlow({
   const extraTicketHeadline = useMemo(() => {
     const base = extraResumoShortLabel.trim();
     let headline =
-      !base || base === "Bolão extra" ? "TICKET BOLÃO EXTRA" : `TICKET ${base.toUpperCase()}`;
+      !base || base === "Bolão extra" ? "TICKET BOLÃO EXTRA" : `Bolão ${base.toUpperCase()}`;
     const d = extraRoundPlayDateBR?.trim();
     if (d) headline = `${headline} - ${d}`;
     return headline;
@@ -815,7 +815,7 @@ export function TicketCheckoutFlow({
               {extraBoloes.length > 0 && (
                 <div className="overflow-hidden rounded-[16px] border border-white/10 bg-[#121212] shadow-[0_8px_26px_rgba(0,0,0,0.35)]">
                   <div className="min-w-0 overflow-x-auto border-b border-white/6 px-3 pb-2.5 pt-3 [-ms-overflow-style:none] [scrollbar-width:none] sm:px-3.5 sm:pb-3 sm:pt-3.5 [&::-webkit-scrollbar]:hidden">
-                    <h3 className="inline-block w-max max-w-none whitespace-nowrap text-[12px] font-black uppercase leading-none tracking-[-0.03em] text-white min-[380px]:text-[13px] sm:text-[15px]">
+                    <h3 className="inline-block w-max max-w-none whitespace-nowrap text-[14px] font-black uppercase leading-none tracking-[-0.03em] text-white min-[380px]:text-[15px] sm:text-[15px]">
                       {extraTicketHeadline}
                     </h3>
                   </div>
@@ -826,8 +826,8 @@ export function TicketCheckoutFlow({
                         alt=""
                         className={
                           extraCardUsesCopaBrasilIcon
-                            ? "h-[68px] w-[68px] shrink-0 rounded-[12px] object-contain drop-shadow-[0_8px_24px_rgba(59,130,246,0.35)] sm:h-[78px] sm:w-[78px]"
-                            : "h-[72px] w-[52px] shrink-0 object-contain drop-shadow-[0_8px_24px_rgba(177,235,11,0.28)] sm:h-[86px] sm:w-[62px]"
+                            ? "h-[68px] w-[68px] shrink-0 rounded-[12px] object-contain sm:h-[78px] sm:w-[78px]"
+                            : "h-[72px] w-[52px] shrink-0 object-contain sm:h-[86px] sm:w-[62px]"
                         }
                       />
                     </div>

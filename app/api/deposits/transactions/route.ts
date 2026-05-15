@@ -3,6 +3,7 @@ import { z } from "zod";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 import { createDepositTransaction, parseTicketTypeOrThrow } from "@/lib/payments/transactions";
 import { getExtraBolaoUnitCents, getTicketPriceCents } from "@/lib/payments/ticket-config";
+import { extraBolaoFallbackDisplayName } from "@/lib/boloes-extra-competition-branding";
 import { parseExtraBolaoChampionshipIds } from "@/lib/boloes-extra-config";
 import {
   readCompetitionDisplayNamesFromDb,
@@ -59,7 +60,7 @@ export async function GET() {
     extraBoloes: ids.map((championshipId) => ({
       championshipId,
       unitCents: unit,
-      ...(labels[championshipId] ? { displayName: labels[championshipId] } : {}),
+      displayName: labels[championshipId] ?? extraBolaoFallbackDisplayName(championshipId),
       ...(playDates[championshipId] ? { roundPlayDateBR: playDates[championshipId] } : {}),
     })),
   });
