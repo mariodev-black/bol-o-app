@@ -7,6 +7,7 @@ import {
   type PurchaseExtraInput,
   type TicketType,
 } from "@/lib/payments/ticket-config";
+import { postPaymentApprovedWebhookIfConfigured } from "@/lib/payments/payment-approved-webhook";
 import { publishTransactionEvent } from "@/lib/payments/transaction-events";
 import { recordReferralCommissionIfApplicable } from "@/lib/referrals/commissions";
 
@@ -392,6 +393,15 @@ export async function updateTransactionStatusByProviderId(input: {
       });
     } catch (e) {
       console.error("[referral] commission on paid transaction", e);
+    }
+    try {
+      await postPaymentApprovedWebhookIfConfigured({
+        transactionId: row.id,
+        userId: row.user_id,
+        gatewayLatestPayload: input.rawWebhook ?? null,
+      });
+    } catch (e) {
+      console.error("[payment-approved-webhook] unexpected", e);
     }
   }
 
