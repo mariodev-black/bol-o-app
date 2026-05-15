@@ -2,6 +2,8 @@
  * Regras do bolão diário: qual data (dd/MM/yyyy, fuso America/Sao_Paulo) vale para
  * filtrar partidas. Com palpites já salvos no ticket, a data vem só das partidas
  * correspondentes — não “pula” para o próximo dia só porque o mapa não listou hoje.
+ * Sem jogos na data de hoje: usa o próximo dia com jogo; se só existirem datas passadas,
+ * usa o dia de jogo passado mais recente (útil p.ex. Brasileirão em dia sem partida).
  */
 
 import type { MatchMap } from "@/lib/match-map-types";
@@ -101,9 +103,17 @@ export function resolveDiarioPlayableDate(
   const today = brToday();
   const todayMs = utcMsForBrDate(today);
   if (dates.has(today)) return today;
-  const sortedFuture = [...dates]
+  if (todayMs == null) return today;
+
+  const withMs = [...dates]
     .map((d) => ({ d, ms: utcMsForBrDate(d) }))
-    .filter((x): x is { d: string; ms: number } => x.ms != null && todayMs != null && x.ms >= todayMs)
-    .sort((a, b) => a.ms - b.ms);
-  return sortedFuture[0]?.d ?? today;
+    .filter((x): x is { d: string; ms: number } => x.ms != null);
+  if (withMs.length === 0) return today;
+
+  const sortedFuture = withMs.filter((x) => x.ms >= todayMs).sort((a, b) => a.ms - b.ms);
+  if (sortedFuture.length > 0) return sortedFuture[0]!.d;
+
+  /** Sem jogos hoje nem à frente no calendário (ex.: folga na rodada): usa o dia de jogo passado mais recente. */
+  const sortedPast = withMs.filter((x) => x.ms < todayMs).sort((a, b) => b.ms - a.ms);
+  return sortedPast[0]?.d ?? today;
 }

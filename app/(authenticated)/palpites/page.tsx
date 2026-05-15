@@ -6,10 +6,12 @@ import { inferBolaoTypeFromTicketPrefix } from "@/lib/ticket-kind-shared";
 import { calcPredictionPoints, listPredictions } from "@/lib/predictions";
 import { fetchMatchesMap, getMatchFromMap } from "@/lib/football-api";
 import { getPartidasFasesFromDb } from "@/lib/partidas-cache-payload";
-import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
+import { getFootballMainCompetitionId, getSoleConfiguredExtraChampionshipId } from "@/lib/boloes-extra-config";
+import { extraBolaoFallbackDisplayName } from "@/lib/boloes-extra-competition-branding";
 import { getPool } from "@/lib/db";
 import { parseKickoffFromPartidaPayload, pickScoreFromPartidaPayload } from "@/lib/partida-placar";
 import { fetchExtraChampionshipIdByTicketIds } from "@/lib/ticket-competition-server";
+import { pickTabelaGruposForPalpites } from "@/lib/tabela-palpites-normalize";
 
 const MESES = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
 type StatusJogo = "aberto" | "encerrado";
@@ -181,24 +183,6 @@ function parseAllPartidas(fases: Record<string, any> | undefined): {
   return { jogos, grupos: Array.from(grupos).sort() };
 }
 
-function pickTabelaGrupos(data: any): TabelaGrupos {
-  if (!data || typeof data !== "object") return null;
-  if (data["fase-de-grupos"] && typeof data["fase-de-grupos"] === "object") {
-    return data["fase-de-grupos"] as TabelaGrupos;
-  }
-  if (Object.keys(data).some((key) => key.startsWith("grupo-"))) {
-    return data as TabelaGrupos;
-  }
-  const firstGrouped = Object.values(data).find(
-    (value) =>
-      value &&
-      typeof value === "object" &&
-      !Array.isArray(value) &&
-      Object.keys(value as Record<string, unknown>).some((key) => key.startsWith("grupo-"))
-  );
-  return (firstGrouped as TabelaGrupos) ?? null;
-}
-
 function resolveBaseUrl(h: Headers): string {
   const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
   const proto = h.get("x-forwarded-proto") ?? "http";
@@ -214,13 +198,22 @@ async function fetchJson(baseUrl: string, path: string, cookieHeader: string) {
   return { data, ok: res.ok };
 }
 
+function palpitesBolaoHeading(
+  bolaoType: "principal" | "diario" | "extra",
+  extraChampionshipId: number | null,
+): string {
+  if (bolaoType === "extra" && extraChampionshipId != null && Number.isFinite(extraChampionshipId) && extraChampionshipId > 0) {
+    return extraBolaoFallbackDisplayName(extraChampionshipId);
+  }
+  if (bolaoType === "diario") return "Bolão do dia";
+  return "Copa do Mundo 2026";
+}
+
 async function buildInitialData(ticketId: string | null): Promise<PalpitesInitialData> {
   const h = await headers();
   const c = await cookies();
   const baseUrl = resolveBaseUrl(h);
   const cookieHeader = c.toString();
-
-  const tabelaRes = await fetchJson(baseUrl, "/api/tabela", cookieHeader);
 
   const token = c.get(sessionCookieName())?.value;
   const userId = token ? await verifySessionToken(token).catch(() => null) : null;
@@ -245,12 +238,29 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
       }
     }
   }
+  if (bolaoType === "extra") {
+    if (extraChampionshipId == null || !Number.isFinite(extraChampionshipId) || extraChampionshipId <= 0) {
+      const sole = getSoleConfiguredExtraChampionshipId();
+      if (sole != null) extraChampionshipId = sole;
+    }
+  }
+
+  const mainComp = getFootballMainCompetitionId();
+  const tabelaCompId =
+    bolaoType === "extra" && extraChampionshipId != null && extraChampionshipId > 0
+      ? extraChampionshipId
+      : mainComp;
+  const tabelaRes = await fetchJson(
+    baseUrl,
+    `/api/tabela?competitionId=${encodeURIComponent(String(tabelaCompId))}`,
+    cookieHeader,
+  );
 
   let partidasOk = true;
   let fases: Record<string, any> = {};
   try {
     const compId =
-      bolaoType === "extra" && extraChampionshipId != null
+      bolaoType === "extra" && extraChampionshipId != null && extraChampionshipId > 0
         ? extraChampionshipId
         : getFootballMainCompetitionId();
     fases = (await getPartidasFasesFromDb(compId)) as Record<string, any>;
@@ -269,7 +279,6 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
 
   if (userId) {
     const matches = await fetchMatchesMap();
-    const mainComp = getFootballMainCompetitionId();
 
     if (tid) {
       const preds = await listPredictions({ userId, ticketId: tid, bolaoType });
@@ -436,7 +445,8 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
     ticketId,
     bolaoType,
     extraChampionshipId,
-    tabela: pickTabelaGrupos(tabelaRes.data as any),
+    bolaoHeading: palpitesBolaoHeading(bolaoType, extraChampionshipId),
+    tabela: pickTabelaGruposForPalpites(tabelaRes.data) as TabelaGrupos,
     jogos: jogosFiltrados,
     grupos,
     grupo: grupos[0] ?? "GERAL",

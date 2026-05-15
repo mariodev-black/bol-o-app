@@ -7,7 +7,7 @@ import { getPredictionByUserTicketMatch, listPredictions, palpiteLockBeforeKicko
 import { inferBolaoTypeFromTicketId } from "@/lib/ticket-kind-server";
 import { inferBolaoTypeFromTicketPrefix } from "@/lib/ticket-kind-shared";
 import { getPool } from "@/lib/db";
-import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
+import { getFootballMainCompetitionId, getSoleConfiguredExtraChampionshipId } from "@/lib/boloes-extra-config";
 import { brToday, resolveDiarioPlayableDate, utcMsForBrDate } from "@/lib/diario-playable-date";
 import { filterPredictionsToOfficialMatchIds } from "@/lib/matches-cache";
 
@@ -77,8 +77,12 @@ async function resolveOwnedTicketMeta(
     if (tt === "daily") return { bolao: "diario", extraChampionshipId: null };
     if (tt === "extra") {
       const cid = rows[0]?.extra_championship_id;
-      if (cid == null || !Number.isFinite(Number(cid))) return null;
-      return { bolao: "extra", extraChampionshipId: Number(cid) };
+      if (cid != null && Number.isFinite(Number(cid))) {
+        return { bolao: "extra", extraChampionshipId: Number(cid) };
+      }
+      const sole = getSoleConfiguredExtraChampionshipId();
+      if (sole != null) return { bolao: "extra", extraChampionshipId: sole };
+      return null;
     }
     return null;
   }

@@ -35,6 +35,7 @@ import {
   matchDateMapFromJogosWithCompetition,
   resolveDiarioPlayableDate,
 } from "@/lib/diario-playable-date";
+import { getFootballMainCompetitionId, getSoleConfiguredExtraChampionshipId } from "@/lib/boloes-extra-config";
 import {
   parseKickoffFromPartidaPayload,
   pickScoreFromPartidaPayload,
@@ -43,6 +44,7 @@ import {
   palpiteLockBeforeKickoffMs,
   type PredictionBolaoType,
 } from "@/lib/palpites-kickoff-lock";
+import { pickTabelaGruposForPalpites } from "@/lib/tabela-palpites-normalize";
 
 // ── Tipos ────────────────────────────────────────────────────
 type TabView = "jogos" | "tabela" | "ranking" | "resumo";
@@ -410,26 +412,6 @@ function parseAllPartidas(fases: Record<string, any> | undefined): {
     return parsed;
   });
   return { jogos, grupos: Array.from(grupos).sort() };
-}
-
-function pickTabelaGrupos(data: any): TabelaGrupos | null {
-  if (!data || typeof data !== "object") return null;
-  if (data["fase-de-grupos"] && typeof data["fase-de-grupos"] === "object") {
-    return data["fase-de-grupos"] as TabelaGrupos;
-  }
-  if (Object.keys(data).some((key) => key.startsWith("grupo-"))) {
-    return data as TabelaGrupos;
-  }
-  const firstGrouped = Object.values(data).find(
-    (value) =>
-      value &&
-      typeof value === "object" &&
-      !Array.isArray(value) &&
-      Object.keys(value as Record<string, unknown>).some((key) =>
-        key.startsWith("grupo-"),
-      ),
-  );
-  return (firstGrouped as TabelaGrupos) ?? null;
 }
 
 // ── Escudo do time ────────────────────────────────────────────
@@ -1425,10 +1407,17 @@ function TabelaView({
   }
 
   const grupoKey = `grupo-${grupo.toLowerCase()}`;
-  const times = tabela[grupoKey] ?? [];
+  let times = tabela[grupoKey] ?? [];
+  if (!times.length && tabela["grupo-geral"]?.length) {
+    times = tabela["grupo-geral"];
+  }
   const todosGrupos = Object.entries(tabela)
     .filter(([k]) => k.startsWith("grupo-"))
     .sort(([a], [b]) => a.localeCompare(b));
+  const tituloGrupo =
+    todosGrupos.length === 1 && todosGrupos[0]?.[0] === "grupo-geral"
+      ? "Classificação"
+      : `Classificação — Grupo ${grupo}`;
 
   return (
     <div>
@@ -1446,7 +1435,7 @@ function TabelaView({
           style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
         >
           <span className="text-white font-bold text-[14px]">
-            Classificação — Grupo {grupo}
+            {tituloGrupo}
           </span>
           <div className="flex gap-4">
             {["PTS", "J", "V", "E", "D"].map((col) => (
@@ -1644,6 +1633,8 @@ export type PalpitesInitialData = {
   ticketId: string | null;
   bolaoType: "principal" | "diario" | "extra";
   extraChampionshipId?: number | null;
+  /** Título do bolão na página (SSR). */
+  bolaoHeading?: string | null;
   tabela: TabelaGrupos | null;
   jogos: Jogo[];
   grupos: string[];
@@ -2394,7 +2385,15 @@ function DesktopSidebar({
 }) {
   const lockCopy = palpiteLockUiCopy(bolaoType);
   const grupoKey = `grupo-${grupo.toLowerCase()}`;
-  const times = tabela ? (tabela[grupoKey] ?? []) : [];
+  let times = tabela ? (tabela[grupoKey] ?? []) : [];
+  if (!times.length && tabela?.["grupo-geral"]?.length) {
+    times = tabela["grupo-geral"];
+  }
+  const todosGrupos = tabela
+    ? Object.entries(tabela)
+        .filter(([k]) => k.startsWith("grupo-"))
+        .sort(([a], [b]) => a.localeCompare(b))
+    : [];
   const idx = grupos.indexOf(grupo);
   const prev = idx > 0 ? grupos[idx - 1] : null;
   const next = idx < grupos.length - 1 ? grupos[idx + 1] : null;
@@ -2471,7 +2470,9 @@ function DesktopSidebar({
 
           {/* Título */}
           <span className="text-white font-bold text-[12px] flex-1 text-center truncate">
-            Classificação — Grupo {grupo}
+            {todosGrupos.length === 1 && todosGrupos[0]?.[0] === "grupo-geral"
+              ? "Classificação"
+              : `Classificação — Grupo ${grupo}`}
           </span>
 
           {/* Seta next */}
@@ -2923,6 +2924,7 @@ function PalpitesPageContent({
   initialData: PalpitesInitialData | null;
 }) {
   const searchParams = useSearchParams();
+  const showPalpitesDebug = searchParams.get("debugPalpites") === "1";
   const resultMode = searchParams.get("mode") === "resultado";
   const ticketId = searchParams.get("ticket");
   const hasBoloesFlow = Boolean(ticketId);
@@ -2971,8 +2973,12 @@ function PalpitesPageContent({
             .filter(Number.isFinite)
         : [];
     const extraId =
-      bt === "extra" && initialData.extraChampionshipId != null
-        ? initialData.extraChampionshipId
+      bt === "extra"
+        ? (() => {
+            const r = initialData.extraChampionshipId;
+            if (r != null && Number.isFinite(Number(r)) && Number(r) > 0) return Number(r);
+            return getSoleConfiguredExtraChampionshipId();
+          })()
         : null;
     const map =
       extraId != null
@@ -2996,6 +3002,14 @@ function PalpitesPageContent({
     );
   });
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
+  const resolvedExtraChampionshipId = useMemo(() => {
+    if (bolaoType !== "extra") return null;
+    const raw = initialData?.extraChampionshipId;
+    if (raw != null && Number.isFinite(Number(raw)) && Number(raw) > 0) return Number(raw);
+    return getSoleConfiguredExtraChampionshipId();
+  }, [bolaoType, initialData?.extraChampionshipId]);
+
   const showPredictionsSkeleton =
     Boolean(ticketId) &&
     loadingPredictions &&
@@ -3007,18 +3021,28 @@ function PalpitesPageContent({
   predictionsMapRef.current = predictionsMap;
 
   useEffect(() => {
-    if (initialData && initialData.jogos.length > 0) {
-      return;
-    }
+    let cancelled = false;
+    const compId =
+      bolaoType === "extra" && resolvedExtraChampionshipId != null && resolvedExtraChampionshipId > 0
+        ? resolvedExtraChampionshipId
+        : getFootballMainCompetitionId();
     setLoadingTabela(true);
-    fetch("/api/tabela")
+    fetch(`/api/tabela?competitionId=${encodeURIComponent(String(compId))}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((data) => {
-        setTabela(pickTabelaGrupos(data));
+        if (cancelled) return;
+        setTabela(pickTabelaGruposForPalpites(data) as TabelaGrupos | null);
       })
-      .catch(() => {})
-      .finally(() => setLoadingTabela(false));
-  }, [initialData]);
+      .catch(() => {
+        if (!cancelled) setTabela(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingTabela(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [bolaoType, resolvedExtraChampionshipId]);
 
   /** Partidas: sempre atualizar (SSR pode ficar velho; placar e ranking dependem disso). */
   useEffect(() => {
@@ -3034,8 +3058,12 @@ function PalpitesPageContent({
               .filter(Number.isFinite)
           : [];
       const extraId =
-        bt === "extra" && initialDataRef.current?.extraChampionshipId != null
-          ? initialDataRef.current.extraChampionshipId
+        bt === "extra"
+          ? (() => {
+              const r = initialDataRef.current?.extraChampionshipId;
+              if (r != null && Number.isFinite(Number(r)) && Number(r) > 0) return Number(r);
+              return getSoleConfiguredExtraChampionshipId();
+            })()
           : null;
       const map =
         bt === "extra" && extraId != null
@@ -3060,7 +3088,14 @@ function PalpitesPageContent({
 
     async function tick() {
       try {
-        const id = initialDataRef.current?.extraChampionshipId;
+        const id =
+          bolaoTypeRef.current === "extra"
+            ? (() => {
+                const r = initialDataRef.current?.extraChampionshipId;
+                if (r != null && Number.isFinite(Number(r)) && Number(r) > 0) return Number(r);
+                return getSoleConfiguredExtraChampionshipId();
+              })()
+            : null;
         const comp =
           bolaoTypeRef.current === "extra" && id != null
             ? `?competitionId=${encodeURIComponent(String(id))}`
@@ -3191,10 +3226,7 @@ function PalpitesPageContent({
   useEffect(() => {
     if ((bolaoType !== "diario" && bolaoType !== "extra") || jogos.length === 0) return;
     const lockIds = Object.keys(predictionsMap).map(Number).filter(Number.isFinite);
-    const extraId =
-      bolaoType === "extra" && initialData?.extraChampionshipId != null
-        ? initialData.extraChampionshipId
-        : null;
+    const extraId = bolaoType === "extra" ? resolvedExtraChampionshipId : null;
     const map =
       bolaoType === "extra" && extraId != null
         ? matchDateMapFromJogosWithCompetition(jogos, extraId)
@@ -3209,7 +3241,7 @@ function PalpitesPageContent({
     );
     if (rodadaContem != null)
       setSelectedRodada((prev) => (prev === rodadaContem ? prev : rodadaContem));
-  }, [bolaoType, jogos, predictionsMap, initialData?.extraChampionshipId]);
+  }, [bolaoType, jogos, predictionsMap, resolvedExtraChampionshipId]);
 
   const jogosPlacarSignature = useMemo(
     () =>
@@ -3328,10 +3360,7 @@ function PalpitesPageContent({
 
   const today = todayBR();
   const dailyLike = bolaoType === "diario" || bolaoType === "extra";
-  const extraPlayCompId =
-    bolaoType === "extra" && initialData?.extraChampionshipId != null
-      ? initialData.extraChampionshipId
-      : null;
+  const extraPlayCompId = bolaoType === "extra" ? resolvedExtraChampionshipId : null;
 
   const lockIdsForDailyLike = dailyLike
     ? Object.keys(predictionsMap).map(Number).filter(Number.isFinite)
@@ -3346,12 +3375,9 @@ function PalpitesPageContent({
     lockToMatchIds: lockIdsForDailyLike,
     ...(extraPlayCompId != null ? { competitionId: extraPlayCompId } : {}),
   });
-  const todayMs = brDateToUtcMs(today);
   const jogosOnPlayableDate = jogos.filter((j) => {
     if (bolaoType === "principal") return true;
     if (!dailyLike) return true;
-    const ms = brDateToUtcMs(j.dataBR);
-    if (ms == null || todayMs == null) return true;
     return j.dataBR === diarioPlayableDate;
   });
   const nowMs = Date.now();
@@ -3399,8 +3425,11 @@ function PalpitesPageContent({
   const debugInfo = {
     ticketId,
     bolaoType,
+    resolvedExtraChampionshipId,
+    calendarToday: today,
     totalJogos: jogos.length,
     diarioPlayableDate,
+    jogosOnPlayableDateCount: jogosOnPlayableDate.length,
     jogosBase: jogosBase.length,
     jogosDisplayBase: jogosDisplayBase.length,
     rodadasDisponiveis,
@@ -3414,6 +3443,36 @@ function PalpitesPageContent({
       new Set(jogos.map((j) => j.dataBR).filter(Boolean)),
     ).slice(0, 10),
   };
+
+  const jogosSubtitle = !hasBoloesFlow
+    ? "Fase de Grupos"
+    : bolaoType === "principal"
+      ? "Jogos do dia · Copa inteira"
+      : diarioPlayableDate === today
+        ? "Jogos do dia atual"
+        : `Jogos em ${diarioPlayableDate} (dia mais próximo com partidas)`;
+
+  useEffect(() => {
+    if (!showPalpitesDebug) return;
+    console.info("[palpites/debug]", debugInfo);
+  }, [
+    showPalpitesDebug,
+    ticketId,
+    bolaoType,
+    resolvedExtraChampionshipId,
+    today,
+    jogos.length,
+    diarioPlayableDate,
+    jogosOnPlayableDate.length,
+    jogosBase.length,
+    jogosDisplayBase.length,
+    rodadasDisponiveis.join(","),
+    selectedRodada,
+    grupo,
+    hasBoloesFlow,
+    readOnlyMode,
+    diarioLockedMode,
+  ]);
 
   useEffect(() => {
     if (rodadasDisponiveis.length === 0) return;
@@ -3596,15 +3655,11 @@ function PalpitesPageContent({
       {/* Título */}
       <div className="mb-5 lg:mb-7">
         <h1 className="text-[28px] lg:text-[42px] font-black text-white leading-tight">
-          Copa do Mundo 2026
-        </h1>
-        <p className="text-white/40 text-[13px] mt-1">
           {hasBoloesFlow
-            ? bolaoType === "principal"
-              ? "Jogos do dia · Copa inteira"
-              : "Jogos do dia atual"
-            : "Fase de Grupos"}
-        </p>
+            ? (initialData?.bolaoHeading?.trim() || "Palpites")
+            : "Copa do Mundo 2026"}
+        </h1>
+        <p className="text-white/40 text-[13px] mt-1">{jogosSubtitle}</p>
       </div>
 
       <div className="lg:grid lg:grid-cols-[1fr_360px] lg:gap-8 lg:items-start">
@@ -3720,6 +3775,16 @@ function PalpitesPageContent({
                   </>
                 ) : jogosPorRodada.length === 0 ? (
                   <div className="flex flex-col items-center py-16">
+                    {showPalpitesDebug ? (
+                      <details className="mb-4 w-full max-w-md rounded-xl border border-primary/20 bg-primary/5 p-3 text-left text-[11px] text-white/70">
+                        <summary className="cursor-pointer font-black uppercase text-primary">
+                          Debug (?debugPalpites=1)
+                        </summary>
+                        <pre className="mt-2 max-h-56 overflow-auto whitespace-pre-wrap wrap-break-word text-[12px] leading-relaxed">
+                          {JSON.stringify(debugInfo, null, 2)}
+                        </pre>
+                      </details>
+                    ) : null}
                     <Disc
                       className="w-10 h-10 mb-3 text-white/20"
                       strokeWidth={1.5}
@@ -3728,7 +3793,9 @@ function PalpitesPageContent({
                       {dailyLike && diarioLockedMode
                         ? "Nenhum palpite encontrado para este ticket"
                         : hasBoloesFlow
-                          ? "Nenhum jogo disponível hoje"
+                          ? dailyLike
+                            ? "Nenhuma partida para este bolão no momento. Use ?debugPalpites=1 para diagnóstico."
+                            : "Nenhum jogo disponível hoje"
                           : "Nenhum jogo neste grupo"}
                     </p>
                   </div>
@@ -3909,14 +3976,16 @@ function PalpitesPageContent({
               </div>
             ) : jogosPorRodada.length === 0 ? (
               <div className="flex flex-col items-center py-16">
-                <details className="mb-4 w-full rounded-xl border border-primary/20 bg-primary/5 p-3 text-left text-[11px] text-white/70">
-                  <summary className="cursor-pointer font-black uppercase text-primary">
-                    Debug diário
-                  </summary>
-                  <pre className="mt-2 max-h-56 overflow-auto whitespace-pre-wrap wrap-break-word text-[12px] leading-relaxed">
-                    {JSON.stringify(debugInfo, null, 2)}
-                  </pre>
-                </details>
+                {showPalpitesDebug ? (
+                  <details className="mb-4 w-full rounded-xl border border-primary/20 bg-primary/5 p-3 text-left text-[11px] text-white/70">
+                    <summary className="cursor-pointer font-black uppercase text-primary">
+                      Debug (?debugPalpites=1)
+                    </summary>
+                    <pre className="mt-2 max-h-56 overflow-auto whitespace-pre-wrap wrap-break-word text-[12px] leading-relaxed">
+                      {JSON.stringify(debugInfo, null, 2)}
+                    </pre>
+                  </details>
+                ) : null}
                 <Disc
                   className="w-10 h-10 mb-3 text-white/20"
                   strokeWidth={1.5}
@@ -3925,7 +3994,9 @@ function PalpitesPageContent({
                   {dailyLike && diarioLockedMode
                     ? "Nenhum palpite encontrado para este ticket"
                     : hasBoloesFlow
-                      ? "Nenhum jogo disponível hoje"
+                      ? dailyLike
+                        ? "Nenhuma partida para este bolão no momento. Use ?debugPalpites=1 para diagnóstico."
+                        : "Nenhum jogo disponível hoje"
                       : "Nenhum jogo neste grupo"}
                 </p>
               </div>

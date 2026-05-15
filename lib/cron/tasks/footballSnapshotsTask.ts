@@ -1,3 +1,4 @@
+import { getAllSyncedCompetitionIds } from "@/lib/boloes-extra-config";
 import { fetchProviderMatchesForAllSyncedCompetitions } from "@/lib/football-api";
 import { downloadFasesEnrichmentMatches, downloadStandingsJson } from "@/lib/football-external-downloads";
 import {
@@ -28,9 +29,14 @@ async function runFootballSnapshotsFromApiBody(): Promise<{ standingsOk: boolean
   const compStr = competitionIdStr();
   const compNum = competitionIdNum();
 
-  const standings = await downloadStandingsJson(compStr, apiToken);
-  await upsertFootballApiCache(standingsCacheKey(compNum), compNum, standings);
+  /** Tabela (`/tabela`) por campeonato: um GET por id (principal + BOLOES_EXTRA_*). */
+  const allCompIds = getAllSyncedCompetitionIds();
+  for (const id of allCompIds) {
+    const standings = await downloadStandingsJson(String(id), apiToken);
+    await upsertFootballApiCache(standingsCacheKey(id), id, standings);
+  }
 
+  /** Enriquecimento de fases: só o campeonato principal (evita rajada N×fases nos extras). */
   const matches = await downloadFasesEnrichmentMatches(compStr, apiToken);
   await upsertFootballApiCache(fasesEnrichmentCacheKey(compNum), compNum, { matches });
 
@@ -54,10 +60,17 @@ export async function runFootballSnapshotsFromApi(): Promise<{ standingsOk: bool
 
 /** Primeira subida: se não há linha de tabela no cache, baixa agora (1 sequência de API). */
 export async function runFootballSnapshotsIfCacheMissing(): Promise<boolean> {
-  const compNum = competitionIdNum();
-  const key = standingsCacheKey(compNum);
-  const existing = await readFootballApiCacheJson(key).catch(() => null);
-  if (existing != null) return false;
+  const ids = getAllSyncedCompetitionIds();
+  let anyMissing = false;
+  for (const compNum of ids) {
+    const key = standingsCacheKey(compNum);
+    const existing = await readFootballApiCacheJson(key).catch(() => null);
+    if (existing == null) {
+      anyMissing = true;
+      break;
+    }
+  }
+  if (!anyMissing) return false;
   try {
     await runFootballSnapshotsFromApi();
     return true;
