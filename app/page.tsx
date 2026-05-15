@@ -39,6 +39,7 @@ import { WhyParticipateSection } from "@/app/components/WhyParticipateSection";
 import { PrizesTestimonialsSection } from "@/app/components/PrizesTestimonialsSection";
 import { CopaCtaBandSection } from "@/app/components/CopaCtaBandSection";
 import { TicketPurchaseLink } from "@/app/shared/TicketPurchaseLink";
+import { AppScreenLoading } from "@/app/shared/AppScreenLoading";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/app/shared/AuthContext";
 
@@ -450,14 +451,11 @@ function LoggedInHome() {
             </div>
 
             {matchesLoading ? (
-              <div className="space-y-2">
-                {[0, 1, 2, 3].map((item) => (
-                  <div
-                    key={item}
-                    className="h-[42px] animate-pulse rounded-[10px] border border-white/8 bg-[#111]"
-                  />
-                ))}
-              </div>
+              <AppScreenLoading
+                variant="compact"
+                message="Carregando partidas..."
+                className="w-full"
+              />
             ) : featuredMatch ? (
               <div className="space-y-2">
                 <UpcomingMatchCard match={featuredMatch} featured />
@@ -539,7 +537,26 @@ function LoggedInHome() {
 
 export default function HomePage() {
   const { ready, isLoggedIn } = useAuth();
-  if (ready && isLoggedIn) return <LoggedInHome />;
+
+  if (!ready) {
+    return (
+      <HomePageContainer>
+        <Header />
+        <main className="flex min-h-0 flex-1 flex-col bg-black text-white">
+          <AppScreenLoading
+            variant="default"
+            message="Carregando..."
+            className="flex-1 min-h-[calc(100dvh-5.5rem)] justify-center py-16"
+          />
+        </main>
+        <Suspense fallback={null}>
+          <NavBottom />
+        </Suspense>
+      </HomePageContainer>
+    );
+  }
+
+  if (isLoggedIn) return <LoggedInHome />;
   return <PublicHome />;
 }
 

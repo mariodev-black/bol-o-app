@@ -27,6 +27,7 @@ import ticketBlue from "@/app/assets/Ticket-Blue.png";
 import { resolveCheckoutExtraBolaoIconVariant } from "@/lib/boloes-extra-competition-branding";
 import { championshipCountsFromExtraQuantity } from "@/lib/payments/ticket-config";
 import { appendTicketsFromPurchase } from "../lib/ownedTicketsStorage";
+import { AppScreenLoading } from "@/app/shared/AppScreenLoading";
 import { TicketPixGeneratedScreen } from "./pix/TicketPixGeneratedScreen";
 import { TicketPixGeneratingPanel } from "./pix/TicketPixGeneratingPanel";
 import {
@@ -168,6 +169,8 @@ export function TicketCheckoutFlow({
   const [couponHint, setCouponHint] = useState<string | null>(null);
   const [checkingManually, setCheckingManually] = useState(false);
   const [confirmedPaid, setConfirmedPaid] = useState(false);
+  /** Catálogo (preços + nomes dos bolões extra) vindo do servidor — evita troca de layout no 1º paint. */
+  const [catalogReady, setCatalogReady] = useState(false);
   const paidHandledRef = useRef(false);
   const purchasePrincipalRef = useRef(0);
   const purchaseDiarioRef = useRef(0);
@@ -236,6 +239,7 @@ export function TicketCheckoutFlow({
   }, [step]);
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       try {
         const r = await fetch("/api/deposits/transactions", {
@@ -250,6 +254,7 @@ export function TicketCheckoutFlow({
             roundPlayDateBR?: string;
           }>;
         };
+        if (cancelled) return;
         if (r.ok && d.prices) {
           setPrices({
             general: d.prices.general,
@@ -262,8 +267,13 @@ export function TicketCheckoutFlow({
         }
       } catch {
         // fallback nos valores default locais
+      } finally {
+        if (!cancelled) setCatalogReady(true);
       }
     })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // SSE — canal primário (funciona em dev; pode não funcionar em serverless multi-instância)
@@ -542,6 +552,13 @@ export function TicketCheckoutFlow({
   return (
     <>
       {step === "shop" ? (
+        !catalogReady ? (
+          <AppScreenLoading
+            variant="app-shell"
+            message="Carregando bolões e valores..."
+            className="w-full flex-1"
+          />
+        ) : (
         <div className="min-h-screen w-full bg-black pb-10">
           <div className="relative w-full overflow-hidden rounded-b-[22px]">
             <Image
@@ -1077,6 +1094,7 @@ export function TicketCheckoutFlow({
             </p>
               </div>
             </div>
+        )
       ) : (
         <div className="min-h-screen w-full bg-black">
           {step === "generating" && <TicketPixGeneratingPanel />}

@@ -2,6 +2,7 @@
 
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import { AppScreenLoading } from "@/app/shared/AppScreenLoading";
 import { TicketCheckoutFlow } from "./_components/TicketCheckoutFlow";
 
 function TicketsPageContent({
@@ -24,7 +25,7 @@ function TicketsPageContent({
     bolao === "diario" ? "daily" : bolao === "extra" && initialExtraChampionshipId != null ? "extra" : "general";
 
   return (
-    <div className="flex min-h-screen flex-col bg-black">
+    <div className="flex min-h-screen min-h-0 flex-1 flex-col bg-black">
       <TicketCheckoutFlow
         key={`${bolao}-${initialExtraChampionshipId ?? ""}-${ticketsExtraOnly ? "xo" : "all"}`}
         initialTicketKind={initialTicketKind}
@@ -44,7 +45,13 @@ export function TicketsPageClient({
   ticketsExtraOnly: boolean;
 }) {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-background" />}>
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen w-full flex-col bg-black">
+          <AppScreenLoading variant="app-shell" message="Carregando..." className="flex-1" />
+        </div>
+      }
+    >
       <TicketsPageContent
         serverExtraChampionshipIds={serverExtraChampionshipIds}
         ticketsExtraOnly={ticketsExtraOnly}
