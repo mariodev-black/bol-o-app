@@ -791,7 +791,7 @@ export function CadastrarContent() {
             type="button"
             onClick={goToNextStep}
             disabled={loading}
-            className="flex h-[48px] flex-1 items-center justify-center gap-2 rounded-[10px] bg-primary text-[13px] font-black text-[#0E141B] shadow-[0_0_24px_rgba(177,235,11,0.42)] transition-transform active:scale-[0.99] disabled:cursor-wait disabled:opacity-75"
+            className="flex h-[48px] flex-1 items-center justify-center gap-2 rounded-[10px] bg-primary text-[16px] font-black text-[#0E141B] shadow-[0_0_24px_rgba(177,235,11,0.42)] transition-transform active:scale-[0.99] disabled:cursor-wait disabled:opacity-75"
           >
             Continuar para senha e termos
             <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
@@ -800,7 +800,7 @@ export function CadastrarContent() {
           <button
             type="submit"
             disabled={loading}
-            className="flex h-[48px] flex-1 items-center justify-center gap-2 rounded-[10px] bg-primary text-[13px] font-black text-[#0E141B] shadow-[0_0_24px_rgba(177,235,11,0.42)] transition-transform active:scale-[0.99] disabled:cursor-wait disabled:opacity-75"
+            className="flex h-[48px] flex-1 items-center justify-center gap-2 rounded-[10px] bg-primary text-[16px] font-black text-[#0E141B] shadow-[0_0_24px_rgba(177,235,11,0.42)] transition-transform active:scale-[0.99] disabled:cursor-wait disabled:opacity-75"
           >
             {loading ? "Criando..." : "Criar conta"}
             <ArrowRight className="h-4 w-4" strokeWidth={2.5} />

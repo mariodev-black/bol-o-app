@@ -634,7 +634,7 @@ export function TicketCheckoutFlow({
                   />
                 </div>
                 <div className="min-w-0 flex-1 py-0.5">
-                  <p className="text-[12px] font-black uppercase leading-tight tracking-wide text-white sm:text-[11px]">
+                  <p className="text-[16px] font-black uppercase leading-tight tracking-wide text-white sm:text-[11px]">
                     ACIMA DE 2 TICKETS
                   </p>
                   <p
@@ -1066,7 +1066,7 @@ export function TicketCheckoutFlow({
                 )}
               </div>
               <div className="mt-3 flex items-center justify-between gap-2">
-                <span className="text-[13px] font-black uppercase tracking-wide text-white/50">
+                <span className="text-[16px] font-black uppercase tracking-wide text-white/50">
                   Total
                 </span>
                 <span className="text-[18px] font-black tabular-nums text-primary">
@@ -1078,7 +1078,7 @@ export function TicketCheckoutFlow({
                   type="button"
                   disabled={!hasSelection}
                   onClick={goGenerate}
-                className="mt-4 flex h-[56px] w-full items-center justify-center gap-3 rounded-[14px] bg-primary px-5 text-[13px] font-black uppercase tracking-[0.04em] text-[#0E141B] shadow-[0_4px_32px_rgba(177,235,11,0.55)] transition-[transform,filter] hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 sm:text-[14px]"
+                className="mt-4 flex h-[56px] w-full items-center justify-center gap-3 rounded-[14px] bg-primary px-5 text-[16px] font-black uppercase tracking-[0.04em] text-[#0E141B] shadow-[0_4px_32px_rgba(177,235,11,0.55)] transition-[transform,filter] hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 sm:text-[14px]"
               >
                 <Wallet className="size-5 shrink-0" strokeWidth={2.2} />
                 <span>Finalizar compra · {formatBRL(totalCents)}</span>

@@ -161,7 +161,7 @@ export function AdminPalpitesClient({ predictions }: { predictions: AdminPredict
                   <td className="px-4 py-4">
                     <Link href={`/admin/cotas/${prediction.ticketId}`} className="block">
                       <p className="font-mono text-[12px] font-black text-white group-hover:text-primary">#{shortId(prediction.ticketId)}</p>
-                      <p className="mt-1 text-[11px] font-bold uppercase text-white/80">
+                      <p className="mt-1 text-[14px] font-bold uppercase text-white/80">
                         {formatAdminTicketType(prediction.ticketType)}
                       </p>
                     </Link>
@@ -202,7 +202,7 @@ export function AdminPalpitesClient({ predictions }: { predictions: AdminPredict
                   </td>
                   <td className="px-4 py-4">
                     <p className="text-white/55">{formatMatchDate(prediction)}</p>
-                    <p className="mt-1 text-[11px] text-white/30">{prediction.matchStatus ?? "Sem status"}</p>
+                    <p className="mt-1 text-[14px] text-white/30">{prediction.matchStatus ?? "Sem status"}</p>
                   </td>
                   <td className="px-4 py-4 text-white/80">{formatDate(prediction.submittedAt)}</td>
                 </tr>

@@ -220,7 +220,7 @@ export function AdminAffiliatesClient({ data }: { data: AdminAffiliateDashboardD
                     <td className="px-4 py-4 font-black text-primary">{affiliate.paidReferralsCount}</td>
                     <td className="px-4 py-4">
                       <p className="font-black text-white">{formatBRL(affiliate.commissionsCents)}</p>
-                      <p className="mt-1 text-[11px] text-white/80">{affiliate.commissionsCount} registros</p>
+                      <p className="mt-1 text-[14px] text-white/80">{affiliate.commissionsCount} registros</p>
                     </td>
                     <td className="px-4 py-4 text-white/80">{formatDate(affiliate.createdAt)}</td>
                   </tr>
@@ -297,7 +297,7 @@ export function AdminAffiliatesClient({ data }: { data: AdminAffiliateDashboardD
                       <p className="font-black text-white">
                         {commission.commissionModel === "influencer" ? `Influencer ${formatCpa(commission.cpaBps)}` : commission.tier}
                       </p>
-                      <p className="mt-1 text-[11px] text-white/30">
+                      <p className="mt-1 text-[14px] text-white/30">
                         #{commission.commissionIndex}
                         {commission.baseAmountCents ? ` · base ${formatBRL(commission.baseAmountCents)}` : ""}
                       </p>

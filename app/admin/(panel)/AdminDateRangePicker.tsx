@@ -136,7 +136,7 @@ function CalendarMonth({
               type="button"
               onClick={() => onPick(value)}
               className={[
-                "h-10 rounded-full text-[13px] font-black transition-all duration-150",
+                "h-10 rounded-full text-[16px] font-black transition-all duration-150",
                 selected
                   ? "bg-primary text-black"
                   : inRange
@@ -251,7 +251,7 @@ export function AdminDateRangePicker({
                   disabled={isPending}
                   className="block w-full rounded-[14px] px-3.5 py-3 text-left transition-colors hover:bg-white/6 disabled:cursor-wait disabled:opacity-60"
                 >
-                  <span className="block text-[13px] font-black text-white">{label}</span>
+                  <span className="block text-[16px] font-black text-white">{label}</span>
                   <span className="mt-1 block text-[11px] font-semibold text-white/32">{description}</span>
                 </button>
               ))}
@@ -265,7 +265,7 @@ export function AdminDateRangePicker({
                 disabled={isPending}
                 className="block w-full rounded-[14px] border border-primary/20 bg-primary/8 px-3.5 py-3 text-left transition-colors hover:bg-primary/12"
               >
-                <span className="block text-[13px] font-black text-primary">Personalizado</span>
+                <span className="block text-[16px] font-black text-primary">Personalizado</span>
                 <span className="mt-1 block text-[11px] font-semibold text-white/38">Selecionar início e final no calendário</span>
               </button>
             </div>
@@ -311,7 +311,7 @@ export function AdminDateRangePicker({
             <div className="mt-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div className="rounded-[14px] border border-white/8 bg-white/3 px-4 py-3">
                 <p className="text-[12px] font-black uppercase tracking-[0.16em] text-white/30">Selecionado</p>
-                <p className="mt-1 text-[13px] font-black text-white/88">
+                <p className="mt-1 text-[16px] font-black text-white/88">
                   {formatDisplayDate(draftStart)} - {formatDisplayDate(draftEnd)}
                 </p>
               </div>

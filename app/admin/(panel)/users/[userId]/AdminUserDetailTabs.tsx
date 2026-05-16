@@ -305,7 +305,7 @@ export function AdminUserDetailTabs({
                           <td className="px-4 py-4 font-mono text-white/80">{maskCpf(referred.cpf)}</td>
                           <td className="px-4 py-4">
                             <p className="font-black text-white">{referred.ticketsCount.toLocaleString("pt-BR")}</p>
-                            <p className="mt-1 text-[11px] font-bold text-white/80">
+                            <p className="mt-1 text-[14px] font-bold text-white/80">
                               {referred.paidTicketsCount.toLocaleString("pt-BR")} pagas
                             </p>
                           </td>

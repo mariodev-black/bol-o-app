@@ -4,7 +4,8 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   ChevronDown,
-  ChevronUp,
+  Minus,
+  Plus,
   BarChart2,
   Trophy,
   AlignJustify,
@@ -21,6 +22,8 @@ import {
   ChevronRight,
   Check,
   Sparkles,
+  X,
+  Info,
 } from "lucide-react";
 import {
   TrophyGold,
@@ -534,6 +537,80 @@ function copyPontuacaoPartida(
   };
 }
 
+type PalpitePontosLinha = { label: string; hit: boolean; points: number };
+
+function palpitePontosBreakdown(
+  review: ReturnType<typeof calcPredictionPoints>,
+  predCasa: number,
+  predVisitante: number,
+  realCasa: number,
+  realVisitante: number,
+): PalpitePontosLinha[] {
+  const golsCasa = predCasa === realCasa;
+  const golsVis = predVisitante === realVisitante;
+
+  if (review.exact) {
+    return [
+      { label: "Resultado da partida", hit: true, points: 0 },
+      { label: "Placar correto", hit: true, points: 6 },
+      { label: "Gols do time da casa", hit: true, points: 0 },
+      { label: "Gols do time visitante", hit: true, points: 0 },
+    ];
+  }
+
+  if (review.outcomeHit) {
+    const bonusGol = Math.max(0, review.points - 3);
+    return [
+      { label: "Resultado da partida", hit: true, points: 3 },
+      { label: "Placar correto", hit: false, points: 0 },
+      {
+        label: "Gols do time da casa",
+        hit: golsCasa,
+        points: golsCasa && bonusGol > 0 ? 1 : 0,
+      },
+      {
+        label: "Gols do time visitante",
+        hit: golsVis,
+        points: golsVis && bonusGol > 0 ? 1 : 0,
+      },
+    ];
+  }
+
+  return [
+    { label: "Resultado da partida", hit: false, points: 0 },
+    { label: "Placar correto", hit: false, points: 0 },
+    { label: "Gols do time da casa", hit: golsCasa, points: golsCasa ? 1 : 0 },
+    {
+      label: "Gols do time visitante",
+      hit: golsVis,
+      points: golsVis ? 1 : 0,
+    },
+  ];
+}
+
+function formatPontosLabel(n: number): string {
+  if (n === 0) return "0 pts";
+  const sign = n > 0 ? "+" : "";
+  return `${sign}${n} pt${Math.abs(n) === 1 ? "" : "s"}`;
+}
+
+function PontosBreakdownIcon({ hit }: { hit: boolean }) {
+  return (
+    <span
+      className={`flex size-6 shrink-0 items-center justify-center rounded-full ${
+        hit ? "bg-[#0AC96B]" : "bg-[#F87171]"
+      }`}
+      aria-hidden
+    >
+      {hit ? (
+        <Check className="size-3.5 text-white" strokeWidth={3} />
+      ) : (
+        <X className="size-3.5 text-white" strokeWidth={3} />
+      )}
+    </span>
+  );
+}
+
 function JogoCard({
   jogo,
   readOnly = false,
@@ -696,6 +773,20 @@ function JogoCard({
         )
       : null;
 
+  const showPlacarOficialLayout = readOnly && temPlacarOficial;
+  const showResultadoDetalhado =
+    showPlacarOficialLayout && hasInitialPrediction && review != null;
+  const pontosLinhas =
+    review != null
+      ? palpitePontosBreakdown(
+          review,
+          scoreCasa,
+          scoreVisitante,
+          jogo.resultCasa!,
+          jogo.resultVisitante!,
+        )
+      : [];
+
   // Status badge label/style
   const statusBadge = readOnly
     ? readOnlyPending
@@ -731,10 +822,10 @@ function JogoCard({
               dot: true,
             }
           : {
-              label: "Resultado",
-              color: "#B1EB0B",
-              bg: "rgba(177,235,11,0.10)",
-              border: "rgba(177,235,11,0.30)",
+              label: "RESULTADO",
+              color: "#0E141B",
+              bg: "#B1EB0B",
+              border: "rgba(177,235,11,0.45)",
               dot: false,
             }
     : jogo.status === "encerrado"
@@ -747,7 +838,7 @@ function JogoCard({
         }
       : palpiteSalvo
         ? {
-            label: "Salvo",
+            label: "Palpite salvo",
             color: "#B1EB0B",
             bg: "rgba(177,235,11,0.10)",
             border: "rgba(177,235,11,0.34)",
@@ -769,7 +860,7 @@ function JogoCard({
               dot: true,
             };
 
-  // Horizontal stepper — áreas de toque maiores (acessibilidade)
+  // Horizontal stepper — botões − / + brancos (áreas de toque maiores)
   const HorizStepper = ({
     value,
     onInc,
@@ -785,16 +876,11 @@ function JogoCard({
         onClick={onDec}
         disabled={disabled}
         aria-label="Diminuir gols"
-        className="min-h-11 min-w-11 h-11 w-11 rounded-lg flex items-center justify-center transition-opacity"
-        style={{
-          opacity: disabled ? 0.3 : 1,
-          background: "#111411",
-          border: "1px solid rgba(177,235,11,0.2)",
-        }}
+        className="flex h-11 w-11 min-h-11 min-w-11 items-center justify-center rounded-lg border border-white/20 bg-white text-[#0E141B] shadow-[0_2px_8px_rgba(0,0,0,0.25)] transition active:scale-[0.97] disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/25 disabled:text-[#0E141B]/45"
       >
-        <ChevronDown className="w-5 h-5 text-primary" aria-hidden />
+        <Minus className="h-5 w-5" strokeWidth={2.8} aria-hidden />
       </button>
-      <span className="min-w-10 text-center text-[26px] font-black text-white tabular-nums leading-none">
+      <span className="min-w-10 text-center text-[26px] font-black tabular-nums leading-none text-white">
         {value}
       </span>
       <button
@@ -802,14 +888,9 @@ function JogoCard({
         onClick={onInc}
         disabled={disabled}
         aria-label="Aumentar gols"
-        className="min-h-11 min-w-11 h-11 w-11 rounded-lg flex items-center justify-center transition-opacity"
-        style={{
-          opacity: disabled ? 0.3 : 1,
-          background: "#111411",
-          border: "1px solid rgba(177,235,11,0.2)",
-        }}
+        className="flex h-11 w-11 min-h-11 min-w-11 items-center justify-center rounded-lg border border-white/20 bg-white text-[#0E141B] shadow-[0_2px_8px_rgba(0,0,0,0.25)] transition active:scale-[0.97] disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/25 disabled:text-[#0E141B]/45"
       >
-        <ChevronUp className="w-5 h-5 text-primary" aria-hidden />
+        <Plus className="h-5 w-5" strokeWidth={2.8} aria-hidden />
       </button>
     </div>
   );
@@ -899,203 +980,173 @@ function JogoCard({
         </div>
       </div>
 
-      {readOnly && temPlacarOficial ? (
-        <p
-          className="px-4 sm:px-5 pt-1 pb-0.5 text-center text-base font-semibold leading-snug"
-          style={{ color: "rgba(255,255,255,0.82)" }}
-        >
-          Placar oficial do jogo
-        </p>
-      ) : null}
-
-      {/* ── Times + placar ── */}
-      <div className="flex items-end px-4 sm:px-5 py-4 gap-2">
-        <div className="flex flex-1 flex-col items-center min-w-0">
-          <Escudo
-            url={jogo.escudoCasa}
-            alt={jogo.timeCasa}
-            size={readOnly ? "lg" : "md"}
-          />
-          <p className="mt-3 text-[15px] sm:text-base font-semibold text-white text-center leading-snug line-clamp-2 px-0.5">
-            {jogo.timeCasa}
-          </p>
-          {readOnly ? (
-            <div
-              className="mt-3 min-h-13 min-w-13 px-2 rounded-xl flex items-center justify-center text-[1.75rem] sm:text-[2rem] font-black tabular-nums leading-none"
-              style={{
-                background: "rgba(255,255,255,0.12)",
-                color: "#fff",
-                border: "1px solid rgba(255,255,255,0.14)",
-              }}
-              aria-label={`Gols ${jogo.timeCasa}: ${displayCasa}`}
-            >
-              {displayCasa}
-            </div>
-          ) : predictionsLoading ? (
-            <div
-              className="mt-3 h-11 w-28 rounded-full animate-pulse"
-              style={{ background: "rgba(255,255,255,0.06)" }}
-            />
-          ) : (
-            <HorizStepper
-              value={scoreCasa}
-              onInc={() => increment("casa")}
-              onDec={() => decrement("casa")}
-            />
-          )}
-        </div>
-
-        <svg
-          className="mb-2 shrink-0 opacity-95"
-          width="22"
-          height="22"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="rgba(255,255,255,0.45)"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden
-        >
-          <line x1="18" y1="6" x2="6" y2="18" />
-          <line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
-
-        <div className="flex flex-1 flex-col items-center min-w-0">
-          <Escudo
-            url={jogo.escudoVisitante}
-            alt={jogo.timeVisitante}
-            size={readOnly ? "lg" : "md"}
-          />
-          <p className="mt-3 text-[15px] sm:text-base font-semibold text-white text-center leading-snug line-clamp-2 px-0.5">
-            {jogo.timeVisitante}
-          </p>
-          {readOnly ? (
-            <div
-              className="mt-3 min-h-13 min-w-13 px-2 rounded-xl flex items-center justify-center text-[1.75rem] sm:text-[2rem] font-black tabular-nums leading-none"
-              style={{
-                background: "rgba(255,255,255,0.12)",
-                color: "#fff",
-                border: "1px solid rgba(255,255,255,0.14)",
-              }}
-              aria-label={`Gols ${jogo.timeVisitante}: ${displayVisitante}`}
-            >
-              {displayVisitante}
-            </div>
-          ) : predictionsLoading ? (
-            <div
-              className="mt-3 h-11 w-28 rounded-full animate-pulse"
-              style={{ background: "rgba(255,255,255,0.06)" }}
-            />
-          ) : (
-            <HorizStepper
-              value={scoreVisitante}
-              onInc={() => increment("visitante")}
-              onDec={() => decrement("visitante")}
-            />
-          )}
-        </div>
-      </div>
-
-      {readOnly && temPlacarOficial && hasInitialPrediction ? (
-        <div className="px-4 sm:px-5 pb-3">
-          <section
-            className="rounded-xl px-4 py-4"
-            style={{
-              background:
-                "linear-gradient(180deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.03) 100%)",
-              border: "1px solid rgba(255,255,255,0.12)",
-            }}
-            aria-label="Seu palpite em relação ao resultado do jogo"
-          >
-            <p
-              className="text-sm sm:text-[15px] leading-relaxed text-center font-medium mb-3"
-              style={{ color: "rgba(255,255,255,0.82)" }}
-            >
-              Os números grandes acima mostram como o jogo terminou. Aqui está o
-              que você tinha escolhido.
-            </p>
-            <p className="text-base font-bold text-center text-white mb-3">
-              Seu palpite
-            </p>
-            <div className="flex flex-col items-center justify-center gap-3">
-              <div
-                className="flex items-center justify-center gap-2.5"
-                role="group"
-                aria-label="Placar do seu palpite"
-              >
-                <span
-                  className="min-w-12 min-h-12 h-12 px-2 rounded-xl flex items-center justify-center text-2xl sm:text-[1.65rem] font-black tabular-nums"
-                  style={{
-                    background:
-                      scoreCasa === jogo.resultCasa
-                        ? "rgba(177,235,11,0.22)"
-                        : "rgba(255,255,255,0.08)",
-                    color:
-                      scoreCasa === jogo.resultCasa
-                        ? "#D4F862"
-                        : "rgba(255,255,255,0.92)",
-                    border: `2px solid ${
-                      scoreCasa === jogo.resultCasa
-                        ? "rgba(177,235,11,0.55)"
-                        : "rgba(255,255,255,0.14)"
-                    }`,
-                    boxShadow:
-                      scoreCasa === jogo.resultCasa
-                        ? "0 0 14px rgba(177,235,11,0.15)"
-                        : "none",
-                  }}
-                >
-                  {scoreCasa}
-                </span>
-                <span
-                  className="text-xl font-black"
-                  style={{ color: "rgba(255,255,255,0.45)" }}
-                  aria-hidden
-                >
-                  ×
-                </span>
-                <span
-                  className="min-w-12 min-h-12 h-12 px-2 rounded-xl flex items-center justify-center text-2xl sm:text-[1.65rem] font-black tabular-nums"
-                  style={{
-                    background:
-                      scoreVisitante === jogo.resultVisitante
-                        ? "rgba(177,235,11,0.22)"
-                        : "rgba(255,255,255,0.08)",
-                    color:
-                      scoreVisitante === jogo.resultVisitante
-                        ? "#D4F862"
-                        : "rgba(255,255,255,0.92)",
-                    border: `2px solid ${
-                      scoreVisitante === jogo.resultVisitante
-                        ? "rgba(177,235,11,0.55)"
-                        : "rgba(255,255,255,0.14)"
-                    }`,
-                    boxShadow:
-                      scoreVisitante === jogo.resultVisitante
-                        ? "0 0 14px rgba(177,235,11,0.15)"
-                        : "none",
-                  }}
-                >
-                  {scoreVisitante}
-                </span>
-              </div>
-              <p
-                className="text-xs sm:text-sm text-center leading-snug max-w-sm px-1"
-                style={{ color: "rgba(255,255,255,0.62)" }}
-              >
-                Quando um número fica em verde claro, você acertou quantos gols
-                aquele time fez.
+      {showPlacarOficialLayout ? (
+        <>
+          <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 px-4 sm:px-5 py-4">
+            <div className="flex min-w-0 flex-col items-center">
+              <Escudo url={jogo.escudoCasa} alt={jogo.timeCasa} size="lg" />
+              <p className="mt-2 text-center text-[13px] font-bold uppercase leading-snug text-white line-clamp-2">
+                {jogo.timeCasa}
               </p>
             </div>
-          </section>
+            <div className="flex flex-col items-center px-1">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-white/50">
+                Placar oficial
+              </p>
+              <p className="mt-1 text-[2rem] font-black tabular-nums leading-none text-white sm:text-[2.25rem]">
+                {displayCasa}
+                <span className="mx-1.5 text-xl font-bold text-white/45">x</span>
+                {displayVisitante}
+              </p>
+            </div>
+            <div className="flex min-w-0 flex-col items-center">
+              <Escudo url={jogo.escudoVisitante} alt={jogo.timeVisitante} size="lg" />
+              <p className="mt-2 text-center text-[13px] font-bold uppercase leading-snug text-white line-clamp-2">
+                {jogo.timeVisitante}
+              </p>
+            </div>
+          </div>
+
+          {hasInitialPrediction ? (
+            <>
+              <div className="px-4 sm:px-5 pb-3">
+                <p className="mb-2 text-center text-[11px] font-semibold uppercase tracking-wide text-white/50">
+                  Meu palpite
+                </p>
+                <div
+                  className="flex items-center justify-center gap-2.5"
+                  role="group"
+                  aria-label="Placar do seu palpite"
+                >
+                  <span className="flex min-h-10 min-w-10 items-center justify-center rounded-lg bg-white/8 px-2 text-xl font-black tabular-nums text-white">
+                    {scoreCasa}
+                  </span>
+                  <span className="text-lg font-bold text-white/40" aria-hidden>
+                    x
+                  </span>
+                  <span className="flex min-h-10 min-w-10 items-center justify-center rounded-lg bg-white/8 px-2 text-xl font-black tabular-nums text-white">
+                    {scoreVisitante}
+                  </span>
+                </div>
+              </div>
+
+              {showResultadoDetalhado && review ? (
+                <>
+                  <div
+                    className="mx-4 sm:mx-5 mb-3 overflow-hidden rounded-xl border border-white/10"
+                    style={{ background: "rgba(255,255,255,0.04)" }}
+                    aria-label="Detalhamento da pontuação"
+                  >
+                    <div className="divide-y divide-white/8">
+                      {pontosLinhas.map((linha) => (
+                        <div
+                          key={linha.label}
+                          className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 px-3.5 py-3"
+                        >
+                          <span className="text-[13px] font-medium text-white/88">
+                            {linha.label}
+                          </span>
+                          <PontosBreakdownIcon hit={linha.hit} />
+                          <span
+                            className={`min-w-[3.25rem] text-right text-[13px] font-bold tabular-nums ${
+                              linha.points > 0 ? "text-[#D4F862]" : "text-white/45"
+                            }`}
+                          >
+                            {formatPontosLabel(linha.points)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex items-center justify-between border-t border-white/10 bg-black/25 px-3.5 py-3">
+                      <span className="text-[14px] font-bold text-white">
+                        Total da partida
+                      </span>
+                      <span className="text-[15px] font-black tabular-nums text-[#D4F862]">
+                        {formatPontosLabel(review.points)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="mx-4 sm:mx-5 mb-4 flex gap-2.5 rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-3">
+                    <Info
+                      className="mt-0.5 size-4 shrink-0 text-white/50"
+                      strokeWidth={2}
+                      aria-hidden
+                    />
+                    <p className="text-[12px] leading-relaxed text-white/62">
+                      Os números grandes acima mostram como o jogo terminou. Aqui
+                      está o que você tinha escolhido.
+                    </p>
+                  </div>
+                </>
+              ) : null}
+            </>
+          ) : null}
+        </>
+      ) : (
+        <div className="flex items-end px-4 sm:px-5 py-4 gap-2">
+          <div className="flex flex-1 flex-col items-center min-w-0">
+            <Escudo url={jogo.escudoCasa} alt={jogo.timeCasa} size="md" />
+            <p className="mt-3 text-[15px] sm:text-base font-semibold text-white text-center leading-snug line-clamp-2 px-0.5">
+              {jogo.timeCasa}
+            </p>
+            {predictionsLoading ? (
+              <div
+                className="mt-3 h-11 w-28 rounded-full animate-pulse"
+                style={{ background: "rgba(255,255,255,0.06)" }}
+              />
+            ) : (
+              <HorizStepper
+                value={scoreCasa}
+                onInc={() => increment("casa")}
+                onDec={() => decrement("casa")}
+              />
+            )}
+          </div>
+
+          <svg
+            className="mb-2 shrink-0 opacity-95"
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="rgba(255,255,255,0.45)"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+
+          <div className="flex flex-1 flex-col items-center min-w-0">
+            <Escudo url={jogo.escudoVisitante} alt={jogo.timeVisitante} size="md" />
+            <p className="mt-3 text-[15px] sm:text-base font-semibold text-white text-center leading-snug line-clamp-2 px-0.5">
+              {jogo.timeVisitante}
+            </p>
+            {predictionsLoading ? (
+              <div
+                className="mt-3 h-11 w-28 rounded-full animate-pulse"
+                style={{ background: "rgba(255,255,255,0.06)" }}
+              />
+            ) : (
+              <HorizStepper
+                value={scoreVisitante}
+                onInc={() => increment("visitante")}
+                onDec={() => decrement("visitante")}
+              />
+            )}
+          </div>
         </div>
+      )}
+
+      {!showResultadoDetalhado ? (
+        <div className="mx-4 sm:mx-5 h-px bg-white/10 mb-3" />
       ) : null}
 
-      <div className="mx-4 sm:mx-5 h-px bg-white/10 mb-3" />
-
-      <div className="px-4 sm:px-5 pb-4">
-        {readOnly ? (
+      <div className={`px-4 sm:px-5 ${showResultadoDetalhado ? "pb-1" : "pb-4"}`}>
+        {readOnly && !showResultadoDetalhado ? (
           <div
             className="w-full py-4 px-3 sm:px-4 rounded-xl flex flex-col items-center justify-center gap-2"
             style={{
@@ -1247,28 +1298,19 @@ function JogoCard({
             )}
           </div>
         ) : palpiteSalvo ? (
-          <div className="flex flex-col sm:flex-row items-stretch gap-2">
+          <div className="grid grid-cols-4 gap-2">
             <div
-              className="flex-1 min-h-[48px] py-3 rounded-xl flex items-center justify-center gap-2"
+              className="col-span-3 flex min-h-[48px] items-center justify-center rounded-xl"
               style={{
-                background: "rgba(177,235,11,0.12)",
-                border: "1px solid rgba(177,235,11,0.30)",
+                background: "rgba(177,235,11,0.10)",
+                border: "1px solid rgba(177,235,11,0.28)",
               }}
             >
-              <CircleCheck
-                className="w-5 h-5 shrink-0"
-                style={{ color: "#D4F862" }}
-                strokeWidth={2.5}
-                aria-hidden
-              />
-              <span
-                className="font-bold text-base"
-                style={{ color: "#D4F862" }}
-              >
-                Palpite salvo
+              <span className="text-sm font-bold tracking-wide text-[#B1EB0B]">
+                Salvo
               </span>
             </div>
-            {canEdit && (
+            {canEdit ? (
               <button
                 type="button"
                 onClick={() => {
@@ -1276,7 +1318,8 @@ function JogoCard({
                   setPalpiteSalvo(false);
                 }}
                 disabled={isSubmitting}
-                className="min-h-[48px] px-4 rounded-xl flex items-center justify-center gap-2 transition-all duration-200 disabled:opacity-40"
+                aria-label="Editar palpite"
+                className="col-span-1 flex min-h-[48px] items-center justify-center rounded-xl transition-all duration-200 disabled:opacity-40"
                 style={{
                   background: "rgba(255,255,255,0.08)",
                   border: "1px solid rgba(255,255,255,0.14)",
@@ -1287,11 +1330,8 @@ function JogoCard({
                   strokeWidth={2}
                   aria-hidden
                 />
-                <span className="text-base font-semibold text-white/80">
-                  Editar palpite
-                </span>
               </button>
-            )}
+            ) : null}
           </div>
         ) : (
           <button
@@ -2346,7 +2386,7 @@ function TicketResumoView({
                                 : "Sem pontos"}
                           </span>
                           <span
-                            className={`text-[13px] font-black ${item.pontos > 0 ? "text-[#4ADE80]" : "text-white/40"}`}
+                            className={`text-[16px] font-black ${item.pontos > 0 ? "text-[#4ADE80]" : "text-white/40"}`}
                           >
                             {item.pontos > 0 ? `+${item.pontos} pts` : "0 pts"}
                           </span>

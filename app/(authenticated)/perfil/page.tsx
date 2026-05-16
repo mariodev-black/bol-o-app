@@ -529,7 +529,7 @@ export default function PerfilPage() {
               <button
                 type="button"
                 onClick={() => setWithdrawModalOpen(true)}
-                className="mt-4 flex h-12 w-full items-center justify-center gap-1 rounded-xl bg-primary font-helvetica-now-display text-[13px] font-black uppercase tracking-wide text-[#0E141B] shadow-[0_8px_24px_rgba(177,235,11,0.25)] transition-transform active:scale-[0.99]"
+                className="mt-4 flex h-12 w-full items-center justify-center gap-1 rounded-xl bg-primary font-helvetica-now-display text-[16px] font-black uppercase tracking-wide text-[#0E141B] shadow-[0_8px_24px_rgba(177,235,11,0.25)] transition-transform active:scale-[0.99]"
               >
                 Sacar
                 <ChevronRight className="size-4" strokeWidth={2.6} />
@@ -562,7 +562,7 @@ export default function PerfilPage() {
                     <Icon className="size-4 text-primary" strokeWidth={2.2} />
                   </span>
                   <div>
-                    <p className="mt-2 font-helvetica-now-display text-[13px] font-black text-white">{item.label}</p>
+                    <p className="mt-2 font-helvetica-now-display text-[16px] font-black text-white">{item.label}</p>
                     <p className="mt-0.5 text-[11px] font-medium text-white/80">
                       {overviewLoading ? <SkeletonBlock className="mt-1 h-3 w-20" /> : item.value}
                     </p>

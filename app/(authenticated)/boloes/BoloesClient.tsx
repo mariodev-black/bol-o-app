@@ -417,7 +417,7 @@ function RankingPanel({
         <br />
         posição
       </p>
-      <p className="mt-1 text-[13px] font-black leading-none text-white min-[380px]:text-[14px]">
+      <p className="mt-1 text-[16px] font-black leading-none text-white min-[380px]:text-[14px]">
         {positionLabel(position)}
       </p>
       <div className="my-3 h-px w-full bg-white/6" />
@@ -629,7 +629,7 @@ function AvailableCard({
           strokeWidth={2.1}
         />
       </div>
-      <h3 className="mt-4 text-[13px] font-black leading-none text-white">
+      <h3 className="mt-4 text-[16px] font-black leading-none text-white">
         {title}
       </h3>
       <p
@@ -647,7 +647,7 @@ function AvailableCard({
       </p>
       {time && (
         <p
-          className="mt-1 text-[13px] font-black leading-none"
+          className="mt-1 text-[16px] font-black leading-none"
           style={{ color: GREEN }}
         >
           {time}
@@ -876,7 +876,7 @@ function UpcomingExtraOfferCard({
 
         {/* Meio — título, status, infos */}
         <div className="relative z-10 flex min-w-0 flex-col justify-center border-r border-white/8 px-3 py-3.5 min-[380px]:px-3.5">
-          <h3 className="text-[13px] font-black uppercase leading-[1.05] tracking-[-0.02em] text-white min-[380px]:text-[15px]">
+          <h3 className="text-[16px] font-black uppercase leading-[1.05] tracking-[-0.02em] text-white min-[380px]:text-[15px]">
             {ex.title}
           </h3>
 
@@ -944,7 +944,7 @@ function UpcomingExtraOfferCard({
             Pontos
           </p>
           <p
-            className="mt-1.5 text-[13px] font-black leading-none min-[380px]:text-[14px]"
+            className="mt-1.5 text-[16px] font-black leading-none min-[380px]:text-[14px]"
             style={{ color: GREEN }}
           >
             —
@@ -1063,7 +1063,7 @@ function ActiveShowcaseCard({
         </div>
 
         <div className="relative z-10 flex min-w-0 flex-col justify-center border-r border-white/8 px-3 py-3.5 min-[380px]:px-3.5">
-          <h3 className="text-[13px] font-black uppercase leading-[1.05] tracking-[-0.02em] text-white min-[380px]:text-[15px]">
+          <h3 className="text-[16px] font-black uppercase leading-[1.05] tracking-[-0.02em] text-white min-[380px]:text-[15px]">
             {item.title}
           </h3>
           <p className="mt-1.5 font-mono text-[10px] font-semibold leading-none text-white/50 min-[380px]:text-[11px]">
@@ -1183,7 +1183,7 @@ function ActiveShowcaseCard({
             Pontos
           </p>
           <p
-            className="mt-1.5 text-[13px] font-black leading-none min-[380px]:text-[14px]"
+            className="mt-1.5 text-[16px] font-black leading-none min-[380px]:text-[14px]"
             style={{ color: GREEN }}
           >
             {pointsLabel(item.points)}
@@ -1235,7 +1235,7 @@ function ComoFuncionaPalpitesCard() {
       >
         <h2
           id="como-funciona-palpites-heading"
-          className="px-1 text-center text-[13px] font-black uppercase leading-tight tracking-[0.08em] text-balance sm:text-[12px]"
+          className="px-1 text-center text-[16px] font-black uppercase leading-tight tracking-[0.08em] text-balance sm:text-[12px]"
           style={{ color: GREEN }}
         >
           Como funciona? É rápido e fácil!
@@ -1542,7 +1542,7 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
             <div className="px-4 pb-2">
               <Link
                 href="/tickets"
-                className="flex h-[56px] w-full items-center justify-center gap-2.5 rounded-[14px] bg-primary text-[13px] font-black uppercase tracking-[0.05em] text-[#0E141B] transition-[filter] hover:brightness-105 active:scale-[0.98]"
+                className="flex h-[56px] w-full items-center justify-center gap-2.5 rounded-[14px] bg-primary text-[16px] font-black uppercase tracking-[0.05em] text-[#0E141B] transition-[filter] hover:brightness-105 active:scale-[0.98]"
               >
                 Garantir {currentPkg.label.toLowerCase()} —{" "}
                 {currentPkg.priceMain}

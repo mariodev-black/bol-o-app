@@ -68,7 +68,7 @@ export function RecuperarSenhaContent() {
 
       <button
         type="submit"
-        className="mt-[14px] flex h-[48px] w-full items-center justify-center gap-2 rounded-[10px] bg-primary text-[13px] font-black text-[#0E141B] shadow-[0_0_24px_rgba(177,235,11,0.42)] transition-transform active:scale-[0.99]"
+        className="mt-[14px] flex h-[48px] w-full items-center justify-center gap-2 rounded-[10px] bg-primary text-[16px] font-black text-[#0E141B] shadow-[0_0_24px_rgba(177,235,11,0.42)] transition-transform active:scale-[0.99]"
       >
         {sent ? "Enviar novamente" : "Enviar instruções"}
         {sent ? <Check className="h-4 w-4" strokeWidth={2.5} /> : <ArrowRight className="h-4 w-4" strokeWidth={2.5} />}

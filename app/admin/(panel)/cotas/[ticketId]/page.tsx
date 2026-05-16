@@ -186,7 +186,7 @@ export default async function AdminCotaDetailPage({
                     </td>
                     <td className="px-4 py-4 text-white/80">
                       <p className="font-bold text-white/62">{prediction.dateBR ?? "Sem data"}</p>
-                      <p className="mt-1 text-[11px] text-white/32">{prediction.hourBR ?? "Sem hora"}</p>
+                      <p className="mt-1 text-[14px] text-white/32">{prediction.hourBR ?? "Sem hora"}</p>
                     </td>
                     <td className="px-4 py-4 text-center font-black text-primary">
                       <span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[12px]">
@@ -208,7 +208,7 @@ export default async function AdminCotaDetailPage({
                     </td>
                     <td className="px-4 py-4">
                       <p className="font-bold text-white/55">{prediction.status ?? "Nao informado"}</p>
-                      <p className="mt-1 text-[11px] text-white/28">
+                      <p className="mt-1 text-[14px] text-white/28">
                         {prediction.resultCasa == null || prediction.resultVisitante == null ? "Aguardando resultado" : "Resultado apurado"}
                       </p>
                     </td>

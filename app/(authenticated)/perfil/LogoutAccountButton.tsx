@@ -11,7 +11,7 @@ export function LogoutAccountButton() {
   return (
     <button
       type="button"
-      className="flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-[13px] font-black text-red-400/95 transition-colors hover:bg-red-500/10 hover:text-red-300"
+      className="flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-[16px] font-black text-red-400/95 transition-colors hover:bg-red-500/10 hover:text-red-300"
       onClick={async () => {
         await logout();
         router.push("/login");

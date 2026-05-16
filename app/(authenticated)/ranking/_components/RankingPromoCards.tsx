@@ -43,13 +43,13 @@ export function RankingPromoCards({ boloesHref = "/boloes" }: RankingPromoCardsP
             <Gift className="size-6 text-primary" strokeWidth={2.2} aria-hidden />
           </div>
           <div className="min-w-0 flex-1">
-            <h3 className="text-[13px] font-black uppercase leading-tight tracking-wide text-white">
+            <h3 className="text-[16px] font-black uppercase leading-tight tracking-wide text-white">
               Mais de{" "}
               <span className="text-primary" style={{ textShadow: "0 0 24px rgba(177,235,11,0.35)" }}>
                 R$1 MILHÃO
               </span>
             </h3>
-            <p className="mt-1 text-[11px] font-medium leading-snug text-white/58">
+            <p className="mt-1 text-[14px] font-medium leading-snug text-white/58">
               em premiação para os melhores!
             </p>
           </div>
@@ -91,20 +91,20 @@ export function RankingPromoCards({ boloesHref = "/boloes" }: RankingPromoCardsP
               <TrendingUp className="size-6 text-primary" strokeWidth={2.3} aria-hidden />
             </div>
             <div className="min-w-0 flex-1 pt-0.5">
-              <h3 className="text-[12px] font-black uppercase leading-tight tracking-wide">
+              <h3 className="text-[16px] font-black uppercase leading-tight tracking-wide">
                 <span className="text-primary" style={{ textShadow: "0 0 20px rgba(177,235,11,0.3)" }}>
                   Faça seus palpites
                 </span>{" "}
                 <span className="text-white">e suba na tabela!</span>
               </h3>
-              <p className="mt-1.5 text-[11px] font-medium leading-relaxed text-white/55">
+              <p className="mt-1.5 text-[14px] font-medium leading-relaxed text-white/55">
                 Cada acerto te aproxima dos prêmios. Participe e viva a Copa de um jeito novo!
               </p>
             </div>
           </div>
           <Link
             href={boloesHref}
-            className="inline-flex h-11 w-full shrink-0 items-center justify-center gap-1.5 rounded-full px-5 text-[11px] font-black uppercase tracking-wide text-[#0E141B] shadow-[0_4px_20px_rgba(177,235,11,0.25)] transition-[transform,box-shadow] active:scale-[0.98] sm:mt-0 sm:h-10 sm:w-auto sm:min-w-46"
+            className="inline-flex h-11 w-full shrink-0 items-center justify-center gap-1.5 rounded-full px-5 text-[14px] font-black uppercase tracking-wide text-[#0E141B] shadow-[0_4px_20px_rgba(177,235,11,0.25)] transition-[transform,box-shadow] active:scale-[0.98] sm:mt-0 sm:h-10 sm:w-auto sm:min-w-46"
             style={{ background: PRIMARY }}
           >
             Quero participar

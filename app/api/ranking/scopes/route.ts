@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 import { buildRankingScopes } from "@/lib/ranking/scopes";
 
-export { type RankingScopeOption } from "@/lib/ranking/scopes";
+export { type RankingScopeOption } from "@/lib/ranking/scopes-shared";
 
 export const runtime = "nodejs";
 

@@ -149,9 +149,7 @@ function CopaBonusPromoModal({
               strokeWidth={1.7}
               style={{ filter: "drop-shadow(0 0 10px rgba(177,235,11,0.45))" }}
             />
-            <Sparkles className="absolute -right-0.5 -top-0.5 size-3.5 text-primary/90" />
-            <span className="absolute -left-1 top-3 h-4 w-px rotate-[-28deg] rounded-full bg-primary/50" />
-            <span className="absolute -right-1 bottom-3 h-3 w-px rotate-[18deg] rounded-full bg-primary/40" />
+            
           </div>
 
           <p className="text-[14px] font-bold uppercase tracking-[0.12em] text-white/90">

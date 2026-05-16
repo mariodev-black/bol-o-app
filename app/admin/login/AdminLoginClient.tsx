@@ -90,7 +90,7 @@ export function AdminLoginClient() {
         <button
           type="submit"
           disabled={loading || !identifier.trim() || !password}
-          className="mt-5 h-12 w-full rounded-[13px] bg-primary text-[13px] font-black uppercase tracking-[0.12em] text-black shadow-[0_0_28px_rgba(177,235,11,0.28)] transition-opacity disabled:cursor-not-allowed disabled:opacity-55"
+          className="mt-5 h-12 w-full rounded-[13px] bg-primary text-[16px] font-black uppercase tracking-[0.12em] text-black shadow-[0_0_28px_rgba(177,235,11,0.28)] transition-opacity disabled:cursor-not-allowed disabled:opacity-55"
         >
           {loading ? "Validando..." : "Entrar no admin"}
         </button>

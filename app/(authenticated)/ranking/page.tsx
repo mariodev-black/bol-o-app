@@ -37,7 +37,11 @@ import {
   RankingBoardSkeleton,
   RankingFullPageSkeleton,
 } from "@/app/(authenticated)/ranking/_components/RankingPageSkeletons";
-import type { RankingScopeOption } from "@/lib/ranking/scopes";
+import {
+  palpitesHrefForScope,
+  type RankingScopeOption,
+  type RankingScopeStatus,
+} from "@/lib/ranking/scopes-shared";
 import { getExtraBolaoHeroSideVariant } from "@/lib/boloes-extra-competition-branding";
 import { getAvatarPresetImage } from "@/lib/user/avatar-presets";
 
@@ -159,6 +163,61 @@ function scopeSelectLines(option: RankingScopeOption) {
       ? option.label.split(" — ").slice(1).join(" — ")
       : option.meta);
   return { primary, secondary };
+}
+
+const RANKING_SCOPE_STATUS_TONE: Record<
+  RankingScopeStatus,
+  { bg: string; border: string; color: string }
+> = {
+  ativa: {
+    bg: "rgba(10,201,107,0.14)",
+    border: "rgba(10,201,107,0.4)",
+    color: "#0AC96B",
+  },
+  aguardando: {
+    bg: "rgba(230,183,38,0.14)",
+    border: "rgba(230,183,38,0.4)",
+    color: "#E6B726",
+  },
+  encerrado: {
+    bg: "rgba(248,113,113,0.14)",
+    border: "rgba(248,113,113,0.38)",
+    color: "#F87171",
+  },
+};
+
+function RankingScopeStatusPill({
+  status,
+  label,
+  size = "sm",
+}: {
+  status: RankingScopeStatus;
+  label: string;
+  size?: "sm" | "md";
+}) {
+  const tone = RANKING_SCOPE_STATUS_TONE[status];
+  const isMd = size === "md";
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center gap-1.5 rounded-md border font-bold leading-tight ${
+        isMd
+          ? "max-w-[11rem] px-2.5 py-1 text-[12px]"
+          : "max-w-[9.5rem] px-2 py-0.5 text-[10px]"
+      }`}
+      style={{
+        background: tone.bg,
+        borderColor: tone.border,
+        color: tone.color,
+      }}
+    >
+      <span
+        className={`rounded-full ${isMd ? "size-1.5" : "size-[5px]"}`}
+        style={{ background: tone.color }}
+        aria-hidden
+      />
+      {label}
+    </span>
+  );
 }
 
 function formatParticipantsShort(n: number): string {
@@ -354,7 +413,7 @@ function RankingDataRow({ row }: { row: BoardRow }) {
         </span>
       ) : null}
       <span
-        className={`text-[13px] font-black tabular-nums text-white/75 ${isMe ? "pl-10" : ""}`}
+        className={`text-[16px] font-black tabular-nums text-white/75 ${isMe ? "pl-10" : ""}`}
       >
         {row.pos}
       </span>
@@ -379,7 +438,7 @@ function RankingDataRow({ row }: { row: BoardRow }) {
       <span className="text-right text-[12px] font-bold tabular-nums text-white/78">
         {row.outcomeCount}
       </span>
-      <span className="text-right text-[13px] font-black tabular-nums text-primary">
+      <span className="text-right text-[16px] font-black tabular-nums text-primary">
         {row.totalPoints}
       </span>
     </div>
@@ -402,7 +461,7 @@ function RankingMyCotaFooterCard({ row }: { row: BoardRow }) {
       >
         Você
       </span>
-      <span className="pl-10 pt-0.5 text-[13px] font-black tabular-nums text-white">{row.pos}</span>
+      <span className="pl-10 pt-0.5 text-[16px] font-black tabular-nums text-white">{row.pos}</span>
       <div className="min-w-0 pt-0.5">
         <div className="flex items-center gap-2">
           <PlayerAvatar
@@ -737,6 +796,11 @@ export default function RankingPage() {
       return scopeSelectLines(selectedScope);
     }, [selectedScope]);
 
+  const selectedScopePalpitesHref = useMemo(
+    () => (selectedScope ? palpitesHrefForScope(selectedScope) : "/palpites"),
+    [selectedScope],
+  );
+
   const shareRanking = useCallback(async () => {
     const url = typeof window !== "undefined" ? window.location.href : "";
     try {
@@ -829,7 +893,7 @@ export default function RankingPage() {
                     de classificação
                   </span>
                 </h1>
-                <p className="mt-2 max-w-66 text-[12px] font-medium leading-snug text-white">
+                <p className="mt-2 max-w-auto text-[14px] font-medium leading-snug text-white">
                   Acompanhe sua posição em{" "}
                   <span className="font-semibold text-primary">tempo real</span>
                   ,
@@ -901,10 +965,10 @@ export default function RankingPage() {
                     />
                   </div>
                   <div className="min-w-0 flex-1 pt-0.5">
-                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-primary">
+                    <p className="text-[14px] font-black uppercase tracking-[0.22em] text-primary">
                       Consultar classificação
                     </p>
-                    <p className="mt-1 text-[13px] font-semibold leading-snug text-white/90">
+                    <p className="mt-1 text-[14px] font-semibold leading-snug text-white/90">
                       Selecione o bolão que deseja acompanhar
                     </p>
                   </div>
@@ -943,8 +1007,16 @@ export default function RankingPage() {
                       )}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[14px] font-black leading-tight text-white">
-                        {poolSelectPrimary}
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span className="block truncate text-[14px] font-black leading-tight text-white">
+                          {poolSelectPrimary}
+                        </span>
+                        {selectedScope ? (
+                          <RankingScopeStatusPill
+                            status={selectedScope.status}
+                            label={selectedScope.statusLabel}
+                          />
+                        ) : null}
                       </span>
                       {poolSelectSecondary ? (
                         <span className="mt-1 block truncate text-[12px] font-medium tabular-nums text-white/45">
@@ -965,8 +1037,8 @@ export default function RankingPage() {
                       role="listbox"
                       aria-label="Bolões e cotas"
                     >
-                      <div className="max-h-[min(60vh,360px)] overflow-y-auto overscroll-contain p-1.5 [scrollbar-gutter:stable]">
-                        <div className="flex flex-col gap-1">
+                      <div className="max-h-[min(65vh,420px)] overflow-y-auto overscroll-contain p-2.5 [scrollbar-gutter:stable]">
+                        <div className="flex flex-col gap-1.5">
                           {scopes.map((option, idx) => {
                             const active = scopeKey === option.key;
                             const showBolaoGeralHeader =
@@ -978,17 +1050,17 @@ export default function RankingPage() {
                             return (
                               <Fragment key={option.key}>
                                 {showBolaoGeralHeader ? (
-                                  <div className="sticky top-0 z-10 rounded-lg border border-white/10 bg-zinc-950/95 px-3 py-2 text-[9px] font-black uppercase tracking-[0.2em] text-primary backdrop-blur-sm">
+                                  <div className="sticky top-0 z-10 rounded-lg border border-white/10 bg-zinc-950/95 px-3 py-2.5 text-[12px] font-black uppercase tracking-[0.14em] text-primary backdrop-blur-sm">
                                     Bolão geral
                                   </div>
                                 ) : null}
                                 {showBolaoDiaHeader ? (
-                                  <div className="sticky top-0 z-10 rounded-lg border border-white/10 bg-zinc-950/95 px-3 py-2 text-[9px] font-black uppercase tracking-[0.2em] text-primary backdrop-blur-sm">
+                                  <div className="sticky top-0 z-10 rounded-lg border border-white/10 bg-zinc-950/95 px-3 py-2.5 text-[12px] font-black uppercase tracking-[0.14em] text-primary backdrop-blur-sm">
                                     Bolão do dia
                                   </div>
                                 ) : null}
                                 {showBolaoExtraHeader ? (
-                                  <div className="sticky top-0 z-10 rounded-lg border border-white/10 bg-zinc-950/95 px-3 py-2 text-[9px] font-black uppercase tracking-[0.2em] text-primary backdrop-blur-sm">
+                                  <div className="sticky top-0 z-10 rounded-lg border border-white/10 bg-zinc-950/95 px-3 py-2.5 text-[12px] font-black uppercase tracking-[0.14em] text-primary backdrop-blur-sm">
                                     Bolão extra
                                   </div>
                                 ) : null}
@@ -1000,17 +1072,17 @@ export default function RankingPage() {
                                     setScopeKey(option.key);
                                     setPoolOpen(false);
                                   }}
-                                  className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-left transition-colors ${
+                                  className={`flex w-full items-center justify-between gap-3.5 rounded-xl px-3.5 py-2 text-left transition-colors ${
                                     active
                                       ? "border border-primary/35 bg-primary/12 shadow-[inset_0_0_0_1px_rgba(177,235,11,0.12)]"
                                       : "border border-transparent hover:border-white/12 hover:bg-white/6"
                                   }`}
                                 >
-                                  <span className="flex min-w-0 items-center gap-3">
-                                    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-white/12 bg-linear-to-b from-zinc-900/90 to-black/90 shadow-inner">
+                                  <span className="flex min-w-0 items-center gap-3.5">
+                                    <span className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-white/12 bg-linear-to-b from-zinc-900/90 to-black/90 shadow-inner">
                                       {scopeGlyphForMode(
                                         option.mode,
-                                        "sm",
+                                        "md",
                                         option.mode === "extra"
                                           ? option.selectPrimary
                                           : null,
@@ -1019,21 +1091,28 @@ export default function RankingPage() {
                                           : null,
                                       )}
                                     </span>
-                                    <span className="min-w-0">
+                                    <span className="min-w-0 flex-1">
                                       {(() => {
                                         const { primary, secondary } =
                                           scopeSelectLines(option);
                                         return (
                                           <>
-                                            <span className="block truncate text-[13px] font-bold leading-tight text-white">
-                                              {primary}
+                                            <span className="flex flex-wrap items-center gap-2.5">
+                                              <span className="block truncate text-[16px] font-bold leading-snug text-white">
+                                                {primary}
+                                              </span>
+                                              <RankingScopeStatusPill
+                                                size="md"
+                                                status={option.status}
+                                                label={option.statusLabel}
+                                              />
                                             </span>
-                                            <span className="mt-0.5 block truncate text-[11px] font-medium tabular-nums text-white/45">
+                                            <span className="mt-1 block truncate text-[14px] font-medium tabular-nums text-white/50">
                                               {secondary}
                                             </span>
                                             {option.meta &&
                                             option.meta !== secondary ? (
-                                              <span className="mt-0.5 block truncate text-[10px] font-medium tabular-nums text-white/35">
+                                              <span className="mt-1 block truncate text-[13px] font-medium tabular-nums text-white/40">
                                                 {option.meta}
                                               </span>
                                             ) : null}
@@ -1043,15 +1122,15 @@ export default function RankingPage() {
                                     </span>
                                   </span>
                                   {active ? (
-                                    <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/20">
+                                    <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/20">
                                       <Check
-                                        className="size-3.5 text-primary"
+                                        className="size-5 text-primary"
                                         strokeWidth={2.8}
                                       />
                                     </span>
                                   ) : (
                                     <span
-                                      className="size-7 shrink-0"
+                                      className="size-9 shrink-0"
                                       aria-hidden
                                     />
                                   )}
@@ -1116,15 +1195,15 @@ export default function RankingPage() {
                     <Ticket className="size-5 text-primary" strokeWidth={2.2} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[12px] font-black uppercase tracking-wide text-primary">
+                    <p className="text-[16px] font-black uppercase tracking-wide text-primary">
                       Ainda dá tempo de palpitar
                     </p>
-                    <p className="mt-1 text-[12px] font-medium leading-snug text-white/72">
+                    <p className="mt-1 text-[14px] font-medium leading-snug text-white/72">
                       {unusedCopy}
                     </p>
                     <Link
-                      href={selectedScope.palpitesHref}
-                      className="mt-3 inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-xl text-[11px] font-black uppercase tracking-wide text-[#0E141B] transition active:scale-[0.98]"
+                      href={selectedScopePalpitesHref}
+                      className="mt-3 inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-xl text-[14px] font-black uppercase tracking-wide text-[#0E141B] transition active:scale-[0.98]"
                       style={{ background: PRIMARY }}
                     >
                       Ir para palpites desta cota
@@ -1148,7 +1227,7 @@ export default function RankingPage() {
                 ) : (
                   <>
                     {rankingRows.length === 0 ? (
-                      <p className="mt-6 text-center text-[12px] font-medium text-white/80">
+                      <p className="mt-6 text-center text-[14px] font-medium text-white/80">
                         Ainda não há participantes classificados neste bolão.
                       </p>
                     ) : null}
@@ -1203,7 +1282,7 @@ export default function RankingPage() {
                     </section>
 
                     {rankingRows.length === 0 ? (
-                      <p className="mt-6 text-center text-[12px] font-medium text-white/80">
+                      <p className="mt-6 text-center text-[14px] font-medium text-white/80">
                         Ainda não há participantes classificados neste bolão.
                       </p>
                     ) : null}

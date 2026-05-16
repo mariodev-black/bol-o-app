@@ -86,7 +86,7 @@ export function TwoFactorClient({ enabled }: { enabled: boolean }) {
       <button
         type="submit"
         disabled={loading || code.length !== 6}
-        className="mt-5 h-12 w-full rounded-[12px] bg-primary text-[13px] font-black uppercase text-[#0E141B] shadow-[0_0_24px_rgba(177,235,11,0.36)] disabled:cursor-not-allowed disabled:opacity-50"
+        className="mt-5 h-12 w-full rounded-[12px] bg-primary text-[16px] font-black uppercase text-[#0E141B] shadow-[0_0_24px_rgba(177,235,11,0.36)] disabled:cursor-not-allowed disabled:opacity-50"
       >
         {loading ? "Validando..." : "Validar e acessar"}
       </button>

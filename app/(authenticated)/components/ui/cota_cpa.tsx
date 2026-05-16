@@ -13,7 +13,7 @@ export const CotaCpa = () => {
               strokeWidth={2.2}
             />
           </span>
-          <p className="min-w-0 text-[13px] font-black uppercase leading-snug text-[#0E141B] sm:text-sm md:text-[15px]">
+          <p className="min-w-0 text-[16px] font-black uppercase leading-snug text-[#0E141B] sm:text-sm md:text-[15px]">
             Quer ganhar uma grana?{" "}
             <span className="whitespace-nowrap">Compre sua cota</span> e
             participe do Bolão do Milhão!

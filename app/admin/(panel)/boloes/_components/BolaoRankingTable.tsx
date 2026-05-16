@@ -67,16 +67,16 @@ export function BolaoRankingTable({
               <td className="px-4 py-4">
                 <Link href={`/admin/cotas/${row.ticketId}`} className="block">
                   <p className="font-mono text-[12px] font-black text-white group-hover:text-primary">#{shortId(row.ticketId)}</p>
-                  <p className="mt-1 text-[11px] text-white/30">{row.ticketId}</p>
+                  <p className="mt-1 text-[14px] text-white/30">{row.ticketId}</p>
                 </Link>
               </td>
               <td className="px-4 py-4">
                 <p className="text-[20px] font-black leading-none text-primary">{row.scorePoints.toLocaleString("pt-BR")}</p>
-                <p className="mt-1 text-[11px] text-white/80">pontos</p>
+                <p className="mt-1 text-[14px] text-white/80">pontos</p>
               </td>
               <td className="px-4 py-4">
                 <p className="font-black text-white">{row.exactCount} exatos</p>
-                <p className="mt-1 text-[11px] text-white/80">
+                <p className="mt-1 text-[14px] text-white/80">
                   {row.outcomeCount} resultados · {row.goalsCount} gols
                 </p>
               </td>

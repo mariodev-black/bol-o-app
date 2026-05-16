@@ -100,7 +100,7 @@ export function AdminCotasClient({ tickets }: { tickets: AdminTicketListItem[] }
                 <td className="px-4 py-4">
                   <Link href={`/admin/cotas/${ticket.id}`} className="block">
                     <p className="text-[18px] font-black leading-none text-primary">{ticket.scorePoints.toLocaleString("pt-BR")}</p>
-                    <p className="mt-1 text-[11px] font-bold text-white/80">pontos</p>
+                    <p className="mt-1 text-[14px] font-bold text-white/80">pontos</p>
                   </Link>
                 </td>
                 <td className="px-4 py-4 text-center">
@@ -115,7 +115,7 @@ export function AdminCotasClient({ tickets }: { tickets: AdminTicketListItem[] }
                     <p className="font-black text-white">
                       {ticket.predictionsCount}/{ticket.totalMatchesCount}
                     </p>
-                    <p className="mt-1 text-[11px] text-white/80">enviados</p>
+                    <p className="mt-1 text-[14px] text-white/80">enviados</p>
                   </Link>
                 </td>
                 <td className="px-4 py-4 text-center">

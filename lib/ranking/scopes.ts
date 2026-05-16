@@ -1,23 +1,51 @@
+import "server-only";
+
 import { extraBolaoFallbackDisplayName } from "@/lib/boloes-extra-competition-branding";
 import { warmCompetitionMetadataCache } from "@/lib/competition-metadata-cache";
-import { listPaidTicketsForUser } from "@/lib/payments/user-tickets";
+import {
+  listPaidTicketsForUser,
+  type PaidTicketRow,
+} from "@/lib/payments/user-tickets";
+import {
+  palpitesHrefForTicket,
+  type RankingScopeOption,
+  type RankingScopeStatus,
+} from "@/lib/ranking/scopes-shared";
 
-export type RankingScopeOption = {
-  key: string;
-  mode: "principal" | "diario" | "extra";
-  ticketId: string | null;
-  /** Texto completo (ex.: listas e acessibilidade). */
-  label: string;
-  meta: string;
-  /** Primeira linha do gatilho do select no ranking (título do bolão, sem data). */
-  selectPrimary: string;
-  /** Segunda linha: data (dia/extra) ou subtítulo do bolão (ex.: competição no geral). */
-  selectSecondary: string;
-  /** Bolão extra: id do campeonato na API (selo / ícone no ranking). */
-  extraChampionshipId?: number | null;
-  unusedPalpites: boolean;
-  palpitesHref: string;
-};
+export type { RankingScopeOption, RankingScopeStatus } from "@/lib/ranking/scopes-shared";
+export { palpitesHrefForScope, palpitesHrefForTicket } from "@/lib/ranking/scopes-shared";
+
+function rankingScopeStatusFromTicket(
+  ticket: PaidTicketRow,
+): Pick<RankingScopeOption, "status" | "statusLabel"> {
+  const pending = (ticket.availableGames ?? 0) > 0;
+
+  if (ticket.ticketType === "general") {
+    return pending
+      ? { status: "ativa", statusLabel: "Palpites em aberto" }
+      : { status: "encerrado", statusLabel: "Sem palpites pendentes" };
+  }
+
+  const daily = ticket.dailyStatus ?? "disponivel";
+  if (daily === "usado") {
+    return { status: "encerrado", statusLabel: "Bolão finalizado" };
+  }
+  if (daily === "em_uso") {
+    return pending
+      ? { status: "ativa", statusLabel: "Palpites em aberto" }
+      : { status: "ativa", statusLabel: "Jogos em andamento" };
+  }
+  return { status: "aguardando", statusLabel: "Aguardando começar" };
+}
+
+function rankingScopeStatusFromGeneralTickets(
+  tickets: PaidTicketRow[],
+): Pick<RankingScopeOption, "status" | "statusLabel"> {
+  if (tickets.some((t) => (t.availableGames ?? 0) > 0)) {
+    return { status: "ativa", statusLabel: "Palpites em aberto" };
+  }
+  return { status: "encerrado", statusLabel: "Sem palpites pendentes" };
+}
 
 function shortId(id: string): string {
   const t = id.trim();
@@ -25,14 +53,9 @@ function shortId(id: string): string {
   return `${t.slice(0, 4)}…${t.slice(-4)}`.toUpperCase();
 }
 
-function palpitesHrefForTicket(ticketId: string | null): string {
-  if (!ticketId) return "/palpites";
-  return `/palpites?ticket=${encodeURIComponent(ticketId)}`;
-}
-
 export async function buildRankingScopes(
   userId: string,
-  options?: { defaultRequested?: string | null }
+  options?: { defaultRequested?: string | null },
 ): Promise<{ scopes: RankingScopeOption[]; defaultKey: string | null; hasAnyTicket: boolean }> {
   const scopes: RankingScopeOption[] = [];
 
@@ -44,17 +67,20 @@ export async function buildRankingScopes(
 
     if (general.length > 0) {
       const unused = general.some((t) => (t.availableGames ?? 0) > 0);
+      const generalForPalpites =
+        general.find((t) => (t.availableGames ?? 0) > 0) ?? general[0]!;
       scopes.push({
         key: "principal",
         mode: "principal",
-        ticketId: null,
+        ticketId: generalForPalpites.id,
         label: "Bolão geral — Copa do Mundo 2026",
         meta: `${general.length} cota${general.length === 1 ? "" : "s"} no bolão principal`,
         selectPrimary: "Bolão geral",
         selectSecondary: "Copa do Mundo 2026",
         extraChampionshipId: null,
+        ...rankingScopeStatusFromGeneralTickets(general),
         unusedPalpites: unused,
-        palpitesHref: "/palpites",
+        palpitesHref: palpitesHrefForTicket(generalForPalpites.id),
       });
     }
 
@@ -70,6 +96,7 @@ export async function buildRankingScopes(
         selectPrimary: "Bolão do dia",
         selectSecondary: date,
         extraChampionshipId: null,
+        ...rankingScopeStatusFromTicket(t),
         unusedPalpites: unused,
         palpitesHref: palpitesHrefForTicket(t.id),
       });
@@ -115,6 +142,7 @@ export async function buildRankingScopes(
         selectPrimary: championshipName,
         selectSecondary: `${date}${ordinalSuffix}`,
         extraChampionshipId: compId ?? null,
+        ...rankingScopeStatusFromTicket(t),
         unusedPalpites: unused,
         palpitesHref: palpitesHrefForTicket(t.id),
       });

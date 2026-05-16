@@ -205,13 +205,13 @@ export function AdminUsersClient({ users }: { users: AdminUserListItem[] }) {
                   <td className="px-4 py-4">
                     <Link href={`/admin/users/${user.id}`} className="block">
                       <p className="text-[18px] font-black leading-none text-white">{user.ticketsCount.toLocaleString("pt-BR")}</p>
-                      <p className="mt-1 text-[11px] font-bold text-white/80">{user.paidTicketsCount.toLocaleString("pt-BR")} pagas</p>
+                      <p className="mt-1 text-[14px] font-bold text-white/80">{user.paidTicketsCount.toLocaleString("pt-BR")} pagas</p>
                     </Link>
                   </td>
                   <td className="px-4 py-4">
                     <Link href={`/admin/users/${user.id}`} className="block">
                       <p className="text-[18px] font-black leading-none text-primary">{user.scorePoints.toLocaleString("pt-BR")}</p>
-                      <p className="mt-1 text-[11px] font-bold text-white/80">pontos nas cotas</p>
+                      <p className="mt-1 text-[14px] font-bold text-white/80">pontos nas cotas</p>
                     </Link>
                   </td>
                   <td className="px-4 py-4 text-white/80">

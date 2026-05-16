@@ -514,7 +514,7 @@ export default function IndiqueGanhePage() {
         <button
           type="button"
           onClick={() => setWithdrawModalOpen(true)}
-          className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-[12px] border border-primary/22 bg-[#101010] text-[13px] font-black text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] active:scale-[0.99]"
+          className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-[12px] border border-primary/22 bg-[#101010] text-[16px] font-black text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] active:scale-[0.99]"
         >
           <CircleDollarSign className="size-4" strokeWidth={2.3} />
           Sacar ganhos

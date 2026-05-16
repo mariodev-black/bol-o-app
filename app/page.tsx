@@ -255,64 +255,98 @@ function matchDayLabel(match: HomeMatch): string {
     .replace(".", "");
 }
 
-function TeamBadge({ team }: { team: HomeMatch["time_mandante"] }) {
+function teamDisplayName(team: HomeMatch["time_mandante"]): string {
+  return team.nome_popular?.trim() || team.sigla?.trim() || "---";
+}
+
+function TeamSide({
+  team,
+  align,
+}: {
+  team: HomeMatch["time_mandante"];
+  align: "home" | "away";
+}) {
   const sigla =
     team.sigla || team.nome_popular?.slice(0, 3).toUpperCase() || "---";
+  const name = teamDisplayName(team);
+  const isHome = align === "home";
+
+  const shield = (
+    <span className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-[6px] border border-white/10 bg-white/6 sm:size-8">
+      {team.escudo ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={team.escudo}
+          alt=""
+          className="size-full object-contain p-0.5"
+        />
+      ) : (
+        <span className="text-[10px] font-black text-primary sm:text-[11px]">
+          {sigla}
+        </span>
+      )}
+    </span>
+  );
+
+  const label = (
+    <p
+      className={`min-w-0 break-words text-[12px] font-bold uppercase leading-snug text-white sm:text-[13px] ${
+        isHome ? "text-right" : "text-left"
+      }`}
+    >
+      {name}
+    </p>
+  );
+
   return (
-    <div className="flex min-w-0 items-center gap-1.5">
-      <span className="flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-[6px] border border-white/10 bg-white/6">
-        {team.escudo ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={team.escudo}
-            alt=""
-            className="size-full object-contain p-1"
-          />
-        ) : (
-          <span className="text-[9px] font-black text-primary">{sigla}</span>
-        )}
-      </span>
-      <span className="truncate text-[12px] font-black uppercase leading-tight text-white">
-        {sigla}
-      </span>
+    <div
+      className={`flex min-w-0 items-center gap-1.5 ${
+        isHome ? "justify-end" : "justify-start"
+      }`}
+    >
+      {isHome ? (
+        <>
+          {label}
+          {shield}
+        </>
+      ) : (
+        <>
+          {shield}
+          {label}
+        </>
+      )}
     </div>
   );
 }
 
-function UpcomingMatchCard({
-  match,
-  featured = false,
-}: {
-  match: HomeMatch;
-  featured?: boolean;
-}) {
-  const lockLabel = featured ? "Palpite agora" : "Aberto";
+function UpcomingMatchCard({ match }: { match: HomeMatch }) {
   return (
     <Link
       href="/boloes"
-      className="group grid min-h-[42px] grid-cols-[68px_minmax(0,1fr)_34px_minmax(0,1fr)_78px_18px] items-center gap-2 rounded-[10px] border border-white/8 bg-[#101208] px-2.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] active:scale-[0.99]"
+      className="group flex w-full items-center gap-2 rounded-[10px] border border-white/8 bg-[#101208] px-2.5 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] active:scale-[0.99]"
     >
-      <div className="flex min-w-0 items-center gap-1.5">
-        <Clock3 className="size-3.5 shrink-0 text-primary" strokeWidth={2.4} />
+      <div className="flex w-[4.5rem] shrink-0 items-center gap-1">
+        <Clock3 className="size-4 shrink-0 text-primary" strokeWidth={2.4} />
         <div className="min-w-0">
-          <p className="truncate text-[8px] font-black uppercase text-white/55">
+          <p className="text-[10px] font-black uppercase leading-tight text-white/55">
             {matchDayLabel(match)}
           </p>
-          <p className="text-[12px] font-black leading-none text-primary">
+          <p className="text-[14px] font-black leading-none text-primary">
             {match.hora_realizacao || "--:--"}
           </p>
         </div>
       </div>
-      <TeamBadge team={match.time_mandante} />
-      <span className="rounded-md border border-white/8 bg-black/35 px-2 py-1 text-center text-[9px] font-black text-white/40">
-        VS
-      </span>
-      <TeamBadge team={match.time_visitante} />
-      <span className="rounded-full bg-primary px-2 py-1 text-center text-[8px] font-black uppercase text-[#0E141B]">
-        {lockLabel}
-      </span>
+
+      <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5">
+        <TeamSide team={match.time_mandante} align="home" />
+        <span className="shrink-0 rounded-md border border-white/8 bg-black/35 px-1.5 py-0.5 text-center text-[9px] font-black text-white/40">
+          VS
+        </span>
+        <TeamSide team={match.time_visitante} align="away" />
+      </div>
+
       <ChevronRight
-        className="size-4 text-primary transition-transform group-active:translate-x-0.5"
+        className="size-4 shrink-0 text-primary transition-transform group-active:translate-x-0.5"
         strokeWidth={2.8}
       />
     </Link>
@@ -329,12 +363,12 @@ function HomeStatCard({
   label: string;
 }) {
   return (
-    <div className="flex min-h-[72px] flex-col items-center justify-center border-r border-white/8 px-2 text-center last:border-r-0">
+    <div className="flex min-h-[72px] p-3 flex-col items-center justify-center border-r border-white/8 px-2 text-center last:border-r-0">
       <Icon className="size-5 text-primary" strokeWidth={2.1} />
-      <p className="mt-2 text-[13px] font-black leading-none text-primary">
+      <p className="mt-2 text-[16px] font-black leading-none text-primary">
         {value}
       </p>
-      <p className="mt-1 text-[8px] font-black uppercase tracking-[0.07em] text-white/82">
+      <p className="mt-1 text-[14px] font-black uppercase tracking-[0.07em] text-white/82">
         {label}
       </p>
     </div>
@@ -356,12 +390,11 @@ function QuickActionCard({
         <span className="flex size-8 shrink-0 items-center justify-center rounded-[9px] border border-primary/25 bg-primary/10">
           <Icon className="size-4 text-primary" strokeWidth={2.2} />
         </span>
-        <ChevronRight className="size-3.5 text-white/80 transition-transform group-active:translate-x-0.5" />
       </div>
-      <p className="mt-2 truncate text-[12px] font-black uppercase leading-tight text-white">
+      <p className="mt-2 truncate text-[16px] font-black uppercase leading-tight text-white">
         {title}
       </p>
-      <p className="mt-1 line-clamp-2 text-[8px] font-medium leading-snug text-white/80">
+      <p className="mt-1 line-clamp-2 text-[14px] font-medium leading-snug text-white/80">
         {desc}
       </p>
     </Link>
@@ -436,11 +469,11 @@ function LoggedInHome() {
         <div className="mx-auto w-full max-w-[430px] px-3.5">
           <section className="mt-5">
             <div className="mb-3 flex items-center justify-between gap-3">
-              <h2 className="text-[14px] font-black uppercase tracking-wide text-white">
+              <h2 className="text-[16px] font-black uppercase tracking-wide text-white">
                 Acesso rápido
               </h2>
             </div>
-            <div className="grid grid-cols-4 gap-2.5">
+            <div className="grid grid-cols-2 gap-2.5">
               {QUICK_ACTIONS.map((action) => (
                 <QuickActionCard key={action.title} {...action} />
               ))}
@@ -449,7 +482,7 @@ function LoggedInHome() {
 
           <section className="mt-5">
             <div className="mb-3 flex items-center justify-between gap-3">
-              <h2 className="text-[14px] font-black uppercase tracking-wide text-white">
+              <h2 className="text-[16px] font-black uppercase tracking-wide text-white">
                 Próximos jogos
               </h2>
               
@@ -463,7 +496,7 @@ function LoggedInHome() {
               />
             ) : featuredMatch ? (
               <div className="space-y-2">
-                <UpcomingMatchCard match={featuredMatch} featured />
+                <UpcomingMatchCard match={featuredMatch} />
                 {secondaryMatches.map((match) => (
                   <UpcomingMatchCard
                     key={`${match.competition_id ?? 0}-${match.partida_id}`}
@@ -477,7 +510,7 @@ function LoggedInHome() {
                   className="mx-auto size-7 text-primary"
                   strokeWidth={2.1}
                 />
-                <p className="mt-2 text-[13px] font-black uppercase text-white">
+                <p className="mt-2 text-[16px] font-black uppercase text-white">
                   Jogos em atualização
                 </p>
                 <p className="mx-auto mt-1 max-w-[260px] text-[12px] font-medium leading-snug text-white/55">
@@ -495,7 +528,7 @@ function LoggedInHome() {
             )}
           </section>
 
-          <section className="mt-5 grid grid-cols-4 overflow-hidden rounded-[16px] border border-white/8 bg-[#111]">
+          <section className="mt-5 grid grid-cols-2 overflow-hidden rounded-[16px] border border-white/8 bg-[#111]">
             {[
               { icon: Users, label: "Participantes", value: "128.732" },
               { icon: Wallet, label: "Montante", value: "R$3.247.890" },
@@ -517,10 +550,10 @@ function LoggedInHome() {
                 <Ticket className="size-5 text-primary" strokeWidth={2.2} />
               </span>
               <div className="min-w-0 flex-1">
-                <h2 className="text-[13px] font-black uppercase leading-tight text-white">
-                  Próximo passo: enviar palpites
+                <h2 className="text-[14px] font-black uppercase leading-tight text-white">
+                  Próximo passo enviar palpites
                 </h2>
-                <p className="mt-1 text-[12px] font-medium leading-snug text-white/55">
+                <p className="mt-1 text-[13px] font-medium leading-snug text-white/55">
                   Confira os jogos disponíveis e não perca o prazo de cada
                   partida.
                 </p>

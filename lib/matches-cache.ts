@@ -4,7 +4,6 @@ import { cronTickLog } from "@/lib/cron/cron-tick-log";
 import { warmCompetitionMetadataCache } from "@/lib/competition-metadata-cache";
 import { invalidateMatchMapMemoryAfterDbWrite } from "@/lib/match-map-cache-invalidator";
 import { processPrizeClosuresAfterMatchSync } from "@/lib/prizes/processor";
-import { revalidateTag } from "next/cache";
 
 export type CachedMatchRow = {
   competition_id: number;
@@ -421,6 +420,7 @@ export async function syncMatchesCache(input: {
           );
           let leaderboardRevalidated = false;
           try {
+            const { revalidateTag } = await import("next/cache");
             revalidateTag("leaderboard", "max");
             leaderboardRevalidated = true;
           } catch (err) {
