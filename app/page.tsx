@@ -22,13 +22,13 @@ import {
   Newspaper,
   ScanSearch,
   Ticket,
-  Instagram,
   Trophy,
   Users,
   Wallet,
 } from "lucide-react";
 import bollIcon from "@/app/assets/boll.svg";
 import cifraoIcon from "@/app/assets/cifrao.svg";
+import iconInsta from "@/app/assets/icon-insta.svg";
 import bgHeroDesktop from "@/app/assets/home-desk.png";
 import bgPixel from "@/app/assets/bg-hero-pixels.png";
 import slider1 from "@/app/assets/sliders/1.jpeg";
@@ -640,10 +640,13 @@ function PublicHome() {
                 aria-label="Seguir @w18walter no Instagram"
                 className="group absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 flex-col items-center gap-1.5 sm:bottom-5 lg:bottom-6"
               >
-                <span className="flex size-11 items-center justify-center rounded-full border border-primary/45 bg-black/75 shadow-[0_0_24px_rgba(177,235,11,0.25)] backdrop-blur-sm transition-all duration-200 group-hover:scale-105 group-hover:border-primary group-hover:bg-primary/15 group-hover:shadow-[0_0_32px_rgba(177,235,11,0.4)] sm:size-12">
-                  <Instagram
-                    className="size-5 text-primary transition-colors group-hover:text-white sm:size-[22px]"
-                    strokeWidth={1.75}
+                <span className="flex size-11 items-center justify-center rounded-full border border-white/15 bg-black/80 shadow-[0_0_20px_rgba(0,0,0,0.45)] backdrop-blur-sm transition-all duration-200 group-hover:scale-105 group-hover:border-white/30 group-hover:shadow-[0_0_28px_rgba(0,0,0,0.55)] sm:size-12">
+                  <Image
+                    src={iconInsta}
+                    alt=""
+                    width={26}
+                    height={26}
+                    className="size-6 object-contain transition-transform duration-200 group-hover:scale-110 sm:size-7"
                     aria-hidden
                   />
                 </span>
