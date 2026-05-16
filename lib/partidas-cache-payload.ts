@@ -46,6 +46,7 @@ export function rowToPartidaPayload(row: CachedMatchRow): Record<string, unknown
         : "--:--";
   return {
     partida_id: row.match_id,
+    competition_id: row.competition_id,
     status: row.status,
     data_realizacao: dateBR,
     hora_realizacao: hourBR,

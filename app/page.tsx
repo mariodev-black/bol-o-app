@@ -164,6 +164,7 @@ const QUICK_ACTIONS = [
 
 type HomeMatch = {
   partida_id: number;
+  competition_id?: number;
   status: string;
   data_realizacao: string;
   hora_realizacao: string;
@@ -387,7 +388,9 @@ function LoggedInHome() {
 
       setMatchesLoading(true);
       try {
-        const response = await fetch("/api/partidas", { cache: "force-cache" });
+        const response = await fetch("/api/partidas?allSynced=1", {
+          cache: "force-cache",
+        });
         const data = (await response
           .json()
           .catch(() => ({}))) as PartidasResponse;
@@ -462,7 +465,10 @@ function LoggedInHome() {
               <div className="space-y-2">
                 <UpcomingMatchCard match={featuredMatch} featured />
                 {secondaryMatches.map((match) => (
-                  <UpcomingMatchCard key={match.partida_id} match={match} />
+                  <UpcomingMatchCard
+                    key={`${match.competition_id ?? 0}-${match.partida_id}`}
+                    match={match}
+                  />
                 ))}
               </div>
             ) : (
