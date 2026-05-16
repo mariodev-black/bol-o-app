@@ -16,6 +16,11 @@ import avatarMatheus from "@/app/assets/fred.png";
 import avatarKauan from "@/app/assets/benjamin.png";
 import avatarGabriel from "@/app/assets/caze.png";
 import avatarLucas from "@/app/assets/dest.png";
+import { TicketPurchaseLink } from "@/app/shared/TicketPurchaseLink";
+import avatar01 from "@/app/assets/avatares/0.png";
+import avatar02 from "@/app/assets/avatares/1.png";
+import avatar03 from "@/app/assets/avatares/2.png";
+import avatar04 from "@/app/assets/avatares/3.png";
 
 /** Mudança de posição no ranking após cada atualização — todos os badges têm ícone. */
 type PointsTrend = "up" | "down" | "stable";
@@ -27,19 +32,19 @@ const RANK_CARD_BG = "rounded-[9px] lg:rounded-[13.93px] bg-[#368F5B]";
 const PLAYERS = [
   {
     name: "Matheus Silva",
-    avatar: avatarMatheus,
+    avatar: avatar01,
   },
   {
     name: "Kauan Lucas",
-    avatar: avatarKauan,
+    avatar: avatar02,
   },
   {
     name: "Gabriel Vieira",
-    avatar: avatarGabriel,
+    avatar: avatar03,
   },
   {
     name: "Lucas Mendes",
-    avatar: avatarLucas,
+    avatar: avatar04,
   },
 ];
 
@@ -529,12 +534,14 @@ export function RankingGaleraSection() {
 
           {/* Último no mobile: abaixo do ranking; no desktop: coluna da direita, linha de baixo */}
           <div className="order-3 col-span-full flex w-full justify-center lg:order-3 lg:col-span-1 lg:col-start-2 lg:row-start-2 lg:justify-center">
-            <button
-              type="button"
-              className="mx-auto mt-2 w-full rounded-[10px] bg-primary px-6 py-4 text-center text-[13px] font-bold uppercase leading-snug tracking-wide text-[#0E141B] shadow-[0_14px_44px_rgba(177,235,11,0.28)] transition hover:brightness-110 active:scale-[0.99] sm:mt-5 sm:max-w-none sm:py-[1.125rem] sm:text-[14px] lg:mt-0 lg:w-8/12 lg:rounded-2xl lg:text-[15px]"
+            <TicketPurchaseLink
+              ariaLabel="Garantir minha cota"
+              className="cta-pulse-ring relative mx-auto mt-2 w-full overflow-visible rounded-[10px] bg-primary px-6 py-4 text-[13px] font-bold uppercase leading-snug tracking-wide text-[#0E141B] shadow-[0_14px_44px_rgba(177,235,11,0.28)] transition hover:brightness-110 active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:mt-5 sm:max-w-none sm:py-[1.125rem] sm:text-[14px] lg:mt-0 lg:w-8/12 lg:rounded-2xl lg:text-[15px]"
             >
-              PRÊMIOS MILIONÁRIOS PARA OS 10 PRIMEIROS
-            </button>
+              <span className="relative z-10">
+                PRÊMIOS MILIONÁRIOS PARA OS 10 PRIMEIROS
+              </span>
+            </TicketPurchaseLink>
           </div>
         </div>
       </div>
