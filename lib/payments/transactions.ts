@@ -170,6 +170,16 @@ export async function createDepositTransaction(input: CreateDepositTransactionIn
     throw new Error("Selecione pelo menos um ticket");
   }
 
+  const promoBonusLines = lines.filter((l) => l.promoBonus);
+  if (promoBonusLines.length > 0) {
+    console.info("[purchase] cotas extras grátis (promo Copa)", {
+      userId: input.userId,
+      count: promoBonusLines.length,
+      championshipId: promoBonusLines[0]?.extraChampionshipId ?? null,
+      generalQty,
+    });
+  }
+
   const amountCents = lines.reduce((s, l) => s + l.unitCents, 0);
 
   const primaryTicketType = lines[0]!.ticketType;
@@ -180,11 +190,25 @@ export async function createDepositTransaction(input: CreateDepositTransactionIn
     const line = lines[i]!;
     const ticketLineRef = `${paymentExternalRef}:p${i}`;
     const extraId = line.ticketType === "extra" ? line.extraChampionshipId ?? null : null;
+    const isPromoBonus = Boolean(line.promoBonus);
+    const unitPriceCents = isPromoBonus ? 0 : line.unitCents;
+    const totalAmountCents = isPromoBonus ? 0 : line.unitCents;
     const ticketInsert = await pool.query<{ id: string }>(
-      `INSERT INTO tickets (user_id, ticket_type, extra_championship_id, unit_price_cents, quantity, total_amount_cents, status, external_ref)
-       VALUES ($1, $2, $3, $4, 1, $5, 'pending_payment', $6)
+      `INSERT INTO tickets (
+         user_id, ticket_type, extra_championship_id, unit_price_cents, quantity,
+         total_amount_cents, is_promo_bonus, status, external_ref
+       )
+       VALUES ($1, $2, $3, $4, 1, $5, $6, 'pending_payment', $7)
        RETURNING id`,
-      [input.userId, line.ticketType, extraId, line.unitCents, line.unitCents, ticketLineRef]
+      [
+        input.userId,
+        line.ticketType,
+        extraId,
+        unitPriceCents,
+        totalAmountCents,
+        isPromoBonus,
+        ticketLineRef,
+      ]
     );
     ticketIds.push(ticketInsert.rows[0]!.id);
   }

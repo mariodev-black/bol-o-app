@@ -251,7 +251,10 @@ async function loadPaidTickets(
               t.extra_championship_id,
               COALESCE(t.total_amount_cents, 0) AS total_amount_cents
        FROM tickets t
-       WHERE t.status = 'paid' AND t.ticket_type = 'extra' AND t.extra_championship_id = $1`,
+       WHERE t.status = 'paid'
+         AND NOT COALESCE(t.is_promo_bonus, false)
+         AND t.ticket_type = 'extra'
+         AND t.extra_championship_id = $1`,
       [extraChampionshipId]
     );
     return rows.map((r) => ({
@@ -271,7 +274,9 @@ async function loadPaidTickets(
     `SELECT t.id::text AS id, t.user_id::text AS user_id, t.ticket_type,
             COALESCE(t.total_amount_cents, 0) AS total_amount_cents
      FROM tickets t
-     WHERE t.status = 'paid' AND t.ticket_type = $1`,
+     WHERE t.status = 'paid'
+       AND NOT COALESCE(t.is_promo_bonus, false)
+       AND t.ticket_type = $1`,
     [ticketType]
   );
   return rows.map((r) => ({

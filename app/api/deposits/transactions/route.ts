@@ -10,6 +10,7 @@ import {
   warmCompetitionMetadataCache,
 } from "@/lib/competition-metadata-cache";
 import { extraBolaoRoundPlayDatesByChampionship } from "@/lib/ticket-shop-extra-play-dates";
+import { responseForDbError } from "@/lib/db-errors";
 import { getCopaBonusExtraPromoPublicConfig } from "@/lib/promotions/copa-bonus-extra";
 
 export const runtime = "nodejs";
@@ -146,6 +147,8 @@ export async function POST(request: NextRequest) {
     });
     return NextResponse.json({ transaction }, { status: 201 });
   } catch (e) {
+    const db = responseForDbError(e);
+    if (db) return NextResponse.json({ error: db.error }, { status: db.status });
     const message = e instanceof Error ? e.message : "Nao foi possivel criar a transacao";
     return NextResponse.json({ error: message }, { status: 400 });
   }

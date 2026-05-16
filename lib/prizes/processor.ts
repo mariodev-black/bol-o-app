@@ -221,6 +221,7 @@ async function listTicketsForClosure(
       `SELECT id::text AS id, user_id::text AS user_id, total_amount_cents, paid_at, created_at
        FROM tickets
        WHERE ticket_type = 'general'
+         AND NOT COALESCE(is_promo_bonus, false)
          AND status IN ('paid', 'approved')
        ORDER BY paid_at ASC NULLS LAST, created_at ASC`
     );
@@ -240,6 +241,7 @@ async function listTicketsForClosure(
      FROM tickets t
      JOIN first_prediction_dates fpd ON fpd.ticket_id::text = t.id::text
      WHERE t.ticket_type = 'daily'
+       AND NOT COALESCE(t.is_promo_bonus, false)
        AND t.status IN ('paid', 'approved')
        AND fpd.date_br = $1
      ORDER BY t.paid_at ASC NULLS LAST, t.created_at ASC`,
@@ -263,6 +265,7 @@ async function listTicketsForClosure(
      FROM tickets t
      JOIN first_prediction_dates fpd ON fpd.ticket_id::text = t.id::text
      WHERE t.ticket_type = 'extra'
+       AND NOT COALESCE(t.is_promo_bonus, false)
        AND t.status IN ('paid', 'approved')
        AND fpd.date_br = $1
        AND t.extra_championship_id = $2

@@ -35,5 +35,21 @@ export function responseForDbError(e: unknown): { status: number; error: string 
     };
   }
 
+  if (msg.includes("is_promo_bonus")) {
+    return {
+      status: 503,
+      error:
+        "Banco desatualizado para a promo de Brasileirão grátis. Execute scripts/sql/20260516-tickets-promo-bonus.sql no Postgres e reinicie o app.",
+    };
+  }
+
+  if (msg.includes("tickets_total_amount_cents_check") || msg.includes("tickets_unit_price_cents_check")) {
+    return {
+      status: 503,
+      error:
+        "Banco desatualizado: cotas grátis da promo precisam da migration scripts/sql/20260516-tickets-promo-bonus.sql.",
+    };
+  }
+
   return null;
 }
