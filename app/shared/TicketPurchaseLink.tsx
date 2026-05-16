@@ -15,7 +15,8 @@ type TicketPurchaseLinkProps = {
 function ticketFlowHref(destination: string, isLoggedIn: boolean): string {
   if (isLoggedIn) return destination;
   const from = destination.startsWith("/") ? destination : "/tickets";
-  return `/cadastrar?from=${encodeURIComponent(from)}`;
+  /** Página pública (home); `from` + código em storage/cookie seguem o fluxo normal após login/cadastro. */
+  return `/?from=${encodeURIComponent(from)}`;
 }
 
 export function TicketPurchaseLink({
@@ -25,7 +26,8 @@ export function TicketPurchaseLink({
   destination = "/tickets",
 }: TicketPurchaseLinkProps) {
   const { ready, isLoggedIn } = useAuth();
-  const href = ready ? ticketFlowHref(destination, isLoggedIn) : `/cadastrar?from=${encodeURIComponent(destination)}`;
+  const from = destination.startsWith("/") ? destination : "/tickets";
+  const href = ready ? ticketFlowHref(destination, isLoggedIn) : `/?from=${encodeURIComponent(from)}`;
 
   return (
     <Link

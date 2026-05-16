@@ -6,6 +6,7 @@ import { useMemo, useEffect, useState, type FormEvent } from "react";
 import { ArrowRight, Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { useBolaoToast } from "@/app/components/BolaoToast";
 import { useAuth } from "@/app/shared/AuthContext";
+import { normalizePendingReferralInput, readPendingReferralCode } from "@/lib/referrals/pending-referral-client";
 
 const GOOGLE_ERRORS: Record<string, string> = {
   google_denied: "Login com Google cancelado.",
@@ -35,14 +36,22 @@ export function LoginContent() {
   const fromParam = useMemo(() => searchParams.get("from"), [searchParams]);
   const errorParam = useMemo(() => searchParams.get("error"), [searchParams]);
   const msgParam = useMemo(() => searchParams.get("msg"), [searchParams]);
+  const refFromUrl = useMemo(
+    () => normalizePendingReferralInput(searchParams.get("ref")),
+    [searchParams],
+  );
+  const [storedReferral, setStoredReferral] = useState<string | null>(null);
+  useEffect(() => {
+    setStoredReferral(readPendingReferralCode());
+  }, []);
+  const referralCodeResolved = refFromUrl ?? storedReferral;
   const signupHref = useMemo(() => {
     const params = new URLSearchParams();
-    const ref = searchParams.get("ref")?.trim();
-    if (ref) params.set("ref", ref);
+    if (referralCodeResolved) params.set("ref", referralCodeResolved);
     if (fromParam) params.set("from", fromParam);
     const query = params.toString();
     return query ? `/cadastrar?${query}` : "/cadastrar";
-  }, [fromParam, searchParams]);
+  }, [fromParam, referralCodeResolved]);
 
   function safeReturnPath(from: string | null): string | null {
     if (!from || !from.startsWith("/") || from.startsWith("//")) return null;
@@ -179,10 +188,11 @@ export function LoginContent() {
         type="button"
         disabled={loading}
         onClick={() => {
-          const r = searchParams.get("ref")?.trim();
-          window.location.href = r
-            ? `/api/auth/google?ref=${encodeURIComponent(r)}`
-            : "/api/auth/google";
+          const params = new URLSearchParams();
+          if (referralCodeResolved) params.set("ref", referralCodeResolved);
+          if (fromParam) params.set("from", fromParam);
+          const q = params.toString();
+          window.location.href = q ? `/api/auth/google?${q}` : "/api/auth/google";
         }}
         className="flex h-[48px] w-full items-center justify-center gap-3 rounded-[12px] border border-white/10 bg-white/5 text-[14px] font-semibold text-white/68 transition-colors hover:bg-white/7 disabled:cursor-wait lg:h-[46px] lg:rounded-[9px] lg:text-[13px]"
       >

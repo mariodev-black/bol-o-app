@@ -38,6 +38,7 @@ import { FlagsMarquee } from "./components/FlagsMarquee";
 import { WhyParticipateSection } from "@/app/components/WhyParticipateSection";
 import { PrizesTestimonialsSection } from "@/app/components/PrizesTestimonialsSection";
 import { CopaCtaBandSection } from "@/app/components/CopaCtaBandSection";
+import { HomeFromRedirectWhenLoggedIn } from "@/app/shared/HomeFromRedirectWhenLoggedIn";
 import { TicketPurchaseLink } from "@/app/shared/TicketPurchaseLink";
 import { AppScreenLoading } from "@/app/shared/AppScreenLoading";
 import { Suspense, useEffect, useMemo, useState } from "react";
@@ -412,6 +413,9 @@ function LoggedInHome() {
 
   return (
     <HomePageContainer>
+      <Suspense fallback={null}>
+        <HomeFromRedirectWhenLoggedIn />
+      </Suspense>
       <Header />
       <main className="min-h-screen bg-black pb-24 text-white">
         <section className="relative w-full overflow-hidden">

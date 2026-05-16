@@ -216,11 +216,12 @@ export default function IndiqueGanhePage() {
 
   const code = user?.referralCode?.trim() ?? "";
   const signupLink =
-    origin && code ? `${origin}/cadastrar?ref=${encodeURIComponent(code)}` : origin ? `${origin}/cadastrar` : "";
+    origin && code ? `${origin}/?ref=${encodeURIComponent(code)}` : origin ? `${origin}/` : "";
 
   const whatsappInviteText = useMemo(
-    () => `Entra no Bolão do Milhão com meu link — na hora de cadastrar usa meu código! 🎯\n${signupLink}`,
-    [signupLink]
+    () =>
+      `Participa do Bolão do Milhão pelo meu link — o código de indicação fica salvo e entra automático quando você criar a conta.\n${signupLink}`,
+    [signupLink],
   );
 
   const cfg = affiliateSummary?.config;

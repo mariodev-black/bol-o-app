@@ -6,6 +6,11 @@ import { useBolaoToast } from "@/app/components/BolaoToast";
 import { useAuth, type AuthUser } from "@/app/shared/AuthContext";
 import { isValidCpf } from "@/lib/auth/cpf";
 import { isReasonableNationalDigits, isValidBrazilNationalDigits } from "@/lib/auth/phone";
+import {
+  clearPendingReferral,
+  normalizePendingReferralInput,
+  readPendingReferralCode,
+} from "@/lib/referrals/pending-referral-client";
 import { useState, useRef, useEffect, useMemo, type FormEvent } from "react";
 import { ArrowLeft, ArrowRight, Check, ChevronDown, Eye, EyeOff, FileText, Lock, Mail, Phone, Search, User } from "lucide-react";
 import * as Flags from "country-flag-icons/react/3x2";
@@ -307,22 +312,24 @@ export function CadastrarContent() {
   const [step, setStep]           = useState(1);
   const emailRef = useRef<HTMLDivElement>(null);
 
-  /** Código de indicação vindo só da URL (`/cadastrar?ref=...`) — enviado no body, sem campo no formulário. */
-  const referralFromUrl = useMemo(() => {
-    const ref = searchParams.get("ref");
-    if (!ref?.trim()) return null;
-    const norm = ref.trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12);
-    return norm.length > 0 ? norm : null;
-  }, [searchParams]);
+  /** URL (`/cadastrar?ref=`) ou código salvo na home (`/?ref=`) via localStorage/cookie. */
+  const refFromUrl = useMemo(
+    () => normalizePendingReferralInput(searchParams.get("ref")),
+    [searchParams],
+  );
+  const [storedReferral, setStoredReferral] = useState<string | null>(null);
+  useEffect(() => {
+    setStoredReferral(readPendingReferralCode());
+  }, []);
+  const referralCodeResolved = refFromUrl ?? storedReferral;
   const fromParam = useMemo(() => searchParams.get("from"), [searchParams]);
   const loginHref = useMemo(() => {
     const params = new URLSearchParams();
     if (fromParam) params.set("from", fromParam);
-    const ref = searchParams.get("ref")?.trim();
-    if (ref) params.set("ref", ref);
+    if (referralCodeResolved) params.set("ref", referralCodeResolved);
     const query = params.toString();
     return query ? `/login?${query}` : "/login";
-  }, [fromParam, searchParams]);
+  }, [fromParam, referralCodeResolved]);
 
   function safeReturnPath(from: string | null): string | null {
     if (!from || !from.startsWith("/") || from.startsWith("//")) return null;
@@ -382,7 +389,7 @@ export function CadastrarContent() {
 
   function handleGoogleSignup() {
     const params = new URLSearchParams();
-    if (referralFromUrl) params.set("ref", referralFromUrl);
+    if (referralCodeResolved) params.set("ref", referralCodeResolved);
     if (fromParam) params.set("from", fromParam);
     const query = params.toString();
     window.location.href = query ? `/api/auth/google?${query}` : "/api/auth/google";
@@ -492,7 +499,7 @@ export function CadastrarContent() {
           cpf,
           password,
           phone: phoneFull,
-          referralCode: referralFromUrl,
+          referralCode: referralCodeResolved,
           acceptTerms: true,
         }),
       });
@@ -521,6 +528,7 @@ export function CadastrarContent() {
         toast.info(data.referralWarning);
         await new Promise((resolve) => setTimeout(resolve, 900));
       }
+      clearPendingReferral();
       router.replace(safeReturnPath(fromParam) ?? "/tickets");
     } catch {
       toast.error("Erro de rede. Tente novamente.");
