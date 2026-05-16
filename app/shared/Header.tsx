@@ -12,7 +12,7 @@ const NAV_LINKS = [
   { label: "Como funciona?", href: "/#como-funciona" },
   { label: "Sistema de pontos", href: "/#sistema-pontos" },
   { label: "Cotas", href: "/#cotas" },
-  { label: "Criar conta gratuitamente", href: "/cadastrar" },
+  { label: "Criar conta gratuitamente", href: "/cadastrar?from=/tickets" },
 ];
 
 const NAV_LINKS_LOGGED = [
