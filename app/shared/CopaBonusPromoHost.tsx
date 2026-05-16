@@ -205,13 +205,6 @@ function CopaBonusPromoModal({
           </div>
         </div>
 
-        {/* Benefícios */}
-        <div className="mx-4 mb-4 grid grid-cols-[1fr_1px_1fr] items-stretch gap-0 rounded-xl border border-white/8 bg-white/[0.03] px-1 py-3">
-          <BenefitColumn icon="check" line1="Acesso" highlight="liberado" line2="automaticamente" />
-          <div className="my-1 w-px bg-white/20" aria-hidden />
-          <BenefitColumn icon="star" line1="Promoção" highlight="válida" line2="nesta compra" />
-        </div>
-
         {/* Rodapé: checkbox + CTA */}
         <div className="px-4 pb-5">
           <label className="mb-3 flex min-h-[44px] cursor-pointer items-center gap-2.5 rounded-lg border border-white/12 bg-white/4 px-3 py-2.5 text-left transition-colors hover:border-white/20 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-primary">
@@ -231,12 +224,7 @@ function CopaBonusPromoModal({
             onClick={handleClose}
             className="relative flex min-h-[52px] w-full items-center rounded-xl bg-primary pl-4 pr-3 text-[15px] font-black uppercase tracking-wide text-[#0E141B] shadow-[0_6px_28px_rgba(177,235,11,0.35)] transition-transform active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:text-[16px]"
           >
-            <span
-              className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#0E141B]"
-              aria-hidden
-            >
-              <ArrowRight className="size-4 text-white" strokeWidth={2.8} />
-            </span>
+            
             <span className="flex-1 text-center pr-9">Garantir minha cota</span>
           </Link>
 

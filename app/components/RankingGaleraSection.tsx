@@ -12,10 +12,6 @@ import {
 } from "react";
 import Trofeu from "@/app/assets/icon-trofeu.svg";
 import bgRankStadium from "@/app/assets/bg-home-rank.png";
-import avatarMatheus from "@/app/assets/fred.png";
-import avatarKauan from "@/app/assets/benjamin.png";
-import avatarGabriel from "@/app/assets/caze.png";
-import avatarLucas from "@/app/assets/dest.png";
 import { TicketPurchaseLink } from "@/app/shared/TicketPurchaseLink";
 import avatar01 from "@/app/assets/avatares/0.png";
 import avatar02 from "@/app/assets/avatares/1.png";
