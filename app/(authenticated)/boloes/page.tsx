@@ -21,10 +21,7 @@ import { matchEndClockMinutesAfterKickoff } from "@/lib/cron/match-result-guaran
 
 export const dynamic = "force-dynamic";
 
-function parseEnvBool(v: string | undefined): boolean {
-  const s = (v ?? "").trim().toLowerCase();
-  return s === "1" || s === "true" || s === "yes" || s === "on";
-}
+import { getTicketShopFlags, parseEnvBool } from "@/lib/ticket-shop-flags";
 
 const PALPITE_LOCK_MS_PRINCIPAL = palpiteLockBeforeKickoffMs("principal");
 const PALPITE_LOCK_MS_DIARIO = palpiteLockBeforeKickoffMs("diario");
@@ -620,14 +617,18 @@ export default async function BoloesPage() {
   const userId = token ? await verifySessionToken(token).catch(() => null) : null;
   debugBoloes("request", { hasToken: Boolean(token), userId });
   const data = userId ? await loadBoloesData(userId) : null;
-  const ticketsExtraOnly = parseEnvBool(process.env.TICKETS_EXTRA_ONLY);
+  const { ticketsExtraOnly, ticketsHideDaily } = getTicketShopFlags();
   if (!userId) debugBoloes("no authenticated user", {});
   return (
     <>
       <Suspense fallback={null}>
         <BoloesPurchaseSync />
       </Suspense>
-      <BoloesClient data={data} ticketsExtraOnly={ticketsExtraOnly} />
+      <BoloesClient
+        data={data}
+        ticketsExtraOnly={ticketsExtraOnly}
+        ticketsHideDaily={ticketsHideDaily}
+      />
     </>
   );
 }

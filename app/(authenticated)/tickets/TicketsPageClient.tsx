@@ -10,15 +10,21 @@ function TicketsPageContent({
   serverExtraChampionshipIds,
   serverCopaBonusPromo,
   ticketsExtraOnly,
+  ticketsHideDaily,
 }: {
   serverExtraChampionshipIds: number[];
   serverCopaBonusPromo: CopaBonusExtraPromoPublicConfig;
   ticketsExtraOnly: boolean;
+  ticketsHideDaily: boolean;
 }) {
   const search = useSearchParams();
   const bolaoRaw = search.get("bolao");
   const bolao =
-    bolaoRaw === "diario" ? "diario" : bolaoRaw === "extra" ? "extra" : "principal";
+    bolaoRaw === "diario" && !ticketsHideDaily
+      ? "diario"
+      : bolaoRaw === "extra"
+        ? "extra"
+        : "principal";
   const championshipParam = search.get("championshipId");
   const parsedChamp = championshipParam ? Number.parseInt(championshipParam, 10) : NaN;
   const initialExtraChampionshipId =
@@ -30,12 +36,13 @@ function TicketsPageContent({
   return (
     <div className="flex min-h-screen min-h-0 flex-1 flex-col bg-black">
       <TicketCheckoutFlow
-        key={`${bolao}-${initialExtraChampionshipId ?? ""}-${ticketsExtraOnly ? "xo" : "all"}`}
+        key={`${bolao}-${initialExtraChampionshipId ?? ""}-${ticketsExtraOnly ? "xo" : ticketsHideDaily ? "hd" : "all"}`}
         initialTicketKind={initialTicketKind}
         initialExtraChampionshipId={initialExtraChampionshipId}
         serverExtraChampionshipIds={serverExtraChampionshipIds}
         serverCopaBonusPromo={serverCopaBonusPromo}
         ticketsExtraOnly={ticketsExtraOnly}
+        ticketsHideDaily={ticketsHideDaily}
       />
     </div>
   );
@@ -45,10 +52,12 @@ export function TicketsPageClient({
   serverExtraChampionshipIds,
   serverCopaBonusPromo,
   ticketsExtraOnly,
+  ticketsHideDaily,
 }: {
   serverExtraChampionshipIds: number[];
   serverCopaBonusPromo: CopaBonusExtraPromoPublicConfig;
   ticketsExtraOnly: boolean;
+  ticketsHideDaily: boolean;
 }) {
   return (
     <Suspense
@@ -62,6 +71,7 @@ export function TicketsPageClient({
         serverExtraChampionshipIds={serverExtraChampionshipIds}
         serverCopaBonusPromo={serverCopaBonusPromo}
         ticketsExtraOnly={ticketsExtraOnly}
+        ticketsHideDaily={ticketsHideDaily}
       />
     </Suspense>
   );

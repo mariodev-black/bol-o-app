@@ -1581,10 +1581,13 @@ function NoTicketsState({ priceLabel }: { priceLabel: string }) {
 export function BoloesClient({
   data,
   ticketsExtraOnly = false,
+  ticketsHideDaily = false,
 }: {
   data: BoloesScreenData | null;
   /** Alinhado a `TICKETS_EXTRA_ONLY`: oculta vitrines de principal e do dia. */
   ticketsExtraOnly?: boolean;
+  /** Alinhado a `TICKETS_HIDE_DAILY`: oculta vitrine/compra do dia; cotas já compradas continuam visíveis. */
+  ticketsHideDaily?: boolean;
 }) {
   const now = useNow();
   const [showAllActive, setShowAllActive] = useState(false);
@@ -1619,10 +1622,8 @@ export function BoloesClient({
     [extraItems],
   );
   const hasExtraSection = extraItems.length > 0 || upcomingExtras.length > 0;
-  const dailyCountdown = useMemo(
-    () => formatCountdown(data?.upcoming.daily.closesAtMs ?? null, now),
-    [data?.upcoming.daily.closesAtMs, now],
-  );
+  const showDiarioShowcase =
+    !ticketsExtraOnly && (!ticketsHideDaily || diarioItems.length > 0);
 
   if (!hasTickets) {
     return (
@@ -1732,8 +1733,7 @@ export function BoloesClient({
         </header>
 
         {!ticketsExtraOnly && (
-          <>
-            <section className="mt-6">
+          <section className="mt-6">
               {showAllPrincipal ? (
                 <div className="space-y-3">
                   {principalItems.length > 0 ? (
@@ -1773,7 +1773,9 @@ export function BoloesClient({
                 </CarouselShell>
               )}
             </section>
+        )}
 
+        {showDiarioShowcase && (
             <section className="mt-4 mb-6">
               {showAllDiario ? (
                 <div className="space-y-3">
@@ -1817,11 +1819,7 @@ export function BoloesClient({
                 </CarouselShell>
               )}
             </section>
-          </>
         )}
-
-
-       
 
         {hasExtraSection && (
           <section className={ticketsExtraOnly ? "mt-6 mb-6" : "mt-4 mb-6"}>

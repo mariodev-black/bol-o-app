@@ -125,6 +125,8 @@ type TicketCheckoutFlowProps = {
    * só exibe a compra de bolões extra.
    */
   ticketsExtraOnly?: boolean;
+  /** Quando true (env `TICKETS_HIDE_DAILY`): oculta só o bolão do dia; geral e extra permanecem. */
+  ticketsHideDaily?: boolean;
 };
 
 const MAX_QTY = 20;
@@ -135,6 +137,7 @@ export function TicketCheckoutFlow({
   serverExtraChampionshipIds = [],
   serverCopaBonusPromo: serverCopaBonusPromoProp,
   ticketsExtraOnly = false,
+  ticketsHideDaily = false,
 }: TicketCheckoutFlowProps) {
   const router = useRouter();
   const appServerConfig = useAppServerConfig();
@@ -144,7 +147,7 @@ export function TicketCheckoutFlow({
     return initialTicketKind === "daily" || initialTicketKind === "extra" ? 0 : 1;
   });
   const [dailyQty, setDailyQty] = useState(() => {
-    if (ticketsExtraOnly) return 0;
+    if (ticketsExtraOnly || ticketsHideDaily) return 0;
     return initialTicketKind === "daily" ? 1 : 0;
   });
   const [extraBoloes, setExtraBoloes] = useState<ExtraBolaoOption[]>(() => {
@@ -190,6 +193,11 @@ export function TicketCheckoutFlow({
     setPrincipalQty(0);
     setDailyQty(0);
   }, [ticketsExtraOnly]);
+
+  useEffect(() => {
+    if (!ticketsHideDaily) return;
+    setDailyQty(0);
+  }, [ticketsHideDaily]);
 
   const handleTransactionUpdate = useCallback(
     (payload: TransactionUpdatePayload, source?: string) => {
@@ -663,8 +671,6 @@ export function TicketCheckoutFlow({
 
             <div className="space-y-3">
               {!ticketsExtraOnly && (
-                <>
-              {/* Card Bolão Geral */}
               <div className="overflow-hidden rounded-[16px] border border-white/10 bg-[#121212] shadow-[0_8px_26px_rgba(0,0,0,0.35)]">
                 <div className="grid grid-cols-[74px_minmax(0,1fr)] items-center gap-3 p-3 sm:grid-cols-[86px_minmax(0,1fr)] sm:p-3.5">
                   <div className="flex flex-col items-center justify-center">
@@ -763,8 +769,9 @@ export function TicketCheckoutFlow({
                       </span>
                     </div>
               </div>
+              )}
 
-              {/* Card Bolão do Dia */}
+              {!ticketsExtraOnly && !ticketsHideDaily && (
               <div className="overflow-hidden rounded-[16px] border border-white/10 bg-[#121212] shadow-[0_8px_26px_rgba(0,0,0,0.35)]">
                 <div className="grid grid-cols-[74px_minmax(0,1fr)] items-center gap-3 p-3 sm:grid-cols-[86px_minmax(0,1fr)] sm:p-3.5">
                   <div className="flex flex-col items-center justify-center">
@@ -858,7 +865,6 @@ export function TicketCheckoutFlow({
                       </span>
                     </div>
               </div>
-                </>
               )}
 
               {extraBoloes.length > 0 && (
@@ -1036,6 +1042,7 @@ export function TicketCheckoutFlow({
                     <span className="shrink-0 font-black text-primary">R$ 0,00</span>
                   </div>
                 ) : null}
+                {!ticketsHideDaily && dailyQty > 0 && (
                 <div className="flex items-center justify-between gap-2 text-[13px]">
                   <span className="font-semibold text-white/70">
                     Bolão do Dia · {dailyQty}{" "}
@@ -1045,6 +1052,7 @@ export function TicketCheckoutFlow({
                     {formatBRL(diarioLineCents)}
                   </span>
                 </div>
+                )}
                 {extraQuantity > 0 && (
                   <div className="flex items-center justify-between gap-2 text-[13px]">
                     <span className="font-semibold text-white/70">
