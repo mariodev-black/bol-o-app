@@ -145,7 +145,7 @@ const QUICK_ACTIONS = [
   {
     title: "Jogos do Dia",
     desc: "Palpite antes de fechar",
-    href: "/palpites",
+    href: "/boloes",
     icon: CalendarDays,
   },
   {
@@ -288,7 +288,7 @@ function UpcomingMatchCard({
   const lockLabel = featured ? "Palpite agora" : "Aberto";
   return (
     <Link
-      href="/palpites"
+      href="/boloes"
       className="group grid min-h-[42px] grid-cols-[68px_minmax(0,1fr)_34px_minmax(0,1fr)_78px_18px] items-center gap-2 rounded-[10px] border border-white/8 bg-[#101208] px-2.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] active:scale-[0.99]"
     >
       <div className="flex min-w-0 items-center gap-1.5">
@@ -449,12 +449,7 @@ function LoggedInHome() {
               <h2 className="text-[14px] font-black uppercase tracking-wide text-white">
                 Próximos jogos
               </h2>
-              <Link
-                href="/palpites"
-                className="inline-flex shrink-0 items-center gap-1 text-[12px] font-bold text-primary"
-              >
-                Ver todos <ChevronRight className="size-3" strokeWidth={2.5} />
-              </Link>
+              
             </div>
 
             {matchesLoading ? (
@@ -484,7 +479,7 @@ function LoggedInHome() {
                   para você palpitar.
                 </p>
                 <Link
-                  href="/palpites"
+                  href="/boloes"
                   className="mt-3 inline-flex h-9 items-center gap-2 rounded-[10px] bg-primary px-3 text-[12px] font-black uppercase text-[#0E141B]"
                 >
                   Ir para palpites{" "}
@@ -525,7 +520,7 @@ function LoggedInHome() {
                 </p>
               </div>
               <Link
-                href="/palpites"
+                href="/boloes"
                 className="flex h-11 items-center justify-center gap-2 rounded-[12px] bg-primary px-3 text-[11px] font-black uppercase text-[#0E141B] shadow-[0_6px_28px_rgba(177,235,11,0.32)]"
               >
                 Enviar palpites
