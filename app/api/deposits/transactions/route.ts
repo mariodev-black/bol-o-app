@@ -10,6 +10,7 @@ import {
   warmCompetitionMetadataCache,
 } from "@/lib/competition-metadata-cache";
 import { extraBolaoRoundPlayDatesByChampionship } from "@/lib/ticket-shop-extra-play-dates";
+import { getCopaBonusExtraPromoPublicConfig } from "@/lib/promotions/copa-bonus-extra";
 
 export const runtime = "nodejs";
 
@@ -57,6 +58,7 @@ export async function GET() {
       daily: getTicketPriceCents("daily"),
       extra: getExtraBolaoUnitCents(),
     },
+    copaBonusPromo: getCopaBonusExtraPromoPublicConfig(),
     extraBoloes: ids.map((championshipId) => ({
       championshipId,
       unitCents: unit,

@@ -1,4 +1,4 @@
-import { parseExtraBolaoChampionshipIds } from "@/lib/boloes-extra-config";
+import { getAppServerConfig } from "@/lib/app-server-config";
 import { TicketsPageClient } from "./TicketsPageClient";
 
 export const dynamic = "force-dynamic";
@@ -9,11 +9,12 @@ function parseEnvBool(v: string | undefined): boolean {
 }
 
 export default function TicketsPage() {
-  const serverExtraChampionshipIds = parseExtraBolaoChampionshipIds();
+  const { extraChampionshipIds, copaBonusPromo } = getAppServerConfig();
   const ticketsExtraOnly = parseEnvBool(process.env.TICKETS_EXTRA_ONLY);
   return (
     <TicketsPageClient
-      serverExtraChampionshipIds={serverExtraChampionshipIds}
+      serverExtraChampionshipIds={extraChampionshipIds}
+      serverCopaBonusPromo={copaBonusPromo}
       ticketsExtraOnly={ticketsExtraOnly}
     />
   );

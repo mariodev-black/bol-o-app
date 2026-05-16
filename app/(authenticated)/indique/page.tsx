@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useAppServerConfig } from "@/app/shared/AppServerConfigContext";
 import { useAuth } from "@/app/shared/AuthContext";
 import {
   Gift,
@@ -203,7 +204,9 @@ export default function IndiqueGanhePage() {
   }, [ready, user?.id]);
 
   useEffect(() => {
-    setOrigin(typeof window !== "undefined" ? window.location.origin : "");
+    if (typeof window !== "undefined") {
+      setOrigin(window.location.origin);
+    }
   }, []);
 
   useEffect(() => {

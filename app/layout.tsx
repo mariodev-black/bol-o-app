@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { DM_Sans, Montserrat } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
+import { getAppServerConfig } from "@/lib/app-server-config";
 import { InternalCronBootstrap } from "./InternalCronBootstrap";
 import { Providers } from "./providers";
 
@@ -99,6 +100,8 @@ export default function RootLayout({
   children: React.ReactNode;
   modal: React.ReactNode;
 }>) {
+  const appServerConfig = getAppServerConfig();
+
   return (
     <html
       lang="pt-BR"
@@ -110,7 +113,7 @@ export default function RootLayout({
         className="min-h-full flex flex-col bg-[#000000] text-foreground"
       >
         <InternalCronBootstrap />
-        <Providers>
+        <Providers appServerConfig={appServerConfig}>
           {children}
           {modal}
         </Providers>

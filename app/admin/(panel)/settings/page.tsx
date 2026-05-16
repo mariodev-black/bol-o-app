@@ -1,4 +1,5 @@
 import { AdminPageTitle } from "@/app/admin/_components/AdminShell";
+import { getAppServerConfig } from "@/lib/app-server-config";
 import { getExtraTicketPriceCents, getTicketPriceCents } from "@/lib/payments/ticket-config";
 
 function formatBRL(cents: number) {
@@ -6,6 +7,7 @@ function formatBRL(cents: number) {
 }
 
 export default function AdminSettingsPage() {
+  const { copaBonusPromo, extraChampionshipIds } = getAppServerConfig();
   const items = [
     { label: "APP_URL", value: process.env.APP_URL ?? "Nao configurado" },
     { label: "Webhook Skale", value: process.env.SKALE_POSTBACK_URL ?? `${process.env.APP_URL ?? ""}/api/webhooks/skale` },
@@ -13,6 +15,16 @@ export default function AdminSettingsPage() {
     { label: "Cota extra", value: formatBRL(getExtraTicketPriceCents()) },
     { label: "Bolão diário", value: formatBRL(getTicketPriceCents("daily")) },
     { label: "Sessão admin 2FA", value: "2 horas" },
+    {
+      label: "Promo Copa → extra grátis",
+      value: copaBonusPromo.enabled
+        ? `Ativa · ${copaBonusPromo.bonusShortLabel} (id ${copaBonusPromo.championshipId ?? "—"})`
+        : "Desativada",
+    },
+    {
+      label: "BOLOES_EXTRA_CHAMPIONSHIP_IDS",
+      value: extraChampionshipIds.length > 0 ? extraChampionshipIds.join(", ") : "Não configurado",
+    },
   ];
 
   return (

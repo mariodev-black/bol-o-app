@@ -184,7 +184,16 @@ function parseAllPartidas(fases: Record<string, any> | undefined): {
 }
 
 function resolveBaseUrl(h: Headers): string {
-  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
+  const host =
+    h.get("x-forwarded-host") ??
+    h.get("host") ??
+    (() => {
+      try {
+        return new URL(process.env.APP_URL || "https://bolaodomilhao.com.br").host;
+      } catch {
+        return "bolaodomilhao.com.br";
+      }
+    })();
   const proto = h.get("x-forwarded-proto") ?? "http";
   return `${proto}://${host}`;
 }
