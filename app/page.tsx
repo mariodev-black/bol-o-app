@@ -22,6 +22,7 @@ import {
   Newspaper,
   ScanSearch,
   Ticket,
+  Instagram,
   Trophy,
   Users,
   Wallet,
@@ -43,6 +44,8 @@ import { TicketPurchaseLink } from "@/app/shared/TicketPurchaseLink";
 import { AppScreenLoading } from "@/app/shared/AppScreenLoading";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/app/shared/AuthContext";
+
+const INSTAGRAM_W18_URL = "https://www.instagram.com/w18walter/";
 
 const HOME_SLIDER_SLIDES: readonly HomeHeroSlide[] = [
   { src: slider1, alt: "Bolão do Milhão — slide 1", href: "/boloes", linkAriaLabel: "Ir para bolões" },
@@ -624,12 +627,30 @@ function PublicHome() {
                 ))}
               </div>
             </div>
-            <div className="flex h-full w-full items-end justify-end">
+            <div className="relative flex h-full w-full items-end justify-center">
               <img
                 src={bgHeroDesktop.src}
                 alt="Bolão da Copa 2026 — premiação e ranking"
                 className="w-full"
               />
+              <a
+                href={INSTAGRAM_W18_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Seguir @w18walter no Instagram"
+                className="group absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 flex-col items-center gap-1.5 sm:bottom-5 lg:bottom-6"
+              >
+                <span className="flex size-11 items-center justify-center rounded-full border border-primary/45 bg-black/75 shadow-[0_0_24px_rgba(177,235,11,0.25)] backdrop-blur-sm transition-all duration-200 group-hover:scale-105 group-hover:border-primary group-hover:bg-primary/15 group-hover:shadow-[0_0_32px_rgba(177,235,11,0.4)] sm:size-12">
+                  <Instagram
+                    className="size-5 text-primary transition-colors group-hover:text-white sm:size-[22px]"
+                    strokeWidth={1.75}
+                    aria-hidden
+                  />
+                </span>
+                <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/70 transition-colors group-hover:text-primary sm:text-[11px]">
+                  @w18walter
+                </span>
+              </a>
             </div>
           </div>
         </div>
