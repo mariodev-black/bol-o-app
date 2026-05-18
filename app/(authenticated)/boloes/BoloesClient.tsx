@@ -12,6 +12,7 @@ import {
   ClipboardList,
   Clock,
   Lock,
+  MoveHorizontal,
   MousePointerClick,
   Shield,
   Ticket,
@@ -76,9 +77,16 @@ export type ActiveBolaoListItem = {
   countdownTargetMs?: number | null;
   position: number | null;
   points: number;
+  /** Tickets distintos com palpite neste bolão (card vitrine). */
+  participantCount?: number;
 };
 
 export type BoloesScreenData = {
+  participantsByBolao: {
+    principal: number;
+    diario: number;
+    extra: number;
+  };
   summary: {
     activeCount: number;
     pendingPredictions: number;
@@ -119,6 +127,50 @@ const CARD = "#111111";
 const CARD_ALT = "#0F0F0F";
 const BORDER = "rgba(255,255,255,0.06)";
 const INK = "#0E141B";
+const SHOWCASE_CARD_BG = "#111111";
+
+const SHOWCASE_PRIZES: Record<
+  "principal" | "diario" | "extra",
+  { total: string; first: string }
+> = {
+  principal: { total: "R$ 1.000.000", first: "R$ 500.000" },
+  diario: { total: "R$ 10.000", first: "R$ 5.000" },
+  extra: { total: "R$ 10.000", first: "R$ 5.000" },
+};
+
+function formatParticipants(n: number | undefined): string {
+  if (n == null || !Number.isFinite(n) || n <= 0) return "—";
+  return n.toLocaleString("pt-BR");
+}
+
+/** Rótulos do header como na referência (CAMPEONATO / BRASILEIRO). */
+function showcaseHeaderParts(
+  displayTitle: string,
+  kind: "principal" | "diario" | "extra",
+): { category: string; title: string } {
+  const t = displayTitle.trim();
+  const lower = t.toLowerCase();
+  if (kind === "principal") {
+    return { category: "Bolão do Milhão", title: "PRINCIPAL" };
+  }
+  if (kind === "diario") {
+    return { category: "Bolão do dia", title: "DIÁRIO" };
+  }
+  if (lower.includes("brasileir")) {
+    return { category: "Campeonato", title: "Brasileiro" };
+  }
+  if (lower.includes("copa") && lower.includes("brasil") && !lower.includes("mundo")) {
+    return { category: "Campeonato", title: "Copa do Brasil" };
+  }
+  const words = t.split(/\s+/).filter(Boolean);
+  if (words.length >= 2) {
+    return {
+      category: words.slice(0, -1).join(" "),
+      title: words[words.length - 1]!,
+    };
+  }
+  return { category: "Campeonato", title: t || "Extra" };
+}
 
 function useNow(intervalMs = 1000) {
   const [now, setNow] = useState(() => Date.now());
@@ -450,8 +502,8 @@ function EmptyBolaoShowcaseCard({
 
   return (
     <div
-      className="rounded-[15px] border px-5 py-6 text-center"
-      style={{ background: CARD_ALT, borderColor: BORDER }}
+      className="rounded-[16px] px-5 py-6 text-center shadow-[0_12px_40px_rgba(0,0,0,0.55)]"
+      style={{ background: SHOWCASE_CARD_BG }}
     >
       <p className="text-[14px] font-black uppercase leading-tight tracking-[0.04em] text-white">
         {title}
@@ -718,6 +770,32 @@ const PACKAGES = [
   },
 ];
 
+function CarouselSwipeHint() {
+  return (
+    <div className="mb-3 flex items-center justify-center gap-2" aria-hidden>
+      <span className="inline-flex items-center text-primary/50">
+        <ChevronRight className="size-4 rotate-180" strokeWidth={2.5} />
+        <ChevronRight className="size-3 -ml-1.5 rotate-180 opacity-60" strokeWidth={2.5} />
+      </span>
+
+      <span className="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.04] px-3.5 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+        <MoveHorizontal
+          className="size-4 shrink-0 animate-pulse text-primary"
+          strokeWidth={2.35}
+        />
+        <span className="text-[10px] font-black uppercase tracking-[0.22em] text-white/55">
+          Deslize
+        </span>
+      </span>
+
+      <span className="inline-flex items-center text-primary/50">
+        <ChevronRight className="size-3 opacity-60" strokeWidth={2.5} />
+        <ChevronRight className="size-4 -ml-1.5" strokeWidth={2.5} />
+      </span>
+    </div>
+  );
+}
+
 function CarouselShell({
   children,
   tone = GREEN,
@@ -729,11 +807,11 @@ function CarouselShell({
 }) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [activeIdx, setActiveIdx] = useState(0);
-  const showNav = itemCount > 1;
+  const showCarousel = itemCount > 1;
 
   useEffect(() => {
     const el = scrollRef.current;
-    if (!el || !showNav) return;
+    if (!el || !showCarousel) return;
     const onScroll = () => {
       const max = el.scrollWidth - el.clientWidth;
       if (max <= 0) {
@@ -748,64 +826,38 @@ function CarouselShell({
     el.addEventListener("scroll", onScroll, { passive: true });
     onScroll();
     return () => el.removeEventListener("scroll", onScroll);
-  }, [itemCount, showNav]);
-
-  const scrollByPage = (direction: -1 | 1) => {
-    const el = scrollRef.current;
-    if (!el) return;
-    el.scrollBy({
-      left: direction * el.clientWidth * 0.92,
-      behavior: "smooth",
-    });
-  };
+  }, [itemCount, showCarousel]);
 
   return (
-    <div className="relative">
+    <div>
+      {showCarousel ? <CarouselSwipeHint /> : null}
       <div
         ref={scrollRef}
-        className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        aria-label="Carrossel de bolões — deslize para o lado"
       >
         {children}
       </div>
-      {showNav && (
-        <>
-          <button
-            type="button"
-            onClick={() => scrollByPage(-1)}
-            className="absolute -left-2 top-1/2 z-10 flex size-7 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-black/70 text-white/80 backdrop-blur"
-            aria-label="Item anterior"
-          >
-            <ChevronRight className="size-4 rotate-180" strokeWidth={2.6} />
-          </button>
-          <button
-            type="button"
-            onClick={() => scrollByPage(1)}
-            className="absolute -right-2 top-1/2 z-10 flex size-7 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-black/70 text-white/80 backdrop-blur"
-            aria-label="Próximo item"
-          >
-            <ChevronRight className="size-4" strokeWidth={2.6} />
-          </button>
-        </>
-      )}
-      {showNav && (
-        <div className="mt-0 flex justify-center gap-1.5">
+      {showCarousel ? (
+        <div className="mt-3 flex justify-center gap-1.5">
           {Array.from({ length: itemCount }, (_, i) => (
             <span
               key={i}
               className={
                 i === activeIdx
-                  ? "h-1.5 w-6 shrink-0 rounded-full transition-[width,opacity]"
-                  : "size-1.5 shrink-0 rounded-full bg-white/20 transition-[width,opacity]"
+                  ? "h-1.5 w-6 shrink-0 rounded-full transition-[width,background-color] duration-300"
+                  : "size-1.5 shrink-0 rounded-full bg-white/20 transition-[width,background-color] duration-300"
               }
               style={i === activeIdx ? { background: tone } : undefined}
               aria-hidden
             />
           ))}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
+
 
 function MiniSoccerBallIcon({ className }: { className?: string }) {
   return (
@@ -831,140 +883,6 @@ function MiniSoccerBallIcon({ className }: { className?: string }) {
   );
 }
 
-function UpcomingExtraOfferCard({
-  ex,
-  now,
-  fullWidth,
-}: {
-  ex: BoloesScreenData["upcoming"]["extras"][number];
-  now: number;
-  fullWidth?: boolean;
-}) {
-  const extraSide = getExtraBolaoHeroSideVariant(ex.championshipId, ex.title);
-  const accent = GREEN;
-  const ticketImg =
-    extraSide === "copa_brasil"
-      ? iconCopaBrasil
-      : extraSide === "brasileirao"
-        ? iconBrasileirao
-        : ticketBlue;
-  const showVerResultados = lockHasPassed(ex.closesAtMs, now);
-
-  return (
-    <Link
-      href={ex.href}
-      aria-label={showVerResultados ? "Ver resultados" : "Fazer palpites"}
-      className={[
-        "group relative flex min-h-0 flex-col overflow-hidden rounded-[18px] border bg-[#000] transition-transform duration-300 active:scale-[0.985]",
-        fullWidth ? "w-full" : "w-[368px] max-w-[88vw] shrink-0 snap-center",
-      ].join(" ")}
-      style={{
-        borderColor: accent,
-      }}
-    >
-      <div className="relative z-10 grid min-h-[132px] grid-cols-[minmax(0,92px)_minmax(0,1fr)_minmax(0,78px)] min-[380px]:grid-cols-[100px_minmax(0,1fr)_84px]">
-        {/* Coluna esquerda — arte + rótulo */}
-        <div className="relative flex flex-col items-center justify-center border-r border-white/8 bg-white/2 px-2 py-4">
-          <Image
-            src={ticketImg}
-            alt=""
-            width={88}
-            height={88}
-            className="h-[76px] w-[68px] object-contain transition-transform duration-300 group-hover:scale-[1.03]"
-          />
-        </div>
-
-        {/* Meio — título, status, infos */}
-        <div className="relative z-10 flex min-w-0 flex-col justify-center border-r border-white/8 px-3 py-3.5 min-[380px]:px-3.5">
-          <h3 className="text-[16px] font-black uppercase leading-[1.05] tracking-[-0.02em] text-white min-[380px]:text-[15px]">
-            {ex.title}
-          </h3>
-
-          <span
-            className="mt-2.5 inline-flex w-fit items-center gap-1 rounded-[4px] px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.06em] sm:px-3 sm:text-[10px]"
-            style={{ background: GREEN, color: INK }}
-          >
-            <span aria-hidden>🔥</span>
-            Palpites abertos
-          </span>
-
-          <div className="mt-3 space-y-2">
-            <p className="flex items-center gap-2 text-[11px] font-medium leading-snug text-white min-[380px]:text-[12px]">
-              <MiniSoccerBallIcon className="size-4 shrink-0" />
-              <span>
-                <span className="font-black">{ex.gamesCount}</span> jogos nesta
-                rodada
-              </span>
-            </p>
-            <p className="flex items-center gap-2 text-[11px] font-medium leading-snug text-white min-[380px]:text-[12px]">
-              <Clock
-                className="size-4 shrink-0 text-white/90"
-                strokeWidth={2.1}
-                aria-hidden
-              />
-              <span>
-                {showVerResultados ? (
-                  <span className="text-[12px] font-black uppercase tracking-wide text-white/55 min-[380px]:text-[13px]">
-                    Finalizado
-                  </span>
-                ) : (
-                  <>
-                    Fecha em:{" "}
-                    <span
-                      className="font-mono text-[12px] font-black tabular-nums min-[380px]:text-[13px]"
-                      style={{ color: GREEN }}
-                    >
-                      {formatCountdown(ex.closesAtMs, now)}
-                    </span>
-                  </>
-                )}
-              </span>
-            </p>
-          </div>
-
-          <p className="mt-2.5 text-[10px] font-medium leading-none text-white/45">
-            A partir de{" "}
-            <span className="font-bold text-white/70">{ex.priceLabel}</span>
-          </p>
-        </div>
-
-        {/* Direita — stats (placeholder até ter cota) */}
-        <div className="relative z-10 flex min-w-0 flex-col items-center justify-center px-1.5 py-3 text-center min-[380px]:px-2">
-          <p className="text-[7px] font-black uppercase leading-none tracking-[0.08em] text-white/55 min-[380px]:text-[8px]">
-            Sua posição
-          </p>
-          <p
-            className="mt-1.5 text-[17px] font-black leading-none min-[380px]:text-[19px]"
-            style={{ color: GREEN }}
-          >
-            —
-          </p>
-          <div className="my-2.5 h-px w-[46px] bg-white/10 min-[380px]:w-[52px]" />
-          <p className="text-[7px] font-black uppercase tracking-[0.08em] text-white/55 min-[380px]:text-[8px]">
-            Pontos
-          </p>
-          <p
-            className="mt-1.5 text-[16px] font-black leading-none min-[380px]:text-[14px]"
-            style={{ color: GREEN }}
-          >
-            —
-          </p>
-        </div>
-      </div>
-
-      <div className="relative z-10 px-3 pb-3.5 pt-1">
-        <span
-          className="flex h-11 w-full items-center justify-center gap-2 rounded-[10px] text-[11px] font-black uppercase tracking-[0.06em] transition-[filter] group-hover:brightness-105 min-[380px]:h-12 min-[380px]:text-[12px]"
-          style={{ background: GREEN, color: INK }}
-        >
-          {showVerResultados ? "Ver resultados" : "Fazer palpites"}
-          <ArrowRight className="size-4 shrink-0" strokeWidth={2.6} aria-hidden />
-        </span>
-      </div>
-    </Link>
-  );
-}
-
 function ShowcaseHeroStatusPill({
   status,
   label,
@@ -975,7 +893,7 @@ function ShowcaseHeroStatusPill({
   if (status === "ativo") {
     return (
       <span
-        className="mt-2.5 inline-flex w-fit items-center gap-1 rounded-[4px] px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.06em] sm:px-3 sm:text-[10px]"
+        className="inline-flex w-fit items-center gap-1 rounded-[4px] px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.06em] sm:px-3 sm:text-[10px]"
         style={{ background: GREEN, color: INK }}
       >
         <span aria-hidden>🔥</span>
@@ -986,7 +904,7 @@ function ShowcaseHeroStatusPill({
   if (status === "aguardando") {
     return (
       <span
-        className="mt-2.5 inline-flex w-fit items-center gap-1 rounded-[4px] px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.06em] sm:px-3 sm:text-[10px]"
+        className="inline-flex w-fit items-center gap-1 rounded-[4px] px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.06em] sm:px-3 sm:text-[10px]"
         style={{ background: YELLOW, color: INK }}
       >
         {label}
@@ -995,7 +913,7 @@ function ShowcaseHeroStatusPill({
   }
   return (
     <span
-      className="mt-2.5 inline-flex w-fit items-center gap-1 rounded-[4px] px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.06em] sm:px-3 sm:text-[10px]"
+      className="inline-flex w-fit items-center gap-1 rounded-[4px] px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.06em] sm:px-3 sm:text-[10px]"
       style={{ background: "#F87171", color: "#fff" }}
     >
       <span
@@ -1004,6 +922,164 @@ function ShowcaseHeroStatusPill({
       />
       {label}
     </span>
+  );
+}
+
+function ShowcaseCotaCard({
+  href,
+  fullWidth,
+  logoSrc,
+  kind,
+  displayTitle,
+  cotaLabel,
+  status,
+  countdownLabel,
+  countdownTargetMs,
+  now,
+  participantCount,
+  ctaLabel,
+}: {
+  href: string;
+  fullWidth?: boolean;
+  logoSrc: typeof iconCopaMundo;
+  kind: "principal" | "diario" | "extra";
+  displayTitle: string;
+  cotaLabel?: string;
+  status?: ActiveBolaoListItem["status"];
+  countdownLabel: string;
+  countdownTargetMs: number | null;
+  now: number;
+  participantCount?: number;
+  ctaLabel: string;
+}) {
+  const prizes = SHOWCASE_PRIZES[kind];
+  const header = showcaseHeaderParts(displayTitle, kind);
+  const finished = lockHasPassed(countdownTargetMs, now) || status === "usado";
+  const countdownDisplay = finished ? "Encerrado" : formatCountdown(countdownTargetMs, now);
+  const timerLabel = finished ? "Encerrado" : countdownLabel.toUpperCase();
+
+  return (
+    <Link
+      href={href}
+      aria-label={cotaLabel ? `${ctaLabel}, ${cotaLabel}` : ctaLabel}
+      className={[
+        "group flex min-h-0 flex-col overflow-hidden rounded-[14px] transition-transform duration-300 active:scale-[0.985]",
+        fullWidth ? "w-full" : "w-[368px] max-w-[88vw] shrink-0 snap-center",
+      ].join(" ")}
+      style={{ background: SHOWCASE_CARD_BG }}
+    >
+      {/* Header — logo + campeonato / premiação */}
+      <div className="flex items-start gap-3 px-4 pb-4 pt-4">
+        <div className="flex w-[88px] shrink-0 items-center justify-center pt-0.5">
+          <Image
+            src={logoSrc}
+            alt=""
+            width={88}
+            height={88}
+            className="h-[80px] w-[72px] object-contain object-center transition-transform duration-300 group-hover:scale-[1.03]"
+          />
+        </div>
+
+        <div className="min-w-0 flex-1 pt-0.5">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/40">
+            {header.category.toUpperCase()}
+          </p>
+          <h3 className="mt-0.5 text-[22px] font-black uppercase leading-[0.95] tracking-[-0.02em] text-white min-[380px]:text-[24px]">
+            {header.title.toUpperCase()}
+          </h3>
+
+          <p className="mt-3 text-[10px] font-bold uppercase tracking-[0.14em] text-white/38">
+            Premiação total
+          </p>
+          <p className="mt-1 text-[30px] font-black leading-none tracking-tight text-primary min-[380px]:text-[32px]">
+            {prizes.total}
+          </p>
+
+          <div className="my-2.5 h-px w-full bg-white/[0.1]" aria-hidden />
+
+          <div className="flex items-center gap-2">
+            <Trophy className="size-4 shrink-0 text-primary" strokeWidth={2.15} aria-hidden />
+            <span className="text-[10px] font-bold uppercase tracking-[0.06em] text-white/80">
+              1º lugar ganha
+            </span>
+            <span className="text-[13px] font-black leading-none text-primary">{prizes.first}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="mx-4 h-px bg-white/[0.08]" aria-hidden />
+
+      {/* Stats — começa em | participantes */}
+      <div className="grid grid-cols-2 items-stretch px-4 py-4">
+        <div className="flex items-center gap-2.5 border-r border-white/[0.08] pr-4">
+          <Clock className="size-5 shrink-0 text-primary" strokeWidth={2.25} aria-hidden />
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-white/40">
+              {timerLabel}
+            </p>
+            <p className="mt-1 font-mono text-[16px] font-black tabular-nums leading-none text-primary min-[380px]:text-[17px]">
+              {countdownDisplay}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2.5 pl-4">
+          <Users className="size-5 shrink-0 text-white/90" strokeWidth={2.1} aria-hidden />
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-white/40">
+              Participantes
+            </p>
+            <p className="mt-1 text-[16px] font-black leading-none text-white min-[380px]:text-[17px]">
+              {formatParticipants(participantCount)}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* CTA */}
+      <div className="px-4 pb-4 pt-1">
+        <span className="flex h-[48px] w-full items-center justify-center gap-2 rounded-[11px] bg-primary text-[14px] font-black uppercase tracking-[0.08em] text-[#0E141B] transition-[filter] group-hover:brightness-105 min-[380px]:h-[50px]">
+          {ctaLabel}
+          <ArrowRight className="size-4 shrink-0" strokeWidth={2.6} aria-hidden />
+        </span>
+      </div>
+    </Link>
+  );
+}
+
+function UpcomingExtraOfferCard({
+  ex,
+  now,
+  fullWidth,
+  participantsCount,
+}: {
+  ex: BoloesScreenData["upcoming"]["extras"][number];
+  now: number;
+  fullWidth?: boolean;
+  participantsCount?: number;
+}) {
+  const extraSide = getExtraBolaoHeroSideVariant(ex.championshipId, ex.title);
+  const ticketImg =
+    extraSide === "copa_brasil"
+      ? iconCopaBrasil
+      : extraSide === "brasileirao"
+        ? iconBrasileirao
+        : ticketBlue;
+  const showVerResultados = lockHasPassed(ex.closesAtMs, now);
+
+  return (
+    <ShowcaseCotaCard
+      href={ex.href}
+      fullWidth={fullWidth}
+      logoSrc={ticketImg}
+      kind="extra"
+      displayTitle={ex.title}
+      countdownLabel="Começa em"
+      countdownTargetMs={ex.closesAtMs}
+      now={now}
+      participantCount={participantsCount}
+      ctaLabel={showVerResultados ? "Ver resultados" : "Fazer palpites"}
+    />
   );
 }
 
@@ -1020,11 +1096,9 @@ function ActiveShowcaseCard({
 }) {
   const isPrincipal = kind === "principal";
   const isExtra = kind === "extra";
-  const progress = Math.max(0, Math.min(100, item.progress ?? 0));
   const extraHero = isExtra
     ? getExtraBolaoHeroSideVariant(item.championshipId, item.title)
     : "generic";
-  const tone = GREEN;
   const image = isPrincipal
     ? iconCopaMundo
     : isExtra
@@ -1035,174 +1109,29 @@ function ActiveShowcaseCard({
           : ticketBlue
       : iconCopaMundo;
   const showVerResultados =
-    item.status === "usado" ||
-    lockHasPassed(item.countdownTargetMs ?? null, now);
+    item.status === "usado" || lockHasPassed(item.countdownTargetMs ?? null, now);
+
+  const countdownLabel =
+    item.status === "aguardando" ? "Começa em" : "Fecha em";
 
   return (
-    <Link
+    <ShowcaseCotaCard
       href={item.href}
-      aria-label={showVerResultados ? "Ver resultados" : "Fazer palpites"}
-      className={[
-        "group relative flex min-h-0 flex-col overflow-hidden rounded-[18px] border bg-[#000] transition-transform duration-300 active:scale-[0.985]",
-        fullWidth ? "w-full" : "w-[368px] max-w-[88vw] shrink-0 snap-center",
-      ].join(" ")}
-      style={{
-        borderColor: tone,
-      }}
-    >
-      <div className="relative z-10 grid min-h-[132px] grid-cols-[minmax(0,92px)_minmax(0,1fr)_minmax(0,78px)] min-[380px]:grid-cols-[100px_minmax(0,1fr)_84px]">
-        <div className="relative flex flex-col items-center justify-center border-r border-white/8 bg-white/2 px-2 py-4">
-          <Image
-            src={image}
-            alt=""
-            width={88}
-            height={88}
-            className="h-[76px] w-[68px] object-contain transition-transform duration-300 group-hover:scale-[1.03]"
-          />
-          
-        </div>
-
-        <div className="relative z-10 flex min-w-0 flex-col justify-center border-r border-white/8 px-3 py-3.5 min-[380px]:px-3.5">
-          <h3 className="text-[16px] font-black uppercase leading-[1.05] tracking-[-0.02em] text-white min-[380px]:text-[15px]">
-            {item.title}
-          </h3>
-          <p className="mt-1.5 font-mono text-[10px] font-semibold leading-none text-white/50 min-[380px]:text-[11px]">
-            {item.cotaLabel}
-          </p>
-
-          <ShowcaseHeroStatusPill
-            status={item.status}
-            label={item.statusLabel}
-          />
-
-          <div className="mt-3 space-y-2">
-            {isPrincipal ? (
-              <>
-                <p className="flex items-center gap-2 text-[11px] font-medium leading-snug text-white min-[380px]:text-[12px]">
-                  <MiniSoccerBallIcon className="size-4 shrink-0" />
-                  <span>
-                    <span className="font-black">{item.sent ?? 0}</span> /{" "}
-                    <span className="font-black">{item.total ?? 0}</span>{" "}
-                    palpites enviados
-                  </span>
-                </p>
-                <p className="flex items-center gap-2 text-[11px] font-medium leading-snug text-white min-[380px]:text-[12px]">
-                  <Clock
-                    className="size-4 shrink-0 text-white/90"
-                    strokeWidth={2.1}
-                    aria-hidden
-                  />
-                  <span>
-                    {showVerResultados ? (
-                      <span className="text-[12px] font-black uppercase tracking-wide text-white/55 min-[380px]:text-[13px]">
-                        Finalizado
-                      </span>
-                    ) : (
-                      <>
-                        Fecha em:{" "}
-                        <span
-                          className="font-mono text-[12px] font-black tabular-nums min-[380px]:text-[13px]"
-                          style={{ color: GREEN }}
-                        >
-                          {formatCountdown(
-                            item.countdownTargetMs ?? null,
-                            now,
-                          )}
-                        </span>
-                      </>
-                    )}
-                  </span>
-                </p>
-                <div className="pt-0.5">
-                  <div className="h-[5px] overflow-hidden rounded-full bg-white/10">
-                    <div
-                      className="h-full rounded-full transition-[width] duration-700"
-                      style={{
-                        width: `${progress}%`,
-                        background: `linear-gradient(90deg, ${tone}, #F3FF8A)`,
-                      }}
-                    />
-                  </div>
-                </div>
-              </>
-            ) : (
-              <>
-                <p className="flex items-center gap-2 text-[11px] font-medium leading-snug text-white min-[380px]:text-[12px]">
-                  <MiniSoccerBallIcon className="size-4 shrink-0" />
-                  <span>
-                    <span className="font-black">{item.gamesCount ?? 0}</span>{" "}
-                    {isExtra
-                      ? "jogos nesta rodada"
-                      : "jogos neste dia"}
-                  </span>
-                </p>
-                <p className="flex items-center gap-2 text-[11px] font-medium leading-snug text-white min-[380px]:text-[12px]">
-                  <Clock
-                    className="size-4 shrink-0 text-white/90"
-                    strokeWidth={2.1}
-                    aria-hidden
-                  />
-                  <span>
-                    {showVerResultados ? (
-                      <span className="text-[12px] font-black uppercase tracking-wide text-white/55 min-[380px]:text-[13px]">
-                        Finalizado
-                      </span>
-                    ) : (
-                      <>
-                        {item.countdownLabel ?? "Fecha em"}:{" "}
-                        <span
-                          className="font-mono text-[12px] font-black tabular-nums min-[380px]:text-[13px]"
-                          style={{ color: GREEN }}
-                        >
-                          {formatCountdown(
-                            item.countdownTargetMs ?? null,
-                            now,
-                          )}
-                        </span>
-                      </>
-                    )}
-                  </span>
-                </p>
-              </>
-            )}
-          </div>
-        </div>
-
-        <div className="relative z-10 flex min-w-0 flex-col items-center justify-center px-1.5 py-3 text-center min-[380px]:px-2">
-          <p className="text-[7px] font-black uppercase leading-none tracking-[0.08em] text-white/55 min-[380px]:text-[8px]">
-            Sua posição
-          </p>
-          <p
-            className="mt-1.5 text-[17px] font-black leading-none min-[380px]:text-[19px]"
-            style={{ color: GREEN }}
-          >
-            {positionLabel(item.position)}
-          </p>
-          <div className="my-2.5 h-px w-[46px] bg-white/10 min-[380px]:w-[52px]" />
-          <p className="text-[7px] font-black uppercase tracking-[0.08em] text-white/55 min-[380px]:text-[8px]">
-            Pontos
-          </p>
-          <p
-            className="mt-1.5 text-[16px] font-black leading-none min-[380px]:text-[14px]"
-            style={{ color: GREEN }}
-          >
-            {pointsLabel(item.points)}
-          </p>
-        </div>
-      </div>
-
-      <div className="relative z-10 px-3 pb-3.5 pt-1">
-        <span
-          className="flex h-11 w-full items-center justify-center gap-2 rounded-[10px] text-[11px] font-black uppercase tracking-[0.06em] transition-[filter] group-hover:brightness-105 min-[380px]:h-12 min-[380px]:text-[12px]"
-          style={{ background: GREEN, color: INK }}
-        >
-          {showVerResultados ? "Ver resultados" : "Fazer palpites"}
-          <ArrowRight className="size-4 shrink-0" strokeWidth={2.6} aria-hidden />
-        </span>
-      </div>
-    </Link>
+      fullWidth={fullWidth}
+      logoSrc={image}
+      kind={kind}
+      displayTitle={item.title}
+      cotaLabel={item.cotaLabel}
+      status={item.status}
+      countdownLabel={countdownLabel}
+      countdownTargetMs={item.countdownTargetMs ?? null}
+      now={now}
+      participantCount={item.participantCount}
+      ctaLabel={showVerResultados ? "Ver resultados" : "Fazer palpites"}
+    />
   );
 }
+
 
 function ComoFuncionaPalpitesCard() {
   const ink = "#0E141B";
@@ -1846,6 +1775,7 @@ export function BoloesClient({
                           ex={ex}
                           now={now}
                           fullWidth
+                          participantsCount={data?.participantsByBolao.extra}
                         />
                       ))}
                 </div>
@@ -1865,6 +1795,7 @@ export function BoloesClient({
                     ex={upcomingExtras[0]}
                     now={now}
                     fullWidth
+                    participantsCount={data?.participantsByBolao.extra}
                   />
                 )
               ) : (
@@ -1886,6 +1817,7 @@ export function BoloesClient({
                           key={ex.championshipId}
                           ex={ex}
                           now={now}
+                          participantsCount={data?.participantsByBolao.extra}
                         />
                       ))}
                 </CarouselShell>

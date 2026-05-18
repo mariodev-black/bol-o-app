@@ -198,6 +198,30 @@ export async function listPredictionsForGlobalRanking(): Promise<PredictionRanki
   }));
 }
 
+/** Participantes por bolão (tickets distintos com palpite). */
+export async function countParticipantsByBolaoType(): Promise<
+  Record<"principal" | "diario" | "extra", number>
+> {
+  const pool = getPool();
+  const { rows } = await pool.query<{ bolao_type: string; n: string | number }>(
+    `SELECT bolao_type, COUNT(DISTINCT ticket_id)::int AS n
+     FROM predictions
+     GROUP BY bolao_type`
+  );
+  const out: Record<"principal" | "diario" | "extra", number> = {
+    principal: 0,
+    diario: 0,
+    extra: 0,
+  };
+  for (const r of rows) {
+    const key = String(r.bolao_type ?? "").toLowerCase();
+    if (key === "principal" || key === "diario" || key === "extra") {
+      out[key] = Number(r.n) || 0;
+    }
+  }
+  return out;
+}
+
 export async function listDistinctExtraPredictionTicketIds(): Promise<string[]> {
   const pool = getPool();
   const { rows } = await pool.query<{ ticket_id: string }>(

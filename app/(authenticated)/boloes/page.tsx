@@ -6,6 +6,7 @@ import { listPaidTicketsForUser, type PaidTicketRow } from "@/lib/payments/user-
 import { getExtraBolaoUnitCents, getTicketPriceCents } from "@/lib/payments/ticket-config";
 import {
   calcPredictionPoints,
+  countParticipantsByBolaoType,
   listDistinctExtraPredictionTicketIds,
   listPredictions,
   listPredictionsForGlobalRanking,
@@ -245,13 +246,14 @@ function buildRankingMap(
 async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
   const configuredExtraIds = parseExtraBolaoChampionshipIds();
   const mainComp = getFootballMainCompetitionId();
-  const [tickets, userPredictions, allPredictions, extraTicketIdsFromPreds, competitionLabels] =
+  const [tickets, userPredictions, allPredictions, extraTicketIdsFromPreds, competitionLabels, participantsByBolao] =
     await Promise.all([
       listPaidTicketsForUser(userId),
       listPredictions({ userId }).catch(() => []),
       listPredictionsForGlobalRanking().catch(() => []),
       listDistinctExtraPredictionTicketIds().catch(() => [] as string[]),
       warmCompetitionMetadataCache(configuredExtraIds).catch(() => ({}) as Record<number, string>),
+      countParticipantsByBolaoType().catch(() => ({ principal: 0, diario: 0, extra: 0 })),
     ]);
 
   const ensureCompIds = competitionIdsEnsureFromPaidTickets(tickets);
@@ -438,6 +440,7 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
         progress: metrics.progress,
         position: metrics.position,
         points: metrics.points,
+        participantCount: participantsByBolao.principal,
       };
     }
 
@@ -477,6 +480,7 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
         countdownTargetMs: closeAt,
         position: metrics.position,
         points: metrics.points,
+        participantCount: participantsByBolao.extra,
       };
     }
 
@@ -504,6 +508,7 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
       countdownTargetMs: closeAt,
       position: metrics.position,
       points: metrics.points,
+      participantCount: participantsByBolao.diario,
     };
   });
 
@@ -560,6 +565,7 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
   };
 
   const data: BoloesScreenData = {
+    participantsByBolao,
     summary: {
       activeCount: tickets.length,
       pendingPredictions: pending,
