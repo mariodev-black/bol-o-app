@@ -21,7 +21,10 @@ function competitionIdNum(): number {
   return Number.parseInt(competitionIdStr(), 10) || 72;
 }
 
-let snapshotFromApiInFlight: Promise<{ standingsOk: boolean; fasesCount: number }> | null = null;
+declare global {
+  // eslint-disable-next-line no-var
+  var __bolaoSnapshotFromApiInFlight: Promise<{ standingsOk: boolean; fasesCount: number }> | undefined;
+}
 
 async function runFootballSnapshotsFromApiBody(): Promise<{ standingsOk: boolean; fasesCount: number }> {
   const apiToken = token();
@@ -48,14 +51,14 @@ async function runFootballSnapshotsFromApiBody(): Promise<{ standingsOk: boolean
  * Singleflight: chamadas em paralelo (warmup + tick noturno) compartilham a mesma Promise — evita N rajadas de /fases/{id}.
  */
 export async function runFootballSnapshotsFromApi(): Promise<{ standingsOk: boolean; fasesCount: number }> {
-  if (snapshotFromApiInFlight) {
-    return snapshotFromApiInFlight;
+  if (globalThis.__bolaoSnapshotFromApiInFlight) {
+    return globalThis.__bolaoSnapshotFromApiInFlight;
   }
   const p = runFootballSnapshotsFromApiBody();
-  snapshotFromApiInFlight = p.finally(() => {
-    snapshotFromApiInFlight = null;
+  globalThis.__bolaoSnapshotFromApiInFlight = p;
+  return p.finally(() => {
+    globalThis.__bolaoSnapshotFromApiInFlight = undefined;
   });
-  return snapshotFromApiInFlight;
 }
 
 /** Primeira subida: se não há linha de tabela no cache, baixa agora (1 sequência de API). */

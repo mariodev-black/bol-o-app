@@ -10,22 +10,11 @@ import React, {
   useState,
 } from "react";
 import { clampAvatarIndex } from "@/lib/auth/avatar-index";
+import { loadInitialSessionUser, resetInitialSessionCache } from "@/lib/auth/client-session";
+import type { AuthUser } from "@/lib/auth/auth-user";
 import { isStoredAvatarUploadFilename } from "@/lib/user/avatar-filename";
 
-export type AuthUser = {
-  id: string;
-  email: string;
-  name: string | null;
-  avatarUrl: string | null;
-  /** Preset 0–4 (`app/assets/avatares/{n}.png`), persistido em `users.avatar_index`. */
-  avatarIndex: number;
-  /** Basename estável (UUID + ext.); bytes em `users.avatar_upload_data` ou legado em `public/avataruploads/`. */
-  avatarUploadFilename: string | null;
-  /** Código de indicação deste usuário (para compartilhar). */
-  referralCode: string;
-  /** Contas Google sem CPF ainda: `false` até completar o cadastro no modal. */
-  profileComplete: boolean;
-};
+export type { AuthUser } from "@/lib/auth/auth-user";
 
 type AuthContextValue = {
   ready: boolean;
@@ -73,6 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const applySessionUser = useCallback(
     (u: AuthUser) => {
+      resetInitialSessionCache();
       beginNewAuthEpoch();
       setUser(normalizeSessionUser(u));
       /** Header/NavBottom só renderizam com `ready`; não dependem do 1º `/me` terminar depois do login/registro. */
@@ -82,15 +72,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const refresh = useCallback(async () => {
+    resetInitialSessionCache();
     const epochAtStart = authEpochRef.current;
     try {
       const r = await fetch("/api/auth/me", { credentials: "include" });
       const data = await parseJsonSafe(r);
       if (epochAtStart !== authEpochRef.current) return;
       const u = data.user;
-      setUser(
-        u ? normalizeSessionUser(u) : null
-      );
+      setUser(u ? normalizeSessionUser(u) : null);
     } catch {
       if (epochAtStart !== authEpochRef.current) return;
       setUser(null);
@@ -99,17 +88,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      try {
-        await refresh();
-      } finally {
+    void loadInitialSessionUser()
+      .then((u) => {
+        if (cancelled || authEpochRef.current !== 0) return;
+        setUser(u ? normalizeSessionUser(u) : null);
+      })
+      .finally(() => {
         if (!cancelled) setReady(true);
-      }
-    })();
+      });
     return () => {
       cancelled = true;
     };
-  }, [refresh]);
+  }, []);
 
   const loginWithPassword = useCallback(
     async (identifier: string, password: string) => {
@@ -136,6 +126,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     beginNewAuthEpoch();
+    resetInitialSessionCache();
     try {
       await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
     } catch {

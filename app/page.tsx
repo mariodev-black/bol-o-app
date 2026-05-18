@@ -405,7 +405,7 @@ function LoggedInHome() {
         <HomeFromRedirectWhenLoggedIn />
       </Suspense>
       <Header />
-      <main className="min-h-screen bg-black pb-24 text-white">
+      <main className="min-h-screen bg-black pb-32 text-white">
         <section className="relative w-full overflow-hidden">
           <HomeHeroCarousel
             mode="slide"

@@ -36,45 +36,51 @@ export async function postPaymentApprovedWebhookIfConfigured(input: PaymentAppro
   if (!url) return;
 
   const pool = getPool();
-  const { rows: userRows } = await pool.query<Record<string, unknown>>(
-    `SELECT
-       u.id,
-       u.email,
-       u.name,
-       u.phone,
-       u.cpf,
-       COALESCE(u.role, 'user') AS role,
-       u.referral_code,
-       u.referred_by_user_id,
-       u.google_sub,
-       u.email_verified_at,
-       u.avatar_url,
-       u.avatar_index,
-       u.avatar_upload_filename,
-       u.created_at,
-       COALESCE(u.affiliate_mode, 'standard') AS affiliate_mode,
-       COALESCE(u.influencer_cpa_bps, 0) AS influencer_cpa_bps,
-       COALESCE(u.balance_cents, 0) AS balance_cents,
-       COALESCE(u.affiliate_balance_cents, 0) AS affiliate_balance_cents,
-       COALESCE(u.admin_2fa_enabled, false) AS admin_2fa_enabled
-     FROM users u
-     WHERE u.id = $1::uuid
-     LIMIT 1`,
-    [input.userId]
-  );
-  const user = userRows[0] ? serializeDbRow(userRows[0]) : null;
-
-  const { rows: txRows } = await pool.query<Record<string, unknown>>(
-    `SELECT * FROM transactions WHERE id = $1::uuid LIMIT 1`,
-    [input.transactionId]
-  );
-  const transaction = txRows[0] ? serializeDbRow(txRows[0]) : null;
-
-  const { rows: ticketRows } = await pool.query<Record<string, unknown>>(
-    `SELECT * FROM tickets WHERE transaction_id = $1::uuid ORDER BY created_at ASC NULLS LAST, id ASC`,
-    [input.transactionId]
-  );
-  const tickets = ticketRows.map((r) => serializeDbRow(r));
+  const [userResult, txResult, ticketResult] = await Promise.all([
+    pool.query<Record<string, unknown>>(
+      `SELECT
+         u.id,
+         u.email,
+         u.name,
+         u.phone,
+         u.cpf,
+         COALESCE(u.role, 'user') AS role,
+         u.referral_code,
+         u.referred_by_user_id,
+         u.google_sub,
+         u.email_verified_at,
+         u.avatar_url,
+         u.avatar_index,
+         u.avatar_upload_filename,
+         u.created_at,
+         COALESCE(u.affiliate_mode, 'standard') AS affiliate_mode,
+         COALESCE(u.influencer_cpa_bps, 0) AS influencer_cpa_bps,
+         COALESCE(u.balance_cents, 0) AS balance_cents,
+         COALESCE(u.affiliate_balance_cents, 0) AS affiliate_balance_cents,
+         COALESCE(u.admin_2fa_enabled, false) AS admin_2fa_enabled
+       FROM users u
+       WHERE u.id = $1::uuid
+       LIMIT 1`,
+      [input.userId]
+    ),
+    pool.query<Record<string, unknown>>(
+      `SELECT id, user_id, ticket_id, ticket_type, provider, status, amount_cents, payment_method,
+              external_ref, provider_transaction_id, pix_qrcode, pix_end2end_id,
+              raw_request, raw_response, created_at, updated_at
+       FROM transactions WHERE id = $1::uuid LIMIT 1`,
+      [input.transactionId]
+    ),
+    pool.query<Record<string, unknown>>(
+      `SELECT id, user_id, ticket_type, extra_championship_id, unit_price_cents, quantity,
+              total_amount_cents, is_promo_bonus, status, external_ref, transaction_id,
+              created_at, updated_at, paid_at, play_date, daily_status, available_games
+       FROM tickets WHERE transaction_id = $1::uuid ORDER BY created_at ASC NULLS LAST, id ASC`,
+      [input.transactionId]
+    ),
+  ]);
+  const user = userResult.rows[0] ? serializeDbRow(userResult.rows[0]) : null;
+  const transaction = txResult.rows[0] ? serializeDbRow(txResult.rows[0]) : null;
+  const tickets = ticketResult.rows.map((r) => serializeDbRow(r));
 
   const body = {
     event: "payment.approved",

@@ -185,33 +185,43 @@ export async function createDepositTransaction(input: CreateDepositTransactionIn
   const primaryTicketType = lines[0]!.ticketType;
   const paymentExternalRef = `ticket_${randomUUID()}`;
 
-  const ticketIds: string[] = [];
+  const userIds: string[] = [];
+  const ticketTypes: string[] = [];
+  const extraIds: Array<number | null> = [];
+  const unitPrices: number[] = [];
+  const totalAmounts: number[] = [];
+  const promoFlags: boolean[] = [];
+  const externalRefs: string[] = [];
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]!;
-    const ticketLineRef = `${paymentExternalRef}:p${i}`;
-    const extraId = line.ticketType === "extra" ? line.extraChampionshipId ?? null : null;
     const isPromoBonus = Boolean(line.promoBonus);
-    const unitPriceCents = isPromoBonus ? 0 : line.unitCents;
-    const totalAmountCents = isPromoBonus ? 0 : line.unitCents;
-    const ticketInsert = await pool.query<{ id: string }>(
-      `INSERT INTO tickets (
-         user_id, ticket_type, extra_championship_id, unit_price_cents, quantity,
-         total_amount_cents, is_promo_bonus, status, external_ref
-       )
-       VALUES ($1, $2, $3, $4, 1, $5, $6, 'pending_payment', $7)
-       RETURNING id`,
-      [
-        input.userId,
-        line.ticketType,
-        extraId,
-        unitPriceCents,
-        totalAmountCents,
-        isPromoBonus,
-        ticketLineRef,
-      ]
-    );
-    ticketIds.push(ticketInsert.rows[0]!.id);
+    userIds.push(input.userId);
+    ticketTypes.push(line.ticketType);
+    extraIds.push(line.ticketType === "extra" ? line.extraChampionshipId ?? null : null);
+    unitPrices.push(isPromoBonus ? 0 : line.unitCents);
+    totalAmounts.push(isPromoBonus ? 0 : line.unitCents);
+    promoFlags.push(isPromoBonus);
+    externalRefs.push(`${paymentExternalRef}:p${i}`);
   }
+  const ticketInsert = await pool.query<{ id: string }>(
+    `INSERT INTO tickets (
+       user_id, ticket_type, extra_championship_id, unit_price_cents, quantity,
+       total_amount_cents, is_promo_bonus, status, external_ref
+     )
+     SELECT u, tt, e, up, 1, ta, pb, 'pending_payment', er
+     FROM UNNEST(
+       $1::uuid[],
+       $2::text[],
+       $3::int[],
+       $4::int[],
+       $5::int[],
+       $6::bool[],
+       $7::text[]
+     ) AS t(u, tt, e, up, ta, pb, er)
+     RETURNING id`,
+    [userIds, ticketTypes, extraIds, unitPrices, totalAmounts, promoFlags, externalRefs]
+  );
+  const ticketIds = ticketInsert.rows.map((r) => r.id);
   const ticketId = ticketIds[0]!;
 
   const txInsert = await pool.query<{ id: string }>(

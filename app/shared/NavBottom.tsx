@@ -7,7 +7,6 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowRight,
-  Award,
   BarChart2,
   BarChart3,
   ChevronDown,
@@ -16,11 +15,13 @@ import {
   Home,
   LogOut,
   Share2,
+  Target,
   Ticket,
   Trophy,
   User,
   X,
 } from "lucide-react";
+import { cn } from "@/app/lib/utils";
 import { useAuth } from "@/app/shared/AuthContext";
 import { useSidenav } from "@/app/shared/SidenavContext";
 import logo from "@/app/assets/logo.svg";
@@ -33,24 +34,24 @@ type BottomItem = {
 };
 
 const BOTTOM_ITEMS_PROFILE: BottomItem[] = [
-  { label: "Início", ariaLabel: "Início", href: "/", icon: Home },
-  { label: "Indicar", ariaLabel: "Afiliado — indique e ganhe", href: "/indique", icon: Share2 },
-  { label: "Palpites", ariaLabel: "Meus bolões e palpites", href: "/boloes", icon: Trophy },
-  { label: "Prêmios", ariaLabel: "Premiação", href: "/premiacao", icon: Award },
-  { label: "Ranking", ariaLabel: "Ranking", href: "/ranking", icon: BarChart3 },
+  { label: "INÍCIO", ariaLabel: "Início", href: "/", icon: Home },
+  { label: "INDICAR", ariaLabel: "Afiliado — indique e ganhe", href: "/indique", icon: Share2 },
+  { label: "PALPITES", ariaLabel: "Meus bolões e palpites", href: "/boloes", icon: Target },
+  { label: "PRÊMIOS", ariaLabel: "Premiação", href: "/premiacao", icon: Gift },
+  { label: "RANKING", ariaLabel: "Ranking", href: "/ranking", icon: BarChart3 },
 ];
 
 const BOTTOM_ITEMS_PUBLIC: BottomItem[] = [
-  { label: "Início", ariaLabel: "Início", href: "/", icon: Home },
+  { label: "INÍCIO", ariaLabel: "Início", href: "/", icon: Home },
   {
-    label: "Indicar",
+    label: "INDICAR",
     ariaLabel: "Afiliado — cadastre-se para indicar",
     href: "/cadastrar?from=%2Findique",
     icon: Share2,
   },
-  { label: "Palpites", ariaLabel: "Meus bolões e palpites", href: "/boloes", icon: Trophy },
-  { label: "Prêmios", ariaLabel: "Premiação", href: "/premiacao", icon: Award },
-  { label: "Ranking", ariaLabel: "Ranking", href: "/ranking", icon: BarChart3 },
+  { label: "PALPITES", ariaLabel: "Meus bolões e palpites", href: "/boloes", icon: Target },
+  { label: "PRÊMIOS", ariaLabel: "Premiação", href: "/premiacao", icon: Gift },
+  { label: "RANKING", ariaLabel: "Ranking", href: "/ranking", icon: BarChart3 },
 ];
 
 type MenuItem = {
@@ -96,6 +97,107 @@ const MENU_SECTIONS: MenuSection[] = [
     ],
   },
 ] as const;
+
+function BottomNavLink({
+  item,
+  active,
+  onNavigate,
+  onPrefetch,
+}: {
+  item: BottomItem;
+  active: boolean;
+  onNavigate: (href: string) => void;
+  onPrefetch: (href: string) => void;
+}) {
+  const Icon = item.icon;
+
+  return (
+    <Link
+      href={item.href}
+      aria-label={item.ariaLabel}
+      aria-current={active ? "page" : undefined}
+      prefetch
+      onClick={() => onNavigate(item.href)}
+      onPointerEnter={() => onPrefetch(item.href)}
+      onFocus={() => onPrefetch(item.href)}
+      className={cn(
+        "relative flex min-h-14 min-w-0 flex-1 flex-col items-center justify-end self-stretch outline-none",
+        "transition-transform active:scale-95",
+        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary/50",
+        active ? "z-30" : "z-0",
+      )}
+    >
+      {active ? (
+        <span
+          className={cn(
+            "absolute bottom-full left-1/2 z-30 flex size-[4.5rem] -translate-x-1/2 flex-col items-center justify-center gap-0.5",
+            "mb-[-3rem] rounded-full bg-primary text-primary-foreground",
+            "shadow-[0_0_28px_rgba(177,235,11,0.55)]",
+          )}
+        >
+          <Icon className="size-6 shrink-0" strokeWidth={2.35} aria-hidden />
+          <span className="max-w-[4.25rem] truncate text-center text-[10px] font-extrabold uppercase leading-none tracking-widest">
+            {item.label}
+          </span>
+        </span>
+      ) : null}
+
+      <span
+        className={cn(
+          "flex flex-col items-center justify-center gap-1 py-2.5",
+          active ? "pointer-events-none invisible" : "text-zinc-300",
+        )}
+        aria-hidden={active}
+      >
+        <Icon className="size-[22px] shrink-0" strokeWidth={2} aria-hidden />
+        <span className="max-w-[4.5rem] truncate text-center text-[9px] font-extrabold uppercase leading-none tracking-widest min-[360px]:text-[10px]">
+          {item.label}
+        </span>
+      </span>
+    </Link>
+  );
+}
+
+function BottomNavigation({
+  items,
+  isActive,
+  onNavigate,
+  onPrefetch,
+}: {
+  items: BottomItem[];
+  isActive: (href: string) => boolean;
+  onNavigate: (href: string) => void;
+  onPrefetch: (href: string) => void;
+}) {
+  return (
+    <nav
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-[70] isolate overflow-visible md:hidden"
+      aria-label="Navegação inferior"
+    >
+      <div className="pointer-events-auto w-full overflow-visible">
+        <div className="overflow-visible pt-9">
+          <div
+            className={cn(
+              "relative flex min-h-14 items-end justify-around overflow-visible ",
+              "border border-white/[0.08] bg-black",
+              "shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_-16px_48px_rgba(0,0,0,0.85)]",
+            )}
+          >
+            {items.map((item) => (
+              <BottomNavLink
+                key={item.href + item.label}
+                item={item}
+                active={isActive(item.href)}
+                onNavigate={onNavigate}
+                onPrefetch={onPrefetch}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    </nav>
+  );
+}
 
 export function NavBottom() {
   const router = useRouter();
@@ -351,80 +453,12 @@ export function NavBottom() {
         </div>
       )}
 
-      <nav
-        className="pointer-events-none fixed bottom-0 left-0 right-0 z-60 md:hidden"
-        aria-label="Navegação inferior"
-      >
-        <div className="pointer-events-auto mx-auto max-w-lg px-3 pb-[max(10px,env(safe-area-inset-bottom))] pt-2">
-          <div
-            className={[
-              "relative flex items-stretch gap-0.5 rounded-[20px] border border-white/10 p-1",
-              "bg-[#060a0e]/94 shadow-[0_-20px_50px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.06)]",
-              "backdrop-blur-xl backdrop-saturate-150 motion-safe:transition-[box-shadow,transform] motion-safe:duration-300",
-            ].join(" ")}
-          >
-            {bottomItems.map(({ label, ariaLabel, href, icon: ItemIcon }) => {
-              const active = isBottomItemActive(href);
-
-              return (
-                <Link
-                  key={href + label}
-                  href={href}
-                  aria-label={ariaLabel}
-                  aria-current={active ? "page" : undefined}
-                  prefetch
-                  onClick={() => handleBottomNavigate(href)}
-                  onPointerEnter={() => router.prefetch(href)}
-                  onFocus={() => router.prefetch(href)}
-                  className={[
-                    "group relative flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center rounded-[14px] py-1.5 outline-none",
-                    "motion-safe:transition-[transform,color,background-color] motion-safe:duration-200 motion-safe:ease-out",
-                    "active:scale-[0.94] motion-reduce:active:scale-100",
-                    "focus-visible:ring-2 focus-visible:ring-primary/35 focus-visible:ring-offset-2 focus-visible:ring-offset-[#060a0e]",
-                  ].join(" ")}
-                >
-                  <span
-                    aria-hidden
-                    className={[
-                      "pointer-events-none absolute inset-x-0 top-0.5 bottom-0.5 rounded-[12px] motion-safe:transition-all motion-safe:duration-300 motion-safe:ease-[cubic-bezier(0.34,1.2,0.64,1)]",
-                      active
-                        ? "bg-primary/16 opacity-100 shadow-[0_0_28px_rgba(177,235,11,0.14)]"
-                        : "bg-transparent opacity-0 group-hover:bg-white/4 group-hover:opacity-100",
-                    ].join(" ")}
-                  />
-                  <span
-                    aria-hidden
-                    className={[
-                      "pointer-events-none absolute left-1/2 top-1.5 h-[3px] w-6 -translate-x-1/2 rounded-full motion-safe:transition-all motion-safe:duration-300 motion-safe:ease-out",
-                      active
-                        ? "bg-primary opacity-100 shadow-[0_0_12px_rgba(177,235,11,0.75)]"
-                        : "scale-x-50 bg-primary/0 opacity-0",
-                    ].join(" ")}
-                  />
-                  <span className="relative z-10 flex flex-col items-center gap-0.5">
-                    <span
-                      className={[
-                        "grid size-9 shrink-0 place-items-center rounded-xl motion-safe:transition-[transform,color] motion-safe:duration-300 motion-safe:ease-[cubic-bezier(0.34,1.35,0.64,1)]",
-                        active ? "text-primary motion-safe:scale-110" : "text-white/40 group-hover:text-white/65",
-                      ].join(" ")}
-                    >
-                      <ItemIcon className="size-[21px]" strokeWidth={active ? 2.35 : 2} />
-                    </span>
-                    <span
-                      className={[
-                        "max-w-full px-0.5 text-center text-[9px] font-bold uppercase leading-tight tracking-[0.04em] min-[360px]:text-[10px]",
-                        active ? "text-primary" : "text-white/45 group-hover:text-white/70",
-                      ].join(" ")}
-                    >
-                      {label}
-                    </span>
-                  </span>
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      </nav>
+      <BottomNavigation
+        items={bottomItems}
+        isActive={isBottomItemActive}
+        onNavigate={handleBottomNavigate}
+        onPrefetch={(href) => router.prefetch(href)}
+      />
     </>
   );
 }

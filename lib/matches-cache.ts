@@ -198,44 +198,121 @@ export async function scheduleSaysFresh(): Promise<boolean> {
   const comp = competitionId();
   const preMin = PRE_KICKOFF_WINDOW_MINUTES;
 
-  /** Com jogo ao vivo no DB, nao dispara sync leve na API (cota diaria); placar e atualizado pelo cron de garantia / noturno. */
-  const { rows: liveRows } = await pool.query<{ live: boolean }>(
-    `SELECT EXISTS (
-       SELECT 1 FROM matches_cache
-       WHERE competition_id = $1
-         AND (
-           lower(coalesce(status, '')) LIKE '%andamento%'
-           OR lower(coalesce(status, '')) LIKE '%ao vivo%'
-           OR lower(coalesce(status, '')) LIKE '%intervalo%'
-         )
-     ) AS live`,
-    [comp]
-  );
-  if (Boolean(liveRows[0]?.live)) {
+  const [liveRows, activeRows, maxRows] = await Promise.all([
+    pool.query<{ live: boolean }>(
+      `SELECT EXISTS (
+         SELECT 1 FROM matches_cache
+         WHERE competition_id = $1
+           AND (
+             lower(coalesce(status, '')) LIKE '%andamento%'
+             OR lower(coalesce(status, '')) LIKE '%ao vivo%'
+             OR lower(coalesce(status, '')) LIKE '%intervalo%'
+           )
+       ) AS live`,
+      [comp]
+    ),
+    pool.query<{ active: boolean }>(
+      `SELECT EXISTS (
+         SELECT 1 FROM matches_cache
+         WHERE competition_id = $1
+           AND kickoff_at IS NOT NULL
+           AND kickoff_at::timestamptz > now()
+           AND kickoff_at::timestamptz <= now() + (($2::text || ' minutes')::interval)
+       ) AS active`,
+      [comp, String(preMin)]
+    ),
+    pool.query<{ latest: string | null }>(
+      `SELECT max(synced_at)::text AS latest FROM matches_cache WHERE competition_id = $1`,
+      [comp]
+    ),
+  ]);
+
+  if (Boolean(liveRows.rows[0]?.live)) {
     return true;
   }
 
-  const { rows: activeRows } = await pool.query<{ active: boolean }>(
-    `SELECT EXISTS (
-       SELECT 1 FROM matches_cache
-       WHERE competition_id = $1
-         AND kickoff_at IS NOT NULL
-         AND kickoff_at::timestamptz > now()
-         AND kickoff_at::timestamptz <= now() + (($2::text || ' minutes')::interval)
-     ) AS active`,
-    [comp, String(preMin)]
-  );
-  const activeWindow = Boolean(activeRows[0]?.active);
+  const activeWindow = Boolean(activeRows.rows[0]?.active);
   const freshnessSeconds = activeWindow ? ACTIVE_SYNC_SECONDS : IDLE_SYNC_SECONDS;
-  const { rows: maxRows } = await pool.query<{ latest: string | null }>(
-    `SELECT max(synced_at)::text AS latest FROM matches_cache WHERE competition_id = $1`,
-    [comp]
-  );
-  const latestMsRaw = maxRows[0]?.latest;
+  const latestMsRaw = maxRows.rows[0]?.latest;
   const latestSyncMs = latestMsRaw ? new Date(latestMsRaw).getTime() : 0;
   if (!Number.isFinite(latestSyncMs)) return false;
   const thresholdMs = Date.now() - freshnessSeconds * 1000;
   return latestSyncMs >= thresholdMs;
+}
+
+const MATCH_CACHE_UPSERT_CHUNK = 80;
+
+const MATCH_CACHE_UPSERT_SQL = `INSERT INTO matches_cache (
+  competition_id, match_id, phase_key, group_key, round_key, status, kickoff_at,
+  date_br, hour_br, result_casa, result_visitante,
+  home_name, home_sigla, home_logo, away_name, away_sigla, away_logo,
+  source_updated_at, synced_at
+) VALUES %VALUES%
+ON CONFLICT (competition_id, match_id)
+DO UPDATE SET
+  phase_key = EXCLUDED.phase_key,
+  group_key = EXCLUDED.group_key,
+  round_key = EXCLUDED.round_key,
+  status = EXCLUDED.status,
+  kickoff_at = COALESCE(matches_cache.kickoff_at, EXCLUDED.kickoff_at),
+  date_br = COALESCE(NULLIF(matches_cache.date_br, ''), EXCLUDED.date_br),
+  hour_br = COALESCE(NULLIF(matches_cache.hour_br, ''), EXCLUDED.hour_br),
+  result_casa = COALESCE(EXCLUDED.result_casa, matches_cache.result_casa),
+  result_visitante = COALESCE(EXCLUDED.result_visitante, matches_cache.result_visitante),
+  home_name = EXCLUDED.home_name,
+  home_sigla = EXCLUDED.home_sigla,
+  home_logo = EXCLUDED.home_logo,
+  away_name = EXCLUDED.away_name,
+  away_sigla = EXCLUDED.away_sigla,
+  away_logo = EXCLUDED.away_logo,
+  source_updated_at = now(),
+  synced_at = now()`;
+
+async function upsertMatchGroupChunked(
+  client: import("pg").PoolClient,
+  cid: number,
+  group: ProviderMatchInput[]
+): Promise<void> {
+  for (let offset = 0; offset < group.length; offset += MATCH_CACHE_UPSERT_CHUNK) {
+    const chunk = group.slice(offset, offset + MATCH_CACHE_UPSERT_CHUNK);
+    const values: string[] = [];
+    const params: unknown[] = [];
+    let p = 1;
+    for (const m of chunk) {
+      values.push(
+        `($${p}, $${p + 1}, $${p + 2}, $${p + 3}, $${p + 4}, $${p + 5}, $${p + 6}, $${p + 7}, $${p + 8}, $${p + 9}, $${p + 10}, $${p + 11}, $${p + 12}, $${p + 13}, $${p + 14}, $${p + 15}, $${p + 16}, now(), now())`
+      );
+      params.push(
+        cid,
+        m.matchId,
+        m.phaseKey,
+        m.groupKey,
+        m.roundKey,
+        m.status,
+        m.kickoffAt,
+        m.dateBR,
+        m.hourBR,
+        m.resultCasa,
+        m.resultVisitante,
+        m.homeName,
+        m.homeSigla,
+        m.homeLogo,
+        m.awayName,
+        m.awaySigla,
+        m.awayLogo
+      );
+      p += 17;
+    }
+    await client.query(MATCH_CACHE_UPSERT_SQL.replace("%VALUES%", values.join(", ")), params);
+  }
+  if (group.length === 0) return;
+  await client.query(
+    `UPDATE matches_cache
+     SET synced_at = now()
+     WHERE competition_id = $1
+       AND match_id NOT IN (${group.map((_, idx) => `$${idx + 2}`).join(", ")})`,
+    [cid, ...group.map((m) => m.matchId)]
+  );
 }
 
 async function upsertMatchesCache(matches: ProviderMatchInput[]) {
@@ -252,79 +329,7 @@ async function upsertMatchesCache(matches: ProviderMatchInput[]) {
       byComp.set(cid, arr);
     }
     for (const [cid, group] of byComp) {
-      for (const m of group) {
-        await client.query(
-          `INSERT INTO matches_cache (
-          competition_id,
-          match_id,
-          phase_key,
-          group_key,
-          round_key,
-          status,
-          kickoff_at,
-          date_br,
-          hour_br,
-          result_casa,
-          result_visitante,
-          home_name,
-          home_sigla,
-          home_logo,
-          away_name,
-          away_sigla,
-          away_logo,
-          source_updated_at,
-          synced_at
-        ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-          $11, $12, $13, $14, $15, $16, $17, now(), now()
-        )
-        ON CONFLICT (competition_id, match_id)
-        DO UPDATE SET
-          phase_key = EXCLUDED.phase_key,
-          group_key = EXCLUDED.group_key,
-          round_key = EXCLUDED.round_key,
-          status = EXCLUDED.status,
-          kickoff_at = COALESCE(matches_cache.kickoff_at, EXCLUDED.kickoff_at),
-          date_br = COALESCE(NULLIF(matches_cache.date_br, ''), EXCLUDED.date_br),
-          hour_br = COALESCE(NULLIF(matches_cache.hour_br, ''), EXCLUDED.hour_br),
-          result_casa = COALESCE(EXCLUDED.result_casa, matches_cache.result_casa),
-          result_visitante = COALESCE(EXCLUDED.result_visitante, matches_cache.result_visitante),
-          home_name = EXCLUDED.home_name,
-          home_sigla = EXCLUDED.home_sigla,
-          home_logo = EXCLUDED.home_logo,
-          away_name = EXCLUDED.away_name,
-          away_sigla = EXCLUDED.away_sigla,
-          away_logo = EXCLUDED.away_logo,
-          source_updated_at = now(),
-          synced_at = now()`,
-          [
-            cid,
-            m.matchId,
-            m.phaseKey,
-            m.groupKey,
-            m.roundKey,
-            m.status,
-            m.kickoffAt,
-            m.dateBR,
-            m.hourBR,
-            m.resultCasa,
-            m.resultVisitante,
-            m.homeName,
-            m.homeSigla,
-            m.homeLogo,
-            m.awayName,
-            m.awaySigla,
-            m.awayLogo,
-          ]
-        );
-      }
-      await client.query(
-        `UPDATE matches_cache
-       SET synced_at = now()
-       WHERE competition_id = $1
-         AND match_id NOT IN (${group.map((_, idx) => `$${idx + 2}`).join(", ")})`,
-        [cid, ...group.map((m) => m.matchId)]
-      );
+      await upsertMatchGroupChunked(client, cid, group);
     }
     await client.query("COMMIT");
     invalidateMatchMapMemoryAfterDbWrite();

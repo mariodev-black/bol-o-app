@@ -30,8 +30,12 @@ function internalCronDefaultEnabled(): boolean {
   return !process.env.VERCEL;
 }
 
+/**
+ * Cron interno idempotente: no mesmo processo Node so inicializa uma vez
+ * (instrumentation + InternalCronBootstrap no layout podem chamar em paralelo).
+ */
 export function startInternalCronScheduler(): CronHandle {
-  if (globalThis.__bolaoCronHandle?.started) return globalThis.__bolaoCronHandle;
+  if (globalThis.__bolaoCronHandle) return globalThis.__bolaoCronHandle;
 
   const enabled = boolEnv("INTERNAL_CRON_ENABLED", internalCronDefaultEnabled());
   const runOnVercel = boolEnv("INTERNAL_CRON_RUN_ON_VERCEL", false);
@@ -41,6 +45,26 @@ export function startInternalCronScheduler(): CronHandle {
     intEnv("INTERNAL_CRON_SYNC_MATCHES_SECONDS", 300)
   );
   const intervalMs = tickSeconds * 1000;
+
+  let intervalHandle: ReturnType<typeof setInterval> | undefined;
+  const handle: CronHandle = {
+    started: false,
+    stop: () => {
+      if (intervalHandle !== undefined) clearInterval(intervalHandle);
+    },
+  };
+  globalThis.__bolaoCronHandle = handle;
+
+  if (!enabled) {
+    console.warn(
+      "[internal-cron] desligado (INTERNAL_CRON_ENABLED=false). Use GET /api/cron/tick com CRON_SECRET ou ligue o env."
+    );
+    return handle;
+  }
+  if (vercelBlocks) {
+    console.warn("[internal-cron] desligado em VERCEL (INTERNAL_CRON_RUN_ON_VERCEL!=true).");
+    return handle;
+  }
 
   let running = false;
   const runNow = async () => {
@@ -58,10 +82,8 @@ export function startInternalCronScheduler(): CronHandle {
     }
   };
 
-  let intervalHandle: ReturnType<typeof setInterval> | undefined;
   const beginScheduledTicks = () => {
     if (intervalHandle !== undefined) return;
-    if (!enabled || vercelBlocks) return;
     intervalHandle = setInterval(() => {
       void runNow();
     }, intervalMs);
@@ -87,28 +109,7 @@ export function startInternalCronScheduler(): CronHandle {
     beginScheduledTicks();
   }
 
-  if (!enabled) {
-    const handle = { started: false, stop: () => {} };
-    globalThis.__bolaoCronHandle = handle;
-    console.warn(
-      "[internal-cron] desligado (INTERNAL_CRON_ENABLED=false). Use GET /api/cron/tick com CRON_SECRET ou ligue o env."
-    );
-    return handle;
-  }
-  if (process.env.VERCEL && !runOnVercel) {
-    const handle = { started: false, stop: () => {} };
-    globalThis.__bolaoCronHandle = handle;
-    console.warn("[internal-cron] desligado em VERCEL (INTERNAL_CRON_RUN_ON_VERCEL!=true).");
-    return handle;
-  }
-
-  const handle: CronHandle = {
-    started: true,
-    stop: () => {
-      if (intervalHandle !== undefined) clearInterval(intervalHandle);
-    },
-  };
-  globalThis.__bolaoCronHandle = handle;
+  handle.started = true;
   console.info(`[internal-cron] ativo — tick a cada ${tickSeconds}s (maintenance + sync condicional + premios)`);
   return handle;
 }

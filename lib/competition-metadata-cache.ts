@@ -9,6 +9,8 @@ const META_STALE_MS =
   Number.parseInt(process.env.COMPETITION_META_CACHE_TTL_MS ?? `${7 * 24 * 60 * 60 * 1000}`, 10) ||
   7 * 24 * 60 * 60 * 1000;
 
+const META_REFRESH_CONCURRENCY = 3;
+
 export function competitionMetadataCacheKey(competitionId: number): string {
   return `${CACHE_PREFIX}${competitionId}`;
 }
@@ -82,39 +84,74 @@ function isStale(syncedAt: Date | null): boolean {
   return Date.now() - syncedAt.getTime() > META_STALE_MS;
 }
 
+async function refreshCompetitionMetaFromApi(id: number): Promise<string> {
+  const key = competitionMetadataCacheKey(id);
+  const json = await fetchCompetitionJsonFromApi(id);
+  const picked = pickDisplayNameFromJson(json);
+  const displayName = picked && picked.length > 0 ? picked : `Campeonato ${id}`;
+  const nextPayload: CompetitionMetaPayload = { displayName, source: json ?? undefined };
+  await upsertFootballApiCache(key, id, nextPayload);
+  return displayName;
+}
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>
+): Promise<R[]> {
+  if (items.length === 0) return [];
+  const results: R[] = new Array(items.length);
+  let next = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (true) {
+      const i = next;
+      next += 1;
+      if (i >= items.length) break;
+      results[i] = await fn(items[i]!);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
 /**
- * Garante nomes em cache: usa `football_api_cache`; só chama a API para ids sem entrada ou velhos.
- * Idempotente; uso após sync de partidas ou na primeira abertura do checkout / bolões.
+ * Garante nomes em cache: uma leitura em lote no DB; API só para ids ausentes ou velhos.
  */
 export async function warmCompetitionMetadataCache(competitionIds: number[]): Promise<Record<number, string>> {
   const uniq = [...new Set(competitionIds.filter((n) => Number.isFinite(n) && n > 0))];
   if (uniq.length === 0) return {};
 
+  const keys = uniq.map(competitionMetadataCacheKey);
   const pool = getPool();
+  const { rows } = await pool.query<{ cache_key: string; payload: unknown; synced_at: Date | null }>(
+    `SELECT cache_key, payload, synced_at FROM football_api_cache WHERE cache_key = ANY($1::text[])`,
+    [keys]
+  );
+  const rowByKey = new Map(rows.map((r) => [r.cache_key, r]));
+
   const out: Record<number, string> = {};
+  const staleIds: number[] = [];
 
   for (const id of uniq) {
     const key = competitionMetadataCacheKey(id);
-    const { rows } = await pool.query<{ payload: unknown; synced_at: Date | null }>(
-      `SELECT payload, synced_at FROM football_api_cache WHERE cache_key = $1 LIMIT 1`,
-      [key]
-    );
-    const row = rows[0];
+    const row = rowByKey.get(key);
     const payload = row?.payload as CompetitionMetaPayload | null;
     const cachedName = typeof payload?.displayName === "string" ? payload.displayName.trim() : "";
-    const freshEnough = cachedName.length > 0 && !isStale(row?.synced_at ?? null);
-
-    if (freshEnough) {
+    if (cachedName.length > 0 && !isStale(row?.synced_at ?? null)) {
       out[id] = cachedName;
       continue;
     }
+    staleIds.push(id);
+  }
 
-    const json = await fetchCompetitionJsonFromApi(id);
-    const picked = pickDisplayNameFromJson(json);
-    const displayName = picked && picked.length > 0 ? picked : `Campeonato ${id}`;
-    const nextPayload: CompetitionMetaPayload = { displayName, source: json ?? undefined };
-    await upsertFootballApiCache(key, id, nextPayload);
-    out[id] = displayName;
+  if (staleIds.length > 0) {
+    const refreshed = await mapWithConcurrency(staleIds, META_REFRESH_CONCURRENCY, async (id) => ({
+      id,
+      name: await refreshCompetitionMetaFromApi(id),
+    }));
+    for (const { id, name } of refreshed) {
+      out[id] = name;
+    }
   }
 
   return out;

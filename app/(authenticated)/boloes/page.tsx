@@ -4,7 +4,15 @@ import { cookies } from "next/headers";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 import { listPaidTicketsForUser, type PaidTicketRow } from "@/lib/payments/user-tickets";
 import { getExtraBolaoUnitCents, getTicketPriceCents } from "@/lib/payments/ticket-config";
-import { calcPredictionPoints, listPredictions, listAllPredictions, palpiteLockBeforeKickoffMs, type PredictionRow } from "@/lib/predictions";
+import {
+  calcPredictionPoints,
+  listDistinctExtraPredictionTicketIds,
+  listPredictions,
+  listPredictionsForGlobalRanking,
+  palpiteLockBeforeKickoffMs,
+  type PredictionRankingRow,
+  type PredictionRow,
+} from "@/lib/predictions";
 import { fetchMatchesMap, getMatchFromMap, type MatchMapEntry } from "@/lib/football-api";
 import { BoloesClient, type BoloesScreenData } from "@/app/(authenticated)/boloes/BoloesClient";
 import { BoloesPurchaseSync } from "@/app/(authenticated)/boloes/_components/BoloesPurchaseSync";
@@ -159,7 +167,7 @@ function totalMatchesForTicket(ticket: PaidTicketRow, matches: MatchMap): number
 }
 
 function buildRankingMap(
-  predictions: PredictionRow[],
+  predictions: PredictionRankingRow[],
   matches: MatchMap,
   extraChampionshipByTicketId: Map<string, number>
 ): Map<string, { pos: number; points: number }> {
@@ -237,12 +245,14 @@ function buildRankingMap(
 async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
   const configuredExtraIds = parseExtraBolaoChampionshipIds();
   const mainComp = getFootballMainCompetitionId();
-  const [tickets, userPredictions, allPredictions, competitionLabels] = await Promise.all([
-    listPaidTicketsForUser(userId),
-    listPredictions({ userId }).catch(() => []),
-    listAllPredictions().catch(() => []),
-    warmCompetitionMetadataCache(configuredExtraIds).catch(() => ({}) as Record<number, string>),
-  ]);
+  const [tickets, userPredictions, allPredictions, extraTicketIdsFromPreds, competitionLabels] =
+    await Promise.all([
+      listPaidTicketsForUser(userId),
+      listPredictions({ userId }).catch(() => []),
+      listPredictionsForGlobalRanking().catch(() => []),
+      listDistinctExtraPredictionTicketIds().catch(() => [] as string[]),
+      warmCompetitionMetadataCache(configuredExtraIds).catch(() => ({}) as Record<number, string>),
+    ]);
 
   const ensureCompIds = competitionIdsEnsureFromPaidTickets(tickets);
   const matches = await fetchMatchesMap({ ensureCompetitionIds: ensureCompIds }).catch(() => new Map());
@@ -271,13 +281,7 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
     }))
   );
 
-  const extraTicketIds = [
-    ...new Set(
-      allPredictions
-        .filter((p) => String(p.bolao_type ?? "").toLowerCase() === "extra")
-        .map((p) => String(p.ticket_id ?? "").trim()),
-    ),
-  ];
+  const extraTicketIds = [...new Set(extraTicketIdsFromPreds)];
   const extraChampionshipByTicketId = await fetchExtraChampionshipIdByTicketIds(extraTicketIds);
   mergeExtraChampionshipFromPaidTickets(extraChampionshipByTicketId, tickets);
   const ranking = buildRankingMap(allPredictions, matches, extraChampionshipByTicketId);

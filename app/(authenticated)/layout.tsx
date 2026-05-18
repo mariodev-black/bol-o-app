@@ -11,7 +11,7 @@ export default function AuthenticatedLayout({
     <div className="min-h-screen flex flex-col">
       <Header />
       <div className="flex flex-1 pt-[var(--app-header-height,96px)] md:pt-[var(--app-header-height,96px)]">
-        <main className="flex flex-1 flex-col pb-24 md:pb-8 min-w-0">{children}</main>
+        <main className="flex min-w-0 flex-1 flex-col pb-32 md:pb-8">{children}</main>
       </div>
       <Suspense fallback={null}>
         <NavBottom />

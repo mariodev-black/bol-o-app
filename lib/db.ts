@@ -1,6 +1,11 @@
 import { Pool, type PoolConfig } from "pg";
 
-let pool: Pool | null = null;
+declare global {
+  // eslint-disable-next-line no-var
+  var __bolaoPgPool: Pool | undefined;
+  // eslint-disable-next-line no-var
+  var __bolaoPgPoolReady: Promise<void> | undefined;
+}
 
 function sslOption(): PoolConfig["ssl"] | undefined {
   return process.env.DATABASE_SSL === "1" || process.env.DATABASE_SSL === "true"
@@ -88,24 +93,43 @@ function poolConfigFromEnv(): PoolConfig {
   };
 }
 
-function poolScalingOptions(): Pick<PoolConfig, "max" | "min" | "idleTimeoutMillis" | "connectionTimeoutMillis"> {
+function poolScalingOptions(): Pick<
+  PoolConfig,
+  "max" | "min" | "idleTimeoutMillis" | "connectionTimeoutMillis" | "keepAlive"
+> {
   const max = Math.max(1, intEnv("DATABASE_POOL_MAX", 20));
-  const min = Math.min(intEnvNonNeg("DATABASE_POOL_MIN", 0), max);
+  /** Conexões mínimas quentes: evita latência do 1º request após idle (PM2 / next start). */
+  const min = Math.min(Math.max(intEnvNonNeg("DATABASE_POOL_MIN", 2), 0), max);
   return {
     max,
     min,
-    idleTimeoutMillis: intEnv("DATABASE_POOL_IDLE_MS", 30_000),
-    connectionTimeoutMillis: intEnv("DATABASE_POOL_CONN_TIMEOUT_MS", 10_000),
+    idleTimeoutMillis: intEnv("DATABASE_POOL_IDLE_MS", 60_000),
+    connectionTimeoutMillis: intEnv("DATABASE_POOL_CONN_TIMEOUT_MS", 8_000),
+    keepAlive: true,
   };
 }
 
 export function getPool(): Pool {
-  if (!pool) {
-    pool = new Pool({
+  if (!globalThis.__bolaoPgPool) {
+    globalThis.__bolaoPgPool = new Pool({
       ...poolConfigFromEnv(),
       ...poolScalingOptions(),
       allowExitOnIdle: process.env.DATABASE_POOL_ALLOW_EXIT_ON_IDLE === "1",
     });
   }
-  return pool;
+  return globalThis.__bolaoPgPool;
+}
+
+/** Abre o pool uma vez por processo Node (instrumentation / PM2). Reutiliza a mesma conexão aquecida. */
+export function ensureDatabasePoolReady(): Promise<void> {
+  if (!globalThis.__bolaoPgPoolReady) {
+    globalThis.__bolaoPgPoolReady = getPool()
+      .query("SELECT 1")
+      .then(() => undefined)
+      .catch((error) => {
+        globalThis.__bolaoPgPoolReady = undefined;
+        throw error;
+      });
+  }
+  return globalThis.__bolaoPgPoolReady;
 }

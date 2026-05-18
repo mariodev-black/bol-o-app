@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "db:test": "curl -sS http://127.0.0.1:3000/api/db/test",
+    "db:indexes": "psql \"${DATABASE_URL:-postgresql://${DATABASE_USER}:${DATABASE_PASSWORD}@${DATABASE_HOST:-localhost}:${DATABASE_PORT:-5432}/${DATABASE_NAME}}\" -f scripts/sql/20260517-performance-indexes.sql",
     "build": "next build",
     "deploy:github": "bash scripts/deploy-from-github.sh",
     "start": "next start",

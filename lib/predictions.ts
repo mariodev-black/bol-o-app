@@ -28,6 +28,19 @@ export type PredictionAggregateRow = {
   submitted_at: Date;
 };
 
+/** Campos usados no ranking global da tela de bolões (sem SELECT *). */
+export type PredictionRankingRow = {
+  ticket_id: string;
+  bolao_type: PredictionBolaoType;
+  match_id: number;
+  score_casa: number;
+  score_visitante: number;
+  submitted_at: Date;
+};
+
+const PREDICTION_COLUMNS =
+  "id, user_id, ticket_id, bolao_type, match_id, score_casa, score_visitante, submitted_at, updated_at";
+
 export function calcPredictionPoints(
   predCasa: number,
   predVisit: number,
@@ -106,7 +119,7 @@ export async function listPredictionTicketMatchPairsForUser(
 export async function listPredictionsForTicketAllUsers(ticketId: string): Promise<PredictionRow[]> {
   const pool = getPool();
   const { rows } = await pool.query<PredictionRow>(
-    `SELECT * FROM predictions WHERE ticket_id = $1 ORDER BY submitted_at ASC`,
+    `SELECT ${PREDICTION_COLUMNS} FROM predictions WHERE ticket_id = $1 ORDER BY submitted_at ASC`,
     [ticketId]
   );
   return rows;
@@ -130,7 +143,7 @@ export async function listMatchIdsForTicketPredictions(ticketId: string): Promis
 export async function listAllPredictionsByBolao(bolaoType: PredictionBolaoType): Promise<PredictionRow[]> {
   const pool = getPool();
   const { rows } = await pool.query<PredictionRow>(
-    `SELECT * FROM predictions WHERE bolao_type = $1 ORDER BY submitted_at ASC`,
+    `SELECT ${PREDICTION_COLUMNS} FROM predictions WHERE bolao_type = $1 ORDER BY submitted_at ASC`,
     [bolaoType]
   );
   return rows;
@@ -161,9 +174,44 @@ export async function listPredictionsAggregateByBolao(
   }));
 }
 
+/** Ranking global (bolões): só colunas necessárias — evita SELECT * em tabela grande. */
+export async function listPredictionsForGlobalRanking(): Promise<PredictionRankingRow[]> {
+  const pool = getPool();
+  const { rows } = await pool.query<{
+    ticket_id: string;
+    bolao_type: PredictionBolaoType;
+    match_id: string | number;
+    score_casa: number;
+    score_visitante: number;
+    submitted_at: Date;
+  }>(
+    `SELECT ticket_id, bolao_type, match_id, score_casa, score_visitante, submitted_at
+     FROM predictions`
+  );
+  return rows.map((r) => ({
+    ticket_id: r.ticket_id,
+    bolao_type: r.bolao_type,
+    match_id: Number(r.match_id),
+    score_casa: r.score_casa,
+    score_visitante: r.score_visitante,
+    submitted_at: r.submitted_at,
+  }));
+}
+
+export async function listDistinctExtraPredictionTicketIds(): Promise<string[]> {
+  const pool = getPool();
+  const { rows } = await pool.query<{ ticket_id: string }>(
+    `SELECT DISTINCT ticket_id::text AS ticket_id FROM predictions WHERE bolao_type = 'extra'`
+  );
+  return rows.map((r) => String(r.ticket_id).trim()).filter(Boolean);
+}
+
+/** @deprecated Prefira `listPredictionsForGlobalRanking`. */
 export async function listAllPredictions(): Promise<PredictionRow[]> {
   const pool = getPool();
-  const { rows } = await pool.query<PredictionRow>(`SELECT * FROM predictions ORDER BY submitted_at ASC`);
+  const { rows } = await pool.query<PredictionRow>(
+    `SELECT ${PREDICTION_COLUMNS} FROM predictions ORDER BY submitted_at ASC`
+  );
   return rows;
 }
 
@@ -174,7 +222,7 @@ export async function getPredictionByUserTicketMatch(input: {
 }) {
   const pool = getPool();
   const { rows } = await pool.query<PredictionRow>(
-    `SELECT *
+    `SELECT ${PREDICTION_COLUMNS}
      FROM predictions
      WHERE user_id = $1 AND ticket_id = $2 AND match_id = $3
      LIMIT 1`,
