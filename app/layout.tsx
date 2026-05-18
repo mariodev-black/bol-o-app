@@ -11,6 +11,7 @@ import {
   isMarketingHostname,
   isSubdomainRoutingEnabled,
 } from "@/lib/site-hosts";
+import { getServerAuthUser } from "@/lib/auth/server-session";
 import { InternalCronBootstrap } from "./InternalCronBootstrap";
 import { Providers } from "./providers";
 
@@ -81,6 +82,7 @@ export default async function RootLayout({
     ...getAppServerConfig(),
     isMarketingRequest,
   };
+  const initialAuthUser = await getServerAuthUser();
 
   return (
     <html
@@ -93,7 +95,7 @@ export default async function RootLayout({
         className="min-h-full flex flex-col bg-[#000000] text-foreground"
       >
         <InternalCronBootstrap />
-        <Providers appServerConfig={appServerConfig}>
+        <Providers appServerConfig={appServerConfig} initialAuthUser={initialAuthUser}>
           {children}
           {modal}
         </Providers>

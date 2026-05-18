@@ -50,9 +50,17 @@ async function parseJsonSafe(r: Response): Promise<{ error?: string; user?: Auth
   }
 }
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [ready, setReady] = useState(false);
-  const [user, setUser] = useState<AuthUser | null>(null);
+export function AuthProvider({
+  children,
+  initialUser = null,
+}: {
+  children: React.ReactNode;
+  initialUser?: AuthUser | null;
+}) {
+  const [ready, setReady] = useState(Boolean(initialUser));
+  const [user, setUser] = useState<AuthUser | null>(() =>
+    initialUser ? normalizeSessionUser(initialUser) : null,
+  );
   /** Qualquer `refresh` iniciado com geração menor que a atual é descartado ao concluir. */
   const authEpochRef = useRef(0);
 

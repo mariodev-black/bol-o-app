@@ -48,7 +48,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/shared/AuthContext";
 import { useAppServerConfig } from "@/app/shared/AppServerConfigContext";
 import { useProductHref } from "@/app/shared/useProductHref";
-import { isAppHostClient, isMarketingHostClient } from "@/lib/site-hosts-client";
+import type { HomePageServerHint } from "@/lib/home-page-server-hint";
 
 const INSTAGRAM_W18_URL = "https://www.instagram.com/w18walter/";
 
@@ -520,12 +520,14 @@ function LoggedInHome() {
   );
 }
 
-export function HomePageClient() {
+export function HomePageClient({ hint }: { hint: HomePageServerHint }) {
   const router = useRouter();
   const { ready, isLoggedIn } = useAuth();
   const { subdomainRoutingEnabled, appOrigin } = useAppServerConfig();
-  const onAppHost = isAppHostClient();
-  const onMarketing = isMarketingHostClient();
+  const onAppHost = hint.onApp;
+  const onMarketing = hint.onMarketing;
+  /** Até o `/me` no client: confia no cookie validado no servidor (sem flash da LP). */
+  const loggedIn = ready ? isLoggedIn : hint.initialLoggedIn;
 
   useEffect(() => {
     if (!onAppHost || !ready || isLoggedIn) return;
@@ -539,21 +541,24 @@ export function HomePageClient() {
     }
   }, [ready, isLoggedIn, onAppHost, onMarketing, subdomainRoutingEnabled, appOrigin]);
 
-  /** App: `/` = home logada (carrossel + próximos jogos); visitante → cadastro. */
+  /** App: home logada em `/`; visitante → cadastro (nunca LP). */
   if (onAppHost) {
-    if (!ready) return <AppScreenLoading message="Carregando..." />;
-    if (!isLoggedIn) return null;
+    if (!loggedIn) {
+      if (!ready) return <AppScreenLoading message="Carregando..." />;
+      return null;
+    }
     return <LoggedInHome />;
   }
 
-  /** www: LP para visitante; logado no app. */
-  if (!ready || !isLoggedIn) {
-    return <PublicHome />;
+  /** www: logado vai para o app; visitante vê LP. */
+  if (loggedIn) {
+    if (subdomainRoutingEnabled && onMarketing) {
+      return <AppScreenLoading message="Abrindo o app..." />;
+    }
+    return <LoggedInHome />;
   }
 
-  if (subdomainRoutingEnabled && onMarketing) return null;
-
-  return <LoggedInHome />;
+  return <PublicHome />;
 }
 
 function PublicHome() {

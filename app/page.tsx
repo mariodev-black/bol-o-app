@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
+import { cookies, headers } from "next/headers";
 import { HomePageClient } from "@/app/components/HomePageClient";
+import { parseHostnameFromHostHeader } from "@/lib/auth/request-host";
+import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
+import type { HomePageServerHint } from "@/lib/home-page-server-hint";
 import { buildPageMetadata } from "@/lib/seo/config";
 import { HomePageJsonLd } from "@/lib/seo/json-ld";
+import { isAppHostname, isMarketingHostname } from "@/lib/site-domain";
 
 export const metadata: Metadata = buildPageMetadata({
   title: "Bolão do Milhão — Bolão da Copa 2026 | Mais de R$ 1 milhão em prêmios",
@@ -10,11 +15,29 @@ export const metadata: Metadata = buildPageMetadata({
   path: "/",
 });
 
-export default function HomePage() {
+async function getHomePageServerHint(): Promise<HomePageServerHint> {
+  const headersList = await headers();
+  const hostRaw = headersList.get("x-forwarded-host") ?? headersList.get("host") ?? "";
+  const hostname = parseHostnameFromHostHeader(hostRaw);
+  const onApp = isAppHostname(hostname);
+  const onMarketing = isMarketingHostname(hostname);
+
+  let initialLoggedIn = false;
+  const token = (await cookies()).get(sessionCookieName())?.value;
+  if (token) {
+    initialLoggedIn = Boolean(await verifySessionToken(token).catch(() => null));
+  }
+
+  return { onApp, onMarketing, initialLoggedIn };
+}
+
+export default async function HomePage() {
+  const hint = await getHomePageServerHint();
+
   return (
     <>
       <HomePageJsonLd />
-      <HomePageClient />
+      <HomePageClient hint={hint} />
     </>
   );
 }
