@@ -141,11 +141,11 @@ export function LoginContent() {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col">
       <AuthField
-        label="E-mail ou CPF"
+        label="CPF"
         type={looksLikeEmail ? "email" : "text"}
         inputMode={looksLikeEmail ? "email" : "numeric"}
         autoComplete="username"
-        placeholder="E-mail ou CPF"
+        placeholder="000.000.000-00"
         value={identifier}
         onChange={(e) => setIdentifier(formatLoginIdentifierInput(e.target.value))}
         disabled={loading}
@@ -177,11 +177,13 @@ export function LoginContent() {
         </AuthPrimaryButton>
       </div>
 
-      <GoogleAuthButton
-        label="Continuar com o Google"
-        disabled={loading}
-        onClick={handleGoogle}
-      />
+      <div className="hidden lg:block">
+        <GoogleAuthButton
+          label="Continuar com o Google"
+          disabled={loading}
+          onClick={handleGoogle}
+        />
+      </div>
 
       <AuthLegalFooter />
     </form>

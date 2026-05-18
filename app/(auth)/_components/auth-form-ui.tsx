@@ -394,7 +394,7 @@ export function AuthPrimaryButton({
         "flex h-12 w-full items-center justify-center rounded-xl text-[14px] font-black uppercase tracking-wide transition-all",
         enabled
           ? "bg-[#B1EB0B] text-[#0E141B] shadow-[0_0_20px_rgba(177,235,11,0.28)] active:scale-[0.99]"
-          : "bg-[#2f3d22] text-[#8a7a68] cursor-not-allowed",
+          : "bg-[#2a3318] text-[#8f9680] cursor-not-allowed",
       ].join(" ")}
     >
       {children}
