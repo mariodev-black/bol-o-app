@@ -8,29 +8,29 @@ import {
   getCopaBonusExtraPromoPublicConfig,
   type CopaBonusExtraPromoPublicConfig,
 } from "@/lib/promotions/copa-bonus-extra";
+import { getAppOrigin, getMarketingOrigin } from "@/lib/seo/config";
 
 export type AppServerConfig = {
-  /** Origem pública do site (`APP_URL` sem barra final). */
+  /** Origem do app (`APP_URL`). */
   siteOrigin: string;
+  appOrigin: string;
+  marketingOrigin: string;
+  subdomainRoutingEnabled: boolean;
+  /** Requisição atual veio do host de marketing (www) — CTAs usam `appOrigin` no SSR. */
+  isMarketingRequest: boolean;
   copaBonusPromo: CopaBonusExtraPromoPublicConfig;
   extraChampionshipIds: number[];
 };
 
-function resolveSiteOrigin(): string {
-  const raw = (process.env.APP_URL || "https://bolaodomilhao.com.br").trim();
-  if (!raw) return "https://bolaodomilhao.com.br";
-  try {
-    const u = new URL(raw.startsWith("http") ? raw : `https://${raw}`);
-    return u.origin;
-  } catch {
-    return raw.replace(/\/+$/, "");
-  }
-}
-
 /** Snapshot de env para hidratar Providers e páginas (SSR/SSG em qualquer host). */
 export function getAppServerConfig(): AppServerConfig {
+  const appOrigin = getAppOrigin();
   return {
-    siteOrigin: resolveSiteOrigin(),
+    siteOrigin: appOrigin,
+    appOrigin,
+    marketingOrigin: getMarketingOrigin(),
+    subdomainRoutingEnabled: process.env.SUBDOMAIN_ROUTING_ENABLED === "true",
+    isMarketingRequest: false,
     copaBonusPromo: getCopaBonusExtraPromoPublicConfig(),
     extraChampionshipIds: parseExtraBolaoChampionshipIds(),
   };

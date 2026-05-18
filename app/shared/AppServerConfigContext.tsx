@@ -5,7 +5,11 @@ import type { AppServerConfig } from "@/lib/app-server-config";
 
 /** Fallback só se o Provider não for montado (não lê process.env no client). */
 const defaultConfig: AppServerConfig = {
-  siteOrigin: "https://bolaodomilhao.com.br",
+  siteOrigin: "https://app.bolaodomilhao.com.br",
+  appOrigin: "https://app.bolaodomilhao.com.br",
+  marketingOrigin: "https://www.bolaodomilhao.com.br",
+  subdomainRoutingEnabled: false,
+  isMarketingRequest: false,
   copaBonusPromo: {
     enabled: false,
     championshipId: null,

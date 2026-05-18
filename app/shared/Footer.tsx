@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { ProductLink } from "@/app/shared/ProductLink";
 import {
   Instagram,
   Youtube,
@@ -49,22 +50,27 @@ function LinkColumn({
   className,
 }: {
   title: string;
-  links: { label: string; href: string }[];
+  links: { label: string; href: string; product?: boolean }[];
   className?: string;
 }) {
+  const linkClass =
+    "text-sm leading-snug transition-colors hover:text-white";
+  const linkStyle = { color: "rgba(255,255,255,0.55)" };
+
   return (
     <div className={`flex flex-col gap-3 ${className ?? ""}`}>
       <span className="text-sm font-semibold text-white mb-1">{title}</span>
-      {links.map(({ label, href }) => (
-        <Link
-          key={label}
-          href={href}
-          className="text-sm leading-snug transition-colors hover:text-white"
-          style={{ color: "rgba(255,255,255,0.55)" }}
-        >
-          {label}
-        </Link>
-      ))}
+      {links.map(({ label, href, product }) =>
+        product ? (
+          <ProductLink key={label} href={href} className={linkClass} style={linkStyle}>
+            {label}
+          </ProductLink>
+        ) : (
+          <Link key={label} href={href} className={linkClass} style={linkStyle}>
+            {label}
+          </Link>
+        ),
+      )}
     </div>
   );
 }
@@ -80,10 +86,10 @@ const SOCIAL_LINKS = [
 ] as const;
 
 const APOSTE_LINKS = [
-  { label: "Como Participar",  href: "/#como-funciona" },
-  { label: "Comprar Ticket",   href: "/cadastrar?from=/tickets" },
-  { label: "Meus Bolões",      href: "/boloes" },
-  { label: "Ranking",          href: "/ranking" },
+  { label: "Como Participar", href: "/#como-funciona" },
+  { label: "Comprar Ticket", href: "/cadastrar?from=/tickets", product: true },
+  { label: "Meus Bolões", href: "/boloes", product: true },
+  { label: "Ranking", href: "/ranking", product: true },
 ];
 
 const LINKS_UTEIS = [

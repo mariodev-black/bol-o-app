@@ -8,19 +8,24 @@ export function forwardingHostRaw(request: NextRequest): string {
 }
 
 /** Hostname em minúsculas, sem porta IPv4; IPv6 sem colchetes na comparação. */
-export function canonicalHostname(request: NextRequest): string {
-  const raw = forwardingHostRaw(request);
+export function parseHostnameFromHostHeader(raw: string): string {
   if (!raw) return "";
-  if (raw.startsWith("[")) {
-    const end = raw.indexOf("]");
-    if (end !== -1) return raw.slice(1, end).toLowerCase();
+  const host = raw.split(",")[0]?.trim() ?? "";
+  if (!host) return "";
+  if (host.startsWith("[")) {
+    const end = host.indexOf("]");
+    if (end !== -1) return host.slice(1, end).toLowerCase();
   }
-  const lastColon = raw.lastIndexOf(":");
+  const lastColon = host.lastIndexOf(":");
   if (lastColon > 0) {
-    const maybePort = raw.slice(lastColon + 1);
-    if (/^\d+$/.test(maybePort)) return raw.slice(0, lastColon).toLowerCase();
+    const maybePort = host.slice(lastColon + 1);
+    if (/^\d+$/.test(maybePort)) return host.slice(0, lastColon).toLowerCase();
   }
-  return raw.toLowerCase();
+  return host.toLowerCase();
+}
+
+export function canonicalHostname(request: NextRequest): string {
+  return parseHostnameFromHostHeader(forwardingHostRaw(request));
 }
 
 /** Domínio compartilhável para cookie em produção (www + ápex). */

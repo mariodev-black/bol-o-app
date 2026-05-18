@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 const DEFAULT_MARKETING = "https://www.bolaodomilhao.com.br";
-const DEFAULT_APP = "https://bolaodomilhao.com.br";
+const DEFAULT_APP = "https://app.bolaodomilhao.com.br";
 
 /** URL canônica do site de vendas (www). Usada em sitemap, OG e canonical da home. */
 export function getMarketingOrigin(): string {

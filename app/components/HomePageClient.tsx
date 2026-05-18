@@ -44,7 +44,11 @@ import { HomeFromRedirectWhenLoggedIn } from "@/app/shared/HomeFromRedirectWhenL
 import { TicketPurchaseLink } from "@/app/shared/TicketPurchaseLink";
 import { AppScreenLoading } from "@/app/shared/AppScreenLoading";
 import { Suspense, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/shared/AuthContext";
+import { useAppServerConfig } from "@/app/shared/AppServerConfigContext";
+import { useProductHref } from "@/app/shared/useProductHref";
+import { isAppHostClient, isMarketingHostClient } from "@/lib/site-hosts-client";
 
 const INSTAGRAM_W18_URL = "https://www.instagram.com/w18walter/";
 
@@ -517,28 +521,35 @@ function LoggedInHome() {
 }
 
 export function HomePageClient() {
+  const router = useRouter();
   const { ready, isLoggedIn } = useAuth();
+  const { subdomainRoutingEnabled, appOrigin } = useAppServerConfig();
+  const onAppHost = isAppHostClient();
+  const onMarketing = isMarketingHostClient();
 
-  if (!ready) {
-    return (
-      <HomePageContainer>
-        <Header />
-        <main className="flex min-h-0 flex-1 flex-col bg-black text-white">
-          <AppScreenLoading
-            variant="default"
-            message="Carregando..."
-            className="flex-1 min-h-[calc(100dvh-5.5rem)] justify-center py-16"
-          />
-        </main>
-        <Suspense fallback={null}>
-          <NavBottom />
-        </Suspense>
-      </HomePageContainer>
-    );
+  useEffect(() => {
+    if (!onAppHost || !ready) return;
+    router.replace(isLoggedIn ? "/boloes" : "/cadastrar");
+  }, [onAppHost, ready, isLoggedIn, router]);
+
+  useEffect(() => {
+    if (!ready || !isLoggedIn || onAppHost) return;
+    if (subdomainRoutingEnabled && onMarketing) {
+      window.location.assign(`${appOrigin.replace(/\/+$/, "")}/boloes`);
+    }
+  }, [ready, isLoggedIn, onAppHost, onMarketing, subdomainRoutingEnabled, appOrigin]);
+
+  /** Host `app.*` não exibe LP — middleware + redirect acima. */
+  if (onAppHost) return null;
+
+  /** LP (www): sem loading; visitante vê a home de vendas na hora. */
+  if (!ready || !isLoggedIn) {
+    return <PublicHome />;
   }
 
-  if (isLoggedIn) return <LoggedInHome />;
-  return <PublicHome />;
+  if (subdomainRoutingEnabled && onMarketing) return null;
+
+  return <LoggedInHome />;
 }
 
 function PublicHome() {

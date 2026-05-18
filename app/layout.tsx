@@ -1,9 +1,16 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import { DM_Sans, Montserrat } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
 import { getAppServerConfig } from "@/lib/app-server-config";
+import { parseHostnameFromHostHeader } from "@/lib/auth/request-host";
 import { buildRootMetadata } from "@/lib/seo/config";
+import {
+  isAppHostname,
+  isMarketingHostname,
+  isSubdomainRoutingEnabled,
+} from "@/lib/site-hosts";
 import { InternalCronBootstrap } from "./InternalCronBootstrap";
 import { Providers } from "./providers";
 
@@ -56,14 +63,24 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = buildRootMetadata();
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
   modal,
 }: Readonly<{
   children: React.ReactNode;
   modal: React.ReactNode;
 }>) {
-  const appServerConfig = getAppServerConfig();
+  const headersList = await headers();
+  const hostRaw = headersList.get("x-forwarded-host") ?? headersList.get("host") ?? "";
+  const hostname = parseHostnameFromHostHeader(hostRaw);
+  const routing = isSubdomainRoutingEnabled();
+  const isMarketingRequest =
+    routing && Boolean(hostname) && isMarketingHostname(hostname) && !isAppHostname(hostname);
+
+  const appServerConfig = {
+    ...getAppServerConfig(),
+    isMarketingRequest,
+  };
 
   return (
     <html

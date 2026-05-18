@@ -1,24 +1,56 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { canonicalHostname } from "@/lib/auth/request-host";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
+import { getSignInPathForHost, resolveHostRouting } from "@/lib/site-hosts";
+
+const PROTECTED_PREFIXES = [
+  "/boloes",
+  "/admin",
+  "/tickets",
+  "/perfil",
+  "/ranking",
+  "/palpites",
+  "/meus-palpites",
+  "/dashboard",
+  "/deposito",
+  "/saques",
+  "/privacidade",
+  "/indique",
+  "/premiacao",
+] as const;
+
+function isProtectedPath(pathname: string): boolean {
+  return PROTECTED_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
+}
 
 /**
  * Rotas que exigem sessão válida no cookie httpOnly `bolao_session`.
- * O token (JWT) só trafega no cookie — o cliente não armazena sessão em localStorage.
  */
 export async function middleware(request: NextRequest) {
+  const hostRedirect = await resolveHostRouting(request);
+  if (hostRedirect) return hostRedirect;
+
+  if (!isProtectedPath(request.nextUrl.pathname)) {
+    return NextResponse.next();
+  }
+
   const name = sessionCookieName();
   const token = request.cookies.get(name)?.value;
   const isAdminRoute = request.nextUrl.pathname.startsWith("/admin");
   const isAdminLogin = request.nextUrl.pathname === "/admin/login";
+  const hostname = canonicalHostname(request);
 
-  const redirectToLogin = () => {
+  const redirectToSignIn = () => {
     if (isAdminRoute) {
       return NextResponse.redirect(new URL("/admin/login", request.url));
     }
-    const login = new URL("/login", request.url);
-    login.searchParams.set("from", request.nextUrl.pathname);
-    return NextResponse.redirect(login);
+    const signInPath = getSignInPathForHost(hostname);
+    const signIn = new URL(signInPath, request.url);
+    signIn.searchParams.set("from", request.nextUrl.pathname);
+    return NextResponse.redirect(signIn);
   };
 
   if (isAdminLogin) {
@@ -26,7 +58,7 @@ export async function middleware(request: NextRequest) {
   }
 
   if (!token) {
-    return redirectToLogin();
+    return redirectToSignIn();
   }
 
   let userId: string | null;
@@ -37,7 +69,7 @@ export async function middleware(request: NextRequest) {
   }
 
   if (!userId) {
-    const res = redirectToLogin();
+    const res = redirectToSignIn();
     res.cookies.set(name, "", { path: "/", maxAge: 0, sameSite: "lax" });
     return res;
   }
@@ -47,19 +79,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/boloes/:path*",
-    "/admin/:path*",
-    "/tickets/:path*",
-    "/perfil/:path*",
-    "/ranking",
-    "/ranking/:path*",
-    "/palpites/:path*",
-    "/meus-palpites/:path*",
-    "/dashboard/:path*",
-    "/deposito/:path*",
-    "/saques/:path*",
-    "/privacidade/:path*",
-    "/indique",
-    "/indique/:path*",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };

@@ -12,14 +12,27 @@
 | Robots | `app/robots.ts` |
 | Área logada sem indexação | `app/(authenticated)/layout.tsx` |
 
+## Hosts (vendas vs app)
+
+| Host | Função |
+|------|--------|
+| `bolaodomilhao.com.br` | LP / vendas (ápex) |
+| `www.bolaodomilhao.com.br` | LP / vendas (canonical SEO) |
+| `app.bolaodomilhao.com.br` | App (cadastro, bolões, tickets) |
+
+CTAs na LP apontam para `APP_URL`. Rotas de produto no ápex/www redirecionam para o app (`lib/site-domain.ts`, middleware).
+
 ## Variáveis de ambiente
 
 ```env
+SUBDOMAIN_ROUTING_ENABLED=true
+SITE_DOMAIN=bolaodomilhao.com.br
+NEXT_PUBLIC_SITE_DOMAIN=bolaodomilhao.com.br
 MARKETING_URL=https://www.bolaodomilhao.com.br
 APP_URL=https://app.bolaodomilhao.com.br
 ```
 
-O sitemap e o canonical usam `MARKETING_URL`.
+O sitemap e o canonical usam `MARKETING_URL` (www).
 
 ## Depois do deploy
 

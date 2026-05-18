@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { useAuth } from "@/app/shared/AuthContext";
+import { useProductHref } from "@/app/shared/useProductHref";
 
 type TicketPurchaseLinkProps = {
   children: ReactNode;
@@ -27,7 +28,10 @@ export function TicketPurchaseLink({
 }: TicketPurchaseLinkProps) {
   const { ready, isLoggedIn } = useAuth();
   const from = destination.startsWith("/") ? destination : "/tickets";
-  const href = ready ? ticketFlowHref(destination, isLoggedIn) : `/cadastrar?from=${encodeURIComponent(from)}`;
+  const relativeHref = ready
+    ? ticketFlowHref(destination, isLoggedIn)
+    : `/cadastrar?from=${encodeURIComponent(from)}`;
+  const href = useProductHref(relativeHref);
 
   return (
     <Link

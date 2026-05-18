@@ -3,7 +3,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useProductHref } from "@/app/shared/useProductHref";
 import logo from "@/app/assets/logo.svg";
 import { Bell, Menu as MenuIcon } from "lucide-react";
 import { useAuth } from "@/app/shared/AuthContext";
@@ -16,12 +17,12 @@ import {
   syncAppHeaderHeightCss,
 } from "@/app/shared/install-app-banner";
 
-const NAV_LINKS = [
-  { label: "Como funciona?", href: "/#como-funciona" },
-  { label: "Sistema de pontos", href: "/#sistema-pontos" },
-  { label: "Cotas", href: "/#cotas" },
-  { label: "Criar conta gratuitamente", href: "/cadastrar?from=/tickets" },
-];
+const NAV_LINKS_GUEST = [
+  { label: "Como funciona?", href: "/#como-funciona", external: false },
+  { label: "Sistema de pontos", href: "/#sistema-pontos", external: false },
+  { label: "Cotas", href: "/#cotas", external: false },
+  { label: "Criar conta gratuitamente", href: "/cadastrar?from=/tickets", external: true },
+] as const;
 
 const NAV_LINKS_LOGGED = [
   { label: "Home", href: "/" },
@@ -86,6 +87,15 @@ export function Header() {
   const dismissBanner = useCallback(() => {
     setBannerVisible(false);
   }, []);
+
+  const cadastroHref = useProductHref("/cadastrar?from=/tickets");
+  const guestNavLinks = useMemo(
+    () =>
+      NAV_LINKS_GUEST.map((item) =>
+        item.external ? { ...item, href: cadastroHref } : item,
+      ),
+    [cadastroHref],
+  );
 
   /** Banner de instalar app: todas as telas exceto a home padrão (`/`). */
   const showInstallBanner = bannerHydrated && bannerVisible && !isHomePage;
@@ -242,7 +252,7 @@ export function Header() {
         </button>
 
         <nav className="hidden lg:flex items-center gap-7">
-          {NAV_LINKS.map(({ label, href }, index) => (
+          {guestNavLinks.map(({ label, href }, index) => (
             <div key={label} className="flex items-center gap-7">
               {index === 3 && <span className="h-3 w-px bg-white/42" aria-hidden="true" />}
               <Link
