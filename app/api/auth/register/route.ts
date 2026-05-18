@@ -5,20 +5,24 @@ import { isValidCpf, normalizeCpf } from "@/lib/auth/cpf";
 import { hashPassword } from "@/lib/auth/password";
 import { attachSessionCookie } from "@/lib/auth/session";
 import { responseForDbError } from "@/lib/db-errors";
+import { fetchCpfFromBrasilApi } from "@/lib/auth/cpf-brasil-api";
+import {
+  normalizeRegistrationPhoneE164,
+  verifyRegistrationSmsCode,
+} from "@/lib/auth/registration-sms";
+import { isValidBrazilNationalDigits } from "@/lib/auth/phone";
 import { createUserWithPassword, getRegistrationConflicts } from "@/lib/auth/users";
 
 export const runtime = "nodejs";
 
 const bodySchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(2, "Informe seu nome completo")
-    .max(120, "Nome muito longo"),
+  /** Opcional no cliente; o nome oficial vem da consulta de CPF no servidor. */
+  name: z.string().trim().max(120, "Nome muito longo").optional(),
   email: z.string().email("E-mail inválido"),
   cpf: z.string().min(1, "CPF obrigatório"),
   password: z.string().min(8, "Senha deve ter no mínimo 8 caracteres").max(200),
-  phone: z.string().max(40).optional().nullable(),
+  phone: z.string().min(8, "Telefone obrigatório").max(40),
+  smsCode: z.string().min(6, "Código SMS obrigatório").max(8),
   /** Código de indicação de outro usuário (opcional). */
   referralCode: z.string().max(12).optional().nullable(),
   acceptTerms: z
@@ -41,8 +45,13 @@ export async function POST(request: NextRequest) {
   }
 
   const email = parsed.data.email.trim();
-  const fullName = parsed.data.name.trim();
-  const { password, phone, acceptTerms: _acceptTerms, referralCode: referralCodeRaw } = parsed.data;
+  const {
+    password,
+    phone,
+    smsCode,
+    acceptTerms: _acceptTerms,
+    referralCode: referralCodeRaw,
+  } = parsed.data;
   const inviteCodeEntered =
     typeof referralCodeRaw === "string" && referralCodeRaw.trim().length > 0
       ? referralCodeRaw.trim()
@@ -50,6 +59,43 @@ export async function POST(request: NextRequest) {
   const cpf = normalizeCpf(parsed.data.cpf);
   if (!isValidCpf(cpf)) {
     return NextResponse.json({ error: "CPF inválido" }, { status: 400 });
+  }
+
+  const cpfLookup = await fetchCpfFromBrasilApi(cpf);
+  if (!cpfLookup.ok) {
+    const msg =
+      cpfLookup.reason === "not_found"
+        ? "CPF não encontrado. Confira os números ou tente novamente."
+        : cpfLookup.reason === "invalid_cpf"
+          ? "CPF inválido."
+          : "Não foi possível validar o CPF. Tente consultar novamente antes de finalizar.";
+    return NextResponse.json({ error: msg }, { status: 400 });
+  }
+
+  const fullName = cpfLookup.data.nome.trim();
+  if (fullName.length < 2) {
+    return NextResponse.json(
+      { error: "Não foi possível obter o nome vinculado a este CPF." },
+      { status: 400 },
+    );
+  }
+
+  const phoneDigits = phone.replace(/\D/g, "");
+  if (!isValidBrazilNationalDigits(phoneDigits)) {
+    return NextResponse.json({ error: "Telefone inválido" }, { status: 400 });
+  }
+  const phoneE164 = normalizeRegistrationPhoneE164(phoneDigits);
+  if (!phoneE164) {
+    return NextResponse.json({ error: "Telefone inválido" }, { status: 400 });
+  }
+
+  const smsVerify = await verifyRegistrationSmsCode({
+    phoneE164,
+    cpf,
+    code: smsCode,
+  });
+  if (!smsVerify.ok) {
+    return NextResponse.json({ error: smsVerify.error }, { status: 400 });
   }
 
   try {
@@ -82,7 +128,7 @@ export async function POST(request: NextRequest) {
       cpf,
       passwordHash,
       name: fullName,
-      phone: phone?.trim() || null,
+      phone: phoneE164,
       inviteCodeEntered,
     });
     const payload: { user: typeof user; referralWarning?: string } = { user };

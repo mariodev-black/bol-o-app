@@ -1,7 +1,14 @@
 "use client";
 
-import { Check, Eye, EyeOff } from "lucide-react";
-import type { InputHTMLAttributes, ReactNode } from "react";
+import { ArrowLeft, Check, Eye, EyeOff, Loader2 } from "lucide-react";
+import {
+  useRef,
+  useEffect,
+  type ClipboardEvent,
+  type InputHTMLAttributes,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
 
 export function maskCPF(v: string) {
   return v
@@ -16,6 +23,7 @@ type AuthFieldProps = {
   label: string;
   success?: boolean;
   error?: boolean;
+  loading?: boolean;
   trailing?: ReactNode;
 } & InputHTMLAttributes<HTMLInputElement>;
 
@@ -23,19 +31,31 @@ export function AuthField({
   label,
   success,
   error,
+  loading,
   trailing,
   className,
   value,
   ...props
 }: AuthFieldProps) {
   const hasValue = value != null && String(value).length > 0;
+  const showSuccess = Boolean(success && !loading);
+  const trailNode = loading ? (
+    <span className="auth-field-spinner">
+      <Loader2 className="auth-field-spinner-icon" size={18} strokeWidth={2.5} />
+    </span>
+  ) : showSuccess ? (
+    <Check className="text-[#B1EB0B]" size={18} strokeWidth={2.75} />
+  ) : (
+    trailing
+  );
   return (
     <div
       className={[
         "auth-field",
         hasValue ? "auth-field--filled" : "",
-        success ? "auth-field--success" : "",
+        showSuccess ? "auth-field--success" : "",
         error ? "auth-field--error" : "",
+        loading ? "auth-field--loading" : "",
       ]
         .filter(Boolean)
         .join(" ")}
@@ -45,16 +65,13 @@ export function AuthField({
         {...props}
         value={value}
         className={["auth-field-input", className].filter(Boolean).join(" ")}
+        aria-busy={loading}
       />
-      {success ? (
-        <Check
-          className="auth-field-trail text-[#B1EB0B]"
-          size={18}
-          strokeWidth={2.75}
-          aria-hidden
-        />
+      {trailNode ? (
+        <span className="auth-field-trail" aria-hidden={loading || showSuccess}>
+          {trailNode}
+        </span>
       ) : null}
-      {trailing}
     </div>
   );
 }
@@ -88,13 +105,170 @@ export function AuthPasswordField({
         <button
           type="button"
           onClick={onToggleShow}
-          className="auth-field-trail text-white/40 transition-colors hover:text-white/70"
+          className="pointer-events-auto text-white/40 transition-colors hover:text-white/70"
           aria-label={show ? "Ocultar senha" : "Mostrar senha"}
         >
           {show ? <EyeOff size={18} /> : <Eye size={18} />}
         </button>
       }
     />
+  );
+}
+
+export function AuthCpfVerifiedBanner({ name }: { name: string }) {
+  return (
+    <p className="auth-cpf-verified-banner" aria-live="polite">
+      {name}
+    </p>
+  );
+}
+
+export function AuthGenderPicker<T extends string>({
+  label = "Sexo:",
+  value,
+  options,
+  onChange,
+  disabled,
+}: {
+  label?: string;
+  value: T;
+  options: { id: T; label: string }[];
+  onChange: (id: T) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="auth-gender-block">
+      <p className="auth-gender-label">{label}</p>
+      <div className="auth-gender-row">
+        {options.map((opt) => (
+          <button
+            key={opt.id}
+            type="button"
+            disabled={disabled}
+            onClick={() => onChange(opt.id)}
+            className={`auth-gender-pill ${value === opt.id ? "auth-gender-pill--active" : ""}`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const SMS_LENGTH = 6;
+
+export function AuthSmsCodeInput({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string;
+  onChange: (code: string) => void;
+  disabled?: boolean;
+}) {
+  const refs = useRef<(HTMLInputElement | null)[]>([]);
+  const digits = value.replace(/\D/g, "").slice(0, SMS_LENGTH).split("");
+  while (digits.length < SMS_LENGTH) digits.push("");
+
+  function emit(next: string[]) {
+    onChange(next.join("").replace(/\D/g, "").slice(0, SMS_LENGTH));
+  }
+
+  function focusAt(i: number) {
+    const el = refs.current[Math.max(0, Math.min(i, SMS_LENGTH - 1))];
+    el?.focus();
+    el?.select();
+  }
+
+  useEffect(() => {
+    if (value.length === 0) focusAt(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- foco inicial
+  }, []);
+
+  function handleChange(i: number, raw: string) {
+    const d = raw.replace(/\D/g, "");
+    const next = [...digits];
+    if (d.length <= 1) {
+      next[i] = d;
+      emit(next);
+      if (d) focusAt(i + 1);
+      return;
+    }
+    const pasted = d.slice(0, SMS_LENGTH - i);
+    for (let j = 0; j < pasted.length; j++) next[i + j] = pasted[j]!;
+    emit(next);
+    focusAt(Math.min(i + pasted.length, SMS_LENGTH - 1));
+  }
+
+  function handleKeyDown(i: number, e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Backspace" && !digits[i] && i > 0) {
+      e.preventDefault();
+      const next = [...digits];
+      next[i - 1] = "";
+      emit(next);
+      focusAt(i - 1);
+    }
+    if (e.key === "ArrowLeft") focusAt(i - 1);
+    if (e.key === "ArrowRight") focusAt(i + 1);
+  }
+
+  function handlePaste(e: ClipboardEvent<HTMLInputElement>) {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, SMS_LENGTH);
+    if (!pasted) return;
+    onChange(pasted);
+    focusAt(Math.min(pasted.length, SMS_LENGTH - 1));
+  }
+
+  return (
+    <div className="auth-sms-code-row" role="group" aria-label="Código de verificação SMS">
+      {digits.map((d, i) => (
+        <input
+          key={i}
+          ref={(el) => {
+            refs.current[i] = el;
+          }}
+          type="text"
+          inputMode="numeric"
+          autoComplete={i === 0 ? "one-time-code" : "off"}
+          maxLength={6}
+          disabled={disabled}
+          value={d}
+          onChange={(e) => handleChange(i, e.target.value)}
+          onKeyDown={(e) => handleKeyDown(i, e)}
+          onPaste={handlePaste}
+          onFocus={(e) => e.target.select()}
+          className="auth-sms-code-cell"
+          aria-label={`Dígito ${i + 1} de ${SMS_LENGTH}`}
+        />
+      ))}
+    </div>
+  );
+}
+
+export function AuthStepNav({
+  onBack,
+  backDisabled,
+  children,
+}: {
+  onBack: () => void;
+  backDisabled?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex gap-2">
+      <button
+        type="button"
+        onClick={onBack}
+        disabled={backDisabled}
+        className="auth-step-back"
+        aria-label="Voltar"
+      >
+        <ArrowLeft className="size-5" />
+      </button>
+      <div className="min-w-0 flex-1">{children}</div>
+    </div>
   );
 }
 
@@ -111,9 +285,9 @@ export function AuthStepper({ step, total = 3 }: { step: number; total?: number 
               className={[
                 "flex size-8 items-center justify-center rounded-full text-[13px] font-black",
                 done
-                  ? "bg-[#0AC96B] text-white"
+                  ? "bg-[#B1EB0B] text-[#0E141B]"
                   : active
-                    ? "bg-[#B1EB0B] text-[#0E141B]"
+                    ? "bg-[#B1EB0B] text-[#0E141B] ring-2 ring-[#B1EB0B]/35"
                     : "border border-white/15 bg-white/5 text-white/35",
               ].join(" ")}
             >
@@ -123,7 +297,7 @@ export function AuthStepper({ step, total = 3 }: { step: number; total?: number 
               <span
                 className={[
                   "mx-1 h-0.5 w-8 sm:w-12",
-                  step > n ? "bg-[#0AC96B]" : "bg-white/12",
+                  step > n ? "bg-[#B1EB0B]" : "bg-white/12",
                 ].join(" ")}
                 aria-hidden
               />
