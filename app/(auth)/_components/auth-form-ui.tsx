@@ -123,6 +123,57 @@ export function AuthCpfVerifiedBanner({ name }: { name: string }) {
   );
 }
 
+export type LoginIdentifierMode = "email" | "cpf";
+
+const loginModeOptions: { id: LoginIdentifierMode; label: string }[] = [
+  { id: "email", label: "E-mail" },
+  { id: "cpf", label: "CPF" },
+];
+
+export function AuthLoginIdentifierField({
+  mode,
+  onModeChange,
+  value,
+  onChange,
+  disabled,
+}: {
+  mode: LoginIdentifierMode;
+  onModeChange: (mode: LoginIdentifierMode) => void;
+  value: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="auth-login-identifier">
+      <div className="auth-login-mode-row" role="tablist" aria-label="Forma de entrar">
+        {loginModeOptions.map((opt) => (
+          <button
+            key={opt.id}
+            type="button"
+            role="tab"
+            aria-selected={mode === opt.id}
+            disabled={disabled}
+            onClick={() => onModeChange(opt.id)}
+            className={`auth-login-mode-pill ${mode === opt.id ? "auth-login-mode-pill--active" : ""}`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+      <AuthField
+        label={mode === "email" ? "E-mail" : "CPF"}
+        type={mode === "email" ? "email" : "text"}
+        inputMode={mode === "email" ? "email" : "numeric"}
+        autoComplete={mode === "email" ? "email" : "username"}
+        placeholder={mode === "email" ? "seu@email.com" : "000.000.000-00"}
+        value={value}
+        onChange={(e) => onChange(mode === "cpf" ? maskCPF(e.target.value) : e.target.value)}
+        disabled={disabled}
+      />
+    </div>
+  );
+}
+
 export function AuthGenderPicker<T extends string>({
   label = "Sexo:",
   value,

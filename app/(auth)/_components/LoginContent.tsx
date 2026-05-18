@@ -5,14 +5,15 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useBolaoToast } from "@/app/components/BolaoToast";
 import { useAuth } from "@/app/shared/AuthContext";
+import { isValidCpf } from "@/lib/auth/cpf";
 import { normalizePendingReferralInput, readPendingReferralCode } from "@/lib/referrals/pending-referral-client";
 import {
-  AuthField,
   AuthLegalFooter,
+  AuthLoginIdentifierField,
+  type LoginIdentifierMode,
   AuthPasswordField,
   AuthPrimaryButton,
   GoogleAuthButton,
-  maskCPF,
 } from "@/app/(auth)/_components/auth-form-ui";
 
 const GOOGLE_ERRORS: Record<string, string> = {
@@ -30,9 +31,27 @@ const ACCOUNT_MSG: Record<string, string> = {
   senha_alterada: "Senha alterada com sucesso. Entre novamente com a nova senha.",
 };
 
+function isValidEmailLoose(v: string): boolean {
+  const t = v.trim();
+  if (t.length < 5) return false;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t);
+}
+
+function resolveLoginIdentifier(mode: LoginIdentifierMode, value: string): string {
+  if (mode === "email") return value.trim().toLowerCase();
+  return value.replace(/\D/g, "");
+}
+
+function isIdentifierReady(mode: LoginIdentifierMode, value: string): boolean {
+  if (mode === "email") return isValidEmailLoose(value);
+  const digits = value.replace(/\D/g, "");
+  return digits.length === 11 && isValidCpf(digits);
+}
+
 export function LoginContent() {
   const [showPw, setShowPw] = useState(false);
-  const [cpf, setCpf] = useState("");
+  const [loginMode, setLoginMode] = useState<LoginIdentifierMode>("cpf");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const toast = useBolaoToast();
@@ -55,7 +74,13 @@ export function LoginContent() {
 
   const referralCodeResolved = refFromUrl ?? storedReferral;
   const canSubmit =
-    cpf.replace(/\D/g, "").length === 11 && password.trim().length > 0 && !loading;
+    isIdentifierReady(loginMode, identifier) && password.trim().length > 0 && !loading;
+
+  function handleModeChange(next: LoginIdentifierMode) {
+    if (next === loginMode) return;
+    setLoginMode(next);
+    setIdentifier("");
+  }
 
   function safeReturnPath(from: string | null): string | null {
     if (!from || !from.startsWith("/") || from.startsWith("//")) return null;
@@ -90,10 +115,20 @@ export function LoginContent() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!canSubmit) return;
+    if (!canSubmit) {
+      if (loginMode === "email") {
+        toast.error("Informe um e-mail válido.");
+      } else {
+        toast.error("Informe um CPF válido.");
+      }
+      return;
+    }
     setLoading(true);
     try {
-      const result = await loginWithPassword(cpf.replace(/\D/g, ""), password);
+      const result = await loginWithPassword(
+        resolveLoginIdentifier(loginMode, identifier),
+        password,
+      );
       if (!result.ok) {
         toast.error(result.error);
         return;
@@ -116,13 +151,11 @@ export function LoginContent() {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col">
-      <AuthField
-        label="CPF"
-        inputMode="numeric"
-        autoComplete="username"
-        placeholder="000.000.000-00"
-        value={cpf}
-        onChange={(e) => setCpf(maskCPF(e.target.value))}
+      <AuthLoginIdentifierField
+        mode={loginMode}
+        onModeChange={handleModeChange}
+        value={identifier}
+        onChange={setIdentifier}
         disabled={loading}
       />
 

@@ -741,6 +741,43 @@ button, [role="button"] {
   cursor: not-allowed;
 }
 
+.auth-login-identifier {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.auth-login-mode-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.auth-login-mode-pill {
+  min-height: 40px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #0a0a0a;
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.72);
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.auth-login-mode-pill--active {
+  border-color: rgba(177, 235, 11, 0.45);
+  background: #b1eb0b;
+  color: #0e141b;
+}
+
+.auth-login-mode-pill:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .auth-gender-block {
   margin-bottom: 1rem;
 }
