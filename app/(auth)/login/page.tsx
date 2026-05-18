@@ -1,10 +1,7 @@
-import Link from "next/link";
 import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { X } from "lucide-react";
 import { LoginContent } from "@/app/(auth)/_components/LoginContent";
-import { AuthDesktopShell } from "@/app/(auth)/_components/AuthDesktopShell";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 
 function safeReturnPath(from: string | undefined): string | null {
@@ -13,7 +10,9 @@ function safeReturnPath(from: string | undefined): string | null {
   return from;
 }
 
-export default async function LoginPage(props: { searchParams?: Promise<{ from?: string }> }) {
+export default async function LoginPage(props: {
+  searchParams?: Promise<{ from?: string }>;
+}) {
   const searchParams = props.searchParams ? await props.searchParams : undefined;
   const token = (await cookies()).get(sessionCookieName())?.value;
   if (token) {
@@ -25,10 +24,8 @@ export default async function LoginPage(props: { searchParams?: Promise<{ from?:
   }
 
   return (
-    <AuthDesktopShell>
-      <Suspense fallback={null}>
-        <LoginContent />
-      </Suspense>
-    </AuthDesktopShell>
+    <Suspense fallback={null}>
+      <LoginContent />
+    </Suspense>
   );
 }

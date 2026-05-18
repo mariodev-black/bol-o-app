@@ -1,9 +1,14 @@
-export default function AuthLayout({ children }: { children: React.ReactNode }) {
+import { Suspense } from "react";
+import { AuthDesktopShell } from "@/app/(auth)/_components/AuthDesktopShell";
+
+export default function AuthLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <div
-      className="flex min-h-dvh w-full flex-col bg-black"
-    >
-      <div className="w-full flex-1">{children}</div>
-    </div>
+    <Suspense fallback={<main className="min-h-dvh bg-black" />}>
+      <AuthDesktopShell>{children}</AuthDesktopShell>
+    </Suspense>
   );
 }

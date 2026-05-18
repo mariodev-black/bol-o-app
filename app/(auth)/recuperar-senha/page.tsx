@@ -1,9 +1,6 @@
-import Link from "next/link";
 import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { X } from "lucide-react";
-import { AuthDesktopShell } from "@/app/(auth)/_components/AuthDesktopShell";
 import { RecuperarSenhaContent } from "@/app/(auth)/_components/RecuperarSenhaContent";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 
@@ -15,10 +12,8 @@ export default async function RecuperarSenhaPage() {
   }
 
   return (
-    <AuthDesktopShell variant="centered">
-      <Suspense fallback={null}>
-        <RecuperarSenhaContent />
-      </Suspense>
-    </AuthDesktopShell>
+    <Suspense fallback={null}>
+      <RecuperarSenhaContent />
+    </Suspense>
   );
 }

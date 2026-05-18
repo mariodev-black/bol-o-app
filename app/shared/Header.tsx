@@ -3,10 +3,18 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 import logo from "@/app/assets/logo.svg";
 import { Bell, Menu as MenuIcon } from "lucide-react";
 import { useAuth } from "@/app/shared/AuthContext";
 import { useSidenav } from "@/app/shared/SidenavContext";
+import { InstallAppBanner } from "@/app/shared/InstallAppBanner";
+import {
+  HEADER_MAIN_HEIGHT_DESKTOP_PX,
+  HEADER_MAIN_HEIGHT_MOBILE_PX,
+  readInstallBannerDismissed,
+  syncAppHeaderHeightCss,
+} from "@/app/shared/install-app-banner";
 
 const NAV_LINKS = [
   { label: "Como funciona?", href: "/#como-funciona" },
@@ -24,10 +32,59 @@ const NAV_LINKS_LOGGED = [
   { label: "Regulamento", href: "/privacidade" },
 ];
 
+function HeaderShell({
+  showBanner,
+  onDismissBanner,
+  children,
+}: {
+  showBanner: boolean;
+  onDismissBanner: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <header
+      className="fixed top-0 left-0 right-0 z-50 w-full bg-black"
+      style={{ backgroundColor: "#000000" }}
+    >
+      {showBanner ? <InstallAppBanner onDismiss={onDismissBanner} /> : null}
+      {children}
+    </header>
+  );
+}
+
 export function Header() {
   const pathname = usePathname();
   const { ready, isLoggedIn } = useAuth();
   const { openSidenav } = useSidenav();
+  const [bannerVisible, setBannerVisible] = useState(false);
+  const [bannerHydrated, setBannerHydrated] = useState(false);
+
+  useEffect(() => {
+    setBannerVisible(!readInstallBannerDismissed());
+    setBannerHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!bannerHydrated || !ready) return;
+
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const update = () => {
+      const mainHeight = mq.matches
+        ? HEADER_MAIN_HEIGHT_DESKTOP_PX
+        : HEADER_MAIN_HEIGHT_MOBILE_PX;
+      syncAppHeaderHeightCss(bannerVisible, mainHeight);
+    };
+
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, [bannerVisible, bannerHydrated, ready]);
+
+  const dismissBanner = useCallback(() => {
+    setBannerVisible(false);
+  }, []);
+
+  const showBanner = bannerHydrated && bannerVisible;
 
   if (!ready) {
     // evita flicker entre "logado" e "deslogado" durante a hidratação
@@ -36,10 +93,7 @@ export function Header() {
 
   if (isLoggedIn) {
     return (
-      <header
-        className="fixed top-0 left-0 right-0 z-50 w-full bg-black"
-        style={{ backgroundColor: "#000000" }}
-      >
+      <HeaderShell showBanner={showBanner} onDismissBanner={dismissBanner}>
         <div className="grid h-[86.5px] grid-cols-[48px_1fr_48px] items-center px-5 lg:hidden">
           <button
             type="button"
@@ -135,68 +189,68 @@ export function Header() {
             </Link>
           </div>
         </div>
-      </header>
+      </HeaderShell>
     );
   }
 
   const hideOnMobileGuestHome = (pathname ?? "") === "/";
 
   return (
-    <header
-      className={[
-        "fixed top-0 left-0 right-0 z-50 w-full grid-cols-[48px_1fr_48px] items-center px-5 lg:justify-between lg:px-20 h-[86.5px]",
-        hideOnMobileGuestHome ? "hidden lg:flex" : "grid lg:flex",
-      ].join(" ")}
-      style={{ backgroundColor: "#000000" }}
-    >
-      <button
-        type="button"
-        className="flex h-10 w-10 items-center justify-start lg:hidden"
-        aria-label="Abrir menu"
-        onClick={openSidenav}
+    <HeaderShell showBanner={showBanner} onDismissBanner={dismissBanner}>
+      <div
+        className={[
+          "w-full grid-cols-[48px_1fr_48px] items-center px-5 lg:justify-between lg:px-20 h-[86.5px]",
+          hideOnMobileGuestHome ? "hidden lg:flex" : "grid lg:flex",
+        ].join(" ")}
       >
-        <MenuIcon className="h-6 w-6 text-white" strokeWidth={2.25} />
-      </button>
+        <button
+          type="button"
+          className="flex h-10 w-10 items-center justify-start lg:hidden"
+          aria-label="Abrir menu"
+          onClick={openSidenav}
+        >
+          <MenuIcon className="h-6 w-6 text-white" strokeWidth={2.25} />
+        </button>
 
-      {/* Logo — centralizada no mobile; à esquerda no lg */}
-      <Link href="/" className="flex items-center justify-center justify-self-center shrink-0 lg:justify-self-auto" aria-label="Início">
-        <Image
-          src={logo}
-          alt="Bolão do Milhão"
-          width={168}
-          height={44}
-          quality={100}
-          sizes="(max-width: 1023px) 168px, 106px"
-          priority
-          className="h-[40px] w-auto lg:h-11"
-        />
-      </Link>
+        <Link href="/" className="flex items-center justify-center justify-self-center shrink-0 lg:justify-self-auto" aria-label="Início">
+          <Image
+            src={logo}
+            alt="Bolão do Milhão"
+            width={168}
+            height={44}
+            quality={100}
+            sizes="(max-width: 1023px) 168px, 106px"
+            priority
+            className="h-[40px] w-auto lg:h-11"
+          />
+        </Link>
 
-      <button
-        type="button"
-        className="relative flex h-10 w-10 items-center justify-end rounded-xl lg:hidden"
-        aria-label="Notificações"
-      >
-        <Bell className="h-6 w-6 text-white" strokeWidth={2} />
-        <span
-          aria-hidden="true"
-          className="absolute right-0 top-1.5 h-2 w-2 rounded-full bg-primary shadow-[0_0_0_3px_rgba(177,235,11,0.12)]"
-        />
-      </button>
+        <button
+          type="button"
+          className="relative flex h-10 w-10 items-center justify-end rounded-xl lg:hidden"
+          aria-label="Notificações"
+        >
+          <Bell className="h-6 w-6 text-white" strokeWidth={2} />
+          <span
+            aria-hidden="true"
+            className="absolute right-0 top-1.5 h-2 w-2 rounded-full bg-primary shadow-[0_0_0_3px_rgba(177,235,11,0.12)]"
+          />
+        </button>
 
-      <nav className="hidden lg:flex items-center gap-7">
-        {NAV_LINKS.map(({ label, href }, index) => (
-          <div key={label} className="flex items-center gap-7">
-            {index === 3 && <span className="h-3 w-px bg-white/42" aria-hidden="true" />}
-            <Link
-              href={href}
-              className="text-[18px] font-normal leading-none text-white/72 transition-colors hover:text-white"
-            >
-              {label}
-            </Link>
-          </div>
-        ))}
-      </nav>
-    </header>
+        <nav className="hidden lg:flex items-center gap-7">
+          {NAV_LINKS.map(({ label, href }, index) => (
+            <div key={label} className="flex items-center gap-7">
+              {index === 3 && <span className="h-3 w-px bg-white/42" aria-hidden="true" />}
+              <Link
+                href={href}
+                className="text-[18px] font-normal leading-none text-white/72 transition-colors hover:text-white"
+              >
+                {label}
+              </Link>
+            </div>
+          ))}
+        </nav>
+      </div>
+    </HeaderShell>
   );
 }

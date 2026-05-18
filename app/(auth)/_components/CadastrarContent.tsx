@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useBolaoToast } from "@/app/components/BolaoToast";
 import { useAuth, type AuthUser } from "@/app/shared/AuthContext";
@@ -12,7 +11,7 @@ import {
   readPendingReferralCode,
 } from "@/lib/referrals/pending-referral-client";
 import { useState, useRef, useEffect, useMemo, type FormEvent } from "react";
-import { ArrowLeft, ArrowRight, Check, ChevronDown, Eye, EyeOff, FileText, Lock, Mail, Phone, Search, User } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, Phone, Search } from "lucide-react";
 import * as Flags from "country-flag-icons/react/3x2";
 
 /* ── Lista completa de países ──────────────────────────────────── */
@@ -165,13 +164,6 @@ const EMAIL_DOMAINS = [
   "icloud.com", "live.com", "uol.com.br", "bol.com.br", "ig.com.br",
 ];
 
-function maskCPF(v: string) {
-  return v.replace(/\D/g, "").slice(0, 11)
-    .replace(/(\d{3})(\d)/, "$1.$2")
-    .replace(/(\d{3})(\d)/, "$1.$2")
-    .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
-}
-
 function maskPhone(v: string, countryCode: string) {
   const d = v.replace(/\D/g, "");
   if (countryCode === "+55") {
@@ -285,11 +277,33 @@ function CountrySelector({ selected, onChange }: { selected: Country; onChange: 
   );
 }
 
-/* ── Componente principal ──────────────────────────────────────── */
+import {
+  AuthField,
+  AuthLegalFooter,
+  AuthPasswordField,
+  AuthPrimaryButton,
+  AuthStepper,
+  maskCPF,
+} from "@/app/(auth)/_components/auth-form-ui";
+
 function isValidEmailLoose(v: string): boolean {
   const t = v.trim();
   if (t.length < 5) return false;
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t);
+}
+
+type GenderOption = "masculino" | "feminino" | "nao_informar";
+
+function maskDisplayName(name: string): string {
+  return name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => {
+      if (part.length <= 2) return `${part[0] ?? ""}*`;
+      return `${part.slice(0, 2)}${"*".repeat(part.length - 2)}`;
+    })
+    .join(" ");
 }
 
 export function CadastrarContent() {
@@ -297,22 +311,22 @@ export function CadastrarContent() {
   const searchParams = useSearchParams();
   const toast = useBolaoToast();
   const { refresh, applySessionUser } = useAuth();
-  const [showPw, setShowPw]       = useState(false);
-  const [showPwConfirm, setShowPwConfirm] = useState(false);
-  const [accepted, setAccepted]   = useState(false);
-  const [fullName, setFullName]   = useState("");
-  const [cpf, setCpf]             = useState("");
-  const [email, setEmail]         = useState("");
-  const [password, setPassword]   = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [phone, setPhone]         = useState("");
-  const [country, setCountry]     = useState<Country>(COUNTRIES[0]);
+  const [showPw, setShowPw] = useState(false);
+  const [accepted, setAccepted] = useState(false);
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
+  const [fullName, setFullName] = useState("");
+  const [cpf, setCpf] = useState("");
+  const [email, setEmail] = useState("");
+  const [confirmEmail, setConfirmEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [phone, setPhone] = useState("");
+  const [country, setCountry] = useState<Country>(COUNTRIES[0]);
+  const [gender, setGender] = useState<GenderOption>("nao_informar");
   const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [loading, setLoading]     = useState(false);
-  const [step, setStep]           = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [step, setStep] = useState(1);
   const emailRef = useRef<HTMLDivElement>(null);
 
-  /** URL (`/cadastrar?ref=`) ou código salvo na home (`/?ref=`) via localStorage/cookie. */
   const refFromUrl = useMemo(
     () => normalizePendingReferralInput(searchParams.get("ref")),
     [searchParams],
@@ -323,13 +337,9 @@ export function CadastrarContent() {
   }, []);
   const referralCodeResolved = refFromUrl ?? storedReferral;
   const fromParam = useMemo(() => searchParams.get("from"), [searchParams]);
-  const loginHref = useMemo(() => {
-    const params = new URLSearchParams();
-    if (fromParam) params.set("from", fromParam);
-    if (referralCodeResolved) params.set("ref", referralCodeResolved);
-    const query = params.toString();
-    return query ? `/login?${query}` : "/login";
-  }, [fromParam, referralCodeResolved]);
+
+  const cpfDigits = cpf.replace(/\D/g, "");
+  const cpfValid = cpfDigits.length === 11 && isValidCpf(cpfDigits);
 
   function safeReturnPath(from: string | null): string | null {
     if (!from || !from.startsWith("/") || from.startsWith("//")) return null;
@@ -345,38 +355,18 @@ export function CadastrarContent() {
     return () => document.removeEventListener("mousedown", outside);
   }, []);
 
-  useEffect(() => {
-    const d = cpf.replace(/\D/g, "");
-    if (d.length !== 11) return;
-    if (!isValidCpf(d)) {
-      toast.error("CPF inválido. Verifique os números.");
-    }
-  }, [cpf, toast]);
-
-  useEffect(() => {
-    const d = phone.replace(/\D/g, "");
-    if (d.length === 0) return;
-    if (country.code === "+55") {
-      if (d.length < 10) return;
-      if (!isValidBrazilNationalDigits(d)) {
-        toast.error("Telefone inválido. Use DDD + número (celular com 9 após o DDD).");
-      }
-      return;
-    }
-    if (d.length > 15) {
-      toast.error("Número de telefone muito longo para o país selecionado.");
-    }
-  }, [phone, country.code, toast]);
-
   function handleCountryChange(c: Country) {
     setCountry(c);
-    setPhone(""); // reseta o campo ao mudar país
+    setPhone("");
   }
 
   function handleEmailChange(v: string) {
     setEmail(v);
     const atIdx = v.indexOf("@");
-    if (atIdx === -1) { setSuggestions([]); return; }
+    if (atIdx === -1) {
+      setSuggestions([]);
+      return;
+    }
     const afterAt = v.slice(atIdx + 1).toLowerCase();
     setSuggestions(EMAIL_DOMAINS.filter((d) => afterAt === "" || d.startsWith(afterAt)));
   }
@@ -387,36 +377,22 @@ export function CadastrarContent() {
     setSuggestions([]);
   }
 
-  function handleGoogleSignup() {
-    const params = new URLSearchParams();
-    if (referralCodeResolved) params.set("ref", referralCodeResolved);
-    if (fromParam) params.set("from", fromParam);
-    const query = params.toString();
-    window.location.href = query ? `/api/auth/google?${query}` : "/api/auth/google";
+  function goFromStep1() {
+    if (!accepted) {
+      toast.error("Confirme que tem mais de 18 anos e aceite os termos.");
+      return;
+    }
+    if (!cpfValid) {
+      toast.error("Informe um CPF válido.");
+      return;
+    }
+    setStep(2);
   }
 
-  function goToNextStep() {
-    if (step !== 1) return;
+  function goFromStep2() {
     const nameTrim = fullName.trim();
     if (nameTrim.length < 2) {
       toast.error("Informe seu nome completo.");
-      return;
-    }
-    if (!email.trim()) {
-      toast.error("Informe seu e-mail.");
-      return;
-    }
-    if (!isValidEmailLoose(email)) {
-      toast.error("Digite um e-mail válido.");
-      return;
-    }
-    const cpfDigits = cpf.replace(/\D/g, "");
-    if (cpfDigits.length !== 11) {
-      toast.error("Informe os 11 dígitos do CPF.");
-      return;
-    }
-    if (!isValidCpf(cpfDigits)) {
-      toast.error("CPF inválido. Confira os dígitos.");
       return;
     }
     const phoneDigits = phone.replace(/\D/g, "");
@@ -431,7 +407,7 @@ export function CadastrarContent() {
         return;
       }
     }
-    setStep(2);
+    setStep(3);
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -443,23 +419,24 @@ export function CadastrarContent() {
     const nameTrim = fullName.trim();
     if (nameTrim.length < 2) {
       toast.error("Informe seu nome completo.");
-      setStep(1);
+      setStep(2);
       return;
     }
-    if (!email.trim()) {
-      toast.error("Informe seu e-mail.");
-      setStep(1);
-      return;
-    }
-    if (!isValidEmailLoose(email)) {
+    if (!email.trim() || !isValidEmailLoose(email)) {
       toast.error("Digite um e-mail válido.");
-      setStep(1);
       return;
     }
-    const cpfDigits = cpf.replace(/\D/g, "");
-    if (cpfDigits.length !== 11 || !isValidCpf(cpfDigits)) {
+    if (email.trim().toLowerCase() !== confirmEmail.trim().toLowerCase()) {
+      toast.error("Os e-mails informados não coincidem.");
+      return;
+    }
+    if (!cpfValid) {
       toast.error("Informe um CPF válido.");
       setStep(1);
+      return;
+    }
+    if (password.length < 8) {
+      toast.error("Crie uma senha com pelo menos 8 caracteres.");
       return;
     }
     const phoneDigitsCheck = phone.replace(/\D/g, "");
@@ -467,23 +444,16 @@ export function CadastrarContent() {
       if (country.code === "+55") {
         if (!isValidBrazilNationalDigits(phoneDigitsCheck)) {
           toast.error("Telefone inválido para o Brasil.");
-          setStep(1);
+          setStep(2);
           return;
         }
       } else if (!isReasonableNationalDigits(phoneDigitsCheck)) {
         toast.error("Número de telefone incompleto ou inválido.");
-        setStep(1);
+        setStep(2);
         return;
       }
     }
-    if (password.length < 8) {
-      toast.error("Crie uma senha com pelo menos 8 caracteres.");
-      return;
-    }
-    if (password !== confirmPassword) {
-      toast.error("As senhas não coincidem. Digite a mesma senha nos dois campos.");
-      return;
-    }
+
     const digits = phone.replace(/\D/g, "");
     const phoneFull = digits.length > 0 ? `${country.code}${digits}` : null;
 
@@ -515,7 +485,7 @@ export function CadastrarContent() {
         toast.error(
           typeof data.error === "string" && data.error.trim().length > 0
             ? data.error
-            : "Não foi possível criar a conta."
+            : "Não foi possível criar a conta.",
         );
         return;
       }
@@ -537,281 +507,263 @@ export function CadastrarContent() {
     }
   }
 
+  const step1Ready = cpfValid && accepted;
+  const step3Ready =
+    email.trim().length > 0 &&
+    confirmEmail.trim().length > 0 &&
+    password.length >= 8 &&
+    !loading;
+
+  const genderOptions: { id: GenderOption; label: string }[] = [
+    { id: "masculino", label: "Masculino" },
+    { id: "feminino", label: "Feminino" },
+    { id: "nao_informar", label: "Prefiro não informar" },
+  ];
+
   return (
-    <form onSubmit={handleSubmit} noValidate className="w-full py-8 lg:py-0">
-      <div className="mb-6 flex items-center justify-between">
-        <Link href={loginHref} className="inline-flex items-center gap-1.5 text-[11px] font-bold text-white/80 transition-colors hover:text-white/70">
-          <ArrowLeft className="h-3.5 w-3.5" />
-          Ir para login
-        </Link>
-        <div className="flex items-center gap-2">
-          {[1, 2].map((item) => (
-            <div key={item} className="flex items-center gap-2">
-              <span
-                className={`flex h-[26px] min-w-[26px] items-center justify-center rounded-full border text-[11px] font-black ${
-                  step === item
-                    ? "border-primary bg-primary/20 text-primary shadow-[0_0_18px_rgba(177,235,11,0.22)]"
-                    : step > item
-                      ? "border-primary/45 bg-primary/10 text-primary"
-                      : "border-white/10 bg-white/3 text-white/22"
-                }`}
-              >
-                {step > item ? <Check className="h-3.5 w-3.5" /> : item}
-              </span>
-              {item < 2 && <span className="h-px w-5 bg-white/10" />}
-            </div>
-          ))}
-        </div>
-      </div>
+    <form onSubmit={handleSubmit} noValidate className="flex flex-col">
+      {step > 1 ? <AuthStepper step={step} total={3} /> : null}
 
-      <div className="mb-[18px]">
-        <h1 className="text-[28px] font-black leading-none tracking-[-0.035em] text-white">
-          {step === 1 ? "Crie sua conta" : "Senha e termos"}
-        </h1>
-        <p className="mt-3 text-[14px] font-medium text-white/50">
-          {step === 1
-            ? "Seus dados e forma de contato — em poucos passos você entra no bolão"
-            : "Defina uma senha forte e aceite os termos para jogar"}
-        </p>
-      </div>
-
-      <div className="min-h-[206px] rounded-[16px] border border-white/8 bg-[#151515] p-[22px] shadow-[0_18px_42px_rgba(0,0,0,0.28)]">
-        {step === 1 && (
-          <div className="flex flex-col gap-[18px]">
-            <div className="flex flex-col gap-[10px]">
-              <label className="text-[12px] font-black uppercase tracking-[0.14em] text-white/80">Nome completo</label>
-              <div className="relative">
-                <User className="pointer-events-none absolute left-[17px] top-1/2 h-[15px] w-[15px] -translate-y-1/2 text-white/32" />
-                <input
-                  className="auth-input"
-                  style={{ paddingLeft: 46 }}
-                  type="text"
-                  name="name"
-                  autoComplete="name"
-                  placeholder="João Silva"
-                  minLength={2}
-                  maxLength={120}
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  disabled={loading}
-                />
-              </div>
-            </div>
-
-            <div ref={emailRef} className="relative flex flex-col gap-[10px]">
-              <label className="text-[12px] font-black uppercase tracking-[0.14em] text-white/80">E-mail</label>
-              <div className="relative">
-                <Mail className="pointer-events-none absolute left-[17px] top-1/2 h-[15px] w-[15px] -translate-y-1/2 text-white/32" />
-                <input
-                  className="auth-input"
-                  style={{ paddingLeft: 46 }}
-                  type="email"
-                  placeholder="seu@email.com"
-                  autoComplete="email"
-                  value={email}
-                  onChange={(e) => handleEmailChange(e.target.value)}
-                  disabled={loading}
-                />
-              </div>
-              {suggestions.length > 0 && (
-                <div className="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-[10px] border border-primary/20 bg-[#0A0A0A] shadow-[0_8px_24px_rgba(0,0,0,0.4)]">
-                  {suggestions.map((domain) => {
-                    const local = email.includes("@") ? email.slice(0, email.indexOf("@")) : email;
-                    return (
-                      <button
-                        key={domain}
-                        type="button"
-                        onMouseDown={(e) => { e.preventDefault(); applySuggestion(domain); }}
-                        className="flex w-full items-center gap-1 border-b border-white/5 px-4 py-3 text-left text-[13px] transition-colors hover:bg-primary/8"
-                      >
-                        <span className="text-white/40">{local}</span>
-                        <span className="font-bold text-[#D7FF59]">@{domain}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            <div className="flex flex-col gap-[10px]">
-              <label className="text-[12px] font-black uppercase tracking-[0.14em] text-white/80">CPF</label>
-              <div className="relative">
-                <FileText className="pointer-events-none absolute left-[17px] top-1/2 h-[15px] w-[15px] -translate-y-1/2 text-white/32" />
-                <input
-                  className="auth-input"
-                  style={{ paddingLeft: 46 }}
-                  type="tel"
-                  inputMode="numeric"
-                  autoComplete="off"
-                  placeholder="123.456.789-00"
-                  value={cpf}
-                  onChange={(e) => setCpf(maskCPF(e.target.value))}
-                  disabled={loading}
-                />
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-[10px]">
-              <label className="text-[12px] font-black uppercase tracking-[0.14em] text-white/80">Telefone</label>
-              <div className="flex w-full gap-2">
-                <CountrySelector selected={country} onChange={handleCountryChange} />
-                <div className="relative min-w-0 flex-1">
-                  <Phone className="pointer-events-none absolute left-[17px] top-1/2 h-[15px] w-[15px] -translate-y-1/2 text-white/32" />
-                  <input
-                    className="auth-input"
-                    style={{ paddingLeft: 46 }}
-                    type="tel"
-                    autoComplete="tel"
-                    placeholder={country.code === "+55" ? "(11) 99999-9999" : "Telefone"}
-                    value={phone}
-                    onChange={(e) => setPhone(maskPhone(e.target.value, country.code))}
-                    disabled={loading}
-                  />
-                </div>
-              </div>
-              <p className="text-[11px] font-medium text-white/28">Opcional. Se informar, validamos na hora.</p>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div className="h-px flex-1 bg-white/7" />
-              <span className="text-[12px] font-semibold uppercase text-white/18">ou</span>
-              <div className="h-px flex-1 bg-white/7" />
-            </div>
-
-            <button
-              type="button"
+      {step === 1 && (
+        <>
+          <div>
+            <AuthField
+              label="CPF"
+              inputMode="numeric"
+              autoComplete="off"
+              placeholder="000.000.000-00"
+              value={cpf}
+              onChange={(e) => setCpf(maskCPF(e.target.value))}
               disabled={loading}
-              onClick={handleGoogleSignup}
-              className="flex h-[40px] w-full items-center justify-center gap-3 rounded-[9px] border border-white/8 bg-white/4.5 text-[12px] font-bold text-white/68 transition-colors hover:bg-white/7 disabled:cursor-wait"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05" />
-                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-              </svg>
-              Cadastrar com Google
-            </button>
+              success={cpfValid}
+            />
+            {cpfValid ? (
+              <p className="auth-field-success-hint">
+                {fullName.trim().length >= 2
+                  ? maskDisplayName(fullName)
+                  : "CPF validado. Continue para completar seu cadastro."}
+              </p>
+            ) : null}
           </div>
-        )}
 
-        {step === 2 && (
-          <div className="flex flex-col gap-[18px]">
-            <div className="flex flex-col gap-[10px]">
-              <label className="text-[12px] font-black uppercase tracking-[0.14em] text-white/80">Senha</label>
-              <div className="relative">
-                <Lock className="pointer-events-none absolute left-[17px] top-1/2 h-[15px] w-[15px] -translate-y-1/2 text-white/32" />
-                <input
-                  className="auth-input"
-                  style={{ paddingLeft: 46, paddingRight: 46 }}
-                  type={showPw ? "text" : "password"}
-                  name="password"
-                  placeholder="Sua senha"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  autoComplete="new-password"
-                  disabled={loading}
-                  minLength={8}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPw(!showPw)}
-                  className="absolute right-[15px] top-1/2 flex -translate-y-1/2 text-white/36 transition-colors hover:text-white/65"
-                  aria-label={showPw ? "Ocultar senha" : "Mostrar senha"}
-                >
-                  {showPw ? <EyeOff size={17} /> : <Eye size={17} />}
-                </button>
-              </div>
-              <p className="text-[11px] font-medium text-white/28">Mínimo de 8 caracteres.</p>
+          <p className="mt-5 text-[12px] leading-relaxed text-white/55">
+            Ao finalizar o cadastro, certifico que eu sou maior de 18 anos de idade, li e aceito os{" "}
+            <a href="/privacidade" className="font-semibold text-[#B1EB0B] hover:underline">
+              Termos e Condições Gerais
+            </a>
+            , a{" "}
+            <a href="/privacidade" className="font-semibold text-[#B1EB0B] hover:underline">
+              Política de Segurança e Privacidade
+            </a>{" "}
+            e a declaração de{" "}
+            <a href="/privacidade" className="font-semibold text-[#B1EB0B] hover:underline">
+              Pessoa Exposta Politicamente (PEP)
+            </a>
+            .
+          </p>
+
+          <button
+            type="button"
+            onClick={() => setMarketingOptIn((v) => !v)}
+            className="mt-4 flex items-start gap-3 text-left"
+          >
+            <span
+              className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded border transition-colors ${
+                marketingOptIn
+                  ? "border-[#B1EB0B] bg-[#B1EB0B]/15"
+                  : "border-white/25 bg-transparent"
+              }`}
+            >
+              {marketingOptIn ? (
+                <Check className="size-3.5 text-[#B1EB0B]" strokeWidth={3} />
+              ) : null}
+            </span>
+            <span className="text-[13px] font-medium leading-relaxed text-white/72">
+              Autorizo receber atualizações via e-mail e SMS.
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setAccepted((v) => !v)}
+            className="mt-3 flex items-start gap-3 text-left"
+          >
+            <span
+              className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded border transition-colors ${
+                accepted
+                  ? "border-[#B1EB0B] bg-[#B1EB0B]/15"
+                  : "border-white/25 bg-transparent"
+              }`}
+            >
+              {accepted ? (
+                <Check className="size-3.5 text-[#B1EB0B]" strokeWidth={3} />
+              ) : null}
+            </span>
+            <span className="text-[13px] font-medium leading-relaxed text-white/72">
+              Li e aceito os termos para criar minha conta.
+            </span>
+          </button>
+
+          <div className="mt-6">
+            <AuthPrimaryButton
+              type="button"
+              disabled={!step1Ready || loading}
+              onClick={goFromStep1}
+            >
+              Avançar
+            </AuthPrimaryButton>
+          </div>
+        </>
+      )}
+
+      {step === 2 && (
+        <>
+          <AuthField
+            label="Nome completo"
+            type="text"
+            autoComplete="name"
+            placeholder="Seu nome completo"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            disabled={loading}
+          />
+
+          <div className="mt-4 flex flex-col gap-2">
+            <span className="text-[11px] font-semibold text-white/45">Telefone</span>
+            <div className="flex gap-2">
+              <CountrySelector selected={country} onChange={handleCountryChange} />
+              <AuthField
+                label="Número"
+                type="tel"
+                autoComplete="tel"
+                placeholder={country.code === "+55" ? "(11) 99999-9999" : "Telefone"}
+                value={phone}
+                onChange={(e) => setPhone(maskPhone(e.target.value, country.code))}
+                disabled={loading}
+                className="min-w-0 flex-1"
+              />
             </div>
+            <p className="text-[10px] text-white/35">Opcional.</p>
+          </div>
 
-            <div className="flex flex-col gap-[10px]">
-              <label className="text-[12px] font-black uppercase tracking-[0.14em] text-white/80">Confirmar senha</label>
-              <div className="relative">
-                <Lock className="pointer-events-none absolute left-[17px] top-1/2 h-[15px] w-[15px] -translate-y-1/2 text-white/32" />
-                <input
-                  className="auth-input"
-                  style={{ paddingLeft: 46, paddingRight: 46 }}
-                  type={showPwConfirm ? "text" : "password"}
-                  name="passwordConfirm"
-                  placeholder="Repita a senha"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  autoComplete="new-password"
-                  disabled={loading}
-                  minLength={8}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPwConfirm(!showPwConfirm)}
-                  className="absolute right-[15px] top-1/2 flex -translate-y-1/2 text-white/36 transition-colors hover:text-white/65"
-                  aria-label={showPwConfirm ? "Ocultar confirmação de senha" : "Mostrar confirmação de senha"}
-                >
-                  {showPwConfirm ? <EyeOff size={17} /> : <Eye size={17} />}
-                </button>
-              </div>
-            </div>
-
+          <div className="mt-6 flex gap-2">
             <button
               type="button"
-              onClick={() => setAccepted(!accepted)}
-              className="flex items-start gap-3 rounded-[10px] border border-white/8 bg-white/3.5 px-3.5 py-3 text-left transition-colors hover:bg-white/5.5"
+              onClick={() => setStep(1)}
+              disabled={loading}
+              className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-white/12 bg-white/5 text-white/70"
+              aria-label="Voltar"
             >
-              <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-[5px] border transition-colors ${accepted ? "border-primary bg-primary/15" : "border-white/20 bg-transparent"}`}>
-                {accepted && <Check className="h-3.5 w-3.5 text-primary" strokeWidth={3} />}
-              </span>
-              <span className="text-[12px] font-medium leading-relaxed text-white/80">
-                Confirmo que tenho mais de 18 anos e aceito os{" "}
-                <Link href="/termos" className="font-bold text-[#D7FF59] underline" onClick={(e) => e.stopPropagation()}>Termos e Condições</Link>{" "}
-                e a{" "}
-                <Link href="/privacidade" className="font-bold text-[#D7FF59] underline" onClick={(e) => e.stopPropagation()}>Política de Privacidade</Link>.
-              </span>
+              <ArrowLeft className="size-5" />
             </button>
+            <div className="flex-1">
+              <AuthPrimaryButton
+                type="button"
+                disabled={loading || fullName.trim().length < 2}
+                onClick={goFromStep2}
+              >
+                Avançar
+              </AuthPrimaryButton>
+            </div>
           </div>
-        )}
-      </div>
+        </>
+      )}
 
-      <div className="mt-[14px] flex gap-3">
-        {step > 1 && (
-          <button
-            type="button"
-            onClick={() => {
-              if (step === 2) setConfirmPassword("");
-              setStep((current) => current - 1);
-            }}
-            disabled={loading}
-            className="flex h-[48px] w-[76px] items-center justify-center rounded-[10px] border border-white/8 bg-white/4 text-white/58 transition-colors hover:bg-white/7 disabled:opacity-60"
-            aria-label="Voltar etapa"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </button>
-        )}
-        {step < 2 ? (
-          <button
-            type="button"
-            onClick={goToNextStep}
-            disabled={loading}
-            className="flex h-[48px] flex-1 items-center justify-center gap-2 rounded-[10px] bg-primary text-[16px] font-black text-[#0E141B] shadow-[0_0_24px_rgba(177,235,11,0.42)] transition-transform active:scale-[0.99] disabled:cursor-wait disabled:opacity-75"
-          >
-            Continuar para senha e termos
-            <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
-          </button>
-        ) : (
-          <button
-            type="submit"
-            disabled={loading}
-            className="flex h-[48px] flex-1 items-center justify-center gap-2 rounded-[10px] bg-primary text-[16px] font-black text-[#0E141B] shadow-[0_0_24px_rgba(177,235,11,0.42)] transition-transform active:scale-[0.99] disabled:cursor-wait disabled:opacity-75"
-          >
-            {loading ? "Criando..." : "Criar conta"}
-            <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
-          </button>
-        )}
-      </div>
+      {step === 3 && (
+        <>
+          <div className="mb-4">
+            <p className="mb-2 text-[11px] font-semibold text-white/45">Sexo:</p>
+            <div className="auth-gender-row">
+              {genderOptions.map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => setGender(opt.id)}
+                  className={`auth-gender-pill ${gender === opt.id ? "auth-gender-pill--active" : ""}`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
 
-      <p className="mt-[18px] text-center text-[14px] font-medium text-white/80">
-        Já tem uma conta?{" "}
-        <Link href={loginHref} className="font-black text-primary hover:underline">Entrar agora</Link>
-      </p>
+          <div ref={emailRef} className="relative">
+            <AuthField
+              label="E-mail"
+              type="email"
+              autoComplete="email"
+              placeholder="seu@email.com"
+              value={email}
+              onChange={(e) => handleEmailChange(e.target.value)}
+              disabled={loading}
+            />
+            {suggestions.length > 0 && (
+              <div className="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-xl border border-[#B1EB0B]/25 bg-[#0A0A0A] shadow-lg">
+                {suggestions.map((domain) => {
+                  const local = email.includes("@") ? email.slice(0, email.indexOf("@")) : email;
+                  return (
+                    <button
+                      key={domain}
+                      type="button"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        applySuggestion(domain);
+                      }}
+                      className="flex w-full border-b border-white/5 px-3 py-2.5 text-left text-[13px] last:border-0 hover:bg-white/5"
+                    >
+                      <span className="text-white/40">{local}</span>
+                      <span className="font-bold text-[#B1EB0B]">@{domain}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="mt-4">
+            <AuthField
+              label="Confirmar e-mail"
+              type="email"
+              autoComplete="email"
+              placeholder="Repita seu e-mail"
+              value={confirmEmail}
+              onChange={(e) => setConfirmEmail(e.target.value)}
+              disabled={loading}
+            />
+          </div>
+
+          <div className="mt-4">
+            <AuthPasswordField
+              label="Senha"
+              value={password}
+              onChange={setPassword}
+              show={showPw}
+              onToggleShow={() => setShowPw((v) => !v)}
+              disabled={loading}
+              autoComplete="new-password"
+            />
+          </div>
+
+          <div className="mt-6 flex gap-2">
+            <button
+              type="button"
+              onClick={() => setStep(2)}
+              disabled={loading}
+              className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-white/12 bg-white/5 text-white/70"
+              aria-label="Voltar"
+            >
+              <ArrowLeft className="size-5" />
+            </button>
+            <div className="flex-1">
+              <AuthPrimaryButton type="submit" disabled={!step3Ready}>
+                {loading ? "Finalizando..." : "Finalizar cadastro"}
+              </AuthPrimaryButton>
+            </div>
+          </div>
+        </>
+      )}
+
+      <AuthLegalFooter />
     </form>
   );
 }

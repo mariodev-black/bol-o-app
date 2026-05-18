@@ -1,6 +1,10 @@
 @import "tailwindcss";
 
 :root {
+  --app-header-main-height: 86.5px;
+  --app-header-banner-height: 0px;
+  --app-header-height: 86.5px;
+
   /* Brand palette */
   --background: #000000;
   --foreground: #e2d5b8;
@@ -438,6 +442,68 @@ button, [role="button"] {
   animation: tabIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+/* ── Auth: abas Cadastro / Entrar ───────────────────────────── */
+.auth-tab-indicator {
+  transition: transform 0.38s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+@keyframes authTabPanelRight {
+  from {
+    opacity: 0;
+    transform: translateX(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes authTabPanelLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes authTabPanelFade {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-auth-tab-panel-right {
+  animation: authTabPanelRight 0.38s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.animate-auth-tab-panel-left {
+  animation: authTabPanelLeft 0.38s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.animate-auth-tab-panel-fade {
+  animation: authTabPanelFade 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-tab-indicator {
+    transition: none;
+  }
+  .animate-auth-tab-panel-right,
+  .animate-auth-tab-panel-left,
+  .animate-auth-tab-panel-fade {
+    animation: none;
+  }
+}
+
 @keyframes shine {
   from { transform: translateX(-100%) skewX(-15deg); }
   to   { transform: translateX(500%)  skewX(-15deg); }
@@ -513,6 +579,81 @@ button, [role="button"] {
   background: #070707;
   border-color: rgba(177, 235, 11, 0.42);
   box-shadow: 0 0 0 4px rgba(177, 235, 11, 0.08);
+}
+
+.auth-field {
+  position: relative;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #0a0a0a;
+  transition: border-color 0.18s, box-shadow 0.18s;
+}
+.auth-field--success {
+  border-color: rgba(10, 201, 107, 0.65);
+  box-shadow: 0 0 0 1px rgba(10, 201, 107, 0.12);
+}
+.auth-field--error {
+  border-color: rgba(248, 113, 113, 0.55);
+}
+.auth-field-label {
+  display: block;
+  padding: 10px 14px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+.auth-field-input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 4px 42px 12px 14px;
+  font-size: 15px;
+  font-weight: 500;
+  color: white;
+  outline: none;
+}
+.auth-field-input::placeholder {
+  color: rgba(255, 255, 255, 0.28);
+}
+.auth-field-trail {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-35%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.auth-field-success-hint {
+  margin-top: 6px;
+  border-radius: 0 0 10px 10px;
+  background: rgba(10, 201, 107, 0.12);
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(180, 255, 210, 0.95);
+}
+.auth-gender-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.auth-gender-pill {
+  flex: 1 1 30%;
+  min-width: 5.5rem;
+  min-height: 40px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #0a0a0a;
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.72);
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.auth-gender-pill--active {
+  border-color: rgba(177, 235, 11, 0.45);
+  background: #b1eb0b;
+  color: #0e141b;
 }
 
 /* ── Perfil: modal de avatar (bottom sheet) ─────────────────── */
