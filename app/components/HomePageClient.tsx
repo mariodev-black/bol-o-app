@@ -528,21 +528,25 @@ export function HomePageClient() {
   const onMarketing = isMarketingHostClient();
 
   useEffect(() => {
-    if (!onAppHost || !ready) return;
-    router.replace(isLoggedIn ? "/boloes" : "/cadastrar");
+    if (!onAppHost || !ready || isLoggedIn) return;
+    router.replace("/cadastrar");
   }, [onAppHost, ready, isLoggedIn, router]);
 
   useEffect(() => {
     if (!ready || !isLoggedIn || onAppHost) return;
     if (subdomainRoutingEnabled && onMarketing) {
-      window.location.assign(`${appOrigin.replace(/\/+$/, "")}/boloes`);
+      window.location.assign(`${appOrigin.replace(/\/+$/, "")}/`);
     }
   }, [ready, isLoggedIn, onAppHost, onMarketing, subdomainRoutingEnabled, appOrigin]);
 
-  /** Host `app.*` não exibe LP — middleware + redirect acima. */
-  if (onAppHost) return null;
+  /** App: `/` = home logada (carrossel + próximos jogos); visitante → cadastro. */
+  if (onAppHost) {
+    if (!ready) return <AppScreenLoading message="Carregando..." />;
+    if (!isLoggedIn) return null;
+    return <LoggedInHome />;
+  }
 
-  /** LP (www): sem loading; visitante vê a home de vendas na hora. */
+  /** www: LP para visitante; logado no app. */
   if (!ready || !isLoggedIn) {
     return <PublicHome />;
   }

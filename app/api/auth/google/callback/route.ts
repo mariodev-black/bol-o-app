@@ -227,7 +227,7 @@ export async function GET(request: NextRequest) {
     await tryPersistGooglePictureAsAvatarUpload(userId, picture).catch(() => {});
 
     const returnTo = safeReturnPath(request.cookies.get(RETURN_COOKIE)?.value);
-    const targetPath = returnTo ?? "/boloes";
+    const targetPath = returnTo ?? "/";
     const res = NextResponse.redirect(`${publicOrigin}${targetPath}`);
     const oc = { ...oauthStateCookieOptions(request), maxAge: 0 };
     res.cookies.set(STATE_COOKIE, "", oc);

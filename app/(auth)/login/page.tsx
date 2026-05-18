@@ -27,7 +27,7 @@ export default async function LoginPage(props: {
   if (token) {
     const userId = await verifySessionToken(token).catch(() => null);
     if (userId) {
-      const next = safeReturnPath(searchParams?.from) ?? "/boloes";
+      const next = safeReturnPath(searchParams?.from) ?? "/";
       redirect(next);
     }
   }

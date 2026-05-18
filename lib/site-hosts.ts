@@ -38,7 +38,7 @@ async function hasValidSession(request: NextRequest): Promise<boolean> {
 
 /**
  * Redireciona conforme host:
- * - `app.{domínio}` → produto (`/` → cadastro ou bolões)
+ * - `app.{domínio}` → produto (`/` = home logada; visitante → cadastro)
  * - `{domínio}` / `www.{domínio}` → LP; rotas de produto vão para `APP_URL`
  */
 export async function resolveHostRouting(
@@ -64,9 +64,10 @@ export async function resolveHostRouting(
     if (pathname !== "/") return null;
 
     const loggedIn = await hasValidSession(request);
-    const target = loggedIn ? "/boloes" : "/cadastrar";
+    if (loggedIn) return null;
+
     const url = request.nextUrl.clone();
-    url.pathname = target;
+    url.pathname = "/cadastrar";
     return NextResponse.redirect(url);
   }
 

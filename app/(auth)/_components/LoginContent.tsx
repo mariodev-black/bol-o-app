@@ -99,7 +99,7 @@ export function LoginContent() {
 
   useEffect(() => {
     if (!ready || !isLoggedIn) return;
-    const next = safeReturnPath(fromParam) ?? "/boloes";
+    const next = safeReturnPath(fromParam) ?? "/";
     navigateToAfterAuth(next);
   }, [ready, isLoggedIn, fromParam, pathname, router]);
 
@@ -123,7 +123,7 @@ export function LoginContent() {
         return;
       }
       await refresh();
-      const next = safeReturnPath(fromParam) ?? "/boloes";
+      const next = safeReturnPath(fromParam) ?? "/";
       navigateToAfterAuth(next);
     } finally {
       setLoading(false);

@@ -23,7 +23,15 @@ import {
 } from "lucide-react";
 import { cn } from "@/app/lib/utils";
 import { useAuth } from "@/app/shared/AuthContext";
+import { useAppServerConfig } from "@/app/shared/AppServerConfigContext";
+import {
+  isBottomNavHomeActive,
+  resolveBottomNavHref,
+  resolveBottomNavHomeHref,
+  type BottomNavHostContext,
+} from "@/app/shared/bottom-nav-hrefs";
 import { useSidenav } from "@/app/shared/SidenavContext";
+import { isAppHostClient, isMarketingHostClient } from "@/lib/site-hosts-client";
 import logo from "@/app/assets/logo.svg";
 
 type BottomItem = {
@@ -101,23 +109,39 @@ const MENU_SECTIONS: MenuSection[] = [
 function BottomNavLink({
   item,
   active,
+  currentPath,
   onNavigate,
   onPrefetch,
 }: {
   item: BottomItem;
   active: boolean;
+  currentPath: string;
   onNavigate: (href: string) => void;
   onPrefetch: (href: string) => void;
 }) {
   const Icon = item.icon;
+  const isExternal = item.href.startsWith("http");
 
   return (
     <Link
       href={item.href}
       aria-label={item.ariaLabel}
       aria-current={active ? "page" : undefined}
-      prefetch
-      onClick={() => onNavigate(item.href)}
+      prefetch={!isExternal}
+      onClick={(e) => {
+        onNavigate(item.href);
+        const targetPath = isExternal
+          ? new URL(item.href).pathname
+          : (item.href.split("?")[0] ?? item.href);
+        const sameDocument =
+          !isExternal ||
+          (typeof window !== "undefined" &&
+            new URL(item.href).origin === window.location.origin);
+        if (sameDocument && targetPath === currentPath) {
+          e.preventDefault();
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+      }}
       onPointerEnter={() => onPrefetch(item.href)}
       onFocus={() => onPrefetch(item.href)}
       className={cn(
@@ -160,11 +184,13 @@ function BottomNavLink({
 
 function BottomNavigation({
   items,
+  currentPath,
   isActive,
   onNavigate,
   onPrefetch,
 }: {
   items: BottomItem[];
+  currentPath: string;
   isActive: (href: string) => boolean;
   onNavigate: (href: string) => void;
   onPrefetch: (href: string) => void;
@@ -187,6 +213,7 @@ function BottomNavigation({
               <BottomNavLink
                 key={item.href + item.label}
                 item={item}
+                currentPath={currentPath}
                 active={isActive(item.href)}
                 onNavigate={onNavigate}
                 onPrefetch={onPrefetch}
@@ -212,18 +239,41 @@ export function NavBottom() {
   const panelRef = useRef<HTMLElement | null>(null);
   const normalizedPath = useMemo(() => pathname ?? "", [pathname]);
   const { ready, isLoggedIn, logout } = useAuth();
+  const { appOrigin, marketingOrigin, subdomainRoutingEnabled } = useAppServerConfig();
   const { open, closeSidenav } = useSidenav();
-  const bottomItems = useMemo(
-    () => (isLoggedIn ? BOTTOM_ITEMS_PROFILE : BOTTOM_ITEMS_PUBLIC),
-    [isLoggedIn],
+  const onApp = isAppHostClient();
+  const onMarketing = isMarketingHostClient();
+
+  const navHostCtx: BottomNavHostContext = useMemo(
+    () => ({
+      isLoggedIn,
+      onApp,
+      onMarketing,
+      subdomainRoutingEnabled,
+      appOrigin,
+      marketingOrigin,
+    }),
+    [isLoggedIn, onApp, onMarketing, subdomainRoutingEnabled, appOrigin, marketingOrigin],
   );
 
+  const bottomItems = useMemo(() => {
+    const template = isLoggedIn ? BOTTOM_ITEMS_PROFILE : BOTTOM_ITEMS_PUBLIC;
+    return template.map((item) => ({
+      ...item,
+      href: resolveBottomNavHref(item.href, navHostCtx),
+    }));
+  }, [isLoggedIn, navHostCtx]);
+
+  const homeHref = useMemo(() => resolveBottomNavHomeHref(navHostCtx), [navHostCtx]);
+  const currentOrigin =
+    typeof window !== "undefined" ? window.location.origin : undefined;
+
   const isItemActive = (href: string) => {
+    if (isBottomNavHomeActive(href, normalizedPath, navHostCtx, currentOrigin)) {
+      return true;
+    }
     const baseHref = href.split("?")[0] ?? href;
     const hrefQuery = href.includes("?") ? new URLSearchParams(href.split("?")[1]) : null;
-    if (href === "/") {
-      return normalizedPath === "/";
-    }
     if (baseHref === "/tickets") {
       const targetBolao = hrefQuery?.get("bolao") ?? null;
       const currentBolao = searchParams.get("bolao");
@@ -326,13 +376,12 @@ export function NavBottom() {
 
   useEffect(() => {
     if (!ready) return;
-    bottomItems.forEach((item) => router.prefetch(item.href));
+    bottomItems.forEach((item) => {
+      if (!item.href.startsWith("http")) router.prefetch(item.href);
+    });
   }, [bottomItems, ready, router]);
 
   if (!ready) return null;
-
-  const onHomeUnauthenticated = normalizedPath === "/" && !isLoggedIn;
-  if (onHomeUnauthenticated) return null;
 
   return (
     <>
@@ -366,7 +415,7 @@ export function NavBottom() {
           >
             <div className="relative flex h-full flex-col">
               <div className="flex h-[90px] items-center justify-between border-b px-7" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
-                <Link href="/" onClick={closeMenu} aria-label="Início" className="flex items-center">
+                <Link href={homeHref} onClick={closeMenu} aria-label="Início" className="flex items-center">
                   <Image src={logo} alt="Bolão do Milhão" width={164} height={38} priority className="h-auto w-[164px]" />
                 </Link>
                 <button
@@ -392,14 +441,15 @@ export function NavBottom() {
 
                       <div className="flex flex-col">
                         {section.items.map((item) => {
-                          const baseHref = item.href.split("?")[0];
-                          const active = isItemActive(baseHref) || isItemActive(item.href);
+                          const menuHref = resolveBottomNavHref(item.href, navHostCtx);
+                          const baseHref = menuHref.split("?")[0];
+                          const active = isItemActive(menuHref);
                           const Icon = item.icon;
 
                           return (
                             <Link
                               key={item.href + item.label}
-                              href={item.href}
+                              href={menuHref}
                               onClick={closeMenu}
                               className="group relative flex h-[56px] items-center gap-4 overflow-hidden px-7 transition-colors"
                               style={{
@@ -455,9 +505,12 @@ export function NavBottom() {
 
       <BottomNavigation
         items={bottomItems}
+        currentPath={normalizedPath}
         isActive={isBottomItemActive}
         onNavigate={handleBottomNavigate}
-        onPrefetch={(href) => router.prefetch(href)}
+        onPrefetch={(href) => {
+          if (!href.startsWith("http")) router.prefetch(href);
+        }}
       />
     </>
   );
