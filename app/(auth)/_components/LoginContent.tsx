@@ -8,12 +8,13 @@ import { useAuth } from "@/app/shared/AuthContext";
 import { isValidCpf } from "@/lib/auth/cpf";
 import { normalizePendingReferralInput, readPendingReferralCode } from "@/lib/referrals/pending-referral-client";
 import {
+  AuthField,
   AuthLegalFooter,
-  AuthLoginIdentifierField,
-  type LoginIdentifierMode,
   AuthPasswordField,
   AuthPrimaryButton,
   GoogleAuthButton,
+  formatLoginIdentifierInput,
+  loginInputLooksLikeEmail,
 } from "@/app/(auth)/_components/auth-form-ui";
 
 const GOOGLE_ERRORS: Record<string, string> = {
@@ -37,20 +38,19 @@ function isValidEmailLoose(v: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t);
 }
 
-function resolveLoginIdentifier(mode: LoginIdentifierMode, value: string): string {
-  if (mode === "email") return value.trim().toLowerCase();
+function resolveLoginIdentifier(value: string): string {
+  if (loginInputLooksLikeEmail(value)) return value.trim().toLowerCase();
   return value.replace(/\D/g, "");
 }
 
-function isIdentifierReady(mode: LoginIdentifierMode, value: string): boolean {
-  if (mode === "email") return isValidEmailLoose(value);
+function isLoginIdentifierReady(value: string): boolean {
+  if (loginInputLooksLikeEmail(value)) return isValidEmailLoose(value);
   const digits = value.replace(/\D/g, "");
   return digits.length === 11 && isValidCpf(digits);
 }
 
 export function LoginContent() {
   const [showPw, setShowPw] = useState(false);
-  const [loginMode, setLoginMode] = useState<LoginIdentifierMode>("cpf");
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -73,14 +73,8 @@ export function LoginContent() {
   }, []);
 
   const referralCodeResolved = refFromUrl ?? storedReferral;
-  const canSubmit =
-    isIdentifierReady(loginMode, identifier) && password.trim().length > 0 && !loading;
-
-  function handleModeChange(next: LoginIdentifierMode) {
-    if (next === loginMode) return;
-    setLoginMode(next);
-    setIdentifier("");
-  }
+  const looksLikeEmail = loginInputLooksLikeEmail(identifier);
+  const canSubmit = isLoginIdentifierReady(identifier) && password.trim().length > 0 && !loading;
 
   function safeReturnPath(from: string | null): string | null {
     if (!from || !from.startsWith("/") || from.startsWith("//")) return null;
@@ -116,19 +110,14 @@ export function LoginContent() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!canSubmit) {
-      if (loginMode === "email") {
-        toast.error("Informe um e-mail válido.");
-      } else {
-        toast.error("Informe um CPF válido.");
-      }
+      toast.error(
+        looksLikeEmail ? "Informe um e-mail válido." : "Informe um CPF válido.",
+      );
       return;
     }
     setLoading(true);
     try {
-      const result = await loginWithPassword(
-        resolveLoginIdentifier(loginMode, identifier),
-        password,
-      );
+      const result = await loginWithPassword(resolveLoginIdentifier(identifier), password);
       if (!result.ok) {
         toast.error(result.error);
         return;
@@ -151,17 +140,21 @@ export function LoginContent() {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col">
-      <AuthLoginIdentifierField
-        mode={loginMode}
-        onModeChange={handleModeChange}
+      <AuthField
+        label="E-mail ou CPF"
+        type={looksLikeEmail ? "email" : "text"}
+        inputMode={looksLikeEmail ? "email" : "numeric"}
+        autoComplete="username"
+        placeholder="E-mail ou CPF"
         value={identifier}
-        onChange={setIdentifier}
+        onChange={(e) => setIdentifier(formatLoginIdentifierInput(e.target.value))}
         disabled={loading}
       />
 
       <div className="mt-4">
         <AuthPasswordField
           label="Senha"
+          placeholder="Sua senha"
           value={password}
           onChange={setPassword}
           show={showPw}

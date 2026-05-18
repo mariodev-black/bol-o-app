@@ -84,6 +84,7 @@ export function AuthPasswordField({
   onToggleShow,
   disabled,
   autoComplete,
+  placeholder,
 }: {
   label: string;
   value: string;
@@ -92,6 +93,7 @@ export function AuthPasswordField({
   onToggleShow: () => void;
   disabled?: boolean;
   autoComplete?: string;
+  placeholder?: string;
 }) {
   return (
     <AuthField
@@ -101,6 +103,7 @@ export function AuthPasswordField({
       onChange={(e) => onChange(e.target.value)}
       disabled={disabled}
       autoComplete={autoComplete}
+      placeholder={placeholder}
       trailing={
         <button
           type="button"
@@ -123,55 +126,17 @@ export function AuthCpfVerifiedBanner({ name }: { name: string }) {
   );
 }
 
-export type LoginIdentifierMode = "email" | "cpf";
+/** Detecta se o usuário está digitando e-mail (letras ou @) em vez de CPF. */
+export function loginInputLooksLikeEmail(value: string): boolean {
+  const t = value.trim();
+  if (t.includes("@")) return true;
+  return /[a-zA-Z]/.test(t);
+}
 
-const loginModeOptions: { id: LoginIdentifierMode; label: string }[] = [
-  { id: "email", label: "E-mail" },
-  { id: "cpf", label: "CPF" },
-];
-
-export function AuthLoginIdentifierField({
-  mode,
-  onModeChange,
-  value,
-  onChange,
-  disabled,
-}: {
-  mode: LoginIdentifierMode;
-  onModeChange: (mode: LoginIdentifierMode) => void;
-  value: string;
-  onChange: (value: string) => void;
-  disabled?: boolean;
-}) {
-  return (
-    <div className="auth-login-identifier">
-      <div className="auth-login-mode-row" role="tablist" aria-label="Forma de entrar">
-        {loginModeOptions.map((opt) => (
-          <button
-            key={opt.id}
-            type="button"
-            role="tab"
-            aria-selected={mode === opt.id}
-            disabled={disabled}
-            onClick={() => onModeChange(opt.id)}
-            className={`auth-login-mode-pill ${mode === opt.id ? "auth-login-mode-pill--active" : ""}`}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
-      <AuthField
-        label={mode === "email" ? "E-mail" : "CPF"}
-        type={mode === "email" ? "email" : "text"}
-        inputMode={mode === "email" ? "email" : "numeric"}
-        autoComplete={mode === "email" ? "email" : "username"}
-        placeholder={mode === "email" ? "seu@email.com" : "000.000.000-00"}
-        value={value}
-        onChange={(e) => onChange(mode === "cpf" ? maskCPF(e.target.value) : e.target.value)}
-        disabled={disabled}
-      />
-    </div>
-  );
+/** Formata o campo único de login: e-mail livre ou CPF mascarado. */
+export function formatLoginIdentifierInput(raw: string): string {
+  if (loginInputLooksLikeEmail(raw)) return raw;
+  return maskCPF(raw);
 }
 
 export function AuthGenderPicker<T extends string>({

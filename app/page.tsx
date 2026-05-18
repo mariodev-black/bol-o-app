@@ -16,7 +16,6 @@ import {
   ChartNoAxesColumnIncreasing,
   ChevronRight,
   ClipboardList,
-  Clock3,
   Flame,
   Medal,
   Newspaper,
@@ -255,100 +254,52 @@ function matchDayLabel(match: HomeMatch): string {
     .replace(".", "");
 }
 
-function teamDisplayName(team: HomeMatch["time_mandante"]): string {
-  return team.nome_popular?.trim() || team.sigla?.trim() || "---";
+/** Sigla curta do time (ex.: FLA, COR) — não o nome completo. */
+function teamDisplaySlug(team: HomeMatch["time_mandante"]): string {
+  const sigla = team.sigla?.trim();
+  if (sigla) return sigla.toUpperCase();
+  const popular = team.nome_popular?.trim();
+  if (popular) return popular.slice(0, 3).toUpperCase();
+  return "---";
 }
 
-function TeamSide({
-  team,
-  align,
-}: {
-  team: HomeMatch["time_mandante"];
-  align: "home" | "away";
-}) {
-  const sigla =
-    team.sigla || team.nome_popular?.slice(0, 3).toUpperCase() || "---";
-  const name = teamDisplayName(team);
-  const isHome = align === "home";
-
-  const shield = (
-    <span className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-[6px] border border-white/10 bg-white/6 sm:size-8">
+function TeamShield({ team }: { team: HomeMatch["time_mandante"] }) {
+  const sigla = teamDisplaySlug(team);
+  return (
+    <span className="home-match-shield" aria-hidden>
       {team.escudo ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={team.escudo}
-          alt=""
-          className="size-full object-contain p-0.5"
-        />
+        <img src={team.escudo} alt="" className="home-match-shield-img" />
       ) : (
-        <span className="text-[10px] font-black text-primary sm:text-[11px]">
-          {sigla}
-        </span>
+        <span className="text-[12px] font-black text-primary">{sigla}</span>
       )}
     </span>
-  );
-
-  const label = (
-    <p
-      className={`min-w-0 break-words text-[12px] font-bold uppercase leading-snug text-white sm:text-[13px] ${
-        isHome ? "text-right" : "text-left"
-      }`}
-    >
-      {name}
-    </p>
-  );
-
-  return (
-    <div
-      className={`flex min-w-0 items-center gap-1.5 ${
-        isHome ? "justify-end" : "justify-start"
-      }`}
-    >
-      {isHome ? (
-        <>
-          {label}
-          {shield}
-        </>
-      ) : (
-        <>
-          {shield}
-          {label}
-        </>
-      )}
-    </div>
   );
 }
 
 function UpcomingMatchCard({ match }: { match: HomeMatch }) {
+  const dayLabel = matchDayLabel(match).toUpperCase();
+  const time = match.hora_realizacao || "--:--";
+
   return (
-    <Link
-      href="/boloes"
-      className="group flex w-full items-center gap-2 rounded-[10px] border border-white/8 bg-[#101208] px-2.5 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] active:scale-[0.99]"
-    >
-      <div className="flex w-[4.5rem] shrink-0 items-center gap-1">
-        <Clock3 className="size-4 shrink-0 text-primary" strokeWidth={2.4} />
-        <div className="min-w-0">
-          <p className="text-[10px] font-black uppercase leading-tight text-white/55">
-            {matchDayLabel(match)}
-          </p>
-          <p className="text-[14px] font-black leading-none text-primary">
-            {match.hora_realizacao || "--:--"}
-          </p>
-        </div>
+    <Link href="/boloes" className="home-match-card group">
+      <div className="home-match-side home-match-side--home">
+        <span className="home-match-team-name">{teamDisplaySlug(match.time_mandante)}</span>
+        <TeamShield team={match.time_mandante} />
       </div>
 
-      <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5">
-        <TeamSide team={match.time_mandante} align="home" />
-        <span className="shrink-0 rounded-md border border-white/8 bg-black/35 px-1.5 py-0.5 text-center text-[9px] font-black text-white/40">
-          VS
-        </span>
-        <TeamSide team={match.time_visitante} align="away" />
+      <div className="home-match-center">
+        <span className="home-match-center-rule home-match-center-rule--left" aria-hidden />
+        <span className="home-match-center-rule home-match-center-rule--right" aria-hidden />
+        <p className="home-match-day">{dayLabel}</p>
+        <p className="home-match-time">{time}</p>
+        <span className="home-match-vs">VS</span>
       </div>
 
-      <ChevronRight
-        className="size-4 shrink-0 text-primary transition-transform group-active:translate-x-0.5"
-        strokeWidth={2.8}
-      />
+      <div className="home-match-side home-match-side--away">
+        <TeamShield team={match.time_visitante} />
+        <span className="home-match-team-name">{teamDisplaySlug(match.time_visitante)}</span>
+      </div>
     </Link>
   );
 }
@@ -402,8 +353,6 @@ function QuickActionCard({
 }
 
 function LoggedInHome() {
-  const { user } = useAuth();
-  const firstName = user?.name?.trim().split(/\s+/)[0] || "Jogador";
   const [matches, setMatches] = useState<HomeMatch[]>([]);
   const [matchesLoading, setMatchesLoading] = useState(true);
 
@@ -467,18 +416,7 @@ function LoggedInHome() {
           />
         </section>
         <div className="mx-auto w-full max-w-[430px] px-3.5">
-          <section className="mt-5">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <h2 className="text-[16px] font-black uppercase tracking-wide text-white">
-                Acesso rápido
-              </h2>
-            </div>
-            <div className="grid grid-cols-2 gap-2.5">
-              {QUICK_ACTIONS.map((action) => (
-                <QuickActionCard key={action.title} {...action} />
-              ))}
-            </div>
-          </section>
+          
 
           <section className="mt-5">
             <div className="mb-3 flex items-center justify-between gap-3">
@@ -495,7 +433,7 @@ function LoggedInHome() {
                 className="w-full"
               />
             ) : featuredMatch ? (
-              <div className="space-y-2">
+              <div className="space-y-2.5">
                 <UpcomingMatchCard match={featuredMatch} />
                 {secondaryMatches.map((match) => (
                   <UpcomingMatchCard
