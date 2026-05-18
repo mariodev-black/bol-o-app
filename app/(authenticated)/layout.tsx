@@ -1,6 +1,14 @@
+import type { Metadata } from "next";
 import { NavBottom } from "@/app/shared/NavBottom";
 import { Header } from "../shared/Header";
 import { Suspense } from "react";
+import { buildPageMetadata } from "@/lib/seo/config";
+
+export const metadata: Metadata = buildPageMetadata({
+  title: "Área do participante",
+  description: "Área logada do Bolão do Milhão.",
+  noIndex: true,
+});
 
 export default function AuthenticatedLayout({
   children,
