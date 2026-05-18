@@ -607,6 +607,20 @@ button, [role="button"] {
 .auth-field--error {
   border-color: rgba(248, 113, 113, 0.55);
 }
+.auth-field-hint {
+  margin: 0;
+  padding: 0 14px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.42);
+}
+.auth-field--error .auth-field-hint {
+  color: #f87171;
+}
+.auth-field--success .auth-field-hint {
+  color: rgba(177, 235, 11, 0.65);
+}
 .auth-field-label {
   display: block;
   padding: 10px 14px 0;

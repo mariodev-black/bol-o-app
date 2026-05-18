@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { authLog, oauthRequestSnapshot } from "@/lib/auth/oauth-console";
 import { normalizeCpf } from "@/lib/auth/cpf";
+import { loginInputLooksLikeEmail } from "@/lib/auth/login-identifier";
 import { verifyPassword } from "@/lib/auth/password";
 import { attachSessionCookie } from "@/lib/auth/session";
 import { responseForDbError } from "@/lib/db-errors";
@@ -30,7 +31,7 @@ export async function POST(request: NextRequest) {
 
   const { identifier, password } = parsed.data;
   const trimmed = identifier.trim();
-  const isEmail = trimmed.includes("@");
+  const isEmail = loginInputLooksLikeEmail(trimmed);
 
   let row: Awaited<ReturnType<typeof findUserByEmail>>;
   try {

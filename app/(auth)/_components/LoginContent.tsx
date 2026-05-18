@@ -5,8 +5,6 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useBolaoToast } from "@/app/components/BolaoToast";
 import { useAuth } from "@/app/shared/AuthContext";
-import { isValidCpf } from "@/lib/auth/cpf";
-import { normalizePendingReferralInput, readPendingReferralCode } from "@/lib/referrals/pending-referral-client";
 import {
   AuthField,
   AuthLegalFooter,
@@ -16,6 +14,16 @@ import {
   formatLoginIdentifierInput,
   loginInputLooksLikeEmail,
 } from "@/app/(auth)/_components/auth-form-ui";
+import {
+  getLoginIdentifierHint,
+  getLoginIdentifierPlaceholder,
+  isLoginIdentifierReady,
+  resolveLoginIdentifier,
+} from "@/lib/auth/login-identifier";
+import {
+  normalizePendingReferralInput,
+  readPendingReferralCode,
+} from "@/lib/referrals/pending-referral-client";
 
 const GOOGLE_ERRORS: Record<string, string> = {
   google_denied: "Login com Google cancelado.",
@@ -32,28 +40,12 @@ const ACCOUNT_MSG: Record<string, string> = {
   senha_alterada: "Senha alterada com sucesso. Entre novamente com a nova senha.",
 };
 
-function isValidEmailLoose(v: string): boolean {
-  const t = v.trim();
-  if (t.length < 5) return false;
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t);
-}
-
-function resolveLoginIdentifier(value: string): string {
-  if (loginInputLooksLikeEmail(value)) return value.trim().toLowerCase();
-  return value.replace(/\D/g, "");
-}
-
-function isLoginIdentifierReady(value: string): boolean {
-  if (loginInputLooksLikeEmail(value)) return isValidEmailLoose(value);
-  const digits = value.replace(/\D/g, "");
-  return digits.length === 11 && isValidCpf(digits);
-}
-
 export function LoginContent() {
   const [showPw, setShowPw] = useState(false);
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
   const toast = useBolaoToast();
   const router = useRouter();
   const pathname = usePathname();
@@ -74,7 +66,11 @@ export function LoginContent() {
 
   const referralCodeResolved = refFromUrl ?? storedReferral;
   const looksLikeEmail = loginInputLooksLikeEmail(identifier);
-  const canSubmit = isLoginIdentifierReady(identifier) && password.trim().length > 0 && !loading;
+  const identifierReady = isLoginIdentifierReady(identifier);
+  const identifierHint = getLoginIdentifierHint(identifier);
+  const identifierPlaceholder = getLoginIdentifierPlaceholder(identifier);
+  const showIdentifierError = submitAttempted && !identifierReady && identifier.trim().length > 0;
+  const canSubmit = identifierReady && password.trim().length > 0 && !loading;
 
   function safeReturnPath(from: string | null): string | null {
     if (!from || !from.startsWith("/") || from.startsWith("//")) return null;
@@ -109,9 +105,13 @@ export function LoginContent() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    setSubmitAttempted(true);
     if (!canSubmit) {
       toast.error(
-        looksLikeEmail ? "Informe um e-mail válido." : "Informe um CPF válido.",
+        identifierHint ??
+          (looksLikeEmail
+            ? "Informe um e-mail válido."
+            : "Informe um CPF válido com 11 dígitos."),
       );
       return;
     }
@@ -140,21 +140,34 @@ export function LoginContent() {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col">
+      <div className="mb-5">
+        <h1 className="text-[22px] font-black leading-tight tracking-[-0.03em] text-white">
+          Entrar na sua conta
+        </h1>
+        <p className="mt-1.5 text-[13px] font-medium leading-snug text-white/50">
+          Use seu e-mail ou CPF e a senha cadastrados.
+        </p>
+      </div>
+
       <AuthField
-        label="CPF"
+        id="login-identifier"
+        label="E-mail ou CPF"
         type={looksLikeEmail ? "email" : "text"}
         inputMode={looksLikeEmail ? "email" : "numeric"}
         autoComplete="username"
-        placeholder="000.000.000-00"
+        placeholder={identifierPlaceholder}
         value={identifier}
         onChange={(e) => setIdentifier(formatLoginIdentifierInput(e.target.value))}
         disabled={loading}
+        success={identifierReady}
+        error={showIdentifierError}
+        hint={identifierHint ?? undefined}
       />
 
       <div className="mt-4">
         <AuthPasswordField
           label="Senha"
-          placeholder="Sua senha"
+          placeholder="Digite sua senha"
           value={password}
           onChange={setPassword}
           show={showPw}

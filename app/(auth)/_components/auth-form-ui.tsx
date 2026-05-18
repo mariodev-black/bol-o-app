@@ -10,17 +10,21 @@ import {
   type ReactNode,
 } from "react";
 
+import { formatCpfDisplay } from "@/lib/auth/cpf";
+import {
+  formatLoginIdentifierInput,
+  loginInputLooksLikeEmail,
+} from "@/lib/auth/login-identifier";
+
 export function maskCPF(v: string) {
-  return v
-    .replace(/\D/g, "")
-    .slice(0, 11)
-    .replace(/(\d{3})(\d)/, "$1.$2")
-    .replace(/(\d{3})(\d)/, "$1.$2")
-    .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+  return formatCpfDisplay(v);
 }
+
+export { formatLoginIdentifierInput, loginInputLooksLikeEmail };
 
 type AuthFieldProps = {
   label: string;
+  hint?: string;
   success?: boolean;
   error?: boolean;
   loading?: boolean;
@@ -29,14 +33,17 @@ type AuthFieldProps = {
 
 export function AuthField({
   label,
+  hint,
   success,
   error,
   loading,
   trailing,
   className,
   value,
+  id,
   ...props
 }: AuthFieldProps) {
+  const inputId = id ?? `auth-field-${label.replace(/\s+/g, "-").toLowerCase()}`;
   const hasValue = value != null && String(value).length > 0;
   const showSuccess = Boolean(success && !loading);
   const trailNode = loading ? (
@@ -60,17 +67,26 @@ export function AuthField({
         .filter(Boolean)
         .join(" ")}
     >
-      <label className="auth-field-label">{label}</label>
+      <label className="auth-field-label" htmlFor={inputId}>
+        {label}
+      </label>
       <input
         {...props}
+        id={inputId}
         value={value}
         className={["auth-field-input", className].filter(Boolean).join(" ")}
         aria-busy={loading}
+        aria-describedby={hint ? `${inputId}-hint` : undefined}
       />
       {trailNode ? (
         <span className="auth-field-trail" aria-hidden={loading || showSuccess}>
           {trailNode}
         </span>
+      ) : null}
+      {hint ? (
+        <p id={`${inputId}-hint`} className="auth-field-hint" role="status">
+          {hint}
+        </p>
       ) : null}
     </div>
   );
@@ -124,19 +140,6 @@ export function AuthCpfVerifiedBanner({ name }: { name: string }) {
       {name}
     </p>
   );
-}
-
-/** Detecta se o usuário está digitando e-mail (letras ou @) em vez de CPF. */
-export function loginInputLooksLikeEmail(value: string): boolean {
-  const t = value.trim();
-  if (t.includes("@")) return true;
-  return /[a-zA-Z]/.test(t);
-}
-
-/** Formata o campo único de login: e-mail livre ou CPF mascarado. */
-export function formatLoginIdentifierInput(raw: string): string {
-  if (loginInputLooksLikeEmail(raw)) return raw;
-  return maskCPF(raw);
 }
 
 export function AuthGenderPicker<T extends string>({

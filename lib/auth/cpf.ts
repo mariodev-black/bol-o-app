@@ -2,6 +2,14 @@ export function normalizeCpf(input: string): string {
   return input.replace(/\D/g, "").slice(0, 11);
 }
 
+/** Máscara visual 000.000.000-00 (cadastro, login por CPF). */
+export function formatCpfDisplay(v: string): string {
+  return normalizeCpf(v)
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+}
+
 export function isValidCpf(digits: string): boolean {
   const cpf = normalizeCpf(digits);
   if (cpf.length !== 11) return false;
