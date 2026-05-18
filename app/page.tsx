@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import bollIcon from "@/app/assets/boll.svg";
 import cifraoIcon from "@/app/assets/cifrao.svg";
+import logo from "@/app/assets/logo.svg";
 import iconInsta from "@/app/assets/icon-insta.svg";
 import bgHeroDesktop from "@/app/assets/home-desk.png";
 import bgPixel from "@/app/assets/bg-hero-pixels.png";
@@ -554,6 +555,22 @@ function PublicHome() {
         >
           <div className="font-helvetica-now-display grid w-full grid-cols-1 items-center gap-y-8 px-4 pt-5 text-white sm:px-6 md:px-8 lg:grid-cols-2 lg:gap-x-8 lg:gap-y-0 lg:px-10 xl:gap-x-12 xl:px-14 2xl:px-0 mx-auto max-w-[1500px]">
             <div className="mx-auto flex w-full max-w-lg flex-col items-center justify-center gap-2.5 text-center sm:max-w-xl sm:gap-3 lg:mx-0 lg:max-w-none lg:items-start lg:gap-3.5 lg:text-left">
+              <Link
+                href="/"
+                className="my-5 flex justify-center lg:hidden"
+                aria-label="Bolão do Milhão"
+              >
+                <Image
+                  src={logo}
+                  alt="Bolão do Milhão"
+                  width={168}
+                  height={44}
+                  quality={100}
+                  sizes="168px"
+                  priority
+                  className="h-[40px] w-auto"
+                />
+              </Link>
               <div className="hero-fluid-title font-black">
                 <span className="block text-primary">O MAIOR BOLÃO</span>
                 <span className="block text-white">DA COPA 2026</span>

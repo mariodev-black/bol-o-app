@@ -64,6 +64,8 @@ export function Header() {
     setBannerHydrated(true);
   }, []);
 
+  const isHomePage = (pathname ?? "") === "/";
+
   useEffect(() => {
     if (!bannerHydrated || !ready) return;
 
@@ -72,19 +74,21 @@ export function Header() {
       const mainHeight = mq.matches
         ? HEADER_MAIN_HEIGHT_DESKTOP_PX
         : HEADER_MAIN_HEIGHT_MOBILE_PX;
-      syncAppHeaderHeightCss(bannerVisible, mainHeight);
+      const showInstallBanner = bannerVisible && !isHomePage;
+      syncAppHeaderHeightCss(showInstallBanner, mainHeight);
     };
 
     update();
     mq.addEventListener("change", update);
     return () => mq.removeEventListener("change", update);
-  }, [bannerVisible, bannerHydrated, ready]);
+  }, [bannerVisible, bannerHydrated, ready, isHomePage]);
 
   const dismissBanner = useCallback(() => {
     setBannerVisible(false);
   }, []);
 
-  const showBanner = bannerHydrated && bannerVisible;
+  /** Banner de instalar app: todas as telas exceto a home padrão (`/`). */
+  const showInstallBanner = bannerHydrated && bannerVisible && !isHomePage;
 
   if (!ready) {
     // evita flicker entre "logado" e "deslogado" durante a hidratação
@@ -93,7 +97,7 @@ export function Header() {
 
   if (isLoggedIn) {
     return (
-      <HeaderShell showBanner={showBanner} onDismissBanner={dismissBanner}>
+      <HeaderShell showBanner={showInstallBanner} onDismissBanner={dismissBanner}>
         <div className="grid h-[86.5px] grid-cols-[48px_1fr_48px] items-center px-5 lg:hidden">
           <button
             type="button"
@@ -196,7 +200,7 @@ export function Header() {
   const hideOnMobileGuestHome = (pathname ?? "") === "/";
 
   return (
-    <HeaderShell showBanner={showBanner} onDismissBanner={dismissBanner}>
+    <HeaderShell showBanner={showInstallBanner} onDismissBanner={dismissBanner}>
       <div
         className={[
           "w-full grid-cols-[48px_1fr_48px] items-center px-5 lg:justify-between lg:px-20 h-[86.5px]",
