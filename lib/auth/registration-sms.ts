@@ -17,10 +17,22 @@
 import { createHash, randomInt, timingSafeEqual } from "node:crypto";
 import { getPool } from "@/lib/db";
 
+/** Tempo de vida do código emitido (10 minutos). */
 const CODE_TTL_MS = 10 * 60 * 1000;
-const RESEND_MIN_MS = 60 * 1000;
+/**
+ * Cooldown entre reenvios (5 minutos). Backend é a fonte da verdade: o front
+ * recebe `retryAfterSeconds` quando rejeitado e mostra um contador local
+ * apenas para UX — qualquer POST antes do prazo é rejeitado aqui.
+ */
+const RESEND_MIN_MS = 5 * 60 * 1000;
+/** Máximo de tentativas erradas antes de bloquear o código atual. */
 const MAX_ATTEMPTS = 5;
 const WEBHOOK_DEFAULT_TIMEOUT_MS = 12_000;
+
+/** Exporta o limite (front usa para mensagens "X tentativas restantes"). */
+export const REGISTRATION_CODE_MAX_ATTEMPTS = MAX_ATTEMPTS;
+/** Cooldown em segundos — front usa para inicializar o contador local. */
+export const REGISTRATION_CODE_RESEND_COOLDOWN_SECONDS = Math.round(RESEND_MIN_MS / 1000);
 
 let tableReady: Promise<void> | null = null;
 
@@ -170,10 +182,12 @@ export async function sendRegistrationSmsCode(input: {
   if (last) {
     const elapsed = Date.now() - last.getTime();
     if (elapsed < RESEND_MIN_MS) {
+      const retryAfterSeconds = Math.ceil((RESEND_MIN_MS - elapsed) / 1000);
+      const minutes = Math.ceil(retryAfterSeconds / 60);
       return {
         ok: false,
-        error: "Aguarde um momento antes de solicitar um novo código.",
-        retryAfterSeconds: Math.ceil((RESEND_MIN_MS - elapsed) / 1000),
+        error: `Aguarde ${minutes} minuto${minutes > 1 ? "s" : ""} antes de solicitar um novo código.`,
+        retryAfterSeconds,
       };
     }
   }
@@ -204,11 +218,30 @@ export async function sendRegistrationSmsCode(input: {
   return { ok: true };
 }
 
+/**
+ * Resultado da verificação:
+ *   - `ok: true`             → código válido (e DELETE do registro).
+ *   - `attemptsRemaining`    → presente quando o erro é "código incorreto";
+ *                              0 indica que o código atual foi BLOQUEADO
+ *                              (precisa solicitar um novo via reenvio).
+ *   - `locked: true`         → tentativas esgotadas / não existe código
+ *                              ativo / código expirado — usuário PRECISA
+ *                              clicar em "Reenviar código".
+ */
+export type VerifyRegistrationSmsCodeResult =
+  | { ok: true }
+  | {
+      ok: false;
+      error: string;
+      attemptsRemaining?: number;
+      locked?: boolean;
+    };
+
 export async function verifyRegistrationSmsCode(input: {
   phoneE164: string;
   cpf: string;
   code: string;
-}): Promise<{ ok: true } | { ok: false; error: string }> {
+}): Promise<VerifyRegistrationSmsCodeResult> {
   await ensureTable();
   const pool = getPool();
   const phone = input.phoneE164.trim();
@@ -234,15 +267,28 @@ export async function verifyRegistrationSmsCode(input: {
 
   const row = rows[0];
   if (!row) {
-    return { ok: false, error: "Código não encontrado. Solicite um novo SMS." };
+    return {
+      ok: false,
+      error: "Código não encontrado. Solicite um novo código pelo WhatsApp.",
+      locked: true,
+    };
   }
 
   if (row.expires_at.getTime() < Date.now()) {
-    return { ok: false, error: "Código expirado. Solicite um novo SMS." };
+    return {
+      ok: false,
+      error: "Código expirado. Solicite um novo código pelo WhatsApp.",
+      locked: true,
+    };
   }
 
   if (row.attempts >= MAX_ATTEMPTS) {
-    return { ok: false, error: "Muitas tentativas. Solicite um novo código." };
+    return {
+      ok: false,
+      error: "Muitas tentativas erradas. Solicite um novo código pelo WhatsApp.",
+      attemptsRemaining: 0,
+      locked: true,
+    };
   }
 
   const expected = Buffer.from(row.code_hash, "hex");
@@ -251,10 +297,25 @@ export async function verifyRegistrationSmsCode(input: {
     expected.length === actual.length && timingSafeEqual(expected, actual);
 
   if (!match) {
-    await pool.query(`UPDATE registration_sms_codes SET attempts = attempts + 1 WHERE id = $1`, [
+    const next = row.attempts + 1;
+    await pool.query(`UPDATE registration_sms_codes SET attempts = $1 WHERE id = $2`, [
+      next,
       row.id,
     ]);
-    return { ok: false, error: "Código incorreto. Verifique e tente novamente." };
+    const remaining = Math.max(0, MAX_ATTEMPTS - next);
+    if (remaining === 0) {
+      return {
+        ok: false,
+        error: "Muitas tentativas erradas. Solicite um novo código pelo WhatsApp.",
+        attemptsRemaining: 0,
+        locked: true,
+      };
+    }
+    return {
+      ok: false,
+      error: `Código incorreto. Você ainda tem ${remaining} tentativa${remaining > 1 ? "s" : ""}.`,
+      attemptsRemaining: remaining,
+    };
   }
 
   await pool.query(`DELETE FROM registration_sms_codes WHERE phone_e164 = $1 AND cpf = $2`, [

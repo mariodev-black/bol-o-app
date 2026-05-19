@@ -95,7 +95,17 @@ export async function POST(request: NextRequest) {
     code: smsCode,
   });
   if (!smsVerify.ok) {
-    return NextResponse.json({ error: smsVerify.error }, { status: 400 });
+    // Propaga metadados estruturados (attemptsRemaining + locked) para o front
+    // exibir UI específica: contador de tentativas, banner "código bloqueado",
+    // botão "reenviar" em destaque. Mantém compat com clientes que só leem `error`.
+    return NextResponse.json(
+      {
+        error: smsVerify.error,
+        attemptsRemaining: smsVerify.attemptsRemaining,
+        locked: smsVerify.locked ?? false,
+      },
+      { status: smsVerify.locked ? 423 : 400 },
+    );
   }
 
   try {

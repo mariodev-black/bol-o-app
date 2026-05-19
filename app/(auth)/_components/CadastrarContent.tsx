@@ -67,7 +67,22 @@ function formatPhoneDisplay(digits: string) {
 type CpfLookupStatus = "idle" | "loading" | "verified" | "error";
 
 const CPF_VERIFIED_STORAGE_KEY = "bm_cadastro_cpf_verified";
-const SMS_RESEND_SECONDS = 60;
+/**
+ * Cooldown UX entre reenvios (5 minutos). O backend é a fonte da verdade:
+ * tentativa de reenvio antes do prazo retorna 429 com `retryAfterSeconds`,
+ * que sobrescreve este valor.
+ */
+const SMS_RESEND_SECONDS = 5 * 60;
+/** Espelha `REGISTRATION_CODE_MAX_ATTEMPTS` do backend. */
+const SMS_MAX_ATTEMPTS = 5;
+
+function formatCooldown(secs: number): string {
+  const s = Math.max(0, Math.floor(secs));
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  if (m <= 0) return `${r}s`;
+  return r === 0 ? `${m}m` : `${m}m ${String(r).padStart(2, "0")}s`;
+}
 
 export function CadastrarContent() {
   const router = useRouter();
@@ -97,6 +112,13 @@ export function CadastrarContent() {
   const [smsSending, setSmsSending] = useState(false);
   const [smsDevMode, setSmsDevMode] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
+  /**
+   * Tentativas restantes desta sessão de código. `null` = ainda não tentou.
+   * Vem do backend (`attemptsRemaining`). Quando chega a 0 ou recebe `locked`,
+   * o input fica desabilitado até o usuário pedir um novo código.
+   */
+  const [smsAttemptsRemaining, setSmsAttemptsRemaining] = useState<number | null>(null);
+  const [smsLocked, setSmsLocked] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
@@ -327,9 +349,12 @@ export function CadastrarContent() {
         toast.error(data.error ?? "Não foi possível enviar o código pelo WhatsApp.");
         return false;
       }
+      // Sucesso: novo código emitido → reseta contador de tentativas e desbloqueia.
       setSmsDevMode(Boolean(data.devMode));
       setResendCooldown(SMS_RESEND_SECONDS);
       setSmsCode("");
+      setSmsAttemptsRemaining(SMS_MAX_ATTEMPTS);
+      setSmsLocked(false);
       return true;
     } catch {
       toast.error("Erro de rede ao enviar o código pelo WhatsApp.");
@@ -424,7 +449,13 @@ export function CadastrarContent() {
         }),
       });
       const raw = await r.text();
-      let data: { error?: string; user?: AuthUser; referralWarning?: string } = {};
+      let data: {
+        error?: string;
+        user?: AuthUser;
+        referralWarning?: string;
+        attemptsRemaining?: number;
+        locked?: boolean;
+      } = {};
       try {
         data = raw ? (JSON.parse(raw) as typeof data) : {};
       } catch {
@@ -432,6 +463,15 @@ export function CadastrarContent() {
         return;
       }
       if (!r.ok) {
+        // Quando o erro vem do verify (código errado / bloqueado), o backend
+        // anexa metadados estruturados — espelhamos no estado para UI atualizar.
+        if (typeof data.attemptsRemaining === "number") {
+          setSmsAttemptsRemaining(data.attemptsRemaining);
+        }
+        if (data.locked) {
+          setSmsLocked(true);
+          setSmsCode("");
+        }
         toast.error(
           typeof data.error === "string" && data.error.trim().length > 0
             ? data.error
@@ -475,7 +515,7 @@ export function CadastrarContent() {
     !smsSending &&
     !loading;
 
-  const step3Ready = smsCode.replace(/\D/g, "").length === 6 && !loading;
+  const step3Ready = smsCode.replace(/\D/g, "").length === 6 && !loading && !smsLocked;
 
   const busy = loading || smsSending;
 
@@ -645,7 +685,27 @@ export function CadastrarContent() {
             ) : null}
           </div>
 
-          <AuthSmsCodeInput value={smsCode} onChange={setSmsCode} disabled={busy} />
+          <AuthSmsCodeInput value={smsCode} onChange={setSmsCode} disabled={busy || smsLocked} />
+
+          {/*
+            Feedback de tentativas / bloqueio.
+            - smsLocked: o servidor rejeitou definitivamente o código atual
+              (5 erros ou expirado). Único caminho: reenviar.
+            - smsAttemptsRemaining < 5 e > 0: usuário errou ao menos uma vez.
+          */}
+          {smsLocked ? (
+            <p className="mt-3 text-center text-[12px] font-medium text-red-300">
+              Código bloqueado após várias tentativas. Solicite um novo código pelo WhatsApp.
+            </p>
+          ) : typeof smsAttemptsRemaining === "number" &&
+            smsAttemptsRemaining > 0 &&
+            smsAttemptsRemaining < SMS_MAX_ATTEMPTS ? (
+            <p className="mt-3 text-center text-[12px] text-white/55">
+              {smsAttemptsRemaining === 1
+                ? "Última tentativa restante."
+                : `${smsAttemptsRemaining} tentativas restantes.`}
+            </p>
+          ) : null}
 
           <div className="mt-5 text-center">
             <button
@@ -655,7 +715,7 @@ export function CadastrarContent() {
               className="text-[13px] font-semibold text-[#B1EB0B] transition-opacity hover:underline disabled:cursor-not-allowed disabled:text-white/35"
             >
               {resendCooldown > 0
-                ? `Reenviar código em ${resendCooldown}s`
+                ? `Reenviar código em ${formatCooldown(resendCooldown)}`
                 : "Reenviar código"}
             </button>
           </div>
