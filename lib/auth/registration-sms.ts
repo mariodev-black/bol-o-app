@@ -119,7 +119,7 @@ async function sendRegistrationWhatsAppCode(input: {
       // SellFlux costuma normalizar o phone — enviamos somente dígitos (DDI+DDD+número).
       phone: phoneDigits,
     },
-    code: input.code,
+    codigo: input.code,
     message,
     appName,
   };
