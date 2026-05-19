@@ -317,6 +317,43 @@ function mapStatus(s: string): StatusJogo {
   return "aberto";
 }
 
+/**
+ * Resolve o número real da rodada de uma partida:
+ *   1) `p.rodada` (vindo direto da coluna `matches_cache.rodada`)
+ *   2) `p.round_key` (ex.: "17a-rodada" → 17)
+ *   3) `rodadaKey` da chave do objeto (ex.: "17a-rodada" → 17)
+ *   4) fallback: índice ordinal (legado, raríssimo).
+ */
+function parseRodadaNumeroFromKey(key: string): number | null {
+  const m = String(key || "").match(/(\d+)[ºoa]?[-]?rodada/i);
+  if (m && m[1]) {
+    const n = Number.parseInt(m[1], 10);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  const any = String(key || "").match(/(\d+)/);
+  if (any && any[1]) {
+    const n = Number.parseInt(any[1], 10);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return null;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function resolveRodadaNumero(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  p: Record<string, any>,
+  rodadaKey: string,
+  rodadaIndexFallback: number,
+): number {
+  const direct = Number(p?.rodada);
+  if (Number.isFinite(direct) && direct > 0) return direct;
+  const fromRoundKey = parseRodadaNumeroFromKey(String(p?.round_key ?? ""));
+  if (fromRoundKey != null) return fromRoundKey;
+  const fromObjKey = parseRodadaNumeroFromKey(String(rodadaKey ?? ""));
+  if (fromObjKey != null) return fromObjKey;
+  return rodadaIndexFallback;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parsePartidas(faseData: Record<string, any>): Jogo[] {
   const jogos: Jogo[] = [];
@@ -347,7 +384,7 @@ function parsePartidas(faseData: Record<string, any>): Jogo[] {
           liveMinuto: parseLiveMinutoFromPartida(p),
           status: mapStatus(String(p.status ?? "")),
           grupo: "GERAL",
-          rodada: rodadaIndex,
+          rodada: resolveRodadaNumero(p, rodadaKey, rodadaIndex),
           kickoffAt: parseKickoffFromPartidaPayload(p),
           resultCasa: pickScoreFromPartidaPayload(p, "casa"),
           resultVisitante: pickScoreFromPartidaPayload(p, "visitante"),
@@ -383,7 +420,7 @@ function parsePartidas(faseData: Record<string, any>): Jogo[] {
           liveMinuto: parseLiveMinutoFromPartida(p),
           status: mapStatus(String(p.status ?? "")),
           grupo: grupoLetra,
-          rodada: rodadaIndex,
+          rodada: resolveRodadaNumero(p, rodadaKey, rodadaIndex),
           kickoffAt: parseKickoffFromPartidaPayload(p),
           resultCasa: pickScoreFromPartidaPayload(p, "casa"),
           resultVisitante: pickScoreFromPartidaPayload(p, "visitante"),
@@ -403,16 +440,14 @@ function parseAllPartidas(fases: Record<string, any> | undefined): {
   const phaseValues = Object.values(fases).filter(
     (value) => value && typeof value === "object",
   ) as Record<string, any>[];
-  let rodadaOffset = 0;
   const grupos = new Set<string>();
+  // `resolveRodadaNumero` já devolve o número REAL da rodada — não somamos
+  // mais um offset por fase (que era um hack para o índice ordinal).
   const jogos = phaseValues.flatMap((faseData) => {
-    const parsed = parsePartidas(faseData).map((jogo) => {
+    return parsePartidas(faseData).map((jogo) => {
       if (jogo.grupo && jogo.grupo !== "GERAL") grupos.add(jogo.grupo);
-      return { ...jogo, rodada: jogo.rodada + rodadaOffset };
+      return jogo;
     });
-    const localRodadas = parsed.map((jogo) => jogo.rodada - rodadaOffset);
-    rodadaOffset += Math.max(1, new Set(localRodadas).size);
-    return parsed;
   });
   return { jogos, grupos: Array.from(grupos).sort() };
 }

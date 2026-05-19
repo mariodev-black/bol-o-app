@@ -12,6 +12,7 @@ import { getPool } from "@/lib/db";
 import { parseKickoffFromPartidaPayload, pickScoreFromPartidaPayload } from "@/lib/partida-placar";
 import { fetchExtraChampionshipIdByTicketIds } from "@/lib/ticket-competition-server";
 import { pickTabelaGruposForPalpites } from "@/lib/tabela-palpites-normalize";
+import { resolveCurrentExtraRound } from "@/lib/football/extras-rodada";
 
 const MESES = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
 type StatusJogo = "aberto" | "encerrado";
@@ -95,6 +96,42 @@ function parseLiveMinutoFromPartida(p: any): number | null {
   );
 }
 
+/**
+ * Resolve o número real da rodada de uma partida:
+ *   1) `p.rodada` (vindo direto da coluna `matches_cache.rodada`)
+ *   2) `p.round_key` (ex.: "17a-rodada" → 17)
+ *   3) `rodadaKey` da chave do objeto (ex.: "17a-rodada" → 17)
+ *   4) fallback: índice ordinal (legado)
+ */
+function resolveRodadaNumero(
+  p: Record<string, any>,
+  rodadaKey: string,
+  rodadaIndexFallback: number,
+): number {
+  const direct = Number(p?.rodada);
+  if (Number.isFinite(direct) && direct > 0) return direct;
+  const fromRoundKey = parseRodadaNumeroFromKey(String(p?.round_key ?? ""));
+  if (fromRoundKey != null) return fromRoundKey;
+  const fromObjKey = parseRodadaNumeroFromKey(String(rodadaKey ?? ""));
+  if (fromObjKey != null) return fromObjKey;
+  return rodadaIndexFallback;
+}
+
+function parseRodadaNumeroFromKey(key: string): number | null {
+  const m = String(key || "").match(/(\d+)[ºoa]?[-]?rodada/i);
+  if (m && m[1]) {
+    const n = Number.parseInt(m[1], 10);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  // tenta extrair só o primeiro número da string (cobre "rodada-17", "17", etc.)
+  const any = String(key || "").match(/(\d+)/);
+  if (any && any[1]) {
+    const n = Number.parseInt(any[1], 10);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return null;
+}
+
 function parsePartidas(faseData: Record<string, any>): PalpitesInitialData["jogos"] {
   const jogos: PalpitesInitialData["jogos"] = [];
   const grupoKeys = Object.keys(faseData).filter((k) => typeof faseData[k] === "object" && !Array.isArray(faseData[k]));
@@ -120,7 +157,7 @@ function parsePartidas(faseData: Record<string, any>): PalpitesInitialData["jogo
           liveMinuto: parseLiveMinutoFromPartida(p),
           status: mapStatus(String(p.status ?? "")),
           grupo: "GERAL",
-          rodada: rodadaIndex,
+          rodada: resolveRodadaNumero(p, rodadaKey, rodadaIndex),
           kickoffAt: parseKickoffFromPartidaPayload(p),
           resultCasa: pickScoreFromPartidaPayload(p, "casa"),
           resultVisitante: pickScoreFromPartidaPayload(p, "visitante"),
@@ -152,7 +189,7 @@ function parsePartidas(faseData: Record<string, any>): PalpitesInitialData["jogo
           liveMinuto: parseLiveMinutoFromPartida(p),
           status: mapStatus(String(p.status ?? "")),
           grupo: grupoLetra,
-          rodada: rodadaIndex,
+          rodada: resolveRodadaNumero(p, rodadaKey, rodadaIndex),
           kickoffAt: parseKickoffFromPartidaPayload(p),
           resultCasa: pickScoreFromPartidaPayload(p, "casa"),
           resultVisitante: pickScoreFromPartidaPayload(p, "visitante"),
@@ -169,16 +206,15 @@ function parseAllPartidas(fases: Record<string, any> | undefined): {
 } {
   if (!fases || typeof fases !== "object") return { jogos: [], grupos: [] };
   const phaseValues = Object.values(fases).filter((value) => value && typeof value === "object") as Record<string, any>[];
-  let rodadaOffset = 0;
   const grupos = new Set<string>();
+  // NOTA: o `rodadaOffset` legado (que somava 1 a cada fase) é INCORRETO
+  // quando a `rodada` real já vem do payload — aqui usamos o valor que
+  // `parsePartidas` retornou (já resolvido).
   const jogos = phaseValues.flatMap((faseData) => {
-    const parsed = parsePartidas(faseData).map((jogo) => {
+    return parsePartidas(faseData).map((jogo) => {
       if (jogo.grupo && jogo.grupo !== "GERAL") grupos.add(jogo.grupo);
-      return { ...jogo, rodada: jogo.rodada + rodadaOffset };
+      return jogo;
     });
-    const localRodadas = parsed.map((jogo) => jogo.rodada - rodadaOffset);
-    rodadaOffset += Math.max(1, new Set(localRodadas).size);
-    return parsed;
   });
   return { jogos, grupos: Array.from(grupos).sort() };
 }
@@ -257,6 +293,26 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
     if (extraChampionshipId == null || !Number.isFinite(extraChampionshipId) || extraChampionshipId <= 0) {
       const sole = getSoleConfiguredExtraChampionshipId();
       if (sole != null) extraChampionshipId = sole;
+    }
+    // Bolão extra é SEMPRE por rodada. Se o ticket não tem `round_number`
+    // setado (extras legados), resolvemos a rodada atual via
+    // championships_cache (preferência) ou snapshot do provider (fallback).
+    if (
+      extraRoundNumber == null &&
+      extraChampionshipId != null &&
+      Number.isFinite(extraChampionshipId) &&
+      extraChampionshipId > 0
+    ) {
+      try {
+        const resolved = await resolveCurrentExtraRound(extraChampionshipId, {
+          allowProviderCall: false,
+        });
+        if (resolved?.rodada != null && Number.isFinite(resolved.rodada) && resolved.rodada > 0) {
+          extraRoundNumber = resolved.rodada;
+        }
+      } catch {
+        // sem rodada atual no cache → cliente decide (mostra todas as rodadas)
+      }
     }
   }
 

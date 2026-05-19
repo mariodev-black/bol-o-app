@@ -10,6 +10,7 @@ import { getPool } from "@/lib/db";
 import { getFootballMainCompetitionId, getSoleConfiguredExtraChampionshipId } from "@/lib/boloes-extra-config";
 import { brToday, resolveDiarioPlayableDate, utcMsForBrDate } from "@/lib/diario-playable-date";
 import { filterPredictionsToOfficialMatchIds } from "@/lib/matches-cache";
+import { resolveCurrentExtraRound } from "@/lib/football/extras-rodada";
 
 export const runtime = "nodejs";
 
@@ -156,7 +157,27 @@ export async function POST(request: NextRequest) {
   if (!meta) return NextResponse.json({ error: "Ticket invalido" }, { status: 400 });
   const bolaoType = meta.bolao;
   const extraChampionshipId = meta.extraChampionshipId;
-  const extraRoundNumber = meta.extraRoundNumber;
+  // Bolão extra é SEMPRE por rodada. Se o ticket não tem `round_number`,
+  // usamos a rodada_atual do championships_cache como fallback.
+  let extraRoundNumber = meta.extraRoundNumber;
+  if (
+    bolaoType === "extra" &&
+    extraRoundNumber == null &&
+    extraChampionshipId != null &&
+    Number.isFinite(extraChampionshipId) &&
+    extraChampionshipId > 0
+  ) {
+    try {
+      const resolved = await resolveCurrentExtraRound(extraChampionshipId, {
+        allowProviderCall: false,
+      });
+      if (resolved?.rodada != null && Number.isFinite(resolved.rodada) && resolved.rodada > 0) {
+        extraRoundNumber = resolved.rodada;
+      }
+    } catch {
+      // sem rodada atual disponível — cai no caminho "legado" (por dia)
+    }
+  }
   /** Sempre `matches_cache` no Postgres (nao usa mapa em memoria da API). */
   const matchMap = await fetchMatchesMapDirectFromDb();
   const mainComp = getFootballMainCompetitionId();

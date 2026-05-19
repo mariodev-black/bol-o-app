@@ -53,6 +53,11 @@ export function rowToPartidaPayload(row: CachedMatchRow): Record<string, unknown
     data_realizacao_iso: row.kickoff_at,
     placar_mandante: row.result_casa,
     placar_visitante: row.result_visitante,
+    // `rodada` (numero real) vem da coluna `matches_cache.rodada` quando
+    // populada pelo sync v2; caso null para extras legados, o parser do
+    // cliente cai no `round_key` (ex.: "17a-rodada" → 17).
+    rodada: row.rodada ?? null,
+    round_key: row.round_key ?? null,
     time_mandante: {
       nome_popular: row.home_name,
       sigla: row.home_sigla,
