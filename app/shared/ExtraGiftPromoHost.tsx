@@ -511,15 +511,7 @@ export function ExtraGiftPromoHost({ children }: { children: React.ReactNode }) 
   const handlePlay = useCallback(() => {
     stopAudio();
     setOpen(false);
-    const ticketId = status?.ticketId;
-    // `/palpites?ticket=<id>` é a URL canônica para entrar direto no ticket
-    // específico — `app/(authenticated)/palpites/page.tsx` resolve o tid via
-    // searchParams e injeta no initialData do client.
-    if (ticketId) {
-      router.push(`/palpites?ticket=${encodeURIComponent(ticketId)}`);
-    } else {
-      router.push("/palpites");
-    }
+    router.push("/boloes");
   }, [router, status?.ticketId, stopAudio]);
 
   const handleClaimedClose = useCallback(() => {
