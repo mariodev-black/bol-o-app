@@ -322,10 +322,9 @@ export function CadastrarContent() {
         body: JSON.stringify({
           cpf: cpfDigits,
           phone: phoneDigits,
-          // Enriquecimento do lead para o webhook (SellFlux/WhatsApp): nome
-          // vem mascarado da consulta de CPF (ex.: "JOÃO ***"), email já foi
-          // validado no step 2. Backend faz a validação canônica em /register.
-          name: cpfMaskedName?.trim() || undefined,
+          // Só repassamos o email (já validado no step 2).
+          // O NOME REAL é resolvido server-side via CPF (LGPD) — o cliente
+          // nunca recebe nome completo, apenas o `maskedName` para UI.
           email: email.trim() || undefined,
         }),
       });

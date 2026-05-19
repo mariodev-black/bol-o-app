@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { isValidCpf, normalizeCpf } from "@/lib/auth/cpf";
+import { fetchCpfFromBrasilApi } from "@/lib/auth/cpf-brasil-api";
 import { isValidBrazilNationalDigits } from "@/lib/auth/phone";
 import {
   normalizeRegistrationPhoneE164,
@@ -13,10 +14,9 @@ export const runtime = "nodejs";
 const bodySchema = z.object({
   cpf: z.string().min(1),
   phone: z.string().min(8).max(40),
-  // Opcionais — usados para enriquecer o lead no SellFlux WhatsApp webhook.
-  // Não são (re)validados aqui porque já passam por validação de UX no client;
-  // o registro final em `/api/auth/register` faz a validação canônica.
-  name: z.string().trim().min(1).max(160).optional(),
+  // Opcional — só o email é repassado do client (já validado no step 2).
+  // O NOME REAL é resolvido server-side via `fetchCpfFromBrasilApi` para não
+  // confiar em payload de UI (LGPD: o cliente recebe só o nome mascarado).
   email: z.string().trim().email().max(200).optional(),
 });
 
@@ -58,10 +58,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Erro ao validar CPF" }, { status: 500 });
   }
 
+  // Resolve o NOME REAL server-side (LGPD: cliente nunca recebe nome completo).
+  // Falha silenciosa: se o lookup quebrar, mandamos sem nome — o webhook ainda
+  // identifica o lead pelo phone/email. Não bloqueamos o envio do código.
+  let realName: string | null = null;
+  try {
+    const lookup = await fetchCpfFromBrasilApi(cpf);
+    if (lookup.ok && lookup.data.nome && lookup.data.nome.trim().length >= 2) {
+      realName = lookup.data.nome.trim();
+    }
+  } catch (e) {
+    console.warn("[auth/register/send-code] cpf-name lookup falhou; segue sem nome", e);
+  }
+
   const result = await sendRegistrationSmsCode({
     phoneE164,
     cpf,
-    name: parsed.data.name ?? null,
+    name: realName,
     email: parsed.data.email ?? null,
   });
   if (!result.ok) {
