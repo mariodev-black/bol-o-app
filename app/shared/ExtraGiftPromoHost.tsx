@@ -23,11 +23,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Check, Gift, Lock, Trophy, X } from "lucide-react";
+import { ArrowRight, Check, Trophy, X } from "lucide-react";
 import { useAuth } from "@/app/shared/AuthContext";
 import { useBolaoToast } from "@/app/components/BolaoToast";
-import iconBrasileirao from "@/app/assets/icon-brasileirao.png";
-import promoGratisBadge from "@/app/assets/promo-gratis-badge.png";
+import poupUpImage from "@/app/assets/poup-up.jpeg";
 
 const PROMO_FONT = "var(--font-montserrat), ui-sans-serif, system-ui, sans-serif";
 /** localStorage prefix — sufixo `_{championshipId}_{rodada}` para isolar por rodada. */
@@ -68,25 +67,16 @@ function persistDismissed(championshipId: number, rodada: number): void {
   }
 }
 
-/** Pincelada + "GRÁTIS" do mockup (asset fiel ao layout de referência). */
-function GratisBrushBadge() {
-  return (
-    <div className="relative mx-auto mt-1 flex w-full justify-center px-2">
-      <Image
-        src={promoGratisBadge}
-        alt="Grátis"
-        width={360}
-        height={65}
-        className="h-auto w-full max-w-[min(220px,70vw)] object-contain"
-        priority
-        draggable={false}
-      />
-    </div>
-  );
-}
-
 /* -------------------------------------------------------------------------- */
 /*  STEP 1 — Oferta                                                            */
+/*                                                                              */
+/*  Layout inspirado na referência da Aposta Ganha:                            */
+/*   - Foto do mascote/personagem "vaza" do topo do card (parte da arte fica   */
+/*     visível ACIMA da borda superior, criando profundidade).                 */
+/*   - Card preto com borda primary, cantos generosos.                         */
+/*   - Tipografia uppercase, hierarquia simples: título grande primary,        */
+/*     subtítulo branco compacto, microcopy menor, CTA pill primary.           */
+/*   - Apenas informações ESSENCIAIS: nome do produto, rodada, prêmio, ação.   */
 /* -------------------------------------------------------------------------- */
 
 function OfferStep({
@@ -107,124 +97,99 @@ function OfferStep({
   const handleClose = () => onClose(dontShowAgain);
 
   return (
+    // Wrapper externo: relativo + padding-top que reserva espaço pra a imagem
+    // "vazar" acima do topo do card. A imagem fica em z-0 (fundo) — a metade
+    // de cima dela aparece nos `pt-[140px]` reservados, a metade de baixo
+    // fica naturalmente OCULTA atrás do card opaco (z-10).
     <div
-      className="relative w-full max-w-[390px] overflow-hidden rounded-[20px] border-2 border-primary bg-[#0a0a0a] shadow-[0_0_40px_rgba(177,235,11,0.2)]"
+      className="relative w-full max-w-[380px] pt-[140px]"
       style={{ fontFamily: PROMO_FONT }}
       onClick={(e) => e.stopPropagation()}
     >
+      {/* Imagem do mascote — camada de fundo (z-0). O card opaco em z-10 cobre
+          o que estiver dentro da área dele, criando o efeito de "vazar". */}
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 z-0 flex justify-center"
+        aria-hidden
+      >
+        <Image
+          src={poupUpImage}
+          alt=""
+          width={1024}
+          height={768}
+          priority
+          draggable={false}
+          className="h-auto w-[78%] max-w-[300px] select-none drop-shadow-[0_14px_24px_rgba(0,0,0,0.55)]"
+        />
+      </div>
+
+      {/* Botão X — sempre por cima (z-30) pra ficar clicável sobre a imagem */}
       <button
         type="button"
         onClick={handleClose}
-        className="absolute right-3 top-3 z-10 flex size-10 min-h-[44px] min-w-[44px] items-center justify-center rounded-full border border-white/70 bg-black/40 text-white transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         aria-label="Fechar promoção"
+        className="absolute right-1 top-1 z-30 flex size-9 items-center justify-center rounded-full bg-black/70 text-white ring-1 ring-white/15 backdrop-blur-sm transition-colors hover:bg-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
       >
         <X className="size-4" strokeWidth={2.5} aria-hidden />
       </button>
 
-      <header className="px-5 pb-2 pt-10 text-center">
-        <div
-          className="relative mx-auto mb-3 flex size-16 items-center justify-center rounded-full bg-primary/10 ring-1 ring-primary/40"
-          aria-hidden
+      {/* Card — z-10 cobre a parte INFERIOR da imagem e fica acima dela. */}
+      <div
+        className="relative z-10 rounded-3xl border-2 border-primary bg-black px-6 pb-6 pt-8 shadow-[0_0_40px_rgba(177,235,11,0.22)]"
+        id="extra-gift-promo-card"
+      >
+        {/* Título */}
+        <h2
+          id="extra-gift-promo-title"
+          className="text-center text-[26px] font-black uppercase leading-[1.02] tracking-tight text-primary sm:text-[28px]"
+          style={{ textShadow: "0 0 18px rgba(177,235,11,0.28)" }}
         >
-          <Gift
-            className="size-9 text-primary"
-            strokeWidth={1.7}
-            style={{ filter: "drop-shadow(0 0 12px rgba(177,235,11,0.55))" }}
-          />
-        </div>
-
-        <p className="text-[13px] font-bold uppercase tracking-[0.06em] text-white/85">
-          Você ganhou o
-        </p>
-
-        <h2 id="extra-gift-promo-title" className="mt-1 leading-[1.08] tracking-tight">
-          <span className="block text-[22px] font-black uppercase text-white sm:text-[24px]">
-            Bolão do {bonusName}
-          </span>
-          {rodadaLabel ? (
-            <span className="mt-1 block text-[16px] font-bold text-white/90 sm:text-[17px]">
-              da {rodadaLabel}
-            </span>
-          ) : null}
+          Você ganhou um
+          <br />
+          bolão grátis!
         </h2>
 
-        <GratisBrushBadge />
-      </header>
+        {/* Subtítulo */}
+        <p className="mx-auto mt-4 max-w-[290px] text-center text-[12px] font-bold uppercase leading-[1.45] tracking-[0.02em] text-white/85 sm:text-[12.5px]">
+          Participe do {bonusName}
+          {rodadaLabel ? (
+            <>
+              {" "}da{" "}
+              <span className="text-primary">{rodadaLabel}</span>
+            </>
+          ) : null}{" "}
+          valendo{" "}
+          <span className="text-primary">{status.prizeLabel}</span>{" "}
+          em prêmios.
+        </p>
 
-      {/* Card "Valendo R$ 10 MIL" */}
-      <div className="mx-4 mt-4 rounded-2xl border border-white/12 bg-[#161616] px-4 py-3.5">
-        <div className="flex items-center gap-3">
-          <span
-            className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary/15 ring-1 ring-primary/40"
-            aria-hidden
-          >
-            <Trophy
-              className="size-6 text-primary"
-              strokeWidth={2.1}
-              style={{ filter: "drop-shadow(0 0 8px rgba(177,235,11,0.55))" }}
-            />
-          </span>
-          <p className="flex-1 text-left text-[15px] font-bold leading-tight text-white">
-            Valendo{" "}
-            <span className="rounded-md bg-primary px-1.5 py-0.5 text-[#0E141B]">
-              {status.prizeLabel}
-            </span>
-          </p>
-        </div>
-      </div>
+        {/* Chamada */}
+        <p className="mt-3 text-center text-[12px] font-semibold uppercase leading-snug tracking-wide text-white/65">
+          Entre agora e já começa palpitando!
+        </p>
 
-      {/* Card "Faça seus palpites..." */}
-      <div className="mx-4 mt-3 rounded-2xl border border-white/10 bg-[#161616] px-3.5 py-3">
-        <div className="flex items-center gap-3">
-          <div
-            className="flex shrink-0 items-center gap-2 rounded-lg border border-white/10 bg-black/50 px-2 py-1.5"
-            aria-hidden
-          >
-            <Image
-              src={iconBrasileirao}
-              alt=""
-              width={40}
-              height={40}
-              className="size-9 object-contain brightness-0 invert"
-            />
-          </div>
-          <p className="flex-1 text-left text-[13.5px] font-medium leading-snug text-white/88 sm:text-[14px]">
-            Faça seus palpites do {bonusName}{" "}
-            <span className="font-black text-primary">sem pagar nada a mais.</span>
-          </p>
-        </div>
-      </div>
-
-      {/* Rodapé */}
-      <div className="px-4 pb-5 pt-4">
-        <label className="mb-3 flex min-h-[44px] cursor-pointer items-center gap-2.5 rounded-lg border border-white/12 bg-white/4 px-3 py-2.5 text-left transition-colors hover:border-white/20 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-primary">
-          <input
-            type="checkbox"
-            checked={dontShowAgain}
-            onChange={(e) => setDontShowAgain(e.target.checked)}
-            className="size-4 shrink-0 accent-[#B1EB0B]"
-          />
-          <span className="text-[13px] font-semibold leading-snug text-white/75 sm:text-[14px]">
-            Não exibir isso novamente
-          </span>
-        </label>
-
+        {/* CTA pill */}
         <button
           type="button"
           disabled={loading}
           onClick={onClaim}
-          className="relative flex min-h-[52px] w-full items-center justify-center rounded-xl bg-primary px-4 text-[15px] font-black uppercase tracking-wide text-[#0E141B] shadow-[0_6px_28px_rgba(177,235,11,0.35)] transition-transform active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white disabled:cursor-not-allowed disabled:opacity-70 sm:text-[16px]"
+          className="mt-5 flex min-h-[52px] w-full items-center justify-center rounded-full bg-primary px-4 text-[14px] font-black uppercase tracking-wide text-[#0E141B] shadow-[0_8px_28px_rgba(177,235,11,0.42)] transition-transform active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white disabled:cursor-not-allowed disabled:opacity-70 sm:text-[15px]"
         >
           {loading ? "Resgatando..." : "Resgatar acesso grátis"}
         </button>
 
-        <p
-          id="extra-gift-promo-footer"
-          className="mt-3 flex items-start justify-center gap-1.5 text-center text-[12px] font-medium leading-snug text-white/55 sm:text-[13px]"
-        >
-          <Lock className="mt-0.5 size-3.5 shrink-0" strokeWidth={2.2} aria-hidden />
-          <span>A oferta será liberada após a confirmação da compra.</span>
-        </p>
+        {/* Checkbox discreto */}
+        <label className="mt-4 flex cursor-pointer items-center justify-center gap-2">
+          <input
+            type="checkbox"
+            checked={dontShowAgain}
+            onChange={(e) => setDontShowAgain(e.target.checked)}
+            className="size-3.5 shrink-0 accent-[#B1EB0B]"
+          />
+          <span className="text-[11.5px] font-semibold leading-snug text-white/60">
+            Não exibir isso novamente
+          </span>
+        </label>
       </div>
     </div>
   );
@@ -247,15 +212,15 @@ function ClaimedStep({
 
   return (
     <div
-      className="relative w-full max-w-[390px] overflow-hidden rounded-[20px] border-2 border-primary bg-[#0a0a0a] shadow-[0_0_45px_rgba(177,235,11,0.25)]"
+      className="relative w-full max-w-[380px] overflow-hidden rounded-3xl border-2 border-primary bg-black shadow-[0_0_40px_rgba(177,235,11,0.25)]"
       style={{ fontFamily: PROMO_FONT }}
       onClick={(e) => e.stopPropagation()}
     >
       <button
         type="button"
         onClick={onClose}
-        className="absolute right-3 top-3 z-10 flex size-10 min-h-[44px] min-w-[44px] items-center justify-center rounded-full border border-white/70 bg-black/40 text-white transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         aria-label="Fechar"
+        className="absolute right-3 top-3 z-10 flex size-9 items-center justify-center rounded-full bg-black/70 text-white ring-1 ring-white/15 backdrop-blur-sm transition-colors hover:bg-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
       >
         <X className="size-4" strokeWidth={2.5} aria-hidden />
       </button>

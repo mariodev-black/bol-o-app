@@ -172,10 +172,21 @@ function showcaseHeaderParts(
   return { category: "Campeonato", title: t || "Extra" };
 }
 
+/**
+ * Hook de relógio para countdowns. O valor inicial é `0` (sentinel "ainda não
+ * hidratou") em vez de `Date.now()` — isso é fundamental para evitar hydration
+ * mismatch: o SSR e o primeiro render do client produzem o MESMO HTML
+ * (`--:--:--`), e só depois do mount o relógio entra em ação.
+ *
+ * Consumidores devem tratar `now === 0` como "placeholder" — `formatCountdown`
+ * e `lockHasPassed` abaixo fazem isso. Outros consumers que comparem `now`
+ * diretamente precisam considerar esse contrato.
+ */
 function useNow(intervalMs = 1000) {
-  const [now, setNow] = useState(() => Date.now());
+  const [now, setNow] = useState(0);
 
   useEffect(() => {
+    setNow(Date.now());
     const interval = window.setInterval(() => setNow(Date.now()), intervalMs);
     return () => window.clearInterval(interval);
   }, [intervalMs]);
@@ -184,7 +195,8 @@ function useNow(intervalMs = 1000) {
 }
 
 function formatCountdown(targetMs: number | null, now: number): string {
-  if (!targetMs) return "--:--:--";
+  // `now === 0` ⇒ ainda não hidratou (SSR / primeiro render).
+  if (!targetMs || !now) return "--:--:--";
   const seconds = Math.max(0, Math.floor((targetMs - now) / 1000));
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
@@ -196,6 +208,9 @@ function formatCountdown(targetMs: number | null, now: number): string {
 
 /** Prazo de palpite / fechamento já ocorreu (ex.: jogo já aconteceu). */
 function lockHasPassed(targetMs: number | null, now: number): boolean {
+  // Antes da hidratação assumimos "ainda não passou" (default seguro: mostra
+  // ainda "Fazer palpites" em vez de "Ver resultados" por um piscar).
+  if (!now) return false;
   return targetMs != null && now >= targetMs;
 }
 
