@@ -152,7 +152,7 @@ export function LoginContent() {
       <AuthField
         id="login-identifier"
         label="E-mail ou CPF"
-        type={looksLikeEmail ? "email" : "text"}
+        type="text"
         inputMode={looksLikeEmail ? "email" : "numeric"}
         autoComplete="username"
         placeholder={identifierPlaceholder}
