@@ -110,8 +110,14 @@ const MESES = [
   "NOV",
   "DEZ",
 ];
+/**
+ * `idx` aqui é o NÚMERO REAL da rodada (vindo de `Jogo.rodada`), já
+ * resolvido por `resolveRodadaNumero` a partir de `matches_cache.rodada` /
+ * `round_key`. NÃO somar offset — caso contrário fica off-by-one (ex.: a
+ * 17ª rodada apareceria como "18ª Rodada").
+ */
 function rodadaLabel(idx: number): string {
-  return `${idx + 1}ª Rodada`;
+  return `${idx}ª Rodada`;
 }
 
 function formatData(dataStr?: string | null, isoStr?: string | null): string {
@@ -1716,6 +1722,12 @@ export type PalpitesInitialData = {
    * Quando `null`, mantém o comportamento legado (sem filtro por rodada).
    */
   extraRoundNumber?: number | null;
+  /**
+   * Nome legível da rodada do bolão extra, vindo de
+   * `championships_cache.rodada_atual_nome` (ex.: "17ª Rodada"). Quando ausente,
+   * o cliente compõe `${extraRoundNumber}ª Rodada` como fallback.
+   */
+  extraRoundName?: string | null;
   /** Título do bolão na página (SSR). */
   bolaoHeading?: string | null;
   tabela: TabelaGrupos | null;
@@ -2853,7 +2865,8 @@ function RoundPhaseNav({
           <ChevronLeft className="h-4 w-4 text-white/70" strokeWidth={2.5} />
         </button>
         <span className="text-[15px] font-black text-white">
-          Fase de Grupos — {rodadaIdx + 1}
+          {/* `selectedRodada` é o NÚMERO REAL da rodada (não o índice). */}
+          Fase de Grupos — {selectedRodada}
         </span>
         <button
           type="button"
@@ -3543,11 +3556,28 @@ function PalpitesPageContent({
     ),
   ).sort((a, b) => a - b);
   const jogosPorRodada = rodadasDisponiveis.map((idx) => {
-    const jogosDaRodada = jogosDisplayBase.filter(
-      (j) => matchesGroup(j) && j.rodada === idx,
-    );
+    const jogosDaRodada = jogosDisplayBase
+      .filter((j) => matchesGroup(j) && j.rodada === idx)
+      // Defesa em profundidade: ordena por kickoff (asc); o SSR já ordena, mas
+      // se o jogo vier por outro caminho (HMR, fetch direto de /api/partidas)
+      // garantimos cronologia aqui também.
+      .sort((a, b) => {
+        const ka = a.kickoffAt ? Date.parse(a.kickoffAt) : Number.POSITIVE_INFINITY;
+        const kb = b.kickoffAt ? Date.parse(b.kickoffAt) : Number.POSITIVE_INFINITY;
+        if (Number.isFinite(ka) && Number.isFinite(kb) && ka !== kb) return ka - kb;
+        return a.id - b.id;
+      });
+    // Para o bolão extra, o cabeçalho do bloco DEVE refletir a rodada real do
+    // ticket (extraTicketRound / extraRoundName) — nunca um label inferido do
+    // valor `idx` (que costuma ser igual, mas se houver dados legados duvidosos
+    // não queremos confundir o usuário).
+    const labelFromExtra =
+      extraRoundMode && idx === extraTicketRound
+        ? ((initialData?.extraRoundName ?? "").trim() ||
+            (extraTicketRound != null ? `${extraTicketRound}ª Rodada` : null))
+        : null;
     return {
-      label: rodadaLabel(idx),
+      label: labelFromExtra ?? rodadaLabel(idx),
       jogos: jogosDaRodada,
     };
   });
@@ -3574,12 +3604,21 @@ function PalpitesPageContent({
     ).slice(0, 10),
   };
 
+  const extraRoundLabel = (() => {
+    const fromSnapshot = (initialData?.extraRoundName ?? "").trim();
+    if (fromSnapshot) return fromSnapshot;
+    if (extraTicketRound != null && Number.isFinite(extraTicketRound) && extraTicketRound > 0) {
+      return `${extraTicketRound}ª Rodada`;
+    }
+    return null;
+  })();
+
   const jogosSubtitle = !hasBoloesFlow
     ? "Fase de Grupos"
     : bolaoType === "principal"
       ? "Jogos do dia · Copa inteira"
       : extraRoundMode
-        ? `Rodada ${extraTicketRound} — todos os jogos`
+        ? (extraRoundLabel ?? "Rodada atual")
         : diarioPlayableDate === today
           ? "Jogos do dia atual"
           : `Jogos em ${diarioPlayableDate} (dia mais próximo com partidas)`;

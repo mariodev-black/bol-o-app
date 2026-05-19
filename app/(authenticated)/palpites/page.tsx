@@ -266,6 +266,7 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
   let bolaoType: "principal" | "diario" | "extra" = "principal";
   let extraChampionshipId: number | null = null;
   let extraRoundNumber: number | null = null;
+  let extraRoundName: string | null = null;
   const tid = ticketId?.trim() ?? "";
   if (tid) {
     const fromPrefix = inferBolaoTypeFromTicketPrefix(tid);
@@ -298,7 +299,6 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
     // setado (extras legados), resolvemos a rodada atual via
     // championships_cache (preferência) ou snapshot do provider (fallback).
     if (
-      extraRoundNumber == null &&
       extraChampionshipId != null &&
       Number.isFinite(extraChampionshipId) &&
       extraChampionshipId > 0
@@ -308,7 +308,15 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
           allowProviderCall: false,
         });
         if (resolved?.rodada != null && Number.isFinite(resolved.rodada) && resolved.rodada > 0) {
-          extraRoundNumber = resolved.rodada;
+          if (extraRoundNumber == null) extraRoundNumber = resolved.rodada;
+          // Só usamos o `nome` do snapshot quando a rodada bate com a do ticket
+          // (ou quando o ticket não tinha rodada explícita).
+          if (
+            resolved.rodadaNome &&
+            (extraRoundNumber === resolved.rodada)
+          ) {
+            extraRoundName = resolved.rodadaNome;
+          }
         }
       } catch {
         // sem rodada atual no cache → cliente decide (mostra todas as rodadas)
@@ -517,6 +525,7 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
     bolaoType,
     extraChampionshipId,
     extraRoundNumber,
+    extraRoundName,
     bolaoHeading: palpitesBolaoHeading(bolaoType, extraChampionshipId),
     tabela: pickTabelaGruposForPalpites(tabelaRes.data) as TabelaGrupos,
     jogos: jogosFiltrados,

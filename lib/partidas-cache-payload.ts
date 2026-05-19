@@ -72,7 +72,16 @@ export function rowToPartidaPayload(row: CachedMatchRow): Record<string, unknown
 }
 
 export function buildPartidasFasesFromRows(rows: CachedMatchRow[]): PhaseMap {
-  const stableRows = [...rows].sort((a, b) => a.match_id - b.match_id);
+  // Ordena cronologicamente por kickoff_at (asc) → garante que a UI exiba os
+  // jogos da rodada no mesmo ordem da api-futebol (ex.: 23/05 17:00 antes de
+  // 25/05 20:00). `match_id` é desempate estável quando o kickoff for igual ou
+  // ausente em dados legados.
+  const stableRows = [...rows].sort((a, b) => {
+    const ka = a.kickoff_at ? Date.parse(a.kickoff_at) : Number.POSITIVE_INFINITY;
+    const kb = b.kickoff_at ? Date.parse(b.kickoff_at) : Number.POSITIVE_INFINITY;
+    if (Number.isFinite(ka) && Number.isFinite(kb) && ka !== kb) return ka - kb;
+    return a.match_id - b.match_id;
+  });
   const fases: PhaseMap = {};
   for (const row of stableRows) {
     const phaseKey = row.phase_key || "geral";
