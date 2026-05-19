@@ -140,6 +140,11 @@ export function AdminUsersClient({ users }: { users: AdminUserListItem[] }) {
                 const value = event.target.value;
                 setQuery(/^[\d.\-\s]+$/.test(value) ? formatCpfInput(value) : value);
               }}
+              inputMode="text"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck="false"
               placeholder="Digite nome, email ou CPF"
               className="h-12 w-full rounded-[12px] border border-white/10 bg-black/40 px-4 text-[14px] font-semibold text-white outline-none transition-colors placeholder:text-white/25 focus:border-primary/45"
             />
