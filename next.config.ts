@@ -13,6 +13,11 @@ const nextConfig: NextConfig = {
         hostname: "cdn.api-futebol.com.br",
       },
     ],
+    // Qualidades aceitas pelo otimizador. `75` é o default; adicionamos `90` e
+    // `100` para banners de marca (login/cadastro) que precisam de nitidez.
+    qualities: [75, 90, 100],
+    // AVIF tem melhor compressão sem perda perceptível; WebP é fallback.
+    formats: ["image/avif", "image/webp"],
   },
   devIndicators: false,
 };

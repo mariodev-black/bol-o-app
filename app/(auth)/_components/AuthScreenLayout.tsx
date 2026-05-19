@@ -80,24 +80,34 @@ export function AuthScreenLayout({ children }: AuthScreenLayoutProps) {
             width={168}
             height={44}
             priority
+            quality={100}
             className="h-[38px] w-auto sm:h-10"
           />
         </Link>
       </header>
 
       <div className="relative w-full shrink-0">
-        <div className="relative mx-auto w-full max-w-lg overflow-hidden rounded-b-2xl lg:max-w-none lg:rounded-b-[1.25rem]">
+        {/*
+          Banner com proporção NATURAL da imagem (1080×608).
+          - `max-w-[1080px]` impede que esticar acima do tamanho intrínseco
+            (vira borrado / pixelado em monitores grandes).
+          - `h-auto` + `w-full` mantêm o aspect ratio real — sem `object-cover`
+            (que crooaria a imagem para encaixar em outra proporção).
+          - `sizes` reflete o real consumo: mobile = 100vw, desktop = até 1080px.
+        */}
+        <div className="relative mx-auto w-full max-w-[1080px] overflow-hidden rounded-b-2xl lg:rounded-b-[1.25rem]">
           <Image
             src={bannerLogin}
             alt=""
+            quality={100}
             priority
-            className="h-auto w-full object-cover object-center"
-            sizes="(max-width: 1024px) 100vw, 55vw"
+            className="block h-auto w-full"
+            sizes="(max-width: 1024px) 100vw, 1080px"
           />
         </div>
       </div>
 
-      <div className="relative z-10 -mt-6 flex flex-1 flex-col pb-8 sm:px-4 lg:mx-auto lg:w-full lg:max-w-lg">
+      <div className="relative z-10 -mt-2 flex flex-1 flex-col pb-8 sm:px-4 lg:mx-auto lg:w-full lg:max-w-lg">
         <div
           className={[
             "flex min-h-0 flex-1 flex-col overflow-hidden bg-[#000000] shadow-[0_-8px_40px_rgba(0,0,0,0.45)]",
@@ -106,7 +116,7 @@ export function AuthScreenLayout({ children }: AuthScreenLayoutProps) {
         >
           {showTabs ? (
             <div
-              className="grid grid-cols-2 gap-0 px-3 pt-3"
+              className="grid grid-cols-2 gap-0 px-3"
               role="tablist"
               aria-label="Cadastro ou login"
             >
