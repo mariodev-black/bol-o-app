@@ -5,9 +5,9 @@
 
 import { parseExtraBolaoChampionshipIds } from "@/lib/boloes-extra-config";
 import {
-  getCopaBonusExtraPromoPublicConfig,
-  type CopaBonusExtraPromoPublicConfig,
-} from "@/lib/promotions/copa-bonus-extra";
+  getExtraGiftPromoPublicConfig,
+  type ExtraGiftPromoPublicConfig,
+} from "@/lib/promotions/extra-gift";
 import { getAppOrigin, getMarketingOrigin } from "@/lib/seo/config";
 
 export type AppServerConfig = {
@@ -18,7 +18,8 @@ export type AppServerConfig = {
   subdomainRoutingEnabled: boolean;
   /** Requisição atual veio do host de marketing (www) — CTAs usam `appOrigin` no SSR. */
   isMarketingRequest: boolean;
-  copaBonusPromo: CopaBonusExtraPromoPublicConfig;
+  /** Brinde de bolão extra pós-login (modal por rodada). */
+  extraGiftPromo: ExtraGiftPromoPublicConfig;
   extraChampionshipIds: number[];
 };
 
@@ -31,7 +32,7 @@ export function getAppServerConfig(): AppServerConfig {
     marketingOrigin: getMarketingOrigin(),
     subdomainRoutingEnabled: process.env.SUBDOMAIN_ROUTING_ENABLED === "true",
     isMarketingRequest: false,
-    copaBonusPromo: getCopaBonusExtraPromoPublicConfig(),
+    extraGiftPromo: getExtraGiftPromoPublicConfig(),
     extraChampionshipIds: parseExtraBolaoChampionshipIds(),
   };
 }

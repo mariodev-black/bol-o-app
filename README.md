@@ -187,6 +187,9 @@ npm install
 
 # 1) aplica as migrations (a do bolão v2 é obrigatória, ver §5)
 psql "$DATABASE_URL" -f scripts/sql/20260519-arquitetura-bolao-v2.sql
+psql "$DATABASE_URL" -f scripts/sql/20260520-prediction-scores-live.sql
+psql "$DATABASE_URL" -f scripts/sql/20260521-tickets-settled-at.sql
+psql "$DATABASE_URL" -f scripts/sql/20260521-tickets-extra-gift-unique.sql
 
 # 2) dev server
 npm run dev
@@ -252,7 +255,7 @@ TICKET_PRICE_EXTRA_BOLAO_CENTS=1000
 
 Desconto progressivo (mesma compra): 2 cotas −5%, 3 cotas −10%, 4+ cotas −15%.
 
-**Promo Copa** (`COPA_BONUS_EXTRA_PROMO_ENABLED=true`): cada cota geral comprada gera 1 cota extra grátis (`is_promo_bonus=true`, não soma ao PIX).
+**Brinde extra pós-login** (`EXTRA_GIFT_PROMO_ENABLED=true`): assim que o usuário entra, um modal oferece **1 cota grátis do bolão extra (Brasileirão) da rodada atual**. O resgate via `POST /api/promotions/extra-gift` é idempotente em três camadas — UI bloqueia o botão durante o POST, app faz SELECT pré-INSERT, e o banco garante via índice único parcial `tickets_extra_gift_unique` (`(user_id, extra_championship_id, round_number) WHERE ticket_type='extra' AND is_promo_bonus=true AND status IN ('paid','approved')`, migration `scripts/sql/20260521-tickets-extra-gift-unique.sql`). Cria um `tickets.is_promo_bonus=true` (não soma ao PIX, não entra no ranking principal nem na distribuição de prêmios) e renova a cada nova rodada do campeonato extra.
 
 **Lock de palpite antes do apito:** geral/diário 60 min, extra 5 min (`lib/palpites-kickoff-lock.ts`).
 
@@ -531,7 +534,10 @@ curl -H "Authorization: Bearer $CRON_SECRET" 'https://app.bolaodomilhao.com.br/a
 | `TICKET_PRICE_DAILY_CENTS` | `2000` | Preço cota diário |
 | `TICKET_PRICE_EXTRA_CENTS` | `3990` | Preço cota extra (legado) |
 | `TICKET_PRICE_EXTRA_BOLAO_CENTS` | `1000` | Preço unitário extra novo |
-| `COPA_BONUS_EXTRA_PROMO_ENABLED` | `true` | Promo "1 extra grátis por cota geral" |
+| `EXTRA_GIFT_PROMO_ENABLED` | `true` | Brinde "1 cota extra grátis por rodada" (modal pós-login) |
+| `EXTRA_GIFT_PROMO_CHAMPIONSHIP_ID` | — | ID do campeonato extra concedido (default: 1º Brasileirão de `BOLOES_EXTRA_CHAMPIONSHIP_IDS`) |
+| `EXTRA_GIFT_PRIZE_LABEL` | `R$ 10 MIL` | Rótulo do prêmio exibido no card "Valendo …" |
+| `EXTRA_GIFT_PROMO_BONUS_LABEL` | _nome do campeonato_ | Nome curto exibido no título do modal |
 | `TICKETS_EXTRA_ONLY` | `false` | Quando `true`, só vende extras |
 | `TICKETS_HIDE_DAILY` | `false` | Quando `true`, oculta bolão do dia |
 
@@ -643,6 +649,9 @@ cd $DEPLOY_APP_ROOT
 git pull origin main
 npm install --omit=dev
 psql "$DATABASE_URL" -f scripts/sql/20260519-arquitetura-bolao-v2.sql
+psql "$DATABASE_URL" -f scripts/sql/20260520-prediction-scores-live.sql
+psql "$DATABASE_URL" -f scripts/sql/20260521-tickets-settled-at.sql
+psql "$DATABASE_URL" -f scripts/sql/20260521-tickets-extra-gift-unique.sql
 npm run build
 pm2 reload ecosystem.config.js   # ou pm2 restart bolao
 ```

@@ -4,7 +4,7 @@ import React, { Suspense } from "react";
 import { BolaoToastProvider } from "@/app/components/BolaoToast";
 import { AuthProvider } from "@/app/shared/AuthContext";
 import { AppServerConfigProvider } from "@/app/shared/AppServerConfigContext";
-import { CopaBonusPromoHost } from "@/app/shared/CopaBonusPromoHost";
+import { ExtraGiftPromoHost } from "@/app/shared/ExtraGiftPromoHost";
 import { ProfileCompletionHost } from "@/app/shared/ProfileCompletionHost";
 import { ReferralCapture } from "@/app/shared/ReferralCapture";
 import { SidenavProvider } from "@/app/shared/SidenavContext";
@@ -25,12 +25,12 @@ export function Providers({
       <AppServerConfigProvider value={appServerConfig}>
       <AuthProvider initialUser={initialAuthUser}>
         <ProfileCompletionHost>
-          <CopaBonusPromoHost>
+          <ExtraGiftPromoHost>
             <Suspense fallback={null}>
               <ReferralCapture />
             </Suspense>
             <SidenavProvider>{children}</SidenavProvider>
-          </CopaBonusPromoHost>
+          </ExtraGiftPromoHost>
         </ProfileCompletionHost>
       </AuthProvider>
       </AppServerConfigProvider>

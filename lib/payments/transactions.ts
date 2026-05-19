@@ -170,16 +170,6 @@ export async function createDepositTransaction(input: CreateDepositTransactionIn
     throw new Error("Selecione pelo menos um ticket");
   }
 
-  const promoBonusLines = lines.filter((l) => l.promoBonus);
-  if (promoBonusLines.length > 0) {
-    console.info("[purchase] cotas extras grátis (promo Copa)", {
-      userId: input.userId,
-      count: promoBonusLines.length,
-      championshipId: promoBonusLines[0]?.extraChampionshipId ?? null,
-      generalQty,
-    });
-  }
-
   const amountCents = lines.reduce((s, l) => s + l.unitCents, 0);
 
   const primaryTicketType = lines[0]!.ticketType;
@@ -190,36 +180,34 @@ export async function createDepositTransaction(input: CreateDepositTransactionIn
   const extraIds: Array<number | null> = [];
   const unitPrices: number[] = [];
   const totalAmounts: number[] = [];
-  const promoFlags: boolean[] = [];
   const externalRefs: string[] = [];
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]!;
-    const isPromoBonus = Boolean(line.promoBonus);
     userIds.push(input.userId);
     ticketTypes.push(line.ticketType);
     extraIds.push(line.ticketType === "extra" ? line.extraChampionshipId ?? null : null);
-    unitPrices.push(isPromoBonus ? 0 : line.unitCents);
-    totalAmounts.push(isPromoBonus ? 0 : line.unitCents);
-    promoFlags.push(isPromoBonus);
+    unitPrices.push(line.unitCents);
+    totalAmounts.push(line.unitCents);
     externalRefs.push(`${paymentExternalRef}:p${i}`);
   }
+  // Checkout normal nunca cria cota gratuita aqui — brindes vão por
+  // `claimExtraGiftForUser` (vide `lib/promotions/extra-gift.ts`).
   const ticketInsert = await pool.query<{ id: string }>(
     `INSERT INTO tickets (
        user_id, ticket_type, extra_championship_id, unit_price_cents, quantity,
        total_amount_cents, is_promo_bonus, status, external_ref
      )
-     SELECT u, tt, e, up, 1, ta, pb, 'pending_payment', er
+     SELECT u, tt, e, up, 1, ta, false, 'pending_payment', er
      FROM UNNEST(
        $1::uuid[],
        $2::text[],
        $3::int[],
        $4::int[],
        $5::int[],
-       $6::bool[],
-       $7::text[]
-     ) AS t(u, tt, e, up, ta, pb, er)
+       $6::text[]
+     ) AS t(u, tt, e, up, ta, er)
      RETURNING id`,
-    [userIds, ticketTypes, extraIds, unitPrices, totalAmounts, promoFlags, externalRefs]
+    [userIds, ticketTypes, extraIds, unitPrices, totalAmounts, externalRefs]
   );
   const ticketIds = ticketInsert.rows.map((r) => r.id);
   const ticketId = ticketIds[0]!;

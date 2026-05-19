@@ -3,17 +3,14 @@
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { AppScreenLoading } from "@/app/shared/AppScreenLoading";
-import type { CopaBonusExtraPromoPublicConfig } from "@/lib/promotions/copa-bonus-extra";
 import { TicketCheckoutFlow } from "./_components/TicketCheckoutFlow";
 
 function TicketsPageContent({
   serverExtraChampionshipIds,
-  serverCopaBonusPromo,
   ticketsExtraOnly,
   ticketsHideDaily,
 }: {
   serverExtraChampionshipIds: number[];
-  serverCopaBonusPromo: CopaBonusExtraPromoPublicConfig;
   ticketsExtraOnly: boolean;
   ticketsHideDaily: boolean;
 }) {
@@ -40,7 +37,6 @@ function TicketsPageContent({
         initialTicketKind={initialTicketKind}
         initialExtraChampionshipId={initialExtraChampionshipId}
         serverExtraChampionshipIds={serverExtraChampionshipIds}
-        serverCopaBonusPromo={serverCopaBonusPromo}
         ticketsExtraOnly={ticketsExtraOnly}
         ticketsHideDaily={ticketsHideDaily}
       />
@@ -50,12 +46,10 @@ function TicketsPageContent({
 
 export function TicketsPageClient({
   serverExtraChampionshipIds,
-  serverCopaBonusPromo,
   ticketsExtraOnly,
   ticketsHideDaily,
 }: {
   serverExtraChampionshipIds: number[];
-  serverCopaBonusPromo: CopaBonusExtraPromoPublicConfig;
   ticketsExtraOnly: boolean;
   ticketsHideDaily: boolean;
 }) {
@@ -69,7 +63,6 @@ export function TicketsPageClient({
     >
       <TicketsPageContent
         serverExtraChampionshipIds={serverExtraChampionshipIds}
-        serverCopaBonusPromo={serverCopaBonusPromo}
         ticketsExtraOnly={ticketsExtraOnly}
         ticketsHideDaily={ticketsHideDaily}
       />

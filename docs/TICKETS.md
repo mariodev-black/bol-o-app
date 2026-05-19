@@ -143,7 +143,7 @@ Geridas por `lib/prizes/processor.ts` (fechamento idempotente por `closure_key`)
 
 **Desconto progressivo** (por tipo, na mesma compra): 2 cotas 5%, 3 → 10%, 4+ → 15%.
 
-**Promo Copa** (`COPA_BONUS_EXTRA_PROMO_ENABLED`): cada cota geral comprada gera 1 cota extra grátis (`is_promo_bonus`, não entra no PIX).
+**Brinde extra pós-login** (`EXTRA_GIFT_PROMO_ENABLED`): modal automático ao logar oferece **1 cota grátis do bolão extra da rodada atual** (POST `/api/promotions/extra-gift`, idempotente). Cria `tickets.is_promo_bonus=true` — não entra no PIX, não conta para ranking principal nem para distribuição de prêmios. Renova a cada nova rodada.
 
 ---
 
@@ -567,7 +567,10 @@ TICKET_PRICE_GENERAL_CENTS=3990
 TICKET_PRICE_DAILY_CENTS=2000
 TICKETS_EXTRA_ONLY=false
 TICKETS_HIDE_DAILY=false
-COPA_BONUS_EXTRA_PROMO_ENABLED=true
+EXTRA_GIFT_PROMO_ENABLED=true
+# EXTRA_GIFT_PROMO_CHAMPIONSHIP_ID=10
+# EXTRA_GIFT_PRIZE_LABEL=R$ 10 MIL
+# EXTRA_GIFT_PROMO_BONUS_LABEL=Brasileirão
 BOLOES_EXTRA_CHAMPIONSHIP_IDS=10,...
 ```
 

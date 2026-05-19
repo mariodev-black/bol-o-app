@@ -15,7 +15,7 @@ export function buildSkaleCartLineItems(
   const map = new Map<string, SkaleCartLineItem>();
   let skuIdx = 0;
   for (const line of lines) {
-    if (line.promoBonus || line.unitCents <= 0) continue;
+    if (line.unitCents <= 0) continue;
     const key = `${line.ticketType}:${line.unitCents}:${line.extraChampionshipId ?? ""}`;
     const existing = map.get(key);
     if (existing) {

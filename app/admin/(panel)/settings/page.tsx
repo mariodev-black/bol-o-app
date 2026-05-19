@@ -7,7 +7,7 @@ function formatBRL(cents: number) {
 }
 
 export default function AdminSettingsPage() {
-  const { copaBonusPromo, extraChampionshipIds } = getAppServerConfig();
+  const { extraGiftPromo, extraChampionshipIds } = getAppServerConfig();
   const items = [
     { label: "APP_URL", value: process.env.APP_URL ?? "Nao configurado" },
     { label: "Webhook Skale", value: process.env.SKALE_POSTBACK_URL ?? `${process.env.APP_URL ?? ""}/api/webhooks/skale` },
@@ -16,9 +16,9 @@ export default function AdminSettingsPage() {
     { label: "Bolão diário", value: formatBRL(getTicketPriceCents("daily")) },
     { label: "Sessão admin 2FA", value: "2 horas" },
     {
-      label: "Promo Copa → extra grátis",
-      value: copaBonusPromo.enabled
-        ? `Ativa · ${copaBonusPromo.bonusShortLabel} (id ${copaBonusPromo.championshipId ?? "—"})`
+      label: "Brinde extra pós-login",
+      value: extraGiftPromo.enabled
+        ? `Ativa · ${extraGiftPromo.displayName} (id ${extraGiftPromo.championshipId ?? "—"}) · ${extraGiftPromo.prizeLabel}`
         : "Desativada",
     },
     {

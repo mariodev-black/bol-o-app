@@ -1,8 +1,4 @@
 import { getExtraBolaoTicketUnitCents, parseExtraBolaoChampionshipIds } from "@/lib/boloes-extra-config";
-import {
-  copaBonusExtraQuantityForGeneralTickets,
-  getCopaBonusExtraChampionshipId,
-} from "@/lib/promotions/copa-bonus-extra";
 
 export type TicketType = "general" | "daily" | "extra";
 
@@ -75,8 +71,6 @@ export type PurchaseTicketLine = {
   ticketType: TicketType;
   unitCents: number;
   extraChampionshipId?: number;
-  /** Cota extra grátis (promo Copa → Brasileirão); não entra no PIX. */
-  promoBonus?: boolean;
 };
 
 /** Compra de extras: uma quantidade total (desconto progressivo sobre o total) ou mapa legado por campeonato. */
@@ -141,19 +135,6 @@ export function buildPurchaseTicketLines(
     lines.push({ ticketType: "general", unitCents });
   }
 
-  const bonusCid = getCopaBonusExtraChampionshipId();
-  const bonusQty = copaBonusExtraQuantityForGeneralTickets(g);
-  if (bonusCid != null && bonusQty > 0) {
-    for (let i = 0; i < bonusQty; i++) {
-      lines.push({
-        ticketType: "extra",
-        unitCents: 0,
-        extraChampionshipId: bonusCid,
-        promoBonus: true,
-      });
-    }
-  }
-
   const dailyUnit = getTicketPriceCents("daily");
   for (const unitCents of distributeDiscountedTicketAmounts(dailyUnit, d)) {
     lines.push({ ticketType: "daily", unitCents });
@@ -190,16 +171,4 @@ export function expectedPurchaseAmountCents(
   extraInput?: PurchaseExtraInput,
 ): number {
   return buildPurchaseTicketLines(generalQty, dailyQty, extraInput).reduce((s, l) => s + l.unitCents, 0);
-}
-
-/** Contagem de extras grátis da promo (por campeonato) já embutidas nas linhas do pedido. */
-export function promoBonusExtraCountsFromLines(lines: PurchaseTicketLine[]): Record<number, number> {
-  const out: Record<number, number> = {};
-  for (const line of lines) {
-    if (!line.promoBonus || line.ticketType !== "extra") continue;
-    const cid = line.extraChampionshipId;
-    if (cid == null || !Number.isFinite(cid)) continue;
-    out[cid] = (out[cid] ?? 0) + 1;
-  }
-  return out;
 }

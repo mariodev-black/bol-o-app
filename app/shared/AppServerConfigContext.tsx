@@ -10,12 +10,11 @@ const defaultConfig: AppServerConfig = {
   marketingOrigin: "https://www.bolaodomilhao.com.br",
   subdomainRoutingEnabled: false,
   isMarketingRequest: false,
-  copaBonusPromo: {
+  extraGiftPromo: {
     enabled: false,
     championshipId: null,
-    bonusExtraDisplayName: "Bolão extra",
-    principalProductLabel: "Bolão do Milhão 2026",
-    bonusShortLabel: "Brasileirão",
+    displayName: "Bolão extra",
+    prizeLabel: "R$ 10 MIL",
   },
   extraChampionshipIds: [],
 };

@@ -26,8 +26,6 @@ import iconCopaMundo from "@/app/assets/icon-copa-mundo.png";
 import ticketBlue from "@/app/assets/Ticket-Blue.png";
 import { resolveCheckoutExtraBolaoIconVariant } from "@/lib/boloes-extra-competition-branding";
 import { championshipCountsFromExtraQuantity } from "@/lib/payments/ticket-config";
-import { useAppServerConfig } from "@/app/shared/AppServerConfigContext";
-import type { CopaBonusExtraPromoPublicConfig } from "@/lib/promotions/copa-bonus-extra";
 import { appendTicketsFromPurchase } from "../lib/ownedTicketsStorage";
 import { AppScreenLoading } from "@/app/shared/AppScreenLoading";
 import { TicketPixGeneratedScreen } from "./pix/TicketPixGeneratedScreen";
@@ -118,8 +116,6 @@ type TicketCheckoutFlowProps = {
   initialExtraChampionshipId?: number;
   /** IDs extras vindos do servidor — alinhados a `BOLOES_EXTRA_*`. */
   serverExtraChampionshipIds?: number[];
-  /** Promo Copa → extra grátis (env do servidor, injetada no layout). */
-  serverCopaBonusPromo?: CopaBonusExtraPromoPublicConfig;
   /**
    * Quando true (env `TICKETS_EXTRA_ONLY`): oculta bolão geral e bolão do dia na loja;
    * só exibe a compra de bolões extra.
@@ -135,13 +131,10 @@ export function TicketCheckoutFlow({
   initialTicketKind = "general",
   initialExtraChampionshipId: _initialExtraChampionshipId,
   serverExtraChampionshipIds = [],
-  serverCopaBonusPromo: serverCopaBonusPromoProp,
   ticketsExtraOnly = false,
   ticketsHideDaily = false,
 }: TicketCheckoutFlowProps) {
   const router = useRouter();
-  const appServerConfig = useAppServerConfig();
-  const promoConfigInitial = serverCopaBonusPromoProp ?? appServerConfig.copaBonusPromo;
   const [principalQty, setPrincipalQty] = useState(() => {
     if (ticketsExtraOnly) return 0;
     return initialTicketKind === "daily" || initialTicketKind === "extra" ? 0 : 1;
@@ -181,8 +174,6 @@ export function TicketCheckoutFlow({
   const [confirmedPaid, setConfirmedPaid] = useState(false);
   /** Catálogo (preços + nomes dos bolões extra) vindo do servidor — evita troca de layout no 1º paint. */
   const [catalogReady, setCatalogReady] = useState(false);
-  const [copaBonusPromo, setCopaBonusPromo] =
-    useState<CopaBonusExtraPromoPublicConfig>(promoConfigInitial);
   const paidHandledRef = useRef(false);
   const purchasePrincipalRef = useRef(0);
   const purchaseDiarioRef = useRef(0);
@@ -264,7 +255,6 @@ export function TicketCheckoutFlow({
         });
         const d = (await r.json()) as {
           prices?: { general: number; daily: number; extra?: number };
-          copaBonusPromo?: CopaBonusExtraPromoPublicConfig;
           extraBoloes?: Array<{
             championshipId: number;
             unitCents: number;
@@ -282,9 +272,6 @@ export function TicketCheckoutFlow({
         }
         if (r.ok && Array.isArray(d.extraBoloes) && d.extraBoloes.length > 0) {
           setExtraBoloes(d.extraBoloes);
-        }
-        if (r.ok && d.copaBonusPromo) {
-          setCopaBonusPromo(d.copaBonusPromo);
         }
       } catch {
         // fallback nos valores default locais
@@ -457,11 +444,6 @@ export function TicketCheckoutFlow({
   }, [extraBoloes, extraQuantity, extraLineCents, extraPrimaryBolao, extraResumoShortLabel]);
 
   const extraLinesCents = extraLineCents;
-  const promoBonusQty =
-    copaBonusPromo?.enabled && copaBonusPromo.championshipId != null && principalQty > 0
-      ? principalQty
-      : 0;
-  const promoBonusLabel = copaBonusPromo?.bonusShortLabel ?? "Brasileirão";
 
   const totalCents = principalLineCents + diarioLineCents + extraLinesCents;
   const totalQty = principalQty + dailyQty + extraQuantity;
@@ -517,10 +499,6 @@ export function TicketCheckoutFlow({
           extraQuantity,
           extraBoloes.map((b) => b.championshipId),
         );
-        if (copaBonusPromo?.enabled && copaBonusPromo.championshipId && principalQty > 0) {
-          const cid = copaBonusPromo.championshipId;
-          paidExtras[cid] = (paidExtras[cid] ?? 0) + principalQty;
-        }
         purchaseExtraRef.current = paidExtras;
         setTransactionId(d.transaction.id);
         setPixPayload(d.transaction.pixQrcode);
@@ -531,7 +509,7 @@ export function TicketCheckoutFlow({
         setStep("shop");
       }
     })();
-  }, [hasSelection, principalQty, dailyQty, extraBoloes, extraQuantity, copaBonusPromo]);
+  }, [hasSelection, principalQty, dailyQty, extraBoloes, extraQuantity]);
 
   const copyPix = useCallback(() => {
     if (!pixPayload || pixExpired) return;
@@ -692,11 +670,6 @@ export function TicketCheckoutFlow({
                           <span className="w-fit shrink-0 rounded-md bg-primary/20 px-1.5 py-0.5 text-[7px] font-black uppercase tracking-wide text-primary sm:text-[8px]">
                             Mais popular
                           </span>
-                          {promoBonusQty > 0 ? (
-                            <span className="w-fit shrink-0 rounded-md border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-[7px] font-black uppercase tracking-wide text-primary sm:text-[8px]">
-                              +{promoBonusQty} {promoBonusLabel} grátis
-                            </span>
-                          ) : null}
                         </div>
                         <p className="mt-1 text-[12px] font-medium leading-snug text-white/80 sm:text-[11px]">
                           Acesso a todas as rodadas da Copa do Mundo 2026
@@ -1033,15 +1006,6 @@ export function TicketCheckoutFlow({
                     {formatBRL(principalLineCents)}
                   </span>
                 </div>
-                {promoBonusQty > 0 ? (
-                  <div className="flex items-center justify-between gap-2 rounded-[10px] border border-primary/25 bg-primary/8 px-2.5 py-2 text-[12px]">
-                    <span className="font-bold text-primary">
-                      {promoBonusLabel} grátis · {promoBonusQty}{" "}
-                      {promoBonusQty === 1 ? "cota" : "cotas"}
-                    </span>
-                    <span className="shrink-0 font-black text-primary">R$ 0,00</span>
-                  </div>
-                ) : null}
                 {!ticketsHideDaily && dailyQty > 0 && (
                 <div className="flex items-center justify-between gap-2 text-[13px]">
                   <span className="font-semibold text-white/70">
