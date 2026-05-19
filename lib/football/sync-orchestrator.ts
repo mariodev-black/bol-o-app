@@ -3,11 +3,12 @@
  *
  *   syncPrincipal(competitionId)   -> /campeonatos/:id + /campeonatos/:id/partidas
  *   syncExtra(competitionId)       -> /campeonatos/:id (rodada_atual) + /rodadas/:rodada
- *   syncAllConfigured()            -> principal + todos os extras
+ *   syncAllConfigured()            -> principal + todos os extras (serializado no
+ *                                     cluster via advisory lock — ver advisory-locks.ts)
  *
  * Esse modulo NAO decide cadencia. Quem decide cadencia:
  *   - cron diario 00:01 BRT       -> chama syncAllConfigured() uma vez por dia.
- *   - worker 1 min                -> chama updateLiveMatches() so para jogos abertos.
+ *   - worker 1 min                -> chama runRealtimeTick() so para jogos abertos.
  *   - inicializacao (bootstrap)   -> chama syncAllConfiguredIfStale() se cache vazio.
  */
 
@@ -26,6 +27,10 @@ import {
   persistChampionshipSnapshot,
   persistMatchesV2,
 } from "@/lib/football/persistence";
+import {
+  ADVISORY_LOCK_FOOTBALL_FULL_SYNC,
+  tryWithFootballAdvisoryLock,
+} from "@/lib/football/advisory-locks";
 import { getPool } from "@/lib/db";
 
 // ---------------------------------------------------------------------
@@ -161,26 +166,36 @@ export async function syncAllConfigured(): Promise<{
   principal: SyncCompetitionResult | null;
   extras: SyncCompetitionResult[];
   totalMs: number;
+  /** Outro processo já estava rodando o mesmo full sync (lock Postgres). */
+  skippedConcurrent?: boolean;
 }> {
-  const t0 = Date.now();
+  const done = await tryWithFootballAdvisoryLock(ADVISORY_LOCK_FOOTBALL_FULL_SYNC, async () => {
+    const t0 = Date.now();
 
-  let principal: SyncCompetitionResult | null = null;
-  try {
-    principal = await syncPrincipal();
-  } catch (err) {
-    console.error("[syncAllConfigured] principal falhou:", err);
-  }
-
-  const extras: SyncCompetitionResult[] = [];
-  for (const id of parseExtraBolaoChampionshipIds()) {
+    let principal: SyncCompetitionResult | null = null;
     try {
-      extras.push(await syncExtra(id));
+      principal = await syncPrincipal();
     } catch (err) {
-      console.error(`[syncAllConfigured] extra ${id} falhou:`, err);
+      console.error("[syncAllConfigured] principal falhou:", err);
     }
-  }
 
-  return { principal, extras, totalMs: Date.now() - t0 };
+    const extras: SyncCompetitionResult[] = [];
+    for (const id of parseExtraBolaoChampionshipIds()) {
+      try {
+        extras.push(await syncExtra(id));
+      } catch (err) {
+        console.error(`[syncAllConfigured] extra ${id} falhou:`, err);
+      }
+    }
+
+    return { principal, extras, totalMs: Date.now() - t0 };
+  });
+
+  if (done == null) {
+    console.info("[syncAllConfigured] skip — outra sessão segura o advisory lock (full sync)");
+    return { principal: null, extras: [], totalMs: 0, skippedConcurrent: true };
+  }
+  return done;
 }
 
 /**
@@ -206,6 +221,20 @@ export async function syncAllConfiguredIfStale(opts?: {
   const missing = ids.filter((id) => (totalsByComp.get(id) ?? 0) === 0);
   if (missing.length > 0) {
     const result = await syncAllConfigured();
+    if (result.skippedConcurrent) {
+      const { rows: rowsPeer } = await pool.query<{ competition_id: number; total: string }>(
+        `SELECT competition_id, count(*)::text AS total
+         FROM matches_cache
+         WHERE competition_id = ANY($1::int[])
+         GROUP BY competition_id`,
+        [ids],
+      );
+      const after = new Map(rowsPeer.map((r) => [Number(r.competition_id), Number(r.total)]));
+      const stillMissing = ids.filter((id) => (after.get(id) ?? 0) === 0);
+      if (stillMissing.length === 0) {
+        return { ran: false, reason: "cache-populado-por-peer", result };
+      }
+    }
     return { ran: true, reason: `cache-vazio:${missing.join(",")}`, result };
   }
 

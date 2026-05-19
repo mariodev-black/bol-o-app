@@ -21,6 +21,10 @@
  */
 
 import { getPool } from "@/lib/db";
+import {
+  ADVISORY_LOCK_FOOTBALL_REALTIME_TICK,
+  tryWithFootballAdvisoryLock,
+} from "@/lib/football/advisory-locks";
 import { fetchMatchDetailById, type ProviderMatchV2 } from "@/lib/football/provider";
 import { persistMatchesV2 } from "@/lib/football/persistence";
 
@@ -84,18 +88,46 @@ type ActiveRow = {
 export type RealtimeTickResult = {
   selected: number;
   fetched: number;
+  /** UPSERTs realizados em matches_cache (novas + scoredChanged). */
   persisted: number;
+  /** Subset de `changedMatchIds` cuja PONTUAÇÃO realmente mudou. */
+  scoredChangedIds: number[];
+  /** Partidas selecionadas mas idênticas ao cache (sem write). */
+  unchanged: number;
+  /** Linhas em prediction_scores recalculadas (somente para scoredChangedIds). */
+  predictionScoresUpdated: number;
   changedMatchIds: number[];
   ms: number;
   skipped?: string;
 };
 
 /**
- * Executa UM tick do worker. Idempotente — pode rodar em paralelo (a transacao
- * de persistencia trata concorrencia), mas chamadores devem evitar overlap por
- * questao de cota de API.
+ * Executa UM tick do worker. Serializado no cluster via `pg_try_advisory_lock`
+ * (ver `lib/football/advisory-locks.ts`) para não duplicar GET /partidas entre
+ * PM2 workers, réplicas ou scheduler + cron HTTP.
  */
 export async function runRealtimeTick(): Promise<RealtimeTickResult> {
+  const t0 = Date.now();
+  const out = await tryWithFootballAdvisoryLock(ADVISORY_LOCK_FOOTBALL_REALTIME_TICK, () =>
+    runRealtimeTickUnlocked(),
+  );
+  if (out == null) {
+    return {
+      selected: 0,
+      fetched: 0,
+      persisted: 0,
+      scoredChangedIds: [],
+      unchanged: 0,
+      predictionScoresUpdated: 0,
+      changedMatchIds: [],
+      ms: Date.now() - t0,
+      skipped: "advisory-lock-busy",
+    };
+  }
+  return out;
+}
+
+async function runRealtimeTickUnlocked(): Promise<RealtimeTickResult> {
   const t0 = Date.now();
   const pool = getPool();
 
@@ -114,6 +146,9 @@ export async function runRealtimeTick(): Promise<RealtimeTickResult> {
       selected: 0,
       fetched: 0,
       persisted: 0,
+      scoredChangedIds: [],
+      unchanged: 0,
+      predictionScoresUpdated: 0,
       changedMatchIds: [],
       ms: Date.now() - t0,
       skipped: "no-active-matches",
@@ -138,6 +173,9 @@ export async function runRealtimeTick(): Promise<RealtimeTickResult> {
       selected: rows.length,
       fetched: 0,
       persisted: 0,
+      scoredChangedIds: [],
+      unchanged: 0,
+      predictionScoresUpdated: 0,
       changedMatchIds: [],
       ms: Date.now() - t0,
     };
@@ -152,6 +190,9 @@ export async function runRealtimeTick(): Promise<RealtimeTickResult> {
     selected: rows.length,
     fetched: updates.length,
     persisted: persisted.written,
+    scoredChangedIds: persisted.scoredChangedIds,
+    unchanged: persisted.unchanged,
+    predictionScoresUpdated: persisted.predictionScoresUpdated,
     changedMatchIds: persisted.changedMatchIds,
     ms: Date.now() - t0,
   };

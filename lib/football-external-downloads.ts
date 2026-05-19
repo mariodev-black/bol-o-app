@@ -3,8 +3,8 @@
  * `lib/football/provider.ts`).
  *
  * Hoje exporta apenas:
- *   - downloadStandingsJson — tabela do campeonato (usada pelo /api/tabela e
- *     pelo cron diario via `lib/football/sync-orchestrator`).
+ *   - downloadStandingsJson — tabela do campeonato (usada pelo GET /api/tabela
+ *     quando o cache `football_api_cache` esta vazio; nao faz parte do sync v2 de partidas).
  */
 
 /** GET /v1/campeonatos/{id}/tabela — JSON cru, sem normalizacao. */

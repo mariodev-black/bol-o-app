@@ -302,6 +302,27 @@ export async function POST(request: NextRequest) {
     scoreCasa: data.scoreCasa,
     scoreVisitante: data.scoreVisitante,
   });
+  // Se a partida já tem placar conhecido (raro: palpite no apito), gera a linha
+  // em prediction_scores. Em jogo sem placar, points=0 — a próxima cascata
+  // recomputa quando o placar mudar.
+  try {
+    const { getPool } = await import("@/lib/db");
+    const { recomputePredictionScoresForMatches } = await import("@/lib/predictions/score-recompute");
+    const pool = getPool();
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      await recomputePredictionScoresForMatches(client, [data.matchId]);
+      await client.query("COMMIT");
+    } catch (err) {
+      await client.query("ROLLBACK");
+      console.warn("[api/palpites] recomputePredictionScores skipped:", err);
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.warn("[api/palpites] recompute boot failed:", err);
+  }
   revalidateTag("leaderboard", "max");
   return NextResponse.json({
     prediction: {

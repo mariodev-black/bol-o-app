@@ -9,7 +9,11 @@
     "build": "next build",
     "deploy:github": "bash scripts/deploy-from-github.sh",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:v2": "tsx --tsconfig tsconfig.scripts.json scripts/test-v2-architecture.ts",
+    "test:e2e": "tsx --tsconfig tsconfig.scripts.json scripts/test-e2e-completo.ts",
+    "test:live": "tsx --tsconfig tsconfig.scripts.json scripts/test-pontuacao-ao-vivo.ts",
+    "backfill:prediction-scores": "tsx --tsconfig tsconfig.scripts.json scripts/backfill-prediction-scores.ts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",
@@ -37,9 +41,11 @@
     "@types/pg": "^8.20.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^17.4.2",
     "eslint": "^9",
     "eslint-config-next": "16.2.0",
     "tailwindcss": "^4",
+    "tsx": "^4.22.2",
     "typescript": "^5"
   }
 }

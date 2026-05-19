@@ -4,7 +4,7 @@ Documentação do fluxo de **compra de cotas (tickets)**, **palpites**, **atuali
 
 > Implementação principal: `lib/payments/`, `lib/predictions.ts`, `lib/football/`, `lib/matches-cache.ts`, `lib/prizes/`, `app/(authenticated)/tickets/`.
 
-> **Arquitetura v2 (2026-05-19):** a coleta/atualização de partidas foi reescrita em `lib/football/` (provider, persistência, orquestrador, realtime worker e scheduler). O fluxo antigo (`lib/cron/*`) **foi removido**. Veja a seção §15 e o `README.md` raiz para detalhes.
+> **Arquitetura v2 (2026-05-19):** a coleta/atualização de partidas foi reescrita em `lib/football/` (provider, persistência, orquestrador, realtime worker e scheduler). O fluxo antigo (`lib/cron/*`) **foi removido**. Veja a seção §15 e o `README.md` raiz para detalhes. Para **mapa completo de endpoints da API Futebol, rotas Next e quando cada um dispara**, use [`docs/API-FUTEBOL-E-ROTAS.md`](API-FUTEBOL-E-ROTAS.md).
 
 ---
 
@@ -742,6 +742,7 @@ Reescrita da camada de coleta/atualização de partidas. Objetivos:
 - Tempo real: worker de **1 minuto** consulta **apenas** partidas em janela ativa.
 - Custo: **nunca consulta** partidas com status `finalizado` / `encerrado` / `cancelado` / `adiado` / `suspenso`.
 - Escalabilidade: persistência atômica + cascata de invalidação (`match_map` em memória, `revalidateTag('leaderboard')`, fechamento de prêmios).
+- **Pontuação ao vivo (v2.1)**: tabela materializada `prediction_scores` é recomputada **dentro da mesma transação** do UPSERT em `matches_cache`, **somente** para as partidas cuja pontuação realmente mudou. **Pontos podem cair** se o palpite passa a valer menos (placar foi 1×1 e virou 2×1 → exato 6 pts → 1 pt). Múltiplos jogos no mesmo ticket são agregados via `SUM GROUP BY ticket_id` (`lib/predictions/scores-aggregate.ts`). Veja `scripts/test-pontuacao-ao-vivo.ts` (`npm run test:live`) e `docs/API-FUTEBOL-E-ROTAS.md` § 9.
 
 ### 15.1 Modalidades
 

@@ -14,6 +14,7 @@
 import { getPool } from "@/lib/db";
 import { invalidateMatchMapMemoryAfterDbWrite } from "@/lib/match-map-cache-invalidator";
 import { processPrizeClosuresAfterMatchSync } from "@/lib/prizes/processor";
+import { recomputePredictionScoresForMatches } from "@/lib/predictions/score-recompute";
 import type {
   ChampionshipSnapshotV2,
   ProviderMatchV2,
@@ -118,38 +119,214 @@ function buildRow(m: ProviderMatchV2): unknown[] {
 const COLS_PER_ROW = 34;
 
 /**
- * Persiste um lote de partidas. Roda em uma unica transacao para que o
- * consumidor (worker / cron diario) tenha atomicidade por chamada.
+ * Deduplica partidas por (competitionId, matchId) — a API Futebol pode listar
+ * a mesma partida em multiplos nos da arvore hierarquica (ex.: ida/volta de
+ * chave). Mergeia campos: a ultima ocorrencia "ganha" para escalares; campos
+ * nao-nulos sao preferidos sobre nulos.
+ */
+function dedupeMatches(matches: ProviderMatchV2[]): ProviderMatchV2[] {
+  const byKey = new Map<string, ProviderMatchV2>();
+  for (const m of matches) {
+    const key = `${m.competitionId}:${m.matchId}`;
+    const prev = byKey.get(key);
+    if (!prev) {
+      byKey.set(key, m);
+      continue;
+    }
+    // merge: prefere valores nao-nulos. Para placar / status, a ULTIMA
+    // ocorrencia ganha (assumimos ordem mais "fresca" no payload).
+    const merged: ProviderMatchV2 = {
+      ...prev,
+      ...m,
+      kickoffAt: m.kickoffAt ?? prev.kickoffAt,
+      slug: m.slug ?? prev.slug,
+      resultCasa: m.resultCasa ?? prev.resultCasa,
+      resultVisitante: m.resultVisitante ?? prev.resultVisitante,
+      disputaPenalti: m.disputaPenalti ?? prev.disputaPenalti,
+      penaltisCasa: m.penaltisCasa ?? prev.penaltisCasa,
+      penaltisVisitante: m.penaltisVisitante ?? prev.penaltisVisitante,
+      phaseKey: m.phaseKey ?? prev.phaseKey,
+      fasesNome: m.fasesNome ?? prev.fasesNome,
+      fasesSlug: m.fasesSlug ?? prev.fasesSlug,
+      rodada: m.rodada ?? prev.rodada,
+      rodadaSlug: m.rodadaSlug ?? prev.rodadaSlug,
+      groupKey: m.groupKey ?? prev.groupKey,
+      roundKey: m.roundKey ?? prev.roundKey,
+      homeTeamId: m.homeTeamId ?? prev.homeTeamId,
+      awayTeamId: m.awayTeamId ?? prev.awayTeamId,
+      homeLogo: m.homeLogo ?? prev.homeLogo,
+      awayLogo: m.awayLogo ?? prev.awayLogo,
+      estadioId: m.estadioId ?? prev.estadioId,
+      estadioNome: m.estadioNome ?? prev.estadioNome,
+      championshipNome: m.championshipNome ?? prev.championshipNome,
+      championshipSlug: m.championshipSlug ?? prev.championshipSlug,
+      championshipTemporada: m.championshipTemporada ?? prev.championshipTemporada,
+      dataRealizacaoIso: m.dataRealizacaoIso ?? prev.dataRealizacaoIso,
+    };
+    byKey.set(key, merged);
+  }
+  return Array.from(byKey.values());
+}
+
+type PrevSnapshot = {
+  status: string | null;
+  result_casa: number | null;
+  result_visitante: number | null;
+  disputa_penalti: boolean | null;
+  penaltis_casa: number | null;
+  penaltis_visitante: number | null;
+  kickoff_at: string | null;
+};
+
+function normStatus(s: string | null | undefined): string {
+  return String(s ?? "").trim().toLowerCase();
+}
+
+/**
+ * Compara campos "que importam para a pontuação / ranking". Mudou aqui ⇒
+ * recompute de `prediction_scores`, cascata de prêmios e revalidate do Next.
+ *
+ * `null` vindo da API significa "sem informação" — NÃO conta como diff
+ * (já temos COALESCE no UPSERT).
+ */
+function scoredFieldsChanged(prev: PrevSnapshot, next: ProviderMatchV2): boolean {
+  if (next.status != null && normStatus(prev.status) !== normStatus(next.status)) return true;
+  if (next.resultCasa != null && next.resultCasa !== prev.result_casa) return true;
+  if (next.resultVisitante != null && next.resultVisitante !== prev.result_visitante) return true;
+  if (next.disputaPenalti != null && next.disputaPenalti !== prev.disputa_penalti) return true;
+  if (next.penaltisCasa != null && next.penaltisCasa !== prev.penaltis_casa) return true;
+  if (next.penaltisVisitante != null && next.penaltisVisitante !== prev.penaltis_visitante) return true;
+  return false;
+}
+
+/**
+ * Persiste um lote de partidas com **diff antes do UPSERT**:
+ *   1) SELECT em batch para descobrir o estado atual no DB.
+ *   2) Particiona em "novo / mudou / igual" — só faz UPSERT do que mudou.
+ *   3) Recomputa `prediction_scores` apenas para partidas cuja PONTUAÇÃO mudou
+ *      (status novo / placar / pênaltis) — `scoredChangedIds`.
+ *   4) Cascata (revalidate, prêmios) só se `scoredChangedIds.length > 0`.
+ *
+ * Resultado: em ticks "tudo igual" o DB e o Next sequer são tocados pela API
+ * (zero WAL, zero invalidação de cache de rota).
  */
 export async function persistMatchesV2(
   matches: ProviderMatchV2[],
   opts?: { runCascadingClosures?: boolean; cascadeSource?: string },
-): Promise<{ written: number; changedMatchIds: number[] }> {
-  if (matches.length === 0) return { written: 0, changedMatchIds: [] };
+): Promise<{
+  written: number;
+  changedMatchIds: number[];   // partidas que tiveram UPSERT (qualquer campo)
+  scoredChangedIds: number[];  // partidas cuja pontuação mudou (subset)
+  deduped: number;
+  unchanged: number;
+  predictionScoresUpdated: number;
+}> {
+  if (matches.length === 0) {
+    return {
+      written: 0,
+      changedMatchIds: [],
+      scoredChangedIds: [],
+      deduped: 0,
+      unchanged: 0,
+      predictionScoresUpdated: 0,
+    };
+  }
+
+  const unique = dedupeMatches(matches);
+  const deduped = matches.length - unique.length;
 
   const pool = getPool();
   const client = await pool.connect();
-  const changedMatchIds: number[] = [];
+
+  const writtenMatchIds: number[] = [];
+  const scoredChangedIds: number[] = [];
+  let unchanged = 0;
+  let predictionScoresUpdated = 0;
 
   try {
     await client.query("BEGIN");
 
-    for (let off = 0; off < matches.length; off += MATCH_UPSERT_CHUNK) {
-      const chunk = matches.slice(off, off + MATCH_UPSERT_CHUNK);
-      const values: string[] = [];
-      const params: unknown[] = [];
-      let p = 1;
-      for (const m of chunk) {
-        const placeholders: string[] = [];
-        for (let i = 0; i < COLS_PER_ROW; i++) {
-          placeholders.push(`$${p++}`);
-        }
-        // source_updated_at + synced_at = now()
-        values.push(`(${placeholders.join(", ")}, now(), now())`);
-        params.push(...buildRow(m));
-        changedMatchIds.push(m.matchId);
+    // ---- 1) SELECT estado atual em batch (1 query) ----
+    const keys = unique.map((m) => ({ c: m.competitionId, i: m.matchId }));
+    const compIds = keys.map((k) => k.c);
+    const matchIds = keys.map((k) => k.i);
+    const prevRows = await client.query<{
+      competition_id: number;
+      match_id: number;
+      status: string | null;
+      result_casa: number | null;
+      result_visitante: number | null;
+      disputa_penalti: boolean | null;
+      penaltis_casa: number | null;
+      penaltis_visitante: number | null;
+      kickoff_at: string | null;
+    }>(
+      `SELECT competition_id, match_id, status, result_casa, result_visitante,
+              disputa_penalti, penaltis_casa, penaltis_visitante, kickoff_at::text AS kickoff_at
+         FROM matches_cache
+        WHERE (competition_id, match_id) IN (
+          SELECT unnest($1::int[]), unnest($2::bigint[])
+        )`,
+      [compIds, matchIds],
+    );
+    const prevByKey = new Map<string, PrevSnapshot>();
+    for (const r of prevRows.rows) {
+      prevByKey.set(`${Number(r.competition_id)}:${Number(r.match_id)}`, {
+        status: r.status,
+        result_casa: r.result_casa,
+        result_visitante: r.result_visitante,
+        disputa_penalti: r.disputa_penalti,
+        penaltis_casa: r.penaltis_casa,
+        penaltis_visitante: r.penaltis_visitante,
+        kickoff_at: r.kickoff_at,
+      });
+    }
+
+    // ---- 2) Particiona em "precisa upsert" vs "tudo igual" ----
+    // Regra: UPSERT só se a partida é NOVA ou se mudou algum campo de pontuação.
+    // Metadado isolado (slug/escudo/fase) entra no próximo full sync diário sem
+    // gerar UPDATE no Postgres em todo tick.
+    const toUpsert: ProviderMatchV2[] = [];
+    for (const m of unique) {
+      const key = `${m.competitionId}:${m.matchId}`;
+      const prev = prevByKey.get(key);
+      if (!prev) {
+        toUpsert.push(m);
+        writtenMatchIds.push(m.matchId);
+        scoredChangedIds.push(m.matchId);
+        continue;
       }
-      await client.query(MATCH_UPSERT_SQL.replace("%VALUES%", values.join(", ")), params);
+      if (scoredFieldsChanged(prev, m)) {
+        toUpsert.push(m);
+        writtenMatchIds.push(m.matchId);
+        scoredChangedIds.push(m.matchId);
+      } else {
+        unchanged += 1;
+      }
+    }
+
+    if (toUpsert.length > 0) {
+      for (let off = 0; off < toUpsert.length; off += MATCH_UPSERT_CHUNK) {
+        const chunk = toUpsert.slice(off, off + MATCH_UPSERT_CHUNK);
+        const values: string[] = [];
+        const params: unknown[] = [];
+        let p = 1;
+        for (const m of chunk) {
+          const placeholders: string[] = [];
+          for (let i = 0; i < COLS_PER_ROW; i++) {
+            placeholders.push(`$${p++}`);
+          }
+          values.push(`(${placeholders.join(", ")}, now(), now())`);
+          params.push(...buildRow(m));
+        }
+        await client.query(MATCH_UPSERT_SQL.replace("%VALUES%", values.join(", ")), params);
+      }
+    }
+
+    // ---- 3) Recompute prediction_scores SÓ para o que mudou pontuação ----
+    if (scoredChangedIds.length > 0) {
+      const r = await recomputePredictionScoresForMatches(client, scoredChangedIds);
+      predictionScoresUpdated = r.updated;
     }
 
     await client.query("COMMIT");
@@ -161,15 +338,24 @@ export async function persistMatchesV2(
     client.release();
   }
 
-  // CASCATA: invalida ranking, recalcula prêmios e libera revalidação no Next.
-  await runCascadeAfterMatchUpdate({
-    source: opts?.cascadeSource ?? "persist-v2",
-    runClosures: opts?.runCascadingClosures ?? true,
-  }).catch((err) => {
-    console.warn("[persistMatchesV2] cascade failed:", err);
-  });
+  // ---- 4) Cascata: SÓ se houve mudança de pontuação ----
+  if (scoredChangedIds.length > 0) {
+    await runCascadeAfterMatchUpdate({
+      source: opts?.cascadeSource ?? "persist-v2",
+      runClosures: opts?.runCascadingClosures ?? true,
+    }).catch((err) => {
+      console.warn("[persistMatchesV2] cascade failed:", err);
+    });
+  }
 
-  return { written: matches.length, changedMatchIds };
+  return {
+    written: writtenMatchIds.length,
+    changedMatchIds: writtenMatchIds,
+    scoredChangedIds,
+    deduped,
+    unchanged,
+    predictionScoresUpdated,
+  };
 }
 
 /**
