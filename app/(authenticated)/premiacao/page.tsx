@@ -17,7 +17,6 @@ import { useEffect, useState } from "react";
 import bannerPremiacao from "@/app/assets/banner-presentes.jpeg";
 import iconTrofeu from "@/app/assets/icon-trofeu.png";
 import { calculatePrizeAwards } from "@/lib/prizes/distribution";
-import { CotaCpa } from "../components/ui/cota_cpa";
 
 type TabId = "geral" | "diario";
 
@@ -467,7 +466,6 @@ export default function PremiacaoPage() {
           </div>
         </div>
 
-        <CotaCpa />
       </div>
 
       <PremiacaoGeralDetalhesModal

@@ -1,5 +1,4 @@
 "use client";
-import bannerBoloes from "@/app/assets/banner-meus-bolao.png";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -15,20 +14,18 @@ import {
   MoveHorizontal,
   MousePointerClick,
   Shield,
-  Ticket,
   Trophy,
   Users,
   Sparkles,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 import trofeuBoloes from "@/app/assets/trofeu-boloes.png";
-import bgPixel from "@/app/assets/bg-hero-pixels.png";
 import iconBrasileirao from "@/app/assets/icon-brasileirao.png";
 import iconCopaBrasil from "@/app/assets/icon-copa-brasil.png";
 import iconCopaMundo from "@/app/assets/icon-copa-mundo.png";
 import ticketBlue from "@/app/assets/Ticket-Blue.png";
 import { getExtraBolaoHeroSideVariant } from "@/lib/boloes-extra-competition-branding";
-import { CotaCpa } from "../components/ui/cota_cpa";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 export type ActivePrincipalBolao = {
@@ -137,11 +134,6 @@ const SHOWCASE_PRIZES: Record<
   diario: { total: "R$ 10.000", first: "R$ 5.000" },
   extra: { total: "R$ 10.000", first: "R$ 5.000" },
 };
-
-function formatParticipants(n: number | undefined): string {
-  if (n == null || !Number.isFinite(n) || n <= 0) return "—";
-  return n.toLocaleString("pt-BR");
-}
 
 /** Rótulos do header como na referência (CAMPEONATO / BRASILEIRO). */
 function showcaseHeaderParts(
@@ -940,6 +932,16 @@ function ShowcaseHeroStatusPill({
   );
 }
 
+function showcaseStatusColor(
+  status: ActiveBolaoListItem["status"] | undefined,
+  finished: boolean,
+): string {
+  if (finished || status === "usado") return "#F87171";
+  if (status === "ativo") return GREEN;
+  if (status === "aguardando") return YELLOW;
+  return "rgba(255,255,255,0.85)";
+}
+
 function ShowcaseCotaCard({
   href,
   fullWidth,
@@ -948,10 +950,10 @@ function ShowcaseCotaCard({
   displayTitle,
   cotaLabel,
   status,
+  statusLabel,
   countdownLabel,
   countdownTargetMs,
   now,
-  participantCount,
   ctaLabel,
 }: {
   href: string;
@@ -961,10 +963,10 @@ function ShowcaseCotaCard({
   displayTitle: string;
   cotaLabel?: string;
   status?: ActiveBolaoListItem["status"];
+  statusLabel?: string;
   countdownLabel: string;
   countdownTargetMs: number | null;
   now: number;
-  participantCount?: number;
   ctaLabel: string;
 }) {
   const prizes = SHOWCASE_PRIZES[kind];
@@ -972,6 +974,10 @@ function ShowcaseCotaCard({
   const finished = lockHasPassed(countdownTargetMs, now) || status === "usado";
   const countdownDisplay = finished ? "Encerrado" : formatCountdown(countdownTargetMs, now);
   const timerLabel = finished ? "Encerrado" : countdownLabel.toUpperCase();
+  const statusDisplay =
+    statusLabel ??
+    (finished ? "Encerrado" : status === "ativo" ? "Ativo" : status === "aguardando" ? "Aguardando" : "—");
+  const statusColor = showcaseStatusColor(status, finished);
 
   return (
     <Link
@@ -1009,22 +1015,18 @@ function ShowcaseCotaCard({
           <p className="mt-1 text-[30px] font-black leading-none tracking-tight text-primary min-[380px]:text-[32px]">
             {prizes.total}
           </p>
-
-          <div className="my-2.5 h-px w-full bg-white/[0.1]" aria-hidden />
-
-          <div className="flex items-center gap-2">
-            <Trophy className="size-4 shrink-0 text-primary" strokeWidth={2.15} aria-hidden />
-            <span className="text-[10px] font-bold uppercase tracking-[0.06em] text-white/80">
-              1º lugar ganha
-            </span>
-            <span className="text-[13px] font-black leading-none text-primary">{prizes.first}</span>
-          </div>
         </div>
       </div>
-
+      <div className="flex items-center justify-center gap-2 px-4 mb-2">
+        <Trophy className="size-4 shrink-0 text-white" strokeWidth={2.15} aria-hidden />
+        <span className="text-[14px] font-bold uppercase tracking-[0.06em] text-white/80">
+          1º lugar ganha
+        </span>
+        <span className="text-[15px] font-black leading-none text-white">{prizes.first}</span>
+      </div>
       <div className="mx-4 h-px bg-white/[0.08]" aria-hidden />
 
-      {/* Stats — começa em | participantes */}
+      {/* Stats — começa em | status */}
       <div className="grid grid-cols-2 items-stretch px-4 py-4">
         <div className="flex items-center gap-2.5 border-r border-white/[0.08] pr-4">
           <Clock className="size-5 shrink-0 text-primary" strokeWidth={2.25} aria-hidden />
@@ -1039,13 +1041,20 @@ function ShowcaseCotaCard({
         </div>
 
         <div className="flex items-center gap-2.5 pl-4">
-          <Users className="size-5 shrink-0 text-white/90" strokeWidth={2.1} aria-hidden />
+          <span
+            className="size-2.5 shrink-0 rounded-full"
+            style={{ background: statusColor }}
+            aria-hidden
+          />
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-white/40">
-              Participantes
+              Status
             </p>
-            <p className="mt-1 text-[16px] font-black leading-none text-white min-[380px]:text-[17px]">
-              {formatParticipants(participantCount)}
+            <p
+              className="mt-1 text-[14px] font-black uppercase leading-tight tracking-[0.02em] min-[380px]:text-[15px]"
+              style={{ color: statusColor }}
+            >
+              {statusDisplay}
             </p>
           </div>
         </div>
@@ -1053,7 +1062,7 @@ function ShowcaseCotaCard({
 
       {/* CTA */}
       <div className="px-4 pb-4 pt-1">
-        <span className="flex h-[48px] w-full items-center justify-center gap-2 rounded-[11px] bg-primary text-[14px] font-black uppercase tracking-[0.08em] text-[#0E141B] transition-[filter] group-hover:brightness-105 min-[380px]:h-[50px]">
+        <span className="flex h-[48px] w-full items-center justify-center gap-2 rounded-[11px] bg-primary text-[17px] font-black uppercase tracking-[0.08em] text-[#000] transition-[filter] group-hover:brightness-105 min-[380px]:h-[50px]">
           {ctaLabel}
           <ArrowRight className="size-4 shrink-0" strokeWidth={2.6} aria-hidden />
         </span>
@@ -1066,12 +1075,10 @@ function UpcomingExtraOfferCard({
   ex,
   now,
   fullWidth,
-  participantsCount,
 }: {
   ex: BoloesScreenData["upcoming"]["extras"][number];
   now: number;
   fullWidth?: boolean;
-  participantsCount?: number;
 }) {
   const extraSide = getExtraBolaoHeroSideVariant(ex.championshipId, ex.title);
   const ticketImg =
@@ -1081,6 +1088,8 @@ function UpcomingExtraOfferCard({
         ? iconBrasileirao
         : ticketBlue;
   const showVerResultados = lockHasPassed(ex.closesAtMs, now);
+  const status: ActiveBolaoListItem["status"] = showVerResultados ? "usado" : "aguardando";
+  const statusLabel = showVerResultados ? "Encerrado" : "Palpites abertos";
 
   return (
     <ShowcaseCotaCard
@@ -1089,10 +1098,11 @@ function UpcomingExtraOfferCard({
       logoSrc={ticketImg}
       kind="extra"
       displayTitle={ex.title}
+      status={status}
+      statusLabel={statusLabel}
       countdownLabel="Começa em"
       countdownTargetMs={ex.closesAtMs}
       now={now}
-      participantCount={participantsCount}
       ctaLabel={showVerResultados ? "Ver resultados" : "Fazer palpites"}
     />
   );
@@ -1138,10 +1148,10 @@ function ActiveShowcaseCard({
       displayTitle={item.title}
       cotaLabel={item.cotaLabel}
       status={item.status}
+      statusLabel={item.statusLabel}
       countdownLabel={countdownLabel}
       countdownTargetMs={item.countdownTargetMs ?? null}
       now={now}
-      participantCount={item.participantCount}
       ctaLabel={showVerResultados ? "Ver resultados" : "Fazer palpites"}
     />
   );
@@ -1149,6 +1159,10 @@ function ActiveShowcaseCard({
 
 
 function ComoFuncionaPalpitesCard() {
+
+  const [showAll, setShowAll] = useState(false);
+
+
   const ink = "#0E141B";
   const steps = [
     {
@@ -1185,47 +1199,59 @@ function ComoFuncionaPalpitesCard() {
           Como funciona? É rápido e fácil!
         </h2>
 
-        <div
-          className="mt-5 grid grid-cols-3 gap-0 sm:mt-6"
-          role="list"
-          aria-label="Passos para palpitar"
-        >
-          {steps.map((step, idx) => {
-            const Icon = step.Icon;
-            return (
-              <div
-                key={step.n}
-                role="listitem"
-                className={[
-                  "flex flex-col items-center px-[2px] pb-3 pt-1 text-center sm:px-2 sm:pb-4 relative",
-                  idx > 0 ? "border-l border-white/8" : "",
-                ].join(" ")}
-              >
-                <span
-                  className="flex absolute top-0 left-4 size-[20px] shrink-0 items-center justify-center rounded-full text-[14px] font-black leading-none sm:size-5 sm:text-[10px]"
-                  style={{
-                    background: GREEN,
-                    color: ink,
-                  }}
-                  aria-hidden
+        {showAll && (
+          <div
+            className="mt-5 grid grid-cols-3 gap-0 sm:mt-6"
+            role="list"
+            aria-label="Passos para palpitar"
+          >
+            {steps.map((step, idx) => {
+              const Icon = step.Icon;
+              return (
+                <div
+                  key={step.n}
+                  role="listitem"
+                  className={[
+                    "flex flex-col items-center px-[2px] pb-3 pt-1 text-center sm:px-2 sm:pb-4 relative",
+                    idx > 0 ? "border-l border-white/8" : "",
+                  ].join(" ")}
                 >
-                  {step.n}
-                </span>
-                
-                <div className="mb-3 relative flex shrink-0 items-center justify-center gap-2 sm:mb-3.5 sm:gap-2.5">
-                  <Icon
-                    className="size-8 shrink-0 sm:size-9"
-                    style={{ color: GREEN }}
-                    strokeWidth={2}
+                  <span
+                    className="flex absolute top-0 left-4 size-[20px] shrink-0 items-center justify-center rounded-full text-[14px] font-black leading-none sm:size-5 sm:text-[10px]"
+                    style={{
+                      background: GREEN,
+                      color: ink,
+                    }}
                     aria-hidden
-                  />
+                  >
+                    {step.n}
+                  </span>
+
+                  <div className="mb-3 relative flex shrink-0 items-center justify-center gap-2 sm:mb-3.5 sm:gap-2.5">
+                    <Icon
+                      className="size-8 shrink-0 sm:size-9"
+                      style={{ color: GREEN }}
+                      strokeWidth={2}
+                      aria-hidden
+                    />
+                  </div>
+                  <p className="w-full px-0.5 text-[13px] font-medium leading-snug text-white/92 text-balance sm:text-[16px]">
+                    {step.label}
+                  </p>
                 </div>
-                <p className="w-full px-0.5 text-[13px] font-medium leading-snug text-white/92 text-balance sm:text-[16px]">
-                  {step.label}
-                </p>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
+        )}
+
+        <div className="flex items-center justify-center mt-4">
+          <button
+            className="flex items-center gap-1 text-[12px] font-bold uppercase leading-none tracking-[0.2em] text-primary"
+            onClick={() => setShowAll(!showAll)}
+          >
+            {showAll ? <ArrowUp className="size-4 shrink-0" strokeWidth={2.6} aria-hidden /> : <ArrowDown className="size-4 shrink-0" strokeWidth={2.6} aria-hidden />}
+            {showAll ? "Ver menos" : "Ver mais"}
+          </button>
         </div>
       </div>
     </section>
@@ -1621,56 +1647,19 @@ export function BoloesClient({
 
   return (
     <div className="min-h-screen overflow-hidden bg-black pb-8 text-white">
-      <div className="relative w-full overflow-hidden rounded-b-[22px]">
-        <Image
-          src={bannerBoloes}
-          alt="Banner — Bolões"
-          className="h-auto w-full object-cover object-center"
-          priority
-          sizes="100vw"
-        />
-        <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black to-transparent"
-          aria-hidden
-        />
-      </div>
-      <div className="mx-auto w-full max-w-[430px] px-4">
-        <section
-          className="grid grid-cols-2 gap-2"
-          aria-label="Resumo dos bolões"
-        >
-          <SummaryCard
-            icon={ClipboardList}
-            label="Bolões ativos"
-            value={String(summary.activeCount)}
-            helper="Em andamento"
-          />
-          <SummaryCard
-            icon={Trophy}
-            label="Sua melhor posição"
-            value={bestPosition}
-            helper="Ranking"
-            tone={GREEN}
-          />
-        </section>
 
+      <div className="mx-auto w-full px-4">
         <ComoFuncionaPalpitesCard />
-        <header className="mt-6">
-          <div className="flex items-start gap-3 sm:gap-3.5">
-            <ChevronDown
-              className="mt-0.5 size-6 shrink-0 sm:size-7"
-              style={{ color: GREEN }}
-              strokeWidth={2.75}
-              aria-hidden
-            />
-            <div className="flex min-w-0 flex-col gap-1">
-              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0">
-                <h2 className="text-[14px] font-black uppercase leading-none tracking-[-0.02em] text-white min-[380px]:text-[16px]">
+        <header className="mt-8 w-full text-center">
+          <div className="flex w-full items-start justify-center gap-3 sm:gap-3.5">
+            <div className="flex min-w-0 flex-col gap-1 text-center">
+              <div className="flex flex-wrap items-center justify-center">
+                <h2 className="text-[22px] font-black uppercase leading-none tracking-[-0.02em] text-white min-[380px]:text-[22px] text-center">
                   Selecione seu bolão
                 </h2>
               </div>
-              <p className="text-[12px] font-normal leading-snug text-[#888888]">
-                Escolha abaixo onde deseja palpitar
+              <p className="text-[16px] font-semibold leading-snug text-[#c1bebe]">
+                Escolha abaixo onde deseja palpitar, <span className="text-primary">{summary.activeCount} </span>cotas disponíveis.
               </p>
             </div>
           </div>
@@ -1678,91 +1667,91 @@ export function BoloesClient({
 
         {!ticketsExtraOnly && (
           <section className="mt-6">
-              {showAllPrincipal ? (
-                <div className="space-y-3">
-                  {principalItems.length > 0 ? (
-                    principalItems.map((item) => (
-                      <ActiveShowcaseCard
-                        key={item.id}
-                        item={item}
-                        now={now}
-                        kind="principal"
-                        fullWidth
-                      />
-                    ))
-                  ) : (
-                    <EmptyBolaoShowcaseCard variant="principal" />
-                  )}
-                </div>
-              ) : principalItems.length === 0 ? (
-                <EmptyBolaoShowcaseCard variant="principal" />
-              ) : principalItems.length === 1 ? (
-                <ActiveShowcaseCard
-                  key={principalItems[0].id}
-                  item={principalItems[0]}
-                  now={now}
-                  kind="principal"
-                  fullWidth
-                />
-              ) : (
-                <CarouselShell itemCount={principalItems.length}>
-                  {principalItems.map((item) => (
+            {showAllPrincipal ? (
+              <div className="space-y-3">
+                {principalItems.length > 0 ? (
+                  principalItems.map((item) => (
                     <ActiveShowcaseCard
                       key={item.id}
                       item={item}
                       now={now}
                       kind="principal"
+                      fullWidth
                     />
-                  ))}
-                </CarouselShell>
-              )}
-            </section>
+                  ))
+                ) : (
+                  <EmptyBolaoShowcaseCard variant="principal" />
+                )}
+              </div>
+            ) : principalItems.length === 0 ? (
+              <EmptyBolaoShowcaseCard variant="principal" />
+            ) : principalItems.length === 1 ? (
+              <ActiveShowcaseCard
+                key={principalItems[0].id}
+                item={principalItems[0]}
+                now={now}
+                kind="principal"
+                fullWidth
+              />
+            ) : (
+              <CarouselShell itemCount={principalItems.length}>
+                {principalItems.map((item) => (
+                  <ActiveShowcaseCard
+                    key={item.id}
+                    item={item}
+                    now={now}
+                    kind="principal"
+                  />
+                ))}
+              </CarouselShell>
+            )}
+          </section>
         )}
 
         {showDiarioShowcase && (
-            <section className="mt-4 mb-6">
-              {showAllDiario ? (
-                <div className="space-y-3">
-                  {diarioItems.length > 0 ? (
-                    diarioShowcaseItems.map((item) => (
-                      <ActiveShowcaseCard
-                        key={item.id}
-                        item={item}
-                        now={now}
-                        kind="diario"
-                        fullWidth
-                      />
-                    ))
-                  ) : (
-                    <EmptyBolaoShowcaseCard variant="diario" />
-                  )}
-                </div>
-              ) : diarioItems.length === 0 ? (
-                <EmptyBolaoShowcaseCard variant="diario" />
-              ) : diarioShowcaseItems.length === 1 ? (
-                <ActiveShowcaseCard
-                  key={diarioShowcaseItems[0].id}
-                  item={diarioShowcaseItems[0]}
-                  now={now}
-                  kind="diario"
-                  fullWidth
-                />
-              ) : (
-                <CarouselShell
-                  tone={GREEN}
-                  itemCount={diarioShowcaseItems.length}
-                >
-                  {diarioShowcaseItems.map((item) => (
+          <section className="mt-4 mb-6">
+            {showAllDiario ? (
+              <div className="space-y-3">
+                {diarioItems.length > 0 ? (
+                  diarioShowcaseItems.map((item) => (
                     <ActiveShowcaseCard
                       key={item.id}
                       item={item}
                       now={now}
                       kind="diario"
+                      fullWidth
                     />
-                  ))}
-                </CarouselShell>
-              )}
-            </section>
+                  ))
+                ) : (
+                  <EmptyBolaoShowcaseCard variant="diario" />
+                )}
+              </div>
+            ) : diarioItems.length === 0 ? (
+              <EmptyBolaoShowcaseCard variant="diario" />
+            ) : diarioShowcaseItems.length === 1 ? (
+              <ActiveShowcaseCard
+                key={diarioShowcaseItems[0].id}
+                item={diarioShowcaseItems[0]}
+                now={now}
+                kind="diario"
+                fullWidth
+              />
+            ) : (
+              <CarouselShell
+                tone={GREEN}
+                itemCount={diarioShowcaseItems.length}
+              >
+                {diarioShowcaseItems.map((item) => (
+                  <ActiveShowcaseCard
+                    key={item.id}
+                    item={item}
+                    now={now}
+                    kind="diario"
+                  />
+                ))}
+              </CarouselShell>
+            )}
+          </section>
         )}
 
         {hasExtraSection && (
@@ -1776,23 +1765,22 @@ export function BoloesClient({
                 <div className="space-y-3">
                   {extraShowcaseItems.length > 0
                     ? extraShowcaseItems.map((item) => (
-                        <ActiveShowcaseCard
-                          key={item.id}
-                          item={item}
-                          now={now}
-                          kind="extra"
-                          fullWidth
-                        />
-                      ))
+                      <ActiveShowcaseCard
+                        key={item.id}
+                        item={item}
+                        now={now}
+                        kind="extra"
+                        fullWidth
+                      />
+                    ))
                     : upcomingExtras.map((ex) => (
-                        <UpcomingExtraOfferCard
-                          key={ex.championshipId}
-                          ex={ex}
-                          now={now}
-                          fullWidth
-                          participantsCount={data?.participantsByBolao.extra}
-                        />
-                      ))}
+                      <UpcomingExtraOfferCard
+                        key={ex.championshipId}
+                        ex={ex}
+                        now={now}
+                        fullWidth
+                      />
+                    ))}
                 </div>
               ) : extraCollapsedCount <= 1 ? (
                 extraShowcaseItems.length === 1 ? (
@@ -1810,7 +1798,6 @@ export function BoloesClient({
                     ex={upcomingExtras[0]}
                     now={now}
                     fullWidth
-                    participantsCount={data?.participantsByBolao.extra}
                   />
                 )
               ) : (
@@ -1820,28 +1807,25 @@ export function BoloesClient({
                 >
                   {extraShowcaseItems.length > 0
                     ? extraShowcaseItems.map((item) => (
-                        <ActiveShowcaseCard
-                          key={item.id}
-                          item={item}
-                          now={now}
-                          kind="extra"
-                        />
-                      ))
+                      <ActiveShowcaseCard
+                        key={item.id}
+                        item={item}
+                        now={now}
+                        kind="extra"
+                      />
+                    ))
                     : upcomingExtras.map((ex) => (
-                        <UpcomingExtraOfferCard
-                          key={ex.championshipId}
-                          ex={ex}
-                          now={now}
-                          participantsCount={data?.participantsByBolao.extra}
-                        />
-                      ))}
+                      <UpcomingExtraOfferCard
+                        key={ex.championshipId}
+                        ex={ex}
+                        now={now}
+                      />
+                    ))}
                 </CarouselShell>
               );
             })()}
           </section>
         )}
-
-        <CotaCpa />
       </div>
     </div>
   );
