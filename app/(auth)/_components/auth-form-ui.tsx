@@ -241,7 +241,7 @@ export function AuthSmsCodeInput({
   }
 
   return (
-    <div className="auth-sms-code-row" role="group" aria-label="Código de verificação SMS">
+    <div className="auth-sms-code-row" role="group" aria-label="Código de verificação por WhatsApp">
       {digits.map((d, i) => (
         <input
           key={i}

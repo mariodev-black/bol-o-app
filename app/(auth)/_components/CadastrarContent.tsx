@@ -324,7 +324,7 @@ export function CadastrarContent() {
       };
       if (!r.ok) {
         if (data.retryAfterSeconds) setResendCooldown(data.retryAfterSeconds);
-        toast.error(data.error ?? "Não foi possível enviar o SMS.");
+        toast.error(data.error ?? "Não foi possível enviar o código pelo WhatsApp.");
         return false;
       }
       setSmsDevMode(Boolean(data.devMode));
@@ -332,7 +332,7 @@ export function CadastrarContent() {
       setSmsCode("");
       return true;
     } catch {
-      toast.error("Erro de rede ao enviar SMS.");
+      toast.error("Erro de rede ao enviar o código pelo WhatsApp.");
       return false;
     } finally {
       setSmsSending(false);
@@ -403,7 +403,7 @@ export function CadastrarContent() {
       return;
     }
     if (smsCode.replace(/\D/g, "").length !== 6) {
-      toast.error("Informe o código de 6 dígitos enviado por SMS.");
+      toast.error("Informe o código de 6 dígitos enviado pelo WhatsApp.");
       return;
     }
 
@@ -540,7 +540,7 @@ export function CadastrarContent() {
               ) : null}
             </span>
             <span className="text-[13px] font-medium leading-relaxed text-white/72">
-              Autorizo receber atualizações via e-mail e SMS.
+              Autorizo receber atualizações via e-mail e WhatsApp.
             </span>
           </button>
 
@@ -624,7 +624,7 @@ export function CadastrarContent() {
               disabled={!step2Ready}
               onClick={() => void goFromStep2()}
             >
-              {smsSending ? "Enviando SMS..." : "Finalizar cadastro"}
+              {smsSending ? "Enviando WhatsApp..." : "Finalizar cadastro"}
             </AuthPrimaryButton>
           </AuthStepNav>
         </div>
@@ -633,9 +633,9 @@ export function CadastrarContent() {
       {step === 3 && (
         <div key="step-3" className="auth-step-panel">
           <div className="mb-6 text-center">
-            <h2 className="text-[18px] font-bold text-white">Confirme seu número</h2>
+            <h2 className="text-[18px] font-bold text-white">Confirme seu WhatsApp</h2>
             <p className="mt-2 text-[13px] leading-relaxed text-white/55">
-              Enviamos um código de 6 dígitos para{" "}
+              Enviamos um código de 6 dígitos pelo WhatsApp para{" "}
               <span className="font-semibold text-white/85">{formatPhoneDisplay(phoneDigits)}</span>
             </p>
             {smsDevMode ? (
