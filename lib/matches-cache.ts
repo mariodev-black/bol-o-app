@@ -30,6 +30,7 @@ export type CachedMatchRow = {
   away_name: string;
   away_sigla: string;
   away_logo: string | null;
+  rodada: number | null;
   source_updated_at: string;
   synced_at: string;
 };
@@ -64,6 +65,7 @@ export async function readMatchesCache(opts?: { competitionIds?: number[] }): Pr
       away_name,
       away_sigla,
       away_logo,
+      rodada,
       source_updated_at::text,
       synced_at::text
      FROM matches_cache

@@ -74,6 +74,10 @@ function mapFromCacheRows(rows: Awaited<ReturnType<typeof readMatchesCache>>): M
       dateBR: r.date_br || "",
       hour: r.hour_br || "",
       competitionId: cid,
+      rodada:
+        r.rodada != null && Number.isFinite(Number(r.rodada)) && Number(r.rodada) > 0
+          ? Number(r.rodada)
+          : null,
     });
   }
   return out;

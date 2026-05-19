@@ -49,13 +49,18 @@ function isUuidTicketId(value: string): boolean {
 async function resolveOwnedTicketMeta(
   userId: string,
   ticketId: string
-): Promise<{ bolao: "principal" | "diario" | "extra"; extraChampionshipId: number | null } | null> {
+): Promise<{
+  bolao: "principal" | "diario" | "extra";
+  extraChampionshipId: number | null;
+  /** `tickets.round_number` — só relevante em extra "por rodada". */
+  extraRoundNumber: number | null;
+} | null> {
   const raw = ticketId.trim();
   if (!raw) return null;
 
   const fromPrefix = inferBolaoTypeFromTicketPrefix(raw);
   if (fromPrefix && !isUuidTicketId(raw)) {
-    return { bolao: fromPrefix, extraChampionshipId: null };
+    return { bolao: fromPrefix, extraChampionshipId: null, extraRoundNumber: null };
   }
 
   if (isUuidTicketId(raw)) {
@@ -63,8 +68,9 @@ async function resolveOwnedTicketMeta(
     const { rows } = await pool.query<{
       ticket_type: "general" | "daily" | "extra";
       extra_championship_id: number | null;
+      round_number: number | null;
     }>(
-      `SELECT ticket_type, extra_championship_id
+      `SELECT ticket_type, extra_championship_id, round_number
        FROM tickets
        WHERE id::text = $1
          AND user_id = $2
@@ -73,15 +79,17 @@ async function resolveOwnedTicketMeta(
       [raw, userId],
     );
     const tt = rows[0]?.ticket_type;
-    if (tt === "general") return { bolao: "principal", extraChampionshipId: null };
-    if (tt === "daily") return { bolao: "diario", extraChampionshipId: null };
+    if (tt === "general") return { bolao: "principal", extraChampionshipId: null, extraRoundNumber: null };
+    if (tt === "daily") return { bolao: "diario", extraChampionshipId: null, extraRoundNumber: null };
     if (tt === "extra") {
+      const rnumRaw = rows[0]?.round_number;
+      const rnum = rnumRaw != null && Number.isFinite(Number(rnumRaw)) && Number(rnumRaw) > 0 ? Number(rnumRaw) : null;
       const cid = rows[0]?.extra_championship_id;
       if (cid != null && Number.isFinite(Number(cid))) {
-        return { bolao: "extra", extraChampionshipId: Number(cid) };
+        return { bolao: "extra", extraChampionshipId: Number(cid), extraRoundNumber: rnum };
       }
       const sole = getSoleConfiguredExtraChampionshipId();
-      if (sole != null) return { bolao: "extra", extraChampionshipId: sole };
+      if (sole != null) return { bolao: "extra", extraChampionshipId: sole, extraRoundNumber: rnum };
       return null;
     }
     return null;
@@ -89,7 +97,7 @@ async function resolveOwnedTicketMeta(
 
   const inferred = await inferBolaoTypeFromTicketId(raw);
   if (!inferred) return null;
-  return { bolao: inferred, extraChampionshipId: null };
+  return { bolao: inferred, extraChampionshipId: null, extraRoundNumber: null };
 }
 
 export async function GET(request: NextRequest) {
@@ -148,6 +156,7 @@ export async function POST(request: NextRequest) {
   if (!meta) return NextResponse.json({ error: "Ticket invalido" }, { status: 400 });
   const bolaoType = meta.bolao;
   const extraChampionshipId = meta.extraChampionshipId;
+  const extraRoundNumber = meta.extraRoundNumber;
   /** Sempre `matches_cache` no Postgres (nao usa mapa em memoria da API). */
   const matchMap = await fetchMatchesMapDirectFromDb();
   const mainComp = getFootballMainCompetitionId();
@@ -227,7 +236,55 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
-  if (bolaoType === "diario" || bolaoType === "extra") {
+  // ─── Bolão EXTRA "por rodada" — escopo é a RODADA inteira ───────────────
+  if (bolaoType === "extra" && extraRoundNumber != null) {
+    const scopeComp = extraChampionshipId as number;
+    const matchRound = Number(match.rodada ?? NaN);
+    if (!Number.isFinite(matchRound) || matchRound !== extraRoundNumber) {
+      return NextResponse.json(
+        {
+          error: `Ticket: esta partida não pertence à rodada ${extraRoundNumber} do bolão extra (jogo está na rodada ${Number.isFinite(matchRound) ? matchRound : "desconhecida"}).`,
+        },
+        { status: 400 },
+      );
+    }
+    if (Number(match.competitionId) !== scopeComp) {
+      return NextResponse.json(
+        { error: `Ticket: partida não pertence ao campeonato ${scopeComp} do bolão extra.` },
+        { status: 400 },
+      );
+    }
+    // Bolão da rodada inteira está "encerrado" quando TODAS as partidas
+    // dessa rodada (no campeonato do ticket) já bateram lock/kickoff/final.
+    const lockLead = palpiteLockBeforeKickoffMs("extra");
+    let stillOpen = false;
+    for (const [, m] of matchMap) {
+      if (Number(m.competitionId) !== scopeComp) continue;
+      if (Number(m.rodada ?? NaN) !== extraRoundNumber) continue;
+      const st = String(m.status || "").toLowerCase();
+      const finished =
+        st.includes("encerr") ||
+        st.includes("finaliz") ||
+        st.includes("cancel") ||
+        st.includes("adiad") ||
+        st.includes("suspens") ||
+        st.includes("interromp") ||
+        (m.resultCasa != null && m.resultVisitante != null);
+      const ko = m.kickoffAt ? new Date(m.kickoffAt).getTime() : null;
+      const locked = ko != null && Number.isFinite(ko) && Date.now() >= ko - lockLead;
+      if (!finished && !locked) {
+        stillOpen = true;
+        break;
+      }
+    }
+    if (!stillOpen) {
+      return NextResponse.json(
+        { error: `Rodada ${extraRoundNumber} já encerrada para novos palpites.` },
+        { status: 400 },
+      );
+    }
+  } else if (bolaoType === "diario" || bolaoType === "extra") {
+    // ─── DIÁRIO (sempre) + EXTRA legado (sem `round_number`) — escopo "dia" ──
     const today = brToday();
     const predBolao = bolaoType === "diario" ? "diario" : "extra";
     const scopeComp = bolaoType === "diario" ? mainComp : (extraChampionshipId as number);

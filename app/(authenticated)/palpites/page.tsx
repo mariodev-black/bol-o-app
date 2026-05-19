@@ -229,6 +229,7 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
 
   let bolaoType: "principal" | "diario" | "extra" = "principal";
   let extraChampionshipId: number | null = null;
+  let extraRoundNumber: number | null = null;
   const tid = ticketId?.trim() ?? "";
   if (tid) {
     const fromPrefix = inferBolaoTypeFromTicketPrefix(tid);
@@ -238,12 +239,17 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
       if (inferred) bolaoType = inferred;
       if (inferred === "extra") {
         const pool = getPool();
-        const { rows: exRows } = await pool.query<{ cid: number | null }>(
-          `SELECT extra_championship_id AS cid FROM tickets WHERE id::text = $1 AND user_id = $2 AND status = 'paid' LIMIT 1`,
+        const { rows: exRows } = await pool.query<{ cid: number | null; rnum: number | null }>(
+          `SELECT extra_championship_id AS cid, round_number AS rnum
+             FROM tickets
+            WHERE id::text = $1 AND user_id = $2 AND status = 'paid'
+            LIMIT 1`,
           [tid, userId],
         );
         const cid = exRows[0]?.cid;
         extraChampionshipId = cid != null && Number.isFinite(Number(cid)) ? Number(cid) : null;
+        const rnum = exRows[0]?.rnum;
+        extraRoundNumber = rnum != null && Number.isFinite(Number(rnum)) ? Number(rnum) : null;
       }
     }
   }
@@ -454,6 +460,7 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
     ticketId,
     bolaoType,
     extraChampionshipId,
+    extraRoundNumber,
     bolaoHeading: palpitesBolaoHeading(bolaoType, extraChampionshipId),
     tabela: pickTabelaGruposForPalpites(tabelaRes.data) as TabelaGrupos,
     jogos: jogosFiltrados,

@@ -1673,6 +1673,14 @@ export type PalpitesInitialData = {
   ticketId: string | null;
   bolaoType: "principal" | "diario" | "extra";
   extraChampionshipId?: number | null;
+  /**
+   * Bolão extra "por rodada": valor de `tickets.round_number`.
+   *
+   * Quando presente, a tela do bolão extra exibe TODOS os jogos dessa rodada
+   * (independente do dia) e a API só aceita palpites em jogos da mesma rodada.
+   * Quando `null`, mantém o comportamento legado (sem filtro por rodada).
+   */
+  extraRoundNumber?: number | null;
   /** Título do bolão na página (SSR). */
   bolaoHeading?: string | null;
   tabela: TabelaGrupos | null;
@@ -3006,6 +3014,20 @@ function PalpitesPageContent({
   const [selectedRodada, setSelectedRodada] = useState<number | null>(() => {
     if (!initialData?.jogos?.length) return null;
     const bt = initialData.bolaoType;
+    // Ticket extra "por rodada" → trava na rodada do ticket.
+    const ticketRound =
+      bt === "extra" &&
+      initialData.extraRoundNumber != null &&
+      Number.isFinite(Number(initialData.extraRoundNumber)) &&
+      Number(initialData.extraRoundNumber) > 0
+        ? Number(initialData.extraRoundNumber)
+        : null;
+    if (ticketRound != null) {
+      const rodadas = Array.from(
+        new Set(initialData.jogos.map((j: Jogo) => j.rodada)),
+      );
+      return rodadas.includes(ticketRound) ? ticketRound : (rodadas[0] ?? null);
+    }
     const lockIds =
       bt === "diario" || bt === "extra"
         ? Object.keys(initialData.predictionsMap ?? {})
@@ -3091,6 +3113,22 @@ function PalpitesPageContent({
 
     function applyRodadaInicial(parsed: Jogo[]) {
       const bt = bolaoTypeRef.current;
+      // Ticket extra por rodada → seleciona a rodada do ticket.
+      const ticketRound =
+        bt === "extra" &&
+        initialDataRef.current?.extraRoundNumber != null &&
+        Number.isFinite(Number(initialDataRef.current.extraRoundNumber)) &&
+        Number(initialDataRef.current.extraRoundNumber) > 0
+          ? Number(initialDataRef.current.extraRoundNumber)
+          : null;
+      if (ticketRound != null) {
+        const rodadasDispAll = Array.from(new Set(parsed.map((j) => j.rodada)));
+        const fallback = rodadasDispAll[0] ?? 0;
+        setSelectedRodada((prev) =>
+          prev != null ? prev : rodadasDispAll.includes(ticketRound) ? ticketRound : fallback,
+        );
+        return;
+      }
       const lockIds =
         bt === "diario" || bt === "extra"
           ? Object.keys(predictionsMapRef.current)
@@ -3401,6 +3439,21 @@ function PalpitesPageContent({
   const today = todayBR();
   const dailyLike = bolaoType === "diario" || bolaoType === "extra";
   const extraPlayCompId = bolaoType === "extra" ? resolvedExtraChampionshipId : null;
+  /**
+   * Quando o ticket extra é "por rodada" (`tickets.round_number`), o bolão é
+   * **a rodada inteira** — não filtramos por dia. Caso `null` (extras legados),
+   * mantemos o comportamento "extra ≈ diário" (apenas o dia jogável).
+   */
+  const extraTicketRound =
+    bolaoType === "extra" &&
+    initialData?.extraRoundNumber != null &&
+    Number.isFinite(Number(initialData.extraRoundNumber)) &&
+    Number(initialData.extraRoundNumber) > 0
+      ? Number(initialData.extraRoundNumber)
+      : null;
+  const extraRoundMode = bolaoType === "extra" && extraTicketRound != null;
+  /** "Dia‐jogavel" só faz sentido em diario e em extras legados (sem rodada). */
+  const dayScopedMode = bolaoType === "diario" || (bolaoType === "extra" && !extraRoundMode);
 
   const lockIdsForDailyLike = dailyLike
     ? Object.keys(predictionsMap).map(Number).filter(Number.isFinite)
@@ -3415,9 +3468,11 @@ function PalpitesPageContent({
     lockToMatchIds: lockIdsForDailyLike,
     ...(extraPlayCompId != null ? { competitionId: extraPlayCompId } : {}),
   });
+  // Em "extra por rodada", o escopo é toda a rodada (não o dia).
   const jogosOnPlayableDate = jogos.filter((j) => {
     if (bolaoType === "principal") return true;
-    if (!dailyLike) return true;
+    if (extraRoundMode) return j.rodada === extraTicketRound;
+    if (!dayScopedMode) return true;
     return j.dataBR === diarioPlayableDate;
   });
   const nowMs = Date.now();
@@ -3488,9 +3543,11 @@ function PalpitesPageContent({
     ? "Fase de Grupos"
     : bolaoType === "principal"
       ? "Jogos do dia · Copa inteira"
-      : diarioPlayableDate === today
-        ? "Jogos do dia atual"
-        : `Jogos em ${diarioPlayableDate} (dia mais próximo com partidas)`;
+      : extraRoundMode
+        ? `Rodada ${extraTicketRound} — todos os jogos`
+        : diarioPlayableDate === today
+          ? "Jogos do dia atual"
+          : `Jogos em ${diarioPlayableDate} (dia mais próximo com partidas)`;
 
   useEffect(() => {
     if (!showPalpitesDebug) return;
