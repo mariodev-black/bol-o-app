@@ -319,7 +319,15 @@ export function CadastrarContent() {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cpf: cpfDigits, phone: phoneDigits }),
+        body: JSON.stringify({
+          cpf: cpfDigits,
+          phone: phoneDigits,
+          // Enriquecimento do lead para o webhook (SellFlux/WhatsApp): nome
+          // vem mascarado da consulta de CPF (ex.: "JOÃO ***"), email já foi
+          // validado no step 2. Backend faz a validação canônica em /register.
+          name: cpfMaskedName?.trim() || undefined,
+          email: email.trim() || undefined,
+        }),
       });
       const data = (await r.json()) as {
         error?: string;

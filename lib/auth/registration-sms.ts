@@ -1,9 +1,26 @@
+/**
+ * Envio de código de verificação no cadastro (WhatsApp via webhook SellFlux).
+ *
+ * Substitui o antigo Twilio (SMS). O código continua sendo gerado/persistido
+ * pelo servidor (`registration_sms_codes`) — o webhook é só o canal de entrega.
+ *
+ * Convenção do SellFlux custom webhook (vide PAYMENT_APPROVED_WEBHOOK):
+ *   - URL com query-string mapeando placeholders SellFlux para campos do body:
+ *       ?name=customer.name&email=customer.email&phone=customer.phone
+ *   - O body deve ter `customer.{name,email,phone}` para o SellFlux casar o
+ *     contato. Campos adicionais (ex.: `code`, `message`) ficam disponíveis
+ *     para uso em templates de mensagem.
+ *
+ * Nome do arquivo é histórico (`registration-sms.ts`); o canal real hoje é
+ * WhatsApp. Mantido para evitar churn de imports.
+ */
 import { createHash, randomInt, timingSafeEqual } from "node:crypto";
 import { getPool } from "@/lib/db";
 
 const CODE_TTL_MS = 10 * 60 * 1000;
 const RESEND_MIN_MS = 60 * 1000;
 const MAX_ATTEMPTS = 5;
+const WEBHOOK_DEFAULT_TIMEOUT_MS = 12_000;
 
 let tableReady: Promise<void> | null = null;
 
@@ -43,44 +60,100 @@ function generateSixDigitCode(): string {
   return String(randomInt(0, 1_000_000)).padStart(6, "0");
 }
 
-async function sendSmsMessage(phoneE164: string, code: string): Promise<void> {
-  const accountSid = process.env.TWILIO_ACCOUNT_SID?.trim();
-  const authToken = process.env.TWILIO_AUTH_TOKEN?.trim();
-  const from = process.env.TWILIO_SMS_FROM?.trim();
+/**
+ * Envia o código de verificação via webhook SellFlux (WhatsApp).
+ *
+ * Variáveis suportadas:
+ *   - `REGISTRATION_WHATSAPP_WEBHOOK_URL` (obrigatória em produção)
+ *   - `REGISTRATION_WHATSAPP_WEBHOOK_SECRET` (opcional → `Authorization: Bearer`)
+ *   - `REGISTRATION_WHATSAPP_WEBHOOK_TIMEOUT_MS` (opcional, default 12000)
+ *   - `SMS_APP_NAME` (label do app no texto, default "Bolão do Milhão")
+ *
+ * Falhas levantam exceção para o caller (`sendRegistrationSmsCode`) traduzir
+ * em erro de usuário. Em dev/staging, se a env não estiver configurada, o
+ * código aparece no console — facilita teste local sem WhatsApp real.
+ */
+async function sendRegistrationWhatsAppCode(input: {
+  phoneE164: string;
+  code: string;
+  name: string | null;
+  email: string | null;
+}): Promise<void> {
+  const url = process.env.REGISTRATION_WHATSAPP_WEBHOOK_URL?.trim();
   const appName = process.env.SMS_APP_NAME?.trim() || "Bolão do Milhão";
 
-  if (accountSid && authToken && from) {
-    const body = encodeURIComponent(`${appName}: seu código de confirmação é ${code}. Válido por 10 minutos.`);
-    const to = encodeURIComponent(phoneE164);
-    const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
-    const auth = Buffer.from(`${accountSid}:${authToken}`).toString("base64");
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        Authorization: `Basic ${auth}`,
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: `To=${to}&From=${encodeURIComponent(from)}&Body=${body}`,
-    });
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      console.error("[registration-sms] Twilio error", res.status, text.slice(0, 200));
-      throw new Error("sms_send_failed");
+  if (!url) {
+    if (process.env.NODE_ENV === "production") {
+      console.warn(
+        "[registration-whatsapp] REGISTRATION_WHATSAPP_WEBHOOK_URL não configurada — código apenas em log.",
+      );
     }
+    console.info(`[registration-whatsapp] código para ${input.phoneE164}: ${input.code}`);
     return;
   }
 
-  if (process.env.NODE_ENV === "production") {
-    console.warn(
-      "[registration-sms] TWILIO_* não configurado; SMS não enviado (somente log em dev).",
-    );
+  const phoneDigits = input.phoneE164.replace(/\D/g, "");
+  const message = `${appName}: seu código de confirmação é ${input.code}. Válido por 10 minutos.`;
+
+  // Body alinhado ao padrão SellFlux custom webhook:
+  //   ?name=customer.name&email=customer.email&phone=customer.phone
+  // (mesma convenção usada em `payment-approved-webhook.ts`)
+  const body = {
+    event: "registration.verification_code",
+    occurredAt: new Date().toISOString(),
+    customer: {
+      name: (input.name || "").trim() || "Cliente",
+      email: (input.email || "").trim(),
+      // SellFlux costuma normalizar o phone — enviamos somente dígitos (DDI+DDD+número).
+      phone: phoneDigits,
+    },
+    code: input.code,
+    message,
+    appName,
+  };
+
+  const secret = process.env.REGISTRATION_WHATSAPP_WEBHOOK_SECRET?.trim();
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (secret) headers.Authorization = `Bearer ${secret}`;
+
+  const timeoutRaw = process.env.REGISTRATION_WHATSAPP_WEBHOOK_TIMEOUT_MS?.trim();
+  const timeoutMs = Math.min(60_000, Math.max(2_000, Number(timeoutRaw) || WEBHOOK_DEFAULT_TIMEOUT_MS));
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      console.error("[registration-whatsapp] webhook non-ok", {
+        status: res.status,
+        statusText: res.statusText,
+        snippet: text.slice(0, 300),
+      });
+      throw new Error("whatsapp_send_failed");
+    }
+  } catch (e) {
+    if ((e as Error)?.name === "AbortError") {
+      console.error("[registration-whatsapp] webhook timeout", { timeoutMs });
+    }
+    throw e;
+  } finally {
+    clearTimeout(timer);
   }
-  console.info(`[registration-sms] código para ${phoneE164}: ${code}`);
 }
 
 export async function sendRegistrationSmsCode(input: {
   phoneE164: string;
   cpf: string;
+  /** Nome (mascarado ou completo) usado pelo SellFlux para identificar o lead. */
+  name?: string | null;
+  /** Email já validado no passo anterior do cadastro. */
+  email?: string | null;
 }): Promise<{ ok: true } | { ok: false; error: string; retryAfterSeconds?: number }> {
   await ensureTable();
   const pool = getPool();
@@ -115,9 +188,17 @@ export async function sendRegistrationSmsCode(input: {
   );
 
   try {
-    await sendSmsMessage(phone, code);
+    await sendRegistrationWhatsAppCode({
+      phoneE164: phone,
+      code,
+      name: input.name ?? null,
+      email: input.email ?? null,
+    });
   } catch {
-    return { ok: false, error: "Não foi possível enviar o SMS. Tente novamente em instantes." };
+    return {
+      ok: false,
+      error: "Não foi possível enviar o código pelo WhatsApp. Tente novamente em instantes.",
+    };
   }
 
   return { ok: true };
