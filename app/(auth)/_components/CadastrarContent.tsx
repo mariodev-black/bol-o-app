@@ -22,7 +22,6 @@ import { Check } from "lucide-react";
 import {
   AuthCpfVerifiedBanner,
   AuthField,
-  AuthGenderPicker,
   AuthLegalFooter,
   AuthPasswordField,
   AuthPrimaryButton,
@@ -65,17 +64,10 @@ function formatPhoneDisplay(digits: string) {
   return `+55 ${masked}`;
 }
 
-type GenderOption = "masculino" | "feminino" | "nao_informar";
 type CpfLookupStatus = "idle" | "loading" | "verified" | "error";
 
 const CPF_VERIFIED_STORAGE_KEY = "bm_cadastro_cpf_verified";
 const SMS_RESEND_SECONDS = 60;
-
-const genderOptions: { id: GenderOption; label: string }[] = [
-  { id: "masculino", label: "Masculino" },
-  { id: "feminino", label: "Feminino" },
-  { id: "nao_informar", label: "Prefiro não informar" },
-];
 
 export function CadastrarContent() {
   const router = useRouter();
@@ -95,7 +87,6 @@ export function CadastrarContent() {
   const [cpfAwaitingLookup, setCpfAwaitingLookup] = useState(false);
 
   const [phone, setPhone] = useState("");
-  const [gender, setGender] = useState<GenderOption>("nao_informar");
   const [email, setEmail] = useState("");
   const [confirmEmail, setConfirmEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -167,7 +158,6 @@ export function CadastrarContent() {
       const data = (await r.json()) as {
         error?: string;
         maskedName?: string;
-        suggestedGender?: GenderOption;
         verified?: boolean;
       };
 
@@ -186,7 +176,6 @@ export function CadastrarContent() {
       setCpfMaskedName(data.maskedName);
       setVerifiedCpfDigits(digits);
       setCpfLookupStatus("verified");
-      if (data.suggestedGender) setGender(data.suggestedGender);
       try {
         sessionStorage.setItem(CPF_VERIFIED_STORAGE_KEY, digits);
       } catch {
@@ -573,13 +562,6 @@ export function CadastrarContent() {
             placeholder="(11) 99999-9999"
             value={phone}
             onChange={(e) => setPhone(maskBrazilPhone(e.target.value))}
-            disabled={busy}
-          />
-
-          <AuthGenderPicker
-            value={gender}
-            options={genderOptions}
-            onChange={setGender}
             disabled={busy}
           />
 
