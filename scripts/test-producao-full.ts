@@ -595,6 +595,22 @@ async function testDiarioLifecycle(fx: SetupResult) {
 
   // Idempotencia: 2ª execucao não duplica nada
   const beforeCount = awards.rows.length;
+  const settledBefore = await pool.query<{ id: string; settled_at: string | null; settled_closure_id: string | null }>(
+    `SELECT id::text, settled_at::text, settled_closure_id::text
+       FROM tickets
+      WHERE id::text = ANY($1::text[])
+      ORDER BY id`,
+    [[fx.tickets.diarioAlice, fx.tickets.diarioBob, fx.tickets.diarioCarol, fx.tickets.diarioFran]],
+  );
+  // ─── Encerramento: todos os tickets do closure devem ter `settled_at` ──
+  const allSettled = settledBefore.rows.every((r) => r.settled_at != null);
+  if (allSettled) pass("tickets DIARIO marcados como `settled_at` apos closure (4/4)");
+  else fail("tickets settled_at apos closure", `${settledBefore.rows.filter((r) => r.settled_at != null).length}/4 settled`);
+  const allHaveClosureId = settledBefore.rows.every((r) => r.settled_closure_id === closure.id);
+  if (allHaveClosureId) pass("tickets DIARIO apontam para closure.id correto");
+  else fail("tickets settled_closure_id", `closure esperado=${closure.id.slice(0, 8)}…`);
+
+  // ─── Idempotencia total: rerodar nao duplica nada ──────────────────────
   await processPrizeClosuresAfterMatchSync({ source: "prod-test-diario-close-2" });
   const awards2 = await pool.query<{ n: string }>(
     `SELECT count(*)::text AS n FROM prize_awards WHERE closure_id=$1`,
@@ -602,6 +618,54 @@ async function testDiarioLifecycle(fx: SetupResult) {
   );
   if (Number(awards2.rows[0]?.n ?? 0) === beforeCount) pass("idempotencia DIARIO: 2ª execucao nao duplicou awards");
   else fail("idempotencia DIARIO", `${awards2.rows[0]?.n} vs ${beforeCount}`);
+
+  // Garante que o `settled_at` permaneceu IDENTICO (COALESCE evitou rewrite).
+  const settledAfter = await pool.query<{ id: string; settled_at: string | null }>(
+    `SELECT id::text, settled_at::text
+       FROM tickets
+      WHERE id::text = ANY($1::text[])
+      ORDER BY id`,
+    [[fx.tickets.diarioAlice, fx.tickets.diarioBob, fx.tickets.diarioCarol, fx.tickets.diarioFran]],
+  );
+  const sameSettledAt = settledBefore.rows.every((before, i) => before.settled_at === settledAfter.rows[i]?.settled_at);
+  if (sameSettledAt) pass("idempotencia DIARIO: `settled_at` nao foi sobrescrito (COALESCE ok)");
+  else fail("settled_at rewrite", "valores divergiram apos 2a execucao");
+
+  // ─── Saldo dos premiados NAO duplicou ──────────────────────────────────
+  const balAfter2 = await pool.query<{ name: string; balance_cents: number }>(
+    `SELECT name, balance_cents FROM users WHERE email LIKE '${PREFIX}%@local' ORDER BY name`,
+  );
+  const bobAfter2 = balAfter2.rows.find((u) => u.name === "Prod bob")?.balance_cents ?? 0;
+  if (bobAfter2 === bobAfter) pass("idempotencia DIARIO: saldo do Bob nao recreditou (transactions.external_ref unico)");
+  else fail("saldo recreditou", `bob antes=${bobAfter} depois=${bobAfter2}`);
+
+  // ─── prediction_scores NAO duplica ao recomputar ──────────────────────
+  const scoresBefore = await pool.query<{ n: string; total: string | null }>(
+    `SELECT count(*)::text AS n, sum(points)::text AS total
+       FROM prediction_scores
+      WHERE ticket_id = ANY($1::text[])`,
+    [[fx.tickets.diarioAlice, fx.tickets.diarioBob, fx.tickets.diarioCarol, fx.tickets.diarioFran]],
+  );
+  // Re-persist identico → cascade nao deve recomputar nada
+  await persistMatchesV2(
+    [
+      buildMockMatch({ competitionId: COMP_PRINCIPAL, matchId: fx.matches.diario[0]!, status: "Finalizado", casa: 1, visit: 0, kickoffMinFromNow: -360, dateBR: FAKE_DATE_GERAL_DIARIO }),
+      buildMockMatch({ competitionId: COMP_PRINCIPAL, matchId: fx.matches.diario[1]!, status: "Finalizado", casa: 2, visit: 2, kickoffMinFromNow: -350, dateBR: FAKE_DATE_GERAL_DIARIO }),
+      buildMockMatch({ competitionId: COMP_PRINCIPAL, matchId: fx.matches.diario[2]!, status: "Finalizado", casa: 0, visit: 1, kickoffMinFromNow: -340, dateBR: FAKE_DATE_GERAL_DIARIO }),
+    ],
+    { cascadeSource: "prod-test-diario-idempotent", runCascadingClosures: false },
+  );
+  const scoresAfter = await pool.query<{ n: string; total: string | null }>(
+    `SELECT count(*)::text AS n, sum(points)::text AS total
+       FROM prediction_scores
+      WHERE ticket_id = ANY($1::text[])`,
+    [[fx.tickets.diarioAlice, fx.tickets.diarioBob, fx.tickets.diarioCarol, fx.tickets.diarioFran]],
+  );
+  if (scoresBefore.rows[0]?.n === scoresAfter.rows[0]?.n && scoresBefore.rows[0]?.total === scoresAfter.rows[0]?.total) {
+    pass("idempotencia DIARIO: prediction_scores nao duplicou (PK por prediction_id)");
+  } else {
+    fail("prediction_scores duplicou", `${JSON.stringify(scoresBefore.rows[0])} vs ${JSON.stringify(scoresAfter.rows[0])}`);
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -766,6 +830,134 @@ async function testCountsConsistency() {
 }
 
 // ─────────────────────────────────────────────────────────────────────
+/**
+ * Cenario que o USUARIO descreveu:
+ *   "quando todos jogos acabarem tem que mudar o status do ticket, sacao,
+ *    para nao duplicar pontos"
+ *
+ * Aqui validamos o ciclo FIM-A-FIM:
+ *   1. Todos os jogos do bolao EXTRA R99 estao finalizados (test 6 finalizou).
+ *   2. Forcamos o kickoff para alem do grace do daily closure.
+ *   3. Rodamos `processPrizeClosuresAfterMatchSync` ⇒ cria closure EXTRA.
+ *   4. Tickets EXTRA R99 viram `settled_at IS NOT NULL`.
+ *   5. Tickets EXTRA R100 (ainda nao todos finalizados? na vdd só 1 jogo,
+ *      tambem finalizado) viram settled_at se passarem do grace.
+ *   6. Rerodar TUDO: ZERO duplicacao em scores/awards/transactions/saldos.
+ *   7. `settled_at` permanece o mesmo (auditavel).
+ */
+async function testEncerramentoTotal(fx: SetupResult) {
+  section("11) Encerramento total: ticket settled apos todos jogos terminarem");
+  const pool = getPool();
+
+  // Forca grace dos EXTRAS (kickoff -6h, igual ao DIARIO test)
+  await pool.query(
+    `UPDATE matches_cache SET kickoff_at = now() - interval '6 hours'
+     WHERE date_br = $1 AND competition_id = $2`,
+    [FAKE_DATE_EXTRA, COMP_EXTRA],
+  );
+
+  // Snapshot ANTES do closure
+  const balBefore = await pool.query<{ id: string; balance_cents: number }>(
+    `SELECT id::text, balance_cents FROM users WHERE email LIKE '${PREFIX}%@local' ORDER BY id`,
+  );
+  const scoresBefore = await pool.query<{ n: string; total: string | null }>(
+    `SELECT count(*)::text AS n, sum(points)::text AS total
+       FROM prediction_scores
+      WHERE ticket_id IN (SELECT id::text FROM tickets WHERE external_ref LIKE '${PREFIX}%')`,
+  );
+
+  await processPrizeClosuresAfterMatchSync({ source: "prod-test-encerramento" });
+
+  // 1) Tickets EXTRA viraram settled?
+  const extraTickets = [fx.tickets.extraR99Alice, fx.tickets.extraR99Carol, fx.tickets.extraR99Daniel, fx.tickets.extraR100Daniel];
+  const extraSettled = await pool.query<{ id: string; settled_at: string | null; settled_closure_id: string | null }>(
+    `SELECT id::text, settled_at::text, settled_closure_id::text
+       FROM tickets
+      WHERE id::text = ANY($1::text[])
+      ORDER BY id`,
+    [extraTickets],
+  );
+  const nSettled = extraSettled.rows.filter((r) => r.settled_at != null).length;
+  if (nSettled === extraTickets.length) {
+    pass(`tickets EXTRA marcados settled apos todos jogos finalizarem (${nSettled}/${extraTickets.length})`);
+  } else {
+    fail("tickets EXTRA settled", `${nSettled}/${extraTickets.length} settled — ${extraSettled.rows.map((r) => `${r.id.slice(0, 6)}=${r.settled_at ? "ok" : "null"}`).join(", ")}`);
+  }
+
+  // 2) Closure EXTRA gravado
+  const closures = await pool.query<{ id: string; bolao_type: string; date_br: string | null; processado: boolean }>(
+    `SELECT id::text, bolao_type, date_br, processado FROM prize_closures WHERE date_br = $1 ORDER BY bolao_type`,
+    [FAKE_DATE_EXTRA],
+  );
+  if (closures.rows.some((c) => c.bolao_type === "extra" && c.processado)) {
+    pass("closure EXTRA criado e processado=true");
+  } else {
+    fail("closure EXTRA", `obtido ${JSON.stringify(closures.rows)}`);
+  }
+
+  // 3) Idempotencia TOTAL: rerodar fechamento + persist nao duplica nada
+  await processPrizeClosuresAfterMatchSync({ source: "prod-test-encerramento-2" });
+  await processPrizeClosuresAfterMatchSync({ source: "prod-test-encerramento-3" });
+
+  const balAfter = await pool.query<{ id: string; balance_cents: number }>(
+    `SELECT id::text, balance_cents FROM users WHERE email LIKE '${PREFIX}%@local' ORDER BY id`,
+  );
+  const scoresAfter = await pool.query<{ n: string; total: string | null }>(
+    `SELECT count(*)::text AS n, sum(points)::text AS total
+       FROM prediction_scores
+      WHERE ticket_id IN (SELECT id::text FROM tickets WHERE external_ref LIKE '${PREFIX}%')`,
+  );
+  const totalCreditChange = balAfter.rows.reduce((acc, row, i) => {
+    const prev = balBefore.rows[i]?.balance_cents ?? 0;
+    return acc + Math.max(0, row.balance_cents - prev);
+  }, 0);
+  // O credito ja aconteceu na 1a chamada do closure (extra) - mas a 2a e 3a NAO devem creditar novamente.
+  // Verificamos rodando processClosure MAIS 2x apos a 1a: total nao cresce.
+  const balRound2 = await pool.query<{ id: string; balance_cents: number }>(
+    `SELECT id::text, balance_cents FROM users WHERE email LIKE '${PREFIX}%@local' ORDER BY id`,
+  );
+  await processPrizeClosuresAfterMatchSync({ source: "prod-test-encerramento-4" });
+  const balRound3 = await pool.query<{ id: string; balance_cents: number }>(
+    `SELECT id::text, balance_cents FROM users WHERE email LIKE '${PREFIX}%@local' ORDER BY id`,
+  );
+  const driftDiff = balRound2.rows.every((r, i) => r.balance_cents === balRound3.rows[i]?.balance_cents);
+  if (driftDiff) pass("idempotencia TOTAL: rerodar closure 4× nao recreditou saldos");
+  else fail("recredito apos n-rodadas", "saldos divergiram");
+
+  if (scoresBefore.rows[0]?.n === scoresAfter.rows[0]?.n) {
+    pass("idempotencia TOTAL: prediction_scores nao duplicou");
+  } else {
+    fail("scores duplicou", `${JSON.stringify(scoresBefore.rows[0])} vs ${JSON.stringify(scoresAfter.rows[0])}`);
+  }
+
+  // settled_at permanece o original (COALESCE evitou rewrite)
+  const extraSettledAfter = await pool.query<{ id: string; settled_at: string | null }>(
+    `SELECT id::text, settled_at::text FROM tickets WHERE id::text = ANY($1::text[]) ORDER BY id`,
+    [extraTickets],
+  );
+  const settledStable = extraSettled.rows.every((b, i) => b.settled_at === extraSettledAfter.rows[i]?.settled_at);
+  if (settledStable) pass("idempotencia TOTAL: settled_at permanece o original (COALESCE)");
+  else fail("settled_at sobrescrito", "valores divergiram apos reexecucao");
+
+  info(`credito total registrado: R$ ${(totalCreditChange / 100).toFixed(2)}`);
+
+  // 4) Sanity: tickets settled NAO aparecem na "fila aberta" (index_tickets_open)
+  const openTickets = await pool.query<{ n: string }>(
+    `SELECT count(*)::text AS n
+       FROM tickets
+      WHERE external_ref LIKE '${PREFIX}%'
+        AND settled_at IS NULL
+        AND ticket_type = 'extra'`,
+  );
+  // R100 do Daniel só tem 1 jogo, que foi finalizado. Junto com R99 = todos 4 settled.
+  if (Number(openTickets.rows[0]?.n ?? 0) === 0) {
+    pass("nenhum ticket EXTRA fica em aberto apos todos jogos finalizarem");
+  } else {
+    fail("tickets EXTRA em aberto", `${openTickets.rows[0]?.n} ainda nao settled`);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
 async function main() {
   const t0 = Date.now();
   console.log(`${C.bold}${C.magenta}TESTE FULL PRE-DEPLOY (PRODUCAO)${C.reset}\n${C.gray}data: ${new Date().toISOString()}${C.reset}\n`);
@@ -789,6 +981,7 @@ async function main() {
     await testAntiCascata(fx);
     await testWorkerExcluiFinalizadas(fx);
     await testCountsConsistency();
+    await testEncerramentoTotal(fx);
   } catch (err) {
     console.error("\n[fatal]", err);
   } finally {

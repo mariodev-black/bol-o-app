@@ -517,6 +517,26 @@ async function processClosure(
     `UPDATE prize_closures SET processado = true, updated_at = now() WHERE id = $1 AND processado = false`,
     [closureId]
   );
+
+  // ─── Encerramento idempotente do ticket ─────────────────────────────
+  // Marca TODOS os tickets que participaram deste closure como `settled_at`.
+  // - Idempotência: COALESCE preserva o `settled_at` original em reexecuções;
+  //   `settled_closure_id` indica QUAL closure encerrou (auditável).
+  // - Reentrância: como `prize_closures.closure_key` é UNIQUE e bloqueamos
+  //   via advisory_lock, dois sync simultâneos NUNCA criam closure duplicado;
+  //   o UPDATE abaixo só "marca novidade" no primeiro caminho real.
+  if (tickets.length > 0) {
+    const ticketIds = tickets.map((t) => t.id);
+    await client.query(
+      `UPDATE tickets
+         SET settled_at = COALESCE(settled_at, now()),
+             settled_closure_id = COALESCE(settled_closure_id, $2::uuid),
+             updated_at = now()
+       WHERE id::text = ANY($1::text[])
+         AND settled_at IS NULL`,
+      [ticketIds, closureId],
+    );
+  }
 }
 
 export async function processPrizeClosuresAfterMatchSync(
