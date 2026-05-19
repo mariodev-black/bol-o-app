@@ -1,7 +1,16 @@
 import type { PoolClient } from "pg";
 import { getFootballMainCompetitionId, parseExtraBolaoChampionshipIds } from "@/lib/boloes-extra-config";
-import { cronTickLog } from "@/lib/cron/cron-tick-log";
 import { getPool } from "@/lib/db";
+
+/** Log estruturado simples: `[prizes] {"t":"ISO","phase":"...","source":"..."}`. */
+function prizesLog(phase: string, fields: Record<string, unknown> = {}): void {
+  const payload = { t: new Date().toISOString(), phase, ...fields };
+  try {
+    console.info(`[prizes] ${JSON.stringify(payload)}`);
+  } catch {
+    console.info("[prizes]", phase, fields);
+  }
+}
 import { calcPredictionPoints } from "@/lib/predictions";
 import { calculatePrizeAwards, calculatePrizePoolCents } from "@/lib/prizes/distribution";
 
@@ -515,7 +524,7 @@ export async function processPrizeClosuresAfterMatchSync(
 ): Promise<void> {
   const plog = (phase: string, fields: Record<string, unknown> = {}) => {
     if (!logCtx?.source) return;
-    cronTickLog(`prizes:${phase}`, { ...logCtx, ...fields });
+    prizesLog(phase, { ...logCtx, ...fields });
   };
   const pool = getPool();
   const client = await pool.connect();

@@ -3,9 +3,9 @@ import {
   getAllSyncedCompetitionIds,
   getFootballMainCompetitionId,
 } from "@/lib/boloes-extra-config";
-import { ensureMatchesCacheForCompetition } from "@/lib/ensure-matches-cache-competition";
 import { readMatchesCache } from "@/lib/matches-cache";
 import { buildPartidasFasesFromRows } from "@/lib/partidas-cache-payload";
+import { syncAllConfiguredIfStale } from "@/lib/football/sync-orchestrator";
 
 export const runtime = "nodejs";
 
@@ -14,9 +14,13 @@ function partidasPayloadEmpty(partidas: Record<string, unknown>): boolean {
 }
 
 /**
- * Postgres (`matches_cache`). Se vazio para o campeonato e houver `FOOTBALL_API_TOKEN`, preenche uma vez via API-Futebol (igual ao cron).
- * `?competitionId=` opcional (default = campeonato principal); use o id do bolão extra para listar só aquele calendário.
- * `?allSynced=1` — principal + `BOLOES_EXTRA_CHAMPIONSHIP_IDS` (ex.: home “Próximos jogos”).
+ * Le `matches_cache` (Postgres). Se a tabela estiver completamente vazia (deploy
+ * recente / banco novo), dispara o syncAllConfiguredIfStale do scheduler v2 para
+ * popular sob demanda — sem chamar API se o cache ja existe.
+ *
+ * Query params:
+ *   ?competitionId=N    — competicao especifica (default = FOOTBALL_COMPETITION_ID).
+ *   ?allSynced=1        — principal + BOLOES_EXTRA_CHAMPIONSHIP_IDS.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -29,24 +33,17 @@ export async function GET(request: NextRequest) {
     const competitionIds = allSynced ? getAllSyncedCompetitionIds() : [comp];
     const idSet = new Set(competitionIds);
 
-    let rows = (await readMatchesCache()).filter((r) =>
-      idSet.has(Number(r.competition_id)),
-    );
+    let rows = (await readMatchesCache()).filter((r) => idSet.has(Number(r.competition_id)));
     let partidas = buildPartidasFasesFromRows(rows);
     if (partidasPayloadEmpty(partidas as Record<string, unknown>)) {
-      for (const competitionId of competitionIds) {
-        try {
-          await ensureMatchesCacheForCompetition(competitionId);
-        } catch (e) {
-          console.error("[api/partidas] ensure cache failed", {
-            competitionId,
-            message: e instanceof Error ? e.message : String(e),
-          });
-        }
+      try {
+        await syncAllConfiguredIfStale();
+      } catch (e) {
+        console.error("[api/partidas] syncAllConfiguredIfStale failed", {
+          message: e instanceof Error ? e.message : String(e),
+        });
       }
-      rows = (await readMatchesCache()).filter((r) =>
-        idSet.has(Number(r.competition_id)),
-      );
+      rows = (await readMatchesCache()).filter((r) => idSet.has(Number(r.competition_id)));
       partidas = buildPartidasFasesFromRows(rows);
     }
     return NextResponse.json(
@@ -55,7 +52,7 @@ export async function GET(request: NextRequest) {
         headers: {
           "Cache-Control": "private, max-age=120, stale-while-revalidate=600",
         },
-      }
+      },
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : "Falha ao buscar partidas";

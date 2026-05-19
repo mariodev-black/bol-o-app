@@ -1,6 +1,6 @@
 import { readMatchesCache, type CachedMatchRow } from "@/lib/matches-cache";
 import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
-import { ensureMatchesCacheForCompetition } from "@/lib/ensure-matches-cache-competition";
+import { syncAllConfiguredIfStale } from "@/lib/football/sync-orchestrator";
 
 type NestedRounds = Record<string, Array<Record<string, unknown>>>;
 type PhaseMap = Record<string, NestedRounds | Record<string, NestedRounds>>;
@@ -98,8 +98,12 @@ export async function getPartidasFasesFromDb(competitionId?: number): Promise<Ph
     competitionId != null && Number.isFinite(Number(competitionId))
       ? Number(competitionId)
       : getFootballMainCompetitionId();
-  await ensureMatchesCacheForCompetition(comp).catch(() => {});
-  const rows = await readMatchesCache();
-  const filtered = rows.filter((r) => Number(r.competition_id) === comp);
+  let rows = await readMatchesCache();
+  let filtered = rows.filter((r) => Number(r.competition_id) === comp);
+  if (filtered.length === 0) {
+    await syncAllConfiguredIfStale().catch(() => {});
+    rows = await readMatchesCache();
+    filtered = rows.filter((r) => Number(r.competition_id) === comp);
+  }
   return buildPartidasFasesFromRows(filtered);
 }

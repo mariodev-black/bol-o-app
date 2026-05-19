@@ -12,7 +12,6 @@ import {
   isSubdomainRoutingEnabled,
 } from "@/lib/site-hosts";
 import { getServerAuthUser } from "@/lib/auth/server-session";
-import { InternalCronBootstrap } from "./InternalCronBootstrap";
 import { Providers } from "./providers";
 
 const montserrat = Montserrat({
@@ -94,7 +93,6 @@ export default async function RootLayout({
         suppressHydrationWarning
         className="min-h-full flex flex-col bg-[#000000] text-foreground"
       >
-        <InternalCronBootstrap />
         <Providers appServerConfig={appServerConfig} initialAuthUser={initialAuthUser}>
           {children}
           {modal}

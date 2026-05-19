@@ -1,7 +1,6 @@
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
   const { ensureDatabasePoolReady } = await import("@/lib/db");
-  const { startInternalCronScheduler } = await import("@/lib/cron/bootstrap");
 
   try {
     await ensureDatabasePoolReady();
@@ -9,5 +8,6 @@ export async function register() {
     console.error("[db] pool warm-up failed on boot", error);
   }
 
-  startInternalCronScheduler();
+  const { startSchedulerV2 } = await import("@/lib/football/scheduler-v2");
+  startSchedulerV2();
 }

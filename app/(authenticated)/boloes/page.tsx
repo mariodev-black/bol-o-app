@@ -26,7 +26,13 @@ import {
   mergeExtraChampionshipFromPaidTickets,
 } from "@/lib/ticket-competition-server";
 import { resolveDiarioPlayableDate } from "@/lib/diario-playable-date";
-import { matchEndClockMinutesAfterKickoff } from "@/lib/cron/match-result-guarantee";
+
+/** Minutos apos apito que consideramos a partida ja encerrada (debug-only nesta rota). */
+function matchEndClockMinutesAfterKickoff(): number {
+  const n = Number.parseInt((process.env.MATCH_END_CLOCK_AFTER_KICKOFF_MINUTES || "115").trim(), 10);
+  if (!Number.isFinite(n)) return 115;
+  return Math.min(300, Math.max(45, n));
+}
 
 export const dynamic = "force-dynamic";
 
