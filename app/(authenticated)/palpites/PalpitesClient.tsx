@@ -1,6 +1,13 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useSearchParams } from "next/navigation";
 import {
   ChevronDown,
@@ -538,9 +545,8 @@ function ScoreDisplay({ value, dir }: { value: number; dir: "up" | "down" }) {
     <div className="relative flex h-11 w-full items-center justify-center overflow-hidden">
       <span
         key={value}
-        className={`absolute font-black tabular-nums leading-none text-white text-[28px] sm:text-[30px] ${
-          dir === "up" ? "animate-score-up" : "animate-score-down"
-        }`}
+        className={`absolute font-black tabular-nums leading-none text-white text-[28px] sm:text-[30px] ${dir === "up" ? "animate-score-up" : "animate-score-down"
+          }`}
       >
         {value}
       </span>
@@ -1062,7 +1068,7 @@ function JogoCard({
     >
       {/* Header — confronto + data/hora */}
       <div className="flex items-start justify-between gap-3 px-4 pt-4 pb-2 sm:px-5">
-        <h3 className="min-w-0 flex-1 text-[15px] font-bold uppercase leading-snug tracking-[0.02em] text-white sm:text-[15px]">
+        <h3 className="min-w-0 flex-1 text-[16px] font-bold uppercase leading-snug tracking-[0.02em] text-white sm:text-[16px]">
           {jogo.timeCasa} vs {jogo.timeVisitante}
         </h3>
         <div className="flex shrink-0 flex-col items-end gap-0.5 text-right">
@@ -1251,141 +1257,141 @@ function JogoCard({
         <>
           <div className={`px-4 sm:px-5 ${showResultadoDetalhado ? "pb-1" : "pb-4"}`}>
             {readOnly && !showResultadoDetalhado ? (
-          <div
-            className="flex w-full flex-col items-center justify-center gap-2 rounded-xl px-3 py-4 sm:px-4"
-            style={{
-              background: readOnlyPending
-                ? "rgba(232,200,64,0.08)"
-                : readOnlyPlacarPendente || readOnlyAguardandoPlacarPosTempo
-                  ? "rgba(232,200,64,0.06)"
-                  : resultadoResumo?.tone === "win"
-                    ? review?.exact
-                      ? "rgba(177,235,11,0.12)"
-                      : "rgba(177,235,11,0.09)"
-                    : resultadoResumo?.tone === "partial"
-                      ? "rgba(177,235,11,0.06)"
-                      : resultadoResumo?.tone === "miss"
-                        ? "rgba(255,255,255,0.04)"
-                        : review && review.points > 0
-                          ? "rgba(177,235,11,0.10)"
-                          : PALPITE_PANEL_BG,
-            }}
-          >
-            {readOnlyPending ? (
-              <span
-                className="text-center leading-relaxed font-semibold text-base px-1"
-                style={{ color: "rgba(252,234,160,0.98)" }}
-              >
-                Aguardando o início da partida.
-              </span>
-            ) : readOnlyPlacarPendente ? (
-              <span
-                className="text-center leading-relaxed font-semibold text-base px-1"
-                style={{ color: "rgba(252,234,160,0.95)" }}
-              >
-                Estamos sincronizando o placar oficial. Volte daqui a pouco.
-              </span>
-            ) : readOnlyAguardandoPlacarPosTempo ? (
-              <span
-                className="text-center leading-relaxed font-semibold text-base px-1"
-                style={{ color: "rgba(252,234,160,0.95)" }}
-              >
-                O jogo já deve ter terminado; a listagem da API pode atrasar. Estamos
-                atualizando o placar oficial — a pontuação do palpite aparece quando o
-                resultado estiver disponível.
-              </span>
-            ) : readOnlyMatchLive ? (
-              <span
-                className="text-center leading-relaxed font-semibold text-base px-1"
-                style={{ color: "rgba(255,255,255,0.88)" }}
-              >
-                Jogo em andamento. A pontuação do seu palpite aparece depois que
-                o resultado oficial estiver disponível.
-              </span>
-            ) : !hasInitialPrediction &&
-              (jogo.status === "encerrado" || temPlacarOficial) ? (
-              <span
-                className="text-center leading-relaxed font-semibold text-base px-1"
-                style={{ color: "rgba(255,255,255,0.78)" }}
-              >
-                Você não fez palpite nesta partida.
-              </span>
-            ) : resultadoResumo ? (
               <div
-                className="flex flex-col items-center gap-2 w-full"
-                role="status"
-                aria-live="polite"
+                className="flex w-full flex-col items-center justify-center gap-2 rounded-xl px-3 py-4 sm:px-4"
+                style={{
+                  background: readOnlyPending
+                    ? "rgba(232,200,64,0.08)"
+                    : readOnlyPlacarPendente || readOnlyAguardandoPlacarPosTempo
+                      ? "rgba(232,200,64,0.06)"
+                      : resultadoResumo?.tone === "win"
+                        ? review?.exact
+                          ? "rgba(177,235,11,0.12)"
+                          : "rgba(177,235,11,0.09)"
+                        : resultadoResumo?.tone === "partial"
+                          ? "rgba(177,235,11,0.06)"
+                          : resultadoResumo?.tone === "miss"
+                            ? "rgba(255,255,255,0.04)"
+                            : review && review.points > 0
+                              ? "rgba(177,235,11,0.10)"
+                              : PALPITE_PANEL_BG,
+                }}
               >
-                <div className="flex items-center justify-center gap-2.5 flex-wrap px-1">
-                  {resultadoResumo.tone === "win" && review?.exact ? (
-                    <Sparkles
-                      className="w-6 h-6 shrink-0"
-                      style={{ color: "#D4F862" }}
-                      strokeWidth={2.2}
-                      aria-hidden
-                    />
-                  ) : null}
-                  {resultadoResumo.tone === "win" && review && !review.exact ? (
-                    <Target
-                      className="w-6 h-6 shrink-0"
-                      style={{ color: "#D4F862" }}
-                      strokeWidth={2.2}
-                      aria-hidden
-                    />
-                  ) : null}
-                  {resultadoResumo.tone === "partial" ? (
-                    <Star
-                      className="w-6 h-6 shrink-0"
-                      style={{ color: "#D4F862" }}
-                      strokeWidth={2.2}
-                      aria-hidden
-                    />
-                  ) : null}
-                  {resultadoResumo.tone === "miss" ? (
-                    <Disc
-                      className="w-6 h-6 shrink-0"
-                      style={{ color: "rgba(255,255,255,0.55)" }}
-                      strokeWidth={2.2}
-                      aria-hidden
-                    />
-                  ) : null}
+                {readOnlyPending ? (
                   <span
-                    className={`text-center leading-snug text-pretty ${resultadoResumo.tone !== "miss" ? "font-bold text-[17px] sm:text-lg" : "font-semibold text-base"}`}
-                    style={{
-                      color:
-                        resultadoResumo.tone === "miss"
-                          ? "rgba(255,255,255,0.88)"
-                          : "#D4F862",
-                    }}
+                    className="text-center leading-relaxed font-semibold text-base px-1"
+                    style={{ color: "rgba(252,234,160,0.98)" }}
                   >
-                    {resultadoResumo.title}
+                    Aguardando o início da partida.
                   </span>
-                </div>
-                {resultadoResumo.subtitle ? (
+                ) : readOnlyPlacarPendente ? (
                   <span
-                    className="text-center leading-relaxed text-sm sm:text-[15px] px-2 font-medium max-w-md"
+                    className="text-center leading-relaxed font-semibold text-base px-1"
+                    style={{ color: "rgba(252,234,160,0.95)" }}
+                  >
+                    Estamos sincronizando o placar oficial. Volte daqui a pouco.
+                  </span>
+                ) : readOnlyAguardandoPlacarPosTempo ? (
+                  <span
+                    className="text-center leading-relaxed font-semibold text-base px-1"
+                    style={{ color: "rgba(252,234,160,0.95)" }}
+                  >
+                    O jogo já deve ter terminado; a listagem da API pode atrasar. Estamos
+                    atualizando o placar oficial — a pontuação do palpite aparece quando o
+                    resultado estiver disponível.
+                  </span>
+                ) : readOnlyMatchLive ? (
+                  <span
+                    className="text-center leading-relaxed font-semibold text-base px-1"
+                    style={{ color: "rgba(255,255,255,0.88)" }}
+                  >
+                    Jogo em andamento. A pontuação do seu palpite aparece depois que
+                    o resultado oficial estiver disponível.
+                  </span>
+                ) : !hasInitialPrediction &&
+                  (jogo.status === "encerrado" || temPlacarOficial) ? (
+                  <span
+                    className="text-center leading-relaxed font-semibold text-base px-1"
                     style={{ color: "rgba(255,255,255,0.78)" }}
                   >
-                    {resultadoResumo.subtitle}
+                    Você não fez palpite nesta partida.
                   </span>
-                ) : null}
+                ) : resultadoResumo ? (
+                  <div
+                    className="flex flex-col items-center gap-2 w-full"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <div className="flex items-center justify-center gap-2.5 flex-wrap px-1">
+                      {resultadoResumo.tone === "win" && review?.exact ? (
+                        <Sparkles
+                          className="w-6 h-6 shrink-0"
+                          style={{ color: "#D4F862" }}
+                          strokeWidth={2.2}
+                          aria-hidden
+                        />
+                      ) : null}
+                      {resultadoResumo.tone === "win" && review && !review.exact ? (
+                        <Target
+                          className="w-6 h-6 shrink-0"
+                          style={{ color: "#D4F862" }}
+                          strokeWidth={2.2}
+                          aria-hidden
+                        />
+                      ) : null}
+                      {resultadoResumo.tone === "partial" ? (
+                        <Star
+                          className="w-6 h-6 shrink-0"
+                          style={{ color: "#D4F862" }}
+                          strokeWidth={2.2}
+                          aria-hidden
+                        />
+                      ) : null}
+                      {resultadoResumo.tone === "miss" ? (
+                        <Disc
+                          className="w-6 h-6 shrink-0"
+                          style={{ color: "rgba(255,255,255,0.55)" }}
+                          strokeWidth={2.2}
+                          aria-hidden
+                        />
+                      ) : null}
+                      <span
+                        className={`text-center leading-snug text-pretty ${resultadoResumo.tone !== "miss" ? "font-bold text-[17px] sm:text-lg" : "font-semibold text-base"}`}
+                        style={{
+                          color:
+                            resultadoResumo.tone === "miss"
+                              ? "rgba(255,255,255,0.88)"
+                              : "#D4F862",
+                        }}
+                      >
+                        {resultadoResumo.title}
+                      </span>
+                    </div>
+                    {resultadoResumo.subtitle ? (
+                      <span
+                        className="text-center leading-relaxed text-sm sm:text-[15px] px-2 font-medium max-w-md"
+                        style={{ color: "rgba(255,255,255,0.78)" }}
+                      >
+                        {resultadoResumo.subtitle}
+                      </span>
+                    ) : null}
+                  </div>
+                ) : review && review.points > 0 ? (
+                  <span
+                    className="text-center leading-relaxed font-bold text-lg px-1"
+                    style={{ color: "#D4F862" }}
+                  >
+                    Você ganhou {review.points} pontos nesta partida.
+                  </span>
+                ) : (
+                  <span
+                    className="text-center leading-relaxed font-semibold text-base px-1"
+                    style={{ color: "rgba(255,255,255,0.78)" }}
+                  >
+                    Sem pontuação nesta partida.
+                  </span>
+                )}
               </div>
-            ) : review && review.points > 0 ? (
-              <span
-                className="text-center leading-relaxed font-bold text-lg px-1"
-                style={{ color: "#D4F862" }}
-              >
-                Você ganhou {review.points} pontos nesta partida.
-              </span>
-            ) : (
-              <span
-                className="text-center leading-relaxed font-semibold text-base px-1"
-                style={{ color: "rgba(255,255,255,0.78)" }}
-              >
-                Sem pontuação nesta partida.
-              </span>
-            )}
-          </div>
             ) : null}
           </div>
         </>
@@ -2721,28 +2727,165 @@ function parseDatePill(dataBR: string) {
   };
 }
 
+function sortedRoundDates(jogos: Jogo[], rodada: number): string[] {
+  return Array.from(
+    new Set(
+      jogos.filter((j) => j.rodada === rodada).map((j) => j.dataBR),
+    ),
+  )
+    .filter(Boolean)
+    .sort((a, b) => (brDateToUtcMs(a) ?? 0) - (brDateToUtcMs(b) ?? 0));
+}
+
+function isRoundDayComplete(
+  jogos: Jogo[],
+  rodada: number,
+  dateBR: string,
+  predictionsMap: Record<number, { scoreCasa: number; scoreVisitante: number }>,
+): boolean {
+  const dayGames = jogos.filter((j) => j.rodada === rodada && j.dataBR === dateBR);
+  return (
+    dayGames.length > 0 &&
+    dayGames.every((j) => Boolean(predictionsMap[j.id]))
+  );
+}
+
+/** Após concluir o dia atual, avança para o próximo dia da rodada (ex.: sex → sáb). */
+function pickNextDateInRound(
+  jogos: Jogo[],
+  rodada: number,
+  currentDate: string | null,
+  predictionsMap: Record<number, { scoreCasa: number; scoreVisitante: number }>,
+): string | null {
+  const datas = sortedRoundDates(jogos, rodada);
+  if (datas.length === 0) return null;
+
+  if (
+    currentDate &&
+    datas.includes(currentDate) &&
+    !isRoundDayComplete(jogos, rodada, currentDate, predictionsMap)
+  ) {
+    return currentDate;
+  }
+
+  const startIdx =
+    currentDate && datas.includes(currentDate)
+      ? datas.indexOf(currentDate) + 1
+      : 0;
+
+  for (let i = startIdx; i < datas.length; i++) {
+    const d = datas[i]!;
+    const hasPending = jogos
+      .filter((j) => j.rodada === rodada && j.dataBR === d)
+      .some((j) => !predictionsMap[j.id]);
+    if (hasPending) return d;
+  }
+
+  if (startIdx < datas.length) return datas[startIdx] ?? null;
+  return currentDate ?? datas[0] ?? null;
+}
+
+// ── Barra de progresso da rodada (sticky fora do nav = cola ao rolar jogos) ──
+function RoundProgressBar({
+  jogos,
+  selectedRodada,
+  hasPalpite,
+  sticky = false,
+}: {
+  jogos: Jogo[];
+  selectedRodada: number;
+  hasPalpite: (matchId: number) => boolean;
+  sticky?: boolean;
+}) {
+  const jogosNaRodada = useMemo(
+    () => jogos.filter((j) => j.rodada === selectedRodada),
+    [jogos, selectedRodada],
+  );
+  const totalJogos = jogosNaRodada.length;
+  const jogosPalpitados = jogosNaRodada.filter((j) => hasPalpite(j.id)).length;
+  const pct =
+    totalJogos > 0 ? Math.round((jogosPalpitados / totalJogos) * 100) : 0;
+
+  return (
+    <div
+      className={
+        sticky
+          ? "sticky z-30 mb-3 mt-4 w-full rounded-[14px] border border-white/[0.08] bg-[#0B0D0C]/95 px-4 py-3 shadow-[0_8px_24px_rgba(0,0,0,0.45)] backdrop-blur-md supports-[backdrop-filter]:bg-[#0B0D0C]/88"
+          : "mb-3 rounded-[14px] border border-white/[0.08] px-4 py-3"
+      }
+      style={{
+        background: sticky ? undefined : "#0B0D0C",
+        ...(sticky ? { top: "var(--app-header-height, 86.5px)" } : {}),
+      }}
+    >
+      <div className="mb-2 flex items-center justify-between">
+        <span
+          className="text-[12px] font-semibold"
+          style={{ color: "rgba(255,255,255,0.50)" }}
+        >
+          <span className="font-black text-white">{jogosPalpitados}</span> /{" "}
+          {totalJogos} palpites feitos
+        </span>
+        <span
+          className="text-[12px] font-black"
+          style={{
+            color: pct === 100 ? "#B1EB0B" : "rgba(255,255,255,0.40)",
+          }}
+        >
+          {pct}%
+        </span>
+      </div>
+      <div
+        className="h-[5px] overflow-hidden rounded-full"
+        style={{ background: "rgba(255,255,255,0.07)" }}
+      >
+        <div
+          className="h-full rounded-full transition-[width] duration-700 ease-out"
+          style={{
+            width: `${pct}%`,
+            background:
+              pct === 100
+                ? "linear-gradient(90deg, #B1EB0B, #E8FF8A)"
+                : "linear-gradient(90deg, #B1EB0B, #D4F040)",
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
 // ── Round / Phase Navigation ──────────────────────────────────
 function RoundPhaseNav({
   jogos,
   predictionsMap,
+  hasPalpite,
   selectedRodada,
   onRodada,
   selectedDate,
   onDate,
-  grupo,
-  grupos,
-  onGrupo,
+  roundTitle,
+  showRoundNav = true,
+  embedded = false,
+  hideProgress = false,
 }: {
   jogos: Jogo[];
   predictionsMap: Record<number, { scoreCasa: number; scoreVisitante: number }>;
+  /** Salvo no servidor ou alterado no rascunho (stepper). */
+  hasPalpite: (matchId: number) => boolean;
   selectedRodada: number;
   onRodada: (r: number) => void;
   selectedDate: string | null;
   onDate: (d: string | null) => void;
-  grupo: string;
-  grupos: string[];
-  onGrupo: (g: string) => void;
+  /** Ex.: "Fase de Grupos — 1" ou "12ª Rodada" */
+  roundTitle: string;
+  /** false quando o bolão é de uma rodada só (extra/diário). */
+  showRoundNav?: boolean;
+  /** true quando dentro da barra sticky (sem margem inferior extra). */
+  embedded?: boolean;
+  /** Progresso renderizado fora (ex.: sticky na coluna de jogos). */
+  hideProgress?: boolean;
 }) {
+  const dateStripRef = useRef<HTMLDivElement>(null);
   const rodadas = useMemo(
     () => Array.from(new Set(jogos.map((j) => j.rodada))).sort((a, b) => a - b),
     [jogos],
@@ -2764,61 +2907,70 @@ function RoundPhaseNav({
     [jogosNaRodada],
   );
 
-  // Progress always reflects the full round so users see overall completion
-  const totalJogos = jogosNaRodada.length;
-  const jogosPalpitados = jogosNaRodada.filter((j) =>
-    Boolean(predictionsMap[j.id]),
-  ).length;
-  const pct =
-    totalJogos > 0 ? Math.round((jogosPalpitados / totalJogos) * 100) : 0;
-
   function dateStatus(d: string): "done" | "partial" | "pending" {
     const jd = jogosNaRodada.filter((j) => j.dataBR === d);
-    const p = jd.filter((j) => Boolean(predictionsMap[j.id])).length;
+    const p = jd.filter((j) => hasPalpite(j.id)).length;
     if (p === 0) return "pending";
     if (p === jd.length) return "done";
     return "partial";
   }
 
+  useEffect(() => {
+    if (!selectedDate || !dateStripRef.current) return;
+    const el = dateStripRef.current.querySelector(
+      `[data-palpite-date="${selectedDate}"]`,
+    );
+    el?.scrollIntoView({
+      behavior: "smooth",
+      inline: "center",
+      block: "nearest",
+    });
+  }, [selectedDate, datas.join("|")]);
+
   return (
-    <div className="mb-5 flex flex-col gap-2.5">
-      {/* ── 1. Navegação de fase / rodada ── */}
-      <div
-        className="flex items-center justify-between rounded-[14px] px-4 py-3"
-        style={{
-          background: "#0B0D0C",
-          border: "1px solid rgba(255,255,255,0.08)",
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => canPrev && onRodada(rodadas[rodadaIdx - 1]!)}
-          disabled={!canPrev}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-opacity"
+    <div
+      className={`flex flex-col gap-2.5 ${embedded ? "" : "mb-5"}`}
+    >
+      {/* ── 1. Título da rodada / fase (com setas se houver mais de uma) ── */}
+      {showRoundNav && rodadas.length > 1 ? (
+        <div
+          className="flex items-center justify-between rounded-[14px] px-4 py-3"
           style={{
-            background: "rgba(255,255,255,0.06)",
-            opacity: canPrev ? 1 : 0.25,
+            background: "#0B0D0C",
+            border: "1px solid rgba(255,255,255,0.08)",
           }}
         >
-          <ChevronLeft className="h-4 w-4 text-white/70" strokeWidth={2.5} />
-        </button>
-        <span className="text-[15px] font-black text-white">
-          {/* `selectedRodada` é o NÚMERO REAL da rodada (não o índice). */}
-          Fase de Grupos — {selectedRodada}
-        </span>
-        <button
-          type="button"
-          onClick={() => canNext && onRodada(rodadas[rodadaIdx + 1]!)}
-          disabled={!canNext}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-opacity"
-          style={{
-            background: "rgba(255,255,255,0.06)",
-            opacity: canNext ? 1 : 0.25,
-          }}
-        >
-          <ChevronRight className="h-4 w-4 text-white/70" strokeWidth={2.5} />
-        </button>
-      </div>
+          <button
+            type="button"
+            onClick={() => canPrev && onRodada(rodadas[rodadaIdx - 1]!)}
+            disabled={!canPrev}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-opacity"
+            style={{
+              background: "rgba(255,255,255,0.06)",
+              opacity: canPrev ? 1 : 0.25,
+            }}
+          >
+            <ChevronLeft className="h-4 w-4 text-white/70" strokeWidth={2.5} />
+          </button>
+          <span className="px-2 text-center text-[15px] font-black text-white">
+            {roundTitle}
+          </span>
+          <button
+            type="button"
+            onClick={() => canNext && onRodada(rodadas[rodadaIdx + 1]!)}
+            disabled={!canNext}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-opacity"
+            style={{
+              background: "rgba(255,255,255,0.06)",
+              opacity: canNext ? 1 : 0.25,
+            }}
+          >
+            <ChevronRight className="h-4 w-4 text-white/70" strokeWidth={2.5} />
+          </button>
+        </div>
+      ) : roundTitle ? (
+        null
+      ) : null}
 
       {/* ── 2. Date strip ── */}
       {datas.length > 0 && (
@@ -2829,7 +2981,10 @@ function RoundPhaseNav({
             border: "1px solid rgba(255,255,255,0.08)",
           }}
         >
-          <div className="flex gap-2 overflow-x-auto px-3 py-3 scrollbar-hide">
+          <div
+            ref={dateStripRef}
+            className="flex gap-2 overflow-x-auto scroll-smooth px-3 py-3 scrollbar-hide"
+          >
             {datas.map((d) => {
               const fmt = parseDatePill(d);
               if (!fmt) return null;
@@ -2839,8 +2994,9 @@ function RoundPhaseNav({
                 <button
                   key={d}
                   type="button"
-                  onClick={() => onDate(isSelected ? null : d)}
-                  className="flex shrink-0 flex-col items-center gap-0.5 rounded-[10px] px-3 py-2.5 transition-all active:scale-95"
+                  data-palpite-date={d}
+                  onClick={() => onDate(d)}
+                  className="flex shrink-0 flex-col items-center gap-0.5 rounded-[10px] px-3 py-2.5 transition-all duration-200 active:scale-95"
                   style={
                     isSelected
                       ? {
@@ -2856,11 +3012,10 @@ function RoundPhaseNav({
                       }
                   }
                 >
-                  {/* status dot / check */}
-                  <span className="mb-1 flex h-4 items-center justify-center">
+                  <span className="mb-1 flex h-6 items-center justify-center">
                     {status === "done" ? (
                       <span
-                        className="flex h-4 w-4 items-center justify-center rounded-full"
+                        className="flex h-6 w-6 items-center justify-center rounded-full"
                         style={{ background: "rgba(177,235,11,0.25)" }}
                       >
                         <Check
@@ -2868,36 +3023,38 @@ function RoundPhaseNav({
                           strokeWidth={3}
                         />
                       </span>
+                    ) : status === "partial" ? (
+                      <span
+                        className="flex h-6 w-6 items-center justify-center rounded-full"
+                        style={{ background: "rgba(230,194,32,0.22)" }}
+                      >
+                        <span
+                          className="h-2 w-2 rounded-full"
+                          style={{ background: "#E6C220" }}
+                        />
+                      </span>
                     ) : (
                       <span
-                        className="h-[7px] w-[7px] rounded-full animate-pulse"
+                        className="h-[10px] w-[10px] rounded-full animate-pulse"
                         style={{ background: "#E6C220" }}
                       />
                     )}
                   </span>
                   <span
-                    className="text-[9px] font-black uppercase tracking-wider"
+                    className="text-[15px] font-black uppercase tracking-wider"
                     style={{
-                      color: isSelected ? "#B1EB0B" : "rgba(255,255,255,0.40)",
+                      color: isSelected ? "#B1EB0B" : "rgba(255,255,255,0.80)",
                     }}
                   >
                     {fmt.diaSemana}
                   </span>
                   <span
-                    className="text-[14px] font-black leading-tight"
+                    className="text-[20px] font-black leading-tight"
                     style={{
-                      color: isSelected ? "#fff" : "rgba(255,255,255,0.85)",
+                      color: isSelected ? "#fff" : "rgba(255,255,255,0.90)",
                     }}
                   >
                     {fmt.dia}
-                  </span>
-                  <span
-                    className="text-[9px] font-semibold uppercase"
-                    style={{
-                      color: isSelected ? "#B1EB0B" : "rgba(255,255,255,0.30)",
-                    }}
-                  >
-                    {fmt.mes}
                   </span>
                 </button>
               );
@@ -2906,47 +3063,15 @@ function RoundPhaseNav({
         </div>
       )}
 
-      {/* ── 3. Progress bar ── */}
-      <div
-        className="rounded-[14px] px-4 py-3"
-        style={{
-          background: "#0B0D0C",
-          border: "1px solid rgba(255,255,255,0.08)",
-        }}
-      >
-        <div className="mb-2 flex items-center justify-between">
-          <span
-            className="text-[12px] font-semibold"
-            style={{ color: "rgba(255,255,255,0.50)" }}
-          >
-            <span className="font-black text-white">{jogosPalpitados}</span> /{" "}
-            {totalJogos} palpites feitos
-          </span>
-          <span
-            className="text-[12px] font-black"
-            style={{
-              color: pct === 100 ? "#B1EB0B" : "rgba(255,255,255,0.40)",
-            }}
-          >
-            {pct}%
-          </span>
-        </div>
-        <div
-          className="h-[5px] overflow-hidden rounded-full"
-          style={{ background: "rgba(255,255,255,0.07)" }}
-        >
-          <div
-            className="h-full rounded-full transition-[width] duration-500"
-            style={{
-              width: `${pct}%`,
-              background:
-                pct === 100
-                  ? "linear-gradient(90deg, #B1EB0B, #E8FF8A)"
-                  : "linear-gradient(90deg, #B1EB0B, #D4F040)",
-            }}
+      {!hideProgress ? (
+        <div className="w-full px-4">
+          <RoundProgressBar
+            jogos={jogos}
+            selectedRodada={selectedRodada}
+            hasPalpite={hasPalpite}
           />
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }
@@ -2999,6 +3124,9 @@ function PalpitesPageContent({
     Record<number, JogoCardScores>
   >({});
   const draftDirtyRef = useRef<Set<number>>(new Set());
+  const [draftTouchedIds, setDraftTouchedIds] = useState<Record<number, true>>(
+    {},
+  );
   const [palpitesEditing, setPalpitesEditing] = useState(false);
   const [savingAllPalpites, setSavingAllPalpites] = useState(false);
   const [saveAllError, setSaveAllError] = useState<string | null>(null);
@@ -3432,6 +3560,7 @@ function PalpitesPageContent({
   useEffect(() => {
     draftDirtyRef.current = new Set();
     setDraftScores({});
+    setDraftTouchedIds({});
     setSaveAllError(null);
     setPalpitesEditing(false);
   }, [ticketId]);
@@ -3464,8 +3593,17 @@ function PalpitesPageContent({
 
   const handleScoresChange = (matchId: number, scores: JogoCardScores) => {
     draftDirtyRef.current.add(matchId);
+    setDraftTouchedIds((prev) =>
+      prev[matchId] ? prev : { ...prev, [matchId]: true },
+    );
     setDraftScores((prev) => ({ ...prev, [matchId]: scores }));
   };
+
+  const hasPalpite = useCallback(
+    (matchId: number) =>
+      Boolean(predictionsMap[matchId]) || Boolean(draftTouchedIds[matchId]),
+    [predictionsMap, draftTouchedIds],
+  );
 
   const today = todayBR();
   const dailyLike = bolaoType === "diario" || bolaoType === "extra";
@@ -3549,6 +3687,7 @@ function PalpitesPageContent({
   const cancelPalpitesEdit = () => {
     draftDirtyRef.current.clear();
     setDraftScores({ ...predictionsMap });
+    setDraftTouchedIds({});
     setSaveAllError(null);
     setPalpitesEditing(false);
   };
@@ -3558,9 +3697,28 @@ function PalpitesPageContent({
     setSaveAllError(null);
     setSavingAllPalpites(true);
     const now = Date.now();
-    const toSave = jogosDisplayBase.filter((j) =>
-      isJogoEditavelParaPalpite(j, bolaoType, now),
-    );
+    const rodadaAtual =
+      selectedRodada ??
+      Array.from(new Set(jogosDisplayBase.map((j) => j.rodada))).sort(
+        (a, b) => a - b,
+      )[0] ??
+      0;
+    const filterByDay = Boolean(ticketId) && showJogos && Boolean(selectedDate);
+    const toSave = jogosDisplayBase.filter((j) => {
+      if (!isJogoEditavelParaPalpite(j, bolaoType, now)) return false;
+      if (
+        filterByDay &&
+        j.rodada === rodadaAtual &&
+        j.dataBR !== selectedDate
+      ) {
+        return false;
+      }
+      return true;
+    });
+    const predictionsAfter: Record<
+      number,
+      { scoreCasa: number; scoreVisitante: number }
+    > = { ...predictionsMap };
     try {
       for (const jogo of toSave) {
         const scores = scoresForMatch(jogo.id);
@@ -3569,9 +3727,29 @@ function PalpitesPageContent({
           scoreCasa: scores.scoreCasa,
           scoreVisitante: scores.scoreVisitante,
         });
+        predictionsAfter[jogo.id] = {
+          scoreCasa: scores.scoreCasa,
+          scoreVisitante: scores.scoreVisitante,
+        };
         draftDirtyRef.current.delete(jogo.id);
       }
+      setDraftTouchedIds((prev) => {
+        const next = { ...prev };
+        for (const jogo of toSave) delete next[jogo.id];
+        return next;
+      });
       setPalpitesEditing(false);
+      if (filterByDay && selectedDate) {
+        const nextDate = pickNextDateInRound(
+          jogosDisplayBase,
+          rodadaAtual,
+          selectedDate,
+          predictionsAfter,
+        );
+        if (nextDate && nextDate !== selectedDate) {
+          setSelectedDate(nextDate);
+        }
+      }
     } catch (e) {
       setSaveAllError(
         e instanceof Error ? e.message : "Falha ao salvar palpites",
@@ -3620,13 +3798,71 @@ function PalpitesPageContent({
   const shouldFilterByGroup = !hasBoloesFlow && grupos.length > 0;
   const matchesGroup = (j: Jogo) =>
     shouldFilterByGroup ? j.grupo === grupo : true;
+
+  const rodadasNoEscopo = useMemo(
+    () =>
+      Array.from(new Set(jogosDisplayBase.map((j) => j.rodada))).sort(
+        (a, b) => a - b,
+      ),
+    [jogosDisplayBase],
+  );
+
+  const extraRoundLabel = (() => {
+    const fromSnapshot = (initialData?.extraRoundName ?? "").trim();
+    if (fromSnapshot) return fromSnapshot;
+    if (extraTicketRound != null && Number.isFinite(extraTicketRound) && extraTicketRound > 0) {
+      return `${extraTicketRound}ª Rodada`;
+    }
+    return null;
+  })();
+
+  const showBolaoRoundNav = hasBoloesFlow && showJogos;
+  const showRoundNavControls =
+    bolaoType === "principal" && rodadasNoEscopo.length > 1;
+
+  const roundNavTitle = (() => {
+    if (bolaoType === "principal") {
+      return `Fase de Grupos — ${selectedRodada ?? rodadasNoEscopo[0] ?? 1}`;
+    }
+    if (extraRoundMode) {
+      return extraRoundLabel ?? `${extraTicketRound ?? selectedRodada ?? 1}ª Rodada`;
+    }
+    if (bolaoType === "diario") {
+      const d = selectedDate ?? diarioPlayableDate;
+      const pill = d ? parseDatePill(d) : null;
+      if (pill) return `Jogos do dia · ${pill.dia} ${pill.mes}`;
+      return "Jogos do dia";
+    }
+    if (selectedRodada != null) return rodadaLabel(selectedRodada);
+    return "Rodada";
+  })();
+
+  const jogosFiltradosNav = useMemo(() => {
+    if (!hasBoloesFlow) return jogosDisplayBase.filter(matchesGroup);
+    return jogosDisplayBase.filter((j) => {
+      if (selectedRodada != null && j.rodada !== selectedRodada) return false;
+      if (selectedDate && j.dataBR !== selectedDate) return false;
+      return matchesGroup(j);
+    });
+  }, [
+    hasBoloesFlow,
+    jogosDisplayBase,
+    selectedRodada,
+    selectedDate,
+    grupo,
+    shouldFilterByGroup,
+  ]);
+
   const rodadasDisponiveis = Array.from(
     new Set(
-      jogosDisplayBase.filter((j) => matchesGroup(j)).map((j) => j.rodada),
+      (hasBoloesFlow ? jogosFiltradosNav : jogosDisplayBase.filter(matchesGroup)).map(
+        (j) => j.rodada,
+      ),
     ),
   ).sort((a, b) => a - b);
   const jogosPorRodada = rodadasDisponiveis.map((idx) => {
-    const jogosDaRodada = jogosDisplayBase
+    const source = hasBoloesFlow ? jogosFiltradosNav : jogosDisplayBase;
+    const jogosDaRodada = source
       .filter((j) => matchesGroup(j) && j.rodada === idx)
       // Defesa em profundidade: ordena por kickoff (asc); o SSR já ordena, mas
       // se o jogo vier por outro caminho (HMR, fetch direto de /api/partidas)
@@ -3674,15 +3910,6 @@ function PalpitesPageContent({
     ).slice(0, 10),
   };
 
-  const extraRoundLabel = (() => {
-    const fromSnapshot = (initialData?.extraRoundName ?? "").trim();
-    if (fromSnapshot) return fromSnapshot;
-    if (extraTicketRound != null && Number.isFinite(extraTicketRound) && extraTicketRound > 0) {
-      return `${extraTicketRound}ª Rodada`;
-    }
-    return null;
-  })();
-
   const jogosSubtitle = !hasBoloesFlow
     ? "Fase de Grupos"
     : bolaoType === "principal"
@@ -3728,7 +3955,7 @@ function PalpitesPageContent({
 
   const predictionsLoadedOnce = Object.keys(predictionsMap).length > 0;
   useEffect(() => {
-    if (!showGroupedByGroup) return;
+    if (!showBolaoRoundNav) return;
     if (selectedRodada === null) return;
     const jogosNaRodadaAtual = jogosDisplayBase.filter(
       (j) => j.rodada === selectedRodada,
@@ -3736,7 +3963,12 @@ function PalpitesPageContent({
     const datas = Array.from(new Set(jogosNaRodadaAtual.map((j) => j.dataBR)))
       .filter(Boolean)
       .sort((a, b) => (brDateToUtcMs(a) ?? 0) - (brDateToUtcMs(b) ?? 0));
-    // Pick the first date that still has at least one game without a prediction
+    if (datas.length === 0) {
+      setSelectedDate(null);
+      return;
+    }
+    // Mantém o dia selecionado se ainda válido; senão o primeiro pendente ou o primeiro dia
+    if (selectedDate && datas.includes(selectedDate)) return;
     const nextPending = datas.find((d) =>
       jogosNaRodadaAtual
         .filter((j) => j.dataBR === d)
@@ -3744,19 +3976,42 @@ function PalpitesPageContent({
     );
     setSelectedDate(nextPending ?? datas[0] ?? null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedRodada, predictionsLoadedOnce, showGroupedByGroup]);
+  }, [selectedRodada, predictionsLoadedOnce, showBolaoRoundNav]);
+
+  useEffect(() => {
+    if (!showBolaoRoundNav || selectedRodada == null || !selectedDate) return;
+    if (
+      !isRoundDayComplete(
+        jogosDisplayBase,
+        selectedRodada,
+        selectedDate,
+        predictionsMap,
+      )
+    ) {
+      return;
+    }
+    const next = pickNextDateInRound(
+      jogosDisplayBase,
+      selectedRodada,
+      selectedDate,
+      predictionsMap,
+    );
+    if (next && next !== selectedDate) {
+      setSelectedDate(next);
+    }
+  }, [
+    showBolaoRoundNav,
+    selectedRodada,
+    selectedDate,
+    predictionsMap,
+    jogosDisplayBase,
+  ]);
 
   const gruposComJogos = Array.from(
     new Set(jogosDisplayBase.map((j) => j.grupo).filter(Boolean)),
   ).sort();
-  // When showGroupedByGroup, filter by selected round and date
   const jogosFiltradosParaGrupos = showGroupedByGroup
-    ? jogosDisplayBase.filter((j) => {
-      if (selectedRodada !== null && j.rodada !== selectedRodada)
-        return false;
-      if (selectedDate && j.dataBR !== selectedDate) return false;
-      return true;
-    })
+    ? jogosFiltradosNav
     : jogosDisplayBase;
   const gruposComJogosFiltrados = Array.from(
     new Set(jogosFiltradosParaGrupos.map((j) => j.grupo).filter(Boolean)),
@@ -3902,7 +4157,7 @@ function PalpitesPageContent({
             ? (initialData?.bolaoHeading?.trim() || "Palpites")
             : "Copa do Mundo 2026"}
         </h1>
-        <p className="text-white/40 text-[13px] mt-1">{jogosSubtitle}</p>
+        <p className="text-white/70 text-[17px] mt-1 font-bold">{jogosSubtitle}</p>
       </div>
 
       <div className="lg:grid lg:grid-cols-[1fr_360px] lg:gap-8 lg:items-start">
@@ -3915,13 +4170,12 @@ function PalpitesPageContent({
                 [
                   { key: "jogos", label: "Jogos", icon: AlignJustify },
                   { key: "ranking", label: "Ranking", icon: Trophy },
-                  { key: "resumo", label: "Resumo", icon: BarChart2 },
                 ] as const
               ).map(({ key, label, icon: Icon }) => (
                 <button
                   key={key}
                   onClick={() => setResultTab(key)}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[13px] font-semibold transition-all duration-200"
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[15px] font-semibold transition-all duration-200"
                   style={{
                     background: resultTab === key ? "#B1EB0B" : "transparent",
                     color:
@@ -3940,19 +4194,18 @@ function PalpitesPageContent({
                   { key: "jogos", label: "Jogos", icon: AlignJustify },
                   { key: "tabela", label: "Tabela", icon: BarChart2 },
                   { key: "ranking", label: "Ranking", icon: Trophy },
-                  { key: "resumo", label: "Resumo", icon: BarChart2 },
                 ] as const
               ).map(({ key, label, icon: Icon }) => (
                 <button
                   key={key}
                   onClick={() => setTab(key)}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[13px] font-semibold transition-all duration-200"
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[18px] font-semibold transition-all duration-200"
                   style={{
                     background: tab === key ? "#B1EB0B" : "transparent",
                     color: tab === key ? "#0E141B" : "rgba(255,255,255,0.45)",
                   }}
                 >
-                  <Icon className="w-3.5 h-3.5" />
+                  <Icon className="w-4 h-4" />
                   {label}
                 </button>
               ))}
@@ -3970,21 +4223,31 @@ function PalpitesPageContent({
               </div>
             )}
 
-          {showGroupedByGroup && showJogos && (
-            <RoundPhaseNav
-              jogos={jogosDisplayBase}
-              predictionsMap={predictionsMap}
-              selectedRodada={selectedRodada ?? 0}
-              onRodada={(r) => {
-                setSelectedRodada(r);
-                setSelectedDate(null);
-              }}
-              selectedDate={selectedDate}
-              onDate={setSelectedDate}
-              grupo={grupo}
-              grupos={gruposComJogos}
-              onGrupo={scrollToGroup}
-            />
+          {showBolaoRoundNav && (
+            <>
+              <RoundPhaseNav
+                embedded
+                hideProgress
+                jogos={jogosDisplayBase}
+                predictionsMap={predictionsMap}
+                hasPalpite={hasPalpite}
+                selectedRodada={selectedRodada ?? rodadasNoEscopo[0] ?? 0}
+                onRodada={(r) => {
+                  setSelectedRodada(r);
+                  setSelectedDate(null);
+                }}
+                selectedDate={selectedDate}
+                onDate={setSelectedDate}
+                roundTitle={roundNavTitle}
+                showRoundNav={showRoundNavControls}
+              />
+              <RoundProgressBar
+                sticky
+                jogos={jogosDisplayBase}
+                selectedRodada={selectedRodada ?? rodadasNoEscopo[0] ?? 0}
+                hasPalpite={hasPalpite}
+              />
+            </>
           )}
 
           {/* Desktop: filtro de grupos */}
@@ -4051,6 +4314,7 @@ function PalpitesPageContent({
                     >
                       {rodadas.map(({ label, jogos: rJogos }) => (
                         <div key={`${groupKey}-${label}`}>
+
                           <div className="flex items-center gap-3 mb-3 mt-1">
                             <span
                               className="text-[11px] font-bold tracking-widest uppercase shrink-0"
@@ -4090,15 +4354,7 @@ function PalpitesPageContent({
                 ) : (
                   jogosPorRodada.map(({ label, jogos: rJogos }) => (
                     <div key={label}>
-                      <div className="flex items-center gap-3 mb-3 mt-1">
-                        <span className="text-[11px] font-bold text-white/30 tracking-widest uppercase shrink-0">
-                          {label}
-                        </span>
-                        <div
-                          className="flex-1 h-px"
-                          style={{ background: "rgba(255,255,255,0.06)" }}
-                        />
-                      </div>
+
                       {rJogos.map((jogo) => (
                         <JogoCard
                           key={jogo.id}
@@ -4144,22 +4400,6 @@ function PalpitesPageContent({
 
           {/* Desktop: grid 2 colunas de cards por rodada */}
           <div className="hidden lg:block">
-            {showGroupedByGroup && showJogos && (
-              <RoundPhaseNav
-                jogos={jogosDisplayBase}
-                predictionsMap={predictionsMap}
-                selectedRodada={selectedRodada ?? 0}
-                onRodada={(r) => {
-                  setSelectedRodada(r);
-                  setSelectedDate(null);
-                }}
-                selectedDate={selectedDate}
-                onDate={setSelectedDate}
-                grupo={grupo}
-                grupos={gruposComJogos}
-                onGrupo={scrollToGroup}
-              />
-            )}
             {readOnlyMode && (
               <div className="flex items-center gap-1 mb-5 p-1 rounded-xl bg-[#0B0D0C] border border-white/8 w-[280px]">
                 {(
