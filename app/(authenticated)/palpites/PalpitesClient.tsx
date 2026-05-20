@@ -605,6 +605,7 @@ function PalpitesListFooter({
   mode,
   disabled,
   loading,
+  saveDisabled,
   error,
   onEdit,
   onSave,
@@ -613,11 +614,14 @@ function PalpitesListFooter({
   mode: PalpitesFooterMode;
   disabled?: boolean;
   loading?: boolean;
+  /** Sem alterações pendentes — desabilita Salvar. */
+  saveDisabled?: boolean;
   error?: string | null;
   onEdit: () => void;
   onSave: () => void;
   onCancel: () => void;
 }) {
+  const saveBlocked = disabled || loading || saveDisabled;
   const primaryBtn =
     "flex min-h-[52px] flex-1 items-center justify-center gap-2 rounded-xl bg-primary text-base font-black uppercase tracking-wide text-[#0E141B] transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-[#1A1A1A] disabled:text-white/25 disabled:shadow-none";
   const primaryShadow =
@@ -632,7 +636,7 @@ function PalpitesListFooter({
         <button
           type="button"
           onClick={onSave}
-          disabled={disabled || loading}
+          disabled={saveBlocked}
           className={`${primaryBtn} w-full flex-none`}
           style={{ boxShadow: primaryShadow }}
         >
@@ -662,7 +666,7 @@ function PalpitesListFooter({
           <button
             type="button"
             onClick={onSave}
-            disabled={disabled || loading}
+            disabled={saveBlocked}
             className={primaryBtn}
             style={{ boxShadow: primaryShadow }}
           >
@@ -3523,40 +3527,6 @@ function PalpitesPageContent({
     })();
   }, [ticketId, jogosPlacarSignature]);
 
-  const savePrediction = async (payload: {
-    matchId: number;
-    scoreCasa: number;
-    scoreVisitante: number;
-  }) => {
-    if (!ticketId) return;
-    const isNewPrediction = !predictionsMap[payload.matchId];
-    const r = await fetch("/api/palpites", {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ticketId,
-        matchId: payload.matchId,
-        scoreCasa: payload.scoreCasa,
-        scoreVisitante: payload.scoreVisitante,
-      }),
-    });
-    if (!r.ok) {
-      const d = (await r.json().catch(() => ({}))) as { error?: string };
-      throw new Error(d.error || "Falha ao salvar palpite");
-    }
-    setPredictionsMap((prev) => ({
-      ...prev,
-      [payload.matchId]: {
-        scoreCasa: payload.scoreCasa,
-        scoreVisitante: payload.scoreVisitante,
-      },
-    }));
-    if (isNewPrediction) {
-      setResumoStats((prev) => ({ ...prev, palpites: prev.palpites + 1 }));
-    }
-  };
-
   useEffect(() => {
     draftDirtyRef.current = new Set();
     setDraftScores({});
@@ -3692,45 +3662,117 @@ function PalpitesPageContent({
     setPalpitesEditing(false);
   };
 
-  const saveAllPalpites = async () => {
-    if (!ticketId || savingAllPalpites) return;
-    setSaveAllError(null);
-    setSavingAllPalpites(true);
-    const now = Date.now();
-    const rodadaAtual =
-      selectedRodada ??
-      Array.from(new Set(jogosDisplayBase.map((j) => j.rodada))).sort(
-        (a, b) => a - b,
-      )[0] ??
-      0;
-    const filterByDay = Boolean(ticketId) && showJogos && Boolean(selectedDate);
-    const toSave = jogosDisplayBase.filter((j) => {
-      if (!isJogoEditavelParaPalpite(j, bolaoType, now)) return false;
+  const rodadaAtualSalvar =
+    selectedRodada ??
+    Array.from(new Set(jogosDisplayBase.map((j) => j.rodada))).sort(
+      (a, b) => a - b,
+    )[0] ??
+    0;
+  const filterPalpitesByDay =
+    Boolean(ticketId) &&
+    showJogos &&
+    Boolean(selectedDate) &&
+    selectedRodada != null;
+
+  const matchNeedsSave = useCallback(
+    (matchId: number, scores: JogoCardScores) => {
+      if (!draftDirtyRef.current.has(matchId) && !draftTouchedIds[matchId]) {
+        return false;
+      }
+      const saved = predictionsMap[matchId];
+      if (!saved) return true;
+      return (
+        scores.scoreCasa !== saved.scoreCasa ||
+        scores.scoreVisitante !== saved.scoreVisitante
+      );
+    },
+    [draftTouchedIds, predictionsMap],
+  );
+
+  const jogosEscopoSalvar = useMemo(() => {
+    return jogosDisplayBase.filter((j) => {
       if (
-        filterByDay &&
-        j.rodada === rodadaAtual &&
-        j.dataBR !== selectedDate
+        filterPalpitesByDay &&
+        (j.rodada !== rodadaAtualSalvar || j.dataBR !== selectedDate)
       ) {
         return false;
       }
       return true;
     });
-    const predictionsAfter: Record<
-      number,
-      { scoreCasa: number; scoreVisitante: number }
-    > = { ...predictionsMap };
+  }, [
+    jogosDisplayBase,
+    filterPalpitesByDay,
+    rodadaAtualSalvar,
+    selectedDate,
+  ]);
+
+  const hasPalpitesToSave = useMemo(() => {
+    const now = Date.now();
+    return jogosEscopoSalvar.some((j) => {
+      if (!isJogoEditavelParaPalpite(j, bolaoType, now)) return false;
+      return matchNeedsSave(j.id, scoresForMatch(j.id));
+    });
+  }, [jogosEscopoSalvar, bolaoType, matchNeedsSave, draftScores, draftTouchedIds]);
+
+  const saveAllPalpites = async () => {
+    if (!ticketId || savingAllPalpites) return;
+    setSaveAllError(null);
+    const now = Date.now();
+    const toSave = jogosEscopoSalvar.filter((j) => {
+      if (!isJogoEditavelParaPalpite(j, bolaoType, now)) return false;
+      return matchNeedsSave(j.id, scoresForMatch(j.id));
+    });
+    if (toSave.length === 0) {
+      setSaveAllError("Nenhum palpite alterado para salvar.");
+      return;
+    }
+    setSavingAllPalpites(true);
     try {
-      for (const jogo of toSave) {
+      const palpites = toSave.map((jogo) => {
         const scores = scoresForMatch(jogo.id);
-        await savePrediction({
+        return {
           matchId: jogo.id,
           scoreCasa: scores.scoreCasa,
           scoreVisitante: scores.scoreVisitante,
-        });
-        predictionsAfter[jogo.id] = {
-          scoreCasa: scores.scoreCasa,
-          scoreVisitante: scores.scoreVisitante,
         };
+      });
+      const r = await fetch("/api/palpites/batch", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ticketId, palpites }),
+      });
+      if (!r.ok) {
+        const d = (await r.json().catch(() => ({}))) as { error?: string };
+        throw new Error(d.error || "Falha ao salvar palpites");
+      }
+      const data = (await r.json()) as {
+        predictions: Array<{
+          matchId: number;
+          scoreCasa: number;
+          scoreVisitante: number;
+        }>;
+      };
+      let newPalpitesCount = 0;
+      const predictionsAfter: Record<
+        number,
+        { scoreCasa: number; scoreVisitante: number }
+      > = { ...predictionsMap };
+      for (const p of data.predictions) {
+        if (!predictionsMap[p.matchId]) newPalpitesCount += 1;
+        predictionsAfter[p.matchId] = {
+          scoreCasa: p.scoreCasa,
+          scoreVisitante: p.scoreVisitante,
+        };
+      }
+      setPredictionsMap(predictionsAfter);
+      if (newPalpitesCount > 0) {
+        setResumoStats((prev) => ({
+          ...prev,
+          palpites: prev.palpites + newPalpitesCount,
+        }));
+      }
+      for (const jogo of toSave) {
         draftDirtyRef.current.delete(jogo.id);
       }
       setDraftTouchedIds((prev) => {
@@ -3739,10 +3781,19 @@ function PalpitesPageContent({
         return next;
       });
       setPalpitesEditing(false);
-      if (filterByDay && selectedDate) {
+      if (
+        filterPalpitesByDay &&
+        selectedDate &&
+        isRoundDayComplete(
+          jogosDisplayBase,
+          rodadaAtualSalvar,
+          selectedDate,
+          predictionsAfter,
+        )
+      ) {
         const nextDate = pickNextDateInRound(
           jogosDisplayBase,
-          rodadaAtual,
+          rodadaAtualSalvar,
           selectedDate,
           predictionsAfter,
         );
@@ -3784,6 +3835,7 @@ function PalpitesPageContent({
     <PalpitesListFooter
       mode={palpitesFooterMode}
       disabled={loadingPredictions}
+      saveDisabled={!hasPalpitesToSave}
       loading={savingAllPalpites}
       error={saveAllError}
       onEdit={() => {
@@ -3977,35 +4029,6 @@ function PalpitesPageContent({
     setSelectedDate(nextPending ?? datas[0] ?? null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedRodada, predictionsLoadedOnce, showBolaoRoundNav]);
-
-  useEffect(() => {
-    if (!showBolaoRoundNav || selectedRodada == null || !selectedDate) return;
-    if (
-      !isRoundDayComplete(
-        jogosDisplayBase,
-        selectedRodada,
-        selectedDate,
-        predictionsMap,
-      )
-    ) {
-      return;
-    }
-    const next = pickNextDateInRound(
-      jogosDisplayBase,
-      selectedRodada,
-      selectedDate,
-      predictionsMap,
-    );
-    if (next && next !== selectedDate) {
-      setSelectedDate(next);
-    }
-  }, [
-    showBolaoRoundNav,
-    selectedRodada,
-    selectedDate,
-    predictionsMap,
-    jogosDisplayBase,
-  ]);
 
   const gruposComJogos = Array.from(
     new Set(jogosDisplayBase.map((j) => j.grupo).filter(Boolean)),

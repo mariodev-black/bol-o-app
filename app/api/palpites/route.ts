@@ -2,16 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { z } from "zod";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
-import { fetchMatchesMapDirectFromDb, getMatchFromMap, resolveKickoffAtIso } from "@/lib/football-api";
-import { getPredictionByUserTicketMatch, listPredictions, palpiteLockBeforeKickoffMs, upsertPrediction } from "@/lib/predictions";
-import { isFinishedMatchStatus, isMatchOpenForPalpite } from "@/lib/palpites-match-open";
-import { inferBolaoTypeFromTicketId } from "@/lib/ticket-kind-server";
-import { inferBolaoTypeFromTicketPrefix } from "@/lib/ticket-kind-shared";
-import { getPool } from "@/lib/db";
-import { getFootballMainCompetitionId, getSoleConfiguredExtraChampionshipId } from "@/lib/boloes-extra-config";
-import { brToday, resolveDiarioPlayableDate, utcMsForBrDate } from "@/lib/diario-playable-date";
+import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
 import { filterPredictionsToOfficialMatchIds } from "@/lib/matches-cache";
-import { resolveCurrentExtraRound } from "@/lib/football/extras-rodada";
+import { buildPalpiteSaveContext } from "@/lib/palpites/palpite-save-context";
+import { recomputePredictionScoresForSavedMatches } from "@/lib/palpites/recompute-saved-matches";
+import { resolveOwnedTicketMeta } from "@/lib/palpites/ticket-meta";
+import { validatePalpiteForSave } from "@/lib/palpites/validate-palpite-save";
+import { listPredictions, upsertPrediction } from "@/lib/predictions";
 
 export const runtime = "nodejs";
 
@@ -31,64 +28,6 @@ const postSchema = z.object({
   scoreCasa: z.number().int().min(0).max(99),
   scoreVisitante: z.number().int().min(0).max(99),
 });
-
-function isUuidTicketId(value: string): boolean {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value.trim());
-}
-
-async function resolveOwnedTicketMeta(
-  userId: string,
-  ticketId: string
-): Promise<{
-  bolao: "principal" | "diario" | "extra";
-  extraChampionshipId: number | null;
-  /** `tickets.round_number` — só relevante em extra "por rodada". */
-  extraRoundNumber: number | null;
-} | null> {
-  const raw = ticketId.trim();
-  if (!raw) return null;
-
-  const fromPrefix = inferBolaoTypeFromTicketPrefix(raw);
-  if (fromPrefix && !isUuidTicketId(raw)) {
-    return { bolao: fromPrefix, extraChampionshipId: null, extraRoundNumber: null };
-  }
-
-  if (isUuidTicketId(raw)) {
-    const pool = getPool();
-    const { rows } = await pool.query<{
-      ticket_type: "general" | "daily" | "extra";
-      extra_championship_id: number | null;
-      round_number: number | null;
-    }>(
-      `SELECT ticket_type, extra_championship_id, round_number
-       FROM tickets
-       WHERE id::text = $1
-         AND user_id = $2
-         AND status = 'paid'
-       LIMIT 1`,
-      [raw, userId],
-    );
-    const tt = rows[0]?.ticket_type;
-    if (tt === "general") return { bolao: "principal", extraChampionshipId: null, extraRoundNumber: null };
-    if (tt === "daily") return { bolao: "diario", extraChampionshipId: null, extraRoundNumber: null };
-    if (tt === "extra") {
-      const rnumRaw = rows[0]?.round_number;
-      const rnum = rnumRaw != null && Number.isFinite(Number(rnumRaw)) && Number(rnumRaw) > 0 ? Number(rnumRaw) : null;
-      const cid = rows[0]?.extra_championship_id;
-      if (cid != null && Number.isFinite(Number(cid))) {
-        return { bolao: "extra", extraChampionshipId: Number(cid), extraRoundNumber: rnum };
-      }
-      const sole = getSoleConfiguredExtraChampionshipId();
-      if (sole != null) return { bolao: "extra", extraChampionshipId: sole, extraRoundNumber: rnum };
-      return null;
-    }
-    return null;
-  }
-
-  const inferred = await inferBolaoTypeFromTicketId(raw);
-  if (!inferred) return null;
-  return { bolao: inferred, extraChampionshipId: null, extraRoundNumber: null };
-}
 
 export async function GET(request: NextRequest) {
   const userId = await authUserId(request);
@@ -114,7 +53,9 @@ export async function GET(request: NextRequest) {
     }
   }
   const rows = await listPredictions({ userId, bolaoType, ticketId });
-  const rowsOfficial = await filterPredictionsToOfficialMatchIds(rows, { competitionId: filterComp });
+  const rowsOfficial = await filterPredictionsToOfficialMatchIds(rows, {
+    competitionId: filterComp,
+  });
   return NextResponse.json({
     predictions: rowsOfficial.map((r) => ({
       ticketId: r.ticket_id,
@@ -142,263 +83,30 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: "Dados invalidos" }, { status: 400 });
 
   const data = parsed.data;
-  const meta = await resolveOwnedTicketMeta(userId, data.ticketId);
-  if (!meta) return NextResponse.json({ error: "Ticket invalido" }, { status: 400 });
-  const bolaoType = meta.bolao;
-  const extraChampionshipId = meta.extraChampionshipId;
-  // Bolão extra é SEMPRE por rodada. Se o ticket não tem `round_number`,
-  // usamos a rodada_atual do championships_cache como fallback.
-  let extraRoundNumber = meta.extraRoundNumber;
-  if (
-    bolaoType === "extra" &&
-    extraRoundNumber == null &&
-    extraChampionshipId != null &&
-    Number.isFinite(extraChampionshipId) &&
-    extraChampionshipId > 0
-  ) {
-    try {
-      const resolved = await resolveCurrentExtraRound(extraChampionshipId, {
-        allowProviderCall: false,
-      });
-      if (resolved?.rodada != null && Number.isFinite(resolved.rodada) && resolved.rodada > 0) {
-        extraRoundNumber = resolved.rodada;
-      }
-    } catch {
-      // sem rodada atual disponível — cai no caminho "legado" (por dia)
-    }
+  const built = await buildPalpiteSaveContext(userId, data.ticketId);
+  if (!built.ok) {
+    return NextResponse.json({ error: built.error }, { status: built.status });
   }
-  /** Sempre `matches_cache` no Postgres (nao usa mapa em memoria da API). */
-  const matchMap = await fetchMatchesMapDirectFromDb();
-  const mainComp = getFootballMainCompetitionId();
-  const scopedComp =
-    bolaoType === "extra" &&
-    extraChampionshipId != null &&
-    Number.isFinite(Number(extraChampionshipId)) &&
-    Number(extraChampionshipId) > 0
-      ? Number(extraChampionshipId)
-      : mainComp;
-  const match = getMatchFromMap(matchMap, scopedComp, data.matchId);
-  if (!match) {
-    const scope =
-      bolaoType === "diario" ? "bolao do dia" : bolaoType === "extra" ? "bolao extra" : "bolao geral";
-    return NextResponse.json(
-      {
-        error: `Partida nao encontrada no calendario oficial (${scope}, matches_cache / competicao do servidor). Verifique o id ou aguarde a sincronizacao.`,
-      },
-      { status: 404 },
-    );
-  }
-  if (bolaoType === "principal" && Number(match.competitionId) !== mainComp) {
-    return NextResponse.json(
-      {
-        error:
-          "Partida nao pertence ao campeonato principal (Copa). Use apenas jogos do bolao geral listados na competicao configurada.",
-      },
-      { status: 400 },
-    );
-  }
-  if (bolaoType === "extra" && extraChampionshipId != null && Number(match.competitionId) !== extraChampionshipId) {
-    return NextResponse.json(
-      {
-        error: `Partida nao pertence ao bolao extra (campeonato ${extraChampionshipId}).`,
-      },
-      { status: 400 },
-    );
-  }
+  const { ctx } = built;
 
-  const dateBrDb = String(match.dateBR || "").trim();
-  if (!dateBrDb) {
+  const validationError = await validatePalpiteForSave(ctx, data);
+  if (validationError) {
     return NextResponse.json(
-      {
-        error:
-          "Partida sem data no banco (matches_cache.date_br). Nao e possivel validar o dia; aguarde sincronizacao ou contate suporte.",
-      },
-      { status: 400 },
+      { error: validationError.error },
+      { status: validationError.status },
     );
-  }
-
-  const kickoffIso = resolveKickoffAtIso({
-    kickoffAt: match.kickoffAt,
-    dateBR: dateBrDb,
-    hour: match.hour,
-  });
-
-  if (
-    !isMatchOpenForPalpite(
-      {
-        status: match.status,
-        kickoffAt: kickoffIso ?? match.kickoffAt,
-        resultCasa: match.resultCasa,
-        resultVisitante: match.resultVisitante,
-      },
-      bolaoType,
-    )
-  ) {
-    const status = String(match.status || "");
-    if (isFinishedMatchStatus(status) || (match.resultCasa != null && match.resultVisitante != null)) {
-      return NextResponse.json({ error: "Partida ja encerrada para palpites" }, { status: 400 });
-    }
-    const lockLeadMs = palpiteLockBeforeKickoffMs(bolaoType);
-    const lockMs = kickoffIso ? new Date(kickoffIso).getTime() - lockLeadMs : null;
-    if (lockMs != null && Number.isFinite(lockMs) && Date.now() >= lockMs) {
-      const msg =
-        bolaoType === "extra"
-          ? "Palpite recusado: o prazo maximo e ate 5 minutos antes do apito. Apos esse limite nao aceita nem primeiro palpite nem alteracao."
-          : "Palpite recusado: o prazo maximo e ate 1h antes do apito. Na ultima hora antes do jogo nao aceita nem primeiro palpite nem alteracao; quem nao registrou a tempo nao entra nesta partida.";
-      return NextResponse.json({ error: msg }, { status: 400 });
-    }
-    return NextResponse.json(
-      {
-        error:
-          "Palpite recusado: partida ja iniciada. Nao e possivel registrar nem alterar palpite apos o apito.",
-      },
-      { status: 400 },
-    );
-  }
-  // ─── Bolão EXTRA "por rodada" — escopo é a RODADA inteira ───────────────
-  if (bolaoType === "extra" && extraRoundNumber != null) {
-    const scopeComp = extraChampionshipId as number;
-    const matchRound = Number(match.rodada ?? NaN);
-    if (!Number.isFinite(matchRound) || matchRound !== extraRoundNumber) {
-      return NextResponse.json(
-        {
-          error: `Ticket: esta partida não pertence à rodada ${extraRoundNumber} do bolão extra (jogo está na rodada ${Number.isFinite(matchRound) ? matchRound : "desconhecida"}).`,
-        },
-        { status: 400 },
-      );
-    }
-    if (Number(match.competitionId) !== scopeComp) {
-      return NextResponse.json(
-        { error: `Ticket: partida não pertence ao campeonato ${scopeComp} do bolão extra.` },
-        { status: 400 },
-      );
-    }
-    // Bolão da rodada inteira está "encerrado" quando TODAS as partidas
-    // dessa rodada (no campeonato do ticket) já bateram lock/kickoff/final.
-    const lockLead = palpiteLockBeforeKickoffMs("extra");
-    let stillOpen = false;
-    for (const [, m] of matchMap) {
-      if (Number(m.competitionId) !== scopeComp) continue;
-      if (Number(m.rodada ?? NaN) !== extraRoundNumber) continue;
-      const st = String(m.status || "").toLowerCase();
-      const finished =
-        st.includes("encerr") ||
-        st.includes("finaliz") ||
-        st.includes("cancel") ||
-        st.includes("adiad") ||
-        st.includes("suspens") ||
-        st.includes("interromp") ||
-        (m.resultCasa != null && m.resultVisitante != null);
-      const ko = m.kickoffAt ? new Date(m.kickoffAt).getTime() : null;
-      const locked = ko != null && Number.isFinite(ko) && Date.now() >= ko - lockLead;
-      if (!finished && !locked) {
-        stillOpen = true;
-        break;
-      }
-    }
-    if (!stillOpen) {
-      return NextResponse.json(
-        { error: `Rodada ${extraRoundNumber} já encerrada para novos palpites.` },
-        { status: 400 },
-      );
-    }
-  } else if (bolaoType === "diario" || bolaoType === "extra") {
-    // ─── DIÁRIO (sempre) + EXTRA legado (sem `round_number`) — escopo "dia" ──
-    const today = brToday();
-    const predBolao = bolaoType === "diario" ? "diario" : "extra";
-    const scopeComp = bolaoType === "diario" ? mainComp : (extraChampionshipId as number);
-    const ticketPreds = await listPredictions({ userId, ticketId: data.ticketId, bolaoType: predBolao });
-    const lockIds = ticketPreds.map((p) => Number(p.match_id)).filter(Number.isFinite);
-    const playableDate = resolveDiarioPlayableDate(matchMap, {
-      lockToMatchIds: lockIds,
-      competitionId: scopeComp,
-    });
-    if (ticketPreds.length > 0) {
-      let hasDateMismatch = false;
-      let allFinished = true;
-      for (const p of ticketPreds) {
-        const m = getMatchFromMap(matchMap, scopeComp, Number(p.match_id));
-        const date = m?.dateBR ?? null;
-        if (date && date !== playableDate) hasDateMismatch = true;
-        const st = String(m?.status || "").toLowerCase();
-        const finished =
-          !m ||
-          st.includes("encerr") ||
-          st.includes("finaliz") ||
-          st.includes("cancel") ||
-          st.includes("adiad") ||
-          st.includes("suspens") ||
-          st.includes("interromp") ||
-          (m.resultCasa != null && m.resultVisitante != null);
-        if (!finished) allFinished = false;
-      }
-      if (hasDateMismatch || allFinished) {
-        return NextResponse.json(
-          { error: "Este ticket diario/extra ja foi encerrado para novo uso" },
-          { status: 400 },
-        );
-      }
-    }
-    if (dateBrDb !== playableDate) {
-      return NextResponse.json(
-        {
-          error: `Ticket: esta partida esta no dia ${dateBrDb} (matches_cache); o ticket so aceita jogos do dia ${playableDate}.`,
-        },
-        { status: 400 },
-      );
-    }
-    const existing = await getPredictionByUserTicketMatch({
-      userId,
-      ticketId: data.ticketId,
-      matchId: data.matchId,
-    });
-    if (existing) {
-      const submittedDay = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo" }).format(
-        existing.submitted_at
-      );
-      if (playableDate === today && submittedDay !== today) {
-        return NextResponse.json(
-          { error: "Ticket diario/extra so permite alterar palpites criados no dia atual" },
-          { status: 400 }
-        );
-      }
-    }
-    const matchDayMs = utcMsForBrDate(dateBrDb);
-    const playableDayMs = utcMsForBrDate(playableDate);
-    if (matchDayMs == null || playableDayMs == null || matchDayMs !== playableDayMs) {
-      return NextResponse.json({ error: "Ticket valido apenas para jogos do dia da rodada" }, { status: 400 });
-    }
   }
 
   const row = await upsertPrediction({
-    userId,
-    ticketId: data.ticketId,
-    bolaoType,
+    userId: ctx.userId,
+    ticketId: ctx.ticketId,
+    bolaoType: ctx.bolaoType,
     matchId: data.matchId,
     scoreCasa: data.scoreCasa,
     scoreVisitante: data.scoreVisitante,
   });
-  // Se a partida já tem placar conhecido (raro: palpite no apito), gera a linha
-  // em prediction_scores. Em jogo sem placar, points=0 — a próxima cascata
-  // recomputa quando o placar mudar.
-  try {
-    const { getPool } = await import("@/lib/db");
-    const { recomputePredictionScoresForMatches } = await import("@/lib/predictions/score-recompute");
-    const pool = getPool();
-    const client = await pool.connect();
-    try {
-      await client.query("BEGIN");
-      await recomputePredictionScoresForMatches(client, [data.matchId]);
-      await client.query("COMMIT");
-    } catch (err) {
-      await client.query("ROLLBACK");
-      console.warn("[api/palpites] recomputePredictionScores skipped:", err);
-    } finally {
-      client.release();
-    }
-  } catch (err) {
-    console.warn("[api/palpites] recompute boot failed:", err);
-  }
+
+  await recomputePredictionScoresForSavedMatches([data.matchId]);
   revalidateTag("leaderboard", "max");
   return NextResponse.json({
     prediction: {
@@ -412,4 +120,3 @@ export async function POST(request: NextRequest) {
     },
   });
 }
-
