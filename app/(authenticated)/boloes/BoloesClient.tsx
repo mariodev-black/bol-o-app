@@ -1649,12 +1649,11 @@ export function BoloesClient({
     <div className="min-h-screen overflow-hidden bg-black pb-8 text-white">
 
       <div className="mx-auto w-full px-4">
-        <ComoFuncionaPalpitesCard />
-        <header className="mt-8 w-full text-center">
+        <header className="mt-2 w-full text-center">
           <div className="flex w-full items-start justify-center gap-3 sm:gap-3.5">
             <div className="flex min-w-0 flex-col gap-1 text-center">
               <div className="flex flex-wrap items-center justify-center">
-                <h2 className="text-[22px] font-black uppercase leading-none tracking-[-0.02em] text-white min-[380px]:text-[22px] text-center">
+                <h2 className="text-[24px] font-black uppercase leading-none tracking-[-0.02em] text-white min-[380px]:text-[24px] text-center">
                   Selecione seu bolão
                 </h2>
               </div>
