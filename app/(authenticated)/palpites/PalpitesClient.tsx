@@ -29,6 +29,11 @@ import {
   Sparkles,
   X,
   Info,
+  Clock,
+  Calendar,
+  Flame,
+  Lock,
+  ClipboardList,
 } from "lucide-react";
 import {
   TrophyGold,
@@ -236,7 +241,6 @@ function isPastDisplayLiveWindow(jogo: Jogo, nowMs: number): boolean {
 function isMatchLiveForDisplay(jogo: Jogo, nowMs: number): boolean {
   const ko = kickoffMsFromJogo(jogo);
   if (ko == null || nowMs < ko) return false;
-  if (jogo.resultCasa != null && jogo.resultVisitante != null) return false;
   if (jogo.status === "encerrado") return false;
   const raw = String(jogo.statusBruto ?? jogo.status ?? "").toLowerCase();
   if (raw.includes("encerr") || raw.includes("finaliz")) return false;
@@ -785,6 +789,177 @@ function formatPontosLabel(n: number): string {
   return `${sign}${n} pt${Math.abs(n) === 1 ? "" : "s"}`;
 }
 
+type JogoCardPhase = "pre" | "live" | "post";
+
+const DIAS_SEMANA_CURTO = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+const MESES_CURTO = [
+  "Jan",
+  "Fev",
+  "Mar",
+  "Abr",
+  "Mai",
+  "Jun",
+  "Jul",
+  "Ago",
+  "Set",
+  "Out",
+  "Nov",
+  "Dez",
+];
+
+function formatKickoffMetaLong(jogo: Jogo): string {
+  if (jogo.kickoffAt) {
+    const dt = new Date(jogo.kickoffAt);
+    if (!Number.isNaN(dt.getTime())) {
+      const wd = DIAS_SEMANA_CURTO[dt.getDay()] ?? "";
+      const day = dt.getDate();
+      const month = MESES_CURTO[dt.getMonth()] ?? "";
+      const time = safeHourLabel(jogo.hora);
+      return `${wd}, ${day} ${month} • ${time}`;
+    }
+  }
+  return `${formatData(jogo.dataBR, jogo.kickoffAt)}, ${safeHourLabel(jogo.hora)}`;
+}
+
+function formatCountdownHms(lockAtMs: number | null, nowMs: number): string {
+  if (lockAtMs == null) return "Aberto";
+  const diff = lockAtMs - nowMs;
+  if (diff <= 0) return "Fechado";
+  const totalSecs = Math.floor(diff / 1000);
+  const h = Math.floor(totalSecs / 3600);
+  const m = Math.floor((totalSecs % 3600) / 60);
+  const s = totalSecs % 60;
+  if (h > 0) {
+    return `Fecha em ${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  }
+  return `Fecha em ${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+function getJogoCardPhase(jogo: Jogo, nowMs: number): JogoCardPhase {
+  const temPlacar =
+    jogo.resultCasa != null && jogo.resultVisitante != null;
+  if (isMatchLiveForDisplay(jogo, nowMs)) return "live";
+  if (temPlacar) return "post";
+  return "pre";
+}
+
+function getLiveMinuteBadge(jogo: Jogo, nowMs: number): string {
+  if (jogo.liveMinuto != null) return `${jogo.liveMinuto}'`;
+  const label = formatLiveClockLabel(jogo, nowMs);
+  if (!label) return "Ao vivo";
+  const m = label.match(/(\d+)\s*min/);
+  if (m) return `${m[1]}'`;
+  return label.replace(/·/g, "").trim();
+}
+
+function PalpiteScoreBoxes({
+  casa,
+  visitante,
+  size = "md",
+}: {
+  casa: number;
+  visitante: number;
+  size?: "md" | "sm";
+}) {
+  const box =
+    size === "sm"
+      ? "min-h-9 min-w-9 text-lg"
+      : "min-h-10 min-w-10 text-xl";
+  return (
+    <div
+      className="flex items-center justify-center gap-2.5"
+      role="group"
+      aria-label="Placar do palpite"
+    >
+      <span
+        className={`flex items-center justify-center rounded-lg px-2 font-black tabular-nums text-white ${box}`}
+        style={{ background: PALPITE_STEPPER_BG }}
+      >
+        {casa}
+      </span>
+      <span className="text-lg font-bold text-white/40" aria-hidden>
+        x
+      </span>
+      <span
+        className={`flex items-center justify-center rounded-lg px-2 font-black tabular-nums text-white ${box}`}
+        style={{ background: PALPITE_STEPPER_BG }}
+      >
+        {visitante}
+      </span>
+    </div>
+  );
+}
+
+function PalpiteCardStatusBar({
+  phase,
+  countdownLabel,
+  kickoffMeta,
+  liveMinute,
+}: {
+  phase: JogoCardPhase;
+  countdownLabel: string;
+  kickoffMeta: string;
+  liveMinute: string | null;
+}) {
+  if (phase === "live") {
+    return (
+      <div
+        className="flex items-center justify-between gap-2 border-b border-white/[0.06] px-4 py-2.5 sm:px-5"
+        style={{ background: "rgba(0,0,0,0.18)" }}
+      >
+        <span className="inline-flex items-center gap-1.5 rounded-md bg-[#E53935] px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-white">
+          <span className="size-1.5 rounded-full bg-white" aria-hidden />
+          AO VIVO
+        </span>
+        <span className="inline-flex items-center gap-1 text-[13px] font-black text-[#FF6B6B]">
+          <Flame className="size-3.5 shrink-0" strokeWidth={2.4} aria-hidden />
+          {liveMinute ?? "Ao vivo"}
+        </span>
+        <span className="flex items-center gap-1 text-[10px] font-semibold text-white/45">
+          <Calendar className="size-3 shrink-0" strokeWidth={2} aria-hidden />
+          {kickoffMeta}
+        </span>
+      </div>
+    );
+  }
+
+  if (phase === "post") {
+    return (
+      <div
+        className="flex items-center justify-between gap-2 border-b border-white/[0.06] px-4 py-2.5 sm:px-5"
+        style={{ background: "rgba(0,0,0,0.18)" }}
+      >
+        <span className="rounded-md bg-primary px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-[#0E141B]">
+          Resultado
+        </span>
+        <span className="flex items-center gap-1 text-[10px] font-semibold text-white/45">
+          <Calendar className="size-3 shrink-0" strokeWidth={2} aria-hidden />
+          {kickoffMeta}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="flex items-center justify-between gap-2 border-b border-white/[0.06] px-4 py-2.5 sm:px-5"
+      style={{ background: "rgba(0,0,0,0.18)" }}
+    >
+      <span className="rounded-md bg-primary px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-[#0E141B]">
+        Pré-jogo
+      </span>
+      <span className="inline-flex items-center gap-1 text-[11px] font-bold tabular-nums text-primary">
+        <Clock className="size-3 shrink-0" strokeWidth={2.2} aria-hidden />
+        {countdownLabel}
+      </span>
+      <span className="flex items-center gap-1 text-[10px] font-semibold text-white/45">
+        <Calendar className="size-3 shrink-0" strokeWidth={2} aria-hidden />
+        {kickoffMeta}
+      </span>
+    </div>
+  );
+}
+
 function PontosBreakdownIcon({ hit }: { hit: boolean }) {
   return (
     <span
@@ -801,6 +976,158 @@ function PontosBreakdownIcon({ hit }: { hit: boolean }) {
   );
 }
 
+const PALPITE_PREVIEW_MATCH_IDS = {
+  pre: -90_001,
+  live: -90_002,
+  post: -90_003,
+} as const;
+
+function buildPalpiteCardPreviewMocks(
+  escudoCasa = "",
+  escudoVisitante = "",
+): Array<{
+  key: string;
+  label: string;
+  jogo: Jogo;
+  scores: JogoCardScores;
+  initialPrediction: { scoreCasa: number; scoreVisitante: number } | null;
+  editingEnabled: boolean;
+  readOnly: boolean;
+}> {
+  const now = Date.now();
+  const kickoffPre = new Date(now + 90 * 60_000).toISOString();
+  const kickoffLive = new Date(now - 67 * 60_000).toISOString();
+  const kickoffPost = new Date(now - 3 * 60 * 60_000).toISOString();
+  const base = {
+    timeCasa: "Ceará",
+    siglasCasa: "CEA",
+    escudoCasa,
+    timeVisitante: "Atlético-MG",
+    siglasVisitante: "CAM",
+    escudoVisitante,
+    data: "15/05",
+    hora: "21:30",
+    grupo: "A",
+    rodada: 1,
+    dataBR: "15/05/2026",
+  };
+
+  return [
+    {
+      key: "pre",
+      label: "Pré-jogo",
+      jogo: {
+        ...base,
+        id: PALPITE_PREVIEW_MATCH_IDS.pre,
+        status: "aberto",
+        statusBruto: "agendado",
+        liveTempo: null,
+        liveMinuto: null,
+        kickoffAt: kickoffPre,
+        resultCasa: null,
+        resultVisitante: null,
+      },
+      scores: { scoreCasa: 0, scoreVisitante: 0 },
+      initialPrediction: null,
+      editingEnabled: true,
+      readOnly: false,
+    },
+    {
+      key: "live",
+      label: "Ao vivo",
+      jogo: {
+        ...base,
+        id: PALPITE_PREVIEW_MATCH_IDS.live,
+        status: "aberto",
+        statusBruto: "Em andamento",
+        liveTempo: 2,
+        liveMinuto: 67,
+        kickoffAt: kickoffLive,
+        resultCasa: 1,
+        resultVisitante: 0,
+      },
+      scores: { scoreCasa: 1, scoreVisitante: 2 },
+      initialPrediction: { scoreCasa: 1, scoreVisitante: 2 },
+      editingEnabled: false,
+      readOnly: true,
+    },
+    {
+      key: "post",
+      label: "Pós-jogo",
+      jogo: {
+        ...base,
+        id: PALPITE_PREVIEW_MATCH_IDS.post,
+        timeCasa: "Mirassol",
+        siglasCasa: "MIR",
+        timeVisitante: "Bragantino",
+        siglasVisitante: "RBB",
+        status: "encerrado",
+        statusBruto: "Encerrado",
+        liveTempo: null,
+        liveMinuto: null,
+        kickoffAt: kickoffPost,
+        resultCasa: 2,
+        resultVisitante: 1,
+      },
+      scores: { scoreCasa: 1, scoreVisitante: 2 },
+      initialPrediction: { scoreCasa: 1, scoreVisitante: 2 },
+      editingEnabled: false,
+      readOnly: true,
+    },
+  ];
+}
+
+function PalpitesCardStatesPreview({
+  bolaoType,
+  escudoCasa = "",
+  escudoVisitante = "",
+}: {
+  bolaoType: PredictionBolaoType;
+  escudoCasa?: string;
+  escudoVisitante?: string;
+}) {
+  const mocks = useMemo(
+    () => buildPalpiteCardPreviewMocks(escudoCasa, escudoVisitante),
+    [escudoCasa, escudoVisitante],
+  );
+
+  return (
+    <section
+      className="mb-6 rounded-2xl border border-primary/25 bg-primary/[0.06] p-4 sm:p-5"
+      aria-label="Preview dos estados do card de palpite"
+    >
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <p className="text-[11px] font-black uppercase tracking-[0.14em] text-primary">
+            Preview · mock
+          </p>
+          <p className="mt-1 text-[13px] font-medium text-white/65">
+            Três estados do card (dados fictícios). Remova com{" "}
+            <span className="font-mono text-white/80">?previewCards=0</span>
+          </p>
+        </div>
+      </div>
+      <div className="space-y-1">
+        {mocks.map((item) => (
+          <div key={item.key}>
+            <p className="mb-2 px-0.5 text-[10px] font-bold uppercase tracking-widest text-white/40">
+              {item.label}
+            </p>
+            <JogoCard
+              jogo={item.jogo}
+              readOnly={item.readOnly}
+              editingEnabled={item.editingEnabled}
+              scores={item.scores}
+              initialPrediction={item.initialPrediction}
+              bolaoType={bolaoType}
+            />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function JogoCard({
   jogo,
   readOnly = false,
@@ -810,6 +1137,8 @@ function JogoCard({
   initialPrediction,
   predictionsLoading = false,
   bolaoType,
+  onRequestEdit,
+  phaseOverride,
 }: {
   jogo: Jogo;
   readOnly?: boolean;
@@ -819,6 +1148,10 @@ function JogoCard({
   initialPrediction?: { scoreCasa: number; scoreVisitante: number } | null;
   predictionsLoading?: boolean;
   bolaoType: PredictionBolaoType;
+  /** Ativa modo edição (rodapé global ou salvar em lote). */
+  onRequestEdit?: () => void;
+  /** Força fase do card (ex.: preview mock). */
+  phaseOverride?: JogoCardPhase;
 }) {
   const { scoreCasa, scoreVisitante } = scores;
   const [dirCasa, setDirCasa] = useState<"up" | "down">("up");
@@ -905,15 +1238,21 @@ function JogoCard({
 
   const disabled = readOnly || !canEdit || predictionsLoading;
   const hasInitialPrediction = Boolean(initialPrediction);
+  const phase = phaseOverride ?? getJogoCardPhase(jogo, nowMs);
+  const kickoffMeta = formatKickoffMetaLong(jogo);
+  const countdownLabel = formatCountdownHms(lockAtMs, nowMs);
+  const liveMinute = getLiveMinuteBadge(jogo, nowMs);
+  const [pontosExpanded, setPontosExpanded] = useState(
+    () => phase === "post",
+  );
 
   const temPlacarOficial =
     jogo.resultCasa != null && jogo.resultVisitante != null;
-  const displayCasa =
-    readOnly && temPlacarOficial ? jogo.resultCasa! : scoreCasa;
+  const displayCasa = phase === "post" ? jogo.resultCasa! : scoreCasa;
   const displayVisitante =
-    readOnly && temPlacarOficial ? jogo.resultVisitante! : scoreVisitante;
+    phase === "post" ? jogo.resultVisitante! : scoreVisitante;
   const review =
-    readOnly && temPlacarOficial && hasInitialPrediction
+    phase === "post" && hasInitialPrediction && temPlacarOficial
       ? calcPredictionPoints(
         scoreCasa,
         scoreVisitante,
@@ -945,13 +1284,7 @@ function JogoCard({
     koMs != null &&
     nowMs >= koMs;
   const resultadoResumo =
-    readOnly &&
-      temPlacarOficial &&
-      hasInitialPrediction &&
-      review &&
-      !readOnlyPending &&
-      !readOnlyMatchLive &&
-      !readOnlyPlacarPendente
+    phase === "post" && review
       ? copyPontuacaoPartida(
         review,
         scoreCasa,
@@ -961,11 +1294,10 @@ function JogoCard({
       )
       : null;
 
-  const showPlacarOficialLayout = readOnly && temPlacarOficial;
   const showResultadoDetalhado =
-    showPlacarOficialLayout && hasInitialPrediction && review != null;
+    phase === "post" && hasInitialPrediction && review != null;
   const pontosLinhas =
-    review != null
+    review != null && temPlacarOficial
       ? palpitePontosBreakdown(
         review,
         scoreCasa,
@@ -975,92 +1307,25 @@ function JogoCard({
       )
       : [];
 
-  // Status badge label/style
-  const statusBadge = readOnly
-    ? readOnlyPending
-      ? {
-        label: "Aguardando jogo",
-        color: "#E8C840",
-        bg: "rgba(232,200,64,0.12)",
-        border: "rgba(232,200,64,0.38)",
-        dot: true,
-      }
-      : readOnlyMatchLive
-        ? {
-          label: "Em andamento",
-          color: "#B1EB0B",
-          bg: "rgba(177,235,11,0.10)",
-          border: "rgba(177,235,11,0.30)",
-          dot: true,
-        }
-        : readOnlyAguardandoPlacarPosTempo
-          ? {
-            label: "Aguardando placar",
-            color: "#E8C840",
-            bg: "rgba(232,200,64,0.12)",
-            border: "rgba(232,200,64,0.38)",
-            dot: true,
-          }
-          : readOnlyPlacarPendente
-            ? {
-              label: "Placar pendente",
-              color: "#E8C840",
-              bg: "rgba(232,200,64,0.12)",
-              border: "rgba(232,200,64,0.38)",
-              dot: true,
-            }
-            : {
-              label: "RESULTADO",
-              color: "#0E141B",
-              bg: "#B1EB0B",
-              border: "rgba(177,235,11,0.45)",
-              dot: false,
-            }
-    : jogo.status === "encerrado"
-      ? {
-        label: "Encerrado",
-        color: "rgba(255,255,255,0.30)",
-        bg: "transparent",
-        border: "rgba(255,255,255,0.08)",
-        dot: false,
-      }
-      : hasInitialPrediction
-        ? {
-          label: "Palpite salvo",
-          color: "#B1EB0B",
-          bg: "rgba(177,235,11,0.10)",
-          border: "rgba(177,235,11,0.34)",
-          dot: true,
-        }
-        : isLockedByTime
-          ? {
-            label: "Fechado",
-            color: "rgba(255,255,255,0.40)",
-            bg: "rgba(255,255,255,0.06)",
-            border: "rgba(255,255,255,0.10)",
-            dot: false,
-          }
-          : {
-            label: formatTimeUntilLock(),
-            color: "#B1EB0B",
-            bg: "rgba(177,235,11,0.10)",
-            border: "rgba(177,235,11,0.34)",
-            dot: true,
-          };
+  const cardShadow =
+    phase === "live"
+      ? "0 8px 26px rgba(0,0,0,0.40), 0 0 20px rgba(177,235,11,0.14)"
+      : phase === "post" && review && review.points > 0
+        ? "0 8px 28px rgba(0,0,0,0.38), 0 0 24px rgba(177,235,11,0.20)"
+        : "0 6px 20px rgba(0,0,0,0.30)";
 
-  const cardShadow = readOnly
-    ? readOnlyPending
-      ? "0 4px 20px rgba(0,0,0,0.34), 0 0 18px rgba(232,200,64,0.10)"
-      : readOnlyPlacarPendente || readOnlyAguardandoPlacarPosTempo
-        ? "0 4px 18px rgba(0,0,0,0.32), 0 0 14px rgba(232,200,64,0.08)"
-        : readOnlyMatchLive
-          ? "0 8px 26px rgba(0,0,0,0.40), 0 0 20px rgba(177,235,11,0.14)"
-          : resultadoResumo?.tone === "win" && review?.exact
-            ? "0 8px 28px rgba(0,0,0,0.38), 0 0 24px rgba(177,235,11,0.20)"
-            : resultadoResumo?.tone === "win"
-              ? "0 6px 22px rgba(0,0,0,0.34), 0 0 16px rgba(177,235,11,0.12)"
-              : "0 6px 20px rgba(0,0,0,0.30)"
-    : "0 6px 20px rgba(0,0,0,0.30)";
+  const liveTempoLabel = (() => {
+    const raw = formatLiveClockLabel(jogo, nowMs);
+    if (!raw) return null;
+    if (raw.includes("tempo")) return raw.split("·").pop()?.trim() ?? raw;
+    if (raw === "Intervalo") return "Intervalo";
+    return raw;
+  })();
+
+  const liveCasa = jogo.resultCasa ?? 0;
+  const liveVisit = jogo.resultVisitante ?? 0;
+  const palpiteLocked =
+    phase !== "pre" || !canEdit || isLockedByTime || readOnly;
 
   return (
     <div
@@ -1070,37 +1335,24 @@ function JogoCard({
         boxShadow: cardShadow,
       }}
     >
-      {/* Header — confronto + data/hora */}
-      <div className="flex items-start justify-between gap-3 px-4 pt-4 pb-2 sm:px-5">
-        <h3 className="min-w-0 flex-1 text-[16px] font-bold uppercase leading-snug tracking-[0.02em] text-white sm:text-[16px]">
-          {jogo.timeCasa} vs {jogo.timeVisitante}
-        </h3>
-        <div className="flex shrink-0 flex-col items-end gap-0.5 text-right">
-          <span className="text-[15px] font-bold uppercase tabular-nums text-primary sm:text-[12px]">
-            {formatData(jogo.dataBR, jogo.kickoffAt)}, {safeHourLabel(jogo.hora)}
-          </span>
-          {liveClockLabel ? (
-            <span
-              className="text-sm font-bold leading-snug text-pretty sm:whitespace-nowrap"
-              style={{ color: "#B1EB0B" }}
-            >
-              {liveClockLabel}
-            </span>
-          ) : null}
-        </div>
-      </div>
+      <PalpiteCardStatusBar
+        phase={phase}
+        countdownLabel={countdownLabel}
+        kickoffMeta={kickoffMeta}
+        liveMinute={liveMinute}
+      />
 
-      {showPlacarOficialLayout ? (
+      {phase === "post" ? (
         <>
-          <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 px-4 sm:px-5 py-4">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 px-4 py-4 sm:px-5">
             <div className="flex min-w-0 flex-col items-center">
               <Escudo url={jogo.escudoCasa} alt={jogo.timeCasa} size="lg" />
-              <p className="mt-2 text-center text-[13px] font-bold uppercase leading-snug text-white line-clamp-2">
+              <p className="mt-2 text-center text-[12px] font-black uppercase leading-snug text-white line-clamp-2">
                 {jogo.siglasCasa}
               </p>
             </div>
             <div className="flex flex-col items-center px-1">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-white/50">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-white/50">
                 Placar oficial
               </p>
               <p className="mt-1 text-[2rem] font-black tabular-nums leading-none text-white sm:text-[2.25rem]">
@@ -1108,10 +1360,13 @@ function JogoCard({
                 <span className="mx-1.5 text-xl font-bold text-white/45">x</span>
                 {displayVisitante}
               </p>
+              <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-white/40">
+                Fim de jogo
+              </p>
             </div>
             <div className="flex min-w-0 flex-col items-center">
               <Escudo url={jogo.escudoVisitante} alt={jogo.timeVisitante} size="lg" />
-              <p className="mt-2 text-center text-[13px] font-bold uppercase leading-snug text-white line-clamp-2">
+              <p className="mt-2 text-center text-[12px] font-black uppercase leading-snug text-white line-clamp-2">
                 {jogo.siglasVisitante}
               </p>
             </div>
@@ -1119,288 +1374,252 @@ function JogoCard({
 
           {hasInitialPrediction ? (
             <>
-              <div className="px-4 sm:px-5 pb-3">
-                <p className="mb-2 text-center text-[11px] font-semibold uppercase tracking-wide text-white/50">
+              <div className="px-4 pb-3 sm:px-5">
+                <p className="mb-2 text-center text-[10px] font-semibold uppercase tracking-wide text-white/50">
                   Meu palpite
                 </p>
-                <div
-                  className="flex items-center justify-center gap-2.5"
-                  role="group"
-                  aria-label="Placar do seu palpite"
-                >
-                  <span
-                    className="flex min-h-10 min-w-10 items-center justify-center rounded-lg px-2 text-xl font-black tabular-nums text-white"
-                    style={{ background: PALPITE_STEPPER_BG }}
-                  >
-                    {scoreCasa}
-                  </span>
-                  <span className="text-lg font-bold text-white/40" aria-hidden>
-                    x
-                  </span>
-                  <span
-                    className="flex min-h-10 min-w-10 items-center justify-center rounded-lg px-2 text-xl font-black tabular-nums text-white"
-                    style={{ background: PALPITE_STEPPER_BG }}
-                  >
-                    {scoreVisitante}
-                  </span>
-                </div>
+                <PalpiteScoreBoxes casa={scoreCasa} visitante={scoreVisitante} />
               </div>
 
-              {showResultadoDetalhado && review ? (
+              {showResultadoDetalhado && review && resultadoResumo ? (
                 <>
-                  <div
-                    className="mx-4 sm:mx-5 mb-3 overflow-hidden rounded-xl"
+                  <button
+                    type="button"
+                    onClick={() => setPontosExpanded((v) => !v)}
+                    className="mx-4 mb-2 flex w-[calc(100%-2rem)] items-center justify-between gap-2 rounded-xl px-3.5 py-3 sm:mx-5 sm:w-[calc(100%-2.5rem)]"
                     style={{ background: PALPITE_PANEL_BG }}
-                    aria-label="Detalhamento da pontuação"
+                    aria-expanded={pontosExpanded}
                   >
-                    <div className="divide-y divide-white/[0.06]">
-                      {pontosLinhas.map((linha) => (
-                        <div
-                          key={linha.label}
-                          className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 px-3.5 py-3"
-                        >
-                          <span className="text-[13px] font-medium text-white/88">
-                            {linha.label}
-                          </span>
-                          <PontosBreakdownIcon hit={linha.hit} />
-                          <span
-                            className={`min-w-[3.25rem] text-right text-[13px] font-bold tabular-nums ${linha.points > 0 ? "text-[#D4F862]" : "text-white/45"
-                              }`}
-                          >
-                            {formatPontosLabel(linha.points)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                    <div
-                      className="flex items-center justify-between px-3.5 py-3"
-                      style={{ background: "rgba(0,0,0,0.22)" }}
-                    >
-                      <span className="text-[14px] font-bold text-white">
-                        Total da partida
+                    <span className="inline-flex items-center gap-2 text-left">
+                      <Star
+                        className="size-4 shrink-0 text-primary"
+                        strokeWidth={2.2}
+                        aria-hidden
+                      />
+                      <span className="text-[13px] font-bold text-white">
+                        {resultadoResumo.title}
                       </span>
-                      <span className="text-[15px] font-black tabular-nums text-[#D4F862]">
-                        {formatPontosLabel(review.points)}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div
-                    className="mx-4 sm:mx-5 mb-4 flex gap-2.5 rounded-xl px-3.5 py-3"
-                    style={{ background: PALPITE_PANEL_BG }}
-                  >
-                    <Info
-                      className="mt-0.5 size-4 shrink-0 text-white/50"
-                      strokeWidth={2}
+                    </span>
+                    <ChevronDown
+                      className={`size-4 shrink-0 text-white/50 transition-transform ${pontosExpanded ? "rotate-180" : ""}`}
+                      strokeWidth={2.5}
                       aria-hidden
                     />
-                    <p className="text-[12px] leading-relaxed text-white/62">
-                      Os números grandes acima mostram como o jogo terminou. Aqui
-                      está o que você tinha escolhido.
-                    </p>
-                  </div>
+                  </button>
+
+                  {pontosExpanded ? (
+                    <>
+                      <div
+                        className="mx-4 sm:mx-5 mb-3 overflow-hidden rounded-xl"
+                        style={{ background: PALPITE_PANEL_BG }}
+                        aria-label="Detalhamento da pontuação"
+                      >
+                        <div className="divide-y divide-white/[0.06]">
+                          {pontosLinhas.map((linha) => (
+                            <div
+                              key={linha.label}
+                              className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 px-3.5 py-3"
+                            >
+                              <span className="text-[13px] font-medium text-white/88">
+                                {linha.label}
+                              </span>
+                              <PontosBreakdownIcon hit={linha.hit} />
+                              <span
+                                className={`min-w-[3.25rem] text-right text-[13px] font-bold tabular-nums ${linha.points > 0 ? "text-[#D4F862]" : "text-white/45"}`}
+                              >
+                                {formatPontosLabel(linha.points)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                        <div
+                          className="flex items-center justify-between px-3.5 py-3"
+                          style={{ background: "rgba(0,0,0,0.22)" }}
+                        >
+                          <span className="text-[14px] font-bold text-white">
+                            Total da partida
+                          </span>
+                          <span className="text-[15px] font-black tabular-nums text-[#D4F862]">
+                            {formatPontosLabel(review.points)}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div
+                        className="mx-4 sm:mx-5 mb-4 flex gap-2.5 rounded-xl px-3.5 py-3"
+                        style={{ background: PALPITE_PANEL_BG }}
+                      >
+                        <Info
+                          className="mt-0.5 size-4 shrink-0 text-white/50"
+                          strokeWidth={2}
+                          aria-hidden
+                        />
+                        <p className="text-[12px] leading-relaxed text-white/62">
+                          Os números grandes acima mostram como o jogo terminou. Aqui
+                          está o que você tinha escolhido.
+                        </p>
+                      </div>
+                    </>
+                  ) : null}
                 </>
               ) : null}
             </>
-          ) : null}
+          ) : (
+            <p className="px-4 pb-4 text-center text-[13px] font-medium text-white/55 sm:px-5">
+              Você não fez palpite nesta partida.
+            </p>
+          )}
         </>
-      ) : (
-        <div
-          className="mx-3 mb-3 rounded-2xl px-2.5 py-4 sm:mx-4 sm:px-3"
-          style={{ background: PALPITE_PANEL_BG }}
-        >
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex min-w-0 flex-1 flex-col items-center">
-              <Escudo url={jogo.escudoCasa} alt={jogo.timeCasa} size="md" />
-              <p className="mt-2 text-[13px] font-black uppercase tracking-[0.06em] text-white">
+      ) : phase === "live" ? (
+        <>
+          <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 px-4 py-4 sm:px-5">
+            <div className="flex min-w-0 flex-col items-center">
+              <Escudo url={jogo.escudoCasa} alt={jogo.timeCasa} size="lg" />
+              <p className="mt-2 text-center text-[12px] font-black uppercase text-white">
                 {jogo.siglasCasa}
               </p>
             </div>
-            <div className="flex shrink-0 items-center gap-2 px-0.5">
-              {predictionsLoading ? (
-                <>
-                  <div
-                    className="h-[108px] w-[52px] animate-pulse rounded-[14px]"
-                    style={{ background: PALPITE_STEPPER_BG }}
-                  />
-                  <div
-                    className="h-[108px] w-[52px] animate-pulse rounded-[14px]"
-                    style={{ background: PALPITE_STEPPER_BG }}
-                  />
-                </>
-              ) : (
-                <>
-                  <VertScoreStepper
-                    value={scoreCasa}
-                    dir={dirCasa}
-                    onInc={() => increment("casa")}
-                    onDec={() => decrement("casa")}
-                    disabled={disabled}
-                  />
-                  <VertScoreStepper
-                    value={scoreVisitante}
-                    dir={dirVisitante}
-                    onInc={() => increment("visitante")}
-                    onDec={() => decrement("visitante")}
-                    disabled={disabled}
-                  />
-                </>
-              )}
+            <div className="flex flex-col items-center px-1">
+              <p className="text-[2rem] font-black tabular-nums leading-none text-white sm:text-[2.35rem]">
+                {liveCasa}
+                <span className="mx-1.5 text-xl font-bold text-white/45">x</span>
+                {liveVisit}
+              </p>
+              {liveTempoLabel ? (
+                <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-white/50">
+                  {liveTempoLabel}
+                </p>
+              ) : null}
             </div>
-            <div className="flex min-w-0 flex-1 flex-col items-center">
-              <Escudo url={jogo.escudoVisitante} alt={jogo.timeVisitante} size="md" />
-              <p className="mt-2 text-[13px] font-black uppercase tracking-[0.06em] text-white">
+            <div className="flex min-w-0 flex-col items-center">
+              <Escudo url={jogo.escudoVisitante} alt={jogo.timeVisitante} size="lg" />
+              <p className="mt-2 text-center text-[12px] font-black uppercase text-white">
                 {jogo.siglasVisitante}
               </p>
             </div>
           </div>
-        </div>
-      )}
 
-      {readOnly ? (
-        <>
-          <div className={`px-4 sm:px-5 ${showResultadoDetalhado ? "pb-1" : "pb-4"}`}>
-            {readOnly && !showResultadoDetalhado ? (
-              <div
-                className="flex w-full flex-col items-center justify-center gap-2 rounded-xl px-3 py-4 sm:px-4"
-                style={{
-                  background: readOnlyPending
-                    ? "rgba(232,200,64,0.08)"
-                    : readOnlyPlacarPendente || readOnlyAguardandoPlacarPosTempo
-                      ? "rgba(232,200,64,0.06)"
-                      : resultadoResumo?.tone === "win"
-                        ? review?.exact
-                          ? "rgba(177,235,11,0.12)"
-                          : "rgba(177,235,11,0.09)"
-                        : resultadoResumo?.tone === "partial"
-                          ? "rgba(177,235,11,0.06)"
-                          : resultadoResumo?.tone === "miss"
-                            ? "rgba(255,255,255,0.04)"
-                            : review && review.points > 0
-                              ? "rgba(177,235,11,0.10)"
-                              : PALPITE_PANEL_BG,
-                }}
-              >
-                {readOnlyPending ? (
-                  <span
-                    className="text-center leading-relaxed font-semibold text-base px-1"
-                    style={{ color: "rgba(252,234,160,0.98)" }}
-                  >
-                    Aguardando o início da partida.
-                  </span>
-                ) : readOnlyPlacarPendente ? (
-                  <span
-                    className="text-center leading-relaxed font-semibold text-base px-1"
-                    style={{ color: "rgba(252,234,160,0.95)" }}
-                  >
-                    Estamos sincronizando o placar oficial. Volte daqui a pouco.
-                  </span>
-                ) : readOnlyAguardandoPlacarPosTempo ? (
-                  <span
-                    className="text-center leading-relaxed font-semibold text-base px-1"
-                    style={{ color: "rgba(252,234,160,0.95)" }}
-                  >
-                    O jogo já deve ter terminado; a listagem da API pode atrasar. Estamos
-                    atualizando o placar oficial — a pontuação do palpite aparece quando o
-                    resultado estiver disponível.
-                  </span>
-                ) : readOnlyMatchLive ? (
-                  <span
-                    className="text-center leading-relaxed font-semibold text-base px-1"
-                    style={{ color: "rgba(255,255,255,0.88)" }}
-                  >
-                    Jogo em andamento. A pontuação do seu palpite aparece depois que
-                    o resultado oficial estiver disponível.
-                  </span>
-                ) : !hasInitialPrediction &&
-                  (jogo.status === "encerrado" || temPlacarOficial) ? (
-                  <span
-                    className="text-center leading-relaxed font-semibold text-base px-1"
-                    style={{ color: "rgba(255,255,255,0.78)" }}
-                  >
-                    Você não fez palpite nesta partida.
-                  </span>
-                ) : resultadoResumo ? (
-                  <div
-                    className="flex flex-col items-center gap-2 w-full"
-                    role="status"
-                    aria-live="polite"
-                  >
-                    <div className="flex items-center justify-center gap-2.5 flex-wrap px-1">
-                      {resultadoResumo.tone === "win" && review?.exact ? (
-                        <Sparkles
-                          className="w-6 h-6 shrink-0"
-                          style={{ color: "#D4F862" }}
-                          strokeWidth={2.2}
-                          aria-hidden
-                        />
-                      ) : null}
-                      {resultadoResumo.tone === "win" && review && !review.exact ? (
-                        <Target
-                          className="w-6 h-6 shrink-0"
-                          style={{ color: "#D4F862" }}
-                          strokeWidth={2.2}
-                          aria-hidden
-                        />
-                      ) : null}
-                      {resultadoResumo.tone === "partial" ? (
-                        <Star
-                          className="w-6 h-6 shrink-0"
-                          style={{ color: "#D4F862" }}
-                          strokeWidth={2.2}
-                          aria-hidden
-                        />
-                      ) : null}
-                      {resultadoResumo.tone === "miss" ? (
-                        <Disc
-                          className="w-6 h-6 shrink-0"
-                          style={{ color: "rgba(255,255,255,0.55)" }}
-                          strokeWidth={2.2}
-                          aria-hidden
-                        />
-                      ) : null}
-                      <span
-                        className={`text-center leading-snug text-pretty ${resultadoResumo.tone !== "miss" ? "font-bold text-[17px] sm:text-lg" : "font-semibold text-base"}`}
-                        style={{
-                          color:
-                            resultadoResumo.tone === "miss"
-                              ? "rgba(255,255,255,0.88)"
-                              : "#D4F862",
-                        }}
-                      >
-                        {resultadoResumo.title}
-                      </span>
-                    </div>
-                    {resultadoResumo.subtitle ? (
-                      <span
-                        className="text-center leading-relaxed text-sm sm:text-[15px] px-2 font-medium max-w-md"
-                        style={{ color: "rgba(255,255,255,0.78)" }}
-                      >
-                        {resultadoResumo.subtitle}
-                      </span>
-                    ) : null}
-                  </div>
-                ) : review && review.points > 0 ? (
-                  <span
-                    className="text-center leading-relaxed font-bold text-lg px-1"
-                    style={{ color: "#D4F862" }}
-                  >
-                    Você ganhou {review.points} pontos nesta partida.
-                  </span>
-                ) : (
-                  <span
-                    className="text-center leading-relaxed font-semibold text-base px-1"
-                    style={{ color: "rgba(255,255,255,0.78)" }}
-                  >
-                    Sem pontuação nesta partida.
-                  </span>
-                )}
-              </div>
-            ) : null}
+          {hasInitialPrediction ? (
+            <div className="px-4 pb-2 sm:px-5">
+              <p className="mb-2 text-center text-[10px] font-semibold uppercase tracking-wide text-white/50">
+                Seu palpite
+              </p>
+              <PalpiteScoreBoxes
+                casa={scoreCasa}
+                visitante={scoreVisitante}
+                size="sm"
+              />
+            </div>
+          ) : null}
+
+          <div
+            className="mx-4 mb-4 flex items-center justify-center gap-2 rounded-xl px-3 py-3.5 sm:mx-5"
+            style={{ background: PALPITE_PANEL_BG }}
+          >
+            <Lock className="size-4 shrink-0 text-white/40" strokeWidth={2} aria-hidden />
+            <p className="text-[12px] font-semibold text-white/55">
+              Palpite enviado e bloqueado
+            </p>
           </div>
         </>
       ) : (
-        <div className="pb-3" aria-hidden />
+        <>
+          <div
+            className="mx-3 mb-3 rounded-2xl px-2.5 py-4 sm:mx-4 sm:px-3"
+            style={{ background: PALPITE_PANEL_BG }}
+          >
+            <p className="mb-3 text-center text-[10px] font-black uppercase tracking-[0.14em] text-white/45">
+              Seu palpite
+            </p>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex min-w-0 flex-1 flex-col items-center gap-1">
+                <Escudo url={jogo.escudoCasa} alt={jogo.timeCasa} size="md" />
+                <p className="text-[11px] font-bold uppercase text-white/80">Casa</p>
+                <p className="text-[12px] font-black uppercase tracking-[0.06em] text-white">
+                  {jogo.siglasCasa}
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center gap-2 px-0.5">
+                {predictionsLoading ? (
+                  <>
+                    <div
+                      className="h-[108px] w-[52px] animate-pulse rounded-[14px]"
+                      style={{ background: PALPITE_STEPPER_BG }}
+                    />
+                    <div
+                      className="h-[108px] w-[52px] animate-pulse rounded-[14px]"
+                      style={{ background: PALPITE_STEPPER_BG }}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <VertScoreStepper
+                      value={scoreCasa}
+                      dir={dirCasa}
+                      onInc={() => increment("casa")}
+                      onDec={() => decrement("casa")}
+                      disabled={disabled}
+                    />
+                    <VertScoreStepper
+                      value={scoreVisitante}
+                      dir={dirVisitante}
+                      onInc={() => increment("visitante")}
+                      onDec={() => decrement("visitante")}
+                      disabled={disabled}
+                    />
+                  </>
+                )}
+              </div>
+              <div className="flex min-w-0 flex-1 flex-col items-center gap-1">
+                <Escudo url={jogo.escudoVisitante} alt={jogo.timeVisitante} size="md" />
+                <p className="text-[11px] font-bold uppercase text-white/80">Fora</p>
+                <p className="text-[12px] font-black uppercase tracking-[0.06em] text-white">
+                  {jogo.siglasVisitante}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {canEdit ? (
+            <div className="px-4 pb-4 sm:px-5">
+              <button
+                type="button"
+                onClick={() => onRequestEdit?.()}
+                className="flex h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-primary text-[12px] font-black uppercase tracking-[0.06em] text-[#0E141B] transition-[filter] hover:brightness-105 active:scale-[0.98] disabled:opacity-50"
+                disabled={predictionsLoading}
+              >
+                <ClipboardList className="size-4 shrink-0" strokeWidth={2.4} aria-hidden />
+                {hasInitialPrediction ? "Editar palpite" : "Fazer palpite"}
+              </button>
+            </div>
+          ) : palpiteLocked && hasInitialPrediction ? (
+            <div
+              className="mx-4 mb-4 flex items-center justify-center gap-2 rounded-xl px-3 py-3.5 sm:mx-5"
+              style={{ background: PALPITE_PANEL_BG }}
+            >
+              <Lock className="size-4 shrink-0 text-white/40" strokeWidth={2} aria-hidden />
+              <p className="text-[12px] font-semibold text-white/55">
+                Palpite enviado e bloqueado
+              </p>
+            </div>
+          ) : readOnlyPending ? (
+            <p className="px-4 pb-4 text-center text-[13px] font-medium text-white/55 sm:px-5">
+              Aguardando o início da partida.
+            </p>
+          ) : readOnlyPlacarPendente || readOnlyAguardandoPlacarPosTempo ? (
+            <p className="px-4 pb-4 text-center text-[13px] font-medium text-white/55 sm:px-5">
+              Estamos sincronizando o placar oficial. Volte em instantes.
+            </p>
+          ) : isLockedByTime ? (
+            <p className="px-4 pb-4 text-center text-[13px] font-medium text-white/55 sm:px-5">
+              Prazo encerrado para novos palpites.
+            </p>
+          ) : !hasInitialPrediction && readOnly ? (
+            <p className="px-4 pb-4 text-center text-[13px] font-medium text-white/55 sm:px-5">
+              Você não fez palpite nesta partida.
+            </p>
+          ) : null}
+        </>
       )}
     </div>
   );
@@ -3088,6 +3307,10 @@ function PalpitesPageContent({
 }) {
   const searchParams = useSearchParams();
   const showPalpitesDebug = searchParams.get("debugPalpites") === "1";
+  const previewCardsParam = searchParams.get("previewCards");
+  const showPalpiteCardsPreview =
+    previewCardsParam === "1" ||
+    (process.env.NODE_ENV === "development" && previewCardsParam !== "0");
   const resultMode = searchParams.get("mode") === "resultado";
   const ticketId = searchParams.get("ticket");
   const hasBoloesFlow = Boolean(ticketId);
@@ -3834,6 +4057,10 @@ function PalpitesPageContent({
       onScoresChange: editing
         ? (s: JogoCardScores) => handleScoresChange(jogo.id, s)
         : undefined,
+      onRequestEdit: () => {
+        setSaveAllError(null);
+        setPalpitesEditing(true);
+      },
     };
   };
 
@@ -4295,6 +4522,14 @@ function PalpitesPageContent({
               <BotoesGrupo />
             </div>
           )}
+
+          {showJogos && showPalpiteCardsPreview ? (
+            <PalpitesCardStatesPreview
+              bolaoType={bolaoType}
+              escudoCasa={jogos[0]?.escudoCasa}
+              escudoVisitante={jogos[0]?.escudoVisitante}
+            />
+          ) : null}
 
           {/* Mobile: conteúdo com tabs — em readOnlyMode usar resultTab (tab principal pode ficar em "jogos" e quebrava Ranking/Resumo) */}
           <div
