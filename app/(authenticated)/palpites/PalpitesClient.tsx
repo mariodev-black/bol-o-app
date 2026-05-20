@@ -477,6 +477,37 @@ const PALPITE_CARD_BG =
 const PALPITE_PANEL_BG = "#0C0F0D";
 const PALPITE_STEPPER_BG = "#080A09";
 
+/** Tipografia do card — referência: estado pré-jogo. */
+const PALPITE_CARD_TYPE = {
+  badge: "text-[13px] font-black uppercase tracking-wide",
+  meta: "text-[14px] font-semibold",
+  metaPrimary: "text-[14px] font-semibold leading-tight text-primary",
+  metaMuted: "text-[14px] font-semibold text-white/50",
+  metaLive: "text-[14px] font-black text-[#FF6B6B]",
+  panelTitle:
+    "mb-3 text-center text-[14px] font-black uppercase tracking-[0.14em] text-white/70",
+  panelTitleTight:
+    "mb-2.5 text-center text-[14px] font-black uppercase tracking-[0.12em] text-white/70",
+  sideLabel: "text-[12px] font-bold uppercase text-white/80",
+  teamName:
+    "w-full min-w-0 px-0.5 text-center text-[16px] font-bold uppercase leading-snug text-white line-clamp-2",
+  teamNameShield:
+    "mt-2 w-full min-w-0 px-0.5 text-center text-[16px] font-bold uppercase leading-snug text-white line-clamp-2",
+  scoreHero:
+    "font-black tabular-nums leading-none text-white text-[2.35rem] sm:text-[2.5rem]",
+  scoreSep: "mx-1.5 text-2xl font-bold text-white/40",
+  scoreLabel:
+    "text-[12px] font-black uppercase tracking-[0.1em] text-white/45",
+  scorePhase: "mt-1 text-[12px] font-bold uppercase tracking-wide text-white/50",
+  scorePhaseAccent:
+    "mt-1 text-[12px] font-bold uppercase tracking-wide text-primary/70",
+  bodyMsg: "text-[13px] font-medium text-white/55",
+  lockMsg: "text-[13px] font-semibold text-white/55",
+} as const;
+
+const PALPITE_CARD_PANEL_CLASS =
+  "rounded-2xl border border-white/[0.07] px-2.5 py-4 sm:px-3";
+
 // ── Escudo do time ────────────────────────────────────────────
 function Escudo({
   url,
@@ -872,8 +903,8 @@ function PalpiteScoreBoxes({
 }) {
   const box =
     size === "sm"
-      ? "min-h-9 min-w-9 text-xl"
-      : "min-h-11 min-w-11 text-2xl";
+      ? "min-h-10 min-w-10 text-[26px] sm:text-[28px]"
+      : "min-h-11 min-w-11 text-[30px] sm:text-[32px]";
   return (
     <div
       className="flex items-center justify-center gap-2.5"
@@ -886,7 +917,7 @@ function PalpiteScoreBoxes({
       >
         {casa}
       </span>
-      <span className="text-lg font-bold text-white/40" aria-hidden>
+      <span className="text-xl font-bold text-white/40" aria-hidden>
         x
       </span>
       <span
@@ -902,8 +933,8 @@ function PalpiteScoreBoxes({
 function PalpiteEmptyScoreBoxes({ size = "md" }: { size?: "md" | "sm" }) {
   const box =
     size === "sm"
-      ? "min-h-9 min-w-9 text-xl"
-      : "min-h-10 min-w-10 text-2xl";
+      ? "min-h-10 min-w-10 text-[26px] sm:text-[28px]"
+      : "min-h-11 min-w-11 text-[30px] sm:text-[32px]";
   return (
     <div
       className="flex items-center justify-center gap-2.5"
@@ -916,7 +947,7 @@ function PalpiteEmptyScoreBoxes({ size = "md" }: { size?: "md" | "sm" }) {
       >
         —
       </span>
-      <span className="text-lg font-bold text-white/40" aria-hidden>
+      <span className="text-xl font-bold text-white/40" aria-hidden>
         x
       </span>
       <span
@@ -946,15 +977,17 @@ function PalpiteCardStatusBar({
         className="flex items-center justify-between gap-2 border-b border-white/[0.06] px-4 py-2.5 sm:px-5"
         style={{ background: "rgba(0,0,0,0.18)" }}
       >
-        <span className="inline-flex items-center gap-1.5 rounded-md bg-[#E53935] px-2 py-0.5 text-[11px] font-black uppercase tracking-wide text-white">
+        <span
+          className={`inline-flex items-center gap-1.5 rounded-md bg-[#E53935] px-2 py-0.5 ${PALPITE_CARD_TYPE.badge} text-white`}
+        >
           <span className="size-1.5 rounded-full bg-white" aria-hidden />
           AO VIVO
         </span>
-        <span className="inline-flex items-center gap-1 text-[13px] font-black text-[#FF6B6B]">
+        <span className={`inline-flex items-center gap-1 ${PALPITE_CARD_TYPE.metaLive}`}>
           <Flame className="size-3.5 shrink-0" strokeWidth={2.4} aria-hidden />
           {liveMinute ?? "Ao vivo"}
         </span>
-        <span className="flex items-center gap-1 text-[10px] font-semibold text-white/45">
+        <span className={`flex min-w-0 max-w-[42%] items-center justify-end gap-1 truncate ${PALPITE_CARD_TYPE.metaMuted}`}>
           <Calendar className="size-3 shrink-0" strokeWidth={2} aria-hidden />
           {kickoffMeta}
         </span>
@@ -968,10 +1001,12 @@ function PalpiteCardStatusBar({
         className="flex items-center justify-between gap-2 border-b border-white/[0.06] px-4 py-2.5 sm:px-5"
         style={{ background: "rgba(0,0,0,0.18)" }}
       >
-        <span className="rounded-md bg-primary px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wide text-[#0E141B]">
+        <span
+          className={`rounded-md bg-primary px-2.5 py-0.5 ${PALPITE_CARD_TYPE.badge} text-[#0E141B]`}
+        >
           Resultado
         </span>
-        <span className="flex items-center gap-1 text-[11px] font-semibold text-white/45">
+        <span className={`flex min-w-0 items-center gap-1 ${PALPITE_CARD_TYPE.metaMuted}`}>
           <Calendar className="size-3 shrink-0" strokeWidth={2} aria-hidden />
           {kickoffMeta}
         </span>
@@ -984,14 +1019,20 @@ function PalpiteCardStatusBar({
       className="flex items-center justify-between gap-1.5 border-b border-white/[0.06] px-4 py-2.5 sm:px-5"
       style={{ background: "rgba(0,0,0,0.18)" }}
     >
-      <span className="shrink-0 rounded-md bg-primary px-2.5 py-0.5 text-[13px] font-black uppercase tracking-wide text-[#0E141B]">
+      <span
+        className={`shrink-0 rounded-md bg-primary px-2.5 py-0.5 ${PALPITE_CARD_TYPE.badge} text-[#0E141B]`}
+      >
         Pré-jogo
       </span>
-      <span className="inline-flex min-w-0 max-w-[38%] shrink items-center justify-center gap-0.5 text-[14px] font-semibold leading-tight text-primary">
+      <span
+        className={`inline-flex min-w-0 max-w-[38%] shrink items-center justify-center gap-0.5 truncate ${PALPITE_CARD_TYPE.metaPrimary}`}
+      >
         <Clock className="size-2.5 shrink-0" strokeWidth={2.2} aria-hidden />
         <span className="truncate">{countdownLabel}</span>
       </span>
-      <span className="flex min-w-0 max-w-[42%] shrink-0 items-center justify-end gap-1 text-[14px] font-semibold text-white/50">
+      <span
+        className={`flex min-w-0 max-w-[42%] shrink-0 items-center justify-end gap-1 truncate ${PALPITE_CARD_TYPE.metaMuted}`}
+      >
         <Calendar className="size-3 shrink-0" strokeWidth={2} aria-hidden />
         <span className="truncate text-right">{kickoffMeta}</span>
       </span>
@@ -1065,19 +1106,19 @@ function PalpitePontuacaoBreakdown({
         />
         <div className="flex items-center gap-3 py-3.5 pl-4 pr-3">
           <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-primary">
+            <p className="text-[12px] font-black uppercase tracking-[0.14em] text-primary">
               Pontuação
             </p>
-            <p className="mt-0.5 line-clamp-2 text-[13px] font-bold leading-snug text-white">
+            <p className="mt-0.5 line-clamp-2 text-[14px] font-bold leading-snug text-white">
               {resumo.title}
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2.5">
             <div className="text-right">
-              <p className="text-[26px] font-black tabular-nums leading-none text-primary">
+              <p className="text-[28px] font-black tabular-nums leading-none text-primary sm:text-[30px]">
                 {ptsHeadline}
               </p>
-              <p className="text-[9px] font-bold uppercase tracking-wide text-white/40">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-white/40">
                 pts
               </p>
             </div>
@@ -1108,7 +1149,7 @@ function PalpitePontuacaoBreakdown({
               className="border-b px-4 py-2.5"
               style={{ borderColor: "rgba(255,255,255,0.06)" }}
             >
-              <p className="text-[10px] font-black uppercase tracking-[0.12em] text-white/40">
+              <p className="text-[12px] font-black uppercase tracking-[0.12em] text-white/40">
                 Como você pontuou
               </p>
             </div>
@@ -1119,12 +1160,12 @@ function PalpitePontuacaoBreakdown({
                   key={linha.label}
                   className={`grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 px-4 py-3 ${linha.hit ? "bg-primary/[0.05]" : ""} ${idx > 0 ? "border-t border-white/[0.05]" : ""}`}
                 >
-                  <span className="text-[13px] font-semibold text-white/92">
+                  <span className="text-[14px] font-semibold text-white/92">
                     {linha.label}
                   </span>
                   <PontosBreakdownIcon hit={linha.hit} />
                   <span
-                    className={`min-w-[3.5rem] text-right text-[13px] font-black tabular-nums ${linha.points > 0 ? "text-primary" : "text-white/35"}`}
+                    className={`min-w-[3.5rem] text-right text-[14px] font-black tabular-nums ${linha.points > 0 ? "text-primary" : "text-white/35"}`}
                   >
                     {formatPontosLabel(linha.points)}
                   </span>
@@ -1140,17 +1181,17 @@ function PalpitePontuacaoBreakdown({
                 borderTop: "1px solid rgba(177,235,11,0.25)",
               }}
             >
-              <span className="text-[12px] font-black uppercase tracking-[0.08em] text-white">
+              <span className="text-[13px] font-black uppercase tracking-[0.08em] text-white">
                 Total da partida
               </span>
-              <span className="text-[20px] font-black tabular-nums text-primary">
+              <span className="text-[22px] font-black tabular-nums text-primary sm:text-[24px]">
                 {formatPontosLabel(review.points)}
               </span>
             </div>
 
             {resumo.subtitle ? (
               <p
-                className="border-t px-4 py-3 text-[11px] leading-relaxed text-white/52"
+                className="border-t px-4 py-3 text-[12px] leading-relaxed text-white/52"
                 style={{ borderColor: "rgba(255,255,255,0.05)" }}
               >
                 {resumo.subtitle}
@@ -1163,158 +1204,6 @@ function PalpitePontuacaoBreakdown({
   );
 }
 
-const PALPITE_PREVIEW_MATCH_IDS = {
-  pre: -90_001,
-  live: -90_002,
-  post: -90_003,
-} as const;
-
-function buildPalpiteCardPreviewMocks(
-  escudoCasa = "",
-  escudoVisitante = "",
-): Array<{
-  key: string;
-  label: string;
-  jogo: Jogo;
-  scores: JogoCardScores;
-  initialPrediction: { scoreCasa: number; scoreVisitante: number } | null;
-  editingEnabled: boolean;
-  readOnly: boolean;
-}> {
-  const now = Date.now();
-  const kickoffPre = new Date(now + 90 * 60_000).toISOString();
-  const kickoffLive = new Date(now - 67 * 60_000).toISOString();
-  const kickoffPost = new Date(now - 3 * 60 * 60_000).toISOString();
-  const base = {
-    timeCasa: "Ceará",
-    siglasCasa: "CEA",
-    escudoCasa,
-    timeVisitante: "Atlético-MG",
-    siglasVisitante: "CAM",
-    escudoVisitante,
-    data: "15/05",
-    hora: "21:30",
-    grupo: "A",
-    rodada: 1,
-    dataBR: "15/05/2026",
-  };
-
-  return [
-    {
-      key: "pre",
-      label: "Pré-jogo",
-      jogo: {
-        ...base,
-        id: PALPITE_PREVIEW_MATCH_IDS.pre,
-        status: "aberto",
-        statusBruto: "agendado",
-        liveTempo: null,
-        liveMinuto: null,
-        kickoffAt: kickoffPre,
-        resultCasa: null,
-        resultVisitante: null,
-      },
-      scores: { scoreCasa: 0, scoreVisitante: 0 },
-      initialPrediction: null,
-      editingEnabled: true,
-      readOnly: false,
-    },
-    {
-      key: "live",
-      label: "Ao vivo",
-      jogo: {
-        ...base,
-        id: PALPITE_PREVIEW_MATCH_IDS.live,
-        status: "aberto",
-        statusBruto: "Em andamento",
-        liveTempo: 2,
-        liveMinuto: 67,
-        kickoffAt: kickoffLive,
-        resultCasa: 1,
-        resultVisitante: 0,
-      },
-      scores: { scoreCasa: 1, scoreVisitante: 2 },
-      initialPrediction: { scoreCasa: 1, scoreVisitante: 2 },
-      editingEnabled: false,
-      readOnly: true,
-    },
-    {
-      key: "post",
-      label: "Pós-jogo",
-      jogo: {
-        ...base,
-        id: PALPITE_PREVIEW_MATCH_IDS.post,
-        timeCasa: "Mirassol",
-        siglasCasa: "MIR",
-        timeVisitante: "Bragantino",
-        siglasVisitante: "RBB",
-        status: "encerrado",
-        statusBruto: "Encerrado",
-        liveTempo: null,
-        liveMinuto: null,
-        kickoffAt: kickoffPost,
-        resultCasa: 2,
-        resultVisitante: 1,
-      },
-      scores: { scoreCasa: 1, scoreVisitante: 2 },
-      initialPrediction: { scoreCasa: 1, scoreVisitante: 2 },
-      editingEnabled: false,
-      readOnly: true,
-    },
-  ];
-}
-
-function PalpitesCardStatesPreview({
-  bolaoType,
-  escudoCasa = "",
-  escudoVisitante = "",
-}: {
-  bolaoType: PredictionBolaoType;
-  escudoCasa?: string;
-  escudoVisitante?: string;
-}) {
-  const mocks = useMemo(
-    () => buildPalpiteCardPreviewMocks(escudoCasa, escudoVisitante),
-    [escudoCasa, escudoVisitante],
-  );
-
-  return (
-    <section
-      className="mb-6 rounded-2xl border border-primary/25 bg-primary/[0.06] p-4 sm:p-5"
-      aria-label="Preview dos estados do card de palpite"
-    >
-      <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <p className="text-[11px] font-black uppercase tracking-[0.14em] text-primary">
-            Preview · mock
-          </p>
-          <p className="mt-1 text-[13px] font-medium text-white/65">
-            Três estados do card (dados fictícios). Remova com{" "}
-            <span className="font-mono text-white/80">?previewCards=0</span>
-          </p>
-        </div>
-      </div>
-      <div className="space-y-1">
-        {mocks.map((item) => (
-          <div key={item.key}>
-            <p className="mb-2 px-0.5 text-[10px] font-bold uppercase tracking-widest text-white/40">
-              {item.label}
-            </p>
-            <JogoCard
-              jogo={item.jogo}
-              readOnly={item.readOnly}
-              editingEnabled={item.editingEnabled}
-              scores={item.scores}
-              initialPrediction={item.initialPrediction}
-              bolaoType={bolaoType}
-            />
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
 function JogoCard({
   jogo,
   readOnly = false,
@@ -1324,7 +1213,6 @@ function JogoCard({
   initialPrediction,
   predictionsLoading = false,
   bolaoType,
-  phaseOverride,
 }: {
   jogo: Jogo;
   readOnly?: boolean;
@@ -1334,8 +1222,6 @@ function JogoCard({
   initialPrediction?: { scoreCasa: number; scoreVisitante: number } | null;
   predictionsLoading?: boolean;
   bolaoType: PredictionBolaoType;
-  /** Força fase do card (ex.: preview mock). */
-  phaseOverride?: JogoCardPhase;
 }) {
   const { scoreCasa, scoreVisitante } = scores;
 
@@ -1411,7 +1297,7 @@ function JogoCard({
 
   const stepperDisabled =
     readOnly || !canChangeScores || !editingEnabled || predictionsLoading;
-  const phase = phaseOverride ?? getJogoCardPhase(jogo, nowMs);
+  const phase = getJogoCardPhase(jogo, nowMs);
   const kickoffMeta = formatKickoffMetaLong(jogo);
   const countdownLabel = formatCountdownCompact(lockAtMs, nowMs);
   const liveMinute = getLiveMinuteBadge(jogo, nowMs);
@@ -1525,40 +1411,30 @@ function JogoCard({
           >
             <div className="flex min-w-0 flex-col items-center">
               <Escudo url={jogo.escudoCasa} alt={jogo.timeCasa} size="lg" />
-              <p className="mt-2 w-full min-w-0 px-0.5 text-center text-[12px] font-bold uppercase leading-snug text-white line-clamp-2">
-                {jogo.timeCasa}
-              </p>
+              <p className={PALPITE_CARD_TYPE.teamNameShield}>{jogo.timeCasa}</p>
             </div>
             <div className="flex flex-col items-center px-1">
-              <p className="text-[10px] font-black uppercase tracking-[0.1em] text-white/45">
-                Placar oficial
-              </p>
-              <p className="mt-1 text-[2rem] font-black tabular-nums leading-none text-white sm:text-[2.35rem]">
+              <p className={PALPITE_CARD_TYPE.scoreLabel}>Placar oficial</p>
+              <p className={`mt-1 ${PALPITE_CARD_TYPE.scoreHero}`}>
                 {displayCasa}
-                <span className="mx-1.5 text-xl font-bold text-white/40">x</span>
+                <span className={PALPITE_CARD_TYPE.scoreSep}>x</span>
                 {displayVisitante}
               </p>
-              <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-primary/70">
-                Fim de jogo
-              </p>
+              <p className={PALPITE_CARD_TYPE.scorePhaseAccent}>Fim de jogo</p>
             </div>
             <div className="flex min-w-0 flex-col items-center">
               <Escudo url={jogo.escudoVisitante} alt={jogo.timeVisitante} size="lg" />
-              <p className="mt-2 w-full min-w-0 px-0.5 text-center text-[11px] font-bold uppercase leading-snug text-white line-clamp-2">
-                {jogo.timeVisitante}
-              </p>
+              <p className={PALPITE_CARD_TYPE.teamNameShield}>{jogo.timeVisitante}</p>
             </div>
           </div>
 
           {hasInitialPrediction ? (
             <>
               <div
-                className="mx-4 mb-3 rounded-2xl border border-white/[0.07] px-4 py-3.5 sm:mx-5"
+                className={`mx-4 mb-3 sm:mx-5 ${PALPITE_CARD_PANEL_CLASS}`}
                 style={{ background: PALPITE_PANEL_BG }}
               >
-                <p className="mb-2.5 text-center text-[10px] font-black uppercase tracking-[0.12em] text-white/45">
-                  Meu palpite
-                </p>
+                <p className={PALPITE_CARD_TYPE.panelTitleTight}>Meu palpite</p>
                 <PalpiteScoreBoxes casa={scoreCasa} visitante={scoreVisitante} />
               </div>
 
@@ -1573,79 +1449,67 @@ function JogoCard({
               ) : null}
             </>
           ) : (
-            <p className="px-4 pb-4 text-center text-[13px] font-medium text-white/55 sm:px-5">
+            <p className={`px-4 pb-4 text-center sm:px-5 ${PALPITE_CARD_TYPE.bodyMsg}`}>
               Você não fez palpite nesta partida.
             </p>
           )}
         </>
       ) : phase === "live" ? (
         <>
-          <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 px-4 py-4 sm:px-5">
+          <div
+            className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 px-4 py-4 sm:px-5"
+            style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+          >
             <div className="flex min-w-0 flex-col items-center">
               <Escudo url={jogo.escudoCasa} alt={jogo.timeCasa} size="lg" />
-              <p className="mt-2 w-full min-w-0 px-0.5 text-center text-[11px] font-bold uppercase leading-snug text-white line-clamp-2">
-                {jogo.timeCasa}
-              </p>
+              <p className={PALPITE_CARD_TYPE.teamNameShield}>{jogo.timeCasa}</p>
             </div>
             <div className="flex flex-col items-center px-1">
-              <p className="text-[2rem] font-black tabular-nums leading-none text-white sm:text-[2.35rem]">
+              <p className={PALPITE_CARD_TYPE.scoreHero}>
                 {liveCasa}
-                <span className="mx-1.5 text-xl font-bold text-white/45">x</span>
+                <span className={PALPITE_CARD_TYPE.scoreSep}>x</span>
                 {liveVisit}
               </p>
               {liveTempoLabel ? (
-                <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-white/50">
-                  {liveTempoLabel}
-                </p>
+                <p className={PALPITE_CARD_TYPE.scorePhase}>{liveTempoLabel}</p>
               ) : null}
             </div>
             <div className="flex min-w-0 flex-col items-center">
               <Escudo url={jogo.escudoVisitante} alt={jogo.timeVisitante} size="lg" />
-              <p className="mt-2 w-full min-w-0 px-0.5 text-center text-[11px] font-bold uppercase leading-snug text-white line-clamp-2">
-                {jogo.timeVisitante}
-              </p>
+              <p className={PALPITE_CARD_TYPE.teamNameShield}>{jogo.timeVisitante}</p>
             </div>
           </div>
 
           {hasInitialPrediction ? (
-            <div className="px-4 pb-2 sm:px-5">
-              <p className="mb-2 text-center text-[10px] font-semibold uppercase tracking-wide text-white/50">
-                Seu palpite
-              </p>
-              <PalpiteScoreBoxes
-                casa={scoreCasa}
-                visitante={scoreVisitante}
-                size="sm"
-              />
+            <div
+              className={`mx-4 mb-3 sm:mx-5 ${PALPITE_CARD_PANEL_CLASS}`}
+              style={{ background: PALPITE_PANEL_BG }}
+            >
+              <p className={PALPITE_CARD_TYPE.panelTitleTight}>Seu palpite</p>
+              <PalpiteScoreBoxes casa={scoreCasa} visitante={scoreVisitante} />
             </div>
           ) : null}
 
           <div
-            className="mx-4 mb-4 flex items-center justify-center gap-2 rounded-xl px-3 py-3.5 sm:mx-5"
+            className={`mx-4 mb-4 flex items-center justify-center gap-2 sm:mx-5 ${PALPITE_CARD_PANEL_CLASS}`}
             style={{ background: PALPITE_PANEL_BG }}
           >
             <Lock className="size-4 shrink-0 text-white/40" strokeWidth={2} aria-hidden />
-            <p className="text-[12px] font-semibold text-white/55">
-              Palpite enviado e bloqueado
-            </p>
+            <p className={PALPITE_CARD_TYPE.lockMsg}>Palpite enviado e bloqueado</p>
           </div>
         </>
       ) : (
         <>
           <div
-            className="mx-3 mb-4 rounded-2xl px-2.5 py-4 sm:mx-4 sm:px-3"
+            className={`mx-4 mb-4 sm:mx-5 ${PALPITE_CARD_PANEL_CLASS}`}
             style={{ background: PALPITE_PANEL_BG }}
           >
-            <p className="mb-3 text-center text-[14px] font-black uppercase tracking-[0.14em] text-white/70">
-              Seu palpite
-            </p>
+            <p className={PALPITE_CARD_TYPE.panelTitle}>Seu palpite</p>
             <div className="flex items-center justify-between gap-2">
               <div className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
                 <Escudo url={jogo.escudoCasa} alt={jogo.timeCasa} size="md" />
-                <p className="text-[12px] font-bold uppercase text-white/80">Casa</p>
-                <p className="w-full min-w-0 px-0.5 text-center text-[16px] font-bold uppercase leading-snug text-white line-clamp-2 sm:text-[16px]">
-                  {jogo.timeCasa}
-                </p>
+                <p className={PALPITE_CARD_TYPE.sideLabel}>Casa</p>
+                <p className={PALPITE_CARD_TYPE.teamName}>{jogo.timeCasa}</p>
               </div>
               <div className="flex shrink-0 items-center justify-center gap-2 px-0.5">
                 {predictionsLoading ? (
@@ -1684,38 +1548,34 @@ function JogoCard({
               </div>
               <div className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
                 <Escudo url={jogo.escudoVisitante} alt={jogo.timeVisitante} size="md" />
-                <p className="text-[12px] font-bold uppercase text-white/80">Fora</p>
-                <p className="w-full min-w-0 px-0.5 text-center text-[16px] font-bold uppercase leading-snug text-white line-clamp-2 sm:text-[16px]">
-                  {jogo.timeVisitante}
-                </p>
+                <p className={PALPITE_CARD_TYPE.sideLabel}>Fora</p>
+                <p className={PALPITE_CARD_TYPE.teamName}>{jogo.timeVisitante}</p>
               </div>
             </div>
           </div>
 
           {palpiteLocked && hasInitialPrediction ? (
             <div
-              className="mx-4 mb-4 flex items-center justify-center gap-2 rounded-xl px-3 py-3.5 sm:mx-5"
+              className={`mx-4 mb-4 flex items-center justify-center gap-2 sm:mx-5 ${PALPITE_CARD_PANEL_CLASS}`}
               style={{ background: PALPITE_PANEL_BG }}
             >
               <Lock className="size-4 shrink-0 text-white/40" strokeWidth={2} aria-hidden />
-              <p className="text-[12px] font-semibold text-white/55">
-                Palpite enviado e bloqueado
-              </p>
+              <p className={PALPITE_CARD_TYPE.lockMsg}>Palpite enviado e bloqueado</p>
             </div>
           ) : readOnlyPending ? (
-            <p className="px-4 pb-4 text-center text-[13px] font-medium text-white/55 sm:px-5">
+            <p className={`px-4 pb-4 text-center sm:px-5 ${PALPITE_CARD_TYPE.bodyMsg}`}>
               Aguardando o início da partida.
             </p>
           ) : readOnlyPlacarPendente || readOnlyAguardandoPlacarPosTempo ? (
-            <p className="px-4 pb-4 text-center text-[13px] font-medium text-white/55 sm:px-5">
+            <p className={`px-4 pb-4 text-center sm:px-5 ${PALPITE_CARD_TYPE.bodyMsg}`}>
               Estamos sincronizando o placar oficial. Volte em instantes.
             </p>
           ) : isLockedByTime ? (
-            <p className="px-4 pb-4 text-center text-[13px] font-medium text-white/55 sm:px-5">
+            <p className={`px-4 pb-4 text-center sm:px-5 ${PALPITE_CARD_TYPE.bodyMsg}`}>
               Prazo encerrado para novos palpites.
             </p>
           ) : !hasInitialPrediction && readOnly ? (
-            <p className="px-4 pb-4 text-center text-[13px] font-medium text-white/55 sm:px-5">
+            <p className={`px-4 pb-4 text-center sm:px-5 ${PALPITE_CARD_TYPE.bodyMsg}`}>
               Você não fez palpite nesta partida.
             </p>
           ) : null}
@@ -3407,10 +3267,6 @@ function PalpitesPageContent({
 }) {
   const searchParams = useSearchParams();
   const showPalpitesDebug = searchParams.get("debugPalpites") === "1";
-  const previewCardsParam = searchParams.get("previewCards");
-  const showPalpiteCardsPreview =
-    previewCardsParam === "1" ||
-    (process.env.NODE_ENV === "development" && previewCardsParam !== "0");
   const resultMode = searchParams.get("mode") === "resultado";
   const ticketId = searchParams.get("ticket");
   const hasBoloesFlow = Boolean(ticketId);
@@ -4619,14 +4475,6 @@ function PalpitesPageContent({
               <BotoesGrupo />
             </div>
           )}
-
-          {showJogos && showPalpiteCardsPreview ? (
-            <PalpitesCardStatesPreview
-              bolaoType={bolaoType}
-              escudoCasa={jogos[0]?.escudoCasa}
-              escudoVisitante={jogos[0]?.escudoVisitante}
-            />
-          ) : null}
 
           {/* Mobile: conteúdo com tabs — em readOnlyMode usar resultTab (tab principal pode ficar em "jogos" e quebrava Ranking/Resumo) */}
           <div
