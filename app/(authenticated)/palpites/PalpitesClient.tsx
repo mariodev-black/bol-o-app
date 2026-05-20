@@ -33,7 +33,6 @@ import {
   Calendar,
   Flame,
   Lock,
-  ClipboardList,
 } from "lucide-react";
 import {
   TrophyGold,
@@ -549,7 +548,7 @@ function ScoreDisplay({ value, dir }: { value: number; dir: "up" | "down" }) {
     <div className="relative flex h-11 w-full items-center justify-center overflow-hidden">
       <span
         key={value}
-        className={`absolute font-black tabular-nums leading-none text-white text-[28px] sm:text-[30px] ${dir === "up" ? "animate-score-up" : "animate-score-down"
+        className={`absolute font-black tabular-nums leading-none text-white text-[30px] sm:text-[32px] ${dir === "up" ? "animate-score-up" : "animate-score-down"
           }`}
       >
         {value}
@@ -821,18 +820,28 @@ function formatKickoffMetaLong(jogo: Jogo): string {
   return `${formatData(jogo.dataBR, jogo.kickoffAt)}, ${safeHourLabel(jogo.hora)}`;
 }
 
-function formatCountdownHms(lockAtMs: number | null, nowMs: number): string {
+/** Contagem até fechar palpites — texto curto (dias → horas → minutos). */
+function formatCountdownCompact(lockAtMs: number | null, nowMs: number): string {
   if (lockAtMs == null) return "Aberto";
   const diff = lockAtMs - nowMs;
   if (diff <= 0) return "Fechado";
-  const totalSecs = Math.floor(diff / 1000);
-  const h = Math.floor(totalSecs / 3600);
-  const m = Math.floor((totalSecs % 3600) / 60);
-  const s = totalSecs % 60;
-  if (h > 0) {
-    return `Fecha em ${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+
+  const totalMins = Math.floor(diff / 60_000);
+  const days = Math.floor(totalMins / (24 * 60));
+  const hours = Math.floor((totalMins % (24 * 60)) / 60);
+  const mins = totalMins % 60;
+
+  if (days >= 1) {
+    return days === 1 ? "Falta 1 dia" : `Faltam ${days} dias`;
   }
-  return `Fecha em ${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  if (hours >= 1) {
+    return hours === 1 ? "Falta 1h" : `Faltam ${hours}h`;
+  }
+  if (mins >= 1) {
+    return mins === 1 ? "Falta 1 min" : `Faltam ${mins} min`;
+  }
+  const secs = Math.max(1, Math.floor(diff / 1000));
+  return secs === 1 ? "Falta 1 seg" : `Faltam ${secs} seg`;
 }
 
 function getJogoCardPhase(jogo: Jogo, nowMs: number): JogoCardPhase {
@@ -863,8 +872,8 @@ function PalpiteScoreBoxes({
 }) {
   const box =
     size === "sm"
-      ? "min-h-9 min-w-9 text-lg"
-      : "min-h-10 min-w-10 text-xl";
+      ? "min-h-9 min-w-9 text-xl"
+      : "min-h-11 min-w-11 text-2xl";
   return (
     <div
       className="flex items-center justify-center gap-2.5"
@@ -890,6 +899,36 @@ function PalpiteScoreBoxes({
   );
 }
 
+function PalpiteEmptyScoreBoxes({ size = "md" }: { size?: "md" | "sm" }) {
+  const box =
+    size === "sm"
+      ? "min-h-9 min-w-9 text-xl"
+      : "min-h-10 min-w-10 text-2xl";
+  return (
+    <div
+      className="flex items-center justify-center gap-2.5"
+      role="group"
+      aria-label="Palpite ainda não definido"
+    >
+      <span
+        className={`flex items-center justify-center rounded-lg px-2 font-black text-white/35 ${box}`}
+        style={{ background: PALPITE_STEPPER_BG }}
+      >
+        —
+      </span>
+      <span className="text-lg font-bold text-white/40" aria-hidden>
+        x
+      </span>
+      <span
+        className={`flex items-center justify-center rounded-lg px-2 font-black text-white/35 ${box}`}
+        style={{ background: PALPITE_STEPPER_BG }}
+      >
+        —
+      </span>
+    </div>
+  );
+}
+
 function PalpiteCardStatusBar({
   phase,
   countdownLabel,
@@ -907,7 +946,7 @@ function PalpiteCardStatusBar({
         className="flex items-center justify-between gap-2 border-b border-white/[0.06] px-4 py-2.5 sm:px-5"
         style={{ background: "rgba(0,0,0,0.18)" }}
       >
-        <span className="inline-flex items-center gap-1.5 rounded-md bg-[#E53935] px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-white">
+        <span className="inline-flex items-center gap-1.5 rounded-md bg-[#E53935] px-2 py-0.5 text-[11px] font-black uppercase tracking-wide text-white">
           <span className="size-1.5 rounded-full bg-white" aria-hidden />
           AO VIVO
         </span>
@@ -929,10 +968,10 @@ function PalpiteCardStatusBar({
         className="flex items-center justify-between gap-2 border-b border-white/[0.06] px-4 py-2.5 sm:px-5"
         style={{ background: "rgba(0,0,0,0.18)" }}
       >
-        <span className="rounded-md bg-primary px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-[#0E141B]">
+        <span className="rounded-md bg-primary px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wide text-[#0E141B]">
           Resultado
         </span>
-        <span className="flex items-center gap-1 text-[10px] font-semibold text-white/45">
+        <span className="flex items-center gap-1 text-[11px] font-semibold text-white/45">
           <Calendar className="size-3 shrink-0" strokeWidth={2} aria-hidden />
           {kickoffMeta}
         </span>
@@ -942,19 +981,19 @@ function PalpiteCardStatusBar({
 
   return (
     <div
-      className="flex items-center justify-between gap-2 border-b border-white/[0.06] px-4 py-2.5 sm:px-5"
+      className="flex items-center justify-between gap-1.5 border-b border-white/[0.06] px-4 py-2.5 sm:px-5"
       style={{ background: "rgba(0,0,0,0.18)" }}
     >
-      <span className="rounded-md bg-primary px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-[#0E141B]">
+      <span className="shrink-0 rounded-md bg-primary px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wide text-[#0E141B]">
         Pré-jogo
       </span>
-      <span className="inline-flex items-center gap-1 text-[11px] font-bold tabular-nums text-primary">
-        <Clock className="size-3 shrink-0" strokeWidth={2.2} aria-hidden />
-        {countdownLabel}
+      <span className="inline-flex min-w-0 max-w-[38%] shrink items-center justify-center gap-0.5 text-[9px] font-semibold leading-tight text-primary">
+        <Clock className="size-2.5 shrink-0" strokeWidth={2.2} aria-hidden />
+        <span className="truncate">{countdownLabel}</span>
       </span>
-      <span className="flex items-center gap-1 text-[10px] font-semibold text-white/45">
+      <span className="flex min-w-0 max-w-[42%] shrink-0 items-center justify-end gap-1 text-[11px] font-semibold text-white/50">
         <Calendar className="size-3 shrink-0" strokeWidth={2} aria-hidden />
-        {kickoffMeta}
+        <span className="truncate text-right">{kickoffMeta}</span>
       </span>
     </div>
   );
@@ -1137,7 +1176,6 @@ function JogoCard({
   initialPrediction,
   predictionsLoading = false,
   bolaoType,
-  onRequestEdit,
   phaseOverride,
 }: {
   jogo: Jogo;
@@ -1148,14 +1186,10 @@ function JogoCard({
   initialPrediction?: { scoreCasa: number; scoreVisitante: number } | null;
   predictionsLoading?: boolean;
   bolaoType: PredictionBolaoType;
-  /** Ativa modo edição (rodapé global ou salvar em lote). */
-  onRequestEdit?: () => void;
   /** Força fase do card (ex.: preview mock). */
   phaseOverride?: JogoCardPhase;
 }) {
   const { scoreCasa, scoreVisitante } = scores;
-  const [dirCasa, setDirCasa] = useState<"up" | "down">("up");
-  const [dirVisitante, setDirVisitante] = useState<"up" | "down">("up");
 
   const lockLeadMs = palpiteLockBeforeKickoffMs(bolaoType);
   const lockUi = palpiteLockUiCopy(bolaoType);
@@ -1167,7 +1201,12 @@ function JogoCard({
     const tick = () => setNowMs(Date.now());
     if (lockAtMs != null) {
       const msUntilLock = lockAtMs - Date.now();
-      const interval = msUntilLock < 2 * 60 * 1000 ? 1000 : 30_000;
+      const interval =
+        msUntilLock < 60_000
+          ? 1000
+          : msUntilLock < 60 * 60_000
+            ? 30_000
+            : 60_000;
       const id = setInterval(tick, interval);
       return () => clearInterval(id);
     }
@@ -1184,24 +1223,10 @@ function JogoCard({
   const matchOpen = isMatchOpenForPalpite(palpiteEligibilityFromJogo(jogo), bolaoType, nowMs);
   const canEdit = editingEnabled && matchOpen && !isLockedByTime;
 
-  function formatTimeUntilLock(): string {
-    if (!lockAtMs) return "Aberto";
-    const diff = lockAtMs - nowMs;
-    if (diff <= 0) return "Fechado";
-    const totalSecs = Math.floor(diff / 1000);
-    const mins = Math.floor(totalSecs / 60);
-    const hours = Math.floor(mins / 60);
-    const days = Math.floor(hours / 24);
-    if (days >= 2) return `Fecha em ${days}d`;
-    if (days === 1) return `Fecha em 1 dia`;
-    if (hours >= 2) return `Fecha em ${hours}h`;
-    if (mins >= 1) {
-      const remMins = mins % 60;
-      if (hours >= 1) return `Fecha em ${hours}h ${remMins}m`;
-      return `Fecha em ${mins}m`;
-    }
-    return `Fecha em ${totalSecs}s`;
-  }
+  const hasInitialPrediction = Boolean(initialPrediction);
+  const canChangeScores = Boolean(onScoresChange);
+  const [dirCasa, setDirCasa] = useState<"up" | "down">("up");
+  const [dirVisitante, setDirVisitante] = useState<"up" | "down">("up");
 
   function increment(side: "casa" | "visitante") {
     if (!onScoresChange) return;
@@ -1236,11 +1261,11 @@ function JogoCard({
     }
   }
 
-  const disabled = readOnly || !canEdit || predictionsLoading;
-  const hasInitialPrediction = Boolean(initialPrediction);
+  const stepperDisabled =
+    readOnly || !canChangeScores || !editingEnabled || predictionsLoading;
   const phase = phaseOverride ?? getJogoCardPhase(jogo, nowMs);
   const kickoffMeta = formatKickoffMetaLong(jogo);
-  const countdownLabel = formatCountdownHms(lockAtMs, nowMs);
+  const countdownLabel = formatCountdownCompact(lockAtMs, nowMs);
   const liveMinute = getLiveMinuteBadge(jogo, nowMs);
   const [pontosExpanded, setPontosExpanded] = useState(
     () => phase === "post",
@@ -1347,8 +1372,8 @@ function JogoCard({
           <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 px-4 py-4 sm:px-5">
             <div className="flex min-w-0 flex-col items-center">
               <Escudo url={jogo.escudoCasa} alt={jogo.timeCasa} size="lg" />
-              <p className="mt-2 text-center text-[12px] font-black uppercase leading-snug text-white line-clamp-2">
-                {jogo.siglasCasa}
+              <p className="mt-2 w-full min-w-0 px-0.5 text-center text-[11px] font-bold uppercase leading-snug text-white line-clamp-2">
+                {jogo.timeCasa}
               </p>
             </div>
             <div className="flex flex-col items-center px-1">
@@ -1366,8 +1391,8 @@ function JogoCard({
             </div>
             <div className="flex min-w-0 flex-col items-center">
               <Escudo url={jogo.escudoVisitante} alt={jogo.timeVisitante} size="lg" />
-              <p className="mt-2 text-center text-[12px] font-black uppercase leading-snug text-white line-clamp-2">
-                {jogo.siglasVisitante}
+              <p className="mt-2 w-full min-w-0 px-0.5 text-center text-[11px] font-bold uppercase leading-snug text-white line-clamp-2">
+                {jogo.timeVisitante}
               </p>
             </div>
           </div>
@@ -1475,8 +1500,8 @@ function JogoCard({
           <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 px-4 py-4 sm:px-5">
             <div className="flex min-w-0 flex-col items-center">
               <Escudo url={jogo.escudoCasa} alt={jogo.timeCasa} size="lg" />
-              <p className="mt-2 text-center text-[12px] font-black uppercase text-white">
-                {jogo.siglasCasa}
+              <p className="mt-2 w-full min-w-0 px-0.5 text-center text-[11px] font-bold uppercase leading-snug text-white line-clamp-2">
+                {jogo.timeCasa}
               </p>
             </div>
             <div className="flex flex-col items-center px-1">
@@ -1493,8 +1518,8 @@ function JogoCard({
             </div>
             <div className="flex min-w-0 flex-col items-center">
               <Escudo url={jogo.escudoVisitante} alt={jogo.timeVisitante} size="lg" />
-              <p className="mt-2 text-center text-[12px] font-black uppercase text-white">
-                {jogo.siglasVisitante}
+              <p className="mt-2 w-full min-w-0 px-0.5 text-center text-[11px] font-bold uppercase leading-snug text-white line-clamp-2">
+                {jogo.timeVisitante}
               </p>
             </div>
           </div>
@@ -1525,21 +1550,21 @@ function JogoCard({
       ) : (
         <>
           <div
-            className="mx-3 mb-3 rounded-2xl px-2.5 py-4 sm:mx-4 sm:px-3"
+            className="mx-3 mb-4 rounded-2xl px-2.5 py-4 sm:mx-4 sm:px-3"
             style={{ background: PALPITE_PANEL_BG }}
           >
-            <p className="mb-3 text-center text-[10px] font-black uppercase tracking-[0.14em] text-white/45">
+            <p className="mb-3 text-center text-[11px] font-black uppercase tracking-[0.14em] text-white/45">
               Seu palpite
             </p>
             <div className="flex items-center justify-between gap-2">
-              <div className="flex min-w-0 flex-1 flex-col items-center gap-1">
+              <div className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
                 <Escudo url={jogo.escudoCasa} alt={jogo.timeCasa} size="md" />
-                <p className="text-[11px] font-bold uppercase text-white/80">Casa</p>
-                <p className="text-[12px] font-black uppercase tracking-[0.06em] text-white">
-                  {jogo.siglasCasa}
+                <p className="text-[12px] font-bold uppercase text-white/80">Casa</p>
+                <p className="w-full min-w-0 px-0.5 text-center text-[11px] font-bold uppercase leading-snug text-white line-clamp-2 sm:text-[12px]">
+                  {jogo.timeCasa}
                 </p>
               </div>
-              <div className="flex shrink-0 items-center gap-2 px-0.5">
+              <div className="flex shrink-0 items-center justify-center gap-2 px-0.5">
                 {predictionsLoading ? (
                   <>
                     <div
@@ -1551,48 +1576,40 @@ function JogoCard({
                       style={{ background: PALPITE_STEPPER_BG }}
                     />
                   </>
-                ) : (
+                ) : canChangeScores ? (
                   <>
                     <VertScoreStepper
                       value={scoreCasa}
                       dir={dirCasa}
                       onInc={() => increment("casa")}
                       onDec={() => decrement("casa")}
-                      disabled={disabled}
+                      disabled={stepperDisabled}
                     />
                     <VertScoreStepper
                       value={scoreVisitante}
                       dir={dirVisitante}
                       onInc={() => increment("visitante")}
                       onDec={() => decrement("visitante")}
-                      disabled={disabled}
+                      disabled={stepperDisabled}
                     />
                   </>
+                ) : hasInitialPrediction ? (
+                  <PalpiteScoreBoxes casa={scoreCasa} visitante={scoreVisitante} />
+                ) : (
+                  <PalpiteEmptyScoreBoxes />
                 )}
               </div>
-              <div className="flex min-w-0 flex-1 flex-col items-center gap-1">
+              <div className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
                 <Escudo url={jogo.escudoVisitante} alt={jogo.timeVisitante} size="md" />
-                <p className="text-[11px] font-bold uppercase text-white/80">Fora</p>
-                <p className="text-[12px] font-black uppercase tracking-[0.06em] text-white">
-                  {jogo.siglasVisitante}
+                <p className="text-[12px] font-bold uppercase text-white/80">Fora</p>
+                <p className="w-full min-w-0 px-0.5 text-center text-[11px] font-bold uppercase leading-snug text-white line-clamp-2 sm:text-[12px]">
+                  {jogo.timeVisitante}
                 </p>
               </div>
             </div>
           </div>
 
-          {canEdit ? (
-            <div className="px-4 pb-4 sm:px-5">
-              <button
-                type="button"
-                onClick={() => onRequestEdit?.()}
-                className="flex h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-primary text-[12px] font-black uppercase tracking-[0.06em] text-[#0E141B] transition-[filter] hover:brightness-105 active:scale-[0.98] disabled:opacity-50"
-                disabled={predictionsLoading}
-              >
-                <ClipboardList className="size-4 shrink-0" strokeWidth={2.4} aria-hidden />
-                {hasInitialPrediction ? "Editar palpite" : "Fazer palpite"}
-              </button>
-            </div>
-          ) : palpiteLocked && hasInitialPrediction ? (
+          {palpiteLocked && hasInitialPrediction ? (
             <div
               className="mx-4 mb-4 flex items-center justify-center gap-2 rounded-xl px-3 py-3.5 sm:mx-5"
               style={{ background: PALPITE_PANEL_BG }}
@@ -4048,19 +4065,16 @@ function PalpitesPageContent({
   const buildJogoCardEditProps = (jogo: Jogo) => {
     const canEditMatch = isJogoEditavelParaPalpite(jogo, bolaoType);
     const hasSavedOnCard = Boolean(predictionsMap[jogo.id]);
-    const editing =
+    /** +/- no card: aberto no pré-jogo; trava só após salvar até "Editar palpites" no rodapé. */
+    const canChangeOnCard =
       !readOnlyMode &&
       canEditMatch &&
       (!hasSavedPalpitesOnScope || !hasSavedOnCard || palpitesEditing);
     return {
-      editingEnabled: editing,
-      onScoresChange: editing
+      editingEnabled: canChangeOnCard,
+      onScoresChange: canChangeOnCard
         ? (s: JogoCardScores) => handleScoresChange(jogo.id, s)
         : undefined,
-      onRequestEdit: () => {
-        setSaveAllError(null);
-        setPalpitesEditing(true);
-      },
     };
   };
 
