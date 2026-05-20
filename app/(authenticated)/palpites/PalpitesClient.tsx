@@ -4,8 +4,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   ChevronDown,
-  Minus,
-  Plus,
+  ArrowDown,
   BarChart2,
   Trophy,
   AlignJustify,
@@ -24,6 +23,7 @@ import {
   Sparkles,
   X,
   Info,
+  ArrowUp,
 } from "lucide-react";
 import {
   TrophyGold,
@@ -471,12 +471,14 @@ function Escudo({
   const imgSize =
     size === "sm" ? "w-12 h-12" : size === "lg" ? "w-16 h-16" : "w-14 h-14";
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={url}
-      alt={alt}
-      className={`${imgSize} object-contain shrink-0 drop-shadow-sm`}
-    />
+    <div className="w-20 h-20 rounded-[17px] p-4 flex items-center justify-center overflow-hidden shrink-0"
+    style={{ background: "rgba(255,255,255,0.95)" }}>
+      <img
+        src={url}
+        alt={alt}
+        className={`${imgSize} object-contain shrink-0 drop-shadow-sm`}
+      />
+    </div>
   );
 }
 
@@ -638,9 +640,8 @@ function formatPontosLabel(n: number): string {
 function PontosBreakdownIcon({ hit }: { hit: boolean }) {
   return (
     <span
-      className={`flex size-6 shrink-0 items-center justify-center rounded-full ${
-        hit ? "bg-[#0AC96B]" : "bg-[#F87171]"
-      }`}
+      className={`flex size-6 shrink-0 items-center justify-center rounded-full ${hit ? "bg-[#0AC96B]" : "bg-[#F87171]"
+        }`}
       aria-hidden
     >
       {hit ? (
@@ -768,11 +769,11 @@ function JogoCard({
   const review =
     readOnly && temPlacarOficial && hasInitialPrediction
       ? calcPredictionPoints(
-          scoreCasa,
-          scoreVisitante,
-          jogo.resultCasa!,
-          jogo.resultVisitante!,
-        )
+        scoreCasa,
+        scoreVisitante,
+        jogo.resultCasa!,
+        jogo.resultVisitante!,
+      )
       : null;
 
   const koMs = kickoffMsFromJogo(jogo);
@@ -799,19 +800,19 @@ function JogoCard({
     nowMs >= koMs;
   const resultadoResumo =
     readOnly &&
-    temPlacarOficial &&
-    hasInitialPrediction &&
-    review &&
-    !readOnlyPending &&
-    !readOnlyMatchLive &&
-    !readOnlyPlacarPendente
+      temPlacarOficial &&
+      hasInitialPrediction &&
+      review &&
+      !readOnlyPending &&
+      !readOnlyMatchLive &&
+      !readOnlyPlacarPendente
       ? copyPontuacaoPartida(
-          review,
-          scoreCasa,
-          scoreVisitante,
-          jogo.resultCasa!,
-          jogo.resultVisitante!,
-        )
+        review,
+        scoreCasa,
+        scoreVisitante,
+        jogo.resultCasa!,
+        jogo.resultVisitante!,
+      )
       : null;
 
   const showPlacarOficialLayout = readOnly && temPlacarOficial;
@@ -820,49 +821,49 @@ function JogoCard({
   const pontosLinhas =
     review != null
       ? palpitePontosBreakdown(
-          review,
-          scoreCasa,
-          scoreVisitante,
-          jogo.resultCasa!,
-          jogo.resultVisitante!,
-        )
+        review,
+        scoreCasa,
+        scoreVisitante,
+        jogo.resultCasa!,
+        jogo.resultVisitante!,
+      )
       : [];
 
   // Status badge label/style
   const statusBadge = readOnly
     ? readOnlyPending
       ? {
-          label: "Aguardando jogo",
-          color: "#E8C840",
-          bg: "rgba(232,200,64,0.12)",
-          border: "rgba(232,200,64,0.38)",
-          dot: true,
-        }
+        label: "Aguardando jogo",
+        color: "#E8C840",
+        bg: "rgba(232,200,64,0.12)",
+        border: "rgba(232,200,64,0.38)",
+        dot: true,
+      }
       : readOnlyMatchLive
         ? {
-            label: "Em andamento",
-            color: "#B1EB0B",
-            bg: "rgba(177,235,11,0.10)",
-            border: "rgba(177,235,11,0.30)",
-            dot: true,
-          }
+          label: "Em andamento",
+          color: "#B1EB0B",
+          bg: "rgba(177,235,11,0.10)",
+          border: "rgba(177,235,11,0.30)",
+          dot: true,
+        }
         : readOnlyAguardandoPlacarPosTempo
           ? {
-              label: "Aguardando placar",
-              color: "#E8C840",
-              bg: "rgba(232,200,64,0.12)",
-              border: "rgba(232,200,64,0.38)",
-              dot: true,
-            }
-        : readOnlyPlacarPendente
-          ? {
+            label: "Aguardando placar",
+            color: "#E8C840",
+            bg: "rgba(232,200,64,0.12)",
+            border: "rgba(232,200,64,0.38)",
+            dot: true,
+          }
+          : readOnlyPlacarPendente
+            ? {
               label: "Placar pendente",
               color: "#E8C840",
               bg: "rgba(232,200,64,0.12)",
               border: "rgba(232,200,64,0.38)",
               dot: true,
             }
-          : {
+            : {
               label: "RESULTADO",
               color: "#0E141B",
               bg: "#B1EB0B",
@@ -871,35 +872,35 @@ function JogoCard({
             }
     : jogo.status === "encerrado"
       ? {
-          label: "Encerrado",
-          color: "rgba(255,255,255,0.30)",
-          bg: "transparent",
-          border: "rgba(255,255,255,0.08)",
-          dot: false,
-        }
+        label: "Encerrado",
+        color: "rgba(255,255,255,0.30)",
+        bg: "transparent",
+        border: "rgba(255,255,255,0.08)",
+        dot: false,
+      }
       : palpiteSalvo
         ? {
-            label: "Palpite salvo",
+          label: "Palpite salvo",
+          color: "#B1EB0B",
+          bg: "rgba(177,235,11,0.10)",
+          border: "rgba(177,235,11,0.34)",
+          dot: true,
+        }
+        : isLockedByTime
+          ? {
+            label: "Fechado",
+            color: "rgba(255,255,255,0.40)",
+            bg: "rgba(255,255,255,0.06)",
+            border: "rgba(255,255,255,0.10)",
+            dot: false,
+          }
+          : {
+            label: formatTimeUntilLock(),
             color: "#B1EB0B",
             bg: "rgba(177,235,11,0.10)",
             border: "rgba(177,235,11,0.34)",
             dot: true,
-          }
-        : isLockedByTime
-          ? {
-              label: "Fechado",
-              color: "rgba(255,255,255,0.40)",
-              bg: "rgba(255,255,255,0.06)",
-              border: "rgba(255,255,255,0.10)",
-              dot: false,
-            }
-          : {
-              label: formatTimeUntilLock(),
-              color: "#B1EB0B",
-              bg: "rgba(177,235,11,0.10)",
-              border: "rgba(177,235,11,0.34)",
-              dot: true,
-            };
+          };
 
   // Horizontal stepper — botões − / + brancos (áreas de toque maiores)
   const HorizStepper = ({
@@ -911,15 +912,15 @@ function JogoCard({
     onInc: () => void;
     onDec: () => void;
   }) => (
-    <div className="mt-3 flex items-center gap-2.5">
+    <div className="mt-3 flex flex-col items-center gap-2.5 border border-white/10 rounded-lg">
       <button
         type="button"
         onClick={onDec}
         disabled={disabled}
         aria-label="Diminuir gols"
-        className="flex h-11 w-11 min-h-11 min-w-11 items-center justify-center rounded-lg border border-white/20 bg-white text-[#0E141B] shadow-[0_2px_8px_rgba(0,0,0,0.25)] transition active:scale-[0.97] disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/25 disabled:text-[#0E141B]/45"
+        className="flex px-4 py-1.5 items-center justify-center rounded-full border border-white/20 bg-white text-[#0E141B] shadow-[0_2px_8px_rgba(0,0,0,0.25)] transition active:scale-[0.97] disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/25 disabled:text-[#0E141B]/45"
       >
-        <Minus className="h-5 w-5" strokeWidth={2.8} aria-hidden />
+        <ArrowDown className="h-5 w-5 text-black" strokeWidth={2.8} aria-hidden />
       </button>
       <span className="min-w-10 text-center text-[26px] font-black tabular-nums leading-none text-white">
         {value}
@@ -929,9 +930,9 @@ function JogoCard({
         onClick={onInc}
         disabled={disabled}
         aria-label="Aumentar gols"
-        className="flex h-11 w-11 min-h-11 min-w-11 items-center justify-center rounded-lg border border-white/20 bg-white text-[#0E141B] shadow-[0_2px_8px_rgba(0,0,0,0.25)] transition active:scale-[0.97] disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/25 disabled:text-[#0E141B]/45"
+        className="flex px-4 py-1.5 items-center justify-center rounded-full border border-white/20 bg-white text-[#0E141B] shadow-[0_2px_8px_rgba(0,0,0,0.25)] transition active:scale-[0.97] disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/25 disabled:text-[#0E141B]/45"
       >
-        <Plus className="h-5 w-5" strokeWidth={2.8} aria-hidden />
+        <ArrowUp className="h-5 w-5 text-black" strokeWidth={2.8} aria-hidden />
       </button>
     </div>
   );
@@ -981,30 +982,12 @@ function JogoCard({
     >
       {/* ── Top bar: status + date (tipografia maior, contraste alto) ── */}
       <div className="flex items-start justify-between gap-3 px-4 sm:px-5 pt-4 pb-1">
-        <div
-          className="flex items-center gap-2 px-3 py-2 rounded-full shrink-0"
-          style={{
-            background: statusBadge.bg,
-            border: `1px solid ${statusBadge.border}`,
-          }}
-        >
-          {statusBadge.dot && (
-            <span
-              className="w-2 h-2 rounded-full animate-pulse shrink-0"
-              style={{ background: statusBadge.color }}
-              aria-hidden
-            />
-          )}
-          <span
-            className="text-sm font-semibold leading-tight tracking-normal"
-            style={{ color: statusBadge.color }}
-          >
-            {statusBadge.label}
-          </span>
+        <div className="text-[14px] font-bold uppercase leading-none tracking-[-0.02em] text-white">
+          {jogo.timeCasa} <br /> vs {jogo.timeVisitante}
         </div>
         <div className="flex flex-col items-end justify-start gap-1 text-right min-w-0 flex-1">
           <span
-            className="text-sm font-medium leading-snug"
+            className="text-[14px] font-bold leading-snug"
             style={{ color: "rgba(255,255,255,0.78)" }}
           >
             {formatData(jogo.dataBR, jogo.kickoffAt)},{" "}
@@ -1027,7 +1010,7 @@ function JogoCard({
             <div className="flex min-w-0 flex-col items-center">
               <Escudo url={jogo.escudoCasa} alt={jogo.timeCasa} size="lg" />
               <p className="mt-2 text-center text-[13px] font-bold uppercase leading-snug text-white line-clamp-2">
-                {jogo.timeCasa}
+                {jogo.siglasCasa}
               </p>
             </div>
             <div className="flex flex-col items-center px-1">
@@ -1043,7 +1026,7 @@ function JogoCard({
             <div className="flex min-w-0 flex-col items-center">
               <Escudo url={jogo.escudoVisitante} alt={jogo.timeVisitante} size="lg" />
               <p className="mt-2 text-center text-[13px] font-bold uppercase leading-snug text-white line-clamp-2">
-                {jogo.timeVisitante}
+                {jogo.siglasVisitante}
               </p>
             </div>
           </div>
@@ -1089,9 +1072,8 @@ function JogoCard({
                           </span>
                           <PontosBreakdownIcon hit={linha.hit} />
                           <span
-                            className={`min-w-[3.25rem] text-right text-[13px] font-bold tabular-nums ${
-                              linha.points > 0 ? "text-[#D4F862]" : "text-white/45"
-                            }`}
+                            className={`min-w-[3.25rem] text-right text-[13px] font-bold tabular-nums ${linha.points > 0 ? "text-[#D4F862]" : "text-white/45"
+                              }`}
                           >
                             {formatPontosLabel(linha.points)}
                           </span>
@@ -1125,12 +1107,15 @@ function JogoCard({
           ) : null}
         </>
       ) : (
-        <div className="flex items-end px-4 sm:px-5 py-4 gap-2">
+        <div className="flex items-end p-2 gap-2">
           <div className="flex flex-1 flex-col items-center min-w-0">
             <Escudo url={jogo.escudoCasa} alt={jogo.timeCasa} size="md" />
             <p className="mt-3 text-[15px] sm:text-base font-semibold text-white text-center leading-snug line-clamp-2 px-0.5">
-              {jogo.timeCasa}
+              {jogo.siglasCasa}
             </p>
+
+          </div>
+          <div className="flex items-center gap-5">
             {predictionsLoading ? (
               <div
                 className="mt-3 h-11 w-28 rounded-full animate-pulse"
@@ -1143,29 +1128,6 @@ function JogoCard({
                 onDec={() => decrement("casa")}
               />
             )}
-          </div>
-
-          <svg
-            className="mb-2 shrink-0 opacity-95"
-            width="22"
-            height="22"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="rgba(255,255,255,0.45)"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden
-          >
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-
-          <div className="flex flex-1 flex-col items-center min-w-0">
-            <Escudo url={jogo.escudoVisitante} alt={jogo.timeVisitante} size="md" />
-            <p className="mt-3 text-[15px] sm:text-base font-semibold text-white text-center leading-snug line-clamp-2 px-0.5">
-              {jogo.timeVisitante}
-            </p>
             {predictionsLoading ? (
               <div
                 className="mt-3 h-11 w-28 rounded-full animate-pulse"
@@ -1178,6 +1140,13 @@ function JogoCard({
                 onDec={() => decrement("visitante")}
               />
             )}
+          </div>
+          <div className="flex flex-1 flex-col items-center min-w-0">
+            <Escudo url={jogo.escudoVisitante} alt={jogo.timeVisitante} size="md" />
+            <p className="mt-3 text-[15px] sm:text-base font-semibold text-white text-center leading-snug line-clamp-2 px-0.5">
+              {jogo.siglasVisitante}
+            </p>
+
           </div>
         </div>
       )}
@@ -1436,11 +1405,11 @@ function JogoCard({
           </button>
         )}
         {!readOnly &&
-        !palpiteSalvo &&
-        !canEdit &&
-        jogo.status === "aberto" &&
-        isLockedByTime &&
-        !hasInitialPrediction ? (
+          !palpiteSalvo &&
+          !canEdit &&
+          jogo.status === "aberto" &&
+          isLockedByTime &&
+          !hasInitialPrediction ? (
           <p
             className="mt-3 text-sm text-center leading-relaxed px-1"
             style={{ color: "rgba(255,255,255,0.72)" }}
@@ -1795,14 +1764,14 @@ function RankingView({
   const lockCopy = palpiteLockUiCopy(bolaoType);
   const MEU = rows.find((r) => r.isMe) ??
     rows[0] ?? {
-      pos: 0,
-      nome: "Você",
-      iniciais: "VO",
-      acertos: 0,
-      pts: 0,
-      exact: 0,
-      gols: 0,
-    };
+    pos: 0,
+    nome: "Você",
+    iniciais: "VO",
+    acertos: 0,
+    pts: 0,
+    exact: 0,
+    gols: 0,
+  };
   return (
     <div className="flex flex-col gap-3">
       {/* Minha posição */}
@@ -2345,19 +2314,19 @@ function TicketResumoView({
                           style={{
                             background:
                               item.resultadoCasa != null &&
-                              item.resultadoVisitante != null
+                                item.resultadoVisitante != null
                                 ? "rgba(148,163,184,0.12)"
                                 : "rgba(34,197,94,0.12)",
                             color:
                               item.resultadoCasa != null &&
-                              item.resultadoVisitante != null
+                                item.resultadoVisitante != null
                                 ? "rgba(226,232,240,0.85)"
                                 : "#86EFAC",
                             border: `1px solid ${item.resultadoCasa != null && item.resultadoVisitante != null ? "rgba(148,163,184,0.25)" : "rgba(34,197,94,0.28)"}`,
                           }}
                         >
                           {item.resultadoCasa != null &&
-                          item.resultadoVisitante != null
+                            item.resultadoVisitante != null
                             ? "Encerrado"
                             : "Aberto"}
                         </span>
@@ -2486,8 +2455,8 @@ function DesktopSidebar({
   }
   const todosGrupos = tabela
     ? Object.entries(tabela)
-        .filter(([k]) => k.startsWith("grupo-"))
-        .sort(([a], [b]) => a.localeCompare(b))
+      .filter(([k]) => k.startsWith("grupo-"))
+      .sort(([a], [b]) => a.localeCompare(b))
     : [];
   const idx = grupos.indexOf(grupo);
   const prev = idx > 0 ? grupos[idx - 1] : null;
@@ -2906,16 +2875,16 @@ function RoundPhaseNav({
                   style={
                     isSelected
                       ? {
-                          background: "rgba(177,235,11,0.15)",
-                          border: "1px solid rgba(177,235,11,0.50)",
-                          minWidth: 64,
-                          boxShadow: "0 0 12px rgba(177,235,11,0.18)",
-                        }
+                        background: "rgba(177,235,11,0.15)",
+                        border: "1px solid rgba(177,235,11,0.50)",
+                        minWidth: 64,
+                        boxShadow: "0 0 12px rgba(177,235,11,0.18)",
+                      }
                       : {
-                          background: "rgba(255,255,255,0.04)",
-                          border: "1px solid rgba(255,255,255,0.07)",
-                          minWidth: 64,
-                        }
+                        background: "rgba(255,255,255,0.04)",
+                        border: "1px solid rgba(255,255,255,0.07)",
+                        minWidth: 64,
+                      }
                   }
                 >
                   {/* status dot / check */}
@@ -3065,9 +3034,9 @@ function PalpitesPageContent({
     // Ticket extra "por rodada" → trava na rodada do ticket.
     const ticketRound =
       bt === "extra" &&
-      initialData.extraRoundNumber != null &&
-      Number.isFinite(Number(initialData.extraRoundNumber)) &&
-      Number(initialData.extraRoundNumber) > 0
+        initialData.extraRoundNumber != null &&
+        Number.isFinite(Number(initialData.extraRoundNumber)) &&
+        Number(initialData.extraRoundNumber) > 0
         ? Number(initialData.extraRoundNumber)
         : null;
     if (ticketRound != null) {
@@ -3079,16 +3048,16 @@ function PalpitesPageContent({
     const lockIds =
       bt === "diario" || bt === "extra"
         ? Object.keys(initialData.predictionsMap ?? {})
-            .map(Number)
-            .filter(Number.isFinite)
+          .map(Number)
+          .filter(Number.isFinite)
         : [];
     const extraId =
       bt === "extra"
         ? (() => {
-            const r = initialData.extraChampionshipId;
-            if (r != null && Number.isFinite(Number(r)) && Number(r) > 0) return Number(r);
-            return getSoleConfiguredExtraChampionshipId();
-          })()
+          const r = initialData.extraChampionshipId;
+          if (r != null && Number.isFinite(Number(r)) && Number(r) > 0) return Number(r);
+          return getSoleConfiguredExtraChampionshipId();
+        })()
         : null;
     const map =
       extraId != null
@@ -3164,9 +3133,9 @@ function PalpitesPageContent({
       // Ticket extra por rodada → seleciona a rodada do ticket.
       const ticketRound =
         bt === "extra" &&
-        initialDataRef.current?.extraRoundNumber != null &&
-        Number.isFinite(Number(initialDataRef.current.extraRoundNumber)) &&
-        Number(initialDataRef.current.extraRoundNumber) > 0
+          initialDataRef.current?.extraRoundNumber != null &&
+          Number.isFinite(Number(initialDataRef.current.extraRoundNumber)) &&
+          Number(initialDataRef.current.extraRoundNumber) > 0
           ? Number(initialDataRef.current.extraRoundNumber)
           : null;
       if (ticketRound != null) {
@@ -3180,16 +3149,16 @@ function PalpitesPageContent({
       const lockIds =
         bt === "diario" || bt === "extra"
           ? Object.keys(predictionsMapRef.current)
-              .map(Number)
-              .filter(Number.isFinite)
+            .map(Number)
+            .filter(Number.isFinite)
           : [];
       const extraId =
         bt === "extra"
           ? (() => {
-              const r = initialDataRef.current?.extraChampionshipId;
-              if (r != null && Number.isFinite(Number(r)) && Number(r) > 0) return Number(r);
-              return getSoleConfiguredExtraChampionshipId();
-            })()
+            const r = initialDataRef.current?.extraChampionshipId;
+            if (r != null && Number.isFinite(Number(r)) && Number(r) > 0) return Number(r);
+            return getSoleConfiguredExtraChampionshipId();
+          })()
           : null;
       const map =
         bt === "extra" && extraId != null
@@ -3217,10 +3186,10 @@ function PalpitesPageContent({
         const id =
           bolaoTypeRef.current === "extra"
             ? (() => {
-                const r = initialDataRef.current?.extraChampionshipId;
-                if (r != null && Number.isFinite(Number(r)) && Number(r) > 0) return Number(r);
-                return getSoleConfiguredExtraChampionshipId();
-              })()
+              const r = initialDataRef.current?.extraChampionshipId;
+              if (r != null && Number.isFinite(Number(r)) && Number(r) > 0) return Number(r);
+              return getSoleConfiguredExtraChampionshipId();
+            })()
             : null;
         const comp =
           bolaoTypeRef.current === "extra" && id != null
@@ -3414,7 +3383,7 @@ function PalpitesPageContent({
             isMe: row.isMe,
           })),
         );
-      } catch {}
+      } catch { }
     })();
   }, [bolaoType, ticketId, jogosPlacarSignature]);
 
@@ -3494,9 +3463,9 @@ function PalpitesPageContent({
    */
   const extraTicketRound =
     bolaoType === "extra" &&
-    initialData?.extraRoundNumber != null &&
-    Number.isFinite(Number(initialData.extraRoundNumber)) &&
-    Number(initialData.extraRoundNumber) > 0
+      initialData?.extraRoundNumber != null &&
+      Number.isFinite(Number(initialData.extraRoundNumber)) &&
+      Number(initialData.extraRoundNumber) > 0
       ? Number(initialData.extraRoundNumber)
       : null;
   const extraRoundMode = bolaoType === "extra" && extraTicketRound != null;
@@ -3574,7 +3543,7 @@ function PalpitesPageContent({
     const labelFromExtra =
       extraRoundMode && idx === extraTicketRound
         ? ((initialData?.extraRoundName ?? "").trim() ||
-            (extraTicketRound != null ? `${extraTicketRound}ª Rodada` : null))
+          (extraTicketRound != null ? `${extraTicketRound}ª Rodada` : null))
         : null;
     return {
       label: labelFromExtra ?? rodadaLabel(idx),
@@ -3682,11 +3651,11 @@ function PalpitesPageContent({
   // When showGroupedByGroup, filter by selected round and date
   const jogosFiltradosParaGrupos = showGroupedByGroup
     ? jogosDisplayBase.filter((j) => {
-        if (selectedRodada !== null && j.rodada !== selectedRodada)
-          return false;
-        if (selectedDate && j.dataBR !== selectedDate) return false;
-        return true;
-      })
+      if (selectedRodada !== null && j.rodada !== selectedRodada)
+        return false;
+      if (selectedDate && j.dataBR !== selectedDate) return false;
+      return true;
+    })
     : jogosDisplayBase;
   const gruposComJogosFiltrados = Array.from(
     new Set(jogosFiltradosParaGrupos.map((j) => j.grupo).filter(Boolean)),
