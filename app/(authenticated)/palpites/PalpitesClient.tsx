@@ -3639,28 +3639,11 @@ function PalpitesPageContent({
       ? jogosBase.filter((j) => Boolean(predictionsMap[j.id]))
       : jogosBase;
 
-  const hasSavedPalpites = Object.keys(predictionsMap).length > 0;
   const hasEditableMatches = jogosDisplayBase.some((j) =>
     isJogoEditavelParaPalpite(j, bolaoType),
   );
   const showPalpitesFooter =
     Boolean(ticketId) && showJogos && !readOnlyMode && hasEditableMatches;
-
-  useEffect(() => {
-    if (palpitesEditing && !hasEditableMatches) setPalpitesEditing(false);
-  }, [palpitesEditing, hasEditableMatches]);
-
-  useEffect(() => {
-    if (!hasSavedPalpites && palpitesEditing) setPalpitesEditing(false);
-  }, [hasSavedPalpites, palpitesEditing]);
-
-  const cancelPalpitesEdit = () => {
-    draftDirtyRef.current.clear();
-    setDraftScores({ ...predictionsMap });
-    setDraftTouchedIds({});
-    setSaveAllError(null);
-    setPalpitesEditing(false);
-  };
 
   const rodadaAtualSalvar =
     selectedRodada ??
@@ -3673,21 +3656,6 @@ function PalpitesPageContent({
     showJogos &&
     Boolean(selectedDate) &&
     selectedRodada != null;
-
-  const matchNeedsSave = useCallback(
-    (matchId: number, scores: JogoCardScores) => {
-      if (!draftDirtyRef.current.has(matchId) && !draftTouchedIds[matchId]) {
-        return false;
-      }
-      const saved = predictionsMap[matchId];
-      if (!saved) return true;
-      return (
-        scores.scoreCasa !== saved.scoreCasa ||
-        scores.scoreVisitante !== saved.scoreVisitante
-      );
-    },
-    [draftTouchedIds, predictionsMap],
-  );
 
   const jogosEscopoSalvar = useMemo(() => {
     return jogosDisplayBase.filter((j) => {
@@ -3705,6 +3673,50 @@ function PalpitesPageContent({
     rodadaAtualSalvar,
     selectedDate,
   ]);
+
+  /** Palpites já salvos no dia/escopo visível (não no ticket inteiro). */
+  const hasSavedPalpitesOnScope = useMemo(
+    () => jogosEscopoSalvar.some((j) => Boolean(predictionsMap[j.id])),
+    [jogosEscopoSalvar, predictionsMap],
+  );
+
+  useEffect(() => {
+    if (palpitesEditing && !hasEditableMatches) setPalpitesEditing(false);
+  }, [palpitesEditing, hasEditableMatches]);
+
+  useEffect(() => {
+    if (!hasSavedPalpitesOnScope && palpitesEditing) setPalpitesEditing(false);
+  }, [hasSavedPalpitesOnScope, palpitesEditing]);
+
+  useEffect(() => {
+    setPalpitesEditing(false);
+    setSaveAllError(null);
+    draftDirtyRef.current.clear();
+    setDraftTouchedIds({});
+  }, [selectedDate, selectedRodada]);
+
+  const cancelPalpitesEdit = () => {
+    draftDirtyRef.current.clear();
+    setDraftScores({ ...predictionsMap });
+    setDraftTouchedIds({});
+    setSaveAllError(null);
+    setPalpitesEditing(false);
+  };
+
+  const matchNeedsSave = useCallback(
+    (matchId: number, scores: JogoCardScores) => {
+      if (!draftDirtyRef.current.has(matchId) && !draftTouchedIds[matchId]) {
+        return false;
+      }
+      const saved = predictionsMap[matchId];
+      if (!saved) return true;
+      return (
+        scores.scoreCasa !== saved.scoreCasa ||
+        scores.scoreVisitante !== saved.scoreVisitante
+      );
+    },
+    [draftTouchedIds, predictionsMap],
+  );
 
   const hasPalpitesToSave = useMemo(() => {
     const now = Date.now();
@@ -3816,7 +3828,7 @@ function PalpitesPageContent({
     const editing =
       !readOnlyMode &&
       canEditMatch &&
-      (!hasSavedPalpites || !hasSavedOnCard || palpitesEditing);
+      (!hasSavedPalpitesOnScope || !hasSavedOnCard || palpitesEditing);
     return {
       editingEnabled: editing,
       onScoresChange: editing
@@ -3825,7 +3837,7 @@ function PalpitesPageContent({
     };
   };
 
-  const palpitesFooterMode: PalpitesFooterMode = !hasSavedPalpites
+  const palpitesFooterMode: PalpitesFooterMode = !hasSavedPalpitesOnScope
     ? "initial"
     : palpitesEditing
       ? "editing"

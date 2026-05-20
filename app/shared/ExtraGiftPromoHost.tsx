@@ -28,7 +28,7 @@ import { ArrowRight, Check, Trophy, X } from "lucide-react";
 import confetti from "canvas-confetti";
 import { useAuth } from "@/app/shared/AuthContext";
 import { useBolaoToast } from "@/app/components/BolaoToast";
-import poupUpImage from "@/app/assets/poup-up.jpeg";
+import poupUpImage from "@/app/assets/poup-up.png";
 
 /** URL pública do mp3 de torcida. Mantemos em `/public/audio/` em vez de
  *  importar como módulo porque o Turbopack do Next.js não trata `.mp3`
