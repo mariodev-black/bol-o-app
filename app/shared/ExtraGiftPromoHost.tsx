@@ -143,7 +143,7 @@ function OfferStep({
       {/* Imagem do mascote — camada de fundo (z-0). O card opaco em z-10 cobre
           o que estiver dentro da área dele, criando o efeito de "vazar". */}
       <div
-        className="pointer-events-none absolute inset-x-0 top-0 z-0 flex justify-center"
+        className="w-full pointer-events-none absolute inset-x-0 top-0 z-0 flex justify-center"
         aria-hidden
       >
         <Image
@@ -181,7 +181,7 @@ function OfferStep({
           {cotaCount} {cotaCount === 1 ? "cota grátis" : "cotas grátis"}!
         </h2>
 
-        <p className="mt-4 text-center text-[13px] font-medium leading-snug text-white/70">
+        <p className="mt-6 mb-2 text-center text-[16px] font-bold leading-snug text-white">
           Brasileirão e Premier League · valendo {status.prizeLabel} cada
         </p>
 

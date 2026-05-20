@@ -77,7 +77,46 @@ DO UPDATE SET
   source_updated_at        = now(),
   synced_at                = now()`;
 
+function brDateHourFromKickoff(kickoffAt: string | null): {
+  date: string;
+  hour: string;
+} {
+  const iso = kickoffAt?.trim();
+  if (!iso) return { date: "", hour: "" };
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) return { date: "", hour: "" };
+  return {
+    date: new Intl.DateTimeFormat("pt-BR", {
+      timeZone: "America/Sao_Paulo",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }).format(parsed),
+    hour: new Intl.DateTimeFormat("pt-BR", {
+      timeZone: "America/Sao_Paulo",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(parsed),
+  };
+}
+
+function effectiveMatchDateFields(m: ProviderMatchV2): {
+  date: string;
+  hour: string;
+} {
+  let date = String(m.dataRealizacao ?? "").trim();
+  let hour = String(m.horaRealizacao ?? "").trim();
+  if ((!date || date === "undefined" || date === "null") && m.kickoffAt) {
+    const fromKick = brDateHourFromKickoff(m.kickoffAt);
+    date = fromKick.date;
+    hour = fromKick.hour || hour;
+  }
+  return { date, hour };
+}
+
 function buildRow(m: ProviderMatchV2): unknown[] {
+  const { date, hour } = effectiveMatchDateFields(m);
   return [
     m.competitionId,
     m.matchId,
@@ -86,8 +125,8 @@ function buildRow(m: ProviderMatchV2): unknown[] {
     m.roundKey,
     m.status,
     m.kickoffAt,
-    m.dataRealizacao,
-    m.horaRealizacao,
+    date,
+    hour,
     m.resultCasa,
     m.resultVisitante,
     m.homeName,

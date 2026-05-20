@@ -2976,8 +2976,8 @@ function RoundPhaseNav({
         null
       ) : null}
 
-      {/* ── 2. Date strip ── */}
-      {datas.length > 0 && (
+      {/* ── 2. Date strip (só quando a rodada tem mais de um dia) ── */}
+      {datas.length > 1 && (
         <div
           className="overflow-hidden rounded-[14px]"
           style={{
@@ -4028,6 +4028,10 @@ function PalpitesPageContent({
       .filter(Boolean)
       .sort((a, b) => (brDateToUtcMs(a) ?? 0) - (brDateToUtcMs(b) ?? 0));
     if (datas.length === 0) {
+      setSelectedDate(null);
+      return;
+    }
+    if (datas.length === 1) {
       setSelectedDate(null);
       return;
     }

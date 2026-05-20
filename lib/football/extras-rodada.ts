@@ -15,7 +15,11 @@
  */
 
 import { getPool } from "@/lib/db";
-import { fetchChampionshipSnapshot } from "@/lib/football/provider";
+import {
+  fetchChampionshipSnapshot,
+  fetchRodadaMatches,
+  type ChampionshipSnapshotV2,
+} from "@/lib/football/provider";
 import {
   persistChampionshipSnapshot,
   readChampionshipSnapshot,
@@ -32,14 +36,183 @@ export type ExtraRoundResolution = {
   championshipTemporada: string | null;
 };
 
+function isExtraRodadaEncerrada(status: string | null | undefined): boolean {
+  const s = String(status ?? "").toLowerCase();
+  return (
+    s.includes("encerr") ||
+    s.includes("finaliz") ||
+    s === "final" ||
+    s === "fechad"
+  );
+}
+
+function isExtraMatchOpen(status: string | null | undefined): boolean {
+  const s = String(status ?? "").toLowerCase();
+  return !(
+    s.includes("encerr") ||
+    s.includes("finaliz") ||
+    s === "final" ||
+    s.includes("cancel")
+  );
+}
+
+function resolutionFromSnapshot(
+  competitionId: number,
+  snap: Pick<
+    ChampionshipSnapshotV2,
+    "nome" | "slug" | "temporada" | "rodadaAtual"
+  >,
+): ExtraRoundResolution | null {
+  if (!snap.rodadaAtual?.numero) return null;
+  return {
+    competitionId,
+    rodada: snap.rodadaAtual.numero,
+    rodadaSlug: snap.rodadaAtual.slug,
+    rodadaNome: snap.rodadaAtual.nome,
+    rodadaStatus: snap.rodadaAtual.status,
+    championshipNome: snap.nome,
+    championshipSlug: snap.slug,
+    championshipTemporada: snap.temporada,
+  };
+}
+
+/**
+ * API-Futebol mantém `rodada_atual` na última rodada encerrada até atualizar o
+ * snapshot (ex.: Premier 37 encerrada enquanto a 38 já está agendada). Avança
+ * para rodada+1 quando a atual está encerrada e a próxima tem jogos abertos.
+ */
+async function advanceExtraRoundIfCurrentClosed(
+  base: ExtraRoundResolution,
+  opts?: { allowProviderCall?: boolean },
+): Promise<ExtraRoundResolution> {
+  if (!isExtraRodadaEncerrada(base.rodadaStatus)) return base;
+
+  const next = base.rodada + 1;
+  const cachedNext = await listMatchesForExtraRound(base.competitionId, next);
+  if (cachedNext.some((m) => isExtraMatchOpen(m.status))) {
+    const slug = cachedNext.find((m) => m.rodada_slug)?.rodada_slug;
+    return {
+      ...base,
+      rodada: next,
+      rodadaSlug: slug ?? `rodada-${next}`,
+      rodadaNome: `${next}ª Rodada`,
+      rodadaStatus: "agendada",
+    };
+  }
+
+  if (opts?.allowProviderCall === false) return base;
+
+  try {
+    const partidas = await fetchRodadaMatches(base.competitionId, next, {
+      nome: base.championshipNome,
+      slug: base.championshipSlug,
+      temporada: base.championshipTemporada,
+    });
+    if (!partidas.some((p) => isExtraMatchOpen(p.status))) return base;
+    const slug = partidas.find((p) => p.rodadaSlug)?.rodadaSlug ?? `${next}a-rodada`;
+    if (process.env.DEBUG_FOOTBALL_API === "true" || process.env.DEBUG_BOLAOES === "true") {
+      console.error(
+        `[extras-rodada] ${base.competitionId}: rodada ${base.rodada} encerrada → usando ${next} (${partidas.length} jogos na API)`,
+      );
+    }
+    return {
+      ...base,
+      rodada: next,
+      rodadaSlug: slug,
+      rodadaNome: `${next}ª Rodada`,
+      rodadaStatus: "agendada",
+    };
+  } catch {
+    return base;
+  }
+}
+
+/**
+ * Rodada usada na UI e em palpites para um ticket extra.
+ * Se o ticket ficou na rodada N mas a N já encerrou e a loja já está na N+1
+ * (ex.: Premier 37 → 38), alinha com a rodada efetiva atual.
+ */
+export async function resolveEffectiveExtraRoundForTicket(
+  competitionId: number,
+  ticketRoundNumber: number | null,
+  opts?: { allowProviderCall?: boolean },
+): Promise<ExtraRoundResolution | null> {
+  const current = await resolveCurrentExtraRound(competitionId, opts);
+  if (!current) {
+    if (
+      ticketRoundNumber != null &&
+      Number.isFinite(ticketRoundNumber) &&
+      ticketRoundNumber > 0
+    ) {
+      return {
+        competitionId,
+        rodada: ticketRoundNumber,
+        rodadaSlug: null,
+        rodadaNome: `${ticketRoundNumber}ª Rodada`,
+        rodadaStatus: null,
+        championshipNome: `Campeonato ${competitionId}`,
+        championshipSlug: `comp-${competitionId}`,
+        championshipTemporada: null,
+      };
+    }
+    return null;
+  }
+
+  if (
+    ticketRoundNumber == null ||
+    !Number.isFinite(ticketRoundNumber) ||
+    ticketRoundNumber <= 0
+  ) {
+    return current;
+  }
+
+  if (ticketRoundNumber === current.rodada) {
+    return {
+      ...current,
+      rodadaNome: current.rodadaNome ?? `${ticketRoundNumber}ª Rodada`,
+    };
+  }
+
+  if (ticketRoundNumber + 1 === current.rodada) {
+    const prevMatches = await listMatchesForExtraRound(
+      competitionId,
+      ticketRoundNumber,
+    );
+    const prevClosed =
+      prevMatches.length === 0 ||
+      prevMatches.every((m) => !isExtraMatchOpen(m.status));
+    if (prevClosed) {
+      if (
+        process.env.DEBUG_FOOTBALL_API === "true" ||
+        process.env.DEBUG_BOLAOES === "true"
+      ) {
+        console.error(
+          `[extras-rodada] ticket comp=${competitionId}: rodada ${ticketRoundNumber} encerrada → efetiva ${current.rodada}`,
+        );
+      }
+      return current;
+    }
+  }
+
+  return {
+    ...current,
+    rodada: ticketRoundNumber,
+    rodadaSlug: current.rodadaSlug,
+    rodadaNome: `${ticketRoundNumber}ª Rodada`,
+    rodadaStatus: null,
+  };
+}
+
 export async function resolveCurrentExtraRound(
   competitionId: number,
   opts?: { allowProviderCall?: boolean },
 ): Promise<ExtraRoundResolution | null> {
+  const allowProvider = opts?.allowProviderCall !== false;
+
   // 1) cache
   const cached = await readChampionshipSnapshot(competitionId);
   if (cached && cached.rodada_atual_numero != null) {
-    return {
+    const base: ExtraRoundResolution = {
       competitionId,
       rodada: cached.rodada_atual_numero,
       rodadaSlug: cached.rodada_atual_slug,
@@ -49,24 +222,21 @@ export async function resolveCurrentExtraRound(
       championshipSlug: cached.slug,
       championshipTemporada: cached.temporada,
     };
+    return advanceExtraRoundIfCurrentClosed(base, {
+      allowProviderCall: allowProvider,
+    });
   }
-  if (opts?.allowProviderCall === false) return null;
+  if (!allowProvider) return null;
 
   // 2) fallback: provider
   try {
     const snap = await fetchChampionshipSnapshot(competitionId);
     await persistChampionshipSnapshot(snap).catch(() => {});
-    if (!snap.rodadaAtual?.numero) return null;
-    return {
-      competitionId,
-      rodada: snap.rodadaAtual.numero,
-      rodadaSlug: snap.rodadaAtual.slug,
-      rodadaNome: snap.rodadaAtual.nome,
-      rodadaStatus: snap.rodadaAtual.status,
-      championshipNome: snap.nome,
-      championshipSlug: snap.slug,
-      championshipTemporada: snap.temporada,
-    };
+    const base = resolutionFromSnapshot(competitionId, snap);
+    if (!base) return null;
+    return advanceExtraRoundIfCurrentClosed(base, {
+      allowProviderCall: allowProvider,
+    });
   } catch {
     return null;
   }

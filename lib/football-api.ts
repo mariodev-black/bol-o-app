@@ -54,11 +54,40 @@ function mergeCompetitionIdsForMatchMap(ensureCompetitionIds?: number[]): {
   return { scopeIds, scopeKey };
 }
 
+function dateBrHourFromCacheRow(r: {
+  date_br: string | null;
+  hour_br: string | null;
+  kickoff_at: string | null;
+}): { dateBR: string; hour: string } {
+  let dateBR = String(r.date_br ?? "").trim();
+  let hour = String(r.hour_br ?? "").trim();
+  if ((!dateBR || dateBR === "undefined" || dateBR === "null") && r.kickoff_at) {
+    const iso = String(r.kickoff_at).trim();
+    const parsed = new Date(iso);
+    if (!Number.isNaN(parsed.getTime())) {
+      dateBR = new Intl.DateTimeFormat("pt-BR", {
+        timeZone: "America/Sao_Paulo",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      }).format(parsed);
+      hour = new Intl.DateTimeFormat("pt-BR", {
+        timeZone: "America/Sao_Paulo",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      }).format(parsed);
+    }
+  }
+  return { dateBR, hour };
+}
+
 function mapFromCacheRows(rows: Awaited<ReturnType<typeof readMatchesCache>>): MatchMap {
   const out: MatchMap = new Map();
   for (const r of rows) {
     const cid = Number(r.competition_id) || getFootballMainCompetitionId();
     const mid = Number(r.match_id);
+    const { dateBR, hour } = dateBrHourFromCacheRow(r);
     out.set(matchMapKey(cid, mid), {
       id: mid,
       kickoffAt: r.kickoff_at,
@@ -71,8 +100,8 @@ function mapFromCacheRows(rows: Awaited<ReturnType<typeof readMatchesCache>>): M
       awayName: r.away_name || r.away_sigla || "VISIT",
       homeLogo: r.home_logo ?? null,
       awayLogo: r.away_logo ?? null,
-      dateBR: r.date_br || "",
-      hour: r.hour_br || "",
+      dateBR,
+      hour,
       competitionId: cid,
       rodada:
         r.rodada != null && Number.isFinite(Number(r.rodada)) && Number(r.rodada) > 0

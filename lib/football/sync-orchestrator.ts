@@ -120,6 +120,16 @@ export async function syncExtra(
   }
 
   const toLoad = new Set<number>([rodadaAtual]);
+  const rodadaStatus = (snapshot.rodadaAtual?.status ?? "").toLowerCase();
+  if (
+    rodadaStatus.includes("encerr") ||
+    rodadaStatus.includes("finaliz") ||
+    rodadaStatus === "final"
+  ) {
+    const next = rodadaAtual + 1;
+    const total = snapshot.totalRodadas;
+    if (!total || next <= total) toLoad.add(next);
+  }
   for (const extra of opts?.extraRodadas ?? []) {
     if (Number.isFinite(extra) && extra > 0) toLoad.add(extra);
   }

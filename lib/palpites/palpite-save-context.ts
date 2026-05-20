@@ -3,7 +3,7 @@ import {
   type MatchMap,
 } from "@/lib/football-api";
 import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
-import { resolveCurrentExtraRound } from "@/lib/football/extras-rodada";
+import { resolveEffectiveExtraRoundForTicket } from "@/lib/football/extras-rodada";
 import type { PredictionBolaoType } from "@/lib/palpites-kickoff-lock";
 import { resolveOwnedTicketMeta } from "@/lib/palpites/ticket-meta";
 
@@ -36,15 +36,15 @@ export async function buildPalpiteSaveContext(
 
   if (
     bolaoType === "extra" &&
-    extraRoundNumber == null &&
     extraChampionshipId != null &&
     Number.isFinite(extraChampionshipId) &&
     extraChampionshipId > 0
   ) {
     try {
-      const resolved = await resolveCurrentExtraRound(extraChampionshipId, {
-        allowProviderCall: false,
-      });
+      const resolved = await resolveEffectiveExtraRoundForTicket(
+        extraChampionshipId,
+        extraRoundNumber,
+      );
       if (
         resolved?.rodada != null &&
         Number.isFinite(resolved.rodada) &&
