@@ -4,18 +4,28 @@ import { useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 /**
- * Após compra/PIX, o App Router pode reutilizar o payload RSC de /boloes.
- * `?fromPurchase=1` dispara um refresh para buscar tickets novos no servidor.
+ * Após compra/PIX ou resgate do brinde extra, o App Router pode reutilizar o
+ * payload RSC de /boloes. Query flags disparam refresh para buscar tickets novos.
  */
+function shouldRefreshBoloesTickets(searchParams: URLSearchParams): boolean {
+  return (
+    searchParams.get("fromPurchase") === "1" ||
+    searchParams.get("fromExtraGift") === "1"
+  );
+}
+
 export function BoloesPurchaseSync() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const done = useRef(false);
+  const refreshingRef = useRef(false);
 
   useEffect(() => {
-    if (done.current) return;
-    if (searchParams.get("fromPurchase") !== "1") return;
-    done.current = true;
+    if (!shouldRefreshBoloesTickets(searchParams)) {
+      refreshingRef.current = false;
+      return;
+    }
+    if (refreshingRef.current) return;
+    refreshingRef.current = true;
     router.replace("/boloes", { scroll: false });
     router.refresh();
   }, [router, searchParams]);

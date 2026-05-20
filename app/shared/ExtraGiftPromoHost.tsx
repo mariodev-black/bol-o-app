@@ -516,8 +516,9 @@ export function ExtraGiftPromoHost({ children }: { children: React.ReactNode }) 
   const handlePlay = useCallback(() => {
     stopAudio();
     setOpen(false);
-    router.push("/boloes");
-  }, [router, status?.ticketId, stopAudio]);
+    // Força refresh do RSC de /boloes (cotas recém-resgatadas não entram no payload em cache).
+    router.push("/boloes?fromExtraGift=1");
+  }, [router, stopAudio]);
 
   const handleClaimedClose = useCallback(() => {
     stopAudio();
