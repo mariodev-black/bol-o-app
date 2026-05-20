@@ -4,7 +4,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   ChevronDown,
-  ArrowDown,
+  ChevronUp,
   BarChart2,
   Trophy,
   AlignJustify,
@@ -23,7 +23,6 @@ import {
   Sparkles,
   X,
   Info,
-  ArrowUp,
 } from "lucide-react";
 import {
   TrophyGold,
@@ -458,6 +457,10 @@ function parseAllPartidas(fases: Record<string, any> | undefined): {
   return { jogos, grupos: Array.from(grupos).sort() };
 }
 
+const PALPITE_CARD_BG = "#0B0D0C";
+const PALPITE_PANEL_BG = "#141816";
+const PALPITE_STEPPER_BG = "#111413";
+
 // ── Escudo do time ────────────────────────────────────────────
 function Escudo({
   url,
@@ -468,16 +471,20 @@ function Escudo({
   alt: string;
   size?: "sm" | "md" | "lg";
 }) {
-  const imgSize =
-    size === "sm" ? "w-12 h-12" : size === "lg" ? "w-16 h-16" : "w-14 h-14";
+  const box =
+    size === "sm"
+      ? "size-[56px] rounded-[12px] p-2"
+      : size === "lg"
+        ? "size-[80px] rounded-[16px] p-3"
+        : "size-[68px] rounded-[14px] p-2.5";
+  const img =
+    size === "sm" ? "size-10" : size === "lg" ? "size-14" : "size-12";
   return (
-    <div className="w-20 h-20 rounded-[17px] p-4 flex items-center justify-center overflow-hidden shrink-0"
-    style={{ background: "rgba(255,255,255,0.95)" }}>
-      <img
-        src={url}
-        alt={alt}
-        className={`${imgSize} object-contain shrink-0 drop-shadow-sm`}
-      />
+    <div
+      className={`flex shrink-0 items-center justify-center overflow-hidden ${box}`}
+      style={{ background: "rgba(255,255,255,0.96)" }}
+    >
+      <img src={url} alt={alt} className={`${img} object-contain drop-shadow-sm`} />
     </div>
   );
 }
@@ -520,13 +527,57 @@ function CardSkeleton() {
 // ── Score animado ─────────────────────────────────────────────
 function ScoreDisplay({ value, dir }: { value: number; dir: "up" | "down" }) {
   return (
-    <div className="h-9 w-9 overflow-hidden relative flex items-center justify-center">
+    <div className="relative flex h-11 w-full items-center justify-center overflow-hidden">
       <span
         key={value}
-        className={`text-white font-black text-[32px] leading-none absolute ${dir === "up" ? "animate-score-up" : "animate-score-down"}`}
+        className={`absolute font-black tabular-nums leading-none text-white text-[28px] sm:text-[30px] ${
+          dir === "up" ? "animate-score-up" : "animate-score-down"
+        }`}
       >
         {value}
       </span>
+    </div>
+  );
+}
+
+/** Stepper vertical — seta cima aumenta, seta baixo diminui; número anima. */
+function VertScoreStepper({
+  value,
+  dir,
+  onInc,
+  onDec,
+  disabled,
+}: {
+  value: number;
+  dir: "up" | "down";
+  onInc: () => void;
+  onDec: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div
+      className="flex w-[52px] shrink-0 flex-col items-center overflow-hidden rounded-[14px] border border-white/[0.08]"
+      style={{ background: PALPITE_STEPPER_BG }}
+    >
+      <button
+        type="button"
+        onClick={onInc}
+        disabled={disabled}
+        aria-label="Aumentar gols"
+        className="flex w-full items-center justify-center py-2 text-primary transition active:scale-[0.92] disabled:cursor-not-allowed disabled:opacity-35"
+      >
+        <ChevronUp className="size-5" strokeWidth={2.75} aria-hidden />
+      </button>
+      <ScoreDisplay value={value} dir={dir} />
+      <button
+        type="button"
+        onClick={onDec}
+        disabled={disabled}
+        aria-label="Diminuir gols"
+        className="flex w-full items-center justify-center py-2 text-primary transition active:scale-[0.92] disabled:cursor-not-allowed disabled:opacity-35"
+      >
+        <ChevronDown className="size-5" strokeWidth={2.75} aria-hidden />
+      </button>
     </div>
   );
 }
@@ -902,41 +953,6 @@ function JogoCard({
             dot: true,
           };
 
-  // Horizontal stepper — botões − / + brancos (áreas de toque maiores)
-  const HorizStepper = ({
-    value,
-    onInc,
-    onDec,
-  }: {
-    value: number;
-    onInc: () => void;
-    onDec: () => void;
-  }) => (
-    <div className="mt-3 flex flex-col items-center gap-2.5 border border-white/10 rounded-lg">
-      <button
-        type="button"
-        onClick={onDec}
-        disabled={disabled}
-        aria-label="Diminuir gols"
-        className="flex px-4 py-1.5 items-center justify-center rounded-full border border-white/20 bg-white text-[#0E141B] shadow-[0_2px_8px_rgba(0,0,0,0.25)] transition active:scale-[0.97] disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/25 disabled:text-[#0E141B]/45"
-      >
-        <ArrowDown className="h-5 w-5 text-black" strokeWidth={2.8} aria-hidden />
-      </button>
-      <span className="min-w-10 text-center text-[26px] font-black tabular-nums leading-none text-white">
-        {value}
-      </span>
-      <button
-        type="button"
-        onClick={onInc}
-        disabled={disabled}
-        aria-label="Aumentar gols"
-        className="flex px-4 py-1.5 items-center justify-center rounded-full border border-white/20 bg-white text-[#0E141B] shadow-[0_2px_8px_rgba(0,0,0,0.25)] transition active:scale-[0.97] disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/25 disabled:text-[#0E141B]/45"
-      >
-        <ArrowUp className="h-5 w-5 text-black" strokeWidth={2.8} aria-hidden />
-      </button>
-    </div>
-  );
-
   const cardBorder = readOnly
     ? readOnlyPending
       ? "rgba(232,200,64,0.55)"
@@ -974,24 +990,21 @@ function JogoCard({
 
   return (
     <div
-      className="rounded-xl overflow-hidden mb-4 bg-[#0B0D0C]"
+      className="mb-4 overflow-hidden rounded-2xl"
       style={{
+        background: PALPITE_CARD_BG,
         border: `1px solid ${cardBorder}`,
         boxShadow: cardShadow,
       }}
     >
-      {/* ── Top bar: status + date (tipografia maior, contraste alto) ── */}
-      <div className="flex items-start justify-between gap-3 px-4 sm:px-5 pt-4 pb-1">
-        <div className="text-[14px] font-bold uppercase leading-none tracking-[-0.02em] text-white">
-          {jogo.timeCasa} <br /> vs {jogo.timeVisitante}
-        </div>
-        <div className="flex flex-col items-end justify-start gap-1 text-right min-w-0 flex-1">
-          <span
-            className="text-[14px] font-bold leading-snug"
-            style={{ color: "rgba(255,255,255,0.78)" }}
-          >
-            {formatData(jogo.dataBR, jogo.kickoffAt)},{" "}
-            {safeHourLabel(jogo.hora)}
+      {/* Header — confronto + data/hora */}
+      <div className="flex items-start justify-between gap-3 px-4 pt-4 pb-2 sm:px-5">
+        <h3 className="min-w-0 flex-1 text-[12px] font-bold uppercase leading-snug tracking-[0.02em] text-white sm:text-[13px]">
+          {jogo.timeCasa} vs {jogo.timeVisitante}
+        </h3>
+        <div className="flex shrink-0 flex-col items-end gap-0.5 text-right">
+          <span className="text-[11px] font-bold uppercase tabular-nums text-primary sm:text-[12px]">
+            {formatData(jogo.dataBR, jogo.kickoffAt)}, {safeHourLabel(jogo.hora)}
           </span>
           {liveClockLabel ? (
             <span
@@ -1107,46 +1120,54 @@ function JogoCard({
           ) : null}
         </>
       ) : (
-        <div className="flex items-end p-2 gap-2">
-          <div className="flex flex-1 flex-col items-center min-w-0">
-            <Escudo url={jogo.escudoCasa} alt={jogo.timeCasa} size="md" />
-            <p className="mt-3 text-[15px] sm:text-base font-semibold text-white text-center leading-snug line-clamp-2 px-0.5">
-              {jogo.siglasCasa}
-            </p>
-
-          </div>
-          <div className="flex items-center gap-5">
-            {predictionsLoading ? (
-              <div
-                className="mt-3 h-11 w-28 rounded-full animate-pulse"
-                style={{ background: "rgba(255,255,255,0.06)" }}
-              />
-            ) : (
-              <HorizStepper
-                value={scoreCasa}
-                onInc={() => increment("casa")}
-                onDec={() => decrement("casa")}
-              />
-            )}
-            {predictionsLoading ? (
-              <div
-                className="mt-3 h-11 w-28 rounded-full animate-pulse"
-                style={{ background: "rgba(255,255,255,0.06)" }}
-              />
-            ) : (
-              <HorizStepper
-                value={scoreVisitante}
-                onInc={() => increment("visitante")}
-                onDec={() => decrement("visitante")}
-              />
-            )}
-          </div>
-          <div className="flex flex-1 flex-col items-center min-w-0">
-            <Escudo url={jogo.escudoVisitante} alt={jogo.timeVisitante} size="md" />
-            <p className="mt-3 text-[15px] sm:text-base font-semibold text-white text-center leading-snug line-clamp-2 px-0.5">
-              {jogo.siglasVisitante}
-            </p>
-
+        <div
+          className="mx-3 mb-3 rounded-2xl border border-white/[0.06] px-2.5 py-4 sm:mx-4 sm:px-3"
+          style={{ background: PALPITE_PANEL_BG }}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex min-w-0 flex-1 flex-col items-center">
+              <Escudo url={jogo.escudoCasa} alt={jogo.timeCasa} size="md" />
+              <p className="mt-2 text-[13px] font-black uppercase tracking-[0.06em] text-white">
+                {jogo.siglasCasa}
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2 px-0.5">
+              {predictionsLoading ? (
+                <>
+                  <div
+                    className="h-[108px] w-[52px] animate-pulse rounded-[14px]"
+                    style={{ background: "rgba(255,255,255,0.06)" }}
+                  />
+                  <div
+                    className="h-[108px] w-[52px] animate-pulse rounded-[14px]"
+                    style={{ background: "rgba(255,255,255,0.06)" }}
+                  />
+                </>
+              ) : (
+                <>
+                  <VertScoreStepper
+                    value={scoreCasa}
+                    dir={dirCasa}
+                    onInc={() => increment("casa")}
+                    onDec={() => decrement("casa")}
+                    disabled={disabled}
+                  />
+                  <VertScoreStepper
+                    value={scoreVisitante}
+                    dir={dirVisitante}
+                    onInc={() => increment("visitante")}
+                    onDec={() => decrement("visitante")}
+                    disabled={disabled}
+                  />
+                </>
+              )}
+            </div>
+            <div className="flex min-w-0 flex-1 flex-col items-center">
+              <Escudo url={jogo.escudoVisitante} alt={jogo.timeVisitante} size="md" />
+              <p className="mt-2 text-[13px] font-black uppercase tracking-[0.06em] text-white">
+                {jogo.siglasVisitante}
+              </p>
+            </div>
           </div>
         </div>
       )}
