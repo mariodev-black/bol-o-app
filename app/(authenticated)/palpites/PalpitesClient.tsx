@@ -984,14 +984,14 @@ function PalpiteCardStatusBar({
       className="flex items-center justify-between gap-1.5 border-b border-white/[0.06] px-4 py-2.5 sm:px-5"
       style={{ background: "rgba(0,0,0,0.18)" }}
     >
-      <span className="shrink-0 rounded-md bg-primary px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wide text-[#0E141B]">
+      <span className="shrink-0 rounded-md bg-primary px-2.5 py-0.5 text-[13px] font-black uppercase tracking-wide text-[#0E141B]">
         Pré-jogo
       </span>
-      <span className="inline-flex min-w-0 max-w-[38%] shrink items-center justify-center gap-0.5 text-[9px] font-semibold leading-tight text-primary">
+      <span className="inline-flex min-w-0 max-w-[38%] shrink items-center justify-center gap-0.5 text-[14px] font-semibold leading-tight text-primary">
         <Clock className="size-2.5 shrink-0" strokeWidth={2.2} aria-hidden />
         <span className="truncate">{countdownLabel}</span>
       </span>
-      <span className="flex min-w-0 max-w-[42%] shrink-0 items-center justify-end gap-1 text-[11px] font-semibold text-white/50">
+      <span className="flex min-w-0 max-w-[42%] shrink-0 items-center justify-end gap-1 text-[14px] font-semibold text-white/50">
         <Calendar className="size-3 shrink-0" strokeWidth={2} aria-hidden />
         <span className="truncate text-right">{kickoffMeta}</span>
       </span>
@@ -1002,7 +1002,9 @@ function PalpiteCardStatusBar({
 function PontosBreakdownIcon({ hit }: { hit: boolean }) {
   return (
     <span
-      className={`flex size-6 shrink-0 items-center justify-center rounded-full ${hit ? "bg-[#0AC96B]" : "bg-[#F87171]"
+      className={`flex size-7 shrink-0 items-center justify-center rounded-full ring-2 ${hit
+        ? "bg-[#0AC96B] ring-[#0AC96B]/35"
+        : "bg-[#EF4444] ring-[#EF4444]/30"
         }`}
       aria-hidden
     >
@@ -1012,6 +1014,152 @@ function PontosBreakdownIcon({ hit }: { hit: boolean }) {
         <X className="size-3.5 text-white" strokeWidth={3} />
       )}
     </span>
+  );
+}
+
+function PalpitePontuacaoBreakdown({
+  expanded,
+  onToggle,
+  review,
+  resumo,
+  linhas,
+}: {
+  expanded: boolean;
+  onToggle: () => void;
+  review: ReturnType<typeof calcPredictionPoints>;
+  resumo: ReturnType<typeof copyPontuacaoPartida>;
+  linhas: PalpitePontosLinha[];
+}) {
+  const ptsHeadline =
+    review.points > 0 ? `+${review.points}` : String(review.points);
+  const toneGlow =
+    resumo.tone === "win"
+      ? "0 0 28px rgba(177,235,11,0.22)"
+      : resumo.tone === "partial"
+        ? "0 0 22px rgba(230,194,32,0.14)"
+        : "none";
+  const accentBar =
+    resumo.tone === "win"
+      ? "linear-gradient(180deg, #E8FF8A 0%, #B1EB0B 100%)"
+      : resumo.tone === "partial"
+        ? "#E6C220"
+        : "rgba(255,255,255,0.12)";
+
+  return (
+    <div className="mx-4 mb-4 sm:mx-5">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={expanded}
+        className="group relative w-full overflow-hidden rounded-2xl text-left transition-[filter] hover:brightness-[1.03] active:scale-[0.99]"
+        style={{
+          background: PALPITE_PANEL_BG,
+          border: "1px solid rgba(255,255,255,0.08)",
+          boxShadow: toneGlow,
+        }}
+      >
+        <span
+          className="pointer-events-none absolute inset-y-0 left-0 w-1 rounded-l-2xl"
+          style={{ background: accentBar }}
+          aria-hidden
+        />
+        <div className="flex items-center gap-3 py-3.5 pl-4 pr-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-primary">
+              Pontuação
+            </p>
+            <p className="mt-0.5 line-clamp-2 text-[13px] font-bold leading-snug text-white">
+              {resumo.title}
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2.5">
+            <div className="text-right">
+              <p className="text-[26px] font-black tabular-nums leading-none text-primary">
+                {ptsHeadline}
+              </p>
+              <p className="text-[9px] font-bold uppercase tracking-wide text-white/40">
+                pts
+              </p>
+            </div>
+            <ChevronDown
+              className={`size-5 shrink-0 text-white/35 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
+              strokeWidth={2.5}
+              aria-hidden
+            />
+          </div>
+        </div>
+      </button>
+
+      <div
+        className={`grid transition-[grid-template-rows] duration-200 ease-out ${expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
+        aria-hidden={!expanded}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div
+            className="mt-2 overflow-hidden rounded-2xl"
+            style={{
+              background:
+                "linear-gradient(165deg, #101412 0%, #0A0C0B 100%)",
+              border: "1px solid rgba(177,235,11,0.12)",
+            }}
+            aria-label="Detalhamento da pontuação"
+          >
+            <div
+              className="border-b px-4 py-2.5"
+              style={{ borderColor: "rgba(255,255,255,0.06)" }}
+            >
+              <p className="text-[10px] font-black uppercase tracking-[0.12em] text-white/40">
+                Como você pontuou
+              </p>
+            </div>
+
+            <ul>
+              {linhas.map((linha, idx) => (
+                <li
+                  key={linha.label}
+                  className={`grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 px-4 py-3 ${linha.hit ? "bg-primary/[0.05]" : ""} ${idx > 0 ? "border-t border-white/[0.05]" : ""}`}
+                >
+                  <span className="text-[13px] font-semibold text-white/92">
+                    {linha.label}
+                  </span>
+                  <PontosBreakdownIcon hit={linha.hit} />
+                  <span
+                    className={`min-w-[3.5rem] text-right text-[13px] font-black tabular-nums ${linha.points > 0 ? "text-primary" : "text-white/35"}`}
+                  >
+                    {formatPontosLabel(linha.points)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+
+            <div
+              className="flex items-center justify-between gap-3 px-4 py-3.5"
+              style={{
+                background:
+                  "linear-gradient(90deg, rgba(177,235,11,0.16) 0%, rgba(177,235,11,0.03) 100%)",
+                borderTop: "1px solid rgba(177,235,11,0.25)",
+              }}
+            >
+              <span className="text-[12px] font-black uppercase tracking-[0.08em] text-white">
+                Total da partida
+              </span>
+              <span className="text-[20px] font-black tabular-nums text-primary">
+                {formatPontosLabel(review.points)}
+              </span>
+            </div>
+
+            {resumo.subtitle ? (
+              <p
+                className="border-t px-4 py-3 text-[11px] leading-relaxed text-white/52"
+                style={{ borderColor: "rgba(255,255,255,0.05)" }}
+              >
+                {resumo.subtitle}
+              </p>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -1369,23 +1517,28 @@ function JogoCard({
 
       {phase === "post" ? (
         <>
-          <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 px-4 py-4 sm:px-5">
+          <div
+            className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 px-4 py-4 sm:px-5"
+            style={{
+              borderBottom: "1px solid rgba(255,255,255,0.06)",
+            }}
+          >
             <div className="flex min-w-0 flex-col items-center">
               <Escudo url={jogo.escudoCasa} alt={jogo.timeCasa} size="lg" />
-              <p className="mt-2 w-full min-w-0 px-0.5 text-center text-[11px] font-bold uppercase leading-snug text-white line-clamp-2">
+              <p className="mt-2 w-full min-w-0 px-0.5 text-center text-[12px] font-bold uppercase leading-snug text-white line-clamp-2">
                 {jogo.timeCasa}
               </p>
             </div>
             <div className="flex flex-col items-center px-1">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-white/50">
+              <p className="text-[10px] font-black uppercase tracking-[0.1em] text-white/45">
                 Placar oficial
               </p>
-              <p className="mt-1 text-[2rem] font-black tabular-nums leading-none text-white sm:text-[2.25rem]">
+              <p className="mt-1 text-[2rem] font-black tabular-nums leading-none text-white sm:text-[2.35rem]">
                 {displayCasa}
-                <span className="mx-1.5 text-xl font-bold text-white/45">x</span>
+                <span className="mx-1.5 text-xl font-bold text-white/40">x</span>
                 {displayVisitante}
               </p>
-              <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-white/40">
+              <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-primary/70">
                 Fim de jogo
               </p>
             </div>
@@ -1399,94 +1552,24 @@ function JogoCard({
 
           {hasInitialPrediction ? (
             <>
-              <div className="px-4 pb-3 sm:px-5">
-                <p className="mb-2 text-center text-[10px] font-semibold uppercase tracking-wide text-white/50">
+              <div
+                className="mx-4 mb-3 rounded-2xl border border-white/[0.07] px-4 py-3.5 sm:mx-5"
+                style={{ background: PALPITE_PANEL_BG }}
+              >
+                <p className="mb-2.5 text-center text-[10px] font-black uppercase tracking-[0.12em] text-white/45">
                   Meu palpite
                 </p>
                 <PalpiteScoreBoxes casa={scoreCasa} visitante={scoreVisitante} />
               </div>
 
               {showResultadoDetalhado && review && resultadoResumo ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => setPontosExpanded((v) => !v)}
-                    className="mx-4 mb-2 flex w-[calc(100%-2rem)] items-center justify-between gap-2 rounded-xl px-3.5 py-3 sm:mx-5 sm:w-[calc(100%-2.5rem)]"
-                    style={{ background: PALPITE_PANEL_BG }}
-                    aria-expanded={pontosExpanded}
-                  >
-                    <span className="inline-flex items-center gap-2 text-left">
-                      <Star
-                        className="size-4 shrink-0 text-primary"
-                        strokeWidth={2.2}
-                        aria-hidden
-                      />
-                      <span className="text-[13px] font-bold text-white">
-                        {resultadoResumo.title}
-                      </span>
-                    </span>
-                    <ChevronDown
-                      className={`size-4 shrink-0 text-white/50 transition-transform ${pontosExpanded ? "rotate-180" : ""}`}
-                      strokeWidth={2.5}
-                      aria-hidden
-                    />
-                  </button>
-
-                  {pontosExpanded ? (
-                    <>
-                      <div
-                        className="mx-4 sm:mx-5 mb-3 overflow-hidden rounded-xl"
-                        style={{ background: PALPITE_PANEL_BG }}
-                        aria-label="Detalhamento da pontuação"
-                      >
-                        <div className="divide-y divide-white/[0.06]">
-                          {pontosLinhas.map((linha) => (
-                            <div
-                              key={linha.label}
-                              className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 px-3.5 py-3"
-                            >
-                              <span className="text-[13px] font-medium text-white/88">
-                                {linha.label}
-                              </span>
-                              <PontosBreakdownIcon hit={linha.hit} />
-                              <span
-                                className={`min-w-[3.25rem] text-right text-[13px] font-bold tabular-nums ${linha.points > 0 ? "text-[#D4F862]" : "text-white/45"}`}
-                              >
-                                {formatPontosLabel(linha.points)}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                        <div
-                          className="flex items-center justify-between px-3.5 py-3"
-                          style={{ background: "rgba(0,0,0,0.22)" }}
-                        >
-                          <span className="text-[14px] font-bold text-white">
-                            Total da partida
-                          </span>
-                          <span className="text-[15px] font-black tabular-nums text-[#D4F862]">
-                            {formatPontosLabel(review.points)}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div
-                        className="mx-4 sm:mx-5 mb-4 flex gap-2.5 rounded-xl px-3.5 py-3"
-                        style={{ background: PALPITE_PANEL_BG }}
-                      >
-                        <Info
-                          className="mt-0.5 size-4 shrink-0 text-white/50"
-                          strokeWidth={2}
-                          aria-hidden
-                        />
-                        <p className="text-[12px] leading-relaxed text-white/62">
-                          Os números grandes acima mostram como o jogo terminou. Aqui
-                          está o que você tinha escolhido.
-                        </p>
-                      </div>
-                    </>
-                  ) : null}
-                </>
+                <PalpitePontuacaoBreakdown
+                  expanded={pontosExpanded}
+                  onToggle={() => setPontosExpanded((v) => !v)}
+                  review={review}
+                  resumo={resultadoResumo}
+                  linhas={pontosLinhas}
+                />
               ) : null}
             </>
           ) : (
@@ -1553,14 +1636,14 @@ function JogoCard({
             className="mx-3 mb-4 rounded-2xl px-2.5 py-4 sm:mx-4 sm:px-3"
             style={{ background: PALPITE_PANEL_BG }}
           >
-            <p className="mb-3 text-center text-[11px] font-black uppercase tracking-[0.14em] text-white/45">
+            <p className="mb-3 text-center text-[14px] font-black uppercase tracking-[0.14em] text-white/70">
               Seu palpite
             </p>
             <div className="flex items-center justify-between gap-2">
               <div className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
                 <Escudo url={jogo.escudoCasa} alt={jogo.timeCasa} size="md" />
                 <p className="text-[12px] font-bold uppercase text-white/80">Casa</p>
-                <p className="w-full min-w-0 px-0.5 text-center text-[11px] font-bold uppercase leading-snug text-white line-clamp-2 sm:text-[12px]">
+                <p className="w-full min-w-0 px-0.5 text-center text-[16px] font-bold uppercase leading-snug text-white line-clamp-2 sm:text-[16px]">
                   {jogo.timeCasa}
                 </p>
               </div>
@@ -1602,7 +1685,7 @@ function JogoCard({
               <div className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
                 <Escudo url={jogo.escudoVisitante} alt={jogo.timeVisitante} size="md" />
                 <p className="text-[12px] font-bold uppercase text-white/80">Fora</p>
-                <p className="w-full min-w-0 px-0.5 text-center text-[11px] font-bold uppercase leading-snug text-white line-clamp-2 sm:text-[12px]">
+                <p className="w-full min-w-0 px-0.5 text-center text-[16px] font-bold uppercase leading-snug text-white line-clamp-2 sm:text-[16px]">
                   {jogo.timeVisitante}
                 </p>
               </div>
