@@ -18,7 +18,7 @@ export default function AdminSettingsPage() {
     {
       label: "Brinde extra pós-login",
       value: extraGiftPromo.enabled
-        ? `Ativa · ${extraGiftPromo.displayName} (id ${extraGiftPromo.championshipId ?? "—"}) · ${extraGiftPromo.prizeLabel}`
+        ? `Ativa · ${extraGiftPromo.displayName} (ids ${extraGiftPromo.championshipIds.join(", ") || "—"}) · ${extraGiftPromo.prizeLabel}`
         : "Desativada",
     },
     {

@@ -12,7 +12,7 @@ const defaultConfig: AppServerConfig = {
   isMarketingRequest: false,
   extraGiftPromo: {
     enabled: false,
-    championshipId: null,
+    championshipIds: [],
     displayName: "Bolão extra",
     prizeLabel: "R$ 10 MIL",
   },

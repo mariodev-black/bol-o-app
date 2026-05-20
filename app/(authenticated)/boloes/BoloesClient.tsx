@@ -15,17 +15,18 @@ import {
   MousePointerClick,
   Shield,
   Trophy,
-  Users,
   Sparkles,
+  Ticket,
   ArrowUp,
   ArrowDown,
 } from "lucide-react";
-import trofeuBoloes from "@/app/assets/trofeu-boloes.png";
 import iconBrasileirao from "@/app/assets/icon-brasileirao.png";
+import iconPremierLeague from "@/app/assets/icon-premier-league.png";
 import iconCopaBrasil from "@/app/assets/icon-copa-brasil.png";
 import iconCopaMundo from "@/app/assets/icon-copa-mundo.png";
 import ticketBlue from "@/app/assets/Ticket-Blue.png";
 import { getExtraBolaoHeroSideVariant } from "@/lib/boloes-extra-competition-branding";
+import { extraBolaoIconSrc, isExtraBolaoBrandedIcon } from "@/app/shared/extra-bolao-icons";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 export type ActivePrincipalBolao = {
@@ -123,6 +124,20 @@ const YELLOW = "#E6B726";
 const CARD = "#111111";
 const CARD_ALT = "#0F0F0F";
 const BORDER = "rgba(255,255,255,0.06)";
+const EMPTY_UPCOMING: BoloesScreenData["upcoming"] = {
+  daily: {
+    href: "/tickets?bolao=diario",
+    gamesCount: 0,
+    closesAtMs: null,
+    priceLabel: "—",
+  },
+  principal: {
+    href: "/tickets",
+    priceLabel: "—",
+    closesAtMs: null,
+  },
+  extras: [],
+};
 const INK = "#0E141B";
 const SHOWCASE_CARD_BG = "#111111";
 
@@ -148,8 +163,15 @@ function showcaseHeaderParts(
   if (kind === "diario") {
     return { category: "Bolão do dia", title: "DIÁRIO" };
   }
+  if (kind === "extra" && t.includes(" · ")) {
+    const [cat, rod] = t.split(" · ", 2);
+    return { category: cat.trim() || "Campeonato", title: (rod ?? "Rodada").trim() };
+  }
   if (lower.includes("brasileir")) {
     return { category: "Campeonato", title: "Brasileiro" };
+  }
+  if (lower.includes("premier")) {
+    return { category: "Campeonato", title: "Premier League" };
   }
   if (lower.includes("copa") && lower.includes("brasil") && !lower.includes("mundo")) {
     return { category: "Campeonato", title: "Copa do Brasil" };
@@ -400,6 +422,22 @@ function ActiveRowBolaoIcon({
       </div>
     );
   }
+  if (side === "premier_league") {
+    return (
+      <div className="flex w-[58px] shrink-0 flex-col items-center justify-center px-0.5 text-center">
+        <Image
+          src={iconPremierLeague}
+          alt=""
+          width={44}
+          height={44}
+          className="h-11 w-11 object-contain"
+        />
+        <p className="mt-1 whitespace-pre-line text-[8px] font-black uppercase leading-[0.96] text-primary">
+          {"Premier\nLeague"}
+        </p>
+      </div>
+    );
+  }
   return <BolaoIcon type="extra" />;
 }
 
@@ -604,9 +642,7 @@ function ActiveBoloesList({
                 ) : (
                   <div className="mt-5 space-y-2">
                     <p className="text-[14px] font-medium leading-none text-white/55">
-                      {isExtra
-                        ? "Jogos neste campeonato (data da cota): "
-                        : "Jogos do dia: "}
+                      {isExtra ? "Jogos da rodada: " : "Jogos do dia: "}
                       <span className="font-black text-white">
                         {item.gamesCount ?? 0} jogos
                       </span>
@@ -735,47 +771,87 @@ function AvailableCard({
    Estado vazio — usuário sem cotas
    ───────────────────────────────────────────────────── */
 
-const INCLUDED = [
-  "Ranking nacional com + de 124 mil participantes",
-  "Top 10% premiado — do 1° ao 20.000° lugar",
-  "Mais de R$ 1 milhão em prêmios no total",
-  "Palpites em todos os jogos da Copa 2026",
-  "Placar exato vale pontos extras no ranking",
-];
+type NoTicketsProductKind = "principal" | "diario" | "extra";
 
-const STATS = [
-  { icon: Users, value: "+124.562", label: "Participantes" },
-  { icon: Trophy, value: "+R$ 900K", label: "Já pagos em prêmios" },
-  { icon: Shield, value: "TOP 10%", label: "Participantes premiados" },
-  { icon: Check, value: "100%", label: "Seguro e verificado" },
-];
+type NoTicketsProduct = {
+  id: string;
+  kind: NoTicketsProductKind;
+  href: string;
+  title: string;
+  subtitle: string;
+  priceLabel: string;
+  prizeTotal: string;
+  prizeFirst: string;
+  iconSrc: string;
+  brandedIcon: boolean;
+};
 
-const PACKAGES = [
-  {
-    qty: 1 as const,
-    label: "1 COTA",
-    priceMain: "R$39",
-    priceDec: ",90",
-    unit: "Por cota",
-    saving: null,
-  },
-  {
-    qty: 3 as const,
-    label: "3 COTAS",
-    priceMain: "R$99",
-    priceDec: ",00",
-    unit: "R$33,00 / cota",
-    saving: "-R$21",
-  },
-  {
-    qty: 5 as const,
-    label: "5 COTAS",
-    priceMain: "R$159",
-    priceDec: ",00",
-    unit: "R$31,80 / cota",
-    saving: "-R$40",
-  },
-];
+function parseExtraTitleParts(title: string): { name: string; round: string | null } {
+  const t = title.trim();
+  if (!t.includes(" · ")) return { name: t, round: null };
+  const [name, round] = t.split(" · ", 2);
+  return { name: (name ?? t).trim(), round: round?.trim() || null };
+}
+
+function buildNoTicketsProducts(
+  upcoming: BoloesScreenData["upcoming"],
+  options: { ticketsExtraOnly: boolean; ticketsHideDaily: boolean },
+): NoTicketsProduct[] {
+  const items: NoTicketsProduct[] = [];
+
+  if (!options.ticketsExtraOnly) {
+    const principalPrizes = SHOWCASE_PRIZES.principal;
+    items.push({
+      id: "principal",
+      kind: "principal",
+      href: upcoming.principal.href,
+      title: "Bolão do Milhão",
+      subtitle: "Copa do Mundo 2026 · todas as rodadas",
+      priceLabel: upcoming.principal.priceLabel,
+      prizeTotal: principalPrizes.total,
+      prizeFirst: principalPrizes.first,
+      iconSrc: iconCopaMundo.src,
+      brandedIcon: true,
+    });
+
+    if (!options.ticketsHideDaily) {
+      const dailyPrizes = SHOWCASE_PRIZES.diario;
+      items.push({
+        id: "diario",
+        kind: "diario",
+        href: upcoming.daily.href,
+        title: "Bolão do Dia",
+        subtitle: "Palpites na rodada do dia",
+        priceLabel: upcoming.daily.priceLabel,
+        prizeTotal: dailyPrizes.total,
+        prizeFirst: dailyPrizes.first,
+        iconSrc: iconCopaMundo.src,
+        brandedIcon: true,
+      });
+    }
+  }
+
+  for (const ex of upcoming.extras) {
+    const { name, round } = parseExtraTitleParts(ex.title);
+    const variant = getExtraBolaoHeroSideVariant(ex.championshipId, name);
+    const icon = extraBolaoIconSrc(variant);
+    const extraPrizes = SHOWCASE_PRIZES.extra;
+    items.push({
+      id: `extra-${ex.championshipId}`,
+      kind: "extra",
+      href: ex.href,
+      title: name,
+      subtitle: round ? `${round} · cota extra` : "Cota extra na rodada atual",
+      priceLabel: ex.priceLabel,
+      prizeTotal: extraPrizes.total,
+      prizeFirst: extraPrizes.first,
+      iconSrc: icon.src,
+      brandedIcon: isExtraBolaoBrandedIcon(variant),
+    });
+  }
+
+  return items;
+}
 
 function CarouselSwipeHint() {
   return (
@@ -1002,14 +1078,14 @@ function ShowcaseCotaCard({
         </div>
 
         <div className="min-w-0 flex-1 pt-0.5">
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/40">
+          <p className="text-[12px] font-bold uppercase tracking-[0.16em] text-white/70">
             {header.category.toUpperCase()}
           </p>
           <h3 className="mt-0.5 text-[22px] font-black uppercase leading-[0.95] tracking-[-0.02em] text-white min-[380px]:text-[24px]">
             {header.title.toUpperCase()}
           </h3>
 
-          <p className="mt-3 text-[10px] font-bold uppercase tracking-[0.14em] text-white/38">
+          <p className="mt-3 text-[12px] font-bold uppercase tracking-[0.14em] text-white/70">
             Premiação total
           </p>
           <p className="mt-1 text-[30px] font-black leading-none tracking-tight text-primary min-[380px]:text-[32px]">
@@ -1086,7 +1162,9 @@ function UpcomingExtraOfferCard({
       ? iconCopaBrasil
       : extraSide === "brasileirao"
         ? iconBrasileirao
-        : ticketBlue;
+        : extraSide === "premier_league"
+          ? iconPremierLeague
+          : ticketBlue;
   const showVerResultados = lockHasPassed(ex.closesAtMs, now);
   const status: ActiveBolaoListItem["status"] = showVerResultados ? "usado" : "aguardando";
   const statusLabel = showVerResultados ? "Encerrado" : "Palpites abertos";
@@ -1131,7 +1209,9 @@ function ActiveShowcaseCard({
         ? iconCopaBrasil
         : extraHero === "brasileirao"
           ? iconBrasileirao
-          : ticketBlue
+          : extraHero === "premier_league"
+            ? iconPremierLeague
+            : ticketBlue
       : iconCopaMundo;
   const showVerResultados =
     item.status === "usado" || lockHasPassed(item.countdownTargetMs ?? null, now);
@@ -1258,287 +1338,239 @@ function ComoFuncionaPalpitesCard() {
   );
 }
 
-function NoTicketsState({ priceLabel }: { priceLabel: string }) {
-  const [selectedPkg, setSelectedPkg] = useState<1 | 3 | 5>(1);
-  const currentPkg = PACKAGES.find((p) => p.qty === selectedPkg)!;
+function noTicketsHeroHeader(product: NoTicketsProduct) {
+  if (product.kind === "principal") {
+    return { category: "Bolão do Milhão", title: "Copa 2026" };
+  }
+  if (product.kind === "diario") {
+    return { category: "Bolão do dia", title: "Rodada atual" };
+  }
+  const roundLabel = product.subtitle.split(" · ")[0]?.trim();
+  return {
+    category: product.title,
+    title: roundLabel || product.title,
+  };
+}
+
+function NoTicketsHeroCard({ product }: { product: NoTicketsProduct }) {
+  const header = noTicketsHeroHeader(product);
+  const useCopaLogo = product.kind === "principal" || product.kind === "diario";
 
   return (
-    <div className="min-h-screen bg-black pb-10 text-white">
-      {/* ── Banner ──────────────────────────────────── */}
-      <div className="w-full bg-black">
-        {/* text block */}
-        <div className="px-5 pb-2 text-center">
-          <span className="inline-flex items-center rounded-[8px] px-4 py-1.5 text-[12px] font-black uppercase tracking-[0.22em] text-primary bg-primary/20 border border-primary/60">
-            Valendo
-          </span>
-          <h1 className="mt-5 text-[36px] font-black uppercase leading-[0.9] tracking-[-0.02em] text-white">
-            +R$ 1 Milhão
-            <br />
-            <span className="text-primary">em Prêmios!</span>
-          </h1>
-          <p className="mx-auto mt-4 max-w-[300px] text-[13px] font-medium leading-normal text-white/55">
-            Entre agora no maior bolão da Copa do Brasil.
-          </p>
-          <p className="mt-1 text-[13px] font-bold text-primary">
-            1 em cada 10 participantes será premiado.
-          </p>
+    <article
+      className="mt-6 overflow-hidden rounded-[16px] border border-white/8 shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
+      style={{ background: SHOWCASE_CARD_BG }}
+    >
+      <div className="flex items-start gap-3 px-4 pb-3 pt-4">
+        <div className="flex w-[72px] shrink-0 items-center justify-center sm:w-[80px]">
+          {useCopaLogo ? (
+            <Image
+              src={iconCopaMundo}
+              alt=""
+              width={80}
+              height={80}
+              className="h-[72px] w-[64px] object-contain sm:h-[80px] sm:w-[72px]"
+            />
+          ) : (
+            <img
+              src={product.iconSrc}
+              alt=""
+              className={
+                product.brandedIcon
+                  ? "h-[72px] w-[72px] object-contain"
+                  : "h-[68px] w-[52px] object-contain"
+              }
+            />
+          )}
         </div>
 
-        {/* trophy image — standalone, full width */}
-        <Image
-          src={trofeuBoloes}
-          alt="Troféu Copa do Mundo"
-          className="h-auto w-full object-contain"
-          priority
-        />
+        <div className="min-w-0 flex-1 pt-0.5">
+          <p className="text-[12px] font-bold uppercase tracking-[0.16em] text-white/70">
+            {header.category}
+          </p>
+          <h2 className="mt-0.5 text-[22px] font-black uppercase leading-[0.95] tracking-[-0.02em] text-white min-[380px]:text-[24px]">
+            {header.title}
+          </h2>
+          <p className="mt-3 text-[12px] font-bold uppercase tracking-[0.14em] text-white/70">
+            Premiação total
+          </p>
+          <p className="mt-1 text-[28px] font-black leading-none tracking-tight text-primary min-[380px]:text-[32px]">
+            {product.prizeTotal}
+          </p>
+        </div>
       </div>
 
-      {/* ── Body ──────────────────────────────────── */}
-      <div className="relative z-10 mx-auto w-full max-w-[430px] -mt-10 space-y-8 px-4">
-        {/* Pricing card */}
-        <div
-          className="rounded-[16px] px-5 py-5 text-center"
-          style={{
-            background: "#111",
-            border: "1px solid rgba(177,235,11,0.18)",
-          }}
-        >
-          <p className="text-[11px] font-black uppercase tracking-[0.2em] text-white">
-            Cota Oficial Copa 2026
+      <div className="flex items-center justify-center gap-2 px-4 pb-3">
+        <Trophy className="size-4 shrink-0 text-white/85" strokeWidth={2.15} aria-hidden />
+        <span className="text-[13px] font-bold uppercase tracking-[0.05em] text-white/75">
+          1º lugar ganha
+        </span>
+        <span className="text-[14px] font-black leading-none text-white">
+          {product.prizeFirst}
+        </span>
+      </div>
+
+      <div className="mx-4 h-px bg-white/8" aria-hidden />
+
+      <div className="flex items-start gap-3 px-4 py-3.5">
+        <div className="min-w-0">
+          <p className="text-[16px] text-center font-black uppercase tracking-[0.06em] text-white">
+            Nenhuma cota ativa
           </p>
-          <p className="mt-3 text-[14px] font-semibold text-white/80 line-through">
-            R$ 59,90
-          </p>
-          <p className="mt-1 text-[44px] font-black leading-none tracking-[-0.03em] text-primary">
-            R$ 39,90
-          </p>
-          <p className="mt-2 text-[12px] font-bold uppercase tracking-[0.2em] text-white/80">
-            Por Cota
+          <p className="mt-1 text-center text-[14px] font-medium leading-snug text-white/80">
+            Após o pagamento via PIX, sua cota aparece aqui para palpitar e
+            acompanhar o ranking.
           </p>
         </div>
+      </div>
 
-        {/* CTA principal */}
+      <div className="border-t border-white/8 px-4 py-4">
         <Link
-          href="/tickets"
-          className="flex h-[58px] w-full items-center justify-center gap-2.5 rounded-[14px] bg-primary text-[14px] font-black uppercase tracking-[0.04em] text-[#0E141B] transition-[filter] hover:brightness-105 active:scale-[0.98]"
+          href={product.href}
+          className="flex h-[50px] w-full items-center justify-center gap-2 rounded-[12px] bg-primary text-[16px] font-black uppercase tracking-[0.05em] text-[#0E141B] transition-[filter] hover:brightness-105 active:scale-[0.98]"
         >
-          Quero disputar o milhão
-          <ArrowRight className="size-[18px]" strokeWidth={2.8} />
+          Comprar cota — {product.priceLabel}
+          <ArrowRight className="size-4 shrink-0" strokeWidth={2.6} aria-hidden />
+        </Link>
+      </div>
+    </article>
+  );
+}
+
+function NoTicketsProductRow({ product }: { product: NoTicketsProduct }) {
+  return (
+    <Link
+      href={product.href}
+      className="group block overflow-hidden rounded-[14px] border border-white/10 transition-colors hover:border-white/18 active:scale-[0.99]"
+      style={{ background: CARD_ALT }}
+    >
+      <div className="grid grid-cols-[64px_minmax(0,1fr)_auto] items-center gap-3 p-3.5">
+        <div className="flex items-center justify-center">
+          <img
+            src={product.iconSrc}
+            alt=""
+            className={
+              product.brandedIcon
+                ? "h-12 w-12 object-contain"
+                : "h-[54px] w-[42px] object-contain"
+            }
+          />
+        </div>
+        <div className="min-w-0">
+          <p className="truncate text-[16px] font-black uppercase leading-tight text-white">
+            {product.title}
+          </p>
+          <p className="mt-1.5 text-[15px] font-bold leading-snug text-white/80">
+            {product.subtitle}
+          </p>
+          <p className="mt-1.5 text-[16px] font-bold text-primary/90">
+            Premiação {product.prizeTotal}
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="text-[12px] font-semibold uppercase tracking-wide text-white/70">
+            A partir de
+          </p>
+          <p className="mt-0.5 text-[15px] font-black tabular-nums text-primary">
+            {product.priceLabel}
+          </p>
+          <ChevronRight
+            className="ml-auto mt-1.5 size-4 text-white/70 transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
+            strokeWidth={2.4}
+            aria-hidden
+          />
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function NoTicketsState({
+  upcoming,
+  ticketsExtraOnly = false,
+  ticketsHideDaily = false,
+}: {
+  upcoming: BoloesScreenData["upcoming"];
+  ticketsExtraOnly?: boolean;
+  ticketsHideDaily?: boolean;
+}) {
+  const products = useMemo(
+    () => buildNoTicketsProducts(upcoming, { ticketsExtraOnly, ticketsHideDaily }),
+    [upcoming, ticketsExtraOnly, ticketsHideDaily],
+  );
+
+  const heroProduct = ticketsExtraOnly
+    ? products[0]
+    : products.find((p) => p.kind === "principal") ?? products[0];
+
+  const listProducts = heroProduct
+    ? products.filter((p) => p.id !== heroProduct.id)
+    : products;
+
+  const featuredPrize =
+    heroProduct?.prizeTotal ?? SHOWCASE_PRIZES.principal.total;
+
+  const ticketsHref = ticketsExtraOnly
+    ? heroProduct?.href ?? "/tickets?bolao=extra"
+    : heroProduct?.href ?? "/tickets";
+
+  const headerEyebrow =
+    heroProduct?.kind === "extra"
+      ? heroProduct.title
+      : heroProduct?.kind === "diario"
+        ? "Bolão do dia"
+        : "Copa 2026";
+
+  return (
+    <div className="overflow-hidden text-white">
+      <div className="mx-auto w-full max-w-[430px] px-4 pt-2">
+        <header className="mt-2 text-center">
+          <p
+            className="text-[15px] font-black uppercase tracking-[0.22em]"
+            style={{ color: GREEN }}
+          >
+            {headerEyebrow}
+          </p>
+          <p className="mx-auto mt-3 max-w-[370px] text-[20px] font-medium leading-snug text-[#c1bebe]">
+            Concorra a até{" "}
+            <span className="font-black text-primary">{featuredPrize}</span> em
+            prêmios. Compre sua cota e comece a palpitar.
+          </p>
+        </header>
+
+        {heroProduct ? <NoTicketsHeroCard product={heroProduct} /> : null}
+
+        {listProducts.length > 0 ? (
+          <section
+            className="mt-6 space-y-2.5"
+            aria-label="Outros bolões disponíveis"
+          >
+            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/45">
+              {ticketsExtraOnly ? "Outros campeonatos" : "Outros bolões"}
+            </p>
+            {listProducts.map((product) => (
+              <NoTicketsProductRow key={product.id} product={product} />
+            ))}
+          </section>
+        ) : null}
+
+        <Link
+          href={ticketsHref}
+          className="mt-6 flex h-[50px] w-full items-center justify-center gap-2 rounded-[14px] border border-primary/30 bg-primary/10 text-[16px] font-black uppercase tracking-[0.04em] text-primary transition-colors hover:bg-primary/15 active:scale-[0.98]"
+        >
+          Ver todos na loja de tickets
+          <ArrowRight className="size-4 shrink-0" strokeWidth={2.6} aria-hidden />
         </Link>
 
-        {/* Trust badges */}
-        <div className="flex items-center justify-center gap-6">
-          <span className="flex items-center gap-1.5 text-[11px] font-semibold text-white/80">
-            <Shield className="size-3.5 shrink-0" strokeWidth={1.8} />
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[11px] font-medium text-white/40">
+          <span className="inline-flex items-center gap-1.5">
+            <Shield className="size-3.5 shrink-0 text-primary/80" strokeWidth={1.9} aria-hidden />
             Pagamento seguro
           </span>
-          <span className="h-3 w-px bg-white/12" aria-hidden />
-          <span className="flex items-center gap-1.5 text-[11px] font-semibold text-white/80">
-            <Lock className="size-3.5 shrink-0" strokeWidth={1.8} />
+          <span className="inline-flex items-center gap-1.5">
+            <Lock className="size-3.5 shrink-0 text-primary/80" strokeWidth={1.9} aria-hidden />
             Dados protegidos
           </span>
-        </div>
-
-        {/* Stats 2×2 */}
-        <div className="grid grid-cols-2 gap-2.5">
-          {STATS.map(({ icon: Icon, value, label }) => (
-            <div
-              key={label}
-              className="flex items-center gap-3 rounded-[13px] border border-white/7 px-4 py-3.5"
-              style={{ background: "#111" }}
-            >
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-primary/10 border border-primary/20">
-                <Icon className="size-[17px] text-primary" strokeWidth={2} />
-              </span>
-              <div className="min-w-0">
-                <p className="text-[16px] font-black leading-none text-white">
-                  {value}
-                </p>
-                <p className="mt-1 text-[9px] font-semibold leading-tight text-white/82">
-                  {label}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* O que está incluído */}
-        <div>
-          <p className="mb-3 text-[11px] font-black uppercase tracking-[0.2em] text-white/80">
-            O que está incluído
-          </p>
-          <div
-            className="overflow-hidden rounded-[16px] border border-white/8"
-            style={{ background: "#111" }}
-          >
-            {/* header do card */}
-            <div className="flex items-center gap-3 border-b border-white/7 px-4 py-3.5">
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-primary/10 border border-primary/20">
-                <Trophy className="size-[17px] text-primary" strokeWidth={2} />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-[14px] font-black uppercase leading-none text-white">
-                  Bolão Principal
-                </p>
-                <span className="mt-1.5 inline-flex items-center rounded-[5px] bg-primary/15 px-2 py-0.5 text-[8px] font-black uppercase tracking-wider text-primary">
-                  Cota Oficial Copa 2026
-                </span>
-              </div>
-            </div>
-
-            {/* itens */}
-            <div className="space-y-0 px-4 py-3">
-              {INCLUDED.map((item) => (
-                <div
-                  key={item}
-                  className="flex items-start gap-2.5 py-2.5 border-b border-white/5 last:border-0"
-                >
-                  <span className="mt-px flex size-[18px] shrink-0 items-center justify-center rounded-full border border-primary/35 bg-primary/10">
-                    <Check className="size-3 text-primary" strokeWidth={3} />
-                  </span>
-                  <p className="text-[12px] font-medium leading-snug text-white/75">
-                    {item}
-                  </p>
-                </div>
-              ))}
-            </div>
-
-            {/* footer */}
-            <div className="flex items-start gap-2.5 border-t border-white/7 px-4 py-3.5">
-              <ArrowRight
-                className="mt-0.5 size-3.5 shrink-0 text-primary"
-                strokeWidth={2.5}
-              />
-              <p className="text-[11px] font-medium leading-snug text-white/50">
-                Você concorre ao ranking geral e pode ser um dos{" "}
-                <span className="font-bold text-white/80">
-                  +20.000 premiados
-                </span>
-                .
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Escolha seu pacote */}
-        <div>
-          <p className="mb-3 text-[11px] font-black uppercase tracking-[0.2em] text-white/80">
-            Escolha seu pacote
-          </p>
-
-          {/* card wrapper */}
-          <div
-            className="overflow-hidden rounded-[18px] border border-white/8"
-            style={{ background: "#141414" }}
-          >
-            {/* header */}
-            <div className="px-4 pb-4 pt-5">
-              <p className="text-[17px] font-black leading-tight text-white">
-                Aumente suas chances
-              </p>
-              <p className="mt-1.5 text-[12px] font-medium leading-snug text-white/80">
-                Mais cotas = mais posições no ranking = mais chances de ganhar
-              </p>
-            </div>
-
-            <div className="mx-4 h-px bg-white/8" />
-
-            {/* packages grid */}
-            <div className="grid grid-cols-3 gap-2 p-4">
-              {PACKAGES.map((pkg) => {
-                const active = selectedPkg === pkg.qty;
-                return (
-                  <button
-                    key={pkg.qty}
-                    type="button"
-                    onClick={() => setSelectedPkg(pkg.qty)}
-                    className={[
-                      "relative flex flex-col rounded-[12px] border p-2.5 text-left transition-all active:scale-[0.97]",
-                      active
-                        ? "border-primary bg-primary/10"
-                        : "border-white/10 bg-white/3",
-                    ].join(" ")}
-                  >
-                    {/* top row: radio + badge */}
-                    <div className="flex items-center justify-between">
-                      {/* radio circle */}
-                      <span
-                        className={[
-                          "flex size-[18px] shrink-0 items-center justify-center rounded-full border-2",
-                          active ? "border-primary" : "border-white/25",
-                        ].join(" ")}
-                      >
-                        {active && (
-                          <span className="size-[8px] rounded-full bg-primary" />
-                        )}
-                      </span>
-                      {/* savings badge */}
-                      {pkg.saving && (
-                        <span className="rounded-full bg-primary/20 px-1.5 py-0.5 text-[8px] font-black text-primary">
-                          {pkg.saving}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* label */}
-                    <p
-                      className={`mt-2 text-[9px] font-black uppercase tracking-wide ${active ? "text-primary" : "text-white/80"}`}
-                    >
-                      {pkg.label}
-                    </p>
-
-                    {/* price */}
-                    <p
-                      className={`mt-1 tabular-nums leading-none ${active ? "text-white" : "text-white/65"}`}
-                    >
-                      <span className="text-[16px] font-black">
-                        {pkg.priceMain}
-                      </span>
-                      <span className="text-[11px] font-bold">
-                        {pkg.priceDec}
-                      </span>
-                    </p>
-
-                    {/* per-unit */}
-                    <p className="mt-1 text-[8px] font-medium leading-tight text-white/80">
-                      {pkg.unit}
-                    </p>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* CTA button inside the card */}
-            <div className="px-4 pb-2">
-              <Link
-                href="/tickets"
-                className="flex h-[56px] w-full items-center justify-center gap-2.5 rounded-[14px] bg-primary text-[16px] font-black uppercase tracking-[0.05em] text-[#0E141B] transition-[filter] hover:brightness-105 active:scale-[0.98]"
-              >
-                Garantir {currentPkg.label.toLowerCase()} —{" "}
-                {currentPkg.priceMain}
-                {currentPkg.priceDec}
-                <ChevronRight className="size-5 shrink-0" strokeWidth={2.8} />
-              </Link>
-            </div>
-
-            {/* trust bar inside the card */}
-            <div className="flex items-center justify-around px-4 py-4">
-              <span className="flex items-center gap-1.5 text-[12px] font-semibold text-white/30">
-                <Lock className="size-3 shrink-0" strokeWidth={1.8} />
-                100% Seguro
-              </span>
-              <span className="h-3 w-px bg-white/12" aria-hidden />
-              <span className="flex items-center gap-1.5 text-[12px] font-semibold text-white/30">
-                <Shield className="size-3 shrink-0" strokeWidth={1.8} />
-                Dados protegidos
-              </span>
-              <span className="h-3 w-px bg-white/12" aria-hidden />
-              <span className="flex items-center gap-1.5 text-[12px] font-semibold text-white/30">
-                <Check className="size-3 shrink-0" strokeWidth={2.2} />
-                Oficial
-              </span>
-            </div>
-          </div>
         </div>
       </div>
     </div>
@@ -1563,7 +1595,6 @@ export function BoloesClient({
   const [showAllActive, setShowAllActive] = useState(false);
   const [showAllPrincipal, setShowAllPrincipal] = useState(false);
   const [showAllDiario, setShowAllDiario] = useState(false);
-  const [showAllExtra, setShowAllExtra] = useState(false);
   const hasTickets = (data?.active.all.length ?? 0) > 0;
 
   const summary = data?.summary ?? {
@@ -1591,14 +1622,34 @@ export function BoloesClient({
     () => sortBoloesByAvailabilityForShowcase(extraItems),
     [extraItems],
   );
-  const hasExtraSection = extraItems.length > 0 || upcomingExtras.length > 0;
+  /** Um bloco por campeonato extra (Brasileirão, Premier, …), na ordem do servidor. */
+  const extraChampionshipIdsOrdered = useMemo(() => {
+    const ordered: number[] = [];
+    const seen = new Set<number>();
+    for (const ex of upcomingExtras) {
+      if (!seen.has(ex.championshipId)) {
+        seen.add(ex.championshipId);
+        ordered.push(ex.championshipId);
+      }
+    }
+    for (const item of extraItems) {
+      const id = item.championshipId;
+      if (id != null && id > 0 && !seen.has(id)) {
+        seen.add(id);
+        ordered.push(id);
+      }
+    }
+    return ordered;
+  }, [upcomingExtras, extraItems]);
   const showDiarioShowcase =
     !ticketsExtraOnly && (!ticketsHideDaily || diarioItems.length > 0);
 
   if (!hasTickets) {
     return (
       <NoTicketsState
-        priceLabel={data?.upcoming.principal.priceLabel ?? "R$ 39,90"}
+        upcoming={data?.upcoming ?? EMPTY_UPCOMING}
+        ticketsExtraOnly={ticketsExtraOnly}
+        ticketsHideDaily={ticketsHideDaily}
       />
     );
   }
@@ -1753,78 +1804,43 @@ export function BoloesClient({
           </section>
         )}
 
-        {hasExtraSection && (
-          <section className={ticketsExtraOnly ? "mt-6 mb-6" : "mt-4 mb-6"}>
-            {(() => {
-              const extraCollapsedCount =
-                extraShowcaseItems.length > 0
-                  ? extraShowcaseItems.length
-                  : upcomingExtras.length;
-              return showAllExtra ? (
-                <div className="space-y-3">
-                  {extraShowcaseItems.length > 0
-                    ? extraShowcaseItems.map((item) => (
-                      <ActiveShowcaseCard
-                        key={item.id}
-                        item={item}
-                        now={now}
-                        kind="extra"
-                        fullWidth
-                      />
-                    ))
-                    : upcomingExtras.map((ex) => (
-                      <UpcomingExtraOfferCard
-                        key={ex.championshipId}
-                        ex={ex}
-                        now={now}
-                        fullWidth
-                      />
-                    ))}
-                </div>
-              ) : extraCollapsedCount <= 1 ? (
-                extraShowcaseItems.length === 1 ? (
-                  <div>
+        {extraChampionshipIdsOrdered.map((championshipId) => {
+          const activeForComp = extraShowcaseItems.filter(
+            (item) => item.championshipId === championshipId,
+          );
+          const upcoming = upcomingExtras.find((ex) => ex.championshipId === championshipId);
+          if (activeForComp.length === 0 && !upcoming) return null;
+
+          return (
+            <section
+              key={championshipId}
+              className={ticketsExtraOnly ? "mt-6 mb-6" : "mt-4 mb-6"}
+            >
+              {activeForComp.length === 0 ? (
+                <UpcomingExtraOfferCard ex={upcoming!} now={now} fullWidth />
+              ) : activeForComp.length === 1 ? (
+                <ActiveShowcaseCard
+                  key={activeForComp[0]!.id}
+                  item={activeForComp[0]!}
+                  now={now}
+                  kind="extra"
+                  fullWidth
+                />
+              ) : (
+                <CarouselShell tone={GREEN} itemCount={activeForComp.length}>
+                  {activeForComp.map((item) => (
                     <ActiveShowcaseCard
-                      key={extraShowcaseItems[0].id}
-                      item={extraShowcaseItems[0]}
+                      key={item.id}
+                      item={item}
                       now={now}
                       kind="extra"
-                      fullWidth
                     />
-                  </div>
-                ) : (
-                  <UpcomingExtraOfferCard
-                    ex={upcomingExtras[0]}
-                    now={now}
-                    fullWidth
-                  />
-                )
-              ) : (
-                <CarouselShell
-                  tone={GREEN}
-                  itemCount={extraCollapsedCount}
-                >
-                  {extraShowcaseItems.length > 0
-                    ? extraShowcaseItems.map((item) => (
-                      <ActiveShowcaseCard
-                        key={item.id}
-                        item={item}
-                        now={now}
-                        kind="extra"
-                      />
-                    ))
-                    : upcomingExtras.map((ex) => (
-                      <UpcomingExtraOfferCard
-                        key={ex.championshipId}
-                        ex={ex}
-                        now={now}
-                      />
-                    ))}
+                  ))}
                 </CarouselShell>
-              );
-            })()}
-          </section>
-        )}
+              )}
+            </section>
+          );
+        })}
       </div>
     </div>
   );

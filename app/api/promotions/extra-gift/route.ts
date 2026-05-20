@@ -2,8 +2,8 @@
  * Brinde "Bolão extra grátis" da rodada atual.
  *
  *   GET  → estado do brinde para o usuário logado (já resgatado? rodada atual?).
- *   POST → resgata (idempotente). Retorna `ticketId` para o front redirecionar
- *          o usuário direto para `/palpites?ticket=<id>` após o segundo modal.
+ *   POST → resgata cotas grátis (uma por campeonato extra configurado).
+ *          Idempotente. Retorna `tickets[]` para o step de confirmação.
  *
  * Ambas exigem sessão. Sem auth → 401.
  */

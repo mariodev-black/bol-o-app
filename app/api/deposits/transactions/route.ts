@@ -9,7 +9,10 @@ import {
   readCompetitionDisplayNamesFromDb,
   warmCompetitionMetadataCache,
 } from "@/lib/competition-metadata-cache";
-import { extraBolaoRoundPlayDatesByChampionship } from "@/lib/ticket-shop-extra-play-dates";
+import {
+  extraBolaoCurrentRoundsByChampionship,
+  type ExtraBolaoRoundInfo,
+} from "@/lib/ticket-shop-extra-rounds";
 import { responseForDbError } from "@/lib/db-errors";
 
 export const runtime = "nodejs";
@@ -47,9 +50,9 @@ const createLegacySchema = z.object({
 export async function GET() {
   const ids = parseExtraBolaoChampionshipIds();
   const unit = getExtraBolaoUnitCents();
-  const [labels, playDates] = await Promise.all([
+  const [labels, rounds] = await Promise.all([
     readCompetitionDisplayNamesFromDb(ids).catch(() => ({} as Record<number, string>)),
-    extraBolaoRoundPlayDatesByChampionship(ids).catch(() => ({} as Record<number, string>)),
+    extraBolaoCurrentRoundsByChampionship(ids).catch(() => ({} as Record<number, ExtraBolaoRoundInfo>)),
   ]);
   void warmCompetitionMetadataCache(ids).catch(() => {});
   return NextResponse.json({
@@ -62,7 +65,12 @@ export async function GET() {
       championshipId,
       unitCents: unit,
       displayName: labels[championshipId] ?? extraBolaoFallbackDisplayName(championshipId),
-      ...(playDates[championshipId] ? { roundPlayDateBR: playDates[championshipId] } : {}),
+      ...(rounds[championshipId]
+        ? {
+            roundNumber: rounds[championshipId]!.roundNumber,
+            roundLabel: rounds[championshipId]!.roundLabel,
+          }
+        : {}),
     })),
   });
 }

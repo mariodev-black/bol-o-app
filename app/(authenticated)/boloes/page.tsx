@@ -26,6 +26,16 @@ import {
   mergeExtraChampionshipFromPaidTickets,
 } from "@/lib/ticket-competition-server";
 import { resolveDiarioPlayableDate } from "@/lib/diario-playable-date";
+import { extraBolaoCurrentRoundsByChampionship } from "@/lib/ticket-shop-extra-rounds";
+
+function extraBolaoDisplayTitle(
+  championshipId: number,
+  baseName: string,
+  rounds: Record<number, { roundLabel: string }>,
+): string {
+  const round = rounds[championshipId]?.roundLabel?.trim();
+  return round ? `${baseName} · ${round}` : baseName;
+}
 
 /** Minutos apos apito que consideramos a partida ja encerrada (debug-only nesta rota). */
 function matchEndClockMinutesAfterKickoff(): number {
@@ -252,15 +262,23 @@ function buildRankingMap(
 async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
   const configuredExtraIds = parseExtraBolaoChampionshipIds();
   const mainComp = getFootballMainCompetitionId();
-  const [tickets, userPredictions, allPredictions, extraTicketIdsFromPreds, competitionLabels, participantsByBolao] =
-    await Promise.all([
-      listPaidTicketsForUser(userId),
-      listPredictions({ userId }).catch(() => []),
-      listPredictionsForGlobalRanking().catch(() => []),
-      listDistinctExtraPredictionTicketIds().catch(() => [] as string[]),
-      warmCompetitionMetadataCache(configuredExtraIds).catch(() => ({}) as Record<number, string>),
-      countParticipantsByBolaoType().catch(() => ({ principal: 0, diario: 0, extra: 0 })),
-    ]);
+  const [
+    tickets,
+    userPredictions,
+    allPredictions,
+    extraTicketIdsFromPreds,
+    competitionLabels,
+    participantsByBolao,
+    extraRounds,
+  ] = await Promise.all([
+    listPaidTicketsForUser(userId),
+    listPredictions({ userId }).catch(() => []),
+    listPredictionsForGlobalRanking().catch(() => []),
+    listDistinctExtraPredictionTicketIds().catch(() => [] as string[]),
+    warmCompetitionMetadataCache(configuredExtraIds).catch(() => ({}) as Record<number, string>),
+    countParticipantsByBolaoType().catch(() => ({ principal: 0, diario: 0, extra: 0 })),
+    extraBolaoCurrentRoundsByChampionship(configuredExtraIds).catch(() => ({})),
+  ]);
 
   const ensureCompIds = competitionIdsEnsureFromPaidTickets(tickets);
   const matches = await fetchMatchesMap({ ensureCompetitionIds: ensureCompIds }).catch(() => new Map());
@@ -453,10 +471,12 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
     if (ticket.ticketType === "extra") {
       const compId = Number(ticket.extraChampionshipId);
       const safeComp = Number.isFinite(compId) && compId > 0 ? compId : 0;
-      const title =
+      const baseName =
         safeComp > 0
           ? (competitionLabels[safeComp] ?? extraBolaoFallbackDisplayName(safeComp))
           : "Bolão extra";
+      const title =
+        safeComp > 0 ? extraBolaoDisplayTitle(safeComp, baseName, extraRounds) : baseName;
       const date =
         ticket.playDate ||
         (safeComp > 0 ? resolveDiarioPlayableDate(matches, { competitionId: safeComp }) : playableDate);
@@ -597,11 +617,12 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
             m.dateBR === pd && (Number(m.competitionId) || championshipId) === championshipId,
         );
         const openOnDate = dateMatches.filter((m) => isOpenMatch(m, PALPITE_LOCK_MS_EXTRA));
+        const baseName =
+          competitionLabels[championshipId] ??
+          extraBolaoFallbackDisplayName(championshipId);
         return {
           championshipId,
-          title:
-            competitionLabels[championshipId] ??
-            extraBolaoFallbackDisplayName(championshipId),
+          title: extraBolaoDisplayTitle(championshipId, baseName, extraRounds),
           href: `/tickets?bolao=extra&championshipId=${championshipId}`,
           gamesCount: openOnDate.length,
           closesAtMs: nextLockMs(openOnDate, PALPITE_LOCK_MS_EXTRA),

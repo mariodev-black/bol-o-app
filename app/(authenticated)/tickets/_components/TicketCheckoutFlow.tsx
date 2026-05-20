@@ -21,11 +21,12 @@ import {
 import { useRouter } from "next/navigation";
 import bannerCheckout from "@/app/assets/banner-chekout.png";
 import iconBrasileirao from "@/app/assets/icon-brasileirao.png";
+import iconPremierLeague from "@/app/assets/icon-premier-league.png";
 import iconCopaBrasil from "@/app/assets/icon-copa-brasil.png";
 import iconCopaMundo from "@/app/assets/icon-copa-mundo.png";
 import ticketBlue from "@/app/assets/Ticket-Blue.png";
-import { resolveCheckoutExtraBolaoIconVariant } from "@/lib/boloes-extra-competition-branding";
-import { championshipCountsFromExtraQuantity } from "@/lib/payments/ticket-config";
+import { getExtraBolaoHeroSideVariant } from "@/lib/boloes-extra-competition-branding";
+import { extraBolaoIconSrc, isExtraBolaoBrandedIcon } from "@/app/shared/extra-bolao-icons";
 import { appendTicketsFromPurchase } from "../lib/ownedTicketsStorage";
 import { AppScreenLoading } from "@/app/shared/AppScreenLoading";
 import { TicketPixGeneratedScreen } from "./pix/TicketPixGeneratedScreen";
@@ -56,8 +57,9 @@ type ExtraBolaoOption = {
   championshipId: number;
   unitCents: number;
   displayName?: string;
-  /** Data da rodada em aberto (dd/MM/yyyy), do servidor — mesma regra do bolão extra. */
-  roundPlayDateBR?: string;
+  /** Rodada atual do campeonato (número + rótulo, ex.: "17ª Rodada"). */
+  roundNumber?: number;
+  roundLabel?: string;
 };
 
 function formatBRL(cents: number) {
@@ -152,10 +154,17 @@ export function TicketCheckoutFlow({
       unitCents: DEFAULT_EXTRA_CENTS,
     }));
   });
-  const [extraQuantity, setExtraQuantity] = useState(() => {
-    if (ticketsExtraOnly) return initialTicketKind === "extra" ? 1 : 0;
-    return initialTicketKind === "extra" ? 1 : 0;
-  });
+  const [extraQtyByChampionship, setExtraQtyByChampionship] = useState<Record<number, number>>(
+    () => {
+      if (
+        _initialExtraChampionshipId != null &&
+        (ticketsExtraOnly || initialTicketKind === "extra")
+      ) {
+        return { [_initialExtraChampionshipId]: 1 };
+      }
+      return {};
+    },
+  );
   const [prices, setPrices] = useState({
     general: DEFAULT_PRINCIPAL_CENTS,
     daily: DEFAULT_DIARIO_CENTS,
@@ -189,6 +198,16 @@ export function TicketCheckoutFlow({
     if (!ticketsHideDaily) return;
     setDailyQty(0);
   }, [ticketsHideDaily]);
+
+  useEffect(() => {
+    setExtraQtyByChampionship((prev) => {
+      const next = { ...prev };
+      for (const b of extraBoloes) {
+        if (next[b.championshipId] == null) next[b.championshipId] = 0;
+      }
+      return next;
+    });
+  }, [extraBoloes]);
 
   const handleTransactionUpdate = useCallback(
     (payload: TransactionUpdatePayload, source?: string) => {
@@ -259,7 +278,8 @@ export function TicketCheckoutFlow({
             championshipId: number;
             unitCents: number;
             displayName?: string;
-            roundPlayDateBR?: string;
+            roundNumber?: number;
+            roundLabel?: string;
           }>;
         };
         if (cancelled) return;
@@ -363,100 +383,77 @@ export function TicketCheckoutFlow({
     };
   }, [step, transactionId, handleTransactionUpdate]);
 
-  const extraPrimaryBolao = useMemo(() => {
-    if (extraBoloes.length === 0) return undefined;
-    if (_initialExtraChampionshipId != null) {
-      const hit = extraBoloes.find((b) => b.championshipId === _initialExtraChampionshipId);
-      if (hit) return hit;
-    }
-    return extraBoloes[0];
-  }, [extraBoloes, _initialExtraChampionshipId]);
+  const extraQty = useCallback(
+    (championshipId: number) => extraQtyByChampionship[championshipId] ?? 0,
+    [extraQtyByChampionship],
+  );
 
-  const extraResumoShortLabel = useMemo(() => {
-    const raw = extraPrimaryBolao?.displayName?.trim();
-    if (raw) return raw;
-    const names = extraBoloes.map((b) => b.displayName?.trim()).filter(Boolean);
-    const uniq = [...new Set(names)];
-    if (uniq.length === 1) return uniq[0]!;
-    if (uniq.length > 1) return uniq.join(" · ");
-    return "Bolão extra";
-  }, [extraBoloes, extraPrimaryBolao]);
+  const setExtraQty = useCallback((championshipId: number, qty: number) => {
+    setExtraQtyByChampionship((prev) => ({
+      ...prev,
+      [championshipId]: Math.max(0, Math.min(MAX_QTY, qty)),
+    }));
+  }, []);
 
-  const extraRoundPlayDateBR = useMemo(() => {
-    const fromPrimary = extraPrimaryBolao?.roundPlayDateBR?.trim();
-    if (fromPrimary) return fromPrimary;
-    const first = extraBoloes.map((b) => b.roundPlayDateBR?.trim()).find(Boolean);
-    return first ?? null;
-  }, [extraBoloes, extraPrimaryBolao]);
+  const extraTotalQty = useMemo(
+    () => extraBoloes.reduce((sum, b) => sum + extraQty(b.championshipId), 0),
+    [extraBoloes, extraQty],
+  );
 
-  const extraTicketHeadline = useMemo(() => {
-    const base = extraResumoShortLabel.trim();
-    let headline =
-      !base || base === "Bolão extra" ? "TICKET BOLÃO EXTRA" : `Bolão ${base.toUpperCase()}`;
-    const d = extraRoundPlayDateBR?.trim();
-    if (d) headline = `${headline} - ${d}`;
+  const extraBolaoHeadline = useCallback((b: ExtraBolaoOption) => {
+    const base = b.displayName?.trim() || "Bolão extra";
+    let headline = `Bolão ${base.toUpperCase()}`;
+    const round =
+      b.roundLabel?.trim() ||
+      (b.roundNumber != null && Number.isFinite(b.roundNumber)
+        ? `${b.roundNumber}ª Rodada`
+        : "");
+    if (round) headline = `${headline} · ${round}`;
     return headline;
-  }, [extraResumoShortLabel, extraRoundPlayDateBR]);
-
-  const extraIconBadge = useMemo(() => {
-    const s = extraResumoShortLabel.trim();
-    if (!s || s === "Bolão extra") return "EXTRA";
-    const first = (s.split(/\s+/)[0] ?? s).replace(/[^a-zA-ZÀ-ÿ0-9]/g, "");
-    if (first.length <= 1) return s.slice(0, 10).toUpperCase();
-    return first.length > 12 ? `${first.slice(0, 10)}…`.toUpperCase() : first.toUpperCase();
-  }, [extraResumoShortLabel]);
-
-  const extraNamesUnique = useMemo(
-    () => [...new Set(extraBoloes.map((b) => b.displayName?.trim()).filter(Boolean))],
-    [extraBoloes],
-  );
-
-  const extraCheckoutIconVariant = useMemo(
-    () => resolveCheckoutExtraBolaoIconVariant(extraBoloes, extraResumoShortLabel),
-    [extraBoloes, extraResumoShortLabel],
-  );
-
-  const extraCardIconSrc =
-    extraCheckoutIconVariant === "copa_brasil"
-      ? iconCopaBrasil.src
-      : extraCheckoutIconVariant === "brasileirao"
-        ? iconBrasileirao.src
-        : ticketBlue.src;
-
-  const extraCardBrandedIcon = extraCheckoutIconVariant !== "generic";
+  }, []);
 
   const principalLineCents = progressiveDiscountTotalCents(
     prices.general,
     principalQty,
   );
   const diarioLineCents = progressiveDiscountTotalCents(prices.daily, dailyQty);
-  const extraLineCents = progressiveDiscountTotalCents(prices.extra, extraQuantity);
-  const extraPixLines = useMemo(() => {
-    if (extraQuantity <= 0) return [];
-    return [
-      {
-        championshipId: extraPrimaryBolao?.championshipId ?? extraBoloes[0]?.championshipId ?? 0,
-        qty: extraQuantity,
-        lineCents: extraLineCents,
-        displayLabel: `Ticket ${extraResumoShortLabel}`,
-      },
-    ];
-  }, [extraBoloes, extraQuantity, extraLineCents, extraPrimaryBolao, extraResumoShortLabel]);
+  const extraLinesCents = useMemo(() => {
+    let total = 0;
+    for (const b of extraBoloes) {
+      const q = extraQty(b.championshipId);
+      total += progressiveDiscountTotalCents(prices.extra, q);
+    }
+    return total;
+  }, [extraBoloes, extraQty, prices.extra]);
 
-  const extraLinesCents = extraLineCents;
+  const extraPixLines = useMemo(
+    () =>
+      extraBoloes
+        .map((b) => {
+          const qty = extraQty(b.championshipId);
+          if (qty <= 0) return null;
+          const lineCents = progressiveDiscountTotalCents(prices.extra, qty);
+          const label = b.displayName?.trim() || "Bolão extra";
+          return {
+            championshipId: b.championshipId,
+            qty,
+            lineCents,
+            displayLabel: `Ticket ${label}`,
+          };
+        })
+        .filter((line): line is NonNullable<typeof line> => line != null),
+    [extraBoloes, extraQty, prices.extra],
+  );
 
   const totalCents = principalLineCents + diarioLineCents + extraLinesCents;
-  const totalQty = principalQty + dailyQty + extraQuantity;
+  const totalQty = principalQty + dailyQty + extraTotalQty;
   const hasSelection = totalCents > 0 && totalQty >= 1;
   const geralDiscountPct = progressiveDiscountPercent(principalQty);
   const diarioDiscountPct = progressiveDiscountPercent(dailyQty);
-  const extraDiscountPct = progressiveDiscountPercent(extraQuantity);
   const principalUnitPriceCents =
     principalQty > 0 ? Math.round(principalLineCents / principalQty) : prices.general;
   const dailyUnitPriceCents =
     dailyQty > 0 ? Math.round(diarioLineCents / dailyQty) : prices.daily;
-  const extraUnitPriceCents =
-    extraQuantity > 0 ? Math.round(extraLineCents / extraQuantity) : prices.extra;
   const secondsLeft =
     step === "pix" && pixDeadline != null
       ? Math.max(0, Math.ceil((pixDeadline - now) / 1000))
@@ -481,7 +478,11 @@ export function TicketCheckoutFlow({
           body: JSON.stringify({
             generalQuantity: principalQty,
             dailyQuantity: dailyQty,
-            extraQuantity,
+            extraByChampionship: Object.fromEntries(
+              extraBoloes
+                .map((b) => [String(b.championshipId), extraQty(b.championshipId)] as const)
+                .filter(([, q]) => q > 0),
+            ),
           }),
         });
         const d = (await r.json()) as {
@@ -495,11 +496,11 @@ export function TicketCheckoutFlow({
         }
         purchasePrincipalRef.current = principalQty;
         purchaseDiarioRef.current = dailyQty;
-        const paidExtras = championshipCountsFromExtraQuantity(
-          extraQuantity,
-          extraBoloes.map((b) => b.championshipId),
+        purchaseExtraRef.current = Object.fromEntries(
+          extraBoloes
+            .map((b) => [b.championshipId, extraQty(b.championshipId)] as const)
+            .filter(([, q]) => q > 0),
         );
-        purchaseExtraRef.current = paidExtras;
         setTransactionId(d.transaction.id);
         setPixPayload(d.transaction.pixQrcode);
         setPixDeadline(Date.now() + PIX_CHECKOUT_WINDOW_MS);
@@ -509,7 +510,7 @@ export function TicketCheckoutFlow({
         setStep("shop");
       }
     })();
-  }, [hasSelection, principalQty, dailyQty, extraBoloes, extraQuantity]);
+  }, [hasSelection, principalQty, dailyQty, extraBoloes, extraQty]);
 
   const copyPix = useCallback(() => {
     if (!pixPayload || pixExpired) return;
@@ -840,95 +841,103 @@ export function TicketCheckoutFlow({
               </div>
               )}
 
-              {extraBoloes.length > 0 && (
-                <div className="overflow-hidden rounded-[16px] border border-white/10 bg-[#121212] shadow-[0_8px_26px_rgba(0,0,0,0.35)]">
-                  <div className="min-w-0 overflow-x-auto border-b border-white/6 px-3 pb-2.5 pt-3 [-ms-overflow-style:none] [scrollbar-width:none] sm:px-3.5 sm:pb-3 sm:pt-3.5 [&::-webkit-scrollbar]:hidden">
-                    <h3 className="inline-block w-max max-w-none whitespace-nowrap text-[14px] font-black uppercase leading-none tracking-[-0.03em] text-white min-[380px]:text-[15px] sm:text-[15px]">
-                      {extraTicketHeadline}
-                    </h3>
-                  </div>
-                  <div className="grid grid-cols-[74px_minmax(0,1fr)] items-start gap-3 p-3 sm:grid-cols-[86px_minmax(0,1fr)] sm:p-3.5">
-                    <div className="flex flex-col items-center justify-center pt-0.5">
-                      <img
-                        src={extraCardIconSrc}
-                        alt=""
-                        className={
-                          extraCardBrandedIcon
-                            ? "h-[68px] w-[68px] shrink-0 rounded-[12px] object-contain sm:h-[78px] sm:w-[78px]"
-                            : "h-[82px] w-[62px] shrink-0 object-contain sm:h-[86px] sm:w-[62px]"
-                        }
-                      />
+              {extraBoloes.map((b) => {
+                const qty = extraQty(b.championshipId);
+                const variant = getExtraBolaoHeroSideVariant(b.championshipId, b.displayName);
+                const iconSrc = extraBolaoIconSrc(variant).src;
+                const branded = isExtraBolaoBrandedIcon(variant);
+                const headline = extraBolaoHeadline(b);
+                const lineCents = progressiveDiscountTotalCents(prices.extra, qty);
+                const discountPct = progressiveDiscountPercent(qty);
+                const unitCents = qty > 0 ? Math.round(lineCents / qty) : prices.extra;
+
+                return (
+                  <div
+                    key={b.championshipId}
+                    className="overflow-hidden rounded-[16px] border border-white/10 bg-[#121212] shadow-[0_8px_26px_rgba(0,0,0,0.35)]"
+                  >
+                    <div className="min-w-0 overflow-x-auto border-b border-white/6 px-3 pb-2.5 pt-3 [-ms-overflow-style:none] [scrollbar-width:none] sm:px-3.5 sm:pb-3 sm:pt-3.5 [&::-webkit-scrollbar]:hidden">
+                      <h3 className="inline-block w-max max-w-none whitespace-nowrap text-[14px] font-black uppercase leading-none tracking-[-0.03em] text-white min-[380px]:text-[15px] sm:text-[15px]">
+                        {headline}
+                      </h3>
                     </div>
-                    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_88px] items-center gap-3 sm:grid-cols-[minmax(0,1fr)_96px]">
-                      <div className="min-w-0">
-                        <div className="min-w-0 space-y-1.5">
+                    <div className="grid grid-cols-[74px_minmax(0,1fr)] items-start gap-3 p-3 sm:grid-cols-[86px_minmax(0,1fr)] sm:p-3.5">
+                      <div className="flex flex-col items-center justify-center pt-0.5">
+                        <img
+                          src={iconSrc}
+                          alt=""
+                          className={
+                            branded
+                              ? "h-[68px] w-[68px] shrink-0 rounded-[12px] object-contain sm:h-[78px] sm:w-[78px]"
+                              : "h-[82px] w-[62px] shrink-0 object-contain sm:h-[86px] sm:w-[62px]"
+                          }
+                        />
+                      </div>
+                      <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_88px] items-center gap-3 sm:grid-cols-[minmax(0,1fr)_96px]">
+                        <div className="min-w-0">
                           <p className="text-[12px] font-medium leading-snug text-white/80 sm:text-[11px]">
-                            Cota extra na rodada atual do campeonato.
+                            Cota extra na rodada atual deste campeonato.
                           </p>
-                          {extraNamesUnique.length > 1 && (
-                            <p className="text-[10px] font-medium leading-snug text-white/50">
-                              Inclui: {extraNamesUnique.join(" · ")}
-                            </p>
-                          )}
+                          <div className="mt-3 flex w-fit items-center gap-1 rounded-[10px] border border-white/10 bg-[#0f0f0f] p-1">
+                            <button
+                              type="button"
+                              aria-label={`Diminuir ${headline}`}
+                              disabled={qty <= 0}
+                              onClick={() => {
+                                setError(null);
+                                setCouponHint(null);
+                                setExtraQty(b.championshipId, qty - 1);
+                              }}
+                              className="flex h-8 w-8 items-center justify-center rounded-[8px] border border-primary/20 bg-black/40 text-primary transition-colors hover:bg-white/10 disabled:opacity-30"
+                            >
+                              <span className="text-[18px] font-black leading-none">-</span>
+                            </button>
+                            <span className="w-8 text-center text-[18px] font-black tabular-nums text-white sm:text-[20px]">
+                              {qty}
+                            </span>
+                            <button
+                              type="button"
+                              aria-label={`Aumentar ${headline}`}
+                              disabled={qty >= MAX_QTY}
+                              onClick={() => {
+                                setError(null);
+                                setCouponHint(null);
+                                setExtraQty(b.championshipId, qty + 1);
+                              }}
+                              className="flex h-8 w-8 items-center justify-center rounded-[8px] border border-primary/30 bg-black/40 text-primary transition-colors hover:bg-white/10 disabled:opacity-30"
+                            >
+                              <span className="text-[18px] font-black leading-none">+</span>
+                            </button>
+                          </div>
                         </div>
-                        <div className="mt-3 flex w-fit items-center gap-1 rounded-[10px] border border-white/10 bg-[#0f0f0f] p-1">
-                          <button
-                            type="button"
-                            aria-label={`Diminuir ${extraTicketHeadline}`}
-                            disabled={extraQuantity <= 0}
-                            onClick={() => {
-                              setError(null);
-                              setCouponHint(null);
-                              setExtraQuantity((q) => Math.max(0, q - 1));
-                            }}
-                            className="flex h-8 w-8 items-center justify-center rounded-[8px] border border-primary/20 bg-black/40 text-primary transition-colors hover:bg-white/10 disabled:opacity-30"
-                          >
-                            <span className="text-[18px] font-black leading-none">-</span>
-                          </button>
-                          <span className="w-8 text-center text-[18px] font-black tabular-nums text-white sm:text-[20px]">
-                            {extraQuantity}
-                          </span>
-                          <button
-                            type="button"
-                            aria-label={`Aumentar ${extraTicketHeadline}`}
-                            disabled={extraQuantity >= MAX_QTY}
-                            onClick={() => {
-                              setError(null);
-                              setCouponHint(null);
-                              setExtraQuantity((q) => Math.min(MAX_QTY, q + 1));
-                            }}
-                            className="flex h-8 w-8 items-center justify-center rounded-[8px] border border-primary/30 bg-black/40 text-primary transition-colors hover:bg-white/10 disabled:opacity-30"
-                          >
-                            <span className="text-[18px] font-black leading-none">+</span>
-                          </button>
+                        <div className="self-center text-right">
+                          <p className="text-[12px] font-semibold text-white/40">Preço unitário</p>
+                          <p className="mt-1 text-[14px] font-black tabular-nums text-white sm:text-[15px]">
+                            {formatBRL(unitCents)}
+                          </p>
+                          <p className="mt-1 text-[12px] font-semibold tabular-nums text-white/80 line-through">
+                            {discountPct > 0 ? formatBRL(prices.extra) : ""}
+                          </p>
+                          <p className="text-[12px] font-bold text-primary">{discountPct}% OFF</p>
+                          <p className="mt-1 text-[9px] leading-tight text-white/40">
+                            a partir de 2 tickets
+                          </p>
                         </div>
-                      </div>
-                      <div className="self-center text-right">
-                        <p className="text-[12px] font-semibold text-white/40">Preço unitário</p>
-                        <p className="mt-1 text-[14px] font-black tabular-nums text-white sm:text-[15px]">
-                          {formatBRL(extraUnitPriceCents)}
-                        </p>
-                        <p className="mt-1 text-[12px] font-semibold tabular-nums text-white/80 line-through">
-                          {extraDiscountPct > 0 ? formatBRL(prices.extra) : ""}
-                        </p>
-                        <p className="text-[12px] font-bold text-primary">{extraDiscountPct}% OFF</p>
-                        <p className="mt-1 text-[9px] leading-tight text-white/40">
-                          a partir de 2 tickets
-                        </p>
                       </div>
                     </div>
+                    <div className="flex items-center justify-between gap-2 border-t border-white/6 bg-black/25 px-3.5 py-2.5 text-[12px] text-white/50 sm:px-4">
+                      <span>
+                        Desconto aplicado:{" "}
+                        <span className="font-bold text-primary">{discountPct}%</span> OFF
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-right font-medium">
+                        Escolha a quantidade
+                        <ChevronRight className="size-3.5 text-white/80" strokeWidth={2.4} />
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between gap-2 border-t border-white/6 bg-black/25 px-3.5 py-2.5 text-[12px] text-white/50 sm:px-4">
-                    <span>
-                      Desconto aplicado: <span className="font-bold text-primary">{extraDiscountPct}%</span> OFF
-                    </span>
-                    <span className="inline-flex items-center gap-1 text-right font-medium">
-                      Escolha a quantidade
-                      <ChevronRight className="size-3.5 text-white/80" strokeWidth={2.4} />
-                    </span>
-                  </div>
-                </div>
-              )}
+                );
+              })}
             </div>
 
             {/* ── Resumo da compra ─────────────────────────────── */}
@@ -1017,17 +1026,25 @@ export function TicketCheckoutFlow({
                   </span>
                 </div>
                 )}
-                {extraQuantity > 0 && (
-                  <div className="flex items-center justify-between gap-2 text-[13px]">
-                    <span className="font-semibold text-white/70">
-                      {extraResumoShortLabel} · {extraQuantity}{" "}
-                      {extraQuantity === 1 ? "ticket" : "tickets"}
-                    </span>
-                    <span className="shrink-0 font-black tabular-nums text-white">
-                      {formatBRL(extraLineCents)}
-                    </span>
-                  </div>
-                )}
+                {extraBoloes.map((b) => {
+                  const qty = extraQty(b.championshipId);
+                  if (qty <= 0) return null;
+                  const lineCents = progressiveDiscountTotalCents(prices.extra, qty);
+                  const label = b.displayName?.trim() || "Bolão extra";
+                  return (
+                    <div
+                      key={b.championshipId}
+                      className="flex items-center justify-between gap-2 text-[13px]"
+                    >
+                      <span className="font-semibold text-white/70">
+                        {label} · {qty} {qty === 1 ? "ticket" : "tickets"}
+                      </span>
+                      <span className="shrink-0 font-black tabular-nums text-white">
+                        {formatBRL(lineCents)}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
               <div className="mt-3 flex items-center justify-between gap-2">
                 <span className="text-[16px] font-black uppercase tracking-wide text-white/50">

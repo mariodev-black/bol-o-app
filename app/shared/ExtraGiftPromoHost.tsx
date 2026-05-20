@@ -11,11 +11,11 @@
  *                         Checkbox "Não exibir isso novamente" persiste no localStorage
  *                         (chave por championship + rodada — reabre quando muda a rodada).
  *
- *   STEP 2 ("claimed") →  "BOLÕES LIBERADOS!". Botão "FAZER MEUS PALPITES" leva para
- *                         `/palpites?ticket=<ticketId>` (entra direto no ticket recém-criado).
+ *   STEP 2 ("claimed") →  confirmação minimalista com ícone por liga (Brasileirão + Premier).
+ *                         CTA leva para `/boloes`.
  *
  * Regras:
- *   - Aparece só quando `enabled && !alreadyClaimed && !dismissedForThisRound`.
+ *   - Aparece só quando `enabled && canClaim && !dismissedForBundle`.
  *   - Se o usuário fecha sem resgatar, o modal volta no próximo login a menos que
  *     marque "não exibir novamente".
  *   - O resgate é idempotente no backend — múltiplos clicks geram o mesmo ticket.
@@ -24,10 +24,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Check, Trophy, X } from "lucide-react";
+import { ArrowRight, Check, X } from "lucide-react";
 import confetti from "canvas-confetti";
 import { useAuth } from "@/app/shared/AuthContext";
 import { useBolaoToast } from "@/app/components/BolaoToast";
+import { extraBolaoIconSrc } from "@/app/shared/extra-bolao-icons";
+import type { ExtraGiftLeagueKind } from "@/lib/promotions/extra-gift";
 import poupUpImage from "@/app/assets/poup-up.png";
 
 /** URL pública do mp3 de torcida. Mantemos em `/public/audio/` em vez de
@@ -36,42 +38,68 @@ import poupUpImage from "@/app/assets/poup-up.png";
 const audioTorcidaSrc = "/audio/audio-torcida.mp3";
 
 const PROMO_FONT = "var(--font-montserrat), ui-sans-serif, system-ui, sans-serif";
-/** localStorage prefix — sufixo `_{championshipId}_{rodada}` para isolar por rodada. */
-const DISMISS_PREFIX = "bolao_extra_gift_dismissed_v1";
+/** localStorage — sufixo bundle `10:12|69:8` (campeonato:rodada por liga). */
+const DISMISS_PREFIX = "bolao_extra_gift_dismissed_v2";
+
+type ExtraGiftLeagueRow = {
+  championshipId: number;
+  displayName: string;
+  leagueKind: ExtraGiftLeagueKind;
+  rodada: number | null;
+  rodadaNome: string | null;
+};
 
 type ExtraGiftStatus = {
   enabled: boolean;
+  prizeLabel: string;
+  displayName: string;
+  leagues: ExtraGiftLeagueRow[];
+  allClaimed: boolean;
+  canClaim: boolean;
+  dismissBundleKey: string;
   championshipId: number | null;
   rodada: number | null;
-  rodadaNome: string | null;
-  championshipName: string | null;
   alreadyClaimed: boolean;
   ticketId: string | null;
+};
+
+type ClaimedTicketRow = {
+  championshipId: number;
   displayName: string;
-  prizeLabel: string;
+  leagueKind: ExtraGiftLeagueKind;
+  ticketId: string;
 };
 
 type Step = "offer" | "claimed";
 
-function dismissKey(championshipId: number, rodada: number): string {
-  return `${DISMISS_PREFIX}:${championshipId}:${rodada}`;
+function dismissStorageKey(bundleKey: string): string {
+  return `${DISMISS_PREFIX}:${bundleKey}`;
 }
 
-function readDismissed(championshipId: number, rodada: number): boolean {
-  if (typeof window === "undefined") return false;
+function readDismissed(bundleKey: string): boolean {
+  if (!bundleKey || typeof window === "undefined") return false;
   try {
-    return window.localStorage.getItem(dismissKey(championshipId, rodada)) === "1";
+    return window.localStorage.getItem(dismissStorageKey(bundleKey)) === "1";
   } catch {
     return false;
   }
 }
 
-function persistDismissed(championshipId: number, rodada: number): void {
+function persistDismissed(bundleKey: string): void {
+  if (!bundleKey) return;
   try {
-    window.localStorage.setItem(dismissKey(championshipId, rodada), "1");
+    window.localStorage.setItem(dismissStorageKey(bundleKey), "1");
   } catch {
     /* localStorage indisponível — sem-op (modal volta no próximo login). */
   }
+}
+
+function leagueIconVariant(kind: ExtraGiftLeagueKind) {
+  return kind === "brasileirao"
+    ? "brasileirao"
+    : kind === "premier_league"
+      ? "premier_league"
+      : "generic";
 }
 
 /* -------------------------------------------------------------------------- */
@@ -100,6 +128,7 @@ function OfferStep({
   const [dontShowAgain, setDontShowAgain] = useState(false);
 
   const handleClose = () => onClose(dontShowAgain);
+  const cotaCount = Math.max(1, status.leagues.length);
 
   return (
     // Wrapper externo: relativo + padding-top que reserva espaço pra a imagem
@@ -107,7 +136,7 @@ function OfferStep({
     // de cima dela aparece nos `pt-[140px]` reservados, a metade de baixo
     // fica naturalmente OCULTA atrás do card opaco (z-10).
     <div
-      className="relative w-full max-w-[380px] pt-[260px]"
+      className="relative w-full max-w-[350px] pt-[240px]"
       style={{ fontFamily: PROMO_FONT }}
       onClick={(e) => e.stopPropagation()}
     >
@@ -138,7 +167,7 @@ function OfferStep({
 
       {/* Card — z-10 cobre a parte INFERIOR da imagem e fica acima dela. */}
       <div
-        className="relative z-10 rounded-3xl bg-[#0d0d0d] px-6 pb-6 pt-8"
+        className="relative z-10 rounded-4xl bg-[#141414] px-6 pb-6 pt-8"
         id="extra-gift-promo-card"
       >
         {/* Título — destaca "2" + "bolões grátis" pra comunicar de cara o duplo benefício */}
@@ -149,43 +178,32 @@ function OfferStep({
         >
           <span className="text-white">Você ganhou</span>
           <br />
-          2 bolões grátis!
+          {cotaCount} {cotaCount === 1 ? "cota grátis" : "cotas grátis"}!
         </h2>
 
-        {/* Subtítulo — "um no Brasileirão e outro na Libertadores" deixa o duplo evidente */}
-        <p className="mx-auto mt-4 text-center text-[15px] font-bold uppercase leading-[1.45] tracking-[0.02em] text-white sm:text-[12.5px]">
-          Um no <span className="text-primary font-black">Brasileirão</span> e outro na ultima rodada da{" "}
-          <span className="text-primary font-black">PREMIER LEAGUE</span>, valendo{" "}
-          <span className="text-primary font-black">R$ 10 mil</span> em prêmios em cada bilhete.
+        <p className="mt-4 text-center text-[13px] font-medium leading-snug text-white/70">
+          Brasileirão e Premier League · valendo {status.prizeLabel} cada
         </p>
 
-        {/* Chamada */}
-        <p className="mt-5 text-center text-[13px] font-semibold uppercase leading-snug tracking-wide text-white">
-          Resgate agora e <span className="text-white">faça seus palpites</span>
-        </p>
-
-        {/* CTA pill */}
         <button
           type="button"
           disabled={loading}
           onClick={onClaim}
-          className="mt-5 flex min-h-[52px] w-full items-center justify-center rounded-full bg-primary px-4 text-[14px] font-black uppercase tracking-wide text-[#0E141B] transition-transform active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white disabled:cursor-not-allowed disabled:opacity-70 sm:text-[15px]"
+          className="mt-5 flex min-h-[48px] w-full items-center justify-center rounded-full bg-primary px-4 text-[13px] font-black uppercase tracking-wide text-[#0E141B] transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
         >
-          {loading ? "Resgatando..." : "Resgatar minhas 2 cotas"}
+          {loading ? "Resgatando..." : `Resgatar ${cotaCount} cotas`}
         </button>
 
-        {/* Checkbox discreto */}
-        <label className="mt-4 flex cursor-pointer items-center justify-center gap-2">
+        <label className="mt-4 flex cursor-pointer items-center justify-center gap-2 text-[11px] font-medium text-white/50">
           <input
             type="checkbox"
             checked={dontShowAgain}
             onChange={(e) => setDontShowAgain(e.target.checked)}
-            className="size-3.5 shrink-0 accent-[#B1EB0B]"
+            className="size-3.5 rounded border-white/30 accent-primary"
           />
-          <span className="text-[11.5px] font-semibold leading-snug text-white/60">
-            Não exibir isso novamente
-          </span>
+          Não exibir novamente nesta rodada
         </label>
+
       </div>
     </div>
   );
@@ -196,15 +214,19 @@ function OfferStep({
 /* -------------------------------------------------------------------------- */
 
 function ClaimedStep({
+  prizeLabel,
+  leagues,
   onPlay,
   onClose,
 }: {
+  prizeLabel: string;
+  leagues: ClaimedTicketRow[];
   onPlay: () => void;
   onClose: () => void;
 }) {
   return (
     <div
-      className="relative w-full max-w-[380px] overflow-hidden rounded-3xl bg-[#0d0d0d]"
+      className="relative w-full max-w-[320px] rounded-2xl border border-white/10 bg-[#141414] px-4 pb-4 pt-10"
       style={{ fontFamily: PROMO_FONT }}
       onClick={(e) => e.stopPropagation()}
     >
@@ -212,77 +234,67 @@ function ClaimedStep({
         type="button"
         onClick={onClose}
         aria-label="Fechar"
-        className="absolute right-3 top-3 z-10 flex size-9 items-center justify-center rounded-full bg-black/70 text-white ring-1 ring-white/15 backdrop-blur-sm transition-colors hover:bg-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        className="absolute right-2.5 top-2.5 flex size-8 items-center justify-center rounded-full bg-black/60 text-white/90 transition-colors hover:bg-black"
       >
-        <X className="size-4" strokeWidth={2.5} aria-hidden />
+        <X className="size-3.5" strokeWidth={2.5} aria-hidden />
       </button>
 
-      {/* Ícone de check em destaque */}
-      <header className="px-5 pb-3 pt-12 text-center">
+      <header className="text-center">
         <div
-          className="relative mx-auto mb-4 flex size-20 items-center justify-center rounded-full bg-primary/15 ring-2 ring-primary"
+          className="mx-auto mb-2.5 flex size-10 items-center justify-center rounded-full bg-primary/15 ring-1 ring-primary/50"
           aria-hidden
-          style={{ boxShadow: "0 0 40px rgba(177,235,11,0.4)" }}
         >
-          <Check className="size-12 text-primary" strokeWidth={2.4} />
+          <Check className="size-5 text-primary" strokeWidth={2.5} />
         </div>
-
-        <h2 id="extra-gift-claimed-title" className="leading-[1.05] tracking-tight">
-          <span className="block text-[28px] font-black uppercase text-white sm:text-[30px]">
-            Bolões
-          </span>
-          <span
-            className="mt-0.5 block text-[28px] font-black uppercase text-primary sm:text-[30px]"
-            style={{ textShadow: "0 0 22px rgba(177,235,11,0.4)" }}
-          >
-            Liberados!
-          </span>
+        <h2
+          id="extra-gift-claimed-title"
+          className="text-[17px] font-black uppercase tracking-tight text-white"
+        >
+          Cotas liberadas
         </h2>
-
-        <p className="mx-auto mt-4 max-w-[280px] text-[14px] font-medium leading-snug text-white/85 sm:text-[15px]">
-          Você já pode palpitar no{" "}
-          <span className="font-black text-primary">Brasileirão</span> e na{" "}
-          <span className="font-black text-primary">Premier League</span>.
+        <p className="mt-1 text-[12px] font-medium leading-snug text-white/65">
+          {leagues.length > 1
+            ? "Você ganhou 1 cota grátis em cada bolão extra:"
+            : "Sua cota grátis já está na sua conta."}
         </p>
       </header>
 
-      {/* Card "PREMIAÇÃO" — destaca o valor por bilhete pra reforçar que são dois */}
-      <div className="mx-4 mt-5 rounded-2xl border border-white/12 bg-[#161616] px-4 py-3.5">
-        <div className="flex items-center gap-3">
-          <span
-            className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary/15 ring-1 ring-primary/40"
-            aria-hidden
+      <ul className="mt-4 space-y-2">
+        {leagues.map((league) => (
+          <li
+            key={league.championshipId}
+            className="flex items-center gap-2.5 rounded-xl border border-white/8 bg-[#1a1a1a] px-2.5 py-2"
           >
-            <Trophy
-              className="size-7 text-primary"
-              strokeWidth={2.1}
-              style={{ filter: "drop-shadow(0 0 8px rgba(177,235,11,0.55))" }}
+            <Image
+              src={extraBolaoIconSrc(leagueIconVariant(league.leagueKind))}
+              alt=""
+              width={36}
+              height={36}
+              className="size-9 shrink-0 object-contain"
             />
-          </span>
-          <div className="flex flex-1 flex-col">
-            <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-primary">
-              Premiação
-            </span>
-            <span className="mt-0.5 text-[20px] font-black leading-none text-white">
-              R$ 10 mil
-            </span>
-            <span className="mt-1 text-[11px] font-bold uppercase tracking-wide text-white/65">
-              em cada bilhete
-            </span>
-          </div>
-        </div>
-      </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[12px] font-bold uppercase tracking-wide text-white">
+                {league.displayName}
+              </p>
+              <p className="text-[11px] font-medium text-white/55">1 cota grátis</p>
+            </div>
+            <p className="shrink-0 text-right text-[10px] font-bold uppercase leading-tight text-primary">
+              Valendo
+              <br />
+              <span className="text-[11px] text-white">{prizeLabel}</span>
+            </p>
+          </li>
+        ))}
+      </ul>
 
-      <div className="px-4 pb-6 pt-5">
-        <button
-          type="button"
-          onClick={onPlay}
-          className="relative flex min-h-[52px] w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-[15px] font-black uppercase tracking-wide text-[#0E141B] shadow-[0_6px_28px_rgba(177,235,11,0.4)] transition-transform active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:text-[16px]"
-        >
-          <span>Fazer meus palpites</span>
-          <ArrowRight className="size-5" strokeWidth={2.6} aria-hidden />
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={onPlay}
+        className="mt-4 flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-full bg-primary px-3 text-[12px] font-black uppercase tracking-wide text-[#0E141B] transition-transform active:scale-[0.98]"
+      >
+        Ir para meus bolões
+        <ArrowRight className="size-4" strokeWidth={2.5} aria-hidden />
+      </button>
     </div>
   );
 }
@@ -300,6 +312,7 @@ export function ExtraGiftPromoHost({ children }: { children: React.ReactNode }) 
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<Step>("offer");
   const [claiming, setClaiming] = useState(false);
+  const [claimedTickets, setClaimedTickets] = useState<ClaimedTicketRow[]>([]);
 
   /** Última combinação user+championship+rodada já consultada — evita refetch
    *  redundante (ex: re-renders do AuthContext em StrictMode). */
@@ -419,16 +432,11 @@ export function ExtraGiftPromoHost({ children }: { children: React.ReactNode }) 
         if (cancelled) return;
         setStatus(data);
 
-        if (!data.enabled || data.championshipId == null || data.rodada == null) {
+        if (!data.enabled || !data.canClaim || data.leagues.length === 0) {
           setOpen(false);
           return;
         }
-        if (data.alreadyClaimed) {
-          // Já resgatou esta rodada — não mostra de novo.
-          setOpen(false);
-          return;
-        }
-        if (readDismissed(data.championshipId, data.rodada)) {
+        if (readDismissed(data.dismissBundleKey)) {
           setOpen(false);
           return;
         }
@@ -449,13 +457,13 @@ export function ExtraGiftPromoHost({ children }: { children: React.ReactNode }) 
 
   const handleOfferClose = useCallback(
     (permanent: boolean) => {
-      if (permanent && status?.championshipId != null && status.rodada != null) {
-        persistDismissed(status.championshipId, status.rodada);
+      if (permanent && status?.dismissBundleKey) {
+        persistDismissed(status.dismissBundleKey);
       }
       stopAudio();
       setOpen(false);
     },
-    [status?.championshipId, status?.rodada, stopAudio],
+    [status?.dismissBundleKey, stopAudio],
   );
 
   const handleClaim = useCallback(async () => {
@@ -477,25 +485,22 @@ export function ExtraGiftPromoHost({ children }: { children: React.ReactNode }) 
       });
       const data = (await r.json()) as {
         ok?: boolean;
-        ticketId?: string;
-        championshipId?: number;
-        rodada?: number;
-        alreadyClaimed?: boolean;
+        tickets?: ClaimedTicketRow[];
         error?: string;
       };
-      if (!r.ok || !data.ok || !data.ticketId) {
+      if (!r.ok || !data.ok || !data.tickets?.length) {
         toast.error(data.error ?? "Não foi possível resgatar o brinde agora.");
         return;
       }
-      // `alreadyClaimed=true` é um sucesso legítimo: outra aba/device já tinha
-      // resgatado e o backend devolveu o ticket existente. Tratamos igual ao
-      // claim novo — usuário vê o step 2 "Bolão liberado" sem dúvida.
+      setClaimedTickets(data.tickets);
       setStatus((prev) =>
         prev
           ? {
               ...prev,
               alreadyClaimed: true,
-              ticketId: data.ticketId ?? prev.ticketId,
+              allClaimed: true,
+              canClaim: false,
+              ticketId: data.tickets![0]?.ticketId ?? prev.ticketId,
             }
           : prev,
       );
@@ -621,7 +626,12 @@ export function ExtraGiftPromoHost({ children }: { children: React.ReactNode }) 
               onClose={handleOfferClose}
             />
           ) : (
-            <ClaimedStep onPlay={handlePlay} onClose={handleClaimedClose} />
+            <ClaimedStep
+              prizeLabel={status.prizeLabel}
+              leagues={claimedTickets}
+              onPlay={handlePlay}
+              onClose={handleClaimedClose}
+            />
           )}
         </div>
       ) : null}

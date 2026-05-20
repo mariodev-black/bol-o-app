@@ -32,6 +32,7 @@ import {
 } from "@/app/components/RankingTrophies";
 import iconCopaBrasil from "@/app/assets/icon-copa-brasil.png";
 import iconBrasileirao from "@/app/assets/icon-brasileirao.png";
+import iconPremierLeague from "@/app/assets/icon-premier-league.png";
 import { RankingPromoCards } from "@/app/(authenticated)/ranking/_components/RankingPromoCards";
 import {
   RankingBoardSkeleton,
@@ -133,6 +134,17 @@ function scopeGlyphForMode(
       return (
         <Image
           src={iconBrasileirao}
+          alt=""
+          width={size === "md" ? 22 : 18}
+          height={size === "md" ? 22 : 18}
+          className={`${dim} shrink-0 object-contain`}
+        />
+      );
+    }
+    if (variant === "premier_league") {
+      return (
+        <Image
+          src={iconPremierLeague}
           alt=""
           width={size === "md" ? 22 : 18}
           height={size === "md" ? 22 : 18}

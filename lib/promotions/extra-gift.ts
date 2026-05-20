@@ -1,28 +1,15 @@
 /**
  * Brinde "Bolão extra grátis" pós-login.
  *
- * Fluxo:
- *   1. Usuário loga → host (`ExtraGiftPromoHost`) consulta `/api/promotions/extra-gift`.
- *   2. Se a rodada atual do extra está aberta e o usuário ainda NÃO recebeu
- *      a cota dessa rodada, mostra o modal de oferta.
- *   3. POST `/api/promotions/extra-gift` cria um `ticket` extra com
- *      `is_promo_bonus=true`, `unit_price_cents=0`, `status='paid'` e
- *      `round_number = rodadaAtual`. Operação é idempotente — se já houver
- *      cota daquela rodada, retorna o ticket existente.
- *
- * Decisões de produto:
- *   - 1 cota por usuário POR RODADA (cada nova rodada do extra renova o brinde).
- *   - Cotas grátis NÃO contam para ranking nem para distribuição de prêmios
- *     (vide `lib/ranking/leaderboard.ts` e `lib/prizes/processor.ts`, que
- *     filtram `NOT COALESCE(is_promo_bonus, false)`).
- *   - O valor "R$ 10 MIL" exibido no modal vem de `EXTRA_GIFT_PRIZE_LABEL`
- *     (cosmético — não é checado contra prize pool real).
+ * Um conjunto de cotas grátis por rodada — uma por campeonato extra configurado em
+ * `BOLOES_EXTRA_CHAMPIONSHIP_IDS` (ex.: Brasileirão 10 + Premier League 69).
  */
 
 import { getPool } from "@/lib/db";
 import {
   extraBolaoFallbackDisplayName,
   isBrasileiraoExtraChampionship,
+  isPremierLeagueExtraChampionship,
 } from "@/lib/boloes-extra-competition-branding";
 import { parseExtraBolaoChampionshipIds } from "@/lib/boloes-extra-config";
 import { resolveCurrentExtraRound } from "@/lib/football/extras-rodada";
@@ -42,19 +29,35 @@ export function isExtraGiftPromoEnabled(): boolean {
   return envBool("EXTRA_GIFT_PROMO_ENABLED");
 }
 
-/** ID do campeonato extra usado como brinde (default: primeiro Brasileirão da config). */
-export function getExtraGiftChampionshipId(): number | null {
-  if (!isExtraGiftPromoEnabled()) return null;
-  const extras = parseExtraBolaoChampionshipIds();
-  if (extras.length === 0) return null;
+/**
+ * Campeonatos elegíveis ao brinde.
+ * Default: todos os IDs em `BOLOES_EXTRA_CHAMPIONSHIP_IDS`.
+ * Override opcional: `EXTRA_GIFT_PROMO_CHAMPIONSHIP_IDS=10,69` (subconjunto).
+ */
+export function getExtraGiftChampionshipIds(): number[] {
+  if (!isExtraGiftPromoEnabled()) return [];
+  const configured = parseExtraBolaoChampionshipIds();
+  if (configured.length === 0) return [];
 
-  const explicit = env("EXTRA_GIFT_PROMO_CHAMPIONSHIP_ID");
-  if (explicit) {
-    const id = Number.parseInt(explicit, 10);
-    if (Number.isFinite(id) && id > 0 && extras.includes(id)) return id;
+  const override = env("EXTRA_GIFT_PROMO_CHAMPIONSHIP_IDS");
+  if (override) {
+    const wanted = override
+      .split(/[,;\s]+/)
+      .map((s) => Number.parseInt(s.trim(), 10))
+      .filter((n) => Number.isFinite(n) && n > 0);
+    const set = new Set(configured);
+    return wanted.filter((id) => set.has(id));
   }
-  const brasileirao = extras.find((id) => isBrasileiraoExtraChampionship(id, null));
-  return brasileirao ?? extras[0] ?? null;
+
+  const legacySingle = env("EXTRA_GIFT_PROMO_CHAMPIONSHIP_ID");
+  if (legacySingle) {
+    const id = Number.parseInt(legacySingle, 10);
+    if (Number.isFinite(id) && id > 0 && configured.includes(id)) {
+      return [id];
+    }
+  }
+
+  return configured;
 }
 
 /** Rótulo exibido em destaque ("Valendo R$ 10 MIL"). */
@@ -62,62 +65,72 @@ export function getExtraGiftPrizeLabel(): string {
   return env("EXTRA_GIFT_PRIZE_LABEL") || "R$ 10 MIL";
 }
 
-/** Texto curto do nome do bolão extra usado em titulos / chamadas. */
+/** @deprecated Use `leagues[].displayName` no status. Mantido para admin/config. */
 export function getExtraGiftDisplayName(): string {
-  const cid = getExtraGiftChampionshipId();
-  const cfg = env("EXTRA_GIFT_PROMO_BONUS_LABEL");
-  if (cfg) return cfg;
-  return cid != null ? extraBolaoFallbackDisplayName(cid) : "Bolão extra";
+  const ids = getExtraGiftChampionshipIds();
+  if (ids.length === 0) return "Bolão extra";
+  const names = ids.map((id) => extraBolaoFallbackDisplayName(id));
+  return names.join(" + ");
 }
 
-/** Snapshot público (server → client) — sem dados específicos do usuário. */
 export type ExtraGiftPromoPublicConfig = {
   enabled: boolean;
-  championshipId: number | null;
-  /** Ex.: "Brasileirão" (curto). */
+  championshipIds: number[];
+  /** Ex.: "Brasileirão + Premier League" */
   displayName: string;
-  /** Ex.: "R$ 10 MIL" — exibido no card principal do modal. */
   prizeLabel: string;
 };
 
 export function getExtraGiftPromoPublicConfig(): ExtraGiftPromoPublicConfig {
-  const enabled = isExtraGiftPromoEnabled();
-  const championshipId = enabled ? getExtraGiftChampionshipId() : null;
+  const ids = isExtraGiftPromoEnabled() ? getExtraGiftChampionshipIds() : [];
   return {
-    enabled: enabled && championshipId != null,
-    championshipId,
+    enabled: ids.length > 0,
+    championshipIds: ids,
     displayName: getExtraGiftDisplayName(),
     prizeLabel: getExtraGiftPrizeLabel(),
   };
 }
 
-/* -------------------------------------------------------------------------- */
-/*  Estado por usuário (consultado pelo endpoint GET)                          */
-/* -------------------------------------------------------------------------- */
+export type ExtraGiftLeagueKind = "brasileirao" | "premier_league" | "other";
 
-/**
- * Estado completo do brinde para um usuário específico.
- *
- * - `enabled=false` → tudo `null`: promo desligada, sem campeonato configurado
- *   ou rodada atual indeterminada (provedor / cache).
- * - `alreadyClaimed=true` → existe ticket extra do usuário para essa rodada
- *   (com `is_promo_bonus=true` E `status IN ('paid','approved')`).
- */
+export type ExtraGiftLeagueStatus = {
+  championshipId: number;
+  displayName: string;
+  leagueKind: ExtraGiftLeagueKind;
+  championshipName: string | null;
+  rodada: number | null;
+  rodadaNome: string | null;
+  alreadyClaimed: boolean;
+  ticketId: string | null;
+};
+
 export type ExtraGiftStatus = {
   enabled: boolean;
+  prizeLabel: string;
+  leagues: ExtraGiftLeagueStatus[];
+  /** Todos os campeonatos do brinde já resgatados na rodada atual. */
+  allClaimed: boolean;
+  /** Pelo menos um campeonato com rodada aberta e sem cota resgatada. */
+  canClaim: boolean;
+  /** Chave estável para localStorage (dismiss por bundle de rodadas). */
+  dismissBundleKey: string;
+  /** Compat legado — primeiro campeonato / primeiro ticket. */
   championshipId: number | null;
   rodada: number | null;
   rodadaNome: string | null;
   championshipName: string | null;
   alreadyClaimed: boolean;
-  /** ID do ticket caso já tenha sido resgatado (para o redirect "Fazer palpites"). */
   ticketId: string | null;
   displayName: string;
-  prizeLabel: string;
 };
 
 const EMPTY_STATUS = (): ExtraGiftStatus => ({
   enabled: false,
+  prizeLabel: getExtraGiftPrizeLabel(),
+  leagues: [],
+  allClaimed: false,
+  canClaim: false,
+  dismissBundleKey: "",
   championshipId: null,
   rodada: null,
   rodadaNome: null,
@@ -125,56 +138,74 @@ const EMPTY_STATUS = (): ExtraGiftStatus => ({
   alreadyClaimed: false,
   ticketId: null,
   displayName: getExtraGiftDisplayName(),
-  prizeLabel: getExtraGiftPrizeLabel(),
 });
 
+function buildDismissBundleKey(
+  leagues: Array<{ championshipId: number; rodada: number }>,
+): string {
+  return leagues
+    .slice()
+    .sort((a, b) => a.championshipId - b.championshipId)
+    .map((l) => `${l.championshipId}:${l.rodada}`)
+    .join("|");
+}
+
 export async function getExtraGiftStatusForUser(userId: string): Promise<ExtraGiftStatus> {
-  const championshipId = getExtraGiftChampionshipId();
-  if (!isExtraGiftPromoEnabled() || championshipId == null) {
-    return EMPTY_STATUS();
-  }
-  const resolved = await resolveCurrentExtraRound(championshipId);
-  if (!resolved || !Number.isFinite(resolved.rodada)) {
+  const championshipIds = getExtraGiftChampionshipIds();
+  if (!isExtraGiftPromoEnabled() || championshipIds.length === 0) {
     return EMPTY_STATUS();
   }
 
-  const existing = await findExistingGiftTicket(userId, championshipId, resolved.rodada);
+  const leagues: ExtraGiftLeagueStatus[] = [];
+  const dismissParts: Array<{ championshipId: number; rodada: number }> = [];
+
+  for (const championshipId of championshipIds) {
+    const resolved = await resolveCurrentExtraRound(championshipId);
+    if (!resolved || !Number.isFinite(resolved.rodada)) {
+      continue;
+    }
+    const rodada = resolved.rodada;
+    dismissParts.push({ championshipId, rodada });
+    const existing = await findExistingGiftTicket(userId, championshipId, rodada);
+    leagues.push({
+      championshipId,
+      displayName: extraBolaoFallbackDisplayName(championshipId),
+      leagueKind: extraGiftLeagueKind(championshipId, resolved.championshipNome),
+      championshipName: resolved.championshipNome ?? null,
+      rodada,
+      rodadaNome: resolved.rodadaNome ?? `${rodada}ª Rodada`,
+      alreadyClaimed: existing != null,
+      ticketId: existing?.id ?? null,
+    });
+  }
+
+  if (leagues.length === 0) {
+    return EMPTY_STATUS();
+  }
+
+  const allClaimed = leagues.every((l) => l.alreadyClaimed);
+  const canClaim = leagues.some((l) => !l.alreadyClaimed);
+  const first = leagues[0]!;
 
   return {
     enabled: true,
-    championshipId,
-    rodada: resolved.rodada,
-    rodadaNome: resolved.rodadaNome ?? `${resolved.rodada}ª Rodada`,
-    championshipName: resolved.championshipNome,
-    alreadyClaimed: existing != null,
-    ticketId: existing?.id ?? null,
-    displayName: getExtraGiftDisplayName(),
     prizeLabel: getExtraGiftPrizeLabel(),
+    leagues,
+    allClaimed,
+    canClaim,
+    dismissBundleKey: buildDismissBundleKey(dismissParts),
+    championshipId: first.championshipId,
+    rodada: first.rodada,
+    rodadaNome: first.rodadaNome,
+    championshipName: first.championshipName,
+    alreadyClaimed: allClaimed,
+    ticketId: first.ticketId,
+    displayName: leagues.map((l) => l.displayName).join(" + "),
   };
 }
 
-/* -------------------------------------------------------------------------- */
-/*  Claim — idempotente com proteção em camadas                                */
-/*                                                                              */
-/*  Três barreiras de proteção contra "duplo brinde na mesma rodada":          */
-/*    1. UI: ExtraGiftPromoHost desabilita o botão enquanto `claiming=true`.   */
-/*    2. App: SELECT pré-INSERT (caminho rápido / sem stack trace em log).     */
-/*    3. DB: índice único parcial `tickets_extra_gift_unique` + ON CONFLICT    */
-/*       DO NOTHING — única defesa real contra corrida cross-instance.         */
-/*                                                                              */
-/*  A migration que cria o índice é                                             */
-/*    scripts/sql/20260521-tickets-extra-gift-unique.sql                        */
-/* -------------------------------------------------------------------------- */
-
 type ExistingGiftTicket = { id: string };
 
-/**
- * Recupera o ticket de brinde ATIVO (paid/approved) do usuário para uma rodada
- * específica. É a fonte da verdade do `alreadyClaimed` exposto ao client.
- *
- * O predicado bate exatamente com o índice único parcial criado pela migration
- * `20260521-tickets-extra-gift-unique.sql` — mantenha os dois em sincronia.
- */
 async function findExistingGiftTicket(
   userId: string,
   championshipId: number,
@@ -197,66 +228,40 @@ async function findExistingGiftTicket(
   return rows[0] ?? null;
 }
 
+export type ClaimedExtraGiftTicket = {
+  championshipId: number;
+  displayName: string;
+  leagueKind: ExtraGiftLeagueKind;
+  ticketId: string;
+  rodada: number;
+  alreadyClaimed: boolean;
+};
+
 export type ClaimExtraGiftResult =
   | {
       ok: true;
-      ticketId: string;
-      championshipId: number;
-      rodada: number;
-      /** `true` se o ticket já existia antes desta chamada (não houve insert). */
-      alreadyClaimed: boolean;
+      tickets: ClaimedExtraGiftTicket[];
+      /** true se nenhum ticket novo foi criado (todos já existiam). */
+      allAlreadyClaimed: boolean;
     }
   | { ok: false; error: string };
 
-/**
- * Cria (ou recupera) o ticket grátis da rodada atual para o usuário.
- *
- * Idempotência garantida em três camadas, da mais barata para a mais resistente:
- *   (a) SELECT pré-INSERT — caminho mais comum em re-clicks do mesmo usuário.
- *   (b) `INSERT ... ON CONFLICT DO NOTHING` no índice único parcial
- *       `tickets_extra_gift_unique` — única defesa real contra duas requests
- *       simultâneas vindas de instâncias diferentes do app.
- *   (c) Fallback SELECT pós-INSERT — quando o ON CONFLICT zera RETURNING.
- *
- * Postgres-específico: a cláusula `ON CONFLICT ... WHERE` cita o MESMO predicado
- * do índice parcial para que o planner encontre o índice. Mantenha as duas
- * cópias sincronizadas com a migration `20260521-tickets-extra-gift-unique.sql`.
- */
-export async function claimExtraGiftForUser(userId: string): Promise<ClaimExtraGiftResult> {
-  if (!isExtraGiftPromoEnabled()) {
-    return { ok: false, error: "Brinde indisponível no momento." };
-  }
-  const championshipId = getExtraGiftChampionshipId();
-  if (championshipId == null) {
-    return { ok: false, error: "Brinde indisponível no momento." };
-  }
-  const resolved = await resolveCurrentExtraRound(championshipId);
-  if (!resolved || !Number.isFinite(resolved.rodada)) {
-    return { ok: false, error: "Rodada atual ainda não foi liberada. Tente novamente em instantes." };
-  }
-  const rodada = resolved.rodada;
-
-  // ─── (a) Caminho rápido: o brinde já existe e está ativo ───────────────────
+async function claimExtraGiftForChampionship(
+  userId: string,
+  championshipId: number,
+  rodada: number,
+): Promise<
+  | { ok: true; ticketId: string; alreadyClaimed: boolean }
+  | { ok: false; error: string }
+> {
   const existing = await findExistingGiftTicket(userId, championshipId, rodada);
   if (existing) {
-    return {
-      ok: true,
-      ticketId: existing.id,
-      championshipId,
-      rodada,
-      alreadyClaimed: true,
-    };
+    return { ok: true, ticketId: existing.id, alreadyClaimed: true };
   }
 
   const pool = getPool();
-  // `external_ref` determinístico — não é UNIQUE no DB, mas serve para auditar
-  // e correlacionar logs do brinde com o ticket no painel admin.
   const externalRef = `extra_gift:${userId}:${championshipId}:${rodada}`;
 
-  // ─── (b) INSERT com proteção via índice único parcial ──────────────────────
-  // Status `paid` (não `pending_payment`): brinde é instantâneo, não passa
-  // pelo gateway. ON CONFLICT cita o MESMO predicado do índice parcial criado
-  // em `scripts/sql/20260521-tickets-extra-gift-unique.sql`.
   try {
     const { rows } = await pool.query<{ id: string }>(
       `INSERT INTO tickets (
@@ -275,12 +280,9 @@ export async function claimExtraGiftForUser(userId: string): Promise<ClaimExtraG
     );
     const ticketId = rows[0]?.id;
     if (ticketId) {
-      return { ok: true, ticketId, championshipId, rodada, alreadyClaimed: false };
+      return { ok: true, ticketId, alreadyClaimed: false };
     }
   } catch (err) {
-    // Migration ainda não rodou (índice não existe) OU outro erro de constraint
-    // → cai no fallback SELECT abaixo (que também cobre o caso comum de race
-    // sem ON CONFLICT). Logamos só uma vez para não poluir.
     console.warn("[extra-gift] insert raised, attempting recovery", {
       userId,
       championshipId,
@@ -289,23 +291,82 @@ export async function claimExtraGiftForUser(userId: string): Promise<ClaimExtraG
     });
   }
 
-  // ─── (c) Fallback: o ON CONFLICT consumiu silenciosamente (ou erro) ───────
   const again = await findExistingGiftTicket(userId, championshipId, rodada);
   if (again) {
-    return {
-      ok: true,
-      ticketId: again.id,
-      championshipId,
-      rodada,
-      alreadyClaimed: true,
-    };
+    return { ok: true, ticketId: again.id, alreadyClaimed: true };
   }
 
-  // Se chegou aqui o INSERT não aconteceu E não há ticket — bug real.
-  console.error("[extra-gift] claim failed without recoverable state", {
-    userId,
-    championshipId,
-    rodada,
-  });
   return { ok: false, error: "Não foi possível resgatar o brinde. Tente novamente em instantes." };
+}
+
+export async function claimExtraGiftForUser(userId: string): Promise<ClaimExtraGiftResult> {
+  if (!isExtraGiftPromoEnabled()) {
+    return { ok: false, error: "Brinde indisponível no momento." };
+  }
+
+  const status = await getExtraGiftStatusForUser(userId);
+  if (!status.enabled || status.leagues.length === 0) {
+    return { ok: false, error: "Brinde indisponível no momento." };
+  }
+
+  const tickets: ClaimedExtraGiftTicket[] = [];
+  let anyNew = false;
+
+  for (const league of status.leagues) {
+    if (league.alreadyClaimed && league.ticketId) {
+      tickets.push({
+        championshipId: league.championshipId,
+        displayName: league.displayName,
+        leagueKind: league.leagueKind,
+        ticketId: league.ticketId,
+        rodada: league.rodada ?? 0,
+        alreadyClaimed: true,
+      });
+      continue;
+    }
+    if (league.rodada == null) {
+      return {
+        ok: false,
+        error: `Rodada de ${league.displayName} ainda não foi liberada. Tente novamente em instantes.`,
+      };
+    }
+
+    const result = await claimExtraGiftForChampionship(
+      userId,
+      league.championshipId,
+      league.rodada,
+    );
+    if (!result.ok) {
+      return { ok: false, error: result.error };
+    }
+    if (!result.alreadyClaimed) anyNew = true;
+    tickets.push({
+      championshipId: league.championshipId,
+      displayName: league.displayName,
+      leagueKind: league.leagueKind,
+      ticketId: result.ticketId,
+      rodada: league.rodada,
+      alreadyClaimed: result.alreadyClaimed,
+    });
+  }
+
+  if (tickets.length === 0) {
+    return { ok: false, error: "Não foi possível resgatar o brinde. Tente novamente em instantes." };
+  }
+
+  return {
+    ok: true,
+    tickets,
+    allAlreadyClaimed: !anyNew,
+  };
+}
+
+/** Helpers para UI (ícone por campeonato). */
+export function extraGiftLeagueKind(
+  championshipId: number,
+  title?: string | null,
+): "brasileirao" | "premier_league" | "other" {
+  if (isBrasileiraoExtraChampionship(championshipId, title)) return "brasileirao";
+  if (isPremierLeagueExtraChampionship(championshipId, title)) return "premier_league";
+  return "other";
 }
