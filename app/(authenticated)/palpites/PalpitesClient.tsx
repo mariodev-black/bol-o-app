@@ -15,7 +15,6 @@ import {
   Coins,
   AlertTriangle,
   Disc,
-  Pencil,
   Loader2,
   ChevronLeft,
   ChevronRight,
@@ -46,6 +45,11 @@ import {
   palpiteLockBeforeKickoffMs,
   type PredictionBolaoType,
 } from "@/lib/palpites-kickoff-lock";
+import {
+  isLockedByKickoff,
+  isMatchOpenForPalpite,
+  palpiteEligibilityFromJogo,
+} from "@/lib/palpites-match-open";
 import { pickTabelaGruposForPalpites } from "@/lib/tabela-palpites-normalize";
 
 // ── Tipos ────────────────────────────────────────────────────
@@ -174,18 +178,6 @@ function brDateToUtcMs(dateBR: string): number | null {
   return Date.UTC(year, month - 1, day);
 }
 
-function isLockedByKickoff(
-  kickoffAt: string | null | undefined,
-  nowMs: number,
-  bolaoType: PredictionBolaoType,
-): boolean {
-  if (!kickoffAt) return false;
-  const kickoffMs = new Date(kickoffAt).getTime();
-  if (!Number.isFinite(kickoffMs)) return false;
-  const lead = palpiteLockBeforeKickoffMs(bolaoType);
-  return nowMs >= kickoffMs - lead;
-}
-
 function palpiteLockUiCopy(bolaoType: PredictionBolaoType): {
   fechadoJaPassou: string;
   faixaForaPrazo: string;
@@ -243,6 +235,18 @@ function isMatchLiveForDisplay(jogo: Jogo, nowMs: number): boolean {
   if (raw.includes("encerr") || raw.includes("finaliz")) return false;
   if (isPastDisplayLiveWindow(jogo, nowMs)) return false;
   return true;
+}
+
+/** Aberto para palpite: dentro do prazo, não encerrado e não ao vivo. */
+function isJogoEditavelParaPalpite(
+  jogo: Jogo,
+  bolaoType: PredictionBolaoType,
+  nowMs = Date.now(),
+): boolean {
+  return (
+    isMatchOpenForPalpite(palpiteEligibilityFromJogo(jogo), bolaoType, nowMs) &&
+    !isMatchLiveForDisplay(jogo, nowMs)
+  );
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -457,7 +461,7 @@ function parseAllPartidas(fases: Record<string, any> | undefined): {
   return { jogos, grupos: Array.from(grupos).sort() };
 }
 
-const PALPITE_CARD_BG = "#0B0D0C";
+const PALPITE_CARD_BG = "#1A1A1A";
 const PALPITE_PANEL_BG = "#141816";
 const PALPITE_STEPPER_BG = "#111413";
 
@@ -578,6 +582,85 @@ function VertScoreStepper({
       >
         <ChevronDown className="size-5" strokeWidth={2.75} aria-hidden />
       </button>
+    </div>
+  );
+}
+
+type JogoCardScores = { scoreCasa: number; scoreVisitante: number };
+
+type PalpitesFooterMode = "initial" | "edit-locked" | "editing";
+
+/** Ações inline abaixo da lista de jogos (não fixo — respeita NavBottom). */
+function PalpitesListFooter({
+  mode,
+  disabled,
+  loading,
+  error,
+  onEdit,
+  onSave,
+  onCancel,
+}: {
+  mode: PalpitesFooterMode;
+  disabled?: boolean;
+  loading?: boolean;
+  error?: string | null;
+  onEdit: () => void;
+  onSave: () => void;
+  onCancel: () => void;
+}) {
+  const primaryBtn =
+    "flex min-h-[52px] flex-1 items-center justify-center gap-2 rounded-xl bg-primary text-base font-black uppercase tracking-wide text-[#0E141B] transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-[#1A1A1A] disabled:text-white/25 disabled:shadow-none";
+  const primaryShadow =
+    disabled || loading ? "none" : "0 0 20px rgba(177,235,11,0.28)";
+
+  return (
+    <div className="mt-6 space-y-3">
+      {error ? (
+        <p className="text-center text-sm leading-relaxed text-red-300">{error}</p>
+      ) : null}
+      {mode === "initial" ? (
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={disabled || loading}
+          className={`${primaryBtn} w-full flex-none`}
+          style={{ boxShadow: primaryShadow }}
+        >
+          {loading ? <Loader2 className="size-5 animate-spin" aria-hidden /> : null}
+          {loading ? "Salvando..." : "Salvar palpites"}
+        </button>
+      ) : mode === "edit-locked" ? (
+        <button
+          type="button"
+          onClick={onEdit}
+          disabled={disabled}
+          className={`${primaryBtn} w-full flex-none`}
+          style={{ boxShadow: primaryShadow }}
+        >
+          Editar palpites
+        </button>
+      ) : (
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={loading}
+            className="flex min-h-[52px] shrink-0 items-center justify-center rounded-xl border border-white/15 px-5 text-sm font-bold uppercase tracking-wide text-white/70 transition active:scale-[0.98] disabled:opacity-40"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={onSave}
+            disabled={disabled || loading}
+            className={primaryBtn}
+            style={{ boxShadow: primaryShadow }}
+          >
+            {loading ? <Loader2 className="size-5 animate-spin" aria-hidden /> : null}
+            {loading ? "Salvando..." : "Salvar palpites"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -707,39 +790,25 @@ function PontosBreakdownIcon({ hit }: { hit: boolean }) {
 function JogoCard({
   jogo,
   readOnly = false,
-  ticketId,
+  editingEnabled = false,
+  scores,
+  onScoresChange,
   initialPrediction,
   predictionsLoading = false,
   bolaoType,
-  onSavePrediction,
 }: {
   jogo: Jogo;
   readOnly?: boolean;
-  ticketId: string | null;
+  editingEnabled?: boolean;
+  scores: JogoCardScores;
+  onScoresChange?: (scores: JogoCardScores) => void;
   initialPrediction?: { scoreCasa: number; scoreVisitante: number } | null;
   predictionsLoading?: boolean;
   bolaoType: PredictionBolaoType;
-  onSavePrediction?: (payload: {
-    matchId: number;
-    scoreCasa: number;
-    scoreVisitante: number;
-  }) => Promise<void>;
 }) {
-  const [scoreCasa, setScoreCasa] = useState(0);
-  const [scoreVisitante, setScoreVisitante] = useState(0);
+  const { scoreCasa, scoreVisitante } = scores;
   const [dirCasa, setDirCasa] = useState<"up" | "down">("up");
   const [dirVisitante, setDirVisitante] = useState<"up" | "down">("up");
-  const [palpiteSalvo, setPalpiteSalvo] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const p = initialPrediction;
-    if (!p) return;
-    setScoreCasa(p.scoreCasa);
-    setScoreVisitante(p.scoreVisitante);
-    setPalpiteSalvo(true);
-  }, [initialPrediction]);
 
   const lockLeadMs = palpiteLockBeforeKickoffMs(bolaoType);
   const lockUi = palpiteLockUiCopy(bolaoType);
@@ -765,7 +834,8 @@ function JogoCard({
   }, [lockAtMs, jogo.kickoffAt, readOnly, jogo.resultCasa, jogo.resultVisitante]);
   const isLockedByTime = lockAtMs != null ? nowMs >= lockAtMs : false;
   /** Palpite até instantes antes do apito (1h no geral/dia, 5 min no extra). */
-  const canEdit = !readOnly && jogo.status === "aberto" && !isLockedByTime;
+  const matchOpen = isMatchOpenForPalpite(palpiteEligibilityFromJogo(jogo), bolaoType, nowMs);
+  const canEdit = editingEnabled && matchOpen && !isLockedByTime;
 
   function formatTimeUntilLock(): string {
     if (!lockAtMs) return "Aberto";
@@ -787,28 +857,39 @@ function JogoCard({
   }
 
   function increment(side: "casa" | "visitante") {
-    setSaveError(null);
+    if (!onScoresChange) return;
     if (side === "casa") {
       setDirCasa("up");
-      setScoreCasa((v) => Math.min(v + 1, 99));
+      onScoresChange({
+        scoreCasa: Math.min(scoreCasa + 1, 99),
+        scoreVisitante,
+      });
     } else {
       setDirVisitante("up");
-      setScoreVisitante((v) => Math.min(v + 1, 99));
+      onScoresChange({
+        scoreCasa,
+        scoreVisitante: Math.min(scoreVisitante + 1, 99),
+      });
     }
   }
   function decrement(side: "casa" | "visitante") {
-    setSaveError(null);
+    if (!onScoresChange) return;
     if (side === "casa") {
       setDirCasa("down");
-      setScoreCasa((v) => Math.max(v - 1, 0));
+      onScoresChange({
+        scoreCasa: Math.max(scoreCasa - 1, 0),
+        scoreVisitante,
+      });
     } else {
       setDirVisitante("down");
-      setScoreVisitante((v) => Math.max(v - 1, 0));
+      onScoresChange({
+        scoreCasa,
+        scoreVisitante: Math.max(scoreVisitante - 1, 0),
+      });
     }
   }
 
-  const disabled =
-    readOnly || !canEdit || palpiteSalvo || isSubmitting || predictionsLoading;
+  const disabled = readOnly || !canEdit || predictionsLoading;
   const hasInitialPrediction = Boolean(initialPrediction);
 
   const temPlacarOficial =
@@ -929,7 +1010,7 @@ function JogoCard({
         border: "rgba(255,255,255,0.08)",
         dot: false,
       }
-      : palpiteSalvo
+      : hasInitialPrediction
         ? {
           label: "Palpite salvo",
           color: "#B1EB0B",
@@ -969,9 +1050,7 @@ function JogoCard({
                 : resultadoResumo?.tone === "miss"
                   ? "rgba(255,255,255,0.11)"
                   : "rgba(177,235,11,0.15)"
-    : palpiteSalvo
-      ? "rgba(177,235,11,0.60)"
-      : "rgba(177,235,11,0.15)";
+    : "rgba(177,235,11,0.15)";
   const cardShadow = readOnly
     ? readOnlyPending
       ? "0 0 0 1px rgba(232,200,64,0.10), 0 4px 18px rgba(0,0,0,0.32), 0 0 14px rgba(232,200,64,0.08)"
@@ -984,16 +1063,13 @@ function JogoCard({
             : resultadoResumo?.tone === "win"
               ? "0 0 0 1px rgba(177,235,11,0.10), 0 6px 22px rgba(0,0,0,0.34), 0 0 16px rgba(177,235,11,0.10)"
               : "0 4px 16px rgba(0,0,0,0.28)"
-    : palpiteSalvo
-      ? "0 0 0 1px rgba(177,235,11,0.12), 0 8px 24px rgba(0,0,0,0.40), 0 0 18px rgba(177,235,11,0.12)"
-      : "0 4px 16px rgba(0,0,0,0.28)";
+    : "0 4px 16px rgba(0,0,0,0.28)";
 
   return (
     <div
       className="mb-4 overflow-hidden rounded-2xl"
       style={{
         background: PALPITE_CARD_BG,
-        border: `1px solid ${cardBorder}`,
         boxShadow: cardShadow,
       }}
     >
@@ -1121,7 +1197,7 @@ function JogoCard({
         </>
       ) : (
         <div
-          className="mx-3 mb-3 rounded-2xl border border-white/[0.06] px-2.5 py-4 sm:mx-4 sm:px-3"
+          className="mx-3 mb-3 rounded-2xl px-2.5 py-4 sm:mx-4 sm:px-3"
           style={{ background: PALPITE_PANEL_BG }}
         >
           <div className="flex items-center justify-between gap-2">
@@ -1172,12 +1248,13 @@ function JogoCard({
         </div>
       )}
 
-      {!showResultadoDetalhado ? (
-        <div className="mx-4 sm:mx-5 h-px bg-white/10 mb-3" />
-      ) : null}
-
-      <div className={`px-4 sm:px-5 ${showResultadoDetalhado ? "pb-1" : "pb-4"}`}>
-        {readOnly && !showResultadoDetalhado ? (
+      {readOnly ? (
+        <>
+          {!showResultadoDetalhado ? (
+            <div className="mx-4 sm:mx-5 mb-3 h-px bg-white/10" />
+          ) : null}
+          <div className={`px-4 sm:px-5 ${showResultadoDetalhado ? "pb-1" : "pb-4"}`}>
+            {readOnly && !showResultadoDetalhado ? (
           <div
             className="w-full py-4 px-3 sm:px-4 rounded-xl flex flex-col items-center justify-center gap-2"
             style={{
@@ -1328,122 +1405,12 @@ function JogoCard({
               </span>
             )}
           </div>
-        ) : palpiteSalvo ? (
-          <div className="grid grid-cols-4 gap-2">
-            <div
-              className="col-span-3 flex min-h-[48px] items-center justify-center rounded-xl"
-              style={{
-                background: "rgba(177,235,11,0.10)",
-                border: "1px solid rgba(177,235,11,0.28)",
-              }}
-            >
-              <span className="text-sm font-bold tracking-wide text-[#B1EB0B]">
-                Salvo
-              </span>
-            </div>
-            {canEdit ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setSaveError(null);
-                  setPalpiteSalvo(false);
-                }}
-                disabled={isSubmitting}
-                aria-label="Editar palpite"
-                className="col-span-1 flex min-h-[48px] items-center justify-center rounded-xl transition-all duration-200 disabled:opacity-40"
-                style={{
-                  background: "rgba(255,255,255,0.08)",
-                  border: "1px solid rgba(255,255,255,0.14)",
-                }}
-              >
-                <Pencil
-                  className="w-4 h-4 text-white/70"
-                  strokeWidth={2}
-                  aria-hidden
-                />
-              </button>
             ) : null}
           </div>
-        ) : (
-          <button
-            type="button"
-            onClick={async () => {
-              if (!canEdit || !ticketId || !onSavePrediction) return;
-              setSaveError(null);
-              setIsSubmitting(true);
-              try {
-                await onSavePrediction({
-                  matchId: jogo.id,
-                  scoreCasa,
-                  scoreVisitante,
-                });
-                setPalpiteSalvo(true);
-              } catch (error) {
-                setSaveError(
-                  error instanceof Error
-                    ? error.message
-                    : "Erro ao salvar palpite",
-                );
-              } finally {
-                setIsSubmitting(false);
-              }
-            }}
-            disabled={!canEdit || !ticketId || isSubmitting}
-            className="w-full min-h-[52px] py-3.5 rounded-xl font-bold text-base transition-all duration-200"
-            style={{
-              background:
-                !canEdit || !ticketId || isSubmitting
-                  ? "#1A1A1A"
-                  : hasInitialPrediction
-                    ? "#B1EB0B"
-                    : "#E6E6E6",
-              color:
-                !canEdit || !ticketId || isSubmitting
-                  ? "rgba(255,255,255,0.22)"
-                  : "#0E141B",
-              boxShadow:
-                !canEdit || !ticketId || isSubmitting || !hasInitialPrediction
-                  ? "none"
-                  : "0 0 16px rgba(177,235,11,0.22)",
-            }}
-          >
-            <span className="inline-flex items-center justify-center gap-2">
-              {isSubmitting ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : null}
-              {isSubmitting
-                ? "Salvando palpite..."
-                : !canEdit && jogo.status !== "aberto"
-                  ? "Palpites encerrados"
-                  : !canEdit && isLockedByTime
-                    ? hasInitialPrediction
-                      ? lockUi.fechadoJaPassou
-                      : "Fora do prazo — sem palpite nao entra nesta partida"
-                    : hasInitialPrediction
-                      ? "Atualizar palpite"
-                      : "Fazer Palpite"}
-            </span>
-          </button>
-        )}
-        {!readOnly &&
-          !palpiteSalvo &&
-          !canEdit &&
-          jogo.status === "aberto" &&
-          isLockedByTime &&
-          !hasInitialPrediction ? (
-          <p
-            className="mt-3 text-sm text-center leading-relaxed px-1"
-            style={{ color: "rgba(255,255,255,0.72)" }}
-          >
-            {lockUi.faixaForaPrazo}
-          </p>
-        ) : null}
-        {saveError ? (
-          <p className="mt-3 text-sm text-center leading-relaxed text-red-300 px-1">
-            {saveError}
-          </p>
-        ) : null}
-      </div>
+        </>
+      ) : (
+        <div className="pb-3" aria-hidden />
+      )}
     </div>
   );
 }
@@ -3047,6 +3014,13 @@ function PalpitesPageContent({
   const [predictionsMap, setPredictionsMap] = useState<
     Record<number, { scoreCasa: number; scoreVisitante: number }>
   >(initialData?.predictionsMap ?? {});
+  const [draftScores, setDraftScores] = useState<
+    Record<number, JogoCardScores>
+  >({});
+  const draftDirtyRef = useRef<Set<number>>(new Set());
+  const [palpitesEditing, setPalpitesEditing] = useState(false);
+  const [savingAllPalpites, setSavingAllPalpites] = useState(false);
+  const [saveAllError, setSaveAllError] = useState<string | null>(null);
   const [loadingPredictions, setLoadingPredictions] = useState(false);
   const [loadingResumo, setLoadingResumo] = useState(false);
   const [selectedRodada, setSelectedRodada] = useState<number | null>(() => {
@@ -3474,6 +3448,44 @@ function PalpitesPageContent({
     }
   };
 
+  useEffect(() => {
+    draftDirtyRef.current = new Set();
+    setDraftScores({});
+    setSaveAllError(null);
+    setPalpitesEditing(false);
+  }, [ticketId]);
+
+  useEffect(() => {
+    setDraftScores((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const [idStr, scores] of Object.entries(predictionsMap)) {
+        const id = Number(idStr);
+        if (!Number.isFinite(id)) continue;
+        if (draftDirtyRef.current.has(id)) continue;
+        const cur = next[id];
+        if (
+          cur?.scoreCasa === scores.scoreCasa &&
+          cur?.scoreVisitante === scores.scoreVisitante
+        ) {
+          continue;
+        }
+        next[id] = scores;
+        changed = true;
+      }
+      return changed ? next : prev;
+    });
+  }, [predictionsMap]);
+
+  const scoresForMatch = (matchId: number): JogoCardScores =>
+    draftScores[matchId] ??
+    predictionsMap[matchId] ?? { scoreCasa: 0, scoreVisitante: 0 };
+
+  const handleScoresChange = (matchId: number, scores: JogoCardScores) => {
+    draftDirtyRef.current.add(matchId);
+    setDraftScores((prev) => ({ ...prev, [matchId]: scores }));
+  };
+
   const today = todayBR();
   const dailyLike = bolaoType === "diario" || bolaoType === "extra";
   const extraPlayCompId = bolaoType === "extra" ? resolvedExtraChampionshipId : null;
@@ -3537,6 +3549,93 @@ function PalpitesPageContent({
     dailyLike && diarioLockedMode
       ? jogosBase.filter((j) => Boolean(predictionsMap[j.id]))
       : jogosBase;
+
+  const hasSavedPalpites = Object.keys(predictionsMap).length > 0;
+  const hasEditableMatches = jogosDisplayBase.some((j) =>
+    isJogoEditavelParaPalpite(j, bolaoType),
+  );
+  const showPalpitesFooter =
+    Boolean(ticketId) && showJogos && !readOnlyMode && hasEditableMatches;
+
+  useEffect(() => {
+    if (palpitesEditing && !hasEditableMatches) setPalpitesEditing(false);
+  }, [palpitesEditing, hasEditableMatches]);
+
+  useEffect(() => {
+    if (!hasSavedPalpites && palpitesEditing) setPalpitesEditing(false);
+  }, [hasSavedPalpites, palpitesEditing]);
+
+  const cancelPalpitesEdit = () => {
+    draftDirtyRef.current.clear();
+    setDraftScores({ ...predictionsMap });
+    setSaveAllError(null);
+    setPalpitesEditing(false);
+  };
+
+  const saveAllPalpites = async () => {
+    if (!ticketId || savingAllPalpites) return;
+    setSaveAllError(null);
+    setSavingAllPalpites(true);
+    const now = Date.now();
+    const toSave = jogosDisplayBase.filter((j) =>
+      isJogoEditavelParaPalpite(j, bolaoType, now),
+    );
+    try {
+      for (const jogo of toSave) {
+        const scores = scoresForMatch(jogo.id);
+        await savePrediction({
+          matchId: jogo.id,
+          scoreCasa: scores.scoreCasa,
+          scoreVisitante: scores.scoreVisitante,
+        });
+        draftDirtyRef.current.delete(jogo.id);
+      }
+      setPalpitesEditing(false);
+    } catch (e) {
+      setSaveAllError(
+        e instanceof Error ? e.message : "Falha ao salvar palpites",
+      );
+    } finally {
+      setSavingAllPalpites(false);
+    }
+  };
+
+  const buildJogoCardEditProps = (jogo: Jogo) => {
+    const canEditMatch = isJogoEditavelParaPalpite(jogo, bolaoType);
+    const hasSavedOnCard = Boolean(predictionsMap[jogo.id]);
+    const editing =
+      !readOnlyMode &&
+      canEditMatch &&
+      (!hasSavedPalpites || !hasSavedOnCard || palpitesEditing);
+    return {
+      editingEnabled: editing,
+      onScoresChange: editing
+        ? (s: JogoCardScores) => handleScoresChange(jogo.id, s)
+        : undefined,
+    };
+  };
+
+  const palpitesFooterMode: PalpitesFooterMode = !hasSavedPalpites
+    ? "initial"
+    : palpitesEditing
+      ? "editing"
+      : "edit-locked";
+
+  const palpitesListFooter = showPalpitesFooter ? (
+    <PalpitesListFooter
+      mode={palpitesFooterMode}
+      disabled={loadingPredictions}
+      loading={savingAllPalpites}
+      error={saveAllError}
+      onEdit={() => {
+        setSaveAllError(null);
+        setPalpitesEditing(true);
+      }}
+      onSave={() => void saveAllPalpites()}
+      onCancel={cancelPalpitesEdit}
+    />
+  ) : null;
+
   const shouldFilterByGroup = !hasBoloesFlow && grupos.length > 0;
   const matchesGroup = (j: Jogo) =>
     shouldFilterByGroup ? j.grupo === grupo : true;
@@ -3783,7 +3882,9 @@ function PalpitesPageContent({
   );
 
   return (
-    <div className="w-full max-w-lg mx-auto px-4 pb-8 lg:max-w-7xl">
+    <div
+      className="w-full max-w-lg mx-auto px-4 pb-8 lg:max-w-7xl"
+    >
       <div
         className="fixed inset-0 pointer-events-none -z-20"
         style={{
@@ -3992,13 +4093,13 @@ function PalpitesPageContent({
                               key={jogo.id}
                               jogo={jogo}
                               readOnly={readOnlyMode}
-                              ticketId={ticketId}
+                              scores={scoresForMatch(jogo.id)}
+                              {...buildJogoCardEditProps(jogo)}
                               initialPrediction={
                                 predictionsMap[jogo.id] ?? null
                               }
                               predictionsLoading={loadingPredictions}
                               bolaoType={bolaoType}
-                              onSavePrediction={savePrediction}
                             />
                           ))}
                         </div>
@@ -4022,16 +4123,17 @@ function PalpitesPageContent({
                           key={jogo.id}
                           jogo={jogo}
                           readOnly={readOnlyMode}
-                          ticketId={ticketId}
+                          scores={scoresForMatch(jogo.id)}
+                          {...buildJogoCardEditProps(jogo)}
                           initialPrediction={predictionsMap[jogo.id] ?? null}
                           predictionsLoading={loadingPredictions}
                           bolaoType={bolaoType}
-                          onSavePrediction={savePrediction}
                         />
                       ))}
                     </div>
                   ))
                 )}
+                {palpitesListFooter}
               </div>
             )}
             {tab === "tabela" && !readOnlyMode && (
@@ -4194,11 +4296,11 @@ function PalpitesPageContent({
                             key={jogo.id}
                             jogo={jogo}
                             readOnly={readOnlyMode}
-                            ticketId={ticketId}
+                            scores={scoresForMatch(jogo.id)}
+                            {...buildJogoCardEditProps(jogo)}
                             initialPrediction={predictionsMap[jogo.id] ?? null}
                             predictionsLoading={loadingPredictions}
                             bolaoType={bolaoType}
-                            onSavePrediction={savePrediction}
                           />
                         ))}
                       </div>
@@ -4224,17 +4326,18 @@ function PalpitesPageContent({
                         key={jogo.id}
                         jogo={jogo}
                         readOnly={readOnlyMode}
-                        ticketId={ticketId}
+                        scores={scoresForMatch(jogo.id)}
+                        {...buildJogoCardEditProps(jogo)}
                         initialPrediction={predictionsMap[jogo.id] ?? null}
                         predictionsLoading={loadingPredictions}
                         bolaoType={bolaoType}
-                        onSavePrediction={savePrediction}
                       />
                     ))}
                   </div>
                 </div>
               ))
             )}
+            {palpitesListFooter}
           </div>
         </div>
 

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 import { fetchMatchesMapDirectFromDb, getMatchFromMap, resolveKickoffAtIso } from "@/lib/football-api";
 import { getPredictionByUserTicketMatch, listPredictions, palpiteLockBeforeKickoffMs, upsertPrediction } from "@/lib/predictions";
+import { isFinishedMatchStatus, isMatchOpenForPalpite } from "@/lib/palpites-match-open";
 import { inferBolaoTypeFromTicketId } from "@/lib/ticket-kind-server";
 import { inferBolaoTypeFromTicketPrefix } from "@/lib/ticket-kind-shared";
 import { getPool } from "@/lib/db";
@@ -30,18 +31,6 @@ const postSchema = z.object({
   scoreCasa: z.number().int().min(0).max(99),
   scoreVisitante: z.number().int().min(0).max(99),
 });
-
-function isFinishedStatus(status: string): boolean {
-  const s = status.trim().toLowerCase();
-  return (
-    s.includes("encerr") ||
-    s.includes("finaliz") ||
-    s.includes("cancel") ||
-    s.includes("adiad") ||
-    s.includes("suspens") ||
-    s.includes("interromp")
-  );
-}
 
 function isUuidTicketId(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value.trim());
@@ -228,33 +217,42 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const status = String(match.status || "");
-  if (isFinishedStatus(status) || (match.resultCasa != null && match.resultVisitante != null)) {
-    return NextResponse.json({ error: "Partida ja encerrada para palpites" }, { status: 400 });
-  }
-
   const kickoffIso = resolveKickoffAtIso({
     kickoffAt: match.kickoffAt,
     dateBR: dateBrDb,
     hour: match.hour,
   });
-  const lockLeadMs = palpiteLockBeforeKickoffMs(bolaoType);
-  const lockMs = kickoffIso ? new Date(kickoffIso).getTime() - lockLeadMs : null;
-  if (lockMs != null && Number.isFinite(lockMs) && Date.now() >= lockMs) {
-    const msg =
-      bolaoType === "extra"
-        ? "Palpite recusado: o prazo maximo e ate 5 minutos antes do apito. Apos esse limite nao aceita nem primeiro palpite nem alteracao."
-        : "Palpite recusado: o prazo maximo e ate 1h antes do apito. Na ultima hora antes do jogo nao aceita nem primeiro palpite nem alteracao; quem nao registrou a tempo nao entra nesta partida.";
-    return NextResponse.json({ error: msg }, { status: 400 });
-  }
-  const kickoffMs = kickoffIso ? new Date(kickoffIso).getTime() : null;
-  if (kickoffMs != null && Number.isFinite(kickoffMs) && Date.now() >= kickoffMs) {
+
+  if (
+    !isMatchOpenForPalpite(
+      {
+        status: match.status,
+        kickoffAt: kickoffIso ?? match.kickoffAt,
+        resultCasa: match.resultCasa,
+        resultVisitante: match.resultVisitante,
+      },
+      bolaoType,
+    )
+  ) {
+    const status = String(match.status || "");
+    if (isFinishedMatchStatus(status) || (match.resultCasa != null && match.resultVisitante != null)) {
+      return NextResponse.json({ error: "Partida ja encerrada para palpites" }, { status: 400 });
+    }
+    const lockLeadMs = palpiteLockBeforeKickoffMs(bolaoType);
+    const lockMs = kickoffIso ? new Date(kickoffIso).getTime() - lockLeadMs : null;
+    if (lockMs != null && Number.isFinite(lockMs) && Date.now() >= lockMs) {
+      const msg =
+        bolaoType === "extra"
+          ? "Palpite recusado: o prazo maximo e ate 5 minutos antes do apito. Apos esse limite nao aceita nem primeiro palpite nem alteracao."
+          : "Palpite recusado: o prazo maximo e ate 1h antes do apito. Na ultima hora antes do jogo nao aceita nem primeiro palpite nem alteracao; quem nao registrou a tempo nao entra nesta partida.";
+      return NextResponse.json({ error: msg }, { status: 400 });
+    }
     return NextResponse.json(
       {
         error:
           "Palpite recusado: partida ja iniciada. Nao e possivel registrar nem alterar palpite apos o apito.",
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
   // ─── Bolão EXTRA "por rodada" — escopo é a RODADA inteira ───────────────
