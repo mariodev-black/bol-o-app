@@ -200,7 +200,7 @@ export async function createDepositTransaction(input: CreateDepositTransactionIn
      SELECT u, tt, e, up, 1, ta, false, 'pending_payment', er
      FROM UNNEST(
        $1::uuid[],
-       $2::text[],
+       $2::ticket_type_enum[],
        $3::int[],
        $4::int[],
        $5::int[],
@@ -215,7 +215,7 @@ export async function createDepositTransaction(input: CreateDepositTransactionIn
   const txInsert = await pool.query<{ id: string }>(
     `INSERT INTO transactions (
       user_id, ticket_id, ticket_type, provider, status, amount_cents, payment_method, external_ref, raw_request
-    ) VALUES ($1, $2, $3, 'skale', 'creating', $4, 'pix', $5, '{}'::jsonb)
+    ) VALUES ($1, $2, $3::ticket_type_enum, 'skale', 'creating', $4, 'pix', $5, '{}'::jsonb)
     RETURNING id`,
     [input.userId, ticketId, primaryTicketType, amountCents, paymentExternalRef]
   );

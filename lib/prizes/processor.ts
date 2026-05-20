@@ -437,7 +437,7 @@ async function creditAward(
   const tx = await client.query<{ id: string }>(
     `INSERT INTO transactions (
        user_id, ticket_id, ticket_type, provider, status, amount_cents, payment_method, external_ref, raw_request, raw_response
-     ) VALUES ($1::uuid, $2::uuid, $3, 'internal_prize', 'paid', $4, 'wallet', $5, $6::jsonb, $6::jsonb)
+     ) VALUES ($1::uuid, $2::uuid, $3::ticket_type_enum, 'internal_prize', 'paid', $4, 'wallet', $5, $6::jsonb, $6::jsonb)
      RETURNING id`,
     [
       input.ranking.userId,
