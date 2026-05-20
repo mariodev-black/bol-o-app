@@ -461,9 +461,11 @@ function parseAllPartidas(fases: Record<string, any> | undefined): {
   return { jogos, grupos: Array.from(grupos).sort() };
 }
 
-const PALPITE_CARD_BG = "#1A1A1A";
-const PALPITE_PANEL_BG = "#141816";
-const PALPITE_STEPPER_BG = "#111413";
+/** Superfícies do card de palpite — mesma família verde-escura do app (#060B18 / primary). */
+const PALPITE_CARD_BG =
+  "linear-gradient(168deg, #151916 0%, #121513 52%, #0F1210 100%)";
+const PALPITE_PANEL_BG = "#0C0F0D";
+const PALPITE_STEPPER_BG = "#080A09";
 
 // ── Escudo do time ────────────────────────────────────────────
 function Escudo({
@@ -496,7 +498,10 @@ function Escudo({
 // ── Skeleton ─────────────────────────────────────────────────
 function CardSkeleton() {
   return (
-    <div className="rounded-2xl overflow-hidden mb-3 bg-[#0B0D0C] border border-primary/15 animate-pulse">
+    <div
+      className="mb-3 overflow-hidden rounded-2xl animate-pulse"
+      style={{ background: PALPITE_CARD_BG }}
+    >
       <div className="flex items-start justify-between px-5 pt-5 pb-4">
         <div className="space-y-2">
           <div className="h-4 w-28 bg-white/10 rounded" />
@@ -504,7 +509,6 @@ function CardSkeleton() {
         </div>
         <div className="h-6 w-20 bg-white/10 rounded-full" />
       </div>
-      <div className="mx-5 h-px bg-white/10" />
       <div className="flex items-center justify-between px-5 py-5 gap-2">
         <div className="w-14 h-14 rounded-2xl bg-white/10" />
         <div className="flex flex-col items-center gap-2">
@@ -520,9 +524,9 @@ function CardSkeleton() {
         </div>
         <div className="w-14 h-14 rounded-2xl bg-white/10" />
       </div>
-      <div className="mx-5 h-px bg-white/10 mb-5" />
+      <div className="mb-2" />
       <div className="px-4 pb-4">
-        <div className="w-full h-12 rounded-xl bg-white/10" />
+        <div className="h-12 w-full rounded-xl" style={{ background: PALPITE_PANEL_BG }} />
       </div>
     </div>
   );
@@ -560,7 +564,7 @@ function VertScoreStepper({
 }) {
   return (
     <div
-      className="flex w-[52px] shrink-0 flex-col items-center overflow-hidden rounded-[14px] border border-white/[0.08]"
+      className="flex w-[52px] shrink-0 flex-col items-center overflow-hidden rounded-[14px] border border-white/[0.07]"
       style={{ background: PALPITE_STEPPER_BG }}
     >
       <button
@@ -1034,36 +1038,19 @@ function JogoCard({
             dot: true,
           };
 
-  const cardBorder = readOnly
-    ? readOnlyPending
-      ? "rgba(232,200,64,0.55)"
-      : readOnlyPlacarPendente || readOnlyAguardandoPlacarPosTempo
-        ? "rgba(232,200,64,0.42)"
-        : readOnlyMatchLive
-          ? "rgba(177,235,11,0.48)"
-          : resultadoResumo?.tone === "win" && review?.exact
-            ? "rgba(177,235,11,0.52)"
-            : resultadoResumo?.tone === "win"
-              ? "rgba(177,235,11,0.34)"
-              : resultadoResumo?.tone === "partial"
-                ? "rgba(177,235,11,0.22)"
-                : resultadoResumo?.tone === "miss"
-                  ? "rgba(255,255,255,0.11)"
-                  : "rgba(177,235,11,0.15)"
-    : "rgba(177,235,11,0.15)";
   const cardShadow = readOnly
     ? readOnlyPending
-      ? "0 0 0 1px rgba(232,200,64,0.10), 0 4px 18px rgba(0,0,0,0.32), 0 0 14px rgba(232,200,64,0.08)"
+      ? "0 4px 20px rgba(0,0,0,0.34), 0 0 18px rgba(232,200,64,0.10)"
       : readOnlyPlacarPendente || readOnlyAguardandoPlacarPosTempo
-        ? "0 0 0 1px rgba(232,200,64,0.10), 0 4px 18px rgba(0,0,0,0.32), 0 0 12px rgba(232,200,64,0.06)"
+        ? "0 4px 18px rgba(0,0,0,0.32), 0 0 14px rgba(232,200,64,0.08)"
         : readOnlyMatchLive
-          ? "0 0 0 1px rgba(177,235,11,0.12), 0 8px 24px rgba(0,0,0,0.40), 0 0 18px rgba(177,235,11,0.12)"
+          ? "0 8px 26px rgba(0,0,0,0.40), 0 0 20px rgba(177,235,11,0.14)"
           : resultadoResumo?.tone === "win" && review?.exact
-            ? "0 0 0 1px rgba(177,235,11,0.14), 0 8px 28px rgba(0,0,0,0.38), 0 0 22px rgba(177,235,11,0.18)"
+            ? "0 8px 28px rgba(0,0,0,0.38), 0 0 24px rgba(177,235,11,0.20)"
             : resultadoResumo?.tone === "win"
-              ? "0 0 0 1px rgba(177,235,11,0.10), 0 6px 22px rgba(0,0,0,0.34), 0 0 16px rgba(177,235,11,0.10)"
-              : "0 4px 16px rgba(0,0,0,0.28)"
-    : "0 4px 16px rgba(0,0,0,0.28)";
+              ? "0 6px 22px rgba(0,0,0,0.34), 0 0 16px rgba(177,235,11,0.12)"
+              : "0 6px 20px rgba(0,0,0,0.30)"
+    : "0 6px 20px rgba(0,0,0,0.30)";
 
   return (
     <div
@@ -1075,11 +1062,11 @@ function JogoCard({
     >
       {/* Header — confronto + data/hora */}
       <div className="flex items-start justify-between gap-3 px-4 pt-4 pb-2 sm:px-5">
-        <h3 className="min-w-0 flex-1 text-[12px] font-bold uppercase leading-snug tracking-[0.02em] text-white sm:text-[13px]">
+        <h3 className="min-w-0 flex-1 text-[15px] font-bold uppercase leading-snug tracking-[0.02em] text-white sm:text-[15px]">
           {jogo.timeCasa} vs {jogo.timeVisitante}
         </h3>
         <div className="flex shrink-0 flex-col items-end gap-0.5 text-right">
-          <span className="text-[11px] font-bold uppercase tabular-nums text-primary sm:text-[12px]">
+          <span className="text-[15px] font-bold uppercase tabular-nums text-primary sm:text-[12px]">
             {formatData(jogo.dataBR, jogo.kickoffAt)}, {safeHourLabel(jogo.hora)}
           </span>
           {liveClockLabel ? (
@@ -1131,13 +1118,19 @@ function JogoCard({
                   role="group"
                   aria-label="Placar do seu palpite"
                 >
-                  <span className="flex min-h-10 min-w-10 items-center justify-center rounded-lg bg-white/8 px-2 text-xl font-black tabular-nums text-white">
+                  <span
+                    className="flex min-h-10 min-w-10 items-center justify-center rounded-lg px-2 text-xl font-black tabular-nums text-white"
+                    style={{ background: PALPITE_STEPPER_BG }}
+                  >
                     {scoreCasa}
                   </span>
                   <span className="text-lg font-bold text-white/40" aria-hidden>
                     x
                   </span>
-                  <span className="flex min-h-10 min-w-10 items-center justify-center rounded-lg bg-white/8 px-2 text-xl font-black tabular-nums text-white">
+                  <span
+                    className="flex min-h-10 min-w-10 items-center justify-center rounded-lg px-2 text-xl font-black tabular-nums text-white"
+                    style={{ background: PALPITE_STEPPER_BG }}
+                  >
                     {scoreVisitante}
                   </span>
                 </div>
@@ -1146,11 +1139,11 @@ function JogoCard({
               {showResultadoDetalhado && review ? (
                 <>
                   <div
-                    className="mx-4 sm:mx-5 mb-3 overflow-hidden rounded-xl border border-white/10"
-                    style={{ background: "rgba(255,255,255,0.04)" }}
+                    className="mx-4 sm:mx-5 mb-3 overflow-hidden rounded-xl"
+                    style={{ background: PALPITE_PANEL_BG }}
                     aria-label="Detalhamento da pontuação"
                   >
-                    <div className="divide-y divide-white/8">
+                    <div className="divide-y divide-white/[0.06]">
                       {pontosLinhas.map((linha) => (
                         <div
                           key={linha.label}
@@ -1169,7 +1162,10 @@ function JogoCard({
                         </div>
                       ))}
                     </div>
-                    <div className="flex items-center justify-between border-t border-white/10 bg-black/25 px-3.5 py-3">
+                    <div
+                      className="flex items-center justify-between px-3.5 py-3"
+                      style={{ background: "rgba(0,0,0,0.22)" }}
+                    >
                       <span className="text-[14px] font-bold text-white">
                         Total da partida
                       </span>
@@ -1179,7 +1175,10 @@ function JogoCard({
                     </div>
                   </div>
 
-                  <div className="mx-4 sm:mx-5 mb-4 flex gap-2.5 rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-3">
+                  <div
+                    className="mx-4 sm:mx-5 mb-4 flex gap-2.5 rounded-xl px-3.5 py-3"
+                    style={{ background: PALPITE_PANEL_BG }}
+                  >
                     <Info
                       className="mt-0.5 size-4 shrink-0 text-white/50"
                       strokeWidth={2}
@@ -1212,11 +1211,11 @@ function JogoCard({
                 <>
                   <div
                     className="h-[108px] w-[52px] animate-pulse rounded-[14px]"
-                    style={{ background: "rgba(255,255,255,0.06)" }}
+                    style={{ background: PALPITE_STEPPER_BG }}
                   />
                   <div
                     className="h-[108px] w-[52px] animate-pulse rounded-[14px]"
-                    style={{ background: "rgba(255,255,255,0.06)" }}
+                    style={{ background: PALPITE_STEPPER_BG }}
                   />
                 </>
               ) : (
@@ -1250,13 +1249,10 @@ function JogoCard({
 
       {readOnly ? (
         <>
-          {!showResultadoDetalhado ? (
-            <div className="mx-4 sm:mx-5 mb-3 h-px bg-white/10" />
-          ) : null}
           <div className={`px-4 sm:px-5 ${showResultadoDetalhado ? "pb-1" : "pb-4"}`}>
             {readOnly && !showResultadoDetalhado ? (
           <div
-            className="w-full py-4 px-3 sm:px-4 rounded-xl flex flex-col items-center justify-center gap-2"
+            className="flex w-full flex-col items-center justify-center gap-2 rounded-xl px-3 py-4 sm:px-4"
             style={{
               background: readOnlyPending
                 ? "rgba(232,200,64,0.08)"
@@ -1269,25 +1265,10 @@ function JogoCard({
                     : resultadoResumo?.tone === "partial"
                       ? "rgba(177,235,11,0.06)"
                       : resultadoResumo?.tone === "miss"
-                        ? "rgba(255,255,255,0.03)"
+                        ? "rgba(255,255,255,0.04)"
                         : review && review.points > 0
                           ? "rgba(177,235,11,0.10)"
-                          : "rgba(255,255,255,0.03)",
-              border: readOnlyPending
-                ? "1px solid rgba(232,200,64,0.28)"
-                : readOnlyPlacarPendente || readOnlyAguardandoPlacarPosTempo
-                  ? "1px solid rgba(232,200,64,0.22)"
-                  : resultadoResumo?.tone === "win"
-                    ? review?.exact
-                      ? "1px solid rgba(177,235,11,0.35)"
-                      : "1px solid rgba(177,235,11,0.26)"
-                    : resultadoResumo?.tone === "partial"
-                      ? "1px solid rgba(177,235,11,0.20)"
-                      : resultadoResumo?.tone === "miss"
-                        ? "1px solid rgba(255,255,255,0.07)"
-                        : review && review.points > 0
-                          ? "1px solid rgba(177,235,11,0.28)"
-                          : "1px solid rgba(255,255,255,0.06)",
+                          : PALPITE_PANEL_BG,
             }}
           >
             {readOnlyPending ? (
