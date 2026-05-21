@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { authLog, oauthRequestSnapshot } from "@/lib/auth/oauth-console";
-import { normalizeCpf } from "@/lib/auth/cpf";
+import { isValidCpf, normalizeCpf } from "@/lib/auth/cpf";
 import { loginInputLooksLikeEmail } from "@/lib/auth/login-identifier";
 import { verifyPassword } from "@/lib/auth/password";
 import { attachSessionCookie } from "@/lib/auth/session";
@@ -33,10 +33,17 @@ export async function POST(request: NextRequest) {
   const trimmed = identifier.trim();
   const isEmail = loginInputLooksLikeEmail(trimmed);
 
+  if (!isEmail) {
+    const cpf = normalizeCpf(trimmed);
+    if (cpf.length !== 11 || !isValidCpf(cpf)) {
+      return NextResponse.json({ error: "Informe um CPF válido com 11 dígitos." }, { status: 400 });
+    }
+  }
+
   let row: Awaited<ReturnType<typeof findUserByEmail>>;
   try {
     row = isEmail
-      ? await findUserByEmail(trimmed)
+      ? await findUserByEmail(trimmed.toLowerCase())
       : await findUserByCpf(normalizeCpf(trimmed));
   } catch (e: unknown) {
     const db = responseForDbError(e);

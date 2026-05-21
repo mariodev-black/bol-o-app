@@ -153,7 +153,7 @@ export function LoginContent() {
         id="login-identifier"
         label="E-mail ou CPF"
         type="text"
-        inputMode={looksLikeEmail ? "email" : "email"}
+        inputMode={looksLikeEmail ? "email" : "numeric"}
         autoComplete="username"
         placeholder={identifierPlaceholder}
         value={identifier}

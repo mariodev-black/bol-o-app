@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { isValidCpf, normalizeCpf } from "@/lib/auth/cpf";
-import { fetchCpfFromBrasilApi } from "@/lib/auth/cpf-brasil-api";
 import { isValidBrazilNationalDigits } from "@/lib/auth/phone";
 import {
   normalizeRegistrationPhoneE164,
@@ -14,9 +13,7 @@ export const runtime = "nodejs";
 const bodySchema = z.object({
   cpf: z.string().min(1),
   phone: z.string().min(8).max(40),
-  // Opcional — só o email é repassado do client (já validado no step 2).
-  // O NOME REAL é resolvido server-side via `fetchCpfFromBrasilApi` para não
-  // confiar em payload de UI (LGPD: o cliente recebe só o nome mascarado).
+  name: z.string().trim().min(2, "Informe seu nome").max(120),
   email: z.string().trim().email().max(200).optional(),
 });
 
@@ -30,7 +27,8 @@ export async function POST(request: NextRequest) {
 
   const parsed = bodySchema.safeParse(json);
   if (!parsed.success) {
-    return NextResponse.json({ error: "Telefone inválido" }, { status: 400 });
+    const first = parsed.error.issues[0]?.message ?? "Dados inválidos";
+    return NextResponse.json({ error: first }, { status: 400 });
   }
 
   const cpf = normalizeCpf(parsed.data.cpf);
@@ -58,23 +56,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Erro ao validar CPF" }, { status: 500 });
   }
 
-  // Resolve o NOME REAL server-side (LGPD: cliente nunca recebe nome completo).
-  // Falha silenciosa: se o lookup quebrar, mandamos sem nome — o webhook ainda
-  // identifica o lead pelo phone/email. Não bloqueamos o envio do código.
-  let realName: string | null = null;
-  try {
-    const lookup = await fetchCpfFromBrasilApi(cpf);
-    if (lookup.ok && lookup.data.nome && lookup.data.nome.trim().length >= 2) {
-      realName = lookup.data.nome.trim();
-    }
-  } catch (e) {
-    console.warn("[auth/register/send-code] cpf-name lookup falhou; segue sem nome", e);
-  }
-
   const result = await sendRegistrationSmsCode({
     phoneE164,
     cpf,
-    name: realName,
+    name: parsed.data.name.trim(),
     email: parsed.data.email ?? null,
   });
   if (!result.ok) {
@@ -84,7 +69,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Em dev/staging, sem webhook SellFlux o código aparece no log — `devMode` avisa o front.
   const devHint =
     process.env.NODE_ENV !== "production" &&
     !process.env.REGISTRATION_WHATSAPP_WEBHOOK_URL?.trim()

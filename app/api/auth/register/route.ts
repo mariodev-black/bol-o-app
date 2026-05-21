@@ -5,7 +5,6 @@ import { isValidCpf, normalizeCpf } from "@/lib/auth/cpf";
 import { hashPassword } from "@/lib/auth/password";
 import { attachSessionCookie } from "@/lib/auth/session";
 import { responseForDbError } from "@/lib/db-errors";
-import { fetchCpfFromBrasilApi } from "@/lib/auth/cpf-brasil-api";
 import {
   normalizeRegistrationPhoneE164,
   verifyRegistrationSmsCode,
@@ -17,8 +16,7 @@ import { sendWelcomeEmail } from "@/lib/email/registration";
 export const runtime = "nodejs";
 
 const bodySchema = z.object({
-  /** Opcional no cliente; o nome oficial vem da consulta de CPF no servidor. */
-  name: z.string().trim().max(120, "Nome muito longo").optional(),
+  name: z.string().trim().min(2, "Informe seu nome").max(120, "Nome muito longo"),
   email: z.string().email("E-mail inválido"),
   cpf: z.string().min(1, "CPF obrigatório"),
   password: z.string().min(8, "Senha deve ter no mínimo 8 caracteres").max(200),
@@ -47,6 +45,7 @@ export async function POST(request: NextRequest) {
 
   const email = parsed.data.email.trim();
   const {
+    name: nameRaw,
     password,
     phone,
     smsCode,
@@ -62,24 +61,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "CPF inválido" }, { status: 400 });
   }
 
-  const cpfLookup = await fetchCpfFromBrasilApi(cpf);
-  if (!cpfLookup.ok) {
-    const msg =
-      cpfLookup.reason === "not_found"
-        ? "CPF não encontrado. Confira os números ou tente novamente."
-        : cpfLookup.reason === "invalid_cpf"
-          ? "CPF inválido."
-          : "Não foi possível validar o CPF. Tente consultar novamente antes de finalizar.";
-    return NextResponse.json({ error: msg }, { status: 400 });
-  }
-
-  const fullName = cpfLookup.data.nome.trim();
-  if (fullName.length < 2) {
-    return NextResponse.json(
-      { error: "Não foi possível obter o nome vinculado a este CPF." },
-      { status: 400 },
-    );
-  }
+  const fullName = nameRaw.trim();
 
   const phoneDigits = phone.replace(/\D/g, "");
   if (!isValidBrazilNationalDigits(phoneDigits)) {

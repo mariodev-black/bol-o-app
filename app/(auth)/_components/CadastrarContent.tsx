@@ -15,12 +15,10 @@ import {
   useRef,
   useEffect,
   useMemo,
-  useCallback,
   type FormEvent,
 } from "react";
 import { Check } from "lucide-react";
 import {
-  AuthCpfVerifiedBanner,
   AuthField,
   AuthLegalFooter,
   AuthPasswordField,
@@ -64,16 +62,7 @@ function formatPhoneDisplay(digits: string) {
   return `+55 ${masked}`;
 }
 
-type CpfLookupStatus = "idle" | "loading" | "verified" | "error";
-
-const CPF_VERIFIED_STORAGE_KEY = "bm_cadastro_cpf_verified";
-/**
- * Cooldown UX entre reenvios (5 minutos). O backend é a fonte da verdade:
- * tentativa de reenvio antes do prazo retorna 429 com `retryAfterSeconds`,
- * que sobrescreve este valor.
- */
 const SMS_RESEND_SECONDS = 5 * 60;
-/** Espelha `REGISTRATION_CODE_MAX_ATTEMPTS` do backend. */
 const SMS_MAX_ATTEMPTS = 5;
 
 function formatCooldown(secs: number): string {
@@ -92,14 +81,8 @@ export function CadastrarContent() {
 
   const [showPw, setShowPw] = useState(false);
   const [marketingOptIn, setMarketingOptIn] = useState(false);
+  const [fullName, setFullName] = useState("");
   const [cpf, setCpf] = useState("");
-  const [cpfLookupStatus, setCpfLookupStatus] = useState<CpfLookupStatus>("idle");
-  const [cpfMaskedName, setCpfMaskedName] = useState<string | null>(null);
-  const [cpfLookupError, setCpfLookupError] = useState<string | null>(null);
-  const [verifiedCpfDigits, setVerifiedCpfDigits] = useState<string | null>(null);
-  const cpfLookupAbortRef = useRef<AbortController | null>(null);
-  const cpfLookupDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [cpfAwaitingLookup, setCpfAwaitingLookup] = useState(false);
 
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -112,11 +95,6 @@ export function CadastrarContent() {
   const [smsSending, setSmsSending] = useState(false);
   const [smsDevMode, setSmsDevMode] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
-  /**
-   * Tentativas restantes desta sessão de código. `null` = ainda não tentou.
-   * Vem do backend (`attemptsRemaining`). Quando chega a 0 ou recebe `locked`,
-   * o input fica desabilitado até o usuário pedir um novo código.
-   */
   const [smsAttemptsRemaining, setSmsAttemptsRemaining] = useState<number | null>(null);
   const [smsLocked, setSmsLocked] = useState(false);
 
@@ -136,96 +114,14 @@ export function CadastrarContent() {
 
   const cpfDigits = cpf.replace(/\D/g, "");
   const cpfValid = cpfDigits.length === 11 && isValidCpf(cpfDigits);
-  const cpfVerified =
-    cpfLookupStatus === "verified" &&
-    verifiedCpfDigits === cpfDigits &&
-    Boolean(cpfMaskedName);
+  const nameTrim = fullName.trim();
+  const nameValid = nameTrim.length >= 2;
 
   const phoneDigits = phone.replace(/\D/g, "");
   const phoneValid = isValidBrazilNationalDigits(phoneDigits);
 
-  const resetCpfLookup = useCallback(() => {
-    cpfLookupAbortRef.current?.abort();
-    cpfLookupAbortRef.current = null;
-    setCpfAwaitingLookup(false);
-    setCpfLookupStatus("idle");
-    setCpfMaskedName(null);
-    setCpfLookupError(null);
-    setVerifiedCpfDigits(null);
-    try {
-      sessionStorage.removeItem(CPF_VERIFIED_STORAGE_KEY);
-    } catch {
-      /* modo privado */
-    }
-  }, []);
-
-  const runCpfLookup = useCallback(async (digits: string) => {
-    cpfLookupAbortRef.current?.abort();
-    const controller = new AbortController();
-    cpfLookupAbortRef.current = controller;
-    setCpfAwaitingLookup(false);
-    setCpfLookupStatus("loading");
-    setCpfLookupError(null);
-    setCpfMaskedName(null);
-    setVerifiedCpfDigits(null);
-
-    try {
-      const r = await fetch("/api/auth/cpf-lookup", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cpf: digits }),
-        signal: controller.signal,
-      });
-      const data = (await r.json()) as {
-        error?: string;
-        maskedName?: string;
-        verified?: boolean;
-      };
-
-      if (controller.signal.aborted) return;
-
-      if (!r.ok || !data.verified || !data.maskedName) {
-        setCpfLookupStatus("error");
-        setCpfLookupError(
-          typeof data.error === "string" && data.error.trim()
-            ? data.error
-            : "Não foi possível validar este CPF.",
-        );
-        return;
-      }
-
-      setCpfMaskedName(data.maskedName);
-      setVerifiedCpfDigits(digits);
-      setCpfLookupStatus("verified");
-      try {
-        sessionStorage.setItem(CPF_VERIFIED_STORAGE_KEY, digits);
-      } catch {
-        /* ignore */
-      }
-    } catch (err) {
-      if (controller.signal.aborted) return;
-      setCpfLookupStatus("error");
-      setCpfLookupError(
-        err instanceof Error && err.name === "AbortError"
-          ? null
-          : "Falha na conexão. Verifique a internet e tente novamente.",
-      );
-    } finally {
-      if (cpfLookupAbortRef.current === controller) {
-        cpfLookupAbortRef.current = null;
-      }
-    }
-  }, []);
-
   function handleCpfChange(raw: string) {
-    const masked = maskCPF(raw);
-    const nextDigits = masked.replace(/\D/g, "");
-    setCpf((prev) => {
-      const prevDigits = prev.replace(/\D/g, "");
-      if (prevDigits !== nextDigits) resetCpfLookup();
-      return masked;
-    });
+    setCpf(maskCPF(raw));
   }
 
   function safeReturnPath(from: string | null): string | null {
@@ -242,62 +138,6 @@ export function CadastrarContent() {
     }
     document.addEventListener("mousedown", outside);
     return () => document.removeEventListener("mousedown", outside);
-  }, []);
-
-  useEffect(() => {
-    if (step < 2 || cpfVerified) return;
-    setStep(1);
-    toast.error("Valide seu CPF antes de continuar o cadastro.");
-  }, [step, cpfVerified, toast]);
-
-  useEffect(() => {
-    if (cpfLookupDebounceRef.current) {
-      clearTimeout(cpfLookupDebounceRef.current);
-      cpfLookupDebounceRef.current = null;
-    }
-
-    if (!cpfValid) {
-      if (cpfDigits.length < 11) resetCpfLookup();
-      return;
-    }
-
-    if (verifiedCpfDigits === cpfDigits) {
-      setCpfAwaitingLookup(false);
-      return;
-    }
-
-    setCpfAwaitingLookup(true);
-    cpfLookupDebounceRef.current = setTimeout(() => {
-      cpfLookupDebounceRef.current = null;
-      void runCpfLookup(cpfDigits);
-    }, 500);
-
-    return () => {
-      if (cpfLookupDebounceRef.current) {
-        clearTimeout(cpfLookupDebounceRef.current);
-        cpfLookupDebounceRef.current = null;
-      }
-    };
-  }, [cpfDigits, cpfValid, verifiedCpfDigits, runCpfLookup, resetCpfLookup]);
-
-  useEffect(() => {
-    if (!cpfValid) return;
-    let stored: string | null = null;
-    try {
-      stored = sessionStorage.getItem(CPF_VERIFIED_STORAGE_KEY);
-    } catch {
-      stored = null;
-    }
-    if (stored === cpfDigits && !cpfVerified) {
-      void runCpfLookup(cpfDigits);
-    }
-  }, [cpfDigits, cpfValid, cpfVerified, runCpfLookup]);
-
-  useEffect(() => {
-    return () => {
-      cpfLookupAbortRef.current?.abort();
-      if (cpfLookupDebounceRef.current) clearTimeout(cpfLookupDebounceRef.current);
-    };
   }, []);
 
   useEffect(() => {
@@ -333,10 +173,8 @@ export function CadastrarContent() {
         body: JSON.stringify({
           cpf: cpfDigits,
           phone: phoneDigits,
-          // Só repassamos o email (já validado no step 2).
-          // O NOME REAL é resolvido server-side via CPF (LGPD) — o cliente
-          // nunca recebe nome completo, apenas o `maskedName` para UI.
           email: email.trim() || undefined,
+          name: nameTrim,
         }),
       });
       const data = (await r.json()) as {
@@ -349,7 +187,6 @@ export function CadastrarContent() {
         toast.error(data.error ?? "Não foi possível enviar o código pelo WhatsApp.");
         return false;
       }
-      // Sucesso: novo código emitido → reseta contador de tentativas e desbloqueia.
       setSmsDevMode(Boolean(data.devMode));
       setResendCooldown(SMS_RESEND_SECONDS);
       setSmsCode("");
@@ -365,25 +202,20 @@ export function CadastrarContent() {
   }
 
   function goFromStep1() {
+    if (!nameValid) {
+      toast.error("Informe seu nome (mínimo 2 caracteres).");
+      return;
+    }
     if (!cpfValid) {
       toast.error("Informe um CPF válido.");
-      return;
-    }
-    if (cpfLookupStatus === "loading" || cpfAwaitingLookup) {
-      toast.error("Aguarde a validação do CPF.");
-      return;
-    }
-    if (!cpfVerified) {
-      toast.error(cpfLookupError ?? "Valide o CPF para continuar.");
-      void runCpfLookup(cpfDigits);
       return;
     }
     setStep(2);
   }
 
   async function goFromStep2() {
-    if (!cpfVerified) {
-      toast.error("Valide seu CPF novamente.");
+    if (!nameValid || !cpfValid) {
+      toast.error("Revise nome e CPF.");
       setStep(1);
       return;
     }
@@ -417,8 +249,8 @@ export function CadastrarContent() {
     e.preventDefault();
     if (step !== 3) return;
 
-    if (!cpfVerified) {
-      toast.error("Valide seu CPF antes de finalizar.");
+    if (!nameValid || !cpfValid) {
+      toast.error("Revise nome e CPF.");
       setStep(1);
       return;
     }
@@ -439,8 +271,9 @@ export function CadastrarContent() {
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          name: nameTrim,
           email: email.trim(),
-          cpf,
+          cpf: cpfDigits,
           password,
           phone: phoneDigits,
           smsCode: smsCode.replace(/\D/g, ""),
@@ -463,8 +296,6 @@ export function CadastrarContent() {
         return;
       }
       if (!r.ok) {
-        // Quando o erro vem do verify (código errado / bloqueado), o backend
-        // anexa metadados estruturados — espelhamos no estado para UI atualizar.
         if (typeof data.attemptsRemaining === "number") {
           setSmsAttemptsRemaining(data.attemptsRemaining);
         }
@@ -489,11 +320,6 @@ export function CadastrarContent() {
         await new Promise((resolve) => setTimeout(resolve, 900));
       }
       clearPendingReferral();
-      try {
-        sessionStorage.removeItem(CPF_VERIFIED_STORAGE_KEY);
-      } catch {
-        /* ignore */
-      }
       router.replace(safeReturnPath(fromParam) ?? "/tickets");
     } catch {
       toast.error("Erro de rede. Tente novamente.");
@@ -502,11 +328,7 @@ export function CadastrarContent() {
     }
   }
 
-  const showCpfLoading =
-    cpfLookupStatus === "loading" || (cpfAwaitingLookup && cpfValid && !cpfVerified);
-
-  const step1Ready = cpfVerified && !showCpfLoading;
-
+  const step1Ready = cpfValid && nameValid;
   const step2Ready =
     phoneValid &&
     email.trim().length > 0 &&
@@ -514,9 +336,7 @@ export function CadastrarContent() {
     password.length >= 8 &&
     !smsSending &&
     !loading;
-
   const step3Ready = smsCode.replace(/\D/g, "").length === 6 && !loading && !smsLocked;
-
   const busy = loading || smsSending;
 
   return (
@@ -524,30 +344,32 @@ export function CadastrarContent() {
       {step > 1 ? <AuthStepper step={step} total={3} /> : null}
 
       {step === 1 && (
-        <div key="step-1" className="auth-step-panel">
-          <div className="auth-cpf-field-wrap">
-            <AuthField
-              label="CPF"
-              inputMode="numeric"
-              autoComplete="off"
-              placeholder="000.000.000-00"
-              value={cpf}
-              onChange={(e) => handleCpfChange(e.target.value)}
-              disabled={busy}
-              loading={showCpfLoading}
-              success={cpfVerified}
-              error={cpfLookupStatus === "error"}
-            />
-            {cpfVerified && cpfMaskedName ? (
-              <AuthCpfVerifiedBanner name={cpfMaskedName} />
-            ) : null}
-          </div>
+        <div key="step-1" className="auth-step-panel flex flex-col gap-4">
+          <AuthField
+            label="Nome completo"
+            type="text"
+            autoComplete="name"
+            placeholder="Como está no seu documento"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            disabled={busy}
+            success={nameValid}
+          />
 
-          {cpfLookupStatus === "error" && cpfLookupError ? (
-            <p className="mt-2 text-[12px] font-medium text-red-300/95">{cpfLookupError}</p>
-          ) : null}
+          <AuthField
+            label="CPF"
+            inputMode="numeric"
+            autoComplete="off"
+            placeholder="000.000.000-00"
+            value={cpf}
+            onChange={(e) => handleCpfChange(e.target.value)}
+            disabled={busy}
+            success={cpfValid}
+            error={cpf.length > 0 && !cpfValid && cpfDigits.length >= 11}
+            hint={cpfDigits.length > 0 && cpfDigits.length < 11 ? `CPF: ${cpfDigits.length} de 11 dígitos.` : undefined}
+          />
 
-          <p className="mt-5 text-[12px] leading-relaxed text-white/55">
+          <p className="text-[12px] leading-relaxed text-white/55">
             Ao finalizar o cadastro, certifico que eu sou maior de 18 anos de idade, li e aceito os{" "}
             <a href="/privacidade" className="font-semibold text-[#B1EB0B] hover:underline">
               Termos e Condições Gerais
@@ -566,7 +388,7 @@ export function CadastrarContent() {
           <button
             type="button"
             onClick={() => setMarketingOptIn((v) => !v)}
-            className="mt-4 flex items-start gap-3 text-left"
+            className="flex items-start gap-3 text-left"
           >
             <span
               className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded border transition-colors ${
@@ -584,18 +406,16 @@ export function CadastrarContent() {
             </span>
           </button>
 
-          <div className="mt-6">
-            <AuthPrimaryButton type="button" disabled={!step1Ready || busy} onClick={goFromStep1}>
-              Avançar
-            </AuthPrimaryButton>
-          </div>
+          <AuthPrimaryButton type="button" disabled={!step1Ready || busy} onClick={goFromStep1}>
+            Avançar
+          </AuthPrimaryButton>
         </div>
       )}
 
       {step === 2 && (
         <div key="step-2" className="auth-step-panel flex flex-col gap-4">
           <AuthField
-            label="Telefone"
+            label="WhatsApp"
             type="tel"
             inputMode="numeric"
             autoComplete="tel"
@@ -693,12 +513,6 @@ export function CadastrarContent() {
             ariaLabel="Código de verificação por WhatsApp"
           />
 
-          {/*
-            Feedback de tentativas / bloqueio.
-            - smsLocked: o servidor rejeitou definitivamente o código atual
-              (5 erros ou expirado). Único caminho: reenviar.
-            - smsAttemptsRemaining < 5 e > 0: usuário errou ao menos uma vez.
-          */}
           {smsLocked ? (
             <p className="mt-3 text-center text-[12px] font-medium text-red-300">
               Código bloqueado após várias tentativas. Solicite um novo código pelo WhatsApp.
