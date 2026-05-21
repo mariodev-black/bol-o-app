@@ -12,6 +12,7 @@ import {
   tryPersistGooglePictureAsAvatarUpload,
 } from "@/lib/auth/users";
 import { GOOGLE_OAUTH_CALLBACK_PATH } from "@/lib/google/oauth-config";
+import { ensureWelcomeNotification } from "@/lib/notifications/user-notifications";
 
 export const runtime = "nodejs";
 
@@ -225,6 +226,12 @@ export async function GET(request: NextRequest) {
     }
 
     await tryPersistGooglePictureAsAvatarUpload(userId, picture).catch(() => {});
+
+    if (authMode === "created_google") {
+      void ensureWelcomeNotification(userId, name).catch((err) => {
+        console.error("[auth/google] welcome notification", err);
+      });
+    }
 
     const returnTo = safeReturnPath(request.cookies.get(RETURN_COOKIE)?.value);
     const targetPath = returnTo ?? "/";

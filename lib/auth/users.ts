@@ -87,6 +87,15 @@ export async function findUserById(id: string): Promise<PublicUser | null> {
   return row ? toPublic(row) : null;
 }
 
+export async function findUserCreatedAt(id: string): Promise<Date | null> {
+  const pool = getPool();
+  const { rows } = await pool.query<{ created_at: Date }>(
+    `SELECT created_at FROM users WHERE id = $1 LIMIT 1`,
+    [id],
+  );
+  return rows[0]?.created_at ?? null;
+}
+
 export async function findUserByEmail(email: string): Promise<UserRow | null> {
   const pool = getPool();
   const { rows } = await pool.query<UserRow>(

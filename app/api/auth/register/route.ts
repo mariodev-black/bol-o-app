@@ -12,6 +12,7 @@ import {
 import { isValidBrazilNationalDigits } from "@/lib/auth/phone";
 import { createUserWithPassword, getRegistrationConflicts } from "@/lib/auth/users";
 import { sendWelcomeEmail } from "@/lib/email/registration";
+import { ensureWelcomeNotification } from "@/lib/notifications/user-notifications";
 
 export const runtime = "nodejs";
 
@@ -133,6 +134,9 @@ export async function POST(request: NextRequest) {
     await attachSessionCookie(res, user.id, request);
     void sendWelcomeEmail({ email, name: fullName, userId: user.id }).catch((err) => {
       console.error("[auth/register] welcome email", err);
+    });
+    void ensureWelcomeNotification(user.id, fullName).catch((err) => {
+      console.error("[auth/register] welcome notification", err);
     });
     authLog("register_ok", {
       userIdPrefix: `${user.id.slice(0, 8)}…`,

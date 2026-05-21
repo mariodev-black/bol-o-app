@@ -6,7 +6,8 @@ import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useProductHref } from "@/app/shared/useProductHref";
 import logo from "@/app/assets/logo.svg";
-import { Bell, Menu as MenuIcon } from "lucide-react";
+import { Menu as MenuIcon } from "lucide-react";
+import { NotificationsBell } from "@/app/shared/NotificationsBell";
 import { useAuth } from "@/app/shared/AuthContext";
 import { useSidenav } from "@/app/shared/SidenavContext";
 import { InstallAppBanner } from "@/app/shared/InstallAppBanner";
@@ -131,17 +132,7 @@ export function Header() {
             />
           </Link>
 
-          <button
-            type="button"
-            className="relative flex h-10 w-10 items-center justify-end rounded-xl"
-            aria-label="Notificações"
-          >
-            <Bell className="h-6 w-6 text-white" strokeWidth={2} />
-            <span
-              aria-hidden="true"
-              className="absolute right-0 top-1.5 h-2 w-2 rounded-full bg-primary shadow-[0_0_0_3px_rgba(177,235,11,0.12)]"
-            />
-          </button>
+          <NotificationsBell variant="mobile" />
         </div>
 
         <div className="mx-auto hidden h-[80px] w-full max-w-[1500px] items-center justify-between px-8 lg:flex">
@@ -184,15 +175,7 @@ export function Header() {
               })}
             </nav>
 
-            <button
-              type="button"
-              className="relative flex h-[36px] w-[36px] items-center justify-center rounded-[9px]"
-              style={{ background: "#151515", border: "1px solid rgba(255,255,255,0.08)" }}
-              aria-label="Notificações"
-            >
-              <Bell className="h-[16px] w-[16px] text-white/70" strokeWidth={2} />
-              <span className="absolute right-[8px] top-[7px] h-[6px] w-[6px] rounded-full bg-red-500" aria-hidden />
-            </button>
+            <NotificationsBell variant="desktop" />
 
             <Link
               href="/tickets"
@@ -239,17 +222,7 @@ export function Header() {
           />
         </Link>
 
-        <button
-          type="button"
-          className="relative flex h-10 w-10 items-center justify-end rounded-xl lg:hidden"
-          aria-label="Notificações"
-        >
-          <Bell className="h-6 w-6 text-white" strokeWidth={2} />
-          <span
-            aria-hidden="true"
-            className="absolute right-0 top-1.5 h-2 w-2 rounded-full bg-primary shadow-[0_0_0_3px_rgba(177,235,11,0.12)]"
-          />
-        </button>
+        <div className="h-10 w-10 lg:hidden" aria-hidden="true" />
 
         <nav className="hidden lg:flex items-center gap-7">
           {guestNavLinks.map(({ label, href }, index) => (
