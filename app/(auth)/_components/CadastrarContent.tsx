@@ -62,7 +62,6 @@ function formatPhoneDisplay(digits: string) {
   return `+55 ${masked}`;
 }
 
-const SMS_RESEND_SECONDS = 5 * 60;
 const SMS_MAX_ATTEMPTS = 5;
 
 function formatCooldown(secs: number): string {
@@ -95,6 +94,7 @@ export function CadastrarContent() {
   const [smsSending, setSmsSending] = useState(false);
   const [smsDevMode, setSmsDevMode] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [smsResendsRemaining, setSmsResendsRemaining] = useState<number | null>(null);
   const [smsAttemptsRemaining, setSmsAttemptsRemaining] = useState<number | null>(null);
   const [smsLocked, setSmsLocked] = useState(false);
 
@@ -180,6 +180,8 @@ export function CadastrarContent() {
       const data = (await r.json()) as {
         error?: string;
         retryAfterSeconds?: number;
+        cooldownSeconds?: number;
+        resendsRemaining?: number;
         devMode?: boolean;
       };
       if (!r.ok) {
@@ -188,7 +190,14 @@ export function CadastrarContent() {
         return false;
       }
       setSmsDevMode(Boolean(data.devMode));
-      setResendCooldown(SMS_RESEND_SECONDS);
+      setResendCooldown(
+        typeof data.cooldownSeconds === "number" && data.cooldownSeconds > 0
+          ? data.cooldownSeconds
+          : 0,
+      );
+      setSmsResendsRemaining(
+        typeof data.resendsRemaining === "number" ? data.resendsRemaining : null,
+      );
       setSmsCode("");
       setSmsAttemptsRemaining(SMS_MAX_ATTEMPTS);
       setSmsLocked(false);
@@ -538,11 +547,20 @@ export function CadastrarContent() {
                 ? `Reenviar código em ${formatCooldown(resendCooldown)}`
                 : "Reenviar código pelo WhatsApp"}
             </button>
+            {smsResendsRemaining != null && smsResendsRemaining > 0 && resendCooldown <= 0 ? (
+              <p className="mt-2 text-[11px] text-white/45">
+                {smsResendsRemaining === 1
+                  ? "Mais 1 reenvio imediato disponível."
+                  : `Mais ${smsResendsRemaining} reenvios imediatos disponíveis.`}
+              </p>
+            ) : null}
           </div>
 
           <AuthStepNav
             onBack={() => {
               setSmsCode("");
+              setSmsResendsRemaining(null);
+              setResendCooldown(0);
               setStep(2);
             }}
             backDisabled={busy}

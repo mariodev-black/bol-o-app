@@ -22,10 +22,13 @@ import { getPool } from "@/lib/db";
 
 /** Tempo de vida do código emitido (10 minutos). */
 const CODE_TTL_MS = 10 * 60 * 1000;
+/** Reenvios imediatos (sem espera) após o 1º envio; depois disso vale o cooldown. */
+const REGISTRATION_FREE_RESENDS = 3;
+/** Total de envios na janela do código (1º + reenvios gratuitos) antes do cooldown. */
+const REGISTRATION_SENDS_BEFORE_COOLDOWN = 1 + REGISTRATION_FREE_RESENDS;
 /**
- * Cooldown entre reenvios (5 minutos). Backend é a fonte da verdade: o front
- * recebe `retryAfterSeconds` quando rejeitado e mostra um contador local
- * apenas para UX — qualquer POST antes do prazo é rejeitado aqui.
+ * Cooldown entre reenvios após esgotar os gratuitos (5 minutos).
+ * Backend é a fonte da verdade: o front recebe `retryAfterSeconds` quando rejeitado.
  */
 const RESEND_MIN_MS = 5 * 60 * 1000;
 /** Máximo de tentativas erradas antes de bloquear o código atual. */
@@ -34,7 +37,9 @@ const WEBHOOK_DEFAULT_TIMEOUT_MS = 12_000;
 
 /** Exporta o limite (front usa para mensagens "X tentativas restantes"). */
 export const REGISTRATION_CODE_MAX_ATTEMPTS = MAX_ATTEMPTS;
-/** Cooldown em segundos — front usa para inicializar o contador local. */
+export const REGISTRATION_CODE_FREE_RESENDS = REGISTRATION_FREE_RESENDS;
+export const REGISTRATION_CODE_SENDS_BEFORE_COOLDOWN = REGISTRATION_SENDS_BEFORE_COOLDOWN;
+/** Cooldown em segundos — após esgotar reenvios gratuitos. */
 export const REGISTRATION_CODE_RESEND_COOLDOWN_SECONDS = Math.round(RESEND_MIN_MS / 1000);
 
 let tableReady: Promise<void> | null = null;
@@ -71,8 +76,39 @@ async function ensureTable(): Promise<void> {
   await tableReady;
 }
 
+/** Sempre 6 caracteres decimais (inclui zeros à esquerda, ex.: "042918"). */
 function generateSixDigitCode(): string {
-  return String(randomInt(0, 1_000_000)).padStart(6, "0");
+  return randomInt(0, 1_000_000).toString().padStart(6, "0");
+}
+
+/** Normaliza para envio/display — evita perda de dígito no SellFlux (número vs string). */
+function normalizeSixDigitCode(code: string): string {
+  const digits = code.replace(/\D/g, "");
+  if (digits.length >= 6) return digits.slice(-6);
+  return digits.padStart(6, "0");
+}
+
+/**
+ * SellFlux custom webhook: query `?name=customer.name&...` mapeia campos do JSON.
+ * Sem `codigo`/`message` na URL o template pode usar variável numérica e cortar
+ * o zero à esquerda (5 dígitos no WhatsApp).
+ */
+function augmentRegistrationWebhookUrl(rawUrl: string): string {
+  try {
+    const u = new URL(rawUrl);
+    const mappings: [string, string][] = [
+      ["codigo", "codigo"],
+      ["code", "code"],
+      ["message", "message"],
+      ["verification_code", "verification_code"],
+    ];
+    for (const [param, path] of mappings) {
+      if (!u.searchParams.has(param)) u.searchParams.set(param, path);
+    }
+    return u.toString();
+  } catch {
+    return rawUrl;
+  }
 }
 
 /**
@@ -108,21 +144,25 @@ async function sendRegistrationWhatsAppCode(input: {
   }
 
   const phoneDigits = input.phoneE164.replace(/\D/g, "");
-  const message = `${appName}: seu código de confirmação é ${input.code}. Válido por 10 minutos.`;
+  const code = normalizeSixDigitCode(input.code);
+  const message = `${appName}: seu código de confirmação é ${code}. Válido por 10 minutos.`;
 
   // Body alinhado ao padrão SellFlux custom webhook:
   //   ?name=customer.name&email=customer.email&phone=customer.phone
-  // (mesma convenção usada em `payment-approved-webhook.ts`)
+  //   &codigo=codigo&message=message (adicionados em augmentRegistrationWebhookUrl)
+  // Campos duplicados como string para o template não tratar `codigo` como número.
   const body = {
     event: "registration.verification_code",
     occurredAt: new Date().toISOString(),
     customer: {
       name: (input.name || "").trim() || "Cliente",
       email: (input.email || "").trim(),
-      // SellFlux costuma normalizar o phone — enviamos somente dígitos (DDI+DDD+número).
       phone: phoneDigits,
+      verification_code: code,
     },
-    codigo: input.code,
+    codigo: code,
+    code,
+    verification_code: code,
     message,
     appName,
   };
@@ -137,7 +177,8 @@ async function sendRegistrationWhatsAppCode(input: {
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const res = await fetch(url, {
+    const webhookUrl = augmentRegistrationWebhookUrl(url);
+    const res = await fetch(webhookUrl, {
       method: "POST",
       headers,
       body: JSON.stringify(body),
@@ -169,33 +210,50 @@ export async function sendRegistrationSmsCode(input: {
   name?: string | null;
   /** Email já validado no passo anterior do cadastro. */
   email?: string | null;
-}): Promise<{ ok: true } | { ok: false; error: string; retryAfterSeconds?: number }> {
+}): Promise<
+  | { ok: true; resendsRemaining: number; cooldownSeconds: number }
+  | { ok: false; error: string; retryAfterSeconds?: number }
+> {
   await ensureTable();
   const pool = getPool();
   const phone = input.phoneE164.trim();
   const cpf = input.cpf.replace(/\D/g, "");
 
-  const recent = await pool.query<{ created_at: Date }>(
-    `SELECT created_at FROM registration_sms_codes
+  const recent = await pool.query<{ n: string; last_at: Date | null }>(
+    `SELECT COUNT(*)::text AS n, MAX(created_at) AS last_at
+     FROM registration_sms_codes
      WHERE phone_e164 = $1 AND cpf = $2
-     ORDER BY created_at DESC LIMIT 1`,
-    [phone, cpf],
+       AND created_at > now() - ($3::bigint * interval '1 millisecond')`,
+    [phone, cpf, CODE_TTL_MS],
   );
-  const last = recent.rows[0]?.created_at;
-  if (last) {
-    const elapsed = Date.now() - last.getTime();
-    if (elapsed < RESEND_MIN_MS) {
-      const retryAfterSeconds = Math.ceil((RESEND_MIN_MS - elapsed) / 1000);
-      const minutes = Math.ceil(retryAfterSeconds / 60);
-      return {
-        ok: false,
-        error: `Aguarde ${minutes} minuto${minutes > 1 ? "s" : ""} antes de solicitar um novo código.`,
-        retryAfterSeconds,
-      };
-    }
+  const sendCount = Number.parseInt(recent.rows[0]?.n ?? "0", 10) || 0;
+  const lastAt = recent.rows[0]?.last_at ?? null;
+  const elapsedSinceLastMs = lastAt ? Date.now() - lastAt.getTime() : Number.POSITIVE_INFINITY;
+  /** Após 5 min sem envio, recomeça a leva de reenvios gratuitos. */
+  const sendsInCurrentBurst =
+    lastAt && elapsedSinceLastMs >= RESEND_MIN_MS ? 0 : sendCount;
+
+  if (
+    sendsInCurrentBurst >= REGISTRATION_SENDS_BEFORE_COOLDOWN &&
+    lastAt &&
+    elapsedSinceLastMs < RESEND_MIN_MS
+  ) {
+    const retryAfterSeconds = Math.ceil((RESEND_MIN_MS - elapsedSinceLastMs) / 1000);
+    const minutes = Math.ceil(retryAfterSeconds / 60);
+    return {
+      ok: false,
+      error: `Você já usou os ${REGISTRATION_FREE_RESENDS} reenvios. Aguarde ${minutes} minuto${minutes > 1 ? "s" : ""} para solicitar outro código.`,
+      retryAfterSeconds,
+    };
   }
 
   const code = generateSixDigitCode();
+  if (code.length !== 6) {
+    console.error("[registration-whatsapp] código gerado com tamanho inválido", {
+      length: code.length,
+    });
+    return { ok: false, error: "Não foi possível gerar o código. Tente novamente." };
+  }
   const expiresAt = new Date(Date.now() + CODE_TTL_MS);
 
   await pool.query(
@@ -218,7 +276,14 @@ export async function sendRegistrationSmsCode(input: {
     };
   }
 
-  return { ok: true };
+  const sendsAfterThis = sendsInCurrentBurst + 1;
+  const resendsRemaining = Math.max(0, REGISTRATION_SENDS_BEFORE_COOLDOWN - sendsAfterThis);
+  const cooldownSeconds =
+    sendsAfterThis >= REGISTRATION_SENDS_BEFORE_COOLDOWN
+      ? REGISTRATION_CODE_RESEND_COOLDOWN_SECONDS
+      : 0;
+
+  return { ok: true, resendsRemaining, cooldownSeconds };
 }
 
 /**

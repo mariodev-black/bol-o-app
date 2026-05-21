@@ -75,5 +75,10 @@ export async function POST(request: NextRequest) {
       ? { devMode: true as const }
       : {};
 
-  return NextResponse.json({ sent: true, ...devHint });
+  return NextResponse.json({
+    sent: true,
+    resendsRemaining: result.resendsRemaining,
+    cooldownSeconds: result.cooldownSeconds,
+    ...devHint,
+  });
 }

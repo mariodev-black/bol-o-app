@@ -23,6 +23,8 @@ REGISTRATION_WHATSAPP_WEBHOOK_URL=https://webhook.sellflux.app/...
 
 Opcional: `EMAIL_REPLY_TO`, `REGISTRATION_WHATSAPP_WEBHOOK_SECRET`, `SMS_APP_NAME`.
 
+**SellFlux (WhatsApp cadastro):** no template da automação, use `{{message}}` ou `{{codigo}}` como **texto** (não como número). Se `codigo` for numérico, códigos com zero à esquerda (ex. `042918`) chegam com 5 dígitos no WhatsApp. A API envia `codigo`, `code`, `verification_code` e `message` sempre como string de 6 caracteres.
+
 ---
 
 ## Resend (painel) — subdomínio
@@ -109,7 +111,7 @@ Cria `password_reset_codes`. A tabela também é criada no primeiro uso em runti
 | POST | `/api/auth/forgot-password/verify-code` | Passo 2 — valida código |
 | POST | `/api/auth/forgot-password/reset` | Passo 3 — nova senha |
 
-Regras: código TTL 10 min, reenvio a cada 5 min, máx. 5 tentativas erradas.
+Regras: código TTL 10 min, até 3 reenvios imediatos (depois espera 5 min), máx. 5 tentativas erradas.
 
 **Verificação de conta:** o código só é gerado e enviado se o e-mail existir em `users`. E-mail inexistente → HTTP 404 com mensagem clara. Se o Resend falhar, o código é removido do banco (não fica código órfão).
 
