@@ -506,7 +506,7 @@ const PALPITE_CARD_TYPE = {
 } as const;
 
 const PALPITE_CARD_PANEL_CLASS =
-  "rounded-2xl border border-white/[0.07] px-2.5 py-4 sm:px-3";
+  "py-4";
 
 // ── Escudo do time ────────────────────────────────────────────
 function Escudo({
@@ -599,15 +599,21 @@ function CardSkeleton() {
 }
 
 // ── Score animado ─────────────────────────────────────────────
-function ScoreDisplay({ value, dir }: { value: number; dir: "up" | "down" }) {
+function ScoreDisplay({
+  value,
+  dir,
+}: {
+  value: number | null;
+  dir: "up" | "down";
+}) {
+  const unset = value === null;
   return (
     <div className="relative flex h-11 w-full items-center justify-center overflow-hidden">
       <span
-        key={value}
-        className={`absolute font-black tabular-nums leading-none text-white text-[30px] sm:text-[32px] ${dir === "up" ? "animate-score-up" : "animate-score-down"
-          }`}
+        key={unset ? "unset" : value}
+        className={`absolute font-black tabular-nums leading-none text-[30px] sm:text-[32px] ${unset ? "text-white/35" : "text-white"} ${!unset && (dir === "up" ? "animate-score-up" : "animate-score-down")}`}
       >
-        {value}
+        {unset ? "—" : value}
       </span>
     </div>
   );
@@ -621,12 +627,13 @@ function VertScoreStepper({
   onDec,
   disabled,
 }: {
-  value: number;
+  value: number | null;
   dir: "up" | "down";
   onInc: () => void;
   onDec: () => void;
   disabled?: boolean;
 }) {
+  const atUnset = value === null;
   return (
     <div
       className="flex w-[52px] shrink-0 flex-col items-center overflow-hidden rounded-[14px] border border-white/[0.07]"
@@ -645,7 +652,7 @@ function VertScoreStepper({
       <button
         type="button"
         onClick={onDec}
-        disabled={disabled}
+        disabled={disabled || atUnset}
         aria-label="Diminuir gols"
         className="flex w-full items-center justify-center py-2 text-primary transition active:scale-[0.92] disabled:cursor-not-allowed disabled:opacity-35"
       >
@@ -655,7 +662,29 @@ function VertScoreStepper({
   );
 }
 
-type JogoCardScores = { scoreCasa: number; scoreVisitante: number };
+type JogoCardScores = { scoreCasa: number | null; scoreVisitante: number | null };
+
+const EMPTY_JOGO_CARD_SCORES: JogoCardScores = {
+  scoreCasa: null,
+  scoreVisitante: null,
+};
+
+function scoresAreComplete(
+  scores: JogoCardScores,
+): scores is { scoreCasa: number; scoreVisitante: number } {
+  return scores.scoreCasa !== null && scores.scoreVisitante !== null;
+}
+
+function stepScoreUp(value: number | null): number {
+  if (value === null) return 0;
+  return Math.min(value + 1, 99);
+}
+
+function stepScoreDown(value: number | null): number | null {
+  if (value === null) return null;
+  if (value <= 0) return null;
+  return value - 1;
+}
 
 type PalpitesFooterMode = "initial" | "edit-locked" | "editing";
 
@@ -1312,14 +1341,14 @@ function JogoCard({
     if (side === "casa") {
       setDirCasa("up");
       onScoresChange({
-        scoreCasa: Math.min(scoreCasa + 1, 99),
+        scoreCasa: stepScoreUp(scoreCasa),
         scoreVisitante,
       });
     } else {
       setDirVisitante("up");
       onScoresChange({
         scoreCasa,
-        scoreVisitante: Math.min(scoreVisitante + 1, 99),
+        scoreVisitante: stepScoreUp(scoreVisitante),
       });
     }
   }
@@ -1328,14 +1357,14 @@ function JogoCard({
     if (side === "casa") {
       setDirCasa("down");
       onScoresChange({
-        scoreCasa: Math.max(scoreCasa - 1, 0),
+        scoreCasa: stepScoreDown(scoreCasa),
         scoreVisitante,
       });
     } else {
       setDirVisitante("down");
       onScoresChange({
         scoreCasa,
-        scoreVisitante: Math.max(scoreVisitante - 1, 0),
+        scoreVisitante: stepScoreDown(scoreVisitante),
       });
     }
   }
@@ -1353,14 +1382,19 @@ function JogoCard({
 
   const temPlacarOficial =
     jogo.resultCasa != null && jogo.resultVisitante != null;
-  const displayCasa = phase === "post" ? jogo.resultCasa! : scoreCasa;
+  const palpiteCasa = scoreCasa ?? 0;
+  const palpiteVisitante = scoreVisitante ?? 0;
+  const displayCasa = phase === "post" ? jogo.resultCasa! : palpiteCasa;
   const displayVisitante =
-    phase === "post" ? jogo.resultVisitante! : scoreVisitante;
+    phase === "post" ? jogo.resultVisitante! : palpiteVisitante;
   const review =
-    phase === "post" && hasInitialPrediction && temPlacarOficial
+    phase === "post" &&
+    hasInitialPrediction &&
+    temPlacarOficial &&
+    scoresAreComplete(scores)
       ? calcPredictionPoints(
-        scoreCasa,
-        scoreVisitante,
+        scores.scoreCasa,
+        scores.scoreVisitante,
         jogo.resultCasa!,
         jogo.resultVisitante!,
       )
@@ -1389,11 +1423,11 @@ function JogoCard({
     koMs != null &&
     nowMs >= koMs;
   const resultadoResumo =
-    phase === "post" && review
+    phase === "post" && review && initialPrediction
       ? copyPontuacaoPartida(
         review,
-        scoreCasa,
-        scoreVisitante,
+        initialPrediction.scoreCasa,
+        initialPrediction.scoreVisitante,
         jogo.resultCasa!,
         jogo.resultVisitante!,
       )
@@ -1402,11 +1436,11 @@ function JogoCard({
   const showResultadoDetalhado =
     phase === "post" && hasInitialPrediction && review != null;
   const pontosLinhas =
-    review != null && temPlacarOficial
+    review != null && temPlacarOficial && initialPrediction
       ? palpitePontosBreakdown(
         review,
-        scoreCasa,
-        scoreVisitante,
+        initialPrediction.scoreCasa,
+        initialPrediction.scoreVisitante,
         jogo.resultCasa!,
         jogo.resultVisitante!,
       )
@@ -1424,6 +1458,8 @@ function JogoCard({
   const liveVisit = jogo.resultVisitante ?? 0;
   const palpiteLocked =
     phase !== "pre" || !canEdit || isLockedByTime || readOnly;
+  const showPalpitePanelTitle =
+    hasInitialPrediction || scoresAreComplete(scores);
 
   return (
     <div
@@ -1486,7 +1522,10 @@ function JogoCard({
                   <Target className="size-3.5 shrink-0 text-primary" strokeWidth={2.4} aria-hidden />
                   Meu palpite
                 </p>
-                <PalpiteScoreBoxes casa={scoreCasa} visitante={scoreVisitante} />
+                <PalpiteScoreBoxes
+                  casa={initialPrediction!.scoreCasa}
+                  visitante={initialPrediction!.scoreVisitante}
+                />
               </div>
 
               {showResultadoDetalhado && review && resultadoResumo ? (
@@ -1550,7 +1589,10 @@ function JogoCard({
                 <Target className="size-3.5 shrink-0 text-primary" strokeWidth={2.4} aria-hidden />
                 Seu palpite
               </p>
-              <PalpiteScoreBoxes casa={scoreCasa} visitante={scoreVisitante} />
+              <PalpiteScoreBoxes
+                casa={initialPrediction!.scoreCasa}
+                visitante={initialPrediction!.scoreVisitante}
+              />
             </div>
           ) : null}
 
@@ -1566,13 +1608,22 @@ function JogoCard({
         <>
           <div
             className={`mx-4 mb-4 sm:mx-5 ${PALPITE_CARD_PANEL_CLASS}`}
-            style={{ background: PALPITE_PANEL_BG }}
           >
-            <p className={`flex items-center justify-center gap-1.5 ${PALPITE_CARD_TYPE.panelTitle}`}>
-              <Target className="size-3.5 shrink-0 text-primary" strokeWidth={2.4} aria-hidden />
-              Seu palpite
-            </p>
-            <div className="flex items-center justify-between gap-2">
+            {showPalpitePanelTitle ? (
+              <p
+                className={`flex items-center justify-center gap-1.5 ${PALPITE_CARD_TYPE.panelTitle}`}
+              >
+                <Target
+                  className="size-3.5 shrink-0 text-primary"
+                  strokeWidth={2.4}
+                  aria-hidden
+                />
+                Seu palpite
+              </p>
+            ) : null}
+            <div
+              className={`flex items-center justify-between gap-2 ${showPalpitePanelTitle ? "" : "pt-1"}`}
+            >
               <div className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
                 <Escudo
                   url={jogo.escudoCasa}
@@ -1612,8 +1663,11 @@ function JogoCard({
                       disabled={stepperDisabled}
                     />
                   </>
-                ) : hasInitialPrediction ? (
-                  <PalpiteScoreBoxes casa={scoreCasa} visitante={scoreVisitante} />
+                ) : hasInitialPrediction && scoresAreComplete(scores) ? (
+                  <PalpiteScoreBoxes
+                    casa={scores.scoreCasa}
+                    visitante={scores.scoreVisitante}
+                  />
                 ) : (
                   <PalpiteEmptyScoreBoxes />
                 )}
@@ -3945,8 +3999,7 @@ function PalpitesPageContent({
   }, [predictionsMap]);
 
   const scoresForMatch = (matchId: number): JogoCardScores =>
-    draftScores[matchId] ??
-    predictionsMap[matchId] ?? { scoreCasa: 0, scoreVisitante: 0 };
+    draftScores[matchId] ?? predictionsMap[matchId] ?? EMPTY_JOGO_CARD_SCORES;
 
   const handleScoresChange = (matchId: number, scores: JogoCardScores) => {
     draftDirtyRef.current.add(matchId);
@@ -3957,9 +4010,12 @@ function PalpitesPageContent({
   };
 
   const hasPalpite = useCallback(
-    (matchId: number) =>
-      Boolean(predictionsMap[matchId]) || Boolean(draftTouchedIds[matchId]),
-    [predictionsMap, draftTouchedIds],
+    (matchId: number) => {
+      if (predictionsMap[matchId]) return true;
+      const draft = draftScores[matchId];
+      return draft != null && scoresAreComplete(draft);
+    },
+    [predictionsMap, draftScores],
   );
 
   const today = todayBR();
@@ -4092,6 +4148,7 @@ function PalpitesPageContent({
 
   const matchNeedsSave = useCallback(
     (matchId: number, scores: JogoCardScores) => {
+      if (!scoresAreComplete(scores)) return false;
       if (!draftDirtyRef.current.has(matchId) && !draftTouchedIds[matchId]) {
         return false;
       }
@@ -4129,6 +4186,9 @@ function PalpitesPageContent({
     try {
       const palpites = toSave.map((jogo) => {
         const scores = scoresForMatch(jogo.id);
+        if (!scoresAreComplete(scores)) {
+          throw new Error("Preencha os dois placares antes de salvar.");
+        }
         return {
           matchId: jogo.id,
           scoreCasa: scores.scoreCasa,
