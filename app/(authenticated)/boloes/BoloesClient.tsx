@@ -537,57 +537,6 @@ function RankingPanel({
   );
 }
 
-function emptyBolaoShowcaseCopy(
-  variant: "principal" | "diario" | "lista" | "resumo",
-): string {
-  if (variant === "principal") {
-    return "Até R$ 1.000.000 em prêmios. Garanta sua cota em Tickets.";
-  }
-  if (variant === "diario") {
-    return "Até R$ 10.000 em prêmios. Garanta sua cota em Tickets.";
-  }
-  if (variant === "resumo") {
-    return "Até R$ 1 mi (principal) ou R$ 10 mil (dia). Compre em Tickets.";
-  }
-  return "Prêmios de até R$ 1 mi ou R$ 10 mil. Compre sua cota em Tickets.";
-}
-
-function EmptyBolaoShowcaseCard({
-  variant,
-}: {
-  variant: "principal" | "diario" | "lista" | "resumo";
-}) {
-  const title =
-    variant === "principal"
-      ? "Nenhuma cota do bolão principal"
-      : variant === "diario"
-        ? "Nenhuma cota do bolão do dia"
-        : variant === "resumo"
-          ? "Sem bolão principal nem do dia"
-          : "Nenhum bolão nesta lista";
-
-  return (
-    <div
-      className="rounded-[16px] px-5 py-6 text-center shadow-[0_12px_40px_rgba(0,0,0,0.55)]"
-      style={{ background: SHOWCASE_CARD_BG }}
-    >
-      <p className="text-[16px] font-black uppercase leading-tight tracking-[0.04em] text-white">
-        {title}
-      </p>
-      <p className="mx-auto mt-2.5 max-w-[310px] text-[16px] font-semibold leading-[1.45] text-white/78">
-        {emptyBolaoShowcaseCopy(variant)}
-      </p>
-      <Link
-        href="/tickets"
-        className="mt-4 flex h-[40px] w-full items-center justify-center gap-2 rounded-[10px] bg-primary text-[16px] font-black uppercase tracking-[0.05em] text-[#0E141B] transition-[filter] hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[0.99]"
-      >
-        Adiquirir cota
-        <ArrowRight className="size-4 shrink-0" strokeWidth={2.6} />
-      </Link>
-    </div>
-  );
-}
-
 function ActiveBoloesList({
   items,
   now,
@@ -596,7 +545,11 @@ function ActiveBoloesList({
   now: number;
 }) {
   if (items.length === 0) {
-    return <EmptyBolaoShowcaseCard variant="lista" />;
+    return (
+      <p className="py-8 text-center text-[13px] font-medium text-white/55">
+        Nenhuma cota ativa nesta lista.
+      </p>
+    );
   }
 
   return (
@@ -1221,45 +1174,6 @@ function ShowcaseCotaCard({
   );
 }
 
-function UpcomingExtraOfferCard({
-  ex,
-  now,
-  fullWidth,
-}: {
-  ex: BoloesScreenData["upcoming"]["extras"][number];
-  now: number;
-  fullWidth?: boolean;
-}) {
-  const extraSide = getExtraBolaoHeroSideVariant(ex.championshipId, ex.title);
-  const ticketImg =
-    extraSide === "copa_brasil"
-      ? iconCopaBrasil
-      : extraSide === "brasileirao"
-        ? iconBrasileirao
-        : extraSide === "premier_league"
-          ? iconPremierLeague
-          : ticketBlue;
-  const showVerResultados = lockHasPassed(ex.closesAtMs, now);
-  const status: ActiveBolaoListItem["status"] = showVerResultados ? "usado" : "aguardando";
-  const statusLabel = showVerResultados ? "Encerrado" : "Palpites abertos";
-
-  return (
-    <ShowcaseCotaCard
-      href={ex.href}
-      fullWidth={fullWidth}
-      logoSrc={ticketImg}
-      kind="extra"
-      displayTitle={ex.title}
-      status={status}
-      statusLabel={statusLabel}
-      countdownLabel="Começa em"
-      countdownTargetMs={ex.closesAtMs}
-      now={now}
-      ctaLabel={showVerResultados ? "Ver resultados" : "Fazer palpites"}
-    />
-  );
-}
-
 function ActiveShowcaseCard({
   item,
   now,
@@ -1672,7 +1586,6 @@ export function BoloesClient({
   const extraItems = (data?.active.all ?? []).filter(
     (item) => item.type === "extra",
   );
-  const upcomingExtras = data?.upcoming.extras ?? [];
   const diarioShowcaseItems = useMemo(
     () => sortBoloesByAvailabilityForShowcase(diarioItems),
     [diarioItems],
@@ -1681,16 +1594,10 @@ export function BoloesClient({
     () => sortBoloesByAvailabilityForShowcase(extraItems),
     [extraItems],
   );
-  /** Um bloco por campeonato extra (Brasileirão, Premier, …), na ordem do servidor. */
+  /** Um bloco por campeonato extra em que o usuário tem cota ativa. */
   const extraChampionshipIdsOrdered = useMemo(() => {
     const ordered: number[] = [];
     const seen = new Set<number>();
-    for (const ex of upcomingExtras) {
-      if (!seen.has(ex.championshipId)) {
-        seen.add(ex.championshipId);
-        ordered.push(ex.championshipId);
-      }
-    }
     for (const item of extraItems) {
       const id = item.championshipId;
       if (id != null && id > 0 && !seen.has(id)) {
@@ -1699,10 +1606,7 @@ export function BoloesClient({
       }
     }
     return ordered;
-  }, [upcomingExtras, extraItems]);
-  const showDiarioShowcase =
-    !ticketsExtraOnly && (!ticketsHideDaily || diarioItems.length > 0);
-
+  }, [extraItems]);
   if (!hasTickets) {
     return (
       <NoTicketsState
@@ -1774,26 +1678,20 @@ export function BoloesClient({
           </div>
         </header>
 
-        {!ticketsExtraOnly && (
+        {principalItems.length > 0 ? (
           <section className="mt-6">
             {showAllPrincipal ? (
               <div className="space-y-3">
-                {principalItems.length > 0 ? (
-                  principalItems.map((item) => (
-                    <ActiveShowcaseCard
-                      key={item.id}
-                      item={item}
-                      now={now}
-                      kind="principal"
-                      fullWidth
-                    />
-                  ))
-                ) : (
-                  <EmptyBolaoShowcaseCard variant="principal" />
-                )}
+                {principalItems.map((item) => (
+                  <ActiveShowcaseCard
+                    key={item.id}
+                    item={item}
+                    now={now}
+                    kind="principal"
+                    fullWidth
+                  />
+                ))}
               </div>
-            ) : principalItems.length === 0 ? (
-              <EmptyBolaoShowcaseCard variant="principal" />
             ) : principalItems.length === 1 ? (
               <ActiveShowcaseCard
                 key={principalItems[0].id}
@@ -1815,28 +1713,22 @@ export function BoloesClient({
               </CarouselShell>
             )}
           </section>
-        )}
+        ) : null}
 
-        {showDiarioShowcase && (
+        {diarioItems.length > 0 ? (
           <section className="mt-4 mb-6">
             {showAllDiario ? (
               <div className="space-y-3">
-                {diarioItems.length > 0 ? (
-                  diarioShowcaseItems.map((item) => (
-                    <ActiveShowcaseCard
-                      key={item.id}
-                      item={item}
-                      now={now}
-                      kind="diario"
-                      fullWidth
-                    />
-                  ))
-                ) : (
-                  <EmptyBolaoShowcaseCard variant="diario" />
-                )}
+                {diarioShowcaseItems.map((item) => (
+                  <ActiveShowcaseCard
+                    key={item.id}
+                    item={item}
+                    now={now}
+                    kind="diario"
+                    fullWidth
+                  />
+                ))}
               </div>
-            ) : diarioItems.length === 0 ? (
-              <EmptyBolaoShowcaseCard variant="diario" />
             ) : diarioShowcaseItems.length === 1 ? (
               <ActiveShowcaseCard
                 key={diarioShowcaseItems[0].id}
@@ -1861,23 +1753,20 @@ export function BoloesClient({
               </CarouselShell>
             )}
           </section>
-        )}
+        ) : null}
 
         {extraChampionshipIdsOrdered.map((championshipId) => {
           const activeForComp = extraShowcaseItems.filter(
             (item) => item.championshipId === championshipId,
           );
-          const upcoming = upcomingExtras.find((ex) => ex.championshipId === championshipId);
-          if (activeForComp.length === 0 && !upcoming) return null;
+          if (activeForComp.length === 0) return null;
 
           return (
             <section
               key={championshipId}
               className={ticketsExtraOnly ? "mt-6 mb-6" : "mt-4 mb-6"}
             >
-              {activeForComp.length === 0 ? (
-                <UpcomingExtraOfferCard ex={upcoming!} now={now} fullWidth />
-              ) : activeForComp.length === 1 ? (
+              {activeForComp.length === 1 ? (
                 <ActiveShowcaseCard
                   key={activeForComp[0]!.id}
                   item={activeForComp[0]!}
