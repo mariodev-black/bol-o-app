@@ -1,8 +1,11 @@
 /**
- * Envio de código de verificação no cadastro (WhatsApp via webhook SellFlux).
+ * Confirmação do cadastro — APENAS WhatsApp (SellFlux).
  *
- * Substitui o antigo Twilio (SMS). O código continua sendo gerado/persistido
- * pelo servidor (`registration_sms_codes`) — o webhook é só o canal de entrega.
+ * Para avançar no cadastro o usuário precisa do código enviado por este webhook.
+ * E-mail (Resend) não participa desta etapa; boas-vindas vão em `sendWelcomeEmail`
+ * após `POST /api/auth/register`.
+ *
+ * O código é gerado/persistido em `registration_sms_codes`; o webhook só entrega.
  *
  * Convenção do SellFlux custom webhook (vide PAYMENT_APPROVED_WEBHOOK):
  *   - URL com query-string mapeando placeholders SellFlux para campos do body:

@@ -415,16 +415,21 @@ Após confirmação:
 
 ### 10.1 Auth & cadastro
 
-| Método | Rota |
-|--------|------|
-| POST | `/api/auth/login` |
-| POST | `/api/auth/logout` |
-| POST | `/api/auth/cadastrar` |
-| POST | `/api/auth/sms/send-code` |
-| POST | `/api/auth/sms/verify` |
-| GET | `/api/auth/google/start` |
-| GET | `/api/auth/google/callback` |
-| GET | `/api/me` |
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| POST | `/api/auth/login` | Login e-mail/CPF + senha |
+| POST | `/api/auth/logout` | Encerra sessão |
+| POST | `/api/auth/register` | Cria conta (após código WhatsApp) |
+| POST | `/api/auth/register/send-code` | Envia código de cadastro (SellFlux) |
+| POST | `/api/auth/forgot-password/send-code` | Envia código por e-mail (Resend) |
+| POST | `/api/auth/forgot-password/verify-code` | Valida código de recuperação |
+| POST | `/api/auth/forgot-password/reset` | Nova senha |
+| POST | `/api/auth/cpf-lookup` | Valida CPF no cadastro |
+| GET | `/api/auth/google` | Inicia OAuth Google |
+| GET | `/api/auth/google/callback` | Callback OAuth |
+| GET | `/api/auth/me` | Usuário da sessão |
+
+Páginas: `/login`, `/cadastrar`, `/recuperar-senha`. E-mail transacional: ver [docs/EMAIL.md](docs/EMAIL.md).
 
 ### 10.2 Tickets / pagamento
 
@@ -519,14 +524,27 @@ curl -H "Authorization: Bearer $CRON_SECRET" 'https://app.bolaodomilhao.com.br/a
 | `AUTH_SECRET` | — | Segredo JWT (mín. 32 chars; prod: `openssl rand -base64 48`) |
 | `APP_URL` | — | URL pública do app (`https://app.bolaodomilhao.com.br`) |
 
-### 12.3 Google OAuth
+### 12.3 E-mail (Resend) e WhatsApp (cadastro)
+
+| Env | Descrição |
+|-----|-----------|
+| `RESEND_API_KEY` | API key Resend — boas-vindas + recuperar senha |
+| `EMAIL_FROM` | Remetente com aspas: `"Nome <noreply@mail.dominio.com.br>"` — subdomínio verificado no Resend |
+| `EMAIL_REPLY_TO` | Reply-to opcional |
+| `REGISTRATION_WHATSAPP_WEBHOOK_URL` | Webhook SellFlux — **código de confirmação do cadastro** |
+| `REGISTRATION_WHATSAPP_WEBHOOK_SECRET` | Bearer opcional no webhook |
+| `SMS_APP_NAME` | Nome no texto WhatsApp (default: Bolão do Milhão) |
+
+Checklist: `npm run check:email-env` · Migration senha: `npm run db:password-reset` · Detalhes: [docs/EMAIL.md](docs/EMAIL.md).
+
+### 12.4 Google OAuth
 
 | Env | Descrição |
 |-----|-----------|
 | `GOOGLE_CLIENT_ID` | Client ID — redirect: `{APP_URL}/api/auth/google/callback` |
 | `GOOGLE_CLIENT_SECRET` | Client secret |
 
-### 12.4 Tickets / preços
+### 12.5 Tickets / preços
 
 | Env | Default | Descrição |
 |-----|---------|-----------|
@@ -541,7 +559,7 @@ curl -H "Authorization: Bearer $CRON_SECRET" 'https://app.bolaodomilhao.com.br/a
 | `TICKETS_EXTRA_ONLY` | `false` | Quando `true`, só vende extras |
 | `TICKETS_HIDE_DAILY` | `false` | Quando `true`, oculta bolão do dia |
 
-### 12.5 PIX / Skale
+### 12.6 PIX / Skale
 
 | Env | Descrição |
 |-----|-----------|
@@ -553,7 +571,7 @@ curl -H "Authorization: Bearer $CRON_SECRET" 'https://app.bolaodomilhao.com.br/a
 | `PAYMENT_APPROVED_WEBHOOK_SECRET` | HMAC opcional do webhook acima |
 | `PAYMENT_APPROVED_WEBHOOK_TIMEOUT_MS` | timeout (default 12 000) |
 
-### 12.6 API Futebol (v2)
+### 12.7 API Futebol (v2)
 
 | Env | Default | Descrição |
 |-----|---------|-----------|
@@ -562,7 +580,7 @@ curl -H "Authorization: Bearer $CRON_SECRET" 'https://app.bolaodomilhao.com.br/a
 | `BOLOES_EXTRA_CHAMPIONSHIP_IDS` | — | Lista CSV de campeonatos extras (ex.: `10,15`) |
 | `DEBUG_FOOTBALL_API` | `false` | Loga cada GET na API (path + status + ms) |
 
-### 12.7 Scheduler / cron
+### 12.8 Scheduler / cron
 
 | Env | Default | Descrição |
 |-----|---------|-----------|
@@ -570,7 +588,7 @@ curl -H "Authorization: Bearer $CRON_SECRET" 'https://app.bolaodomilhao.com.br/a
 | `INTERNAL_CRON_RUN_ON_VERCEL` | `false` | Permite scheduler interno em Vercel |
 | `CRON_SECRET` | — | Token dos `GET /api/cron/*` |
 
-### 12.8 Realtime worker (v2)
+### 12.9 Realtime worker (v2)
 
 | Env | Default | Descrição |
 |-----|---------|-----------|
@@ -582,14 +600,14 @@ curl -H "Authorization: Bearer $CRON_SECRET" 'https://app.bolaodomilhao.com.br/a
 | `MATCH_MAP_MEMORY_TTL_MS` | `180000` | TTL do `MatchMap` em memória |
 | `MATCH_END_CLOCK_AFTER_KICKOFF_MINUTES` | `115` | Minutos após apito em que `/boloes` considera o jogo "deveria ter acabado" (apenas debug) |
 
-### 12.9 Prêmios
+### 12.10 Prêmios
 
 | Env | Default | Descrição |
 |-----|---------|-----------|
 | `PRIZE_DAILY_GRACE_AFTER_LAST_KICKOFF_MINUTES` | `180` | Grace antes de fechar bolão diário |
 | `PRIZE_GENERAL_GRACE_HOURS_AFTER_LAST_KICKOFF` | `36` | Grace antes de fechar bolão geral |
 
-### 12.10 Indicações / afiliados
+### 12.11 Indicações / afiliados
 
 | Env | Default |
 |-----|---------|
@@ -602,7 +620,7 @@ curl -H "Authorization: Bearer $CRON_SECRET" 'https://app.bolaodomilhao.com.br/a
 | `REFERRAL_TIER_DIAMOND_MIN_COMMISSIONS` | `50` |
 | `AFFILIATE_MIN_WITHDRAWAL_CENTS` | `2000` |
 
-### 12.11 Hosts / domínio
+### 12.12 Hosts / domínio
 
 | Env | Descrição |
 |-----|-----------|
@@ -612,13 +630,13 @@ curl -H "Authorization: Bearer $CRON_SECRET" 'https://app.bolaodomilhao.com.br/a
 | `NEXT_PUBLIC_APP_URL` | `https://app.bolaodomilhao.com.br` |
 | `LOCAL_DEV_AS_APP` / `NEXT_PUBLIC_LOCAL_DEV_AS_APP` | Trata `localhost` como app no dev |
 
-### 12.12 Integrações
+### 12.13 Integrações
 
 | Env | Descrição |
 |-----|-----------|
 | `CPF_BRASIL_API_KEY` | Validação de CPF (brasilapi-like) |
 
-### 12.13 Deploy
+### 12.14 Deploy
 
 | Env | Descrição |
 |-----|-----------|
@@ -652,6 +670,8 @@ psql "$DATABASE_URL" -f scripts/sql/20260519-arquitetura-bolao-v2.sql
 psql "$DATABASE_URL" -f scripts/sql/20260520-prediction-scores-live.sql
 psql "$DATABASE_URL" -f scripts/sql/20260521-tickets-settled-at.sql
 psql "$DATABASE_URL" -f scripts/sql/20260521-tickets-extra-gift-unique.sql
+npm run db:password-reset
+npm run check:email-env
 npm run build
 pm2 reload ecosystem.config.js   # ou pm2 restart bolao
 ```

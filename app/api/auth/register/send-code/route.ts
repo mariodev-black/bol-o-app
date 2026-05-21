@@ -84,9 +84,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Em dev/staging, se o webhook do WhatsApp não estiver configurado, o código
-  // só aparece no console — sinalizamos via `devMode` para o front mostrar UI
-  // amigável (sem cobrar o usuário a inserir o código de um SMS que não chegou).
+  // Em dev/staging, sem webhook SellFlux o código aparece no log — `devMode` avisa o front.
   const devHint =
     process.env.NODE_ENV !== "production" &&
     !process.env.REGISTRATION_WHATSAPP_WEBHOOK_URL?.trim()

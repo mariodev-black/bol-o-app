@@ -479,10 +479,10 @@ const PALPITE_STEPPER_BG = "#080A09";
 
 /** Tipografia do card — referência: estado pré-jogo. */
 const PALPITE_CARD_TYPE = {
-  badge: "text-[13px] font-black uppercase tracking-wide",
+  badge: "text-[14px] font-black uppercase tracking-wide",
   meta: "text-[14px] font-semibold",
-  metaPrimary: "text-[14px] font-semibold leading-tight text-primary",
-  metaMuted: "text-[14px] font-semibold text-white/50",
+  metaPrimary: "text-[16px] font-semibold leading-tight text-primary",
+  metaMuted: "text-[16px] font-semibold text-white/50",
   metaLive: "text-[14px] font-black text-[#FF6B6B]",
   panelTitle:
     "mb-3 text-center text-[14px] font-black uppercase tracking-[0.14em] text-white/70",
@@ -501,8 +501,8 @@ const PALPITE_CARD_TYPE = {
   scorePhase: "mt-1 text-[12px] font-bold uppercase tracking-wide text-white/50",
   scorePhaseAccent:
     "mt-1 text-[12px] font-bold uppercase tracking-wide text-primary/70",
-  bodyMsg: "text-[13px] font-medium text-white/55",
-  lockMsg: "text-[13px] font-semibold text-white/55",
+  bodyMsg: "text-[14px] font-medium text-white/55",
+  lockMsg: "text-[14px] font-semibold text-white/55",
 } as const;
 
 const PALPITE_CARD_PANEL_CLASS =
@@ -837,6 +837,20 @@ const MESES_CURTO = [
   "Dez",
 ];
 
+function formatKickoffHourOnly(jogo: Jogo): string {
+  const fromHora = safeHourLabel(jogo.hora);
+  if (fromHora !== "--:--") return fromHora;
+  if (!jogo.kickoffAt) return "--:--";
+  const dt = new Date(jogo.kickoffAt);
+  if (Number.isNaN(dt.getTime())) return "--:--";
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(dt);
+}
+
 function formatKickoffMetaLong(jogo: Jogo): string {
   if (jogo.kickoffAt) {
     const dt = new Date(jogo.kickoffAt);
@@ -844,11 +858,11 @@ function formatKickoffMetaLong(jogo: Jogo): string {
       const wd = DIAS_SEMANA_CURTO[dt.getDay()] ?? "";
       const day = dt.getDate();
       const month = MESES_CURTO[dt.getMonth()] ?? "";
-      const time = safeHourLabel(jogo.hora);
+      const time = formatKickoffHourOnly(jogo);
       return `${wd}, ${day} ${month} • ${time}`;
     }
   }
-  return `${formatData(jogo.dataBR, jogo.kickoffAt)}, ${safeHourLabel(jogo.hora)}`;
+  return `${formatData(jogo.dataBR, jogo.kickoffAt)}, ${formatKickoffHourOnly(jogo)}`;
 }
 
 /** Contagem até fechar palpites — texto curto (dias → horas → minutos). */
@@ -964,12 +978,17 @@ function PalpiteCardStatusBar({
   phase,
   countdownLabel,
   kickoffMeta,
+  kickoffHour,
   liveMinute,
+  hasPalpite,
 }: {
   phase: JogoCardPhase;
   countdownLabel: string;
   kickoffMeta: string;
+  kickoffHour: string;
   liveMinute: string | null;
+  /** Palpite salvo no servidor para este jogo. */
+  hasPalpite: boolean;
 }) {
   if (phase === "live") {
     return (
@@ -1014,27 +1033,33 @@ function PalpiteCardStatusBar({
     );
   }
 
+  const preBadge = hasPalpite
+    ? {
+      label: "Aguardando",
+      className: `shrink-0 rounded-md bg-primary px-2.5 py-0.5 ${PALPITE_CARD_TYPE.badge} text-[#0E141B]`,
+    }
+    : {
+      label: "Sem palpite",
+      className: `shrink-0 rounded-md border border-white/12 bg-white/[0.06] px-2.5 py-0.5 ${PALPITE_CARD_TYPE.badge} text-white/55`,
+    };
+
   return (
     <div
       className="flex items-center justify-between gap-1.5 border-b border-white/[0.06] px-4 py-2.5 sm:px-5"
       style={{ background: "rgba(0,0,0,0.18)" }}
     >
+      <span className={preBadge.className}>{preBadge.label}</span>
       <span
-        className={`shrink-0 rounded-md bg-primary px-2.5 py-0.5 ${PALPITE_CARD_TYPE.badge} text-[#0E141B]`}
+        className={`inline-flex min-w-0 max-w-[38%] shrink items-center justify-center gap-1 truncate ${PALPITE_CARD_TYPE.metaPrimary}`}
       >
-        Pré-jogo
-      </span>
-      <span
-        className={`inline-flex min-w-0 max-w-[38%] shrink items-center justify-center gap-0.5 truncate ${PALPITE_CARD_TYPE.metaPrimary}`}
-      >
-        <Clock className="size-2.5 shrink-0" strokeWidth={2.2} aria-hidden />
+        <Clock className="size-3 shrink-0" strokeWidth={2.2} aria-hidden />
         <span className="truncate">{countdownLabel}</span>
       </span>
       <span
-        className={`flex min-w-0 max-w-[42%] shrink-0 items-center justify-end gap-1 truncate ${PALPITE_CARD_TYPE.metaMuted}`}
+        className={`flex shrink-0 items-center justify-end gap-1 tabular-nums ${PALPITE_CARD_TYPE.metaMuted}`}
       >
-        <Calendar className="size-3 shrink-0" strokeWidth={2} aria-hidden />
-        <span className="truncate text-right">{kickoffMeta}</span>
+        <Clock className="size-3 shrink-0" strokeWidth={2} aria-hidden />
+        <span>{kickoffHour}</span>
       </span>
     </div>
   );
@@ -1299,6 +1324,7 @@ function JogoCard({
     readOnly || !canChangeScores || !editingEnabled || predictionsLoading;
   const phase = getJogoCardPhase(jogo, nowMs);
   const kickoffMeta = formatKickoffMetaLong(jogo);
+  const kickoffHour = formatKickoffHourOnly(jogo);
   const countdownLabel = formatCountdownCompact(lockAtMs, nowMs);
   const liveMinute = getLiveMinuteBadge(jogo, nowMs);
   const [pontosExpanded, setPontosExpanded] = useState(
@@ -1398,7 +1424,9 @@ function JogoCard({
         phase={phase}
         countdownLabel={countdownLabel}
         kickoffMeta={kickoffMeta}
+        kickoffHour={kickoffHour}
         liveMinute={liveMinute}
+        hasPalpite={hasInitialPrediction}
       />
 
       {phase === "post" ? (
@@ -1639,17 +1667,17 @@ function TabelaView({
       >
         {/* Header */}
         <div
-          className="flex items-center justify-between px-4 py-3"
+          className="flex items-center justify-between px-4 py-3.5"
           style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
         >
-          <span className="text-white font-bold text-[14px]">
+          <span className="text-[16px] font-bold text-white min-[380px]:text-[17px]">
             {tituloGrupo}
           </span>
-          <div className="flex gap-4">
+          <div className="flex gap-3 sm:gap-4">
             {["PTS", "J", "V", "E", "D"].map((col) => (
               <span
                 key={col}
-                className="text-[11px] font-bold text-white/30 w-5 text-center"
+                className="w-7 text-center text-[12px] font-bold text-white/45 min-[380px]:text-[13px]"
               >
                 {col}
               </span>
@@ -1661,7 +1689,7 @@ function TabelaView({
         {times.map((t, i) => (
           <div
             key={t.time.time_id}
-            className="flex items-center justify-between px-4 py-3"
+            className="flex items-center justify-between px-4 py-3.5"
             style={{
               background: i < 2 ? "rgba(177,235,11,0.04)" : "transparent",
               borderBottom:
@@ -1670,42 +1698,42 @@ function TabelaView({
                   : "none",
             }}
           >
-            <div className="flex items-center gap-3">
+            <div className="flex min-w-0 items-center gap-3">
               <span
-                className="w-5 h-5 rounded-[6px] flex items-center justify-center text-[11px] font-bold shrink-0"
+                className="flex size-6 shrink-0 items-center justify-center rounded-[6px] text-[12px] font-bold min-[380px]:text-[13px]"
                 style={{
                   background:
                     i === 0
                       ? "rgba(177,235,11,0.14)"
                       : "rgba(255,255,255,0.06)",
-                  color: i === 0 ? "#B1EB0B" : "rgba(255,255,255,0.4)",
+                  color: i === 0 ? "#B1EB0B" : "rgba(255,255,255,0.5)",
                 }}
               >
                 {t.posicao}
               </span>
               <div
-                className="w-6 h-6 rounded-md flex items-center justify-center overflow-hidden shrink-0"
+                className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-md"
                 style={{ background: "rgba(255,255,255,0.9)" }}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={t.time.escudo}
                   alt={t.time.sigla}
-                  className="w-5 h-5 object-contain"
+                  className="size-6 object-contain"
                 />
               </div>
-              <span className="text-white font-bold text-[13px] tracking-wide">
+              <span className="text-[15px] font-bold tracking-wide text-white min-[380px]:text-[16px]">
                 {t.time.sigla}
               </span>
             </div>
-            <div className="flex gap-4">
+            <div className="flex shrink-0 gap-3 sm:gap-4">
               {[t.pontos, t.jogos, t.vitorias, t.empates, t.derrotas].map(
                 (val, vi) => (
                   <span
                     key={vi}
-                    className="w-5 text-center text-[13px] font-bold"
+                    className="w-7 text-center text-[14px] font-bold tabular-nums min-[380px]:text-[15px]"
                     style={{
-                      color: vi === 0 ? "#fff" : "rgba(255,255,255,0.35)",
+                      color: vi === 0 ? "#fff" : "rgba(255,255,255,0.45)",
                     }}
                   >
                     {val}
@@ -1723,8 +1751,8 @@ function TabelaView({
         )}
       </div>
 
-      {/* Outros grupos */}
-      {todosGrupos.length > 0 && (
+      {/* Seletor de grupos — só quando há mais de um */}
+      {todosGrupos.length > 1 && (
         <>
           <p className="text-[11px] font-bold text-white/30 tracking-widest uppercase mb-3">
             Grupos
@@ -2619,6 +2647,7 @@ function DesktopSidebar({
   const idx = grupos.indexOf(grupo);
   const prev = idx > 0 ? grupos[idx - 1] : null;
   const next = idx < grupos.length - 1 ? grupos[idx + 1] : null;
+  const multiplosGrupos = todosGrupos.length > 1;
 
   return (
     <div className="flex flex-col gap-3 sticky top-6">
@@ -2677,45 +2706,49 @@ function DesktopSidebar({
           className="flex items-center justify-between px-4 py-3 gap-2"
           style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
         >
-          {/* Seta prev */}
-          <button
-            onClick={() => prev && onGrupo(prev)}
-            disabled={!prev}
-            className="w-6 h-6 rounded-md flex items-center justify-center shrink-0 transition-opacity"
-            style={{
-              background: "rgba(255,255,255,0.06)",
-              opacity: prev ? 1 : 0.25,
-            }}
-          >
-            <ChevronDown className="w-3 h-3 text-white/60 rotate-90" />
-          </button>
+          {multiplosGrupos ? (
+            <button
+              onClick={() => prev && onGrupo(prev)}
+              disabled={!prev}
+              className="flex size-6 shrink-0 items-center justify-center rounded-md transition-opacity"
+              style={{
+                background: "rgba(255,255,255,0.06)",
+                opacity: prev ? 1 : 0.25,
+              }}
+            >
+              <ChevronDown className="size-3 rotate-90 text-white/60" />
+            </button>
+          ) : (
+            <span className="size-6 shrink-0" aria-hidden />
+          )}
 
-          {/* Título */}
-          <span className="text-white font-bold text-[12px] flex-1 text-center truncate">
+          <span className="min-w-0 flex-1 truncate text-center text-[14px] font-bold text-white">
             {todosGrupos.length === 1 && todosGrupos[0]?.[0] === "grupo-geral"
               ? "Classificação"
               : `Classificação — Grupo ${grupo}`}
           </span>
 
-          {/* Seta next */}
-          <button
-            onClick={() => next && onGrupo(next)}
-            disabled={!next}
-            className="w-6 h-6 rounded-md flex items-center justify-center shrink-0 transition-opacity"
-            style={{
-              background: "rgba(255,255,255,0.06)",
-              opacity: next ? 1 : 0.25,
-            }}
-          >
-            <ChevronDown className="w-3 h-3 text-white/60 -rotate-90" />
-          </button>
+          {multiplosGrupos ? (
+            <button
+              onClick={() => next && onGrupo(next)}
+              disabled={!next}
+              className="flex size-6 shrink-0 items-center justify-center rounded-md transition-opacity"
+              style={{
+                background: "rgba(255,255,255,0.06)",
+                opacity: next ? 1 : 0.25,
+              }}
+            >
+              <ChevronDown className="size-3 -rotate-90 text-white/60" />
+            </button>
+          ) : (
+            <span className="size-6 shrink-0" aria-hidden />
+          )}
 
-          {/* Colunas */}
-          <div className="flex gap-2 shrink-0">
+          <div className="flex shrink-0 gap-2.5">
             {["PTS", "J", "V", "E", "D"].map((col) => (
               <span
                 key={col}
-                className="text-[9px] font-bold text-white/30 w-5 text-center"
+                className="w-6 text-center text-[11px] font-bold text-white/45"
               >
                 {col}
               </span>
@@ -2732,7 +2765,7 @@ function DesktopSidebar({
         {times.map((t, i) => (
           <div
             key={t.time.time_id}
-            className="flex items-center px-4 py-2.5 gap-2"
+            className="flex items-center gap-2.5 px-4 py-3"
             style={{
               background: i < 2 ? "rgba(177,235,11,0.04)" : "transparent",
               borderBottom:
@@ -2743,40 +2776,40 @@ function DesktopSidebar({
           >
             {/* Posição */}
             <span
-              className="w-5 h-5 rounded-[5px] flex items-center justify-center text-[12px] font-bold shrink-0"
+              className="flex size-6 shrink-0 items-center justify-center rounded-[5px] text-[13px] font-bold"
               style={{
                 background:
                   i === 0 ? "rgba(177,235,11,0.14)" : "rgba(255,255,255,0.06)",
-                color: i === 0 ? "#B1EB0B" : "rgba(255,255,255,0.4)",
+                color: i === 0 ? "#B1EB0B" : "rgba(255,255,255,0.5)",
               }}
             >
               {t.posicao}
             </span>
             {/* Escudo */}
             <div
-              className="w-6 h-6 rounded-md flex items-center justify-center overflow-hidden shrink-0"
+              className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-md"
               style={{ background: "rgba(255,255,255,0.92)" }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={t.time.escudo}
                 alt={t.time.sigla}
-                className="w-5 h-5 object-contain"
+                className="size-6 object-contain"
               />
             </div>
             {/* Sigla */}
-            <span className="text-white font-bold text-[12px] flex-1 min-w-0 truncate">
+            <span className="min-w-0 flex-1 truncate text-[14px] font-bold text-white">
               {t.time.sigla}
             </span>
             {/* Stats */}
-            <div className="flex gap-2 shrink-0">
+            <div className="flex shrink-0 gap-2.5">
               {[t.pontos, t.jogos, t.vitorias, t.empates, t.derrotas].map(
                 (val, vi) => (
                   <span
                     key={vi}
-                    className="w-5 text-center text-[12px] font-bold"
+                    className="w-6 text-center text-[13px] font-bold tabular-nums"
                     style={{
-                      color: vi === 0 ? "#fff" : "rgba(255,255,255,0.35)",
+                      color: vi === 0 ? "#fff" : "rgba(255,255,255,0.45)",
                     }}
                   >
                     {val}
@@ -3037,46 +3070,11 @@ function RoundProgressBar({
   );
 }
 
-// ── Round / Phase Navigation ──────────────────────────────────
-function RoundPhaseNav({
-  jogos,
-  predictionsMap,
-  hasPalpite,
-  selectedRodada,
-  onRodada,
-  selectedDate,
-  onDate,
-  roundTitle,
-  showRoundNav = true,
-  embedded = false,
-  hideProgress = false,
-}: {
-  jogos: Jogo[];
-  predictionsMap: Record<number, { scoreCasa: number; scoreVisitante: number }>;
-  /** Salvo no servidor ou alterado no rascunho (stepper). */
-  hasPalpite: (matchId: number) => boolean;
-  selectedRodada: number;
-  onRodada: (r: number) => void;
-  selectedDate: string | null;
-  onDate: (d: string | null) => void;
-  /** Ex.: "Fase de Grupos — 1" ou "12ª Rodada" */
-  roundTitle: string;
-  /** false quando o bolão é de uma rodada só (extra/diário). */
-  showRoundNav?: boolean;
-  /** true quando dentro da barra sticky (sem margem inferior extra). */
-  embedded?: boolean;
-  /** Progresso renderizado fora (ex.: sticky na coluna de jogos). */
-  hideProgress?: boolean;
-}) {
-  const dateStripRef = useRef<HTMLDivElement>(null);
-  const rodadas = useMemo(
-    () => Array.from(new Set(jogos.map((j) => j.rodada))).sort((a, b) => a - b),
-    [jogos],
-  );
-  const rodadaIdx = rodadas.indexOf(selectedRodada);
-  const canPrev = rodadaIdx > 0;
-  const canNext = rodadaIdx < rodadas.length - 1;
-
+function useRoundNavDates(
+  jogos: Jogo[],
+  selectedRodada: number,
+  hasPalpite: (matchId: number) => boolean,
+) {
   const jogosNaRodada = useMemo(
     () => jogos.filter((j) => j.rodada === selectedRodada),
     [jogos, selectedRodada],
@@ -3090,13 +3088,139 @@ function RoundPhaseNav({
     [jogosNaRodada],
   );
 
-  function dateStatus(d: string): "done" | "partial" | "pending" {
-    const jd = jogosNaRodada.filter((j) => j.dataBR === d);
-    const p = jd.filter((j) => hasPalpite(j.id)).length;
-    if (p === 0) return "pending";
-    if (p === jd.length) return "done";
-    return "partial";
-  }
+  const dateStatus = useCallback(
+    (d: string): "done" | "partial" | "pending" => {
+      const jd = jogosNaRodada.filter((j) => j.dataBR === d);
+      const p = jd.filter((j) => hasPalpite(j.id)).length;
+      if (p === 0) return "pending";
+      if (p === jd.length) return "done";
+      return "partial";
+    },
+    [jogosNaRodada, hasPalpite],
+  );
+
+  return { datas, dateStatus };
+}
+
+function RoundDateStrip({
+  datas,
+  selectedDate,
+  onDate,
+  dateStatus,
+  dateStripRef,
+}: {
+  datas: string[];
+  selectedDate: string | null;
+  onDate: (d: string) => void;
+  dateStatus: (d: string) => "done" | "partial" | "pending";
+  dateStripRef: React.RefObject<HTMLDivElement | null>;
+}) {
+  if (datas.length <= 1) return null;
+
+  return (
+    <div
+      className="overflow-hidden rounded-[14px]"
+      style={{
+        background: "#0B0D0C",
+        border: "1px solid rgba(255,255,255,0.08)",
+      }}
+    >
+      <div
+        ref={dateStripRef}
+        className="flex gap-2 overflow-x-auto scroll-smooth px-3 py-3 scrollbar-hide"
+      >
+        {datas.map((d) => {
+          const fmt = parseDatePill(d);
+          if (!fmt) return null;
+          const status = dateStatus(d);
+          const isSelected = selectedDate === d;
+          const accent = isSelected ? "#B1EB0B" : "rgba(255,255,255,0.52)";
+          return (
+            <button
+              key={d}
+              type="button"
+              data-palpite-date={d}
+              onClick={() => onDate(d)}
+              className="flex shrink-0 flex-col items-center rounded-[10px] px-3.5 py-2.5 transition-all duration-200 active:scale-95"
+              style={
+                isSelected
+                  ? {
+                    background: "rgba(177,235,11,0.12)",
+                    border: "1px solid rgba(177,235,11,0.55)",
+                    minWidth: 72,
+                    boxShadow: "0 0 14px rgba(177,235,11,0.2)",
+                  }
+                  : {
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    minWidth: 72,
+                  }
+              }
+            >
+              <span className="flex items-center gap-1.5">
+                <span
+                  className="text-[13px] font-black uppercase tracking-[0.08em]"
+                  style={{ color: accent }}
+                >
+                  {fmt.diaSemana}
+                </span>
+                {status === "done" ? (
+                  <span
+                    className="flex size-[15px] shrink-0 items-center justify-center rounded-full bg-primary"
+                    aria-hidden
+                  >
+                    <Check
+                      className="size-[9px] text-[#0E141B]"
+                      strokeWidth={3.5}
+                    />
+                  </span>
+                ) : (
+                  <span
+                    className="size-[9px] shrink-0 rounded-full"
+                    style={{ background: "#E6C220" }}
+                    aria-hidden
+                  />
+                )}
+              </span>
+              <span className="mt-1 flex items-baseline gap-1">
+                <span className="text-[19px] font-black leading-none text-white">
+                  {fmt.dia}
+                </span>
+                <span
+                  className="text-[13px] font-black uppercase tracking-[0.04em]"
+                  style={{ color: accent }}
+                >
+                  {fmt.mes}
+                </span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** Calendário + progresso — sticky imediatamente acima da lista de jogos. */
+function BolaoRoundStickyDateProgress({
+  jogos,
+  selectedRodada,
+  hasPalpite,
+  selectedDate,
+  onDate,
+}: {
+  jogos: Jogo[];
+  selectedRodada: number;
+  hasPalpite: (matchId: number) => boolean;
+  selectedDate: string | null;
+  onDate: (d: string) => void;
+}) {
+  const dateStripRef = useRef<HTMLDivElement>(null);
+  const { datas, dateStatus } = useRoundNavDates(
+    jogos,
+    selectedRodada,
+    hasPalpite,
+  );
 
   useEffect(() => {
     if (!selectedDate || !dateStripRef.current) return;
@@ -3112,9 +3236,127 @@ function RoundPhaseNav({
 
   return (
     <div
+      className="sticky z-40 -mx-4 mb-3 flex w-[calc(100%+2rem)] flex-col gap-2.5 px-4 pb-1 pt-0.5 backdrop-blur-md supports-[backdrop-filter]:bg-[#090A09]/75"
+      style={{ top: "var(--app-header-height, 96px)" }}
+    >
+      <RoundDateStrip
+        datas={datas}
+        selectedDate={selectedDate}
+        onDate={onDate}
+        dateStatus={dateStatus}
+        dateStripRef={dateStripRef}
+      />
+      <RoundProgressBar
+        jogos={jogos}
+        selectedRodada={selectedRodada}
+        hasPalpite={hasPalpite}
+      />
+    </div>
+  );
+}
+
+// ── Round / Phase Navigation ──────────────────────────────────
+function RoundPhaseNav({
+  jogos,
+  hasPalpite,
+  selectedRodada,
+  onRodada,
+  selectedDate,
+  onDate,
+  roundTitle,
+  showRoundNav = true,
+  embedded = false,
+  hideProgress = false,
+  /** Só título/setas; data + progresso ficam em BolaoRoundStickyDateProgress. */
+  headerOnly = false,
+}: {
+  jogos: Jogo[];
+  predictionsMap: Record<number, { scoreCasa: number; scoreVisitante: number }>;
+  hasPalpite: (matchId: number) => boolean;
+  selectedRodada: number;
+  onRodada: (r: number) => void;
+  selectedDate: string | null;
+  onDate: (d: string | null) => void;
+  roundTitle: string;
+  showRoundNav?: boolean;
+  embedded?: boolean;
+  hideProgress?: boolean;
+  headerOnly?: boolean;
+}) {
+  const dateStripRef = useRef<HTMLDivElement>(null);
+  const rodadas = useMemo(
+    () => Array.from(new Set(jogos.map((j) => j.rodada))).sort((a, b) => a - b),
+    [jogos],
+  );
+  const rodadaIdx = rodadas.indexOf(selectedRodada);
+  const canPrev = rodadaIdx > 0;
+  const canNext = rodadaIdx < rodadas.length - 1;
+
+  const { datas, dateStatus } = useRoundNavDates(
+    jogos,
+    selectedRodada,
+    hasPalpite,
+  );
+
+  useEffect(() => {
+    if (headerOnly || !selectedDate || !dateStripRef.current) return;
+    const el = dateStripRef.current.querySelector(
+      `[data-palpite-date="${selectedDate}"]`,
+    );
+    el?.scrollIntoView({
+      behavior: "smooth",
+      inline: "center",
+      block: "nearest",
+    });
+  }, [headerOnly, selectedDate, datas.join("|")]);
+
+  if (headerOnly) {
+    if (!showRoundNav || rodadas.length <= 1) return null;
+    return (
+      <div className={`mb-2.5 ${embedded ? "" : "mb-5"}`}>
+        <div
+          className="flex items-center justify-between rounded-[14px] px-4 py-3"
+          style={{
+            background: "#0B0D0C",
+            border: "1px solid rgba(255,255,255,0.08)",
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => canPrev && onRodada(rodadas[rodadaIdx - 1]!)}
+            disabled={!canPrev}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-opacity"
+            style={{
+              background: "rgba(255,255,255,0.06)",
+              opacity: canPrev ? 1 : 0.25,
+            }}
+          >
+            <ChevronLeft className="h-4 w-4 text-white/70" strokeWidth={2.5} />
+          </button>
+          <span className="px-2 text-center text-[15px] font-black text-white">
+            {roundTitle}
+          </span>
+          <button
+            type="button"
+            onClick={() => canNext && onRodada(rodadas[rodadaIdx + 1]!)}
+            disabled={!canNext}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-opacity"
+            style={{
+              background: "rgba(255,255,255,0.06)",
+              opacity: canNext ? 1 : 0.25,
+            }}
+          >
+            <ChevronRight className="h-4 w-4 text-white/70" strokeWidth={2.5} />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
       className={`flex flex-col gap-2.5 ${embedded ? "" : "mb-5"}`}
     >
-      {/* ── 1. Título da rodada / fase (com setas se houver mais de uma) ── */}
       {showRoundNav && rodadas.length > 1 ? (
         <div
           className="flex items-center justify-between rounded-[14px] px-4 py-3"
@@ -3155,96 +3397,13 @@ function RoundPhaseNav({
         null
       ) : null}
 
-      {/* ── 2. Date strip (só quando a rodada tem mais de um dia) ── */}
-      {datas.length > 1 && (
-        <div
-          className="overflow-hidden rounded-[14px]"
-          style={{
-            background: "#0B0D0C",
-            border: "1px solid rgba(255,255,255,0.08)",
-          }}
-        >
-          <div
-            ref={dateStripRef}
-            className="flex gap-2 overflow-x-auto scroll-smooth px-3 py-3 scrollbar-hide"
-          >
-            {datas.map((d) => {
-              const fmt = parseDatePill(d);
-              if (!fmt) return null;
-              const status = dateStatus(d);
-              const isSelected = selectedDate === d;
-              return (
-                <button
-                  key={d}
-                  type="button"
-                  data-palpite-date={d}
-                  onClick={() => onDate(d)}
-                  className="flex shrink-0 flex-col items-center gap-0.5 rounded-[10px] px-3 py-2.5 transition-all duration-200 active:scale-95"
-                  style={
-                    isSelected
-                      ? {
-                        background: "rgba(177,235,11,0.15)",
-                        border: "1px solid rgba(177,235,11,0.50)",
-                        minWidth: 64,
-                        boxShadow: "0 0 12px rgba(177,235,11,0.18)",
-                      }
-                      : {
-                        background: "rgba(255,255,255,0.04)",
-                        border: "1px solid rgba(255,255,255,0.07)",
-                        minWidth: 64,
-                      }
-                  }
-                >
-                  <span className="mb-1 flex h-6 items-center justify-center">
-                    {status === "done" ? (
-                      <span
-                        className="flex h-6 w-6 items-center justify-center rounded-full"
-                        style={{ background: "rgba(177,235,11,0.25)" }}
-                      >
-                        <Check
-                          className="h-2.5 w-2.5 text-primary"
-                          strokeWidth={3}
-                        />
-                      </span>
-                    ) : status === "partial" ? (
-                      <span
-                        className="flex h-6 w-6 items-center justify-center rounded-full"
-                        style={{ background: "rgba(230,194,32,0.22)" }}
-                      >
-                        <span
-                          className="h-2 w-2 rounded-full"
-                          style={{ background: "#E6C220" }}
-                        />
-                      </span>
-                    ) : (
-                      <span
-                        className="h-[10px] w-[10px] rounded-full animate-pulse"
-                        style={{ background: "#E6C220" }}
-                      />
-                    )}
-                  </span>
-                  <span
-                    className="text-[15px] font-black uppercase tracking-wider"
-                    style={{
-                      color: isSelected ? "#B1EB0B" : "rgba(255,255,255,0.80)",
-                    }}
-                  >
-                    {fmt.diaSemana}
-                  </span>
-                  <span
-                    className="text-[20px] font-black leading-tight"
-                    style={{
-                      color: isSelected ? "#fff" : "rgba(255,255,255,0.90)",
-                    }}
-                  >
-                    {fmt.dia}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      <RoundDateStrip
+        datas={datas}
+        selectedDate={selectedDate}
+        onDate={(d) => onDate(d)}
+        dateStatus={dateStatus}
+        dateStripRef={dateStripRef}
+      />
 
       {!hideProgress ? (
         <div className="w-full px-4">
@@ -4432,7 +4591,7 @@ function PalpitesPageContent({
           )}
 
           {/* Mobile: filtro grupos (exceto ranking) */}
-          {grupos.length > 0 &&
+          {grupos.length > 1 &&
             tab !== "ranking" &&
             tab !== "resumo" &&
             !readOnlyMode &&
@@ -4443,38 +4602,41 @@ function PalpitesPageContent({
             )}
 
           {showBolaoRoundNav && (
-            <>
-              <RoundPhaseNav
-                embedded
-                hideProgress
-                jogos={jogosDisplayBase}
-                predictionsMap={predictionsMap}
-                hasPalpite={hasPalpite}
-                selectedRodada={selectedRodada ?? rodadasNoEscopo[0] ?? 0}
-                onRodada={(r) => {
-                  setSelectedRodada(r);
-                  setSelectedDate(null);
-                }}
-                selectedDate={selectedDate}
-                onDate={setSelectedDate}
-                roundTitle={roundNavTitle}
-                showRoundNav={showRoundNavControls}
-              />
-              <RoundProgressBar
-                sticky
-                jogos={jogosDisplayBase}
-                selectedRodada={selectedRodada ?? rodadasNoEscopo[0] ?? 0}
-                hasPalpite={hasPalpite}
-              />
-            </>
+            <RoundPhaseNav
+              embedded
+              headerOnly
+              hideProgress
+              jogos={jogosDisplayBase}
+              predictionsMap={predictionsMap}
+              hasPalpite={hasPalpite}
+              selectedRodada={selectedRodada ?? rodadasNoEscopo[0] ?? 0}
+              onRodada={(r) => {
+                setSelectedRodada(r);
+                setSelectedDate(null);
+              }}
+              selectedDate={selectedDate}
+              onDate={setSelectedDate}
+              roundTitle={roundNavTitle}
+              showRoundNav={showRoundNavControls}
+            />
           )}
 
           {/* Desktop: filtro de grupos */}
-          {grupos.length > 0 && !readOnlyMode && !hasBoloesFlow && (
+          {grupos.length > 1 && !readOnlyMode && !hasBoloesFlow && (
             <div className="hidden lg:block mb-6">
               <BotoesGrupo />
             </div>
           )}
+
+          {showBolaoRoundNav ? (
+            <BolaoRoundStickyDateProgress
+              jogos={jogosDisplayBase}
+              selectedRodada={selectedRodada ?? rodadasNoEscopo[0] ?? 0}
+              hasPalpite={hasPalpite}
+              selectedDate={selectedDate}
+              onDate={setSelectedDate}
+            />
+          ) : null}
 
           {/* Mobile: conteúdo com tabs — em readOnlyMode usar resultTab (tab principal pode ficar em "jogos" e quebrava Ranking/Resumo) */}
           <div

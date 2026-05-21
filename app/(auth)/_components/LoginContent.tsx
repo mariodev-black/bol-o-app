@@ -178,10 +178,14 @@ export function LoginContent() {
       </div>
 
       <Link
-        href="/recuperar-senha"
-        className="mt-2 block text-right text-[12px] font-semibold text-white/55 hover:text-[#B1EB0B]"
+        href={
+          looksLikeEmail && identifier.trim()
+            ? `/recuperar-senha?email=${encodeURIComponent(identifier.trim())}`
+            : "/recuperar-senha"
+        }
+        className="mt-2 block text-right text-[12px] font-semibold text-white/55 transition-colors hover:text-[#B1EB0B]"
       >
-        Esqueceu sua senha?
+        Esqueci minha senha
       </Link>
 
       <div className="mt-6">

@@ -677,6 +677,7 @@ export function CadastrarContent() {
             <p className="mt-2 text-[13px] leading-relaxed text-white/55">
               Enviamos um código de 6 dígitos pelo WhatsApp para{" "}
               <span className="font-semibold text-white/85">{formatPhoneDisplay(phoneDigits)}</span>
+              .
             </p>
             {smsDevMode ? (
               <p className="mt-2 text-[11px] font-medium text-[#B1EB0B]/90">
@@ -685,7 +686,12 @@ export function CadastrarContent() {
             ) : null}
           </div>
 
-          <AuthSmsCodeInput value={smsCode} onChange={setSmsCode} disabled={busy || smsLocked} />
+          <AuthSmsCodeInput
+            value={smsCode}
+            onChange={setSmsCode}
+            disabled={busy || smsLocked}
+            ariaLabel="Código de verificação por WhatsApp"
+          />
 
           {/*
             Feedback de tentativas / bloqueio.
@@ -716,7 +722,7 @@ export function CadastrarContent() {
             >
               {resendCooldown > 0
                 ? `Reenviar código em ${formatCooldown(resendCooldown)}`
-                : "Reenviar código"}
+                : "Reenviar código pelo WhatsApp"}
             </button>
           </div>
 

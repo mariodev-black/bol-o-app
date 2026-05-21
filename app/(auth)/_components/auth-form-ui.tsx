@@ -181,10 +181,12 @@ export function AuthSmsCodeInput({
   value,
   onChange,
   disabled,
+  ariaLabel = "Código de verificação",
 }: {
   value: string;
   onChange: (code: string) => void;
   disabled?: boolean;
+  ariaLabel?: string;
 }) {
   const refs = useRef<(HTMLInputElement | null)[]>([]);
   const digits = value.replace(/\D/g, "").slice(0, SMS_LENGTH).split("");
@@ -241,7 +243,7 @@ export function AuthSmsCodeInput({
   }
 
   return (
-    <div className="auth-sms-code-row" role="group" aria-label="Código de verificação por WhatsApp">
+    <div className="auth-sms-code-row" role="group" aria-label={ariaLabel}>
       {digits.map((d, i) => (
         <input
           key={i}
