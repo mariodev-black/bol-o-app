@@ -50,7 +50,6 @@ function MyStatsFooter({ stats }: { stats: ResumoStats }) {
 
 export function RankingBoardStep({
   scope,
-  previewLabel,
   loading,
   error,
   rows,
@@ -65,7 +64,6 @@ export function RankingBoardStep({
   refreshClockMs,
 }: {
   scope: RankingScopeOption;
-  previewLabel?: string;
   loading: boolean;
   error: string | null;
   rows: RankingBoardRow[];
@@ -85,11 +83,7 @@ export function RankingBoardStep({
 }) {
   return (
     <div className="pt-6">
-      <RankingBoardHeader
-        scope={scope}
-        onBack={onBack}
-        previewLabel={previewLabel}
-      />
+      <RankingBoardHeader scope={scope} onBack={onBack} />
 
       {error ? (
         <p className="mt-4 text-center text-[14px] font-semibold text-red-400">

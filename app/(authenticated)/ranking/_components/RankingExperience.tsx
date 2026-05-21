@@ -5,11 +5,6 @@ import { useSearchParams } from "next/navigation";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { CalendarClock, Ticket } from "lucide-react";
 import { getScopeCardAction } from "@/app/(authenticated)/ranking/_components/ranking-flow";
-import {
-  buildMockRankingBoard,
-  buildMockRankingHistorico,
-  buildMockScopeOption,
-} from "@/app/(authenticated)/ranking/_components/ranking-board-mock";
 import { RankingBoardStep } from "@/app/(authenticated)/ranking/_components/RankingBoardStep";
 import { RankingPalpitesStepsModal } from "@/app/(authenticated)/ranking/_components/RankingPalpitesStepsModal";
 import { RankingPageHeader } from "@/app/(authenticated)/ranking/_components/RankingPageHeader";
@@ -49,18 +44,8 @@ const boardCache = new Map<
   { at: number; payload: { rows: RankingBoardRow[]; meta: RankingBoardMeta } }
 >();
 
-function scopeForMockPreview(scope: RankingScopeOption): RankingScopeOption {
-  return {
-    ...scope,
-    status: "ativa",
-    statusLabel: "Palpites em aberto",
-    unusedPalpites: true,
-  };
-}
-
 export function RankingExperience() {
   const searchParams = useSearchParams();
-  const previewBoardQuery = searchParams.get("previewBoard") === "1";
   const highlightTicketId =
     searchParams.get("ticket")?.trim() ||
     searchParams.get("ticketId")?.trim() ||
@@ -88,7 +73,6 @@ export function RankingExperience() {
   const [stepsModalOpen, setStepsModalOpen] = useState(false);
   const [stepsModalScope, setStepsModalScope] =
     useState<RankingScopeOption | null>(null);
-  const [useMockBoard, setUseMockBoard] = useState(false);
 
   const openStepsModal = useCallback((scope: RankingScopeOption) => {
     setStepsModalScope(scope);
@@ -139,13 +123,6 @@ export function RankingExperience() {
     [scopes],
   );
 
-  const displayScopes = useMemo(() => {
-    if (previewBoardQuery && scopes.length === 0) {
-      return [scopeForMockPreview(buildMockScopeOption())];
-    }
-    return scopes;
-  }, [previewBoardQuery, scopes]);
-
   const buildResumoQuery = (scope: RankingScopeOption) => {
     const resumoQ = new URLSearchParams();
     if (scope.mode === "principal") resumoQ.set("bolaoType", "principal");
@@ -160,42 +137,7 @@ export function RankingExperience() {
     return resumoQ;
   };
 
-  const applyMockBoard = useCallback((scope: RankingScopeOption) => {
-    const mock = buildMockRankingBoard(scope);
-    setStats(mock.stats);
-    setRankingRows(mock.rows);
-    setMeta(mock.meta);
-    setMatchResults(mock.historico);
-    setError(null);
-    setLoadingBoard(false);
-    setLoadingMatches(false);
-  }, []);
-
-  const openPreviewBoard = useCallback(
-    (scope?: RankingScopeOption) => {
-      const base =
-        scope ??
-        scopes.find((s) => s.mode === "extra") ??
-        scopes[0] ??
-        buildMockScopeOption();
-      const enriched = scopeForMockPreview(base);
-      setUseMockBoard(true);
-      setSelectedScope(enriched);
-      setStep("board");
-      setLoadingBoard(true);
-      setError(null);
-      window.setTimeout(() => applyMockBoard(enriched), 180);
-    },
-    [scopes, applyMockBoard],
-  );
-
-  const loadBoard = useCallback(
-    async (scope: RankingScopeOption) => {
-    if (useMockBoard) {
-      applyMockBoard(scope);
-      return;
-    }
-
+  const loadBoard = useCallback(async (scope: RankingScopeOption) => {
     const cacheKey = scope.key;
 
     setLoadingBoard(true);
@@ -208,6 +150,30 @@ export function RankingExperience() {
 
     const historicoQ = buildResumoQuery(scope);
     historicoQ.set("limit", "50");
+
+    const loadHistorico = async (): Promise<RankingHistoricoRow[]> => {
+      const histResp = await fetch(
+        `/api/palpites/historico?${historicoQ.toString()}`,
+        { credentials: "include", cache: "no-store" },
+      );
+      const histData = (await histResp.json().catch(() => ({}))) as {
+        historico?: RankingHistoricoRow[];
+      };
+      if (!histResp.ok || !Array.isArray(histData.historico)) return [];
+      return [...histData.historico].sort((a, b) => {
+        const da = a.jogoData?.split("/").reverse().join("") ?? "";
+        const db = b.jogoData?.split("/").reverse().join("") ?? "";
+        if (da !== db) return da.localeCompare(db);
+        return (a.jogoHora ?? "").localeCompare(b.jogoHora ?? "");
+      });
+    };
+
+    const boardUrl =
+      scope.mode === "principal"
+        ? "/api/ranking/board?mode=principal"
+        : scope.mode === "extra"
+          ? `/api/ranking/board?mode=extra&ticketId=${encodeURIComponent(scope.ticketId ?? "")}`
+          : `/api/ranking/board?mode=diario&ticketId=${encodeURIComponent(scope.ticketId ?? "")}`;
 
     try {
       const resumoResp = await fetch(
@@ -222,48 +188,20 @@ export function RankingExperience() {
         : { palpites: 0, acertos: 0, pontos: 0, exatos: 0 };
       setStats(resumo);
 
-      if (resumo.palpites < 1) {
-        setMatchResults([]);
-        return;
-      }
-
       const cached = boardCache.get(cacheKey);
-      const boardUrl =
-        scope.mode === "principal"
-          ? "/api/ranking/board?mode=principal"
-          : scope.mode === "extra"
-            ? `/api/ranking/board?mode=extra&ticketId=${encodeURIComponent(scope.ticketId ?? "")}`
-            : `/api/ranking/board?mode=diario&ticketId=${encodeURIComponent(scope.ticketId ?? "")}`;
-
-      const historicoUrl = `/api/palpites/historico?${historicoQ.toString()}`;
-
-      const loadHistorico = async (): Promise<RankingHistoricoRow[]> => {
-        const histResp = await fetch(historicoUrl, {
-          credentials: "include",
-          cache: "no-store",
-        });
-        const histData = (await histResp.json().catch(() => ({}))) as {
-          historico?: RankingHistoricoRow[];
-        };
-        if (!histResp.ok || !Array.isArray(histData.historico)) return [];
-        return [...histData.historico].sort((a, b) => {
-          const da = a.jogoData?.split("/").reverse().join("") ?? "";
-          const db = b.jogoData?.split("/").reverse().join("") ?? "";
-          if (da !== db) return da.localeCompare(db);
-          return (a.jogoHora ?? "").localeCompare(b.jogoHora ?? "");
-        });
-      };
+      const historicoPromise =
+        resumo.palpites >= 1 ? loadHistorico() : Promise.resolve([]);
 
       if (cached && Date.now() - cached.at < CACHE_MS) {
         setRankingRows(cached.payload.rows);
         setMeta(cached.payload.meta);
-        setMatchResults(await loadHistorico());
+        setMatchResults(await historicoPromise);
         return;
       }
 
       const [boardResp, historico] = await Promise.all([
         fetch(boardUrl, { credentials: "include", cache: "no-store" }),
-        loadHistorico(),
+        historicoPromise,
       ]);
 
       setMatchResults(historico);
@@ -299,17 +237,10 @@ export function RankingExperience() {
       setLoadingBoard(false);
       setLoadingMatches(false);
     }
-  },
-    [applyMockBoard, useMockBoard],
-  );
+  }, []);
 
   const fetchMatchHistorico = useCallback(
     async (scope: RankingScopeOption): Promise<RankingHistoricoRow[]> => {
-      if (useMockBoard) {
-        return buildMockRankingHistorico(
-          scope.ticketId ?? "preview-ticket-001",
-        );
-      }
       const historicoQ = buildResumoQuery(scope);
       historicoQ.set("limit", "50");
       const histResp = await fetch(
@@ -327,12 +258,12 @@ export function RankingExperience() {
         return (a.jogoHora ?? "").localeCompare(b.jogoHora ?? "");
       });
     },
-    [useMockBoard],
+    [],
   );
 
-  /** Atualiza placares / ao vivo enquanto o passo 2 está aberto (a cada 30s com `tick`). */
   useEffect(() => {
     if (step !== "board" || !selectedScope || loadingBoard) return;
+    if (stats.palpites < 1) return;
     let cancelled = false;
     void fetchMatchHistorico(selectedScope).then((rows) => {
       if (!cancelled) setMatchResults(rows);
@@ -340,29 +271,10 @@ export function RankingExperience() {
     return () => {
       cancelled = true;
     };
-  }, [step, selectedScope, loadingBoard, tick, fetchMatchHistorico]);
-
-  useEffect(() => {
-    if (!previewBoardQuery || loadingScopes) return;
-    if (step === "board" && useMockBoard) return;
-    openPreviewBoard(
-      scopes.find((s) => s.ticketId === highlightTicketId) ??
-        scopes.find((s) => s.mode === "extra") ??
-        scopes[0],
-    );
-  }, [
-    previewBoardQuery,
-    loadingScopes,
-    scopes,
-    highlightTicketId,
-    step,
-    useMockBoard,
-    openPreviewBoard,
-  ]);
+  }, [step, selectedScope, loadingBoard, stats.palpites, tick, fetchMatchHistorico]);
 
   const handleSelectScope = useCallback(
     (scope: RankingScopeOption) => {
-      setUseMockBoard(false);
       setSelectedScope(scope);
       setStep("board");
       void loadBoard(scope);
@@ -370,8 +282,13 @@ export function RankingExperience() {
     [loadBoard],
   );
 
+  useEffect(() => {
+    if (loadingScopes || step !== "pick" || !highlightTicketId) return;
+    const scope = scopes.find((s) => s.ticketId === highlightTicketId);
+    if (scope) handleSelectScope(scope);
+  }, [loadingScopes, highlightTicketId, scopes, step, handleSelectScope]);
+
   const handleBackFromBoard = useCallback(() => {
-    setUseMockBoard(false);
     setStep("pick");
     setSelectedScope(null);
     setError(null);
@@ -426,9 +343,6 @@ export function RankingExperience() {
       </div>
     ) : null;
 
-  const showRankingBoard =
-    useMockBoard || (!loadingBoard && stats.palpites >= 1);
-
   if (loadingScopes) {
     return (
       <main className="font-helvetica-now-display bg-black pb-28 text-white">
@@ -449,23 +363,15 @@ export function RankingExperience() {
               title="Selecione seu"
               titleAccent="bolão"
               description={
-                displayScopes.length > 0
-                  ? `Escolha abaixo onde deseja ver a classificação, ${displayScopes.length} ${
-                      displayScopes.length === 1 ? "bolão disponível" : "bolões disponíveis"
+                scopes.length > 0
+                  ? `Escolha abaixo onde deseja ver a classificação, ${scopes.length} ${
+                      scopes.length === 1 ? "bolão disponível" : "bolões disponíveis"
                     }.`
                   : "Escolha abaixo onde deseja ver a classificação."
               }
             />
 
-            <button
-              type="button"
-              onClick={() => openPreviewBoard()}
-              className="mt-5 w-full rounded-xl border border-dashed border-primary/35 bg-primary/6 px-3 py-3 text-[13px] font-bold uppercase tracking-wide text-primary transition hover:bg-primary/10 active:scale-[0.99]"
-            >
-              Ver classificação (preview com dados)
-            </button>
-
-            {displayScopes.length === 0 ? (
+            {scopes.length === 0 ? (
               <section
                 className="mt-8 rounded-[16px] px-5 py-10 text-center shadow-[0_12px_40px_rgba(0,0,0,0.55)]"
                 style={{ background: RANKING_CARD_BG }}
@@ -498,9 +404,9 @@ export function RankingExperience() {
               </section>
             ) : (
               <section className="mt-8 space-y-4">
-                {displayScopes.map((option, idx) => {
+                {scopes.map((option, idx) => {
                   const showBolaoGeralHeader =
-                    idx === 0 && displayScopes[0]?.mode === "principal";
+                    idx === 0 && scopes[0]?.mode === "principal";
                   const showBolaoDiaHeader =
                     firstDailyIndex !== -1 && idx === firstDailyIndex;
                   const showBolaoExtraHeader =
@@ -536,12 +442,9 @@ export function RankingExperience() {
               </section>
             )}
           </>
-        ) : selectedScope && showRankingBoard ? (
+        ) : selectedScope ? (
           <RankingBoardStep
             scope={selectedScope}
-            previewLabel={
-              useMockBoard ? "Preview — dados fictícios para layout" : undefined
-            }
             loading={loadingBoard}
             loadingMatches={loadingMatches}
             error={error}

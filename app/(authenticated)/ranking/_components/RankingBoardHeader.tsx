@@ -13,11 +13,9 @@ import type { RankingScopeOption } from "@/lib/ranking/scopes-shared";
 export function RankingBoardHeader({
   scope,
   onBack,
-  previewLabel,
 }: {
   scope: RankingScopeOption;
   onBack: () => void;
-  previewLabel?: string;
 }) {
   const { primary } = scopeSelectLines(scope);
   const header = scopeCardHeaderParts(scope, primary);
@@ -35,12 +33,6 @@ export function RankingBoardHeader({
         <ArrowLeft className="size-4 shrink-0" strokeWidth={2.4} aria-hidden />
         Voltar aos bolões
       </button>
-
-      {previewLabel ? (
-        <p className="rounded-lg border border-dashed border-primary/40 bg-primary/8 px-3 py-2 text-center text-[11px] font-bold uppercase tracking-wide text-primary">
-          {previewLabel}
-        </p>
-      ) : null}
 
       <section
         className="overflow-hidden rounded-[16px] border px-4 py-4"
