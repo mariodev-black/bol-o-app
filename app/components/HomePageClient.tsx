@@ -416,7 +416,7 @@ function LoggedInHome() {
           <HomeHeroCarousel
             mode="peek"
             slides={HOME_SLIDER_SLIDES}
-            intervalMs={5500}
+            intervalMs={5000}
             slideDurationMs={520}
             peekSlideRatio={0.88}
             showNavigation={false}
