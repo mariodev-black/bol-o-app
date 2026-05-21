@@ -412,13 +412,15 @@ function LoggedInHome() {
       </Suspense>
       <Header />
       <main className="min-h-screen bg-black pb-32 text-white">
-        <section className="relative w-full overflow-hidden">
+        <section className="relative w-full">
           <HomeHeroCarousel
-            mode="slide"
+            mode="peek"
             slides={HOME_SLIDER_SLIDES}
             intervalMs={5500}
             slideDurationMs={520}
-            sizes="(max-width: 430px) 100vw, 100vw"
+            peekSlideRatio={0.88}
+            showNavigation={false}
+            sizes="(max-width: 430px) 88vw, 88vw"
           />
         </section>
         <div className="mx-auto w-full max-w-[430px] px-3.5">

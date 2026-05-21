@@ -343,6 +343,22 @@ button, [role="button"] {
   animation-play-state: paused;
 }
 
+/* Home — carrossel peek (entrada do card ativo) */
+@keyframes home-hero-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(22px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-home-hero-slide-in {
+  animation: home-hero-slide-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 /* Seção pontuação — cards unificados + entrada em cascata */
 @keyframes score-card-in {
   from {
