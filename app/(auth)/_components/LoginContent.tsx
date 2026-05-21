@@ -16,6 +16,7 @@ import {
 } from "@/app/(auth)/_components/auth-form-ui";
 import {
   getLoginIdentifierHint,
+  getLoginIdentifierInputMode,
   getLoginIdentifierPlaceholder,
   isLoginIdentifierReady,
   resolveLoginIdentifier,
@@ -69,6 +70,7 @@ export function LoginContent() {
   const identifierReady = isLoginIdentifierReady(identifier);
   const identifierHint = getLoginIdentifierHint(identifier);
   const identifierPlaceholder = getLoginIdentifierPlaceholder(identifier);
+  const identifierInputMode = getLoginIdentifierInputMode(identifier);
   const showIdentifierError = submitAttempted && !identifierReady && identifier.trim().length > 0;
   const canSubmit = identifierReady && password.trim().length > 0 && !loading;
 
@@ -153,8 +155,11 @@ export function LoginContent() {
         id="login-identifier"
         label="E-mail ou CPF"
         type="text"
-        inputMode="text"
+        inputMode={identifierInputMode}
         autoComplete="username"
+        autoCapitalize="none"
+        autoCorrect="off"
+        spellCheck={false}
         placeholder={identifierPlaceholder}
         value={identifier}
         onChange={(e) => setIdentifier(formatLoginIdentifierInput(e.target.value))}

@@ -15,12 +15,6 @@ import {
   BookOpen,
 } from "lucide-react";
 import logo        from "@/app/assets/logo.svg";
-import criciuma   from "@/app/assets/criciuma.png";
-import vilaNova   from "@/app/assets/vila-nova.png";
-import vivoKeyd   from "@/app/assets/vivo-keyd.png";
-import sigma      from "@/app/assets/sigma.png";
-import bis        from "@/app/assets/bis.png";
-import cgs        from "@/app/assets/cgs.png";
 import lexisNexis from "@/app/assets/lexis-nexis.png";
 import sportsradar from "@/app/assets/sportsradar.png";
 
@@ -115,18 +109,6 @@ const OUTROS_LINKS = [
   { Icon: Megaphone,  label: "Ouvidoria" },
   { Icon: Building2,  label: "Procon" },
   { Icon: BookOpen,   label: "Código de Defesa do Consumidor" },
-];
-
-const SPONSORS_LEFT = [
-  { src: criciuma,  alt: "Criciúma FC" },
-  { src: vilaNova,  alt: "Vila Nova FC" },
-  { src: vivoKeyd,  alt: "Vivo Keyd Stars" },
-];
-
-const SPONSORS_RIGHT = [
-  { src: sigma, alt: "SIG MA Awards" },
-  { src: bis,   alt: "BIS" },
-  { src: cgs,   alt: "CGS Awards" },
 ];
 
 // ── Footer ────────────────────────────────────────────────────
@@ -231,36 +213,6 @@ export function Footer() {
                 ))}
           </div>
           </div>
-        </div>
-
-        <Divider />
-
-        {/* Patrocinador Oficial */}
-        {/* Mobile: empilhado centralizado | Desktop: grid 2 colunas */}
-        <div className="flex flex-col lg:grid lg:grid-cols-2 gap-8">
-
-          {/* Esquerda — título + times/patrocinadores */}
-          <div className="flex flex-col items-center lg:items-start gap-5">
-            <span
-              className="text-xs font-semibold uppercase tracking-[0.2em]"
-              style={{ color: "rgba(255,255,255,0.45)" }}
-            >
-              Patrocinador Oficial
-            </span>
-            <div className="flex items-center gap-5 flex-wrap justify-center lg:justify-start">
-              {SPONSORS_LEFT.map(({ src, alt }) => (
-                <Image key={alt} src={src} alt={alt} height={56} className="object-contain" />
-              ))}
-            </div>
-          </div>
-
-          {/* Direita — certificações/prêmios */}
-          <div className="flex items-center justify-center lg:justify-end gap-5 flex-wrap">
-            {SPONSORS_RIGHT.map(({ src, alt }) => (
-              <Image key={alt} src={src} alt={alt} height={72} className="object-contain" />
-            ))}
-          </div>
-
         </div>
 
         <Divider />

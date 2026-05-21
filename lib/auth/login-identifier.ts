@@ -30,9 +30,17 @@ export function isLoginIdentifierReady(value: string): boolean {
 }
 
 export function getLoginIdentifierPlaceholder(value: string): string {
-  if (!value.trim()) return "seu@email.com ou 000.000.000-00";
+  /** Sem máscara numérica no vazio — iOS/Safari abre teclado telefônico com "000.000.000-00". */
+  if (!value.trim()) return "seu@email.com";
   if (loginInputLooksLikeEmail(value)) return "seu@email.com";
   return "000.000.000-00";
+}
+
+/** Teclado: e-mail (@) no vazio ou quando parece e-mail; numérico só para fluxo de CPF. */
+export function getLoginIdentifierInputMode(value: string): "email" | "numeric" {
+  const t = value.trim();
+  if (!t || loginInputLooksLikeEmail(value)) return "email";
+  return "numeric";
 }
 
 export function getLoginIdentifierHint(value: string): string | null {

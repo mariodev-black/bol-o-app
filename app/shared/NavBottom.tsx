@@ -381,7 +381,7 @@ export function NavBottom() {
     });
   }, [bottomItems, ready, router]);
 
-  if (!ready) return null;
+  if (!ready || !isLoggedIn) return null;
 
   return (
     <>

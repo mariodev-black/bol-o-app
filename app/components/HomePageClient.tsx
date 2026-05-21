@@ -864,9 +864,6 @@ function PublicHome() {
       <CopaCtaBandSection />
       <HomeFaqSection />
       <Footer />
-      <Suspense fallback={null}>
-      <NavBottom />
-      </Suspense>
     </HomePageContainer>
   );
 }
