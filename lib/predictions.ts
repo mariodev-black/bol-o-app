@@ -1,5 +1,7 @@
 import { getPool } from "@/lib/db";
 import type { PredictionBolaoType } from "./palpites-kickoff-lock";
+
+export { calcPredictionPoints } from "@/lib/predictions/calc-points";
 export type { PredictionBolaoType } from "./palpites-kickoff-lock";
 export {
   PALPITE_LOCK_BEFORE_KICKOFF_MS_DEFAULT,
@@ -40,22 +42,6 @@ export type PredictionRankingRow = {
 
 const PREDICTION_COLUMNS =
   "id, user_id, ticket_id, bolao_type, match_id, score_casa, score_visitante, submitted_at, updated_at";
-
-export function calcPredictionPoints(
-  predCasa: number,
-  predVisit: number,
-  realCasa: number,
-  realVisit: number
-): { points: number; exact: boolean; outcomeHit: boolean; goalsHitCount: number } {
-  const exact = predCasa === realCasa && predVisit === realVisit;
-  if (exact) return { points: 6, exact: true, outcomeHit: true, goalsHitCount: 0 };
-  const predDiff = predCasa - predVisit;
-  const realDiff = realCasa - realVisit;
-  const outcomeHit = (predDiff === 0 && realDiff === 0) || (predDiff > 0 && realDiff > 0) || (predDiff < 0 && realDiff < 0);
-  const goalsHitCount = (predCasa === realCasa ? 1 : 0) + (predVisit === realVisit ? 1 : 0);
-  if (outcomeHit) return { points: goalsHitCount > 0 ? 4 : 3, exact: false, outcomeHit: true, goalsHitCount };
-  return { points: goalsHitCount, exact: false, outcomeHit: false, goalsHitCount };
-}
 
 export async function upsertPrediction(input: {
   userId: string;

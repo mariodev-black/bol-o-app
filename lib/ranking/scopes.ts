@@ -3,6 +3,10 @@ import "server-only";
 import { extraBolaoFallbackDisplayName } from "@/lib/boloes-extra-competition-branding";
 import { warmCompetitionMetadataCache } from "@/lib/competition-metadata-cache";
 import {
+  extraBolaoCurrentRoundsByChampionship,
+  type ExtraBolaoRoundInfo,
+} from "@/lib/ticket-shop-extra-rounds";
+import {
   listPaidTicketsForUser,
   type PaidTicketRow,
 } from "@/lib/payments/user-tickets";
@@ -35,7 +39,8 @@ function rankingScopeStatusFromTicket(
       ? { status: "ativa", statusLabel: "Palpites em aberto" }
       : { status: "ativa", statusLabel: "Jogos em andamento" };
   }
-  return { status: "aguardando", statusLabel: "Aguardando começar" };
+  // disponivel = cota sem palpites enviados — sempre orientar o usuário a apostar
+  return { status: "aguardando", statusLabel: "Aguardando seus palpites" };
 }
 
 function rankingScopeStatusFromGeneralTickets(
@@ -67,6 +72,14 @@ export async function buildRankingScopes(
 
     if (general.length > 0) {
       const unused = general.some((t) => (t.availableGames ?? 0) > 0);
+      const pendingPalpitesCount = general.reduce(
+        (acc, t) => acc + Math.max(0, t.availableGames ?? 0),
+        0,
+      );
+      const palpitesSentCount = general.reduce(
+        (acc, t) => acc + Math.max(0, t.palpitesCount ?? 0),
+        0,
+      );
       const generalForPalpites =
         general.find((t) => (t.availableGames ?? 0) > 0) ?? general[0]!;
       scopes.push({
@@ -80,6 +93,9 @@ export async function buildRankingScopes(
         extraChampionshipId: null,
         ...rankingScopeStatusFromGeneralTickets(general),
         unusedPalpites: unused,
+        pendingPalpitesCount,
+        palpitesSentCount,
+        roundLabel: "Todas as rodadas",
         palpitesHref: palpitesHrefForTicket(generalForPalpites.id),
       });
     }
@@ -87,6 +103,8 @@ export async function buildRankingScopes(
     for (const t of daily) {
       const date = t.playDate?.trim() || "Dia";
       const unused = (t.availableGames ?? 0) > 0;
+      const pendingPalpitesCount = Math.max(0, t.availableGames ?? 0);
+      const palpitesSentCount = Math.max(0, t.palpitesCount ?? 0);
       scopes.push({
         key: `diario:${t.id}`,
         mode: "diario",
@@ -98,6 +116,9 @@ export async function buildRankingScopes(
         extraChampionshipId: null,
         ...rankingScopeStatusFromTicket(t),
         unusedPalpites: unused,
+        pendingPalpitesCount,
+        palpitesSentCount,
+        roundLabel: `Jogos de ${date}`,
         palpitesHref: palpitesHrefForTicket(t.id),
       });
     }
@@ -116,10 +137,18 @@ export async function buildRankingScopes(
           .filter((n): n is number => n != null && Number.isFinite(n) && n > 0),
       ),
     ];
-    const compNames: Record<number, string> =
+    const [compNames, extraRounds] = await Promise.all([
       uniqExtraCompIds.length > 0
-        ? await warmCompetitionMetadataCache(uniqExtraCompIds).catch(() => ({}))
-        : {};
+        ? warmCompetitionMetadataCache(uniqExtraCompIds).catch(
+            () => ({}) as Record<number, string>,
+          )
+        : Promise.resolve({} as Record<number, string>),
+      uniqExtraCompIds.length > 0
+        ? extraBolaoCurrentRoundsByChampionship(uniqExtraCompIds).catch(
+            () => ({}) as Record<number, ExtraBolaoRoundInfo>,
+          )
+        : Promise.resolve({} as Record<number, ExtraBolaoRoundInfo>),
+    ]);
 
     for (let i = 0; i < extraSorted.length; i++) {
       const t = extraSorted[i]!;
@@ -133,17 +162,27 @@ export async function buildRankingScopes(
             : "Bolão extra";
       const ordinalSuffix = extraSorted.length > 1 ? ` · #${i + 1}` : "";
       const unused = (t.availableGames ?? 0) > 0;
+      const pendingPalpitesCount = Math.max(0, t.availableGames ?? 0);
+      const palpitesSentCount = Math.max(0, t.palpitesCount ?? 0);
+      const roundInfo = compId != null ? extraRounds[compId] : undefined;
+      const roundLabel = roundInfo?.roundLabel?.trim() || null;
+      const selectPrimary = roundLabel
+        ? `${championshipName} · ${roundLabel}`
+        : championshipName;
       scopes.push({
         key: `extra:${t.id}`,
         mode: "extra",
         ticketId: t.id,
         label: `${championshipName} — ${date}${ordinalSuffix}`,
         meta: `Cota ${shortId(t.id)}`,
-        selectPrimary: championshipName,
+        selectPrimary,
         selectSecondary: `${date}${ordinalSuffix}`,
         extraChampionshipId: compId ?? null,
         ...rankingScopeStatusFromTicket(t),
         unusedPalpites: unused,
+        pendingPalpitesCount,
+        palpitesSentCount,
+        roundLabel,
         palpitesHref: palpitesHrefForTicket(t.id),
       });
     }

@@ -18,6 +18,12 @@ export type RankingScopeOption = {
   status: RankingScopeStatus;
   statusLabel: string;
   unusedPalpites: boolean;
+  /** Jogos ainda sem palpite neste escopo. */
+  pendingPalpitesCount: number;
+  /** Palpites já enviados neste escopo (cota ou cotas do geral). */
+  palpitesSentCount: number;
+  /** Rodada / período exibido no card do bolão (ex.: "17ª Rodada", "23/05/2026"). */
+  roundLabel: string | null;
   palpitesHref: string;
 };
 

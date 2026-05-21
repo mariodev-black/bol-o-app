@@ -14,6 +14,8 @@ export type PaidTicketRow = {
   dailyStatus?: "disponivel" | "em_uso" | "usado";
   playDate?: string | null;
   availableGames?: number;
+  /** Palpites já enviados nesta cota. */
+  palpitesCount?: number;
 };
 
 function isFinishedStatus(status: string): boolean {
@@ -88,6 +90,7 @@ export async function listPaidTicketsForUser(userId: string): Promise<PaidTicket
           t.ticketType === "daily" || t.ticketType === "extra" ? ("disponivel" as const) : undefined,
         playDate: t.ticketType === "daily" || t.ticketType === "extra" ? brToday() : undefined,
         availableGames: 0,
+        palpitesCount: 0,
       }));
     }
 
@@ -123,12 +126,14 @@ export async function listPaidTicketsForUser(userId: string): Promise<PaidTicket
     }
 
     const result = mapped.map((t) => {
+      const ticketPreds = byTicket.get(t.id) ?? [];
+      const palpitesCount = ticketPreds.length;
+
       if (t.ticketType === "general") {
-        const ticketPreds = byTicket.get(t.id) ?? [];
         const predictedIds = new Set<number>(ticketPreds.map((p) => Number(p.match_id)).filter(Number.isFinite));
         const openMain = openMatchesDefaultLock.filter((m) => m.competitionId === mainComp);
         const availableGames = openMain.reduce((acc, m) => (predictedIds.has(m.matchId) ? acc : acc + 1), 0);
-        return { ...t, availableGames };
+        return { ...t, availableGames, palpitesCount };
       }
 
       const scopeComp = t.ticketType === "daily" ? mainComp : Number(t.extraChampionshipId);
@@ -142,10 +147,9 @@ export async function listPaidTicketsForUser(userId: string): Promise<PaidTicket
           : openMatchesExtraLock.filter((m) => m.competitionId === scopeComp);
       const playableDate = resolveDiarioPlayableDate(matchMap, { competitionId: scopeComp });
 
-      const ticketPreds = byTicket.get(t.id) ?? [];
-      if (ticketPreds.length === 0) {
+      if (palpitesCount === 0) {
         const availableGames = scopeOpen.filter((m) => m.dateBR === playableDate).length;
-        return { ...t, dailyStatus: "disponivel" as const, playDate: playableDate, availableGames };
+        return { ...t, dailyStatus: "disponivel" as const, playDate: playableDate, availableGames, palpitesCount: 0 };
       }
 
       const predictedIds = new Set<number>(ticketPreds.map((p) => Number(p.match_id)).filter(Number.isFinite));
@@ -166,7 +170,7 @@ export async function listPaidTicketsForUser(userId: string): Promise<PaidTicket
       const availableGames = scopeOpen
         .filter((m) => m.dateBR === targetDate)
         .reduce((acc, m) => (predictedIds.has(m.matchId) ? acc : acc + 1), 0);
-      return { ...t, dailyStatus, playDate: targetDate, availableGames };
+      return { ...t, dailyStatus, playDate: targetDate, availableGames, palpitesCount };
     });
     return result;
   } catch (e) {

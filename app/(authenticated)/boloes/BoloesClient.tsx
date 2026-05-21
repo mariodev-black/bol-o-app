@@ -2,8 +2,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import {
+  Activity,
   ArrowRight,
-  BarChart3,
   CalendarDays,
   Check,
   ChevronDown,
@@ -12,13 +12,10 @@ import {
   Clock,
   Lock,
   MoveHorizontal,
-  MousePointerClick,
   Shield,
-  Trophy,
-  Sparkles,
+  Target,
   Ticket,
-  ArrowUp,
-  ArrowDown,
+  Trophy,
 } from "lucide-react";
 import iconBrasileirao from "@/app/assets/icon-brasileirao.png";
 import iconPremierLeague from "@/app/assets/icon-premier-league.png";
@@ -28,6 +25,8 @@ import ticketBlue from "@/app/assets/Ticket-Blue.png";
 import { getExtraBolaoHeroSideVariant } from "@/lib/boloes-extra-competition-branding";
 import { extraBolaoIconSrc, isExtraBolaoBrandedIcon } from "@/app/shared/extra-bolao-icons";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { RankingPalpitesStepsModal } from "@/app/(authenticated)/ranking/_components/RankingPalpitesStepsModal";
+import { ScoringExplainerModal } from "@/app/shared/ScoringExplainerModal";
 
 export type ActivePrincipalBolao = {
   id: string;
@@ -190,7 +189,7 @@ function showcaseHeaderParts(
  * Hook de relógio para countdowns. O valor inicial é `0` (sentinel "ainda não
  * hidratou") em vez de `Date.now()` — isso é fundamental para evitar hydration
  * mismatch: o SSR e o primeiro render do client produzem o MESMO HTML
- * (`--:--:--`), e só depois do mount o relógio entra em ação.
+ * (`--`), e só depois do mount o relógio entra em ação.
  *
  * Consumidores devem tratar `now === 0` como "placeholder" — `formatCountdown`
  * e `lockHasPassed` abaixo fazem isso. Outros consumers que comparem `now`
@@ -208,16 +207,23 @@ function useNow(intervalMs = 1000) {
   return now;
 }
 
+/** Contagem até início/fechamento — texto curto (dias → horas → minutos). */
 function formatCountdown(targetMs: number | null, now: number): string {
   // `now === 0` ⇒ ainda não hidratou (SSR / primeiro render).
-  if (!targetMs || !now) return "--:--:--";
-  const seconds = Math.max(0, Math.floor((targetMs - now) / 1000));
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = seconds % 60;
-  return [hours, minutes, secs]
-    .map((part) => String(part).padStart(2, "0"))
-    .join(":");
+  if (!targetMs || !now) return "--";
+  const diff = targetMs - now;
+  if (diff <= 0) return "Agora";
+
+  const totalMins = Math.floor(diff / 60_000);
+  const days = Math.floor(totalMins / (24 * 60));
+  const hours = Math.floor((totalMins % (24 * 60)) / 60);
+  const mins = totalMins % 60;
+
+  if (days >= 1) return days === 1 ? "1 dia" : `${days} dias`;
+  if (hours >= 1) return hours === 1 ? "1h" : `${hours}h`;
+  if (mins >= 1) return mins === 1 ? "1 min" : `${mins} min`;
+  const secs = Math.max(1, Math.floor(diff / 1000));
+  return secs === 1 ? "1 seg" : `${secs} seg`;
 }
 
 /** Prazo de palpite / fechamento já ocorreu (ex.: jogo já aconteceu). */
@@ -443,7 +449,7 @@ function ActiveRowBolaoIcon({
 
 function BolaoIcon({ type }: { type: "copa" | "dia" | "extra" }) {
   const Icon =
-    type === "copa" ? Trophy : type === "extra" ? Sparkles : CalendarDays;
+    type === "copa" ? Trophy : type === "extra" ? Ticket : CalendarDays;
   const label =
     type === "copa"
       ? "COPA\n2026"
@@ -531,6 +537,21 @@ function RankingPanel({
   );
 }
 
+function emptyBolaoShowcaseCopy(
+  variant: "principal" | "diario" | "lista" | "resumo",
+): string {
+  if (variant === "principal") {
+    return "Até R$ 1.000.000 em prêmios. Garanta sua cota em Tickets.";
+  }
+  if (variant === "diario") {
+    return "Até R$ 10.000 em prêmios. Garanta sua cota em Tickets.";
+  }
+  if (variant === "resumo") {
+    return "Até R$ 1 mi (principal) ou R$ 10 mil (dia). Compre em Tickets.";
+  }
+  return "Prêmios de até R$ 1 mi ou R$ 10 mil. Compre sua cota em Tickets.";
+}
+
 function EmptyBolaoShowcaseCard({
   variant,
 }: {
@@ -550,18 +571,17 @@ function EmptyBolaoShowcaseCard({
       className="rounded-[16px] px-5 py-6 text-center shadow-[0_12px_40px_rgba(0,0,0,0.55)]"
       style={{ background: SHOWCASE_CARD_BG }}
     >
-      <p className="text-[14px] font-black uppercase leading-tight tracking-[0.04em] text-white">
+      <p className="text-[16px] font-black uppercase leading-tight tracking-[0.04em] text-white">
         {title}
       </p>
-      <p className="mx-auto mt-2.5 max-w-[280px] text-[11px] leading-[1.45] text-white/48">
-        Compre seu ingresso na área de tickets para liberar palpites e
-        acompanhar sua posição no ranking.
+      <p className="mx-auto mt-2.5 max-w-[310px] text-[16px] font-semibold leading-[1.45] text-white/78">
+        {emptyBolaoShowcaseCopy(variant)}
       </p>
       <Link
         href="/tickets"
-        className="mt-4 flex h-[40px] w-full items-center justify-center gap-2 rounded-[10px] bg-primary text-[12px] font-black uppercase tracking-[0.05em] text-[#0E141B] transition-[filter] hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[0.99]"
+        className="mt-4 flex h-[40px] w-full items-center justify-center gap-2 rounded-[10px] bg-primary text-[16px] font-black uppercase tracking-[0.05em] text-[#0E141B] transition-[filter] hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[0.99]"
       >
-        Ir para tickets
+        Adiquirir cota
         <ArrowRight className="size-4 shrink-0" strokeWidth={2.6} />
       </Link>
     </div>
@@ -1018,6 +1038,59 @@ function showcaseStatusColor(
   return "rgba(255,255,255,0.85)";
 }
 
+/** Texto curto no badge (rótulo completo fica no title). */
+function showcaseStatusBadgeLabel(label: string): string {
+  const l = label.trim().toLowerCase();
+  if (l.includes("aguardando")) return "Aguardando";
+  if (l.includes("em uso")) return "Em uso";
+  if (l.includes("palpites abertos")) return "Aberto";
+  return label;
+}
+
+function showcaseStatusIcon(
+  status: ActiveBolaoListItem["status"] | undefined,
+  finished: boolean,
+) {
+  if (finished || status === "usado") {
+    return <Lock className="size-4 shrink-0" strokeWidth={2.25} aria-hidden />;
+  }
+  if (status === "ativo") {
+    return <Activity className="size-4 shrink-0" strokeWidth={2.25} aria-hidden />;
+  }
+  if (status === "aguardando") {
+    return <CalendarDays className="size-4 shrink-0" strokeWidth={2.25} aria-hidden />;
+  }
+  return <ClipboardList className="size-4 shrink-0" strokeWidth={2.25} aria-hidden />;
+}
+
+/** Badge de status do card showcase — alinhado ao StatusPill da lista. */
+function ShowcaseCardStatusBadge({
+  status,
+  label,
+  finished,
+}: {
+  status?: ActiveBolaoListItem["status"];
+  label: string;
+  finished: boolean;
+}) {
+  const tone = showcaseStatusColor(status, finished);
+
+  return (
+    <span
+      className="inline-flex max-w-full items-center gap-1 rounded-[6px] border px-2 py-1 text-[9px] font-black uppercase leading-tight tracking-[0.06em] min-[380px]:text-[10px]"
+      style={{ background: `${tone}1A`, borderColor: `${tone}45`, color: tone }}
+      title={label}
+    >
+      <span
+        className="size-1.5 shrink-0 rounded-full"
+        style={{ background: tone }}
+        aria-hidden
+      />
+      <span className="min-w-0 truncate">{label}</span>
+    </span>
+  );
+}
+
 function ShowcaseCotaCard({
   href,
   fullWidth,
@@ -1053,8 +1126,6 @@ function ShowcaseCotaCard({
   const statusDisplay =
     statusLabel ??
     (finished ? "Encerrado" : status === "ativo" ? "Ativo" : status === "aguardando" ? "Aguardando" : "—");
-  const statusColor = showcaseStatusColor(status, finished);
-
   return (
     <Link
       href={href}
@@ -1100,38 +1171,41 @@ function ShowcaseCotaCard({
         </span>
         <span className="text-[15px] font-black leading-none text-white">{prizes.first}</span>
       </div>
-      <div className="mx-4 h-px bg-white/[0.08]" aria-hidden />
+      <div className="mx-4 h-px bg-white/8" aria-hidden />
 
-      {/* Stats — começa em | status */}
-      <div className="grid grid-cols-2 items-stretch px-4 py-4">
-        <div className="flex items-center gap-2.5 border-r border-white/[0.08] pr-4">
-          <Clock className="size-5 shrink-0 text-primary" strokeWidth={2.25} aria-hidden />
-          <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-white/40">
-              {timerLabel}
-            </p>
-            <p className="mt-1 font-mono text-[16px] font-black tabular-nums leading-none text-primary min-[380px]:text-[17px]">
-              {countdownDisplay}
-            </p>
+      {/* Meta — prazo + status */}
+      <div className="mx-4 mb-3 mt-3 rounded-[11px] border border-white/6 bg-white/[0.03] p-3">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <div className="min-w-0">
+              <p className="text-[12px] font-bold uppercase tracking-widest text-white/60">
+                {timerLabel}
+              </p>
+              <p
+                className={[
+                  "mt-0.5 text-[15px] font-black leading-none tracking-tight min-[380px]:text-[16px]",
+                  finished ? "text-white/55" : "text-primary",
+                ].join(" ")}
+              >
+                {countdownDisplay}
+              </p>
+            </div>
           </div>
-        </div>
 
-        <div className="flex items-center gap-2.5 pl-4">
-          <span
-            className="size-2.5 shrink-0 rounded-full"
-            style={{ background: statusColor }}
-            aria-hidden
-          />
-          <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-white/40">
-              Status
-            </p>
-            <p
-              className="mt-1 text-[14px] font-black uppercase leading-tight tracking-[0.02em] min-[380px]:text-[15px]"
-              style={{ color: statusColor }}
-            >
-              {statusDisplay}
-            </p>
+          <div className="flex min-w-0 items-center justify-end gap-2.5 border-l border-white/6 pl-3">
+            <div className="min-w-0 flex-1 text-left">
+              <p className="text-[12px] font-bold uppercase tracking-widest text-white/60">
+                Status
+              </p>
+              <div className="mt-0.5 flex justify-start">
+                <ShowcaseCardStatusBadge
+                  status={status}
+                  label={showcaseStatusBadgeLabel(statusDisplay)}
+                  finished={finished}
+                />
+              </div>
+            </div>
+            
           </div>
         </div>
       </div>
@@ -1238,103 +1312,88 @@ function ActiveShowcaseCard({
 }
 
 
-function ComoFuncionaPalpitesCard() {
+function BoloesAjudaSection() {
+  const [palpitesModalOpen, setPalpitesModalOpen] = useState(false);
+  const [scoringModalOpen, setScoringModalOpen] = useState(false);
 
-  const [showAll, setShowAll] = useState(false);
-
-
-  const ink = "#0E141B";
-  const steps = [
+  const items = [
     {
-      n: 1 as const,
-      Icon: MousePointerClick,
-      label: "Escolha um bolão abaixo",
-    },
-    {
-      n: 2 as const,
+      id: "palpites",
       Icon: ClipboardList,
-      label: "Clique em \u201CFazer palpites\u201D",
+      title: "Como palpitar",
+      desc: "Passo a passo para enviar seus placares",
+      onClick: () => setPalpitesModalOpen(true),
     },
     {
-      n: 3 as const,
-      Icon: BarChart3,
-      label: "Acompanhe sua posição no ranking",
+      id: "pontuacao",
+      Icon: Target,
+      title: "Como funciona a pontuação",
+      desc: "Regras e exemplos práticos de cada jogo",
+      onClick: () => setScoringModalOpen(true),
     },
-  ];
+  ] as const;
 
   return (
-    <section
-      className="mt-6 mb-6"
-      aria-labelledby="como-funciona-palpites-heading"
-    >
-      <div
-        className="overflow-hidden rounded-[14px] border py-5 sm:py-6"
-        style={{ background: CARD_ALT, borderColor: BORDER }}
+    <>
+      <section
+        className="mt-6 mb-8"
+        aria-labelledby="boloes-ajuda-heading"
       >
-        <h2
-          id="como-funciona-palpites-heading"
-          className="px-1 text-center text-[16px] font-black uppercase leading-tight tracking-[0.08em] text-balance sm:text-[12px]"
-          style={{ color: GREEN }}
+        <div
+          className="overflow-hidden rounded-[14px] border px-4 py-4"
+          style={{ background: CARD_ALT, borderColor: BORDER }}
         >
-          Como funciona? É rápido e fácil!
-        </h2>
-
-        {showAll && (
-          <div
-            className="mt-5 grid grid-cols-3 gap-0 sm:mt-6"
-            role="list"
-            aria-label="Passos para palpitar"
+          <h2
+            id="boloes-ajuda-heading"
+            className="text-center text-[12px] font-black uppercase tracking-[0.14em] text-primary"
           >
-            {steps.map((step, idx) => {
-              const Icon = step.Icon;
-              return (
-                <div
-                  key={step.n}
-                  role="listitem"
-                  className={[
-                    "flex flex-col items-center px-[2px] pb-3 pt-1 text-center sm:px-2 sm:pb-4 relative",
-                    idx > 0 ? "border-l border-white/8" : "",
-                  ].join(" ")}
+            Precisa de ajuda?
+          </h2>
+
+          <ul className="mt-3 space-y-2">
+            {items.map(({ id, Icon, title, desc, onClick }) => (
+              <li key={id}>
+                <button
+                  type="button"
+                  onClick={onClick}
+                  className="group flex w-full items-center gap-3 rounded-[11px] border border-white/8 bg-white/[0.03] px-3 py-3 text-left transition hover:border-primary/35 hover:bg-white/[0.05] active:scale-[0.99]"
                 >
                   <span
-                    className="flex absolute top-0 left-4 size-[20px] shrink-0 items-center justify-center rounded-full text-[14px] font-black leading-none sm:size-5 sm:text-[10px]"
-                    style={{
-                      background: GREEN,
-                      color: ink,
-                    }}
+                    className="flex size-10 shrink-0 items-center justify-center rounded-[9px] border border-primary/25 bg-primary/10 text-primary"
                     aria-hidden
                   >
-                    {step.n}
+                    <Icon className="size-5" strokeWidth={2.15} />
                   </span>
-
-                  <div className="mb-3 relative flex shrink-0 items-center justify-center gap-2 sm:mb-3.5 sm:gap-2.5">
-                    <Icon
-                      className="size-8 shrink-0 sm:size-9"
-                      style={{ color: GREEN }}
-                      strokeWidth={2}
-                      aria-hidden
-                    />
-                  </div>
-                  <p className="w-full px-0.5 text-[13px] font-medium leading-snug text-white/92 text-balance sm:text-[16px]">
-                    {step.label}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        <div className="flex items-center justify-center mt-4">
-          <button
-            className="flex items-center gap-1 text-[12px] font-bold uppercase leading-none tracking-[0.2em] text-primary"
-            onClick={() => setShowAll(!showAll)}
-          >
-            {showAll ? <ArrowUp className="size-4 shrink-0" strokeWidth={2.6} aria-hidden /> : <ArrowDown className="size-4 shrink-0" strokeWidth={2.6} aria-hidden />}
-            {showAll ? "Ver menos" : "Ver mais"}
-          </button>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[14px] font-black uppercase leading-tight tracking-[0.02em] text-white min-[380px]:text-[15px]">
+                      {title}
+                    </span>
+                    <span className="mt-0.5 block text-[12px] font-medium leading-snug text-white/55">
+                      {desc}
+                    </span>
+                  </span>
+                  <ChevronRight
+                    className="size-4 shrink-0 text-white/35 transition group-hover:text-primary"
+                    strokeWidth={2.4}
+                    aria-hidden
+                  />
+                </button>
+              </li>
+            ))}
+          </ul>
         </div>
-      </div>
-    </section>
+      </section>
+
+      <RankingPalpitesStepsModal
+        open={palpitesModalOpen}
+        onOpenChange={setPalpitesModalOpen}
+        palpitesHref="/palpites"
+      />
+      <ScoringExplainerModal
+        open={scoringModalOpen}
+        onOpenChange={setScoringModalOpen}
+      />
+    </>
   );
 }
 
@@ -1841,6 +1900,8 @@ export function BoloesClient({
             </section>
           );
         })}
+
+        <BoloesAjudaSection />
       </div>
     </div>
   );

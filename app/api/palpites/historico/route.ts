@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 import { fetchMatchesMap, getMatchFromMap } from "@/lib/football-api";
 import { calcPredictionPoints, listPredictions, type PredictionBolaoType } from "@/lib/predictions";
+import {
+  formatRankingHistoricoLiveLabel,
+  isRankingHistoricoLive,
+} from "@/lib/ranking/historico-display";
 import { inferBolaoTypeFromTicketId } from "@/lib/ticket-kind-server";
 import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
 import { fetchExtraChampionshipIdByTicketIds } from "@/lib/ticket-competition-server";
@@ -54,11 +58,27 @@ export async function GET(request: NextRequest) {
         normalizedMatchId != null && comp != null && Number.isFinite(comp) && comp > 0
           ? getMatchFromMap(matches, comp, normalizedMatchId)
           : undefined;
-      const scored = m?.resultCasa != null && m?.resultVisitante != null;
+      const resultadoCasa = m?.resultCasa ?? null;
+      const resultadoVisitante = m?.resultVisitante ?? null;
+      const hasScore = resultadoCasa != null && resultadoVisitante != null;
       const calc =
-        scored && m
-          ? calcPredictionPoints(p.score_casa, p.score_visitante, m.resultCasa!, m.resultVisitante!)
+        hasScore && m
+          ? calcPredictionPoints(
+              p.score_casa,
+              p.score_visitante,
+              resultadoCasa,
+              resultadoVisitante,
+            )
           : null;
+      const matchInput = {
+        matchStatus: m?.status ?? null,
+        kickoffAt: m?.kickoffAt ?? null,
+        jogoData: m?.dateBR,
+        jogoHora: m?.hour,
+        resultadoCasa,
+        resultadoVisitante,
+      };
+      const aoVivo = m ? isRankingHistoricoLive(matchInput) : false;
       return {
         matchId: normalizedMatchId ?? p.match_id,
         ticketId: p.ticket_id,
@@ -71,10 +91,14 @@ export async function GET(request: NextRequest) {
         jogoHora: m?.hour ?? "-",
         palpiteCasa: p.score_casa,
         palpiteVisitante: p.score_visitante,
-        resultadoCasa: m?.resultCasa ?? null,
-        resultadoVisitante: m?.resultVisitante ?? null,
+        resultadoCasa,
+        resultadoVisitante,
         pontos: calc?.points ?? 0,
         exact: calc?.exact ?? false,
+        aoVivo,
+        liveLabel: aoVivo ? formatRankingHistoricoLiveLabel(matchInput) : null,
+        matchStatus: m?.status ?? null,
+        kickoffAt: m?.kickoffAt ?? null,
         submittedAt: p.submitted_at.toISOString(),
         updatedAt: p.updated_at.toISOString(),
       };
