@@ -512,12 +512,18 @@ const PALPITE_CARD_PANEL_CLASS =
 function Escudo({
   url,
   alt,
+  sigla,
   size = "md",
 }: {
   url: string;
   alt: string;
+  sigla?: string;
   size?: "sm" | "md" | "lg";
 }) {
+  const [imgFailed, setImgFailed] = useState(false);
+  useEffect(() => {
+    setImgFailed(false);
+  }, [url]);
   const box =
     size === "sm"
       ? "size-[56px] rounded-[12px] p-2"
@@ -526,12 +532,31 @@ function Escudo({
         : "size-[68px] rounded-[14px] p-2.5";
   const img =
     size === "sm" ? "size-10" : size === "lg" ? "size-14" : "size-12";
+  const fallbackLabel = (sigla?.trim() || alt).slice(0, 3).toUpperCase();
+  const showImg = Boolean(url?.trim()) && !imgFailed;
+
   return (
     <div
       className={`flex shrink-0 items-center justify-center overflow-hidden ${box}`}
       style={{ background: "rgba(255,255,255,0.96)" }}
     >
-      <img src={url} alt={alt} className={`${img} object-contain drop-shadow-sm`} />
+      {showImg ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={url}
+          alt={alt}
+          className={`${img} object-contain`}
+          loading="lazy"
+          decoding="async"
+          onError={() => setImgFailed(true)}
+        />
+      ) : (
+        <span
+          className={`font-black uppercase text-[#0E141B] ${size === "lg" ? "text-[15px]" : size === "sm" ? "text-[11px]" : "text-[13px]"}`}
+        >
+          {fallbackLabel}
+        </span>
+      )}
     </div>
   );
 }
@@ -999,7 +1024,7 @@ function PalpiteCardStatusBar({
         <span
           className={`inline-flex items-center gap-1.5 rounded-md bg-[#E53935] px-2 py-0.5 ${PALPITE_CARD_TYPE.badge} text-white`}
         >
-          <span className="size-1.5 rounded-full bg-white" aria-hidden />
+          <Disc className="size-3 shrink-0 fill-white text-white" strokeWidth={0} aria-hidden />
           AO VIVO
         </span>
         <span className={`inline-flex items-center gap-1 ${PALPITE_CARD_TYPE.metaLive}`}>
@@ -1021,8 +1046,9 @@ function PalpiteCardStatusBar({
         style={{ background: "rgba(0,0,0,0.18)" }}
       >
         <span
-          className={`rounded-md bg-primary px-2.5 py-0.5 ${PALPITE_CARD_TYPE.badge} text-[#0E141B]`}
+          className={`inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-0.5 ${PALPITE_CARD_TYPE.badge} text-[#0E141B]`}
         >
+          <CircleCheck className="size-3 shrink-0" strokeWidth={2.5} aria-hidden />
           Resultado
         </span>
         <span className={`flex min-w-0 items-center gap-1 ${PALPITE_CARD_TYPE.metaMuted}`}>
@@ -1098,12 +1124,6 @@ function PalpitePontuacaoBreakdown({
 }) {
   const ptsHeadline =
     review.points > 0 ? `+${review.points}` : String(review.points);
-  const toneGlow =
-    resumo.tone === "win"
-      ? "0 0 28px rgba(177,235,11,0.22)"
-      : resumo.tone === "partial"
-        ? "0 0 22px rgba(230,194,32,0.14)"
-        : "none";
   const accentBar =
     resumo.tone === "win"
       ? "linear-gradient(180deg, #E8FF8A 0%, #B1EB0B 100%)"
@@ -1121,7 +1141,6 @@ function PalpitePontuacaoBreakdown({
         style={{
           background: PALPITE_PANEL_BG,
           border: "1px solid rgba(255,255,255,0.08)",
-          boxShadow: toneGlow,
         }}
       >
         <span
@@ -1131,7 +1150,8 @@ function PalpitePontuacaoBreakdown({
         />
         <div className="flex items-center gap-3 py-3.5 pl-4 pr-3">
           <div className="min-w-0 flex-1">
-            <p className="text-[12px] font-black uppercase tracking-[0.14em] text-primary">
+            <p className="flex items-center gap-1.5 text-[12px] font-black uppercase tracking-[0.14em] text-primary">
+              <Coins className="size-3.5 shrink-0" strokeWidth={2.4} aria-hidden />
               Pontuação
             </p>
             <p className="mt-0.5 line-clamp-2 text-[14px] font-bold leading-snug text-white">
@@ -1392,13 +1412,6 @@ function JogoCard({
       )
       : [];
 
-  const cardShadow =
-    phase === "live"
-      ? "0 8px 26px rgba(0,0,0,0.40), 0 0 20px rgba(177,235,11,0.14)"
-      : phase === "post" && review && review.points > 0
-        ? "0 8px 28px rgba(0,0,0,0.38), 0 0 24px rgba(177,235,11,0.20)"
-        : "0 6px 20px rgba(0,0,0,0.30)";
-
   const liveTempoLabel = (() => {
     const raw = formatLiveClockLabel(jogo, nowMs);
     if (!raw) return null;
@@ -1414,11 +1427,8 @@ function JogoCard({
 
   return (
     <div
-      className="mb-4 overflow-hidden rounded-2xl"
-      style={{
-        background: PALPITE_CARD_BG,
-        boxShadow: cardShadow,
-      }}
+      className="mb-4 overflow-hidden rounded-2xl border border-white/[0.06]"
+      style={{ background: PALPITE_CARD_BG }}
     >
       <PalpiteCardStatusBar
         phase={phase}
@@ -1438,7 +1448,12 @@ function JogoCard({
             }}
           >
             <div className="flex min-w-0 flex-col items-center">
-              <Escudo url={jogo.escudoCasa} alt={jogo.timeCasa} size="lg" />
+              <Escudo
+                url={jogo.escudoCasa}
+                alt={jogo.timeCasa}
+                sigla={jogo.siglasCasa}
+                size="lg"
+              />
               <p className={PALPITE_CARD_TYPE.teamNameShield}>{jogo.timeCasa}</p>
             </div>
             <div className="flex flex-col items-center px-1">
@@ -1451,7 +1466,12 @@ function JogoCard({
               <p className={PALPITE_CARD_TYPE.scorePhaseAccent}>Fim de jogo</p>
             </div>
             <div className="flex min-w-0 flex-col items-center">
-              <Escudo url={jogo.escudoVisitante} alt={jogo.timeVisitante} size="lg" />
+              <Escudo
+                url={jogo.escudoVisitante}
+                alt={jogo.timeVisitante}
+                sigla={jogo.siglasVisitante}
+                size="lg"
+              />
               <p className={PALPITE_CARD_TYPE.teamNameShield}>{jogo.timeVisitante}</p>
             </div>
           </div>
@@ -1462,7 +1482,10 @@ function JogoCard({
                 className={`mx-4 mb-3 sm:mx-5 ${PALPITE_CARD_PANEL_CLASS}`}
                 style={{ background: PALPITE_PANEL_BG }}
               >
-                <p className={PALPITE_CARD_TYPE.panelTitleTight}>Meu palpite</p>
+                <p className={`flex items-center justify-center gap-1.5 ${PALPITE_CARD_TYPE.panelTitleTight}`}>
+                  <Target className="size-3.5 shrink-0 text-primary" strokeWidth={2.4} aria-hidden />
+                  Meu palpite
+                </p>
                 <PalpiteScoreBoxes casa={scoreCasa} visitante={scoreVisitante} />
               </div>
 
@@ -1489,7 +1512,12 @@ function JogoCard({
             style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
           >
             <div className="flex min-w-0 flex-col items-center">
-              <Escudo url={jogo.escudoCasa} alt={jogo.timeCasa} size="lg" />
+              <Escudo
+                url={jogo.escudoCasa}
+                alt={jogo.timeCasa}
+                sigla={jogo.siglasCasa}
+                size="lg"
+              />
               <p className={PALPITE_CARD_TYPE.teamNameShield}>{jogo.timeCasa}</p>
             </div>
             <div className="flex flex-col items-center px-1">
@@ -1503,7 +1531,12 @@ function JogoCard({
               ) : null}
             </div>
             <div className="flex min-w-0 flex-col items-center">
-              <Escudo url={jogo.escudoVisitante} alt={jogo.timeVisitante} size="lg" />
+              <Escudo
+                url={jogo.escudoVisitante}
+                alt={jogo.timeVisitante}
+                sigla={jogo.siglasVisitante}
+                size="lg"
+              />
               <p className={PALPITE_CARD_TYPE.teamNameShield}>{jogo.timeVisitante}</p>
             </div>
           </div>
@@ -1513,7 +1546,10 @@ function JogoCard({
               className={`mx-4 mb-3 sm:mx-5 ${PALPITE_CARD_PANEL_CLASS}`}
               style={{ background: PALPITE_PANEL_BG }}
             >
-              <p className={PALPITE_CARD_TYPE.panelTitleTight}>Seu palpite</p>
+              <p className={`flex items-center justify-center gap-1.5 ${PALPITE_CARD_TYPE.panelTitleTight}`}>
+                <Target className="size-3.5 shrink-0 text-primary" strokeWidth={2.4} aria-hidden />
+                Seu palpite
+              </p>
               <PalpiteScoreBoxes casa={scoreCasa} visitante={scoreVisitante} />
             </div>
           ) : null}
@@ -1532,10 +1568,18 @@ function JogoCard({
             className={`mx-4 mb-4 sm:mx-5 ${PALPITE_CARD_PANEL_CLASS}`}
             style={{ background: PALPITE_PANEL_BG }}
           >
-            <p className={PALPITE_CARD_TYPE.panelTitle}>Seu palpite</p>
+            <p className={`flex items-center justify-center gap-1.5 ${PALPITE_CARD_TYPE.panelTitle}`}>
+              <Target className="size-3.5 shrink-0 text-primary" strokeWidth={2.4} aria-hidden />
+              Seu palpite
+            </p>
             <div className="flex items-center justify-between gap-2">
               <div className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
-                <Escudo url={jogo.escudoCasa} alt={jogo.timeCasa} size="md" />
+                <Escudo
+                  url={jogo.escudoCasa}
+                  alt={jogo.timeCasa}
+                  sigla={jogo.siglasCasa}
+                  size="md"
+                />
                 <p className={PALPITE_CARD_TYPE.sideLabel}>Casa</p>
                 <p className={PALPITE_CARD_TYPE.teamName}>{jogo.timeCasa}</p>
               </div>
@@ -1575,7 +1619,12 @@ function JogoCard({
                 )}
               </div>
               <div className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
-                <Escudo url={jogo.escudoVisitante} alt={jogo.timeVisitante} size="md" />
+                <Escudo
+                  url={jogo.escudoVisitante}
+                  alt={jogo.timeVisitante}
+                  sigla={jogo.siglasVisitante}
+                  size="md"
+                />
                 <p className={PALPITE_CARD_TYPE.sideLabel}>Fora</p>
                 <p className={PALPITE_CARD_TYPE.teamName}>{jogo.timeVisitante}</p>
               </div>
