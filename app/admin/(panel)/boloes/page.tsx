@@ -20,7 +20,7 @@ export default async function AdminBoloesPage() {
           </p>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <Link
             href="/admin/boloes/principal"
             className="block rounded-[18px] border border-white/8 bg-white/3 p-5 transition-colors hover:border-primary/20 hover:bg-white/5 lg:col-span-1"
@@ -28,7 +28,7 @@ export default async function AdminBoloesPage() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-[12px] font-black uppercase tracking-[0.2em] text-primary">Principal</p>
-                <h3 className="mt-3 text-[24px] font-black leading-none tracking-[-0.04em] text-white">Bolão principal</h3>
+                <h3 className="mt-3 text-[20px] font-black leading-none tracking-[-0.04em] text-white sm:text-[24px]">Bolão principal</h3>
                 <p className="mt-2 text-[12px] font-bold text-white/38">Ranking geral de cotas principais.</p>
               </div>
               <span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-black text-primary">

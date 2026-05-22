@@ -2,7 +2,11 @@ import Link from "next/link";
 import Image from "next/image";
 import logo from "@/app/assets/logo.svg";
 import type { AdminUser } from "@/lib/admin/auth";
+import { AdminLogoutButton } from "@/app/admin/_components/AdminLogoutButton";
+import { AdminMobileMenu } from "@/app/admin/_components/AdminMobileMenu";
 import { AdminSidenav } from "@/app/admin/_components/AdminSidenav";
+
+export { AdminPageTitle } from "@/app/admin/_components/AdminPageTitle";
 
 export function AdminShell({ admin, children }: { admin: AdminUser; children: React.ReactNode }) {
   return (
@@ -15,36 +19,22 @@ export function AdminShell({ admin, children }: { admin: AdminUser; children: Re
           <p className="mb-4 text-[12px] font-black uppercase tracking-[0.24em] text-white/22">Menu</p>
           <AdminSidenav />
         </div>
-        <div className="mt-auto border-t border-white/8 pt-5">
-          <p className="text-[12px] font-black uppercase tracking-[0.2em] text-primary">Admin</p>
-          <p className="mt-2 truncate text-[14px] font-bold text-white/88">{admin.name ?? admin.email}</p>
-          <p className="mt-1 text-[12px] font-bold uppercase tracking-[0.16em] text-white/28">{admin.role}</p>
+        <div className="mt-auto space-y-4 border-t border-white/8 pt-5">
+          <div>
+            <p className="text-[12px] font-black uppercase tracking-[0.2em] text-primary">Admin</p>
+            <p className="mt-2 truncate text-[14px] font-bold text-white/88">{admin.name ?? admin.email}</p>
+            <p className="mt-1 text-[12px] font-bold uppercase tracking-[0.16em] text-white/28">{admin.role}</p>
+          </div>
+          <AdminLogoutButton />
         </div>
       </aside>
 
-      <main className="min-h-screen px-4 pb-12 pt-5 lg:ml-[280px] lg:px-8 lg:pt-8">
-        <div className="mx-auto w-full max-w-[1180px]">
-          <header className="mb-6 flex items-center justify-between rounded-[18px] border border-white/8 bg-[#0D0D0D] px-4 py-4 lg:hidden">
-            <Image src={logo} alt="Bolão do Milhão" width={150} height={36} className="h-auto w-[150px]" />
-            <span className="rounded-full bg-primary px-3 py-1 text-[12px] font-black uppercase text-[#0E141B]">
-              Admin
-            </span>
-          </header>
+      <main className="min-h-screen px-3 pb-[max(3rem,env(safe-area-inset-bottom))] pt-3 sm:px-4 sm:pt-5 lg:ml-[280px] lg:px-8 lg:pt-8">
+        <div className="mx-auto w-full min-w-0 max-w-[1180px]">
+          <AdminMobileMenu admin={admin} />
           {children}
         </div>
       </main>
-    </div>
-  );
-}
-
-export function AdminPageTitle({ title, subtitle }: { title: string; subtitle: string }) {
-  return (
-    <div className="mb-7">
-      <p className="text-[11px] font-black uppercase tracking-[0.22em] text-primary">Painel administrativo</p>
-      <h1 className="mt-2 text-[34px] font-black leading-none tracking-[-0.045em] text-white lg:text-[44px]">
-        {title}
-      </h1>
-      <p className="mt-3 max-w-2xl text-[14px] font-medium leading-relaxed text-white/80">{subtitle}</p>
     </div>
   );
 }

@@ -18,7 +18,7 @@ export default async function AdminCotasPage() {
   return (
     <>
       <AdminPageTitle title="Cotas" subtitle="Lista operacional apenas das cotas pagas, com uso, pontuação e ranking." />
-      <div className="mb-5 grid gap-4 md:grid-cols-4">
+      <div className="mb-5 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
         {[
           { label: "Cotas pagas", value: paidTickets.toLocaleString("pt-BR") },
           { label: "Disponíveis", value: availableTickets.toLocaleString("pt-BR") },

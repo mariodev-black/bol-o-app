@@ -1,25 +1,12 @@
 "use client";
 
-import { formatAdminTicketType } from "@/lib/admin/format";
+import { AdminTableScroll } from "@/app/admin/_components/AdminTableScroll";
+import { formatAdminBRL, formatAdminDateTime, formatAdminTicketType } from "@/lib/admin/format";
 import type { AdminTransactionListItem } from "@/lib/admin/sections";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 const PAGE_SIZE = 50;
-
-function formatBRL(cents: number) {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(cents / 100);
-}
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(new Date(value));
-}
 
 function statusLabel(status: string) {
   const normalized = status.toLowerCase();
@@ -36,7 +23,7 @@ function statusLabel(status: string) {
     )
   )
     return "Falhou";
-  return status || "Nao informado";
+  return status || "Não informado";
 }
 
 function statusClassName(status: string) {
@@ -79,7 +66,7 @@ export function AdminTransactionsClient({
 
   return (
     <section className="overflow-hidden rounded-[18px] border border-white/8 bg-[#101010]">
-      <div className="overflow-x-auto">
+      <AdminTableScroll>
         <table className="min-w-[1180px] w-full text-left">
           <thead className="border-b border-white/8 bg-white/2.5">
             <tr className="text-[11px] font-black uppercase tracking-[0.16em] text-white/80">
@@ -146,7 +133,7 @@ export function AdminTransactionsClient({
                   </span>
                 </td>
                 <td className="px-4 py-4 font-black text-white">
-                  {formatBRL(transaction.amountCents)}
+                  {formatAdminBRL(transaction.amountCents)}
                 </td>
                 <td className="px-4 py-4">
                   <p className="font-bold uppercase text-white/58">
@@ -154,7 +141,7 @@ export function AdminTransactionsClient({
                   </p>{" "}
                 </td>
                 <td className="px-4 py-4 text-white/80">
-                  {formatDate(transaction.createdAt)}
+                  {formatAdminDateTime(transaction.createdAt)}
                 </td>
               </tr>
             ))}
@@ -181,7 +168,7 @@ export function AdminTransactionsClient({
             </p>
           </div>
         )}
-      </div>
+      </AdminTableScroll>
     </section>
   );
 }

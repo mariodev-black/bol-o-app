@@ -1,5 +1,14 @@
 "use client";
 
+import { adminStatGridClass, adminTabButtonClass } from "@/app/admin/_components/admin-layout";
+import { AdminTabBar } from "@/app/admin/_components/AdminTabBar";
+import { AdminTableScroll } from "@/app/admin/_components/AdminTableScroll";
+import {
+  formatAdminBRL,
+  formatAdminCpaBps,
+  formatAdminDate,
+  maskAdminCpf,
+} from "@/lib/admin/format";
 import type { AdminPendingWithdrawalRow } from "@/lib/admin/withdrawals";
 import type { AdminAffiliateDashboardData } from "@/lib/admin/sections";
 import Link from "next/link";
@@ -8,27 +17,6 @@ import type { RefObject } from "react";
 
 type Tab = "affiliates" | "referred" | "commissions" | "withdrawals";
 const PAGE_SIZE = 50;
-
-function formatBRL(cents: number) {
-  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
-}
-
-function formatCpa(cpaBps: number | null | undefined) {
-  return `${((cpaBps ?? 0) / 100).toLocaleString("pt-BR", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  })}%`;
-}
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("pt-BR").format(new Date(value));
-}
-
-function maskCpf(cpf: string | null) {
-  const digits = (cpf ?? "").replace(/\D/g, "");
-  if (digits.length !== 11) return cpf || "-";
-  return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
-}
 
 export function AdminAffiliatesClient({ data }: { data: AdminAffiliateDashboardData }) {
   const [tab, setTab] = useState<Tab>("affiliates");
@@ -49,7 +37,8 @@ export function AdminAffiliatesClient({ data }: { data: AdminAffiliateDashboardD
     { label: "Influencers", value: data.stats.influencersCount.toLocaleString("pt-BR") },
     { label: "Indicados", value: data.stats.referredUsersCount.toLocaleString("pt-BR") },
     { label: "Comissões", value: data.stats.commissionsCount.toLocaleString("pt-BR") },
-    { label: "Total comissões", value: formatBRL(data.stats.commissionTotalCents) },
+    { label: "Total comissões", value: formatAdminBRL(data.stats.commissionTotalCents) },
+    { label: "Saques pendentes", value: formatAdminBRL(data.stats.pendingWithdrawalsCents) },
   ];
 
   const visibleAffiliates = useMemo(() => data.affiliates.slice(0, visible.affiliates), [data.affiliates, visible.affiliates]);
@@ -85,7 +74,7 @@ export function AdminAffiliatesClient({ data }: { data: AdminAffiliateDashboardD
         if (r.ok && Array.isArray(d.items)) setWithdrawRows(d.items);
         else {
           setWithdrawRows([]);
-          setWithdrawError(d.error || "Nao foi possivel carregar");
+          setWithdrawError(d.error || "Não foi possível carregar");
         }
       } catch {
         if (!cancelled) {
@@ -149,7 +138,7 @@ export function AdminAffiliatesClient({ data }: { data: AdminAffiliateDashboardD
 
   return (
     <>
-      <div className="mb-5 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <div className={`${adminStatGridClass} lg:grid-cols-3 xl:grid-cols-6`}>
         {cards.map((card) => (
           <article key={card.label} className="rounded-[18px] border border-white/8 bg-[#101010] p-5">
             <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/80">{card.label}</p>
@@ -159,19 +148,19 @@ export function AdminAffiliatesClient({ data }: { data: AdminAffiliateDashboardD
       </div>
 
       <section className="rounded-[18px] border border-white/8 bg-[#101010]">
-        <div className="flex flex-wrap gap-2 border-b border-white/8 p-3">
+        <AdminTabBar>
           {[
             { id: "affiliates" as const, label: "Dados afiliados" },
-            { id: "referred" as const, label: "Usuários indicados" },
+            { id: "referred" as const, label: "Indicados" },
             { id: "commissions" as const, label: "Comissões" },
-            { id: "withdrawals" as const, label: "Saques pendentes" },
+            { id: "withdrawals" as const, label: "Saques" },
           ].map((item) => (
             <button
               key={item.id}
               type="button"
               onClick={() => resetTab(item.id)}
               className={[
-                "h-10 rounded-full px-4 text-[12px] font-black uppercase tracking-[0.12em] transition-colors",
+                adminTabButtonClass,
                 tab === item.id
                   ? "bg-primary text-black"
                   : "border border-white/10 bg-white/5 text-white/48 hover:text-white",
@@ -180,10 +169,10 @@ export function AdminAffiliatesClient({ data }: { data: AdminAffiliateDashboardD
               {item.label}
             </button>
           ))}
-        </div>
+        </AdminTabBar>
 
         {tab === "affiliates" ? (
-          <div className="overflow-x-auto">
+          <AdminTableScroll>
             <table className="min-w-[980px] w-full text-left">
               <thead className="border-b border-white/8 bg-white/2.5">
                 <tr className="text-[11px] font-black uppercase tracking-[0.16em] text-white/80">
@@ -212,27 +201,27 @@ export function AdminAffiliatesClient({ data }: { data: AdminAffiliateDashboardD
                           ? "border-primary/25 bg-primary/10 text-primary"
                           : "border-white/10 bg-white/5 text-white/58",
                       ].join(" ")}>
-                        {affiliate.affiliateMode === "influencer" ? `Influencer ${formatCpa(affiliate.influencerCpaBps)}` : "Padrão"}
+                        {affiliate.affiliateMode === "influencer" ? `Influencer ${formatAdminCpaBps(affiliate.influencerCpaBps)}` : "Padrão"}
                       </span>
                     </td>
                     <td className="px-4 py-4 font-mono text-white/80">{affiliate.referralCode ?? "-"}</td>
                     <td className="px-4 py-4 font-black text-white">{affiliate.referredUsersCount}</td>
                     <td className="px-4 py-4 font-black text-primary">{affiliate.paidReferralsCount}</td>
                     <td className="px-4 py-4">
-                      <p className="font-black text-white">{formatBRL(affiliate.commissionsCents)}</p>
+                      <p className="font-black text-white">{formatAdminBRL(affiliate.commissionsCents)}</p>
                       <p className="mt-1 text-[14px] text-white/80">{affiliate.commissionsCount} registros</p>
                     </td>
-                    <td className="px-4 py-4 text-white/80">{formatDate(affiliate.createdAt)}</td>
+                    <td className="px-4 py-4 text-white/80">{formatAdminDate(affiliate.createdAt)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
             <ScrollFooter refEl={loadMoreRef} hasMore={hasMore} visible={visibleByTab.affiliates} total={totalByTab.affiliates} label="afiliados" />
-          </div>
+          </AdminTableScroll>
         ) : null}
 
         {tab === "referred" ? (
-          <div className="overflow-x-auto">
+          <AdminTableScroll>
             <table className="min-w-[1040px] w-full text-left">
               <thead className="border-b border-white/8 bg-white/2.5">
                 <tr className="text-[11px] font-black uppercase tracking-[0.16em] text-white/80">
@@ -252,7 +241,7 @@ export function AdminAffiliatesClient({ data }: { data: AdminAffiliateDashboardD
                         <p className="mt-1 text-white/80">{user.email}</p>
                       </Link>
                     </td>
-                    <td className="px-4 py-4 font-mono text-white/80">{maskCpf(user.cpf)}</td>
+                    <td className="px-4 py-4 font-mono text-white/80">{maskAdminCpf(user.cpf)}</td>
                     <td className="px-4 py-4">
                       <Link href={`/admin/users/${user.referrerId}`} className="block">
                         <p className="font-bold text-white hover:text-primary">{user.referrerName ?? "Sem nome"}</p>
@@ -260,17 +249,17 @@ export function AdminAffiliatesClient({ data }: { data: AdminAffiliateDashboardD
                       </Link>
                     </td>
                     <td className="px-4 py-4 font-black text-primary">{user.paidTicketsCount}</td>
-                    <td className="px-4 py-4 text-white/80">{formatDate(user.createdAt)}</td>
+                    <td className="px-4 py-4 text-white/80">{formatAdminDate(user.createdAt)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
             <ScrollFooter refEl={loadMoreRef} hasMore={hasMore} visible={visibleByTab.referred} total={totalByTab.referred} label="usuários indicados" />
-          </div>
+          </AdminTableScroll>
         ) : null}
 
         {tab === "commissions" ? (
-          <div className="overflow-x-auto">
+          <AdminTableScroll>
             <table className="min-w-[960px] w-full text-left">
               <thead className="border-b border-white/8 bg-white/2.5">
                 <tr className="text-[11px] font-black uppercase tracking-[0.16em] text-white/80">
@@ -292,27 +281,27 @@ export function AdminAffiliatesClient({ data }: { data: AdminAffiliateDashboardD
                       <p className="font-bold text-white">{commission.referredName ?? "Sem nome"}</p>
                       <p className="mt-1 text-white/80">{commission.referredEmail}</p>
                     </td>
-                    <td className="px-4 py-4 font-black text-primary">{formatBRL(commission.amountCents)}</td>
+                    <td className="px-4 py-4 font-black text-primary">{formatAdminBRL(commission.amountCents)}</td>
                     <td className="px-4 py-4 text-white/80">
                       <p className="font-black text-white">
-                        {commission.commissionModel === "influencer" ? `Influencer ${formatCpa(commission.cpaBps)}` : commission.tier}
+                        {commission.commissionModel === "influencer" ? `Influencer ${formatAdminCpaBps(commission.cpaBps)}` : commission.tier}
                       </p>
                       <p className="mt-1 text-[14px] text-white/30">
                         #{commission.commissionIndex}
-                        {commission.baseAmountCents ? ` · base ${formatBRL(commission.baseAmountCents)}` : ""}
+                        {commission.baseAmountCents ? ` · base ${formatAdminBRL(commission.baseAmountCents)}` : ""}
                       </p>
                     </td>
-                    <td className="px-4 py-4 text-white/80">{formatDate(commission.createdAt)}</td>
+                    <td className="px-4 py-4 text-white/80">{formatAdminDate(commission.createdAt)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
             <ScrollFooter refEl={loadMoreRef} hasMore={hasMore} visible={visibleByTab.commissions} total={totalByTab.commissions} label="comissões" />
-          </div>
+          </AdminTableScroll>
         ) : null}
 
         {tab === "withdrawals" ? (
-          <div className="overflow-x-auto">
+          <AdminTableScroll hint={withdrawRows.length > 0}>
             {withdrawLoading ? (
               <p className="py-10 text-center text-[13px] font-bold text-white/38">Carregando saques…</p>
             ) : null}
@@ -355,12 +344,12 @@ export function AdminAffiliatesClient({ data }: { data: AdminAffiliateDashboardD
                           {row.balanceSource === "wallet" ? "Conta" : "Afiliado"}
                         </span>
                       </td>
-                      <td className="px-4 py-4 font-black text-primary">{formatBRL(row.amountCents)}</td>
+                      <td className="px-4 py-4 font-black text-primary">{formatAdminBRL(row.amountCents)}</td>
                       <td className="px-4 py-4 text-white/80">
                         <p className="font-bold text-white/70 uppercase text-[11px]">{row.pixKeyType}</p>
                         <p className="mt-1 font-mono text-[12px] break-all">{row.pixKey}</p>
                       </td>
-                      <td className="px-4 py-4 text-white/80">{formatDate(row.createdAt)}</td>
+                      <td className="px-4 py-4 text-white/80">{formatAdminDate(row.createdAt)}</td>
                       <td className="px-4 py-4 text-right">
                         <div className="flex flex-wrap justify-end gap-2">
                           <button
@@ -394,7 +383,7 @@ export function AdminAffiliatesClient({ data }: { data: AdminAffiliateDashboardD
                 </p>
               </div>
             ) : null}
-          </div>
+          </AdminTableScroll>
         ) : null}
       </section>
     </>

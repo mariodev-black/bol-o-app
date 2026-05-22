@@ -5,11 +5,7 @@ import { isValidCpf, normalizeCpf } from "@/lib/auth/cpf";
 import { hashPassword } from "@/lib/auth/password";
 import { attachSessionCookie } from "@/lib/auth/session";
 import { responseForDbError } from "@/lib/db-errors";
-import {
-  normalizeRegistrationPhoneE164,
-  verifyRegistrationSmsCode,
-} from "@/lib/auth/registration-sms";
-import { isValidBrazilNationalDigits } from "@/lib/auth/phone";
+import { isValidBrazilNationalDigits, normalizeBrazilPhoneE164 } from "@/lib/auth/phone";
 import { createUserWithPassword, getRegistrationConflicts } from "@/lib/auth/users";
 import { sendWelcomeEmail } from "@/lib/email/registration";
 import { ensureWelcomeNotification } from "@/lib/notifications/user-notifications";
@@ -22,7 +18,6 @@ const bodySchema = z.object({
   cpf: z.string().min(1, "CPF obrigatório"),
   password: z.string().min(8, "Senha deve ter no mínimo 8 caracteres").max(200),
   phone: z.string().min(8, "Telefone obrigatório").max(40),
-  smsCode: z.string().min(6, "Código SMS obrigatório").max(8),
   /** Código de indicação de outro usuário (opcional). */
   referralCode: z.string().max(12).optional().nullable(),
   acceptTerms: z
@@ -49,7 +44,6 @@ export async function POST(request: NextRequest) {
     name: nameRaw,
     password,
     phone,
-    smsCode,
     acceptTerms: _acceptTerms,
     referralCode: referralCodeRaw,
   } = parsed.data;
@@ -68,28 +62,9 @@ export async function POST(request: NextRequest) {
   if (!isValidBrazilNationalDigits(phoneDigits)) {
     return NextResponse.json({ error: "Telefone inválido" }, { status: 400 });
   }
-  const phoneE164 = normalizeRegistrationPhoneE164(phoneDigits);
+  const phoneE164 = normalizeBrazilPhoneE164(phoneDigits);
   if (!phoneE164) {
     return NextResponse.json({ error: "Telefone inválido" }, { status: 400 });
-  }
-
-  const smsVerify = await verifyRegistrationSmsCode({
-    phoneE164,
-    cpf,
-    code: smsCode,
-  });
-  if (!smsVerify.ok) {
-    // Propaga metadados estruturados (attemptsRemaining + locked) para o front
-    // exibir UI específica: contador de tentativas, banner "código bloqueado",
-    // botão "reenviar" em destaque. Mantém compat com clientes que só leem `error`.
-    return NextResponse.json(
-      {
-        error: smsVerify.error,
-        attemptsRemaining: smsVerify.attemptsRemaining,
-        locked: smsVerify.locked ?? false,
-      },
-      { status: smsVerify.locked ? 423 : 400 },
-    );
   }
 
   try {

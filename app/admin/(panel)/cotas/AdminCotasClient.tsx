@@ -1,15 +1,12 @@
 "use client";
 
-import { formatAdminTicketType } from "@/lib/admin/format";
+import { AdminTableScroll } from "@/app/admin/_components/AdminTableScroll";
+import { formatAdminBRL, formatAdminTicketType } from "@/lib/admin/format";
 import type { AdminTicketListItem } from "@/lib/admin/sections";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 const PAGE_SIZE = 50;
-
-function formatBRL(cents: number) {
-  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
-}
 
 function shortId(id: string) {
   return id.slice(0, 8).toUpperCase();
@@ -49,7 +46,7 @@ export function AdminCotasClient({ tickets }: { tickets: AdminTicketListItem[] }
 
   return (
     <section className="overflow-hidden rounded-[18px] border border-white/8 bg-[#101010]">
-      <div className="overflow-x-auto">
+      <AdminTableScroll>
         <table className="min-w-[1240px] w-full table-fixed text-left">
           <thead className="border-b border-white/8 bg-white/2.5">
             <tr className="text-[11px] font-black uppercase tracking-[0.16em] text-white/80">
@@ -95,7 +92,7 @@ export function AdminCotasClient({ tickets }: { tickets: AdminTicketListItem[] }
                   <Link href={`/admin/cotas/${ticket.id}`} className="block">{ticket.quantity}</Link>
                 </td>
                 <td className="px-4 py-4 font-black text-white">
-                  <Link href={`/admin/cotas/${ticket.id}`} className="block">{formatBRL(ticket.totalAmountCents)}</Link>
+                  <Link href={`/admin/cotas/${ticket.id}`} className="block">{formatAdminBRL(ticket.totalAmountCents)}</Link>
                 </td>
                 <td className="px-4 py-4">
                   <Link href={`/admin/cotas/${ticket.id}`} className="block">
@@ -151,7 +148,7 @@ export function AdminCotasClient({ tickets }: { tickets: AdminTicketListItem[] }
             </p>
           </div>
         )}
-      </div>
+      </AdminTableScroll>
     </section>
   );
 }

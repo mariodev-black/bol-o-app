@@ -1,3 +1,4 @@
+import { AdminTableScroll } from "@/app/admin/_components/AdminTableScroll";
 import type { AdminBolaoRankingRow } from "@/lib/admin/sections";
 import Link from "next/link";
 
@@ -6,7 +7,7 @@ function shortId(id: string) {
 }
 
 function formatDate(value: string | null) {
-  if (!value) return "Nao informado";
+  if (!value) return "Não informado";
   return new Intl.DateTimeFormat("pt-BR", {
     dateStyle: "short",
     timeStyle: "short",
@@ -36,7 +37,7 @@ export function BolaoRankingTable({
   }
 
   return (
-    <div className="overflow-x-auto">
+    <AdminTableScroll>
       <table className="min-w-[980px] w-full text-left">
         <thead className="border-b border-white/8 bg-white/2.5">
           <tr className="text-[11px] font-black uppercase tracking-[0.16em] text-white/80">
@@ -93,6 +94,6 @@ export function BolaoRankingTable({
           ))}
         </tbody>
       </table>
-    </div>
+    </AdminTableScroll>
   );
 }

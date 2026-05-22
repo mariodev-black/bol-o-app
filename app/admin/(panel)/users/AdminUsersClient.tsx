@@ -1,5 +1,7 @@
 "use client";
 
+import { adminStatGridClass, adminStatValueClass } from "@/app/admin/_components/admin-layout";
+import { AdminTableScroll } from "@/app/admin/_components/AdminTableScroll";
 import type { AdminUserListItem } from "@/lib/admin/users";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -114,7 +116,7 @@ export function AdminUsersClient({ users }: { users: AdminUserListItem[] }) {
 
   return (
     <>
-      <div className="mb-5 grid gap-4 md:grid-cols-4">
+      <div className={adminStatGridClass}>
         {[
           { label: "Usuários", value: stats.totalUsers.toLocaleString("pt-BR") },
           { label: "Cotas totais", value: stats.totalTickets.toLocaleString("pt-BR") },
@@ -123,7 +125,7 @@ export function AdminUsersClient({ users }: { users: AdminUserListItem[] }) {
         ].map((card) => (
           <article key={card.label} className="rounded-[16px] border border-white/8 bg-[#101010] p-4">
             <p className="text-[12px] font-black uppercase tracking-[0.18em] text-white/80">{card.label}</p>
-            <p className="mt-3 text-[24px] font-black leading-none text-primary">{card.value}</p>
+            <p className={adminStatValueClass}>{card.value}</p>
           </article>
         ))}
       </div>
@@ -169,7 +171,7 @@ export function AdminUsersClient({ users }: { users: AdminUserListItem[] }) {
       </section>
 
       <section className="overflow-hidden rounded-[18px] border border-white/8 bg-[#101010]">
-        <div className="overflow-x-auto">
+        <AdminTableScroll>
           <table className="min-w-[1120px] w-full text-left">
             <thead className="border-b border-white/8 bg-white/2.5">
               <tr className="text-[11px] font-black uppercase tracking-[0.16em] text-white/80">
@@ -243,7 +245,7 @@ export function AdminUsersClient({ users }: { users: AdminUserListItem[] }) {
               </p>
             </div>
           ) : null}
-        </div>
+        </AdminTableScroll>
       </section>
     </>
   );

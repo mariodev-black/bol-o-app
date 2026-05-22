@@ -1,6 +1,15 @@
 "use client";
 
-import { formatAdminTicketType } from "@/lib/admin/format";
+import { adminTabButtonClass } from "@/app/admin/_components/admin-layout";
+import { AdminInfoCard } from "@/app/admin/_components/AdminInfoCard";
+import { AdminTabBar } from "@/app/admin/_components/AdminTabBar";
+import { AdminTableScroll } from "@/app/admin/_components/AdminTableScroll";
+import {
+  formatAdminBRL,
+  formatAdminDateTime,
+  formatAdminTicketType,
+  maskAdminCpf,
+} from "@/lib/admin/format";
 import type { AdminUserDetail, AdminUserListItem } from "@/lib/admin/users";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -18,24 +27,6 @@ const ROLE_LABELS: Record<Role, string> = {
   super_admin: "Super admin",
 };
 
-function formatBRL(cents: number) {
-  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
-}
-
-function formatDate(value: string | null) {
-  if (!value) return "Nao informado";
-  return new Intl.DateTimeFormat("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(new Date(value));
-}
-
-function maskCpf(value: string | null) {
-  const digits = (value ?? "").replace(/\D/g, "");
-  if (digits.length !== 11) return value ?? "Nao informado";
-  return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
-}
-
 function cpaPercentFromBps(value: number) {
   return (value / 100).toLocaleString("pt-BR", {
     minimumFractionDigits: 0,
@@ -50,15 +41,6 @@ function cpaBpsFromInput(value: string) {
   return Math.max(0, Math.min(10000, Math.round(parsed * 100)));
 }
 
-function InfoCard({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <article className="rounded-[16px] border border-white/8 bg-[#101010] p-4">
-      <p className="text-[12px] font-black uppercase tracking-[0.18em] text-white/80">{label}</p>
-      <div className="mt-3 text-[14px] font-bold text-white/82">{value}</div>
-    </article>
-  );
-}
-
 function PermissionCard({
   role,
   canManageRole,
@@ -70,7 +52,7 @@ function PermissionCard({
 }) {
   if (!canManageRole) {
     return (
-      <InfoCard label="Permissão atual" value={<span className="uppercase text-primary">{ROLE_LABELS[role]}</span>} />
+      <AdminInfoCard label="Permissão atual" value={<span className="uppercase text-primary">{ROLE_LABELS[role]}</span>} />
     );
   }
 
@@ -221,14 +203,14 @@ export function AdminUserDetailTabs({
 
   return (
     <section className="rounded-[18px] border border-white/8 bg-[#080808]">
-      <div className="flex flex-wrap gap-2 border-b border-white/8 p-3">
+      <AdminTabBar>
         {tabs.map((item) => (
           <button
             key={item.id}
             type="button"
             onClick={() => setTab(item.id)}
             className={[
-              "h-10 rounded-full px-4 text-[12px] font-black uppercase tracking-[0.12em] transition-colors",
+              adminTabButtonClass,
               tab === item.id
                 ? "bg-primary text-black"
                 : "border border-white/10 bg-white/5 text-white/48 hover:text-white",
@@ -237,22 +219,22 @@ export function AdminUserDetailTabs({
             {item.label}
           </button>
         ))}
-      </div>
+      </AdminTabBar>
 
-      <div className="p-5">
+      <div className="p-4 sm:p-5">
         {tab === "cadastro" ? (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <InfoCard label="ID" value={<span className="font-mono text-[11px]">{user.id}</span>} />
-            <InfoCard label="Nome" value={user.name ?? "Sem nome"} />
-            <InfoCard label="E-mail" value={user.email} />
-            <InfoCard label="Telefone" value={user.phone ?? "Nao informado"} />
-            <InfoCard label="CPF" value={maskCpf(user.cpf)} />
-            <InfoCard label="Criado em" value={formatDate(user.createdAt)} />
-            <InfoCard label="E-mail verificado" value={formatDate(user.emailVerifiedAt)} />
-            <InfoCard label="Balance usuário" value={<span className="text-primary">{formatBRL(user.balanceCents)}</span>} />
-            <InfoCard label="Balance afiliado" value={<span className="text-primary">{formatBRL(user.affiliateBalanceCents)}</span>} />
-            <InfoCard label="Role" value={<span className="uppercase text-primary">{ROLE_LABELS[currentRole]}</span>} />
-            <InfoCard
+            <AdminInfoCard label="ID" value={<span className="font-mono text-[11px]">{user.id}</span>} />
+            <AdminInfoCard label="Nome" value={user.name ?? "Sem nome"} />
+            <AdminInfoCard label="E-mail" value={user.email} />
+            <AdminInfoCard label="Telefone" value={user.phone ?? "Não informado"} />
+            <AdminInfoCard label="CPF" value={maskAdminCpf(user.cpf)} />
+            <AdminInfoCard label="Criado em" value={formatAdminDateTime(user.createdAt)} />
+            <AdminInfoCard label="E-mail verificado" value={formatAdminDateTime(user.emailVerifiedAt)} />
+            <AdminInfoCard label="Balance usuário" value={<span className="text-primary">{formatAdminBRL(user.balanceCents)}</span>} />
+            <AdminInfoCard label="Balance afiliado" value={<span className="text-primary">{formatAdminBRL(user.affiliateBalanceCents)}</span>} />
+            <AdminInfoCard label="Role" value={<span className="uppercase text-primary">{ROLE_LABELS[currentRole]}</span>} />
+            <AdminInfoCard
               label="Modo afiliado"
               value={
                 <span className={affiliateMode === "influencer" ? "text-primary" : "text-white/72"}>
@@ -266,13 +248,13 @@ export function AdminUserDetailTabs({
         {tab === "afiliados" ? (
           <div className="grid gap-5">
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              <InfoCard label="Código afiliado" value={user.referralCode ?? "Nao informado"} />
-              <InfoCard label="Modelo" value={affiliateMode === "influencer" ? `Influencer - ${cpaPercentFromBps(influencerCpaBps)}% CPA` : "Afiliado padrão"} />
-              <InfoCard label="Balance afiliado" value={<span className="text-primary">{formatBRL(user.affiliateBalanceCents)}</span>} />
-              <InfoCard label="Indicado por" value={<span className="font-mono text-[11px]">{user.referredByUserId ?? "Nao informado"}</span>} />
-              <InfoCard label="Usuários indicados" value={user.referredUsersCount.toLocaleString("pt-BR")} />
-              <InfoCard label="Comissões geradas" value={formatBRL(user.commissionsCents)} />
-              <InfoCard label="Transações pagas" value={`${user.paidTransactionsCount}/${user.transactionsCount}`} />
+              <AdminInfoCard label="Código afiliado" value={user.referralCode ?? "Não informado"} />
+              <AdminInfoCard label="Modelo" value={affiliateMode === "influencer" ? `Influencer - ${cpaPercentFromBps(influencerCpaBps)}% CPA` : "Afiliado padrão"} />
+              <AdminInfoCard label="Balance afiliado" value={<span className="text-primary">{formatAdminBRL(user.affiliateBalanceCents)}</span>} />
+              <AdminInfoCard label="Indicado por" value={<span className="font-mono text-[11px]">{user.referredByUserId ?? "Não informado"}</span>} />
+              <AdminInfoCard label="Usuários indicados" value={user.referredUsersCount.toLocaleString("pt-BR")} />
+              <AdminInfoCard label="Comissões geradas" value={formatAdminBRL(user.commissionsCents)} />
+              <AdminInfoCard label="Transações pagas" value={`${user.paidTransactionsCount}/${user.transactionsCount}`} />
             </div>
 
             <section className="overflow-hidden rounded-[18px] border border-white/8 bg-[#101010]">
@@ -283,7 +265,7 @@ export function AdminUserDetailTabs({
                 </p>
               </div>
               {referredUsers.length ? (
-                <div className="overflow-x-auto">
+                <AdminTableScroll>
                   <table className="min-w-[860px] w-full text-left">
                     <thead className="border-b border-white/8 bg-white/2.5">
                       <tr className="text-[11px] font-black uppercase tracking-[0.16em] text-white/80">
@@ -302,14 +284,14 @@ export function AdminUserDetailTabs({
                               <p className="mt-1 text-white/80">{referred.email}</p>
                             </Link>
                           </td>
-                          <td className="px-4 py-4 font-mono text-white/80">{maskCpf(referred.cpf)}</td>
+                          <td className="px-4 py-4 font-mono text-white/80">{maskAdminCpf(referred.cpf)}</td>
                           <td className="px-4 py-4">
                             <p className="font-black text-white">{referred.ticketsCount.toLocaleString("pt-BR")}</p>
                             <p className="mt-1 text-[14px] font-bold text-white/80">
                               {referred.paidTicketsCount.toLocaleString("pt-BR")} pagas
                             </p>
                           </td>
-                          <td className="px-4 py-4 text-white/80">{formatDate(referred.createdAt)}</td>
+                          <td className="px-4 py-4 text-white/80">{formatAdminDateTime(referred.createdAt)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -321,7 +303,7 @@ export function AdminUserDetailTabs({
                     total={referredUsers.length}
                     label="usuários indicados"
                   />
-                </div>
+                </AdminTableScroll>
               ) : (
                 <div className="px-5 py-12 text-center">
                   <p className="text-[15px] font-black text-white">Nenhum usuário indicado ainda</p>
@@ -335,10 +317,10 @@ export function AdminUserDetailTabs({
         {tab === "influencer" ? (
           <div className="grid gap-5">
             <div className="grid gap-3 sm:grid-cols-3">
-              <InfoCard label="Modo atual" value={affiliateMode === "influencer" ? "Influencer" : "Afiliado padrão"} />
-              <InfoCard label="CPA atual" value={`${cpaPercentFromBps(influencerCpaBps)}%`} />
-              <InfoCard label="Balance afiliado" value={formatBRL(user.affiliateBalanceCents)} />
-              <InfoCard label="Comissões geradas" value={formatBRL(user.commissionsCents)} />
+              <AdminInfoCard label="Modo atual" value={affiliateMode === "influencer" ? "Influencer" : "Afiliado padrão"} />
+              <AdminInfoCard label="CPA atual" value={`${cpaPercentFromBps(influencerCpaBps)}%`} />
+              <AdminInfoCard label="Balance afiliado" value={formatAdminBRL(user.affiliateBalanceCents)} />
+              <AdminInfoCard label="Comissões geradas" value={formatAdminBRL(user.commissionsCents)} />
             </div>
 
             <section className="rounded-[18px] border border-white/8 bg-[#101010] p-5">
@@ -349,7 +331,7 @@ export function AdminUserDetailTabs({
                 </p>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px]">
+              <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(180px,220px)]">
                 <label className="block">
                   <span className="mb-2 block text-[12px] font-black uppercase tracking-[0.18em] text-white/80">
                     Modelo do afiliado
@@ -408,7 +390,7 @@ export function AdminUserDetailTabs({
         {tab === "seguranca" ? (
           <div className="grid gap-5">
             <div className="grid gap-3 sm:grid-cols-2">
-              <InfoCard
+              <AdminInfoCard
                 label="2FA admin"
                 value={
                   <span className={user.twoFactorEnabled ? "text-primary" : "text-red-300"}>
@@ -436,7 +418,7 @@ export function AdminUserDetailTabs({
               <p className="mt-1 text-[12px] font-medium text-white/38">Clique em uma cota para abrir os detalhes dela.</p>
             </div>
             {user.tickets.length ? (
-              <div className="overflow-x-auto">
+              <AdminTableScroll>
                 <table className="min-w-[840px] w-full text-left">
                   <thead className="border-b border-white/8 bg-white/2.5">
                     <tr className="text-[11px] font-black uppercase tracking-[0.16em] text-white/80">
@@ -467,13 +449,13 @@ export function AdminUserDetailTabs({
                           </Link>
                         </td>
                         <td className="px-4 py-4 font-black text-white">
-                          <Link href={`/admin/cotas/${ticket.id}`} className="block">{formatBRL(ticket.totalAmountCents)}</Link>
+                          <Link href={`/admin/cotas/${ticket.id}`} className="block">{formatAdminBRL(ticket.totalAmountCents)}</Link>
                         </td>
                         <td className="px-4 py-4 text-white/80">
                           <Link href={`/admin/cotas/${ticket.id}`} className="block">{ticket.predictionsCount}</Link>
                         </td>
                         <td className="px-4 py-4 text-white/80">
-                          <Link href={`/admin/cotas/${ticket.id}`} className="block">{formatDate(ticket.createdAt)}</Link>
+                          <Link href={`/admin/cotas/${ticket.id}`} className="block">{formatAdminDateTime(ticket.createdAt)}</Link>
                         </td>
                       </tr>
                     ))}
@@ -486,7 +468,7 @@ export function AdminUserDetailTabs({
                   total={user.tickets.length}
                   label="cotas"
                 />
-              </div>
+              </AdminTableScroll>
             ) : (
               <div className="px-5 py-12 text-center">
                 <p className="text-[15px] font-black text-white">Nenhuma cota encontrada</p>

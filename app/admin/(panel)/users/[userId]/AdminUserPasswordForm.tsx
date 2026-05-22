@@ -52,7 +52,7 @@ export function AdminUserPasswordForm({ userId }: { userId: string }) {
           A nova senha substitui a senha atual de login deste usuário.
         </p>
       </div>
-      <form onSubmit={handleSubmit} className="mt-5 grid gap-3 lg:grid-cols-[1fr_1fr_auto]">
+      <form onSubmit={handleSubmit} className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_auto]">
         <input
           type="password"
           value={password}

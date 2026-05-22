@@ -1,5 +1,7 @@
 "use client";
 
+import { AdminTableScroll } from "@/app/admin/_components/AdminTableScroll";
+
 import { formatAdminTicketType } from "@/lib/admin/format";
 import type { AdminPredictionListItem } from "@/lib/admin/sections";
 import Image from "next/image";
@@ -43,7 +45,7 @@ function pointsLabel(prediction: AdminPredictionListItem) {
 function bolaoLabel(value: string) {
   if (value === "principal") return "Principal";
   if (value === "diario") return "Diário";
-  return value || "Nao informado";
+  return value || "Não informado";
 }
 
 function TeamLogo({ src, alt }: { src: string | null; alt: string }) {
@@ -134,7 +136,7 @@ export function AdminPalpitesClient({ predictions }: { predictions: AdminPredict
             Lista completa de palpites enviados, vinculados ao usuário, cota e partida.
           </p>
         </div>
-        <div className="overflow-x-auto">
+        <AdminTableScroll>
           <table className="min-w-[1300px] w-full table-fixed text-left">
             <thead className="border-b border-white/8 bg-white/2.5">
               <tr className="text-[11px] font-black uppercase tracking-[0.16em] text-white/80">
@@ -222,7 +224,7 @@ export function AdminPalpitesClient({ predictions }: { predictions: AdminPredict
               </p>
             </div>
           ) : null}
-        </div>
+        </AdminTableScroll>
       </section>
     </>
   );

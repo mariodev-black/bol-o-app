@@ -23,7 +23,6 @@ import {
   AuthLegalFooter,
   AuthPasswordField,
   AuthPrimaryButton,
-  AuthSmsCodeInput,
   AuthStepNav,
   AuthStepper,
   maskCPF,
@@ -55,23 +54,6 @@ function isValidEmailLoose(v: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t);
 }
 
-function formatPhoneDisplay(digits: string) {
-  const d = digits.replace(/\D/g, "");
-  if (d.length < 10) return d;
-  const masked = maskBrazilPhone(d);
-  return `+55 ${masked}`;
-}
-
-const SMS_MAX_ATTEMPTS = 5;
-
-function formatCooldown(secs: number): string {
-  const s = Math.max(0, Math.floor(secs));
-  const m = Math.floor(s / 60);
-  const r = s % 60;
-  if (m <= 0) return `${r}s`;
-  return r === 0 ? `${m}m` : `${m}m ${String(r).padStart(2, "0")}s`;
-}
-
 export function CadastrarContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -89,14 +71,6 @@ export function CadastrarContent() {
   const [password, setPassword] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const emailRef = useRef<HTMLDivElement>(null);
-
-  const [smsCode, setSmsCode] = useState("");
-  const [smsSending, setSmsSending] = useState(false);
-  const [smsDevMode, setSmsDevMode] = useState(false);
-  const [resendCooldown, setResendCooldown] = useState(0);
-  const [smsResendsRemaining, setSmsResendsRemaining] = useState<number | null>(null);
-  const [smsAttemptsRemaining, setSmsAttemptsRemaining] = useState<number | null>(null);
-  const [smsLocked, setSmsLocked] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
@@ -140,12 +114,6 @@ export function CadastrarContent() {
     return () => document.removeEventListener("mousedown", outside);
   }, []);
 
-  useEffect(() => {
-    if (resendCooldown <= 0) return;
-    const t = setTimeout(() => setResendCooldown((s) => Math.max(0, s - 1)), 1000);
-    return () => clearTimeout(t);
-  }, [resendCooldown]);
-
   function handleEmailChange(v: string) {
     setEmail(v);
     const atIdx = v.indexOf("@");
@@ -163,53 +131,6 @@ export function CadastrarContent() {
     setSuggestions([]);
   }
 
-  async function sendSmsCode(): Promise<boolean> {
-    setSmsSending(true);
-    try {
-      const r = await fetch("/api/auth/register/send-code", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          cpf: cpfDigits,
-          phone: phoneDigits,
-          email: email.trim() || undefined,
-          name: nameTrim,
-        }),
-      });
-      const data = (await r.json()) as {
-        error?: string;
-        retryAfterSeconds?: number;
-        cooldownSeconds?: number;
-        resendsRemaining?: number;
-        devMode?: boolean;
-      };
-      if (!r.ok) {
-        if (data.retryAfterSeconds) setResendCooldown(data.retryAfterSeconds);
-        toast.error(data.error ?? "Não foi possível enviar o código pelo WhatsApp.");
-        return false;
-      }
-      setSmsDevMode(Boolean(data.devMode));
-      setResendCooldown(
-        typeof data.cooldownSeconds === "number" && data.cooldownSeconds > 0
-          ? data.cooldownSeconds
-          : 0,
-      );
-      setSmsResendsRemaining(
-        typeof data.resendsRemaining === "number" ? data.resendsRemaining : null,
-      );
-      setSmsCode("");
-      setSmsAttemptsRemaining(SMS_MAX_ATTEMPTS);
-      setSmsLocked(false);
-      return true;
-    } catch {
-      toast.error("Erro de rede ao enviar o código pelo WhatsApp.");
-      return false;
-    } finally {
-      setSmsSending(false);
-    }
-  }
-
   function goFromStep1() {
     if (!nameValid) {
       toast.error("Informe seu nome (mínimo 2 caracteres).");
@@ -222,7 +143,10 @@ export function CadastrarContent() {
     setStep(2);
   }
 
-  async function goFromStep2() {
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (step !== 2) return;
+
     if (!nameValid || !cpfValid) {
       toast.error("Revise nome e CPF.");
       setStep(1);
@@ -245,34 +169,6 @@ export function CadastrarContent() {
       return;
     }
 
-    const sent = await sendSmsCode();
-    if (sent) setStep(3);
-  }
-
-  async function handleResendSms() {
-    if (resendCooldown > 0 || smsSending) return;
-    await sendSmsCode();
-  }
-
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (step !== 3) return;
-
-    if (!nameValid || !cpfValid) {
-      toast.error("Revise nome e CPF.");
-      setStep(1);
-      return;
-    }
-    if (!phoneValid) {
-      toast.error("Telefone inválido.");
-      setStep(2);
-      return;
-    }
-    if (smsCode.replace(/\D/g, "").length !== 6) {
-      toast.error("Informe o código de 6 dígitos enviado pelo WhatsApp.");
-      return;
-    }
-
     setLoading(true);
     try {
       const r = await fetch("/api/auth/register", {
@@ -285,7 +181,6 @@ export function CadastrarContent() {
           cpf: cpfDigits,
           password,
           phone: phoneDigits,
-          smsCode: smsCode.replace(/\D/g, ""),
           referralCode: referralCodeResolved,
           acceptTerms: true,
         }),
@@ -295,8 +190,6 @@ export function CadastrarContent() {
         error?: string;
         user?: AuthUser;
         referralWarning?: string;
-        attemptsRemaining?: number;
-        locked?: boolean;
       } = {};
       try {
         data = raw ? (JSON.parse(raw) as typeof data) : {};
@@ -305,13 +198,6 @@ export function CadastrarContent() {
         return;
       }
       if (!r.ok) {
-        if (typeof data.attemptsRemaining === "number") {
-          setSmsAttemptsRemaining(data.attemptsRemaining);
-        }
-        if (data.locked) {
-          setSmsLocked(true);
-          setSmsCode("");
-        }
         toast.error(
           typeof data.error === "string" && data.error.trim().length > 0
             ? data.error
@@ -343,14 +229,12 @@ export function CadastrarContent() {
     email.trim().length > 0 &&
     confirmEmail.trim().length > 0 &&
     password.length >= 8 &&
-    !smsSending &&
     !loading;
-  const step3Ready = smsCode.replace(/\D/g, "").length === 6 && !loading && !smsLocked;
-  const busy = loading || smsSending;
+  const busy = loading;
 
   return (
     <form onSubmit={handleSubmit} noValidate className="flex flex-col">
-      {step > 1 ? <AuthStepper step={step} total={3} /> : null}
+      {step > 1 ? <AuthStepper step={step} total={2} /> : null}
 
       {step === 1 && (
         <div key="step-1" className="auth-step-panel flex flex-col gap-4">
@@ -452,8 +336,8 @@ export function CadastrarContent() {
                     <button
                       key={domain}
                       type="button"
-                      onMouseDown={(e) => {
-                        e.preventDefault();
+                      onMouseDown={(ev) => {
+                        ev.preventDefault();
                         applySuggestion(domain);
                       }}
                       className="flex w-full border-b border-white/5 px-3 py-2.5 text-left text-[13px] last:border-0 hover:bg-white/5"
@@ -488,85 +372,8 @@ export function CadastrarContent() {
           />
 
           <AuthStepNav onBack={() => setStep(1)} backDisabled={busy}>
-            <AuthPrimaryButton
-              type="button"
-              disabled={!step2Ready}
-              onClick={() => void goFromStep2()}
-            >
-              {smsSending ? "Enviando WhatsApp..." : "Finalizar cadastro"}
-            </AuthPrimaryButton>
-          </AuthStepNav>
-        </div>
-      )}
-
-      {step === 3 && (
-        <div key="step-3" className="auth-step-panel">
-          <div className="mb-6 text-center">
-            <h2 className="text-[18px] font-bold text-white">Confirme seu WhatsApp</h2>
-            <p className="mt-2 text-[13px] leading-relaxed text-white/55">
-              Enviamos um código de 6 dígitos pelo WhatsApp para{" "}
-              <span className="font-semibold text-white/85">{formatPhoneDisplay(phoneDigits)}</span>
-              .
-            </p>
-            {smsDevMode ? (
-              <p className="mt-2 text-[11px] font-medium text-[#B1EB0B]/90">
-                Modo desenvolvimento: confira o código no log do servidor.
-              </p>
-            ) : null}
-          </div>
-
-          <AuthSmsCodeInput
-            value={smsCode}
-            onChange={setSmsCode}
-            disabled={busy || smsLocked}
-            ariaLabel="Código de verificação por WhatsApp"
-          />
-
-          {smsLocked ? (
-            <p className="mt-3 text-center text-[12px] font-medium text-red-300">
-              Código bloqueado após várias tentativas. Solicite um novo código pelo WhatsApp.
-            </p>
-          ) : typeof smsAttemptsRemaining === "number" &&
-            smsAttemptsRemaining > 0 &&
-            smsAttemptsRemaining < SMS_MAX_ATTEMPTS ? (
-            <p className="mt-3 text-center text-[12px] text-white/55">
-              {smsAttemptsRemaining === 1
-                ? "Última tentativa restante."
-                : `${smsAttemptsRemaining} tentativas restantes.`}
-            </p>
-          ) : null}
-
-          <div className="mt-5 text-center">
-            <button
-              type="button"
-              disabled={resendCooldown > 0 || smsSending}
-              onClick={() => void handleResendSms()}
-              className="text-[13px] font-semibold text-[#B1EB0B] transition-opacity hover:underline disabled:cursor-not-allowed disabled:text-white/35"
-            >
-              {resendCooldown > 0
-                ? `Reenviar código em ${formatCooldown(resendCooldown)}`
-                : "Reenviar código pelo WhatsApp"}
-            </button>
-            {smsResendsRemaining != null && smsResendsRemaining > 0 && resendCooldown <= 0 ? (
-              <p className="mt-2 text-[11px] text-white/45">
-                {smsResendsRemaining === 1
-                  ? "Mais 1 reenvio imediato disponível."
-                  : `Mais ${smsResendsRemaining} reenvios imediatos disponíveis.`}
-              </p>
-            ) : null}
-          </div>
-
-          <AuthStepNav
-            onBack={() => {
-              setSmsCode("");
-              setSmsResendsRemaining(null);
-              setResendCooldown(0);
-              setStep(2);
-            }}
-            backDisabled={busy}
-          >
-            <AuthPrimaryButton type="submit" disabled={!step3Ready}>
-              {loading ? "Confirmando..." : "Confirmar conta"}
+            <AuthPrimaryButton type="submit" disabled={!step2Ready}>
+              {loading ? "Criando conta..." : "Finalizar cadastro"}
             </AuthPrimaryButton>
           </AuthStepNav>
         </div>

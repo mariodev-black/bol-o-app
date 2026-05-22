@@ -1,11 +1,7 @@
 import { AdminPageTitle } from "@/app/admin/_components/AdminShell";
-import { formatAdminTicketType } from "@/lib/admin/format";
+import { formatAdminBRL, formatAdminTicketType } from "@/lib/admin/format";
 import { getAdminDashboardStats } from "@/lib/admin/users";
 import { AdminDateRangePicker } from "./AdminDateRangePicker";
-
-function formatBRL(cents: number) {
-  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
-}
 
 function toInputDate(date: Date) {
   const year = date.getFullYear();
@@ -65,18 +61,18 @@ function AreaChart({
   const formatValue = valueFormatter ?? ((value: number) => value.toLocaleString("pt-BR"));
 
   return (
-    <section className="rounded-[22px] border border-white/8 bg-[#101010] p-5 shadow-[0_18px_50px_rgba(0,0,0,0.25)] w-full">
-      <div className="mb-5 flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-[15px] font-black text-white">{title}</h2>
-          <p className="mt-1 text-[12px] font-medium text-white/38">{subtitle}</p>
+    <section className="w-full rounded-[18px] border border-white/8 bg-[#101010] p-4 shadow-[0_18px_50px_rgba(0,0,0,0.25)] sm:rounded-[22px] sm:p-5">
+      <div className="mb-4 flex flex-col gap-2 sm:mb-5 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+        <div className="min-w-0">
+          <h2 className="text-[14px] font-black text-white sm:text-[15px]">{title}</h2>
+          <p className="mt-1 text-[11px] font-medium text-white/38 sm:text-[12px]">{subtitle}</p>
         </div>
-        <span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-black uppercase text-primary">
+        <span className="w-fit shrink-0 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[10px] font-black uppercase text-primary sm:text-[11px]">
           Período
         </span>
       </div>
-      <div className="overflow-hidden rounded-[18px] border border-white/6 bg-black/30 pb-1">
-        <svg viewBox={`0 0 ${width} ${height}`} className="h-[280px] w-full">
+      <div className="overflow-hidden rounded-[14px] border border-white/6 bg-black/30 pb-1 sm:rounded-[18px]">
+        <svg viewBox={`0 0 ${width} ${height}`} className="h-[200px] w-full sm:h-[260px] lg:h-[280px]">
           <defs>
             <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
               <stop offset="0%" stopColor="#B1EB0B" stopOpacity="0.38" />
@@ -172,21 +168,21 @@ export default async function AdminDashboardPage({
   }));
   const maxTicketType = Math.max(1, ...ticketTypeItems.map((item) => item.value));
   const cards = [
-    { label: "Receita confirmada", value: formatBRL(stats.revenueCents), hint: `${stats.paidTransactionsCount} transações pagas` },
+    { label: "Receita confirmada", value: formatAdminBRL(stats.revenueCents), hint: `${stats.paidTransactionsCount} transações pagas` },
     { label: "Cotas pagas", value: stats.paidTicketsCount.toLocaleString("pt-BR"), hint: `${stats.ticketsCount} cotas totais` },
     { label: "Conversão PIX", value: `${stats.conversionRate}%`, hint: `${stats.pendingTransactionsCount} pendentes` },
   ];
   return (
     <>
-      <div className="mb-7 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <div className="mb-5 flex flex-col gap-3 lg:mb-7 lg:flex-row lg:items-end lg:justify-between lg:gap-4">
         <AdminPageTitle title="Dashboard" subtitle="Visão geral segura da operação do Bolão do Milhão." />
         <AdminDateRangePicker startDate={startDate} endDate={endDate} />
       </div>
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
         {cards.map((card) => (
           <article key={card.label} className="rounded-[18px] border border-white/8 bg-[#101010] p-5 shadow-[0_18px_40px_rgba(0,0,0,0.28)]">
             <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/80">{card.label}</p>
-            <p className="mt-4 text-[30px] font-black leading-none tracking-[-0.05em] text-primary">{card.value}</p>
+            <p className="mt-4 text-[26px] font-black leading-none tracking-[-0.05em] text-primary sm:text-[30px]">{card.value}</p>
             <p className="mt-3 text-[12px] font-bold text-white/80">{card.hint}</p>
           </article>
         ))}
@@ -213,7 +209,7 @@ export default async function AdminDashboardPage({
         </article>
       </div>
       <div className="mt-5 w-full">
-        <AreaChart title="Receita confirmada" subtitle={`Volume pago. ${periodSubtitle}`} points={revenuePoints} valueFormatter={formatBRL} />
+        <AreaChart title="Receita confirmada" subtitle={`Volume pago. ${periodSubtitle}`} points={revenuePoints} valueFormatter={formatAdminBRL} />
       </div>
       <div className="mt-5 w-full">
         <AreaChart title="Pagamentos aprovados" subtitle={`Quantidade de transações pagas. ${periodSubtitle}`} points={transactionPoints} />

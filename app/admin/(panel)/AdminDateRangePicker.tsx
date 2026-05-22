@@ -208,16 +208,16 @@ export function AdminDateRangePicker({
 
   return (
     <>
-      <div className="relative">
+      <div className="relative w-full lg:w-auto">
         <button
           type="button"
           onClick={() => setMenuOpen((value) => !value)}
           disabled={isPending}
-          className="inline-flex h-11 items-center gap-3 rounded-[13px] border border-white/10 bg-[#101010] px-4 text-left transition-colors hover:border-primary/35 hover:bg-white/5 disabled:cursor-wait disabled:border-primary/25 disabled:bg-primary/8"
+          className="inline-flex h-11 w-full items-center justify-between gap-3 rounded-[13px] border border-white/10 bg-[#101010] px-4 text-left transition-colors hover:border-primary/35 hover:bg-white/5 disabled:cursor-wait disabled:border-primary/25 disabled:bg-primary/8 lg:w-auto lg:justify-start"
         >
-          <span>
+          <span className="min-w-0">
             <span className="block text-[9px] font-black uppercase tracking-[0.18em] text-white/32">Período</span>
-            <span className="block text-[12px] font-black text-white/86">
+            <span className="block truncate text-[12px] font-black text-white/86">
               {isPending ? "Carregando dados..." : `${formatDisplayDate(startDate)} - ${formatDisplayDate(endDate)}`}
             </span>
           </span>
@@ -236,7 +236,7 @@ export function AdminDateRangePicker({
               className="fixed inset-0 z-110 cursor-default bg-transparent"
               onClick={() => setMenuOpen(false)}
             />
-            <div className="absolute right-0 top-[calc(100%+10px)] z-120 w-[260px] overflow-hidden rounded-[18px] border border-white/10 bg-[#0B0E12] p-2 shadow-[0_20px_60px_rgba(0,0,0,0.45)]">
+            <div className="absolute left-0 right-0 top-[calc(100%+10px)] z-120 overflow-hidden rounded-[18px] border border-white/10 bg-[#0B0E12] p-2 shadow-[0_20px_60px_rgba(0,0,0,0.45)] sm:left-auto sm:right-0 sm:w-[280px]">
               {[
                 ["today", "Hoje", "Somente dados de hoje"],
                 ["yesterday", "Ontem", "Dia anterior"],
@@ -274,22 +274,25 @@ export function AdminDateRangePicker({
       </div>
 
       {open ? (
-        <div className="fixed inset-0 z-120 flex items-center justify-center bg-black/72 px-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-120 flex items-end justify-center bg-black/72 px-3 py-4 backdrop-blur-sm sm:items-center sm:px-4">
           <style>{`
             @keyframes adminDateFade { from { opacity: 0; } to { opacity: 1; } }
             @keyframes adminDatePop { from { opacity: 0; transform: translateY(14px) scale(.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
           `}</style>
           <div className="absolute inset-0" style={{ animation: "adminDateFade 160ms ease-out" }} onClick={() => setOpen(false)} />
-          <div className="relative w-full max-w-[920px] rounded-[22px] border border-white/10 bg-[#080B0F] p-6 shadow-[0_28px_90px_rgba(0,0,0,0.58)]" style={{ animation: "adminDatePop 180ms ease-out" }}>
-            <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div
+            className="relative max-h-[min(92vh,720px)] w-full max-w-[920px] overflow-y-auto rounded-t-[22px] border border-white/10 bg-[#080B0F] p-4 shadow-[0_28px_90px_rgba(0,0,0,0.58)] sm:rounded-[22px] sm:p-6"
+            style={{ animation: "adminDatePop 180ms ease-out" }}
+          >
+            <div className="mb-5 flex flex-col gap-3 sm:mb-6 lg:flex-row lg:items-start lg:justify-between">
               <div>
                 <p className="text-[12px] font-black uppercase tracking-[0.2em] text-primary">Filtrar dashboard</p>
-                <h3 className="mt-3 text-[24px] font-black tracking-[-0.04em] text-white">Selecione o período</h3>
+                <h3 className="mt-2 text-[20px] font-black tracking-[-0.04em] text-white sm:mt-3 sm:text-[24px]">Selecione o período</h3>
                 <p className="mt-2 text-[13px] font-medium text-white/82">Escolha duas datas para recalcular os indicadores.</p>
               </div>
             </div>
 
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-2">
               <CalendarMonth
                 month={visibleMonth}
                 draftStart={draftStart}

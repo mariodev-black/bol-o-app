@@ -16,3 +16,10 @@ export function isReasonableNationalDigits(digits: string): boolean {
   const d = digits.replace(/\D/g, "");
   return d.length >= 8 && d.length <= 15;
 }
+
+/** Celular brasileiro (10–11 dígitos nacionais) em E.164 (+55…). */
+export function normalizeBrazilPhoneE164(digits: string): string {
+  const d = digits.replace(/\D/g, "");
+  if (d.length < 10) return "";
+  return d.startsWith("55") && d.length >= 12 ? `+${d}` : `+55${d}`;
+}

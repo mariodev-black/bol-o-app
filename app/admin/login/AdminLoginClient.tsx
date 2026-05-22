@@ -43,7 +43,7 @@ export function AdminLoginClient() {
         className="relative w-full max-w-[430px] rounded-[24px] border border-white/8 bg-[#0B0D0F]/95 p-6 shadow-[0_28px_90px_rgba(0,0,0,0.62)]"
       >
         <div className="mb-7 text-center">
-          <span className="mx-auto flex h-13 w-13 items-center justify-center rounded-[16px] border border-primary/25 bg-primary/10 text-primary shadow-[0_0_30px_rgba(177,235,11,0.14)]">
+          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-[16px] border border-primary/25 bg-primary/10 text-primary shadow-[0_0_30px_rgba(177,235,11,0.14)]">
             <ShieldCheck className="h-6 w-6" />
           </span>
           <p className="mt-5 text-[12px] font-black uppercase tracking-[0.24em] text-primary">Painel administrativo</p>

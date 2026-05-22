@@ -19,7 +19,7 @@ export function TwoFactorClient({ enabled }: { enabled: boolean }) {
       const res = await fetch("/api/admin/2fa/setup", { method: "POST", credentials: "include" });
       const data = (await res.json()) as { secret?: string; otpauthUrl?: string; error?: string };
       if (!res.ok) {
-        setError(data.error ?? "Nao foi possivel iniciar o 2FA.");
+        setError(data.error ?? "Não foi possível iniciar o 2FA.");
         return;
       }
       setSecret(data.secret ?? "");
@@ -40,7 +40,7 @@ export function TwoFactorClient({ enabled }: { enabled: boolean }) {
       });
       const data = (await res.json()) as { error?: string };
       if (!res.ok) {
-        setError(data.error ?? "Codigo invalido.");
+        setError(data.error ?? "Código inválido.");
         return;
       }
       router.replace("/admin");

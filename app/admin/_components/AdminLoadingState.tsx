@@ -13,7 +13,7 @@ export function AdminLoadingState({ table = false }: { table?: boolean }) {
         </div>
         <SkeletonBlock className="h-11 w-64 rounded-[13px]" />
       </div>
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-4">
         {[0, 1, 2, 3].map((item) => (
           <SkeletonBlock key={item} className="h-[118px]" />
         ))}
