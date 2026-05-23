@@ -16,7 +16,6 @@ import {
   HEADER_MAIN_HEIGHT_MOBILE_PX,
   readInstallBannerDismissed,
   syncAppHeaderHeightCss,
-  syncPwaStandaloneLayoutCss,
 } from "@/app/shared/install-app-banner";
 import { useStandalonePwa } from "@/app/shared/useStandalonePwa";
 
@@ -74,17 +73,13 @@ export function Header() {
   useEffect(() => {
     if (!bannerHydrated || !ready) return;
 
-    if (isPwa) {
-      syncPwaStandaloneLayoutCss();
-      return;
-    }
-
     const mq = window.matchMedia("(min-width: 1024px)");
     const update = () => {
       const mainHeight = mq.matches
         ? HEADER_MAIN_HEIGHT_DESKTOP_PX
         : HEADER_MAIN_HEIGHT_MOBILE_PX;
-      const showInstallBanner = bannerVisible && !isHomePage;
+      const showInstallBanner =
+        bannerVisible && !isHomePage && !isPwa;
       syncAppHeaderHeightCss(showInstallBanner, mainHeight);
     };
 
@@ -106,16 +101,12 @@ export function Header() {
     [cadastroHref],
   );
 
-  /** Banner de instalar app: navegador mobile, exceto home (`/`). */
+  /** Faixa “Instale o app”: só no navegador (não no PWA instalado), exceto home. */
   const showInstallBanner =
     bannerHydrated && bannerVisible && !isHomePage && !isPwa;
 
   if (!ready) {
     // evita flicker entre "logado" e "deslogado" durante a hidratação
-    return null;
-  }
-
-  if (isPwa) {
     return null;
   }
 

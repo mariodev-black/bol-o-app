@@ -2,8 +2,6 @@ import type { Metadata } from "next";
 import { NavBottom } from "@/app/shared/NavBottom";
 import { PushNotificationsBanner } from "@/app/shared/PushNotificationsBanner";
 import { PushNotificationsModal } from "@/app/shared/PushNotificationsModal";
-import { PwaFloatingChrome } from "@/app/shared/PwaFloatingChrome";
-import { PwaLayoutSync } from "@/app/shared/PwaLayoutSync";
 import { Header } from "../shared/Header";
 import { Suspense } from "react";
 import { buildPageMetadata } from "@/lib/seo/config";
@@ -23,8 +21,6 @@ export default function AuthenticatedLayout({
     <div className="min-h-screen flex flex-col">
       <PushNotificationsBanner />
       <PushNotificationsModal />
-      <PwaLayoutSync />
-      <PwaFloatingChrome />
       <Header />
       <div className="flex flex-1 pt-[var(--app-header-height,96px)] md:pt-[var(--app-header-height,96px)]">
         <main className="flex min-w-0 flex-1 flex-col pb-32 md:pb-8">{children}</main>

@@ -13,17 +13,15 @@ import {
   shouldOfferPushNotificationsModal,
 } from "@/lib/push/push-prompt";
 import { useAuth } from "@/app/shared/AuthContext";
-import { useStandalonePwa } from "@/app/shared/useStandalonePwa";
 
 export function PushNotificationsBanner() {
   const { ready, isLoggedIn } = useAuth();
-  const isPwa = useStandalonePwa();
   const [visible, setVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!ready || !isLoggedIn || isPwa) {
+    if (!ready || !isLoggedIn) {
       setVisible(false);
       return;
     }
@@ -35,7 +33,7 @@ export function PushNotificationsBanner() {
 
     const t = window.setTimeout(() => setVisible(true), 1200);
     return () => window.clearTimeout(t);
-  }, [ready, isLoggedIn, isPwa]);
+  }, [ready, isLoggedIn]);
 
   const handleDismiss = useCallback(() => {
     persistPushPromptDismissed();
