@@ -50,4 +50,8 @@ Push Web só funciona com o site **adicionado à Tela de Início** (iOS 16.4+). 
 
 ## Ícones PWA
 
-Arquivos em `public/pwa/icon-192.png` e `icon-512.png`. Substitua por PNGs quadrados oficiais quando tiver arte final.
+Ícones em `public/pwa/` gerados a partir de `app/assets/logo-2.png` (mesmo `logoApp` do app). Regenerar após trocar a logo:
+
+```bash
+npm run pwa:icons
+```

@@ -11,6 +11,7 @@
     "email:disparo": "tsx --tsconfig tsconfig.scripts.json scripts/send-brasileirao-r17-campaign.ts",
     "export:cotas": "tsx --tsconfig tsconfig.scripts.json scripts/export-cotas-bolao-readme.ts",
     "db:notifications": "tsx --tsconfig tsconfig.scripts.json scripts/run-notifications-migration.ts",
+    "pwa:icons": "tsx --tsconfig tsconfig.scripts.json scripts/generate-pwa-icons.ts",
     "check:email-env": "tsx --tsconfig tsconfig.scripts.json scripts/check-email-env.ts",
     "build": "next build",
     "deploy:github": "bash scripts/deploy-from-github.sh",
