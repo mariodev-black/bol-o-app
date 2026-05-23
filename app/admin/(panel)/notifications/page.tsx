@@ -15,7 +15,7 @@ export default async function AdminNotificationsPage() {
     <>
       <AdminPageTitle
         title="Notificações"
-        subtitle="Dispare avisos no sininho do app, por e-mail ou nos dois canais — para todos ou usuários selecionados."
+        subtitle="Dispare por sininho, push PWA e/ou e-mail — canais independentes, para todos ou usuários selecionados."
       />
       <AdminNotificationsClient eligibleUsers={eligibleUsers} initialHistory={history} />
     </>

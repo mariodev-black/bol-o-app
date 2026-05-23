@@ -6,27 +6,87 @@ import { adminTabButtonClass } from "@/app/admin/_components/admin-layout";
 import { formatAdminDateTime } from "@/lib/admin/format";
 import {
   adminDeliveryMethodLabel,
+  type AdminBroadcastChannel,
   type AdminBroadcastHistoryItem,
-  type AdminDeliveryMethod,
 } from "@/lib/notifications/admin-broadcast-shared";
 import {
-  AdminNotificationMethodPicker,
-  methodIncludesApp,
-  methodIncludesEmail,
-} from "@/app/admin/(panel)/notifications/AdminNotificationMethodPicker";
-import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
-import type { FormEvent } from "react";
+  AdminNotificationChannelPicker,
+  channelIncludesApp,
+  channelIncludesEmail,
+  channelIncludesPush,
+} from "@/app/admin/(panel)/notifications/AdminNotificationChannelPicker";
 import { AdminEmailButtonFields } from "@/app/admin/(panel)/notifications/AdminEmailButtonFields";
+import { AdminPushUrlField } from "@/app/admin/(panel)/notifications/AdminPushUrlField";
 import {
   AdminNotificationRecipientPicker,
   type RecipientUser,
 } from "@/app/admin/(panel)/notifications/AdminNotificationRecipientPicker";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
+import type { FormEvent } from "react";
 
 type Tab = "send" | "history";
 
 const inputClass =
   "w-full rounded-[12px] border border-white/10 bg-black/40 px-4 py-3 text-[14px] font-semibold text-white outline-none placeholder:text-white/25 focus:border-primary/45";
+
+const DEFAULT_CHANNELS: AdminBroadcastChannel[] = ["app", "push"];
+
+function formatDispatchSuccess(
+  channels: AdminBroadcastChannel[],
+  d: {
+    requested?: number;
+    app?: { created?: number };
+    push?: { sent?: number; failed?: number };
+    email?: { sent?: number; failed?: number; queued?: boolean };
+  },
+): string {
+  const parts: string[] = [];
+  const requested = d.requested ?? 0;
+
+  if (channelIncludesApp(channels) && (d.app?.created ?? 0) > 0) {
+    parts.push(`${(d.app?.created ?? 0).toLocaleString("pt-BR")} no sininho`);
+  }
+  if (channelIncludesPush(channels)) {
+    const pushSent = d.push?.sent ?? 0;
+    const pushFailed = d.push?.failed ?? 0;
+    if (pushSent > 0) {
+      parts.push(`${pushSent.toLocaleString("pt-BR")} push PWA`);
+    } else if (channels.length === 1 && channels[0] === "push") {
+      parts.push(
+        "nenhum push entregue (usuários precisam ativar notificações no app instalado)",
+      );
+    }
+    if (pushFailed > 0) {
+      parts.push(`${pushFailed.toLocaleString("pt-BR")} falha(s) no push`);
+    }
+  }
+  if (channelIncludesEmail(channels)) {
+    if (d.email?.queued) {
+      parts.push(
+        `e-mail em fila para ${requested.toLocaleString("pt-BR")} destinatário(s)`,
+      );
+    } else if ((d.email?.sent ?? 0) > 0) {
+      parts.push(`${(d.email?.sent ?? 0).toLocaleString("pt-BR")} e-mail(s)`);
+    }
+    if ((d.email?.failed ?? 0) > 0) {
+      parts.push(`${(d.email?.failed ?? 0).toLocaleString("pt-BR")} falha(s) no e-mail`);
+    }
+  }
+
+  return parts.length > 0
+    ? `Disparo concluído: ${parts.join("; ")}.`
+    : "Disparo registrado (verifique canais e inscrições push).";
+}
+
+function submitButtonLabel(channels: AdminBroadcastChannel[]): string {
+  const labels: string[] = [];
+  if (channelIncludesApp(channels)) labels.push("sininho");
+  if (channelIncludesPush(channels)) labels.push("push");
+  if (channelIncludesEmail(channels)) labels.push("e-mail");
+  if (labels.length === 0) return "Enviar";
+  return `Enviar (${labels.join(" + ")})`;
+}
 
 export function AdminNotificationsClient({
   eligibleUsers,
@@ -44,7 +104,8 @@ export function AdminNotificationsClient({
   const [body, setBody] = useState("");
   const [buttonLabel, setButtonLabel] = useState("Enviar palpites");
   const [buttonUrl, setButtonUrl] = useState("/palpites");
-  const [method, setMethod] = useState<AdminDeliveryMethod>("app");
+  const [pushUrl, setPushUrl] = useState("/palpites");
+  const [channels, setChannels] = useState<AdminBroadcastChannel[]>(DEFAULT_CHANNELS);
   const [sendToAll, setSendToAll] = useState(true);
   const [selected, setSelected] = useState<RecipientUser[]>([]);
   const [loading, setLoading] = useState(false);
@@ -80,6 +141,11 @@ export function AdminNotificationsClient({
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    if (channels.length === 0) {
+      setError("Selecione pelo menos um canal de envio.");
+      return;
+    }
+
     setError(null);
     setSuccess(null);
     setLoading(true);
@@ -93,10 +159,11 @@ export function AdminNotificationsClient({
           title,
           preview,
           body,
-          method,
+          channels,
+          pushUrl,
           audience: sendToAll ? "all" : "selected",
           userIds: sendToAll ? undefined : selected.map((u) => u.id),
-          ...(methodIncludesEmail(method)
+          ...(channelIncludesEmail(channels)
             ? { buttonLabel, buttonUrl }
             : {}),
         }),
@@ -104,6 +171,7 @@ export function AdminNotificationsClient({
       const d = (await r.json()) as {
         ok?: boolean;
         requested?: number;
+        channels?: AdminBroadcastChannel[];
         app?: { created?: number };
         push?: { sent?: number; failed?: number };
         email?: { sent?: number; failed?: number; queued?: boolean };
@@ -111,38 +179,7 @@ export function AdminNotificationsClient({
       };
       if (!r.ok || !d.ok) throw new Error(d.error ?? "Falha ao enviar");
 
-      const parts: string[] = [];
-      const appCount = d.app?.created ?? 0;
-      const emailSent = d.email?.sent ?? 0;
-      const emailFailed = d.email?.failed ?? 0;
-      const emailQueued = d.email?.queued ?? false;
-      const requested = d.requested ?? (sendToAll ? appCount : selected.length);
-
-      if (methodIncludesApp(method) && appCount > 0) {
-        parts.push(`${appCount.toLocaleString("pt-BR")} no app`);
-      }
-      const pushSent = d.push?.sent ?? 0;
-      if (methodIncludesApp(method) && pushSent > 0) {
-        parts.push(`${pushSent.toLocaleString("pt-BR")} push PWA`);
-      }
-      if (methodIncludesEmail(method)) {
-        if (emailQueued) {
-          parts.push(
-            `e-mail em fila para ${requested.toLocaleString("pt-BR")} destinatário(s) (envio em background)`,
-          );
-        } else if (emailSent > 0) {
-          parts.push(`${emailSent.toLocaleString("pt-BR")} e-mail(s) enviado(s)`);
-        }
-        if (emailFailed > 0) {
-          parts.push(`${emailFailed.toLocaleString("pt-BR")} falha(s) no e-mail`);
-        }
-      }
-
-      setSuccess(
-        parts.length > 0
-          ? `Disparo concluído: ${parts.join("; ")}.`
-          : "Disparo registrado.",
-      );
+      setSuccess(formatDispatchSuccess(d.channels ?? channels, d));
       setTitle("");
       setPreview("");
       setBody("");
@@ -155,6 +192,12 @@ export function AdminNotificationsClient({
       setLoading(false);
     }
   }
+
+  const needsBody = channelIncludesApp(channels) || channelIncludesEmail(channels);
+  const needsPreview =
+    channelIncludesApp(channels) ||
+    channelIncludesPush(channels) ||
+    channelIncludesEmail(channels);
 
   return (
     <>
@@ -186,32 +229,15 @@ export function AdminNotificationsClient({
           onSubmit={handleSubmit}
           className="rounded-[18px] border border-white/8 bg-[#101010] p-5 sm:p-6"
         >
-          <AdminNotificationMethodPicker method={method} onMethodChange={setMethod} />
-
-          <p className="mt-4 text-[12px] font-medium text-white/40">
-            {method === "app" ? (
-              <>
-                Mensagem no <strong className="text-white/70">sininho</strong> do app.
-              </>
-            ) : method === "email" ? (
-              <>
-                E-mail marketing via Resend (pausa entre envios; use{" "}
-                <code className="text-white/55">EMAIL_REPLY_TO</code> em produção).
-              </>
-            ) : (
-              <>
-                Mesma mensagem no <strong className="text-white/70">sininho</strong> e na caixa de
-                entrada.
-              </>
-            )}
-          </p>
+          <AdminNotificationChannelPicker
+            channels={channels}
+            onChannelsChange={setChannels}
+          />
 
           <div className="mt-5 grid gap-4">
             <label className="grid gap-2">
               <span className="text-[11px] font-black uppercase tracking-[0.14em] text-white/50">
-                {methodIncludesEmail(method) && !methodIncludesApp(method)
-                  ? "Assunto do e-mail"
-                  : "Título"}
+                Título
               </span>
               <input
                 className={inputClass}
@@ -223,43 +249,51 @@ export function AdminNotificationsClient({
               />
             </label>
 
-            <label className="grid gap-2">
-              <span className="text-[11px] font-black uppercase tracking-[0.14em] text-white/50">
-                {methodIncludesApp(method) && methodIncludesEmail(method)
-                  ? "Resumo (sininho + prévia do e-mail)"
-                  : methodIncludesApp(method)
-                    ? "Resumo (lista do sininho)"
-                    : "Prévia do e-mail (preheader)"}
-              </span>
-              <input
-                className={inputClass}
-                value={preview}
-                onChange={(e) => setPreview(e.target.value)}
-                placeholder="Uma linha curta visível na lista ou na caixa de entrada"
-                maxLength={500}
-                required
-              />
-            </label>
+            {needsPreview ? (
+              <label className="grid gap-2">
+                <span className="text-[11px] font-black uppercase tracking-[0.14em] text-white/50">
+                  {channelIncludesPush(channels) && !channelIncludesApp(channels)
+                    ? "Texto do push (e prévia do e-mail, se marcado)"
+                    : channelIncludesEmail(channels) && !channelIncludesApp(channels)
+                      ? "Prévia do e-mail (preheader)"
+                      : "Resumo (sininho, push e prévia do e-mail)"}
+                </span>
+                <input
+                  className={inputClass}
+                  value={preview}
+                  onChange={(e) => setPreview(e.target.value)}
+                  placeholder="Uma linha curta — aparece no push e na lista do sininho"
+                  maxLength={500}
+                  required
+                />
+              </label>
+            ) : null}
 
-            <label className="grid gap-2">
-              <span className="text-[11px] font-black uppercase tracking-[0.14em] text-white/50">
-                Mensagem completa
-              </span>
-              <textarea
-                className={`${inputClass} min-h-[140px] resize-y`}
-                value={body}
-                onChange={(e) => setBody(e.target.value)}
-                placeholder={
-                  methodIncludesEmail(method)
-                    ? "Corpo do e-mail (parágrafos separados por linha em branco)"
-                    : "Texto ao abrir a notificação no app"
-                }
-                maxLength={8000}
-                required
-              />
-            </label>
+            {needsBody ? (
+              <label className="grid gap-2">
+                <span className="text-[11px] font-black uppercase tracking-[0.14em] text-white/50">
+                  Mensagem completa
+                </span>
+                <textarea
+                  className={`${inputClass} min-h-[140px] resize-y`}
+                  value={body}
+                  onChange={(e) => setBody(e.target.value)}
+                  placeholder={
+                    channelIncludesEmail(channels)
+                      ? "Corpo do e-mail e do sininho (parágrafos separados por linha em branco)"
+                      : "Texto ao abrir a notificação no sininho"
+                  }
+                  maxLength={8000}
+                  required={needsBody}
+                />
+              </label>
+            ) : null}
 
-            {methodIncludesEmail(method) ? (
+            {channelIncludesPush(channels) ? (
+              <AdminPushUrlField pushUrl={pushUrl} onPushUrlChange={setPushUrl} />
+            ) : null}
+
+            {channelIncludesEmail(channels) ? (
               <AdminEmailButtonFields
                 buttonLabel={buttonLabel}
                 buttonUrl={buttonUrl}
@@ -279,16 +313,12 @@ export function AdminNotificationsClient({
 
           <button
             type="submit"
-            disabled={loading || (!sendToAll && selected.length === 0)}
+            disabled={
+              loading || channels.length === 0 || (!sendToAll && selected.length === 0)
+            }
             className="mt-6 h-12 w-full rounded-[12px] bg-primary px-5 text-[12px] font-black uppercase tracking-[0.14em] text-black transition-opacity disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:min-w-[200px]"
           >
-            {loading
-              ? "Enviando..."
-              : method === "both"
-                ? "Enviar no app e por e-mail"
-                : method === "email"
-                  ? "Enviar por e-mail"
-                  : "Enviar no app"}
+            {loading ? "Enviando..." : submitButtonLabel(channels)}
           </button>
 
           {error ? (
@@ -308,14 +338,14 @@ export function AdminNotificationsClient({
             </p>
           ) : (
             <AdminTableScroll>
-              <table className="min-w-[640px] w-full text-left">
+              <table className="min-w-[760px] w-full text-left">
                 <thead className="border-b border-white/8 bg-white/2.5">
                   <tr className="text-[11px] font-black uppercase tracking-[0.16em] text-white/80">
                     <th className="px-4 py-4">Enviado em</th>
-                    <th className="px-4 py-4">Canal</th>
+                    <th className="px-4 py-4">Canais</th>
                     <th className="px-4 py-4">Título</th>
-                    <th className="px-4 py-4">Resumo</th>
-                    <th className="px-4 py-4">App</th>
+                    <th className="px-4 py-4">Sininho</th>
+                    <th className="px-4 py-4">Push PWA</th>
                     <th className="px-4 py-4">E-mail</th>
                   </tr>
                 </thead>
@@ -328,14 +358,32 @@ export function AdminNotificationsClient({
                       <td className="px-4 py-4 font-bold text-white/88">
                         {adminDeliveryMethodLabel(item.channels)}
                       </td>
-                      <td className="px-4 py-4 font-bold text-white">{item.title}</td>
-                      <td className="max-w-[220px] px-4 py-4 text-white/55">
-                        <span className="line-clamp-2">{item.preview}</span>
+                      <td className="px-4 py-4 font-bold text-white">
+                        <span className="line-clamp-2">{item.title}</span>
+                        <span className="mt-1 block text-[11px] font-medium text-white/40 line-clamp-1">
+                          {item.preview}
+                        </span>
                       </td>
                       <td className="px-4 py-4 font-black text-primary">
                         {item.appRecipients > 0
                           ? item.appRecipients.toLocaleString("pt-BR")
                           : "—"}
+                      </td>
+                      <td className="px-4 py-4 text-white/80">
+                        {item.pushSent > 0 || item.pushFailed > 0 ? (
+                          <span>
+                            <span className="font-black text-primary">
+                              {item.pushSent.toLocaleString("pt-BR")}
+                            </span>
+                            {item.pushFailed > 0 ? (
+                              <span className="mt-0.5 block text-[11px] text-red-300">
+                                {item.pushFailed} falha(s)
+                              </span>
+                            ) : null}
+                          </span>
+                        ) : (
+                          "—"
+                        )}
                       </td>
                       <td className="px-4 py-4 text-white/80">
                         {item.emailQueued ? (

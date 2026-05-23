@@ -3,12 +3,17 @@ import { getPool } from "@/lib/db";
 export type {
   AdminBroadcastChannel,
   AdminBroadcastHistoryItem,
-  AdminDeliveryMethod,
+  AdminDeliveryPreset,
+  AdminDispatchResult,
   AdminNotificationUserOption,
 } from "@/lib/notifications/admin-broadcast-shared";
 export {
   adminDeliveryMethodLabel,
-  parseAdminDeliveryMethod,
+  channelIncludesApp,
+  channelIncludesEmail,
+  channelIncludesPush,
+  channelsToStorageKey,
+  parseAdminBroadcastChannels,
 } from "@/lib/notifications/admin-broadcast-shared";
 
 import type {
@@ -16,6 +21,7 @@ import type {
   AdminBroadcastHistoryItem,
   AdminNotificationUserOption,
 } from "@/lib/notifications/admin-broadcast-shared";
+import { channelsToStorageKey } from "@/lib/notifications/admin-broadcast-shared";
 
 const INSERT_CHUNK = 200;
 
@@ -23,12 +29,7 @@ function buildAppNotificationKind(
   channels: AdminBroadcastChannel[],
   batchId: string,
 ): string {
-  const key =
-    channels.includes("app") && channels.includes("email")
-      ? "app+email"
-      : channels.includes("email")
-        ? "email"
-        : "app";
+  const key = channelsToStorageKey(channels.filter((c) => c !== "push"));
   return `admin_broadcast:v2:${key}:${batchId}`;
 }
 
@@ -41,6 +42,8 @@ async function ensureAdminBroadcastBatchesTable(): Promise<void> {
       title          TEXT NOT NULL,
       preview        TEXT NOT NULL,
       app_recipients INT NOT NULL DEFAULT 0,
+      push_sent      INT NOT NULL DEFAULT 0,
+      push_failed    INT NOT NULL DEFAULT 0,
       email_sent     INT NOT NULL DEFAULT 0,
       email_failed   INT NOT NULL DEFAULT 0,
       email_queued   BOOLEAN NOT NULL DEFAULT false,
@@ -48,6 +51,12 @@ async function ensureAdminBroadcastBatchesTable(): Promise<void> {
     );
     CREATE INDEX IF NOT EXISTS admin_notification_batches_created_idx
       ON admin_notification_batches (created_at DESC);
+  `);
+  await pool.query(`
+    ALTER TABLE admin_notification_batches
+      ADD COLUMN IF NOT EXISTS push_sent INT NOT NULL DEFAULT 0;
+    ALTER TABLE admin_notification_batches
+      ADD COLUMN IF NOT EXISTS push_failed INT NOT NULL DEFAULT 0;
   `);
 }
 
@@ -155,24 +164,27 @@ export async function recordAdminBroadcastBatch(input: {
   title: string;
   preview: string;
   appRecipients?: number;
+  pushSent?: number;
+  pushFailed?: number;
   emailSent?: number;
   emailFailed?: number;
   emailQueued?: boolean;
 }): Promise<void> {
   await ensureAdminBroadcastBatchesTable();
-  const channelsKey =
-    input.channels.includes("app") && input.channels.includes("email")
-      ? "app+email"
-      : input.channels[0] ?? "app";
+  const channelsKey = channelsToStorageKey(input.channels);
 
   const pool = getPool();
   await pool.query(
     `INSERT INTO admin_notification_batches (
        batch_id, channels, title, preview,
-       app_recipients, email_sent, email_failed, email_queued
-     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       app_recipients, push_sent, push_failed,
+       email_sent, email_failed, email_queued
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
      ON CONFLICT (batch_id) DO UPDATE SET
+       channels = EXCLUDED.channels,
        app_recipients = EXCLUDED.app_recipients,
+       push_sent = EXCLUDED.push_sent,
+       push_failed = EXCLUDED.push_failed,
        email_sent = EXCLUDED.email_sent,
        email_failed = EXCLUDED.email_failed,
        email_queued = EXCLUDED.email_queued`,
@@ -182,6 +194,8 @@ export async function recordAdminBroadcastBatch(input: {
       input.title,
       input.preview,
       input.appRecipients ?? 0,
+      input.pushSent ?? 0,
+      input.pushFailed ?? 0,
       input.emailSent ?? 0,
       input.emailFailed ?? 0,
       input.emailQueued ?? false,
@@ -277,6 +291,8 @@ async function listLegacyAdminBroadcastHistory(
     title: r.title,
     preview: r.preview,
     appRecipients: r.recipients,
+    pushSent: 0,
+    pushFailed: 0,
     emailSent: 0,
     emailFailed: 0,
     emailQueued: false,
@@ -297,6 +313,8 @@ export async function listAdminBroadcastHistory(
     title: string;
     preview: string;
     app_recipients: number;
+    push_sent: number;
+    push_failed: number;
     email_sent: number;
     email_failed: number;
     email_queued: boolean;
@@ -308,6 +326,8 @@ export async function listAdminBroadcastHistory(
        title,
        preview,
        app_recipients,
+       push_sent,
+       push_failed,
        email_sent,
        email_failed,
        email_queued
@@ -325,6 +345,8 @@ export async function listAdminBroadcastHistory(
       title: r.title,
       preview: r.preview,
       appRecipients: r.app_recipients,
+      pushSent: r.push_sent,
+      pushFailed: r.push_failed,
       emailSent: r.email_sent,
       emailFailed: r.email_failed,
       emailQueued: r.email_queued,

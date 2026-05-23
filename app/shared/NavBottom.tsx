@@ -15,6 +15,7 @@ import {
   Home,
   LogOut,
   Share2,
+  Smartphone,
   Target,
   Ticket,
   Trophy,
@@ -89,6 +90,7 @@ const MENU_SECTIONS: MenuSection[] = [
     title: "MINHA CONTA",
     items: [
       { label: "Minha Conta", href: "/perfil", icon: User, subtitle: "Perfil" },
+      { label: "Baixar aplicativo", href: "/instalar-app", icon: Smartphone, subtitle: "PWA no celular" },
       { label: "Adquirir Ticket", href: "/tickets", icon: Ticket, subtitle: "Comprar cota" },
     ],
   },

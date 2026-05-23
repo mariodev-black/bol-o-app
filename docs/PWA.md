@@ -5,8 +5,13 @@
 - **Manifest** (`app/manifest.ts`) — app instalável, ícones em `/pwa/`, `start_url` `/palpites`, tema `#B1EB0B`
 - **Service worker** (`public/sw.js`) — recebe push e abre o app ao tocar na notificação
 - **Web Push** — inscrições em `push_subscriptions`, envio via `web-push` + VAPID
-- **UI** — banner “Ativar notificações”, passo no sheet de instalar app, registro automático do SW logado
-- **Admin** — disparos com canal **App** também enviam push para quem ativou (além do sininho)
+- **UI** — banner “Ativar notificações”, página **`/instalar-app`** (menu lateral), registro automático do SW logado
+- **Admin** (`/admin/notifications`) — canais independentes:
+  - **Sininho** — `user_notifications`
+  - **Push PWA** — Web Push para inscritos em `push_subscriptions`
+  - **E-mail** — Resend (marketing)
+  - Preset **App completo** = sininho + push (padrão)
+  - Lógica centralizada em `lib/notifications/admin-dispatch.ts`
 
 ## Variáveis de ambiente
 

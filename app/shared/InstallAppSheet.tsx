@@ -1,21 +1,10 @@
 "use client";
 
-import Image from "next/image";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import {
-  Check,
-  Download,
-  Ellipsis,
-  EllipsisVertical,
-  Plus,
-  Share2,
-  X,
-} from "lucide-react";
-import logoApp from "@/app/assets/logo-2.png";
+import { X } from "lucide-react";
 import type { InstallSheetPlatform } from "@/app/shared/install-app-banner";
-import { getInstallSiteHost } from "@/app/shared/install-app-banner";
-import { enablePushNotifications, isPushSupported } from "@/lib/push/client";
+import { InstallAppContent } from "@/app/shared/InstallAppContent";
 
 type InstallAppSheetProps = {
   open: boolean;
@@ -25,118 +14,9 @@ type InstallAppSheetProps = {
   nativeInstallAvailable?: boolean;
 };
 
-function StepIcon({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="mx-0.5 inline-flex size-6 shrink-0 items-center justify-center rounded-md border border-white/14 bg-white/[0.08] align-middle text-white">
-      {children}
-    </span>
-  );
-}
-
-function InstallStep({
-  step,
-  children,
-}: {
-  step: number;
-  children: React.ReactNode;
-}) {
-  return (
-    <li className="flex gap-3">
-      <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-[#B1EB0B] text-[12px] font-black leading-none text-[#0E141B]">
-        {step}
-      </span>
-      <p className="pt-0.5 text-[13px] font-medium leading-relaxed text-white/88">
-        {children}
-      </p>
-    </li>
-  );
-}
-
-function IosSteps() {
-  return (
-    <ol className="space-y-4">
-      <InstallStep step={1}>
-        Toque em <StepIcon><Ellipsis className="size-3.5" strokeWidth={2.5} /></StepIcon> para
-        abrir o menu do Safari.
-      </InstallStep>
-      <InstallStep step={2}>
-        Pressione <StepIcon><Share2 className="size-3.5" strokeWidth={2.25} /></StepIcon>{" "}
-        <span className="text-white">Compartilhar</span> e depois{" "}
-        <StepIcon><Ellipsis className="size-3.5" strokeWidth={2.5} /></StepIcon>{" "}
-        <span className="text-white">Mais</span>.
-      </InstallStep>
-      <InstallStep step={3}>
-        Selecione{" "}
-        <StepIcon><Plus className="size-3.5" strokeWidth={2.5} /></StepIcon>{" "}
-        <span className="text-white">Adicionar à Tela de Início</span>.
-      </InstallStep>
-      <InstallStep step={4}>
-        Procure o ícone{" "}
-        <span className="inline-flex align-middle">
-          <Image
-            src={logoApp}
-            alt=""
-            width={22}
-            height={22}
-            className="size-[22px] rounded-[5px] object-contain"
-            aria-hidden
-          />
-        </span>{" "}
-        na tela inicial do iPhone.
-      </InstallStep>
-    </ol>
-  );
-}
-
-function AndroidSteps() {
-  return (
-    <ol className="space-y-4">
-      <InstallStep step={1}>
-        Toque no menu do navegador{" "}
-        <StepIcon><EllipsisVertical className="size-3.5" strokeWidth={2.5} /></StepIcon> no canto
-        superior da tela.
-      </InstallStep>
-      <InstallStep step={2}>
-        Selecione{" "}
-        <span className="text-white">Instalar app</span> ou{" "}
-        <span className="text-white">Adicionar à tela inicial</span>.
-      </InstallStep>
-      <InstallStep step={3}>
-        Confirme em{" "}
-        <StepIcon><Download className="size-3.5" strokeWidth={2.25} /></StepIcon>{" "}
-        <span className="text-white">Instalar</span> ou{" "}
-        <StepIcon><Check className="size-3.5" strokeWidth={2.75} /></StepIcon>{" "}
-        <span className="text-white">Adicionar</span>.
-      </InstallStep>
-      <InstallStep step={4}>
-        Procure o ícone{" "}
-        <span className="inline-flex align-middle">
-          <Image
-            src={logoApp}
-            alt=""
-            width={22}
-            height={22}
-            className="size-[22px] rounded-[5px] object-contain"
-            aria-hidden
-          />
-        </span>{" "}
-        do Bolão do Milhão na tela inicial.
-      </InstallStep>
-    </ol>
-  );
-}
-
-export function InstallAppSheet({
-  open,
-  platform,
-  onClose,
-  onNativeInstall,
-  nativeInstallAvailable = false,
-}: InstallAppSheetProps) {
-  const siteHost = getInstallSiteHost();
+/** Sheet rápido do banner — conteúdo completo em /instalar-app */
+export function InstallAppSheet({ open, onClose }: InstallAppSheetProps) {
   const [portalReady, setPortalReady] = useState(false);
-  const [pushLoading, setPushLoading] = useState(false);
-  const [pushMessage, setPushMessage] = useState<string | null>(null);
 
   useEffect(() => {
     setPortalReady(true);
@@ -155,12 +35,6 @@ export function InstallAppSheet({
       window.removeEventListener("keydown", onKey);
     };
   }, [open, onClose]);
-
-  const handleNativeInstall = useCallback(async () => {
-    if (!onNativeInstall) return;
-    await onNativeInstall();
-    onClose();
-  }, [onClose, onNativeInstall]);
 
   if (!open || !portalReady) return null;
 
@@ -196,87 +70,7 @@ export function InstallAppSheet({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-          <div
-            className="mb-5 flex items-center gap-3 rounded-xl border px-3.5 py-3"
-            style={{
-              borderColor: "rgba(177,235,11,0.35)",
-              background: "rgba(177,235,11,0.06)",
-            }}
-          >
-            <Image
-              src={logoApp}
-              alt=""
-              width={44}
-              height={44}
-              className="size-11 shrink-0 rounded-[10px] object-contain"
-              aria-hidden
-            />
-            <div className="min-w-0">
-              <p className="truncate text-[15px] font-bold text-white">
-                Bolão do Milhão
-              </p>
-              <p className="truncate text-[12px] font-medium text-white/50">
-                {siteHost}
-              </p>
-            </div>
-          </div>
-
-          {platform === "ios" ? <IosSteps /> : <AndroidSteps />}
-
-          {nativeInstallAvailable && platform === "android" ? (
-            <button
-              type="button"
-              onClick={() => void handleNativeInstall()}
-              className="mt-6 flex h-12 w-full items-center justify-center rounded-xl text-[12px] font-black uppercase tracking-wide text-[#0E141B] transition-transform active:scale-[0.98]"
-              style={{
-                background: "#B1EB0B",
-                boxShadow: "0 0 16px rgba(177,235,11,0.22)",
-              }}
-            >
-              Instalar agora
-            </button>
-          ) : null}
-
-          {isPushSupported() ? (
-            <div className="mt-6 rounded-xl border border-white/10 bg-white/[0.03] p-4">
-              <p className="text-[13px] font-bold text-white">
-                Notificações no celular
-              </p>
-              <p className="mt-1 text-[12px] font-medium leading-relaxed text-white/45">
-                {platform === "ios"
-                  ? "Após adicionar à tela inicial (iOS 16.4+), ative os avisos para não perder rodadas e prazos."
-                  : "Ative os avisos push para receber lembretes mesmo com o app fechado."}
-              </p>
-              {pushMessage ? (
-                <p className="mt-2 text-[11px] font-bold text-amber-300/90">
-                  {pushMessage}
-                </p>
-              ) : null}
-              <button
-                type="button"
-                disabled={pushLoading}
-                onClick={() => {
-                  setPushLoading(true);
-                  setPushMessage(null);
-                  void enablePushNotifications().then((result) => {
-                    setPushLoading(false);
-                    if (result.ok) {
-                      setPushMessage("Notificações ativadas.");
-                      return;
-                    }
-                    if (result.reason === "denied") {
-                      setPushMessage("Permissão negada no navegador.");
-                    } else {
-                      setPushMessage("Tente de novo após instalar o app.");
-                    }
-                  });
-                }}
-                className="mt-4 flex h-11 w-full items-center justify-center rounded-xl border border-primary/40 bg-primary/10 text-[11px] font-black uppercase tracking-wide text-primary disabled:opacity-50"
-              >
-                {pushLoading ? "Ativando..." : "Ativar notificações"}
-              </button>
-            </div>
-          ) : null}
+          <InstallAppContent />
         </div>
       </div>
     </div>,
