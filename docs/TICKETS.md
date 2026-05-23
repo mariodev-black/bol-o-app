@@ -71,7 +71,7 @@ Cada cota do carrinho vira **uma row**:
 | `id` | UUID interno |
 | `ticket_id` | Primeiro ticket do lote (legado/compat) |
 | `amount_cents` | Soma das linhas **pagas** (promo não entra) |
-| `provider` | `skale` |
+| `provider` | `3xpay` |
 | `status` | `creating` → status Skale → `paid` / etc. |
 | `pix_qrcode` | Copia-e-cola PIX |
 | `provider_transaction_id` | ID na Skale |
@@ -177,7 +177,7 @@ Arquivo: `lib/payments/transactions.ts`
 2. `buildPurchaseTicketLines()` — monta N linhas com desconto e promo.
 3. `INSERT` em lote em `tickets` (`pending_payment`).
 4. `INSERT` em `transactions` (`creating`).
-5. `createSkalePixTransaction()` — Skale (`lib/payments/skale.ts`).
+5. `createThreeXPayCashIn()` — 3xPay (`lib/payments/threexpay.ts`).
 6. Atualiza transaction + vincula `tickets.transaction_id`.
 7. Falha Skale → `tickets` e `transaction` → `failed`.
 
@@ -209,7 +209,7 @@ sequenceDiagram
 
 | Canal | Onde |
 |-------|------|
-| **Webhook** | `POST /api/webhooks/skale` → `updateTransactionStatusByProviderId` |
+| **Webhook** | `POST /api/webhooks/threexpay` → `updateTransactionStatusByProviderId` |
 | **SSE** | `GET /api/deposits/transactions/:id/events` (`publishTransactionEvent`) |
 | **Polling** | Client a cada 2s (30s) depois 4s |
 
@@ -484,7 +484,7 @@ Após fechamento: ranking interno → `calculatePrizeAwards` → persistência d
 | POST | `/api/deposits/transactions` | Criar carrinho + PIX |
 | GET | `/api/deposits/transactions/:id` | Status da transação |
 | GET | `/api/deposits/transactions/:id/events` | SSE de atualização |
-| POST | `/api/webhooks/skale` | Webhook Skale |
+| POST | `/api/webhooks/threexpay` | Webhook 3xPay (PIX pago) |
 
 ### Tickets do usuário
 
@@ -577,10 +577,11 @@ BOLOES_EXTRA_CHAMPIONSHIP_IDS=10,...
 ### PIX / Skale
 
 ```env
-SKALE_API_URL=https://api.skalepayments.com.br
-SKALE_API_KEY=...
-SKALE_POSTBACK_URL=              # default: APP_URL/api/webhooks/skale
-SKALE_WEBHOOK_SECRET=
+THREEXPAY_API_URL=https://gateway.3xpay.co
+THREEXPAY_API_KEY=...
+THREEXPAY_API_SECRET=...
+THREEXPAY_CALLBACK_URL=        # default: APP_URL/api/webhooks/threexpay
+THREEXPAY_WEBHOOK_SECRET=
 APP_URL=https://app.bolaodomilhao.com.br
 PAYMENT_APPROVED_WEBHOOK_URL=
 ```
@@ -724,8 +725,8 @@ sequenceDiagram
 |------|----------|
 | Checkout | `app/(authenticated)/tickets/_components/TicketCheckoutFlow.tsx` |
 | Config preços | `lib/payments/ticket-config.ts` |
-| PIX / DB | `lib/payments/transactions.ts`, `lib/payments/skale.ts` |
-| Webhook | `app/api/webhooks/skale/route.ts` |
+| PIX / DB | `lib/payments/transactions.ts`, `lib/payments/threexpay.ts` |
+| Webhook | `app/api/webhooks/threexpay/route.ts` |
 | Cotas pagas | `lib/payments/user-tickets.ts` |
 | Palpites | `lib/predictions.ts`, `app/api/palpites/route.ts` |
 | Pontuação | `calcPredictionPoints` em `lib/predictions.ts` |

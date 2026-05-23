@@ -1,6 +1,11 @@
 import { randomUUID } from "crypto";
 import { getPool } from "@/lib/db";
-import { buildSkaleCartLineItems, createSkalePixTransaction } from "@/lib/payments/skale";
+import {
+  PAYMENT_PROVIDER,
+  normalizeGatewayStatus,
+  paymentWebhookUrl,
+} from "@/lib/payments/gateway";
+import { createThreeXPayCashIn } from "@/lib/payments/threexpay";
 import {
   buildPurchaseTicketLines,
   parseTicketType,
@@ -32,16 +37,6 @@ export type DepositTransactionView = {
   updatedAt: string;
 };
 
-function appUrl(): string {
-  return (process.env.APP_URL || "https://bolaodomilhao.com.br").trim().replace(/\/+$/, "");
-}
-
-function webhookUrl(): string {
-  const explicit = process.env.SKALE_POSTBACK_URL?.trim();
-  if (explicit) return explicit;
-  return `${appUrl()}/api/webhooks/skale`;
-}
-
 export async function findBillingUserById(userId: string): Promise<BillingUser | null> {
   const pool = getPool();
   const { rows } = await pool.query<BillingUser>(
@@ -52,17 +47,6 @@ export async function findBillingUserById(userId: string): Promise<BillingUser |
     [userId]
   );
   return rows[0] ?? null;
-}
-
-function normalizePhoneForGateway(raw: string): string {
-  const digits = raw.replace(/\D/g, "");
-  if (digits.length === 11) {
-    return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
-  }
-  if (digits.length === 10) {
-    return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
-  }
-  return raw;
 }
 
 function mapRowToView(row: {
@@ -215,26 +199,24 @@ export async function createDepositTransaction(input: CreateDepositTransactionIn
   const txInsert = await pool.query<{ id: string }>(
     `INSERT INTO transactions (
       user_id, ticket_id, ticket_type, provider, status, amount_cents, payment_method, external_ref, raw_request
-    ) VALUES ($1, $2, $3::ticket_type_enum, 'skale', 'creating', $4, 'pix', $5, '{}'::jsonb)
+    ) VALUES ($1, $2, $3::ticket_type_enum, $6, 'creating', $4, 'pix', $5, '{}'::jsonb)
     RETURNING id`,
-    [input.userId, ticketId, primaryTicketType, amountCents, paymentExternalRef]
+    [input.userId, ticketId, primaryTicketType, amountCents, paymentExternalRef, PAYMENT_PROVIDER]
   );
   const transactionId = txInsert.rows[0]!.id;
 
   try {
-    const skaleItems = buildSkaleCartLineItems(lines, paymentExternalRef);
-    const skale = await createSkalePixTransaction({
+    const gateway = await createThreeXPayCashIn({
       amountCents,
-      items: skaleItems,
-      externalRef: paymentExternalRef,
-      postbackUrl: webhookUrl(),
-      customer: {
-        name: billingUser.name,
-        email: billingUser.email,
-        phone: normalizePhoneForGateway(billingUser.phone),
-        cpf: billingUser.cpf.replace(/\D/g, ""),
+      externalId: paymentExternalRef,
+      callbackUrl: paymentWebhookUrl(),
+      debtor: {
+        name: billingUser.name.trim(),
+        document: billingUser.cpf.replace(/\D/g, ""),
       },
+      expirationSeconds: Number(process.env.THREEXPAY_PIX_EXPIRATION_SECONDS) || 86400,
     });
+    const gatewayStatus = normalizeGatewayStatus(gateway.status);
 
     const { rows } = await pool.query<{
       id: string;
@@ -260,12 +242,12 @@ export async function createDepositTransaction(input: CreateDepositTransactionIn
        RETURNING id, ticket_id, status, amount_cents, ticket_type, pix_qrcode, pix_end2end_id, provider_transaction_id, created_at, updated_at`,
       [
         transactionId,
-        skale.providerTransactionId,
-        skale.status,
-        skale.pixQrcode,
-        skale.pixEnd2EndId,
-        JSON.stringify(skale.rawRequest),
-        JSON.stringify(skale.rawResponse),
+        gateway.providerTransactionId,
+        gatewayStatus,
+        gateway.pixQrcode,
+        gateway.pixEnd2EndId,
+        JSON.stringify(gateway.rawRequest),
+        JSON.stringify(gateway.rawResponse),
       ]
     );
 
@@ -326,7 +308,7 @@ export async function updateTransactionStatusByProviderId(input: {
   rawWebhook?: unknown;
 }): Promise<{ transactionId: string; userId: string; status: string; pixQrcode: string | null; providerTransactionId: string } | null> {
   const pool = getPool();
-  const safeStatus = String(input.status || "").trim() || "unknown";
+  const safeStatus = normalizeGatewayStatus(String(input.status || "").trim() || "unknown");
   const providerTransactionId = input.providerTransactionId.trim();
   const pixEnd2EndId = input.pixEnd2EndId?.trim() || null;
   const pixQrcode = input.pixQrcode?.trim() || null;
@@ -336,6 +318,7 @@ export async function updateTransactionStatusByProviderId(input: {
        SELECT id, status AS previous_status
        FROM transactions
        WHERE provider_transaction_id = $1
+          OR external_ref = $1
           OR id::text = $1
           OR ($4::text IS NOT NULL AND pix_end2end_id = $4)
           OR ($3::text IS NOT NULL AND pix_qrcode = $3)
@@ -364,7 +347,7 @@ export async function updateTransactionStatusByProviderId(input: {
 
   const row = updateTx.rows[0];
   if (!row?.ticket_id) {
-    console.error("[skale/webhook] transaction not found", {
+    console.error("[payment/webhook] transaction not found", {
       providerTransactionId,
       pixEnd2EndId,
       hasPixQrcode: Boolean(pixQrcode),
@@ -395,7 +378,7 @@ export async function updateTransactionStatusByProviderId(input: {
     [row.id, ticketStatus, wasAlreadyPaid]
   );
 
-  console.error("[skale/webhook] transaction processed", {
+  console.info("[payment/webhook] transaction processed", {
     transactionId: row.id,
     providerTransactionId: row.provider_transaction_id,
     externalRef: row.external_ref,

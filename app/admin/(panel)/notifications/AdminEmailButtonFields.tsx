@@ -41,7 +41,8 @@ export function AdminEmailButtonFields({
             Incluir botão no e-mail
           </span>
           <span className="mt-1 block text-[12px] font-medium text-white/38">
-            Opcional. Desmarcado = e-mail só com título e texto, sem CTA verde.
+            Opcional. Sem marcar, ou com campos vazios = e-mail só com texto. O botão verde
+            só entra se texto e link estiverem preenchidos.
           </span>
         </span>
       </label>

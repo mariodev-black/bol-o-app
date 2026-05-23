@@ -22,16 +22,18 @@ export function AdminPushUrlField({
         Link ao tocar no push (PWA)
       </p>
       <p className="mt-1 text-[12px] font-medium text-white/38">
-        Para onde o usuário vai ao abrir a notificação no celular.
+        Opcional. Vazio = abre em <span className="text-white/55">/boloes</span>.
       </p>
       <label className="mt-4 grid gap-2">
+        <span className="text-[11px] font-black uppercase tracking-[0.14em] text-white/50">
+          Caminho no app (opcional)
+        </span>
         <input
           className={inputClass}
           value={pushUrl}
           onChange={(e) => onPushUrlChange(e.target.value)}
-          placeholder="/boloes"
+          placeholder="/boloes (padrão se vazio)"
           maxLength={500}
-          required
         />
       </label>
       <div className="mt-3 flex flex-wrap gap-2">

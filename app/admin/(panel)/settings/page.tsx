@@ -7,7 +7,12 @@ export default function AdminSettingsPage() {
   const { extraGiftPromo, extraChampionshipIds } = getAppServerConfig();
   const items = [
     { label: "APP_URL", value: process.env.APP_URL ?? "Não configurado" },
-    { label: "Webhook Skale", value: process.env.SKALE_POSTBACK_URL ?? `${process.env.APP_URL ?? ""}/api/webhooks/skale` },
+    {
+      label: "Webhook 3xPay (PIX)",
+      value:
+        process.env.THREEXPAY_CALLBACK_URL ??
+        `${process.env.APP_URL ?? ""}/api/webhooks/threexpay`,
+    },
     { label: "Cota principal", value: formatAdminBRL(getTicketPriceCents("general")) },
     { label: "Cota extra", value: formatAdminBRL(getExtraTicketPriceCents()) },
     { label: "Bolão diário", value: formatAdminBRL(getTicketPriceCents("daily")) },

@@ -109,9 +109,9 @@ export function AdminNotificationsClient({
   const [preview, setPreview] = useState("");
   const [body, setBody] = useState("");
   const [includeEmailButton, setIncludeEmailButton] = useState(false);
-  const [buttonLabel, setButtonLabel] = useState("Enviar palpites");
-  const [buttonUrl, setButtonUrl] = useState("/boloes");
-  const [pushUrl, setPushUrl] = useState("/boloes");
+  const [buttonLabel, setButtonLabel] = useState("");
+  const [buttonUrl, setButtonUrl] = useState("");
+  const [pushUrl, setPushUrl] = useState("");
   const [channels, setChannels] = useState<AdminBroadcastChannel[]>(DEFAULT_CHANNELS);
   const [sendToAll, setSendToAll] = useState(false);
   const [selected, setSelected] = useState<RecipientUser[]>([]);

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { PWA_ICON_PATHS } from "@/lib/pwa/icons";
 
 const DEFAULT_MARKETING = "https://www.bolaodomilhao.com.br";
 const DEFAULT_APP = "https://app.bolaodomilhao.com.br";
@@ -127,9 +128,18 @@ export function buildRootMetadata(): Metadata {
       canonicalOrigin: marketing,
     }),
     applicationName: SITE_NAME,
+    icons: {
+      icon: [
+        { url: PWA_ICON_PATHS.icon192, sizes: "192x192", type: "image/png" },
+        { url: PWA_ICON_PATHS.icon512, sizes: "512x512", type: "image/png" },
+      ],
+      apple: [
+        { url: PWA_ICON_PATHS.appleTouch, sizes: "180x180", type: "image/png" },
+      ],
+    },
     appleWebApp: {
       capable: true,
-      title: SITE_NAME,
+      title: "Bolão Milhão",
       statusBarStyle: "black-translucent",
     },
     category: "sports",

@@ -50,8 +50,18 @@ Push Web só funciona com o site **adicionado à Tela de Início** (iOS 16.4+). 
 
 ## Ícones PWA
 
-Ícones em `public/pwa/` gerados a partir de `app/assets/logo-2.png` (mesmo `logoApp` do app). Regenerar após trocar a logo:
+Ícones em `public/pwa/` (fundo verde `#063D32` + logo branca):
+
+| Arquivo | Uso |
+|---------|-----|
+| `icon-192.png` / `icon-512.png` | Manifest + Android |
+| `apple-touch-icon.png` | iOS “Adicionar à Tela de Início” |
+| `icon-maskable-512.png` | Maskable (safe zone) |
+
+Coloque o PNG mestre em `public/pwa/icon-512.png` e rode:
 
 ```bash
 npm run pwa:icons
 ```
+
+`background_color` do manifest = `#063D32` (igual aos ícones).

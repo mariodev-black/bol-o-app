@@ -1,4 +1,5 @@
 import { isAllowedAdminBroadcastButtonUrl } from "@/lib/email/resolve-button-url";
+import { PWA_START_PATH } from "@/lib/pwa/config";
 import { sendAdminBroadcastEmails } from "@/lib/notifications/admin-broadcast-email";
 import type { AdminBroadcastChannel } from "@/lib/notifications/admin-broadcast-shared";
 import type { AdminDispatchResult } from "@/lib/notifications/admin-broadcast-shared";
@@ -134,7 +135,7 @@ export async function dispatchAdminBroadcast(
   };
 }
 
-/** Botão do e-mail: ambos vazios = sem CTA; ambos preenchidos = válido. */
+/** Botão do e-mail: só inclui CTA se texto e link estiverem preenchidos. */
 export function parseOptionalAdminEmailButton(
   label: string,
   url: string,
@@ -147,10 +148,7 @@ export function parseOptionalAdminEmailButton(
   }
 
   if (!trimmedLabel || !trimmedUrl) {
-    return {
-      button: null,
-      error: "Preencha texto e link do botão, ou desmarque “Incluir botão no e-mail”",
-    };
+    return { button: null, error: null };
   }
 
   if (trimmedLabel.length < 2) {
@@ -168,6 +166,11 @@ export function parseOptionalAdminEmailButton(
   }
 
   return { button: { label: trimmedLabel, url: trimmedUrl }, error: null };
+}
+
+export function resolveAdminPushPath(raw: string): string {
+  const trimmed = raw.trim();
+  return trimmed || PWA_START_PATH;
 }
 
 export function validateAdminDispatchInput(input: {
@@ -201,24 +204,23 @@ export function validateAdminDispatchInput(input: {
     return "Mensagem completa deve ter pelo menos 10 caracteres (sininho)";
   }
 
-  if (input.channels.includes("push") && !isAllowedAdminBroadcastButtonUrl(input.pushUrl)) {
-    return "Link do push invalido. Use um caminho do app (ex.: /boloes)";
+  if (input.channels.includes("push")) {
+    const pushPath = resolveAdminPushPath(input.pushUrl);
+    if (!isAllowedAdminBroadcastButtonUrl(pushPath)) {
+      return "Link do push invalido. Use um caminho do app (ex.: /boloes)";
+    }
   }
 
   if (input.channels.includes("email")) {
     if (input.body.length < 10) {
       return "Mensagem completa deve ter pelo menos 10 caracteres (e-mail)";
     }
-    if (input.includeEmailButton === false) {
-      return null;
-    }
-    const parsed = parseOptionalAdminEmailButton(
-      input.buttonLabel,
-      input.buttonUrl,
-    );
-    if (parsed.error) return parsed.error;
-    if (input.includeEmailButton === true && !parsed.button) {
-      return "Informe o texto e o link do botão ou desmarque “Incluir botão no e-mail”";
+    if (input.includeEmailButton) {
+      const parsed = parseOptionalAdminEmailButton(
+        input.buttonLabel,
+        input.buttonUrl,
+      );
+      if (parsed.error) return parsed.error;
     }
   }
 

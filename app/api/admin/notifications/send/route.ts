@@ -9,6 +9,7 @@ import {
 import {
   dispatchAdminBroadcast,
   parseOptionalAdminEmailButton,
+  resolveAdminPushPath,
   validateAdminDispatchInput,
 } from "@/lib/notifications/admin-dispatch";
 
@@ -64,14 +65,15 @@ export async function POST(request: NextRequest) {
   const buttonLabel = trimField(payload.buttonLabel, 80);
   const buttonUrl = trimField(payload.buttonUrl, 500);
   const includeEmailButton = payload.includeEmailButton === true;
-  const pushUrl = trimField(payload.pushUrl || payload.buttonUrl, 500) || "/boloes";
+  const pushUrlRaw = trimField(payload.pushUrl, 500);
+  const pushUrl = resolveAdminPushPath(pushUrlRaw);
 
   const validationError = validateAdminDispatchInput({
     channels,
     title,
     preview,
     body: messageBody,
-    pushUrl,
+    pushUrl: pushUrlRaw,
     buttonLabel,
     buttonUrl,
     includeEmailButton,
