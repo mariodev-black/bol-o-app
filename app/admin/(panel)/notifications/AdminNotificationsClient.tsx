@@ -102,6 +102,7 @@ export function AdminNotificationsClient({
   const [title, setTitle] = useState("");
   const [preview, setPreview] = useState("");
   const [body, setBody] = useState("");
+  const [includeEmailButton, setIncludeEmailButton] = useState(false);
   const [buttonLabel, setButtonLabel] = useState("Enviar palpites");
   const [buttonUrl, setButtonUrl] = useState("/palpites");
   const [pushUrl, setPushUrl] = useState("/palpites");
@@ -164,7 +165,11 @@ export function AdminNotificationsClient({
           audience: sendToAll ? "all" : "selected",
           userIds: sendToAll ? undefined : selected.map((u) => u.id),
           ...(channelIncludesEmail(channels)
-            ? { buttonLabel, buttonUrl }
+            ? {
+                includeEmailButton,
+                buttonLabel,
+                buttonUrl,
+              }
             : {}),
         }),
       });
@@ -295,6 +300,8 @@ export function AdminNotificationsClient({
 
             {channelIncludesEmail(channels) ? (
               <AdminEmailButtonFields
+                includeButton={includeEmailButton}
+                onIncludeButtonChange={setIncludeEmailButton}
                 buttonLabel={buttonLabel}
                 buttonUrl={buttonUrl}
                 onButtonLabelChange={setButtonLabel}

@@ -66,7 +66,7 @@ export async function sendAdminBroadcastEmails(input: {
   title: string;
   preview: string;
   body: string;
-  button: AdminBroadcastEmailButton;
+  button: AdminBroadcastEmailButton | null;
 }): Promise<{ sent: number; failed: number; skipped: number }> {
   const recipients = await listAdminBroadcastEmailRecipients(input.userIds);
   const campaignId = adminBroadcastEmailCampaignId(input.batchId);
@@ -105,7 +105,7 @@ export async function sendAdminBroadcastEmails(input: {
       title: input.title,
       preview: input.preview,
       body: input.body,
-      button: input.button,
+      button: input.button ?? undefined,
     });
 
     const result = await sendEmail({

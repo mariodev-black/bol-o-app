@@ -19,7 +19,7 @@ export type AdminDispatchInput = {
   preview: string;
   body: string;
   pushUrl: string;
-  emailButton: { label: string; url: string };
+  emailButton: { label: string; url: string } | null;
 };
 
 export async function dispatchAdminBroadcast(
@@ -134,6 +134,42 @@ export async function dispatchAdminBroadcast(
   };
 }
 
+/** Botão do e-mail: ambos vazios = sem CTA; ambos preenchidos = válido. */
+export function parseOptionalAdminEmailButton(
+  label: string,
+  url: string,
+): { button: { label: string; url: string } | null; error: string | null } {
+  const trimmedLabel = label.trim();
+  const trimmedUrl = url.trim();
+
+  if (!trimmedLabel && !trimmedUrl) {
+    return { button: null, error: null };
+  }
+
+  if (!trimmedLabel || !trimmedUrl) {
+    return {
+      button: null,
+      error: "Preencha texto e link do botão, ou desmarque “Incluir botão no e-mail”",
+    };
+  }
+
+  if (trimmedLabel.length < 2) {
+    return {
+      button: null,
+      error: "Texto do botão deve ter pelo menos 2 caracteres",
+    };
+  }
+
+  if (!isAllowedAdminBroadcastButtonUrl(trimmedUrl)) {
+    return {
+      button: null,
+      error: "Link do botão inválido. Use um caminho do app (ex.: /palpites)",
+    };
+  }
+
+  return { button: { label: trimmedLabel, url: trimmedUrl }, error: null };
+}
+
 export function validateAdminDispatchInput(input: {
   channels: AdminBroadcastChannel[];
   title: string;
@@ -142,6 +178,7 @@ export function validateAdminDispatchInput(input: {
   pushUrl: string;
   buttonLabel: string;
   buttonUrl: string;
+  includeEmailButton?: boolean;
 }): string | null {
   if (input.channels.length === 0) {
     return "Selecione pelo menos um canal de envio";
@@ -172,11 +209,16 @@ export function validateAdminDispatchInput(input: {
     if (input.body.length < 10) {
       return "Mensagem completa deve ter pelo menos 10 caracteres (e-mail)";
     }
-    if (input.buttonLabel.length < 2) {
-      return "Texto do botao do e-mail deve ter pelo menos 2 caracteres";
+    if (input.includeEmailButton === false) {
+      return null;
     }
-    if (!isAllowedAdminBroadcastButtonUrl(input.buttonUrl)) {
-      return "Link do botao do e-mail invalido";
+    const parsed = parseOptionalAdminEmailButton(
+      input.buttonLabel,
+      input.buttonUrl,
+    );
+    if (parsed.error) return parsed.error;
+    if (input.includeEmailButton === true && !parsed.button) {
+      return "Informe o texto e o link do botão ou desmarque “Incluir botão no e-mail”";
     }
   }
 

@@ -18,7 +18,8 @@ export type AdminBroadcastEmailParams = {
   title: string;
   preview: string;
   body: string;
-  button: AdminBroadcastEmailButton;
+  /** Omita ou null para e-mail só com texto, sem CTA. */
+  button?: AdminBroadcastEmailButton | null;
 };
 
 function bodyToHtmlParagraphs(text: string): string {
@@ -47,13 +48,22 @@ export function buildAdminBroadcastEmail(
   const headline = params.title.trim();
   const subject = headline.includes(appName) ? headline : `${headline} — ${appName}`;
 
-  const buttonHref = resolveAdminBroadcastButtonUrl(params.button.url);
-  const buttonLabel = params.button.label.trim();
+  const buttonBlock =
+    params.button?.label?.trim() && params.button?.url?.trim()
+      ? (() => {
+          const buttonHref = resolveAdminBroadcastButtonUrl(params.button!.url);
+          const buttonLabel = params.button!.label.trim();
+          return {
+            html: emailPrimaryButton(buttonHref, buttonLabel),
+            text: [`${buttonLabel}: ${buttonHref}`, ""],
+          };
+        })()
+      : { html: "", text: [] as string[] };
 
   const bodyHtml = `
     ${emailGreeting(first ? `Olá, ${escapeEmailHtml(first)},` : "Olá,")}
     ${bodyToHtmlParagraphs(params.body)}
-    ${emailPrimaryButton(buttonHref, buttonLabel)}
+    ${buttonBlock.html}
   `;
 
   const text = [
@@ -61,8 +71,7 @@ export function buildAdminBroadcastEmail(
     "",
     params.body.trim(),
     "",
-    `${buttonLabel}: ${buttonHref}`,
-    "",
+    ...buttonBlock.text,
     "Você recebeu este e-mail por ter conta ativa no Bolão do Milhão.",
     "",
     appName,

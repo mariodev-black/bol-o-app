@@ -8,6 +8,7 @@ import {
 } from "@/lib/notifications/admin-broadcast";
 import {
   dispatchAdminBroadcast,
+  parseOptionalAdminEmailButton,
   validateAdminDispatchInput,
 } from "@/lib/notifications/admin-dispatch";
 
@@ -24,6 +25,8 @@ type Body = {
   method?: string;
   buttonLabel?: string;
   buttonUrl?: string;
+  /** Se false, e-mail sem botão CTA (só texto). */
+  includeEmailButton?: boolean;
   pushUrl?: string;
 };
 
@@ -51,6 +54,7 @@ export async function POST(request: NextRequest) {
   const audience = payload.audience === "selected" ? "selected" : "all";
   const buttonLabel = trimField(payload.buttonLabel, 80);
   const buttonUrl = trimField(payload.buttonUrl, 500);
+  const includeEmailButton = payload.includeEmailButton === true;
   const pushUrl = trimField(payload.pushUrl || payload.buttonUrl, 500) || "/palpites";
 
   const validationError = validateAdminDispatchInput({
@@ -61,6 +65,7 @@ export async function POST(request: NextRequest) {
     pushUrl,
     buttonLabel,
     buttonUrl,
+    includeEmailButton,
   });
   if (validationError) {
     return NextResponse.json({ error: validationError }, { status: 400 });
@@ -107,6 +112,17 @@ export async function POST(request: NextRequest) {
     const batchId = crypto.randomUUID();
     const eligible = await countBroadcastEligibleUsers();
 
+    let emailButton: { label: string; url: string } | null = null;
+    if (channels.includes("email")) {
+      if (includeEmailButton) {
+        const parsed = parseOptionalAdminEmailButton(buttonLabel, buttonUrl);
+        if (parsed.error) {
+          return NextResponse.json({ error: parsed.error }, { status: 400 });
+        }
+        emailButton = parsed.button;
+      }
+    }
+
     const result = await dispatchAdminBroadcast({
       batchId,
       userIds,
@@ -115,7 +131,7 @@ export async function POST(request: NextRequest) {
       preview,
       body: messageBody,
       pushUrl,
-      emailButton: { label: buttonLabel, url: buttonUrl },
+      emailButton,
     });
 
     console.info("[admin/notifications/send]", {
