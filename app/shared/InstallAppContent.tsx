@@ -23,6 +23,7 @@ import {
   isStandalonePwa,
   registerPwaServiceWorker,
 } from "@/lib/push/client";
+import { dispatchPwaInstalled } from "@/lib/push/push-prompt";
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -128,9 +129,16 @@ export function InstallAppContent() {
       setNativeInstallAvailable(true);
     };
 
+    const onAppInstalled = () => {
+      dispatchPwaInstalled();
+      setInstalled(isStandalonePwa());
+    };
+
     window.addEventListener("beforeinstallprompt", onBeforeInstall);
+    window.addEventListener("appinstalled", onAppInstalled);
     return () => {
       window.removeEventListener("beforeinstallprompt", onBeforeInstall);
+      window.removeEventListener("appinstalled", onAppInstalled);
     };
   }, []);
 
@@ -138,10 +146,13 @@ export function InstallAppContent() {
     const promptEvent = deferredPromptRef.current;
     if (!promptEvent) return;
     await promptEvent.prompt();
-    await promptEvent.userChoice;
+    const { outcome } = await promptEvent.userChoice;
     deferredPromptRef.current = null;
     setNativeInstallAvailable(false);
     setInstalled(isStandalonePwa());
+    if (outcome === "accepted") {
+      dispatchPwaInstalled();
+    }
   }, []);
 
   return (

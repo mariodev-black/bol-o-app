@@ -7,25 +7,12 @@ import {
   isPushSupported,
   isStandalonePwa,
 } from "@/lib/push/client";
+import {
+  persistPushPromptDismissed,
+  readPushPromptDismissed,
+  shouldOfferPushNotificationsModal,
+} from "@/lib/push/push-prompt";
 import { useAuth } from "@/app/shared/AuthContext";
-
-const STORAGE_KEY = "bolao_push_banner_dismissed";
-
-function readDismissed(): boolean {
-  try {
-    return window.localStorage.getItem(STORAGE_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
-function persistDismissed(): void {
-  try {
-    window.localStorage.setItem(STORAGE_KEY, "1");
-  } catch {
-    /* ignore */
-  }
-}
 
 export function PushNotificationsBanner() {
   const { ready, isLoggedIn } = useAuth();
@@ -39,16 +26,17 @@ export function PushNotificationsBanner() {
       return;
     }
     if (!isPushSupported()) return;
-    if (readDismissed()) return;
+    if (readPushPromptDismissed()) return;
     if (typeof Notification === "undefined") return;
     if (Notification.permission !== "default") return;
+    if (shouldOfferPushNotificationsModal(true, true)) return;
 
     const t = window.setTimeout(() => setVisible(true), 1200);
     return () => window.clearTimeout(t);
   }, [ready, isLoggedIn]);
 
   const handleDismiss = useCallback(() => {
-    persistDismissed();
+    persistPushPromptDismissed();
     setVisible(false);
   }, []);
 
@@ -59,14 +47,14 @@ export function PushNotificationsBanner() {
     setLoading(false);
 
     if (result.ok) {
-      persistDismissed();
+      persistPushPromptDismissed();
       setVisible(false);
       return;
     }
 
     if (result.reason === "denied") {
       setMessage("Permissão negada. Ative nas configurações do navegador.");
-      persistDismissed();
+      persistPushPromptDismissed();
     } else if (result.reason === "no-vapid") {
       setMessage("Push ainda não configurado no servidor.");
     } else {

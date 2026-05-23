@@ -5,6 +5,7 @@ import {
   isPushSupported,
   registerPwaServiceWorker,
 } from "@/lib/push/client";
+import { dispatchPwaInstalled } from "@/lib/push/push-prompt";
 import { useEffect, useRef } from "react";
 
 /**
@@ -21,6 +22,17 @@ export function PwaManager() {
 
     registeredRef.current = true;
     void registerPwaServiceWorker();
+  }, [ready, isLoggedIn]);
+
+  useEffect(() => {
+    if (!ready || !isLoggedIn) return;
+
+    const onAppInstalled = () => {
+      dispatchPwaInstalled();
+    };
+
+    window.addEventListener("appinstalled", onAppInstalled);
+    return () => window.removeEventListener("appinstalled", onAppInstalled);
   }, [ready, isLoggedIn]);
 
   return null;
