@@ -625,7 +625,7 @@ function ScoreDisplay({
   );
 }
 
-/** Stepper vertical — setas brancas; exibe 0 quando ainda sem palpite salvo. */
+/** Stepper vertical — setas brancas; traço (—) até o usuário definir o placar. */
 function VertScoreStepper({
   value,
   dir,
@@ -640,7 +640,6 @@ function VertScoreStepper({
   disabled?: boolean;
 }) {
   const atUnset = value === null;
-  const displayValue = value ?? 0;
   const stepperBtn =
     "flex h-7 w-full shrink-0 items-center justify-center text-white transition active:scale-[0.92] disabled:cursor-not-allowed disabled:opacity-30";
   return (
@@ -657,7 +656,7 @@ function VertScoreStepper({
       >
         <ChevronUp className="size-8" strokeWidth={1.5} aria-hidden />
       </button>
-      <ScoreDisplay value={displayValue} dir={dir} unset={false} />
+      <ScoreDisplay value={value} dir={dir} unset={atUnset} />
       <button
         type="button"
         onClick={onDec}
@@ -1012,18 +1011,54 @@ function PalpiteCardTeamColumn({
   );
 }
 
+function formatLiveStatusBadge(jogo: Jogo): string {
+  const min = jogo.liveMinuto != null ? `${jogo.liveMinuto}'` : "";
+  const tempo =
+    jogo.liveTempo === 1 ? "1T" : jogo.liveTempo === 2 ? "2T" : "";
+  return ["AO VIVO", min, tempo].filter(Boolean).join(" ");
+}
+
+function PalpiteCardLiveBadge({ label }: { label: string }) {
+  return (
+    <div className="flex justify-center px-5 pt-4 pb-1">
+      <span className="inline-flex items-center gap-1.5 rounded-md bg-[#E53935] px-2.5 py-1 text-[12px] font-black uppercase tracking-wide text-white">
+        <span className="size-1.5 shrink-0 rounded-full bg-white" aria-hidden />
+        {label}
+      </span>
+    </div>
+  );
+}
+
+function PalpiteResultadoFinalBadge() {
+  return (
+    <span className="mb-2 inline-flex rounded-md bg-primary px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wide text-[#0E141B]">
+      RESULTADO FINAL
+    </span>
+  );
+}
+
+function PalpiteSeuPalpiteLine({
+  casa,
+  visitante,
+}: {
+  casa: number;
+  visitante: number;
+}) {
+  return (
+    <p className="mt-4 text-center text-[15px] font-black uppercase italic tracking-wide text-primary">
+      SEU PALPITE : {casa} X {visitante}
+    </p>
+  );
+}
+
 function PalpiteCardStatusBar({
-  phase,
   countdownLabel,
   kickoffHour,
-  liveMinute,
   palpiteEnviado,
   semPalpite,
 }: {
-  phase: JogoCardPhase;
   countdownLabel: string;
   kickoffHour: string;
-  liveMinute: string | null;
   palpiteEnviado: boolean;
   semPalpite: boolean;
 }) {
@@ -1035,37 +1070,6 @@ function PalpiteCardStatusBar({
       {kickoffHour}
     </span>
   );
-
-  if (phase === "live") {
-    return (
-      <div className="flex items-center justify-between gap-3 px-5 pt-4">
-        <span
-          className={`inline-flex items-center gap-1.5 ${PALPITE_CARD_TYPE.statusLive}`}
-        >
-          <Disc className="size-3 shrink-0 fill-[#FF6B6B] text-[#FF6B6B]" strokeWidth={0} aria-hidden />
-          AO VIVO
-          {liveMinute ? (
-            <span className="text-white/70">· {liveMinute}</span>
-          ) : null}
-        </span>
-        {hourSlot}
-      </div>
-    );
-  }
-
-  if (phase === "post") {
-    return (
-      <div className="flex items-center justify-between gap-3 px-5 pt-4">
-        <span
-          className={`inline-flex items-center gap-1.5 ${PALPITE_CARD_TYPE.statusResult}`}
-        >
-          <CircleCheck className="size-3.5 shrink-0" strokeWidth={2.5} aria-hidden />
-          RESULTADO
-        </span>
-        {hourSlot}
-      </div>
-    );
-  }
 
   if (palpiteEnviado) {
     return (
@@ -1120,135 +1124,74 @@ function PalpitePontuacaoBreakdown({
   expanded,
   onToggle,
   review,
-  resumo,
   linhas,
 }: {
   expanded: boolean;
   onToggle: () => void;
   review: ReturnType<typeof calcPredictionPoints>;
-  resumo: ReturnType<typeof copyPontuacaoPartida>;
   linhas: PalpitePontosLinha[];
 }) {
   const ptsHeadline =
     review.points > 0 ? `+${review.points}` : String(review.points);
-  const accentBar =
-    resumo.tone === "win"
-      ? "linear-gradient(180deg, #E8FF8A 0%, #B1EB0B 100%)"
-      : resumo.tone === "partial"
-        ? "#E6C220"
-        : "rgba(255,255,255,0.12)";
+  const ptsText =
+    review.points > 0
+      ? `+${review.points} pontos`
+      : `${review.points} pontos`;
 
   return (
-    <div className="mx-4 mb-4 sm:mx-5">
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={expanded}
-        className="group relative w-full overflow-hidden rounded-2xl text-left transition-[filter] hover:brightness-[1.03] active:scale-[0.99]"
-        style={{
-          background: PALPITE_PANEL_BG,
-          border: "1px solid rgba(255,255,255,0.08)",
-        }}
+    <div className="mx-5 mb-5">
+      <div
+        className="overflow-hidden rounded-2xl"
+        style={{ background: PALPITE_MATCH_PANEL_BG }}
       >
-        <span
-          className="pointer-events-none absolute inset-y-0 left-0 w-1 rounded-l-2xl"
-          style={{ background: accentBar }}
-          aria-hidden
-        />
-        <div className="flex items-center gap-3 py-3.5 pl-4 pr-3">
-          <div className="min-w-0 flex-1">
-            <p className="flex items-center gap-1.5 text-[12px] font-black uppercase tracking-[0.14em] text-primary">
-              <Coins className="size-3.5 shrink-0" strokeWidth={2.4} aria-hidden />
-              Pontuação
-            </p>
-            <p className="mt-0.5 line-clamp-2 text-[14px] font-bold leading-snug text-white">
-              {resumo.title}
-            </p>
-          </div>
-          <div className="flex shrink-0 items-center gap-2.5">
-            <div className="text-right">
-              <p className="text-[28px] font-black tabular-nums leading-none text-primary sm:text-[30px]">
-                {ptsHeadline}
-              </p>
-              <p className="text-[10px] font-bold uppercase tracking-wide text-white/40">
-                pts
-              </p>
-            </div>
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={expanded}
+          className="flex w-full items-center justify-between gap-3 px-4 py-4 text-left transition active:scale-[0.99]"
+        >
+          <p className="min-w-0 text-[15px] font-semibold text-white">
+            Pontuação final :{" "}
+            <span className="font-black text-primary">{ptsText}</span>
+          </p>
+          <span className="flex shrink-0 items-center gap-2">
+            <span className="text-[32px] font-black leading-none tabular-nums text-primary">
+              {ptsHeadline}
+            </span>
             <ChevronDown
-              className={`size-5 shrink-0 text-white/35 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
+              className={`size-5 shrink-0 text-white/45 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
               strokeWidth={2.5}
               aria-hidden
             />
-          </div>
-        </div>
-      </button>
+          </span>
+        </button>
 
-      <div
-        className={`grid transition-[grid-template-rows] duration-200 ease-out ${expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
-        aria-hidden={!expanded}
-      >
-        <div className="min-h-0 overflow-hidden">
-          <div
-            className="mt-2 overflow-hidden rounded-2xl"
-            style={{
-              background:
-                "linear-gradient(165deg, #101412 0%, #0A0C0B 100%)",
-              border: "1px solid rgba(177,235,11,0.12)",
-            }}
-            aria-label="Detalhamento da pontuação"
-          >
-            <div
-              className="border-b px-4 py-2.5"
-              style={{ borderColor: "rgba(255,255,255,0.06)" }}
+        <div
+          className={`grid transition-[grid-template-rows] duration-200 ease-out ${expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
+          aria-hidden={!expanded}
+        >
+          <div className="min-h-0 overflow-hidden">
+            <ul
+              className="border-t border-white/8"
+              aria-label="Detalhamento da pontuação"
             >
-              <p className="text-[12px] font-black uppercase tracking-[0.12em] text-white/40">
-                Como você pontuou
-              </p>
-            </div>
-
-            <ul>
               {linhas.map((linha, idx) => (
                 <li
                   key={linha.label}
-                  className={`grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 px-4 py-3 ${linha.hit ? "bg-primary/[0.05]" : ""} ${idx > 0 ? "border-t border-white/[0.05]" : ""}`}
+                  className={`grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 px-4 py-3.5 ${idx > 0 ? "border-t border-white/6" : ""}`}
                 >
-                  <span className="text-[14px] font-semibold text-white/92">
+                  <span className="text-[14px] font-semibold text-white">
                     {linha.label}
                   </span>
                   <PontosBreakdownIcon hit={linha.hit} />
                   <span
-                    className={`min-w-[3.5rem] text-right text-[14px] font-black tabular-nums ${linha.points > 0 ? "text-primary" : "text-white/35"}`}
+                    className={`min-w-14 text-right text-[14px] font-black tabular-nums ${linha.points > 0 ? "text-primary" : "text-white/35"}`}
                   >
                     {formatPontosLabel(linha.points)}
                   </span>
                 </li>
               ))}
             </ul>
-
-            <div
-              className="flex items-center justify-between gap-3 px-4 py-3.5"
-              style={{
-                background:
-                  "linear-gradient(90deg, rgba(177,235,11,0.16) 0%, rgba(177,235,11,0.03) 100%)",
-                borderTop: "1px solid rgba(177,235,11,0.25)",
-              }}
-            >
-              <span className="text-[13px] font-black uppercase tracking-[0.08em] text-white">
-                Total da partida
-              </span>
-              <span className="text-[22px] font-black tabular-nums text-primary sm:text-[24px]">
-                {formatPontosLabel(review.points)}
-              </span>
-            </div>
-
-            {resumo.subtitle ? (
-              <p
-                className="border-t px-4 py-3 text-[12px] leading-relaxed text-white/52"
-                style={{ borderColor: "rgba(255,255,255,0.05)" }}
-              >
-                {resumo.subtitle}
-              </p>
-            ) : null}
           </div>
         </div>
       </div>
@@ -1305,7 +1248,11 @@ function JogoCard({
   }, [lockAtMs, jogo.kickoffAt, readOnly, jogo.resultCasa, jogo.resultVisitante]);
   const isLockedByTime = lockAtMs != null ? nowMs >= lockAtMs : false;
   /** Palpite até instantes antes do apito (1h no geral/dia, 5 min no extra). */
-  const matchOpen = isMatchOpenForPalpite(palpiteEligibilityFromJogo(jogo), bolaoType, nowMs);
+  const matchOpen = isMatchOpenForPalpite(
+    palpiteEligibilityFromJogo(jogo),
+    bolaoType,
+    nowMs,
+  );
   const canEdit = editingEnabled && matchOpen && !isLockedByTime;
 
   const hasInitialPrediction = Boolean(initialPrediction);
@@ -1351,7 +1298,6 @@ function JogoCard({
   const phase = getJogoCardPhase(jogo, nowMs);
   const kickoffHour = formatKickoffHourOnly(jogo);
   const countdownLabel = formatCountdownCompact(lockAtMs, nowMs);
-  const liveMinute = getLiveMinuteBadge(jogo, nowMs);
   const [pontosExpanded, setPontosExpanded] = useState(
     () => phase === "post",
   );
@@ -1369,17 +1315,16 @@ function JogoCard({
     temPlacarOficial &&
     scoresAreComplete(scores)
       ? calcPredictionPoints(
-        scores.scoreCasa,
-        scores.scoreVisitante,
-        jogo.resultCasa!,
-        jogo.resultVisitante!,
-      )
+          scores.scoreCasa,
+          scores.scoreVisitante,
+          jogo.resultCasa!,
+          jogo.resultVisitante!,
+        )
       : null;
 
   const koMs = kickoffMsFromJogo(jogo);
   const beforeKickoff = koMs != null && nowMs < koMs;
   const matchLive = isMatchLiveForDisplay(jogo, nowMs);
-  const liveClockLabel = formatLiveClockLabel(jogo, nowMs);
   /** Antes do apito: qualquer jogo na rodada (nao so o primeiro da lista). */
   const readOnlyPending = readOnly && beforeKickoff;
   const readOnlyMatchLive = readOnly && matchLive;
@@ -1398,37 +1343,18 @@ function JogoCard({
     !temPlacarOficial &&
     koMs != null &&
     nowMs >= koMs;
-  const resultadoResumo =
-    phase === "post" && review && initialPrediction
-      ? copyPontuacaoPartida(
-        review,
-        initialPrediction.scoreCasa,
-        initialPrediction.scoreVisitante,
-        jogo.resultCasa!,
-        jogo.resultVisitante!,
-      )
-      : null;
-
   const showResultadoDetalhado =
     phase === "post" && hasInitialPrediction && review != null;
   const pontosLinhas =
     review != null && temPlacarOficial && initialPrediction
       ? palpitePontosBreakdown(
-        review,
-        initialPrediction.scoreCasa,
-        initialPrediction.scoreVisitante,
-        jogo.resultCasa!,
-        jogo.resultVisitante!,
-      )
+          review,
+          initialPrediction.scoreCasa,
+          initialPrediction.scoreVisitante,
+          jogo.resultCasa!,
+          jogo.resultVisitante!,
+        )
       : [];
-
-  const liveTempoLabel = (() => {
-    const raw = formatLiveClockLabel(jogo, nowMs);
-    if (!raw) return null;
-    if (raw.includes("tempo")) return raw.split("·").pop()?.trim() ?? raw;
-    if (raw === "Intervalo") return "Intervalo";
-    return raw;
-  })();
 
   const liveCasa = jogo.resultCasa ?? 0;
   const liveVisit = jogo.resultVisitante ?? 0;
@@ -1438,7 +1364,15 @@ function JogoCard({
     hasInitialPrediction && (palpiteLocked || phase !== "pre");
   const semPalpite = phase === "pre" && !hasInitialPrediction;
   const showSteppers =
-    phase === "pre" && canChangeScores && !predictionsLoading;
+    phase === "pre" &&
+    canChangeScores &&
+    !predictionsLoading &&
+    !palpiteEnviado;
+  const showSeuPalpite =
+    (phase === "live" || phase === "post") && hasInitialPrediction;
+  const liveBadgeLabel = formatLiveStatusBadge(jogo);
+  const showPreHeader = phase === "pre";
+  const showPreDivider = showPreHeader && (palpiteEnviado || semPalpite);
 
   const centerScores = (() => {
     if (predictionsLoading) {
@@ -1510,27 +1444,33 @@ function JogoCard({
     return null;
   })();
 
+  const bodyPadding =
+    phase === "pre"
+      ? "p-6"
+      : "px-5 pb-5 pt-2";
+
   return (
     <div
       className="mb-4 overflow-hidden rounded-2xl"
       style={{ background: PALPITE_CARD_BG }}
     >
-      <PalpiteCardStatusBar
-        phase={phase}
-        countdownLabel={countdownLabel}
-        kickoffHour={kickoffHour}
-        liveMinute={liveMinute}
-        palpiteEnviado={palpiteEnviado}
-        semPalpite={semPalpite}
-      />
+      {phase === "live" ? (
+        <PalpiteCardLiveBadge label={liveBadgeLabel} />
+      ) : showPreHeader ? (
+        <>
+          <PalpiteCardStatusBar
+            countdownLabel={countdownLabel}
+            kickoffHour={kickoffHour}
+            palpiteEnviado={palpiteEnviado}
+            semPalpite={semPalpite}
+          />
+          {showPreDivider ? (
+            <div className="mx-5 border-b border-white/10" />
+          ) : null}
+        </>
+      ) : null}
 
-      <div
-        className={
-          semPalpite || (phase === "pre" && showSteppers)
-            ? "p-6"
-            : "px-5 pb-5 pt-3"
-        }
-      >
+      <div className={bodyPadding}>
         <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
           <PalpiteCardTeamColumn
             url={jogo.escudoCasa}
@@ -1538,12 +1478,8 @@ function JogoCard({
             sigla={jogo.siglasCasa}
           />
           <div className="flex flex-col items-center justify-center px-1">
+            {phase === "post" ? <PalpiteResultadoFinalBadge /> : null}
             {centerScores}
-            {phase === "live" && liveTempoLabel ? (
-              <p className="mt-2 text-[11px] font-bold uppercase tracking-wide text-white/45">
-                {liveTempoLabel}
-              </p>
-            ) : null}
           </div>
           <PalpiteCardTeamColumn
             url={jogo.escudoVisitante}
@@ -1551,6 +1487,12 @@ function JogoCard({
             sigla={jogo.siglasVisitante}
           />
         </div>
+        {showSeuPalpite && initialPrediction ? (
+          <PalpiteSeuPalpiteLine
+            casa={initialPrediction.scoreCasa}
+            visitante={initialPrediction.scoreVisitante}
+          />
+        ) : null}
       </div>
 
       {phase === "post" && !hasInitialPrediction ? (
@@ -1559,15 +1501,11 @@ function JogoCard({
         </p>
       ) : null}
 
-      {phase === "post" &&
-      showResultadoDetalhado &&
-      review &&
-      resultadoResumo ? (
+      {phase === "post" && showResultadoDetalhado && review ? (
         <PalpitePontuacaoBreakdown
           expanded={pontosExpanded}
           onToggle={() => setPontosExpanded((v) => !v)}
           review={review}
-          resumo={resultadoResumo}
           linhas={pontosLinhas}
         />
       ) : null}
