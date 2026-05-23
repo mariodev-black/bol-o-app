@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { PWA_START_PATH } from "@/lib/pwa/config";
 import { getAppOrigin, SITE_NAME, SITE_TAGLINE } from "@/lib/seo/config";
 
 export default function manifest(): MetadataRoute.Manifest {
@@ -8,7 +9,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: SITE_NAME,
     short_name: "Bolão Milhão",
     description: SITE_TAGLINE,
-    start_url: "/palpites",
+    start_url: PWA_START_PATH,
     scope: "/",
     id: `${origin}/`,
     display: "standalone",

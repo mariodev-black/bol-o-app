@@ -51,11 +51,20 @@ export async function POST(request: NextRequest) {
   const title = trimField(payload.title, 200);
   const preview = trimField(payload.preview, 500);
   const messageBody = trimField(payload.body, 8000);
-  const audience = payload.audience === "selected" ? "selected" : "all";
+  const requestedIds = Array.isArray(payload.userIds)
+    ? payload.userIds.map((id) => String(id).trim()).filter(Boolean)
+    : [];
+
+  /** Com IDs na requisição, sempre modo selecionado (evita enviar para todos por engano). */
+  const audience: "all" | "selected" =
+    payload.audience === "selected" || requestedIds.length > 0
+      ? "selected"
+      : "all";
+
   const buttonLabel = trimField(payload.buttonLabel, 80);
   const buttonUrl = trimField(payload.buttonUrl, 500);
   const includeEmailButton = payload.includeEmailButton === true;
-  const pushUrl = trimField(payload.pushUrl || payload.buttonUrl, 500) || "/palpites";
+  const pushUrl = trimField(payload.pushUrl || payload.buttonUrl, 500) || "/boloes";
 
   const validationError = validateAdminDispatchInput({
     channels,
@@ -76,26 +85,23 @@ export async function POST(request: NextRequest) {
     if (audience === "all") {
       userIds = await listAllBroadcastUserIds();
     } else {
-      const requested = Array.isArray(payload.userIds)
-        ? payload.userIds.map((id) => String(id).trim()).filter(Boolean)
-        : [];
-      if (requested.length === 0) {
+      if (requestedIds.length === 0) {
         return NextResponse.json(
-          { error: "Selecione pelo menos um usuario ou marque todos" },
+          { error: "Selecione pelo menos um usuario ou escolha todos" },
           { status: 400 },
         );
       }
-      userIds = await resolveBroadcastUserIds(requested);
+      userIds = await resolveBroadcastUserIds(requestedIds);
       if (userIds.length === 0) {
         return NextResponse.json(
           { error: "Nenhum usuario valido na selecao (e-mail obrigatorio)" },
           { status: 400 },
         );
       }
-      if (userIds.length < requested.length) {
+      if (userIds.length !== requestedIds.length) {
         return NextResponse.json(
           {
-            error: `${requested.length - userIds.length} usuario(s) da selecao nao sao validos ou nao tem e-mail`,
+            error: `${requestedIds.length - userIds.length} usuario(s) da selecao nao sao validos ou nao tem e-mail`,
           },
           { status: 400 },
         );

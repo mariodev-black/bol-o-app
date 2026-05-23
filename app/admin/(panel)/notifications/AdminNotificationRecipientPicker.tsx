@@ -83,9 +83,12 @@ export function AdminNotificationRecipientPicker({
 
   function addUser(user: RecipientUser) {
     if (selectedIds.has(user.id)) return;
+    onSendToAllChange(false);
     onSelectedChange([...selected, user]);
+    setSearch("");
+    setSearchResults([]);
     inputRef.current?.focus();
-    setPickerOpen(true);
+    setPickerOpen(false);
   }
 
   function removeUser(id: string) {
@@ -98,13 +101,12 @@ export function AdminNotificationRecipientPicker({
     inputRef.current?.focus();
   }
 
-  const showDropdown =
-    !sendToAll && pickerOpen && query.length >= 2;
+  const showDropdown = !sendToAll && pickerOpen && query.length >= 2;
 
   const recipientLabel = sendToAll
     ? `Todos (${eligibleUsers.toLocaleString("pt-BR")} usuários com e-mail)`
     : selected.length === 0
-      ? "Nenhum selecionado"
+      ? "Nenhum selecionado — busque abaixo"
       : `${selected.length} selecionado(s)`;
 
   return (
@@ -114,36 +116,73 @@ export function AdminNotificationRecipientPicker({
       </p>
       <p className="mt-1 text-[13px] font-bold text-primary">{recipientLabel}</p>
 
-      <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-[12px] border border-white/10 bg-black/30 p-4">
-        <input
-          type="checkbox"
-          className="mt-1 size-4 accent-[#B1EB0B]"
-          checked={sendToAll}
-          onChange={(e) => {
-            onSendToAllChange(e.target.checked);
-            if (e.target.checked) {
+      <div
+        className="mt-4 grid gap-3"
+        role="radiogroup"
+        aria-label="Público do disparo"
+      >
+        <label
+          className={[
+            "flex cursor-pointer items-start gap-3 rounded-[12px] border p-4 transition-colors",
+            !sendToAll
+              ? "border-primary/40 bg-primary/8"
+              : "border-white/10 bg-black/30",
+          ].join(" ")}
+        >
+          <input
+            type="radio"
+            name="broadcast-audience"
+            className="mt-1 size-4 accent-[#B1EB0B]"
+            checked={!sendToAll}
+            onChange={() => onSendToAllChange(false)}
+          />
+          <span>
+            <span className="block text-[14px] font-bold text-white">
+              Usuários específicos
+            </span>
+            <span className="mt-1 block text-[12px] font-medium text-white/40">
+              Busque e adicione uma ou mais contas — envio só para quem estiver na lista.
+            </span>
+          </span>
+        </label>
+
+        <label
+          className={[
+            "flex cursor-pointer items-start gap-3 rounded-[12px] border p-4 transition-colors",
+            sendToAll
+              ? "border-primary/40 bg-primary/8"
+              : "border-white/10 bg-black/30",
+          ].join(" ")}
+        >
+          <input
+            type="radio"
+            name="broadcast-audience"
+            className="mt-1 size-4 accent-[#B1EB0B]"
+            checked={sendToAll}
+            onChange={() => {
+              onSendToAllChange(true);
               setPickerOpen(false);
               setSearch("");
               setSearchResults([]);
-            }
-          }}
-        />
-        <span>
-          <span className="block text-[14px] font-bold text-white">
-            Enviar para todos os usuários
+            }}
+          />
+          <span>
+            <span className="block text-[14px] font-bold text-white">
+              Todos os usuários
+            </span>
+            <span className="mt-1 block text-[12px] font-medium text-white/40">
+              {eligibleUsers.toLocaleString("pt-BR")} contas com e-mail cadastrado.
+            </span>
           </span>
-          <span className="mt-1 block text-[12px] font-medium text-white/40">
-            Contas com e-mail cadastrado ({eligibleUsers.toLocaleString("pt-BR")})
-          </span>
-        </span>
-      </label>
+        </label>
+      </div>
 
       {!sendToAll ? (
         <div className="mt-4 space-y-3">
           <div className="relative">
             <label className="grid gap-2" htmlFor={`${listboxId}-input`}>
               <span className="text-[11px] font-black uppercase tracking-[0.14em] text-white/50">
-                Adicionar usuários
+                Buscar usuário
               </span>
               <input
                 ref={inputRef}
@@ -155,7 +194,7 @@ export function AdminNotificationRecipientPicker({
                 aria-controls={listboxId}
                 aria-autocomplete="list"
                 autoComplete="off"
-                placeholder="Nome, e-mail ou CPF — Enter adiciona o primeiro resultado"
+                placeholder="Nome, e-mail ou CPF"
                 onChange={(e) => {
                   setSearch(e.target.value);
                   setPickerOpen(true);
@@ -178,9 +217,7 @@ export function AdminNotificationRecipientPicker({
             </label>
 
             {showDropdown ? (
-              <div
-                className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 overflow-hidden rounded-[12px] border border-white/10 bg-[#0a0a0a] shadow-[0_16px_40px_rgba(0,0,0,0.55)]"
-              >
+              <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 overflow-hidden rounded-[12px] border border-white/10 bg-[#0a0a0a] shadow-[0_16px_40px_rgba(0,0,0,0.55)]">
                 {searching ? (
                   <p className="px-4 py-3 text-[12px] text-white/40">Buscando...</p>
                 ) : searchError ? (
@@ -218,16 +255,11 @@ export function AdminNotificationRecipientPicker({
             ) : null}
           </div>
 
-          <p className="text-[11px] font-medium text-white/35">
-            Clique nos resultados ou pressione Enter para adicionar vários, um após o outro, sem
-            perder a busca.
-          </p>
-
           {selected.length > 0 ? (
             <div className="rounded-[12px] border border-white/10 bg-black/30 p-4">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <span className="text-[11px] font-black uppercase tracking-[0.14em] text-white/50">
-                  Selecionados ({selected.length})
+                  Serão enviados para ({selected.length})
                 </span>
                 <button
                   type="button"
@@ -260,12 +292,17 @@ export function AdminNotificationRecipientPicker({
               </div>
             </div>
           ) : (
-            <p className="text-[12px] text-white/35">
-              Busque e adicione um ou mais usuários antes de enviar.
+            <p className="text-[12px] font-medium text-amber-300/85">
+              Adicione pelo menos um usuário antes de enviar.
             </p>
           )}
         </div>
-      ) : null}
+      ) : (
+        <p className="mt-4 text-[12px] font-medium text-amber-300/85">
+          Atenção: o disparo será para todas as contas com e-mail (
+          {eligibleUsers.toLocaleString("pt-BR")}).
+        </p>
+      )}
     </div>
   );
 }

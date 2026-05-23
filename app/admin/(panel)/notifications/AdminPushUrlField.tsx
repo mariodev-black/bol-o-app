@@ -4,8 +4,8 @@ const inputClass =
   "w-full rounded-[12px] border border-white/10 bg-black/40 px-4 py-3 text-[14px] font-semibold text-white outline-none placeholder:text-white/25 focus:border-primary/45";
 
 const QUICK_LINKS = [
-  { label: "Palpites", path: "/palpites" },
   { label: "Bolões", path: "/boloes" },
+  { label: "Palpites", path: "/palpites" },
   { label: "Ranking", path: "/ranking" },
 ] as const;
 
@@ -29,7 +29,7 @@ export function AdminPushUrlField({
           className={inputClass}
           value={pushUrl}
           onChange={(e) => onPushUrlChange(e.target.value)}
-          placeholder="/palpites"
+          placeholder="/boloes"
           maxLength={500}
           required
         />

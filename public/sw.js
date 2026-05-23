@@ -26,7 +26,7 @@ self.addEventListener("push", (event) => {
     tag: payload.tag || "bolao-notification",
     renotify: true,
     data: {
-      url: payload.url || "/palpites",
+      url: payload.url || "/boloes",
       notificationId: payload.notificationId || null,
     },
   };
@@ -36,7 +36,7 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const targetUrl = event.notification.data?.url || "/palpites";
+  const targetUrl = event.notification.data?.url || "/boloes";
   const absoluteUrl = new URL(targetUrl, self.location.origin).href;
 
   event.waitUntil(

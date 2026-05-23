@@ -1,4 +1,5 @@
 import webpush from "web-push";
+import { PWA_START_PATH } from "@/lib/pwa/config";
 import { getAppOrigin } from "@/lib/seo/config";
 import { ensureWebPushVapid, isWebPushConfigured } from "@/lib/push/config";
 import {
@@ -16,7 +17,7 @@ export type PushPayload = {
 
 function resolvePushUrl(path?: string): string {
   const origin = getAppOrigin();
-  if (!path || path === "/") return `${origin}/palpites`;
+  if (!path || path === "/") return `${origin}${PWA_START_PATH}`;
   if (path.startsWith("http")) return path;
   return `${origin}${path.startsWith("/") ? path : `/${path}`}`;
 }

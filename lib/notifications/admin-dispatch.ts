@@ -163,7 +163,7 @@ export function parseOptionalAdminEmailButton(
   if (!isAllowedAdminBroadcastButtonUrl(trimmedUrl)) {
     return {
       button: null,
-      error: "Link do botão inválido. Use um caminho do app (ex.: /palpites)",
+      error: "Link do botão inválido. Use um caminho do app (ex.: /boloes)",
     };
   }
 
@@ -202,7 +202,7 @@ export function validateAdminDispatchInput(input: {
   }
 
   if (input.channels.includes("push") && !isAllowedAdminBroadcastButtonUrl(input.pushUrl)) {
-    return "Link do push invalido. Use um caminho do app (ex.: /palpites)";
+    return "Link do push invalido. Use um caminho do app (ex.: /boloes)";
   }
 
   if (input.channels.includes("email")) {

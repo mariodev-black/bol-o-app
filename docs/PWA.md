@@ -2,7 +2,7 @@
 
 ## O que está implementado
 
-- **Manifest** (`app/manifest.ts`) — app instalável, ícones em `/pwa/`, `start_url` `/palpites`, tema `#B1EB0B`
+- **Manifest** (`app/manifest.ts`) — app instalável, ícones em `/pwa/`, `start_url` `/boloes`, tema `#B1EB0B`
 - **Service worker** (`public/sw.js`) — recebe push e abre o app ao tocar na notificação
 - **Web Push** — inscrições em `push_subscriptions`, envio via `web-push` + VAPID
 - **UI** — modal pós-instalação para ativar push, banner no navegador (quem não instalou), página **`/instalar-app`**, registro automático do SW logado

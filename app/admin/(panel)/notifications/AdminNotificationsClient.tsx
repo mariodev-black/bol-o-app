@@ -35,6 +35,7 @@ const DEFAULT_CHANNELS: AdminBroadcastChannel[] = ["app", "push"];
 function formatDispatchSuccess(
   channels: AdminBroadcastChannel[],
   d: {
+    audience?: "all" | "selected";
     requested?: number;
     app?: { created?: number };
     push?: { sent?: number; failed?: number };
@@ -43,6 +44,11 @@ function formatDispatchSuccess(
 ): string {
   const parts: string[] = [];
   const requested = d.requested ?? 0;
+  const audienceLabel =
+    d.audience === "selected"
+      ? `${requested.toLocaleString("pt-BR")} destinatário(s) selecionado(s)`
+      : `todos (${requested.toLocaleString("pt-BR")} com e-mail)`;
+  parts.push(audienceLabel);
 
   if (channelIncludesApp(channels) && (d.app?.created ?? 0) > 0) {
     parts.push(`${(d.app?.created ?? 0).toLocaleString("pt-BR")} no sininho`);
@@ -104,10 +110,10 @@ export function AdminNotificationsClient({
   const [body, setBody] = useState("");
   const [includeEmailButton, setIncludeEmailButton] = useState(false);
   const [buttonLabel, setButtonLabel] = useState("Enviar palpites");
-  const [buttonUrl, setButtonUrl] = useState("/palpites");
-  const [pushUrl, setPushUrl] = useState("/palpites");
+  const [buttonUrl, setButtonUrl] = useState("/boloes");
+  const [pushUrl, setPushUrl] = useState("/boloes");
   const [channels, setChannels] = useState<AdminBroadcastChannel[]>(DEFAULT_CHANNELS);
-  const [sendToAll, setSendToAll] = useState(true);
+  const [sendToAll, setSendToAll] = useState(false);
   const [selected, setSelected] = useState<RecipientUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -146,10 +152,17 @@ export function AdminNotificationsClient({
       setError("Selecione pelo menos um canal de envio.");
       return;
     }
+    if (!sendToAll && selected.length === 0) {
+      setError("Selecione pelo menos um usuário ou marque “Todos os usuários”.");
+      return;
+    }
 
     setError(null);
     setSuccess(null);
     setLoading(true);
+
+    const audience = sendToAll ? "all" : "selected";
+    const userIds = sendToAll ? [] : selected.map((u) => u.id);
 
     try {
       const r = await fetch("/api/admin/notifications/send", {
@@ -162,8 +175,8 @@ export function AdminNotificationsClient({
           body,
           channels,
           pushUrl,
-          audience: sendToAll ? "all" : "selected",
-          userIds: sendToAll ? undefined : selected.map((u) => u.id),
+          audience,
+          userIds,
           ...(channelIncludesEmail(channels)
             ? {
                 includeEmailButton,
@@ -175,6 +188,7 @@ export function AdminNotificationsClient({
       });
       const d = (await r.json()) as {
         ok?: boolean;
+        audience?: "all" | "selected";
         requested?: number;
         channels?: AdminBroadcastChannel[];
         app?: { created?: number };
@@ -184,7 +198,7 @@ export function AdminNotificationsClient({
       };
       if (!r.ok || !d.ok) throw new Error(d.error ?? "Falha ao enviar");
 
-      setSuccess(formatDispatchSuccess(d.channels ?? channels, d));
+      setSuccess(formatDispatchSuccess(d.channels ?? channels, { ...d, audience: d.audience ?? audience }));
       setTitle("");
       setPreview("");
       setBody("");
@@ -313,9 +327,15 @@ export function AdminNotificationsClient({
           <AdminNotificationRecipientPicker
             eligibleUsers={eligibleUsers}
             sendToAll={sendToAll}
-            onSendToAllChange={setSendToAll}
+            onSendToAllChange={(value) => {
+              setSendToAll(value);
+              if (value) setSelected([]);
+            }}
             selected={selected}
-            onSelectedChange={setSelected}
+            onSelectedChange={(users) => {
+              if (users.length > 0) setSendToAll(false);
+              setSelected(users);
+            }}
           />
 
           <button
