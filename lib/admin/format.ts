@@ -32,6 +32,13 @@ export function formatAdminTicketType(type: string | null | undefined) {
   return type || "Não informado";
 }
 
+/** Rótulo de rodada para admin (ex.: 17ª Rodada). */
+export function formatAdminRodadaLabel(rodada: number): string {
+  const n = Math.round(rodada);
+  if (!Number.isFinite(n) || n < 1) return "Rodada";
+  return `${n}ª Rodada`;
+}
+
 export function formatAdminCpaBps(cpaBps: number | null | undefined): string {
   return `${((cpaBps ?? 0) / 100).toLocaleString("pt-BR", {
     minimumFractionDigits: 0,

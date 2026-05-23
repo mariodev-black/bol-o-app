@@ -1,10 +1,22 @@
 import { AdminPageTitle } from "@/app/admin/_components/AdminShell";
 import { AdminBolaoDashboardCard } from "@/app/admin/(panel)/boloes/_components/AdminBolaoDashboardCard";
-import { getAdminBoloesDashboardData } from "@/lib/admin/sections";
+import { AdminExtraCompetitionSection } from "@/app/admin/(panel)/boloes/_components/AdminExtraCompetitionSection";
+import { getAdminBoloesDashboardData, type AdminExtraBolaoCard } from "@/lib/admin/sections";
 import { Gift, Layers, Ticket, Trophy, Users } from "lucide-react";
+
+function groupExtraCardsByCompetition(cards: AdminExtraBolaoCard[]) {
+  const map = new Map<string, AdminExtraBolaoCard[]>();
+  for (const card of cards) {
+    const list = map.get(card.displayName) ?? [];
+    list.push(card);
+    map.set(card.displayName, list);
+  }
+  return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b, "pt-BR"));
+}
 
 export default async function AdminBoloesPage() {
   const data = await getAdminBoloesDashboardData();
+  const extraByCompetition = groupExtraCardsByCompetition(data.extraCards);
 
   const totalPaidTickets =
     data.principal.ticketsCount +
@@ -112,7 +124,7 @@ export default async function AdminBoloesPage() {
           <div>
             <h2 className="text-[15px] font-black text-white">Bolões extra</h2>
             <p className="mt-1 text-[12px] font-medium text-white/38">
-              Brasileirão, Premier e outros campeonatos — inclui cotas do brinde grátis.
+              Agrupado por campeonato e rodada — inclui cotas do brinde grátis.
             </p>
           </div>
           {data.promoTicketsTotal > 0 ? (
@@ -122,24 +134,13 @@ export default async function AdminBoloesPage() {
             </p>
           ) : null}
         </div>
-        {data.extraCards.length ? (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {data.extraCards.map((card) => (
-              <AdminBolaoDashboardCard
-                key={card.key}
-                href={`/admin/boloes/extra?key=${encodeURIComponent(card.key)}`}
-                kind="extra"
-                extraVariant={card.iconVariant}
-                eyebrow="Bolão extra"
-                title={card.displayName}
-                subtitle={`Rodada / jogos em ${card.date}`}
-                badge={card.date}
-                stats={{
-                  ticketsCount: card.ticketsCount,
-                  playersCount: card.playersCount,
-                  finishedCount: card.finishedCount,
-                  promoTicketsCount: card.promoTicketsCount,
-                }}
+        {extraByCompetition.length ? (
+          <div className="space-y-4">
+            {extraByCompetition.map(([competitionName, cards]) => (
+              <AdminExtraCompetitionSection
+                key={competitionName}
+                competitionName={competitionName}
+                cards={cards}
               />
             ))}
           </div>

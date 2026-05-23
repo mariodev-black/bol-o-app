@@ -1,10 +1,17 @@
 import { AdminPageTitle } from "@/app/admin/_components/AdminShell";
-import { BolaoRankingTable } from "@/app/admin/(panel)/boloes/_components/BolaoRankingTable";
+import { BolaoDetailRankingSection } from "@/app/admin/(panel)/boloes/_components/BolaoDetailRankingSection";
 import { AdminBolaoKindBadge, AdminBolaoKindIcon } from "@/app/admin/(panel)/boloes/_components/AdminBolaoKindIcon";
 import { AdminBolaoStat } from "@/app/admin/(panel)/boloes/_components/AdminBolaoStat";
-import { getAdminBoloesDashboardData } from "@/lib/admin/sections";
+import { formatAdminRodadaLabel } from "@/lib/admin/format";
+import {
+  extraBolaoFallbackDisplayName,
+  getExtraBolaoHeroSideVariant,
+} from "@/lib/boloes-extra-competition-branding";
+import { readCompetitionDisplayNamesFromDb } from "@/lib/competition-metadata-cache";
+import { getAdminBolaoRankingPage, parseExtraBolaoScopeKey } from "@/lib/admin/sections";
 import { Gift, Target, Ticket, Users } from "lucide-react";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 
 export default async function AdminBolaoExtraPage({
   searchParams,
@@ -12,9 +19,20 @@ export default async function AdminBolaoExtraPage({
   searchParams?: Promise<{ key?: string }>;
 }) {
   const params = searchParams ? await searchParams : undefined;
-  const selectedKey = params?.key ?? null;
-  const data = await getAdminBoloesDashboardData(null, selectedKey);
-  const card = data.selectedExtraCard;
+  const selectedKey = params?.key?.trim() ?? "";
+  const parsed = parseExtraBolaoScopeKey(selectedKey);
+  if (!parsed) notFound();
+
+  const labels = await readCompetitionDisplayNamesFromDb([parsed.championshipId]).catch(
+    () => ({} as Record<number, string>),
+  );
+  const displayName =
+    labels[parsed.championshipId] ?? extraBolaoFallbackDisplayName(parsed.championshipId);
+  const iconVariant = getExtraBolaoHeroSideVariant(parsed.championshipId, displayName);
+
+  const scope = { type: "extra" as const, key: selectedKey };
+  const ranking = await getAdminBolaoRankingPage(scope);
+  const { summary } = ranking;
 
   return (
     <>
@@ -27,42 +45,35 @@ export default async function AdminBolaoExtraPage({
         </Link>
       </div>
       <AdminPageTitle
-        title={card ? `Bolão extra — ${card.displayName}` : "Bolão extra"}
-        subtitle={
-          card
-            ? `Jogos em ${card.date} · ranking detalhado deste campeonato.`
-            : "Nenhum bolão extra encontrado."
-        }
+        title={`${formatAdminRodadaLabel(parsed.rodada)} — ${displayName}`}
+        subtitle="Ranking completo desta rodada com scroll infinito."
       />
 
-      {card ? (
-        <div className="mb-5 flex flex-col gap-4 rounded-[18px] border border-white/8 bg-[#101010] p-5 sm:flex-row sm:items-center">
-          <AdminBolaoKindIcon kind="extra" extraVariant={card.iconVariant} size="lg" />
-          <div className="min-w-0 flex-1">
-            <AdminBolaoKindBadge kind="extra" />
-            <p className="mt-2 text-[22px] font-black text-white">{card.displayName}</p>
-            <p className="mt-1 text-[13px] font-medium text-white/45">{card.date}</p>
-          </div>
-          <div className="grid w-full grid-cols-2 gap-2 sm:max-w-md sm:grid-cols-4">
-            <AdminBolaoStat icon={Ticket} label="Cotas" value={card.ticketsCount} accent="primary" />
-            <AdminBolaoStat icon={Users} label="Jogadores" value={card.playersCount} />
-            <AdminBolaoStat icon={Target} label="Finalizadas" value={card.finishedCount} />
-            <AdminBolaoStat icon={Gift} label="Grátis" value={card.promoTicketsCount} accent="amber" />
-          </div>
-        </div>
-      ) : null}
-
-      <section className="overflow-hidden rounded-[18px] border border-white/8 bg-[#101010]">
-        <div className="border-b border-white/8 px-5 py-4">
-          <h2 className="text-[15px] font-black text-white">Ranking do bolão extra</h2>
-          <p className="mt-1 text-[12px] font-medium text-white/38">
-            {card
-              ? `${card.ticketsCount} cotas · ${card.playersCount} jogadores · ${card.promoTicketsCount} grátis · ${card.totalPoints} pontos`
-              : "Sem dados para este bolão."}
+      <div className="mb-5 flex flex-col gap-4 rounded-[18px] border border-white/8 bg-[#101010] p-5 sm:flex-row sm:items-center">
+        <AdminBolaoKindIcon kind="extra" extraVariant={iconVariant} size="lg" />
+        <div className="min-w-0 flex-1">
+          <AdminBolaoKindBadge kind="extra" />
+          <p className="mt-2 text-[22px] font-black text-white">
+            {formatAdminRodadaLabel(parsed.rodada)}
           </p>
+          <p className="mt-1 text-[13px] font-medium text-white/45">{displayName}</p>
         </div>
-        <BolaoRankingTable rows={data.selectedExtraRanking} emptyText="Nenhuma cota extra ranqueada" />
-      </section>
+        <div className="grid w-full grid-cols-2 gap-2 sm:max-w-md sm:grid-cols-4">
+          <AdminBolaoStat icon={Ticket} label="Cotas" value={summary.ticketsCount} accent="primary" />
+          <AdminBolaoStat icon={Users} label="Jogadores" value={summary.playersCount} />
+          <AdminBolaoStat icon={Target} label="Finalizadas" value={summary.finishedCount} />
+          <AdminBolaoStat icon={Gift} label="Grátis" value={summary.promoTicketsCount} accent="amber" />
+        </div>
+      </div>
+
+      <BolaoDetailRankingSection
+        title="Ranking da rodada"
+        description={`${summary.ticketsCount.toLocaleString("pt-BR")} cotas · ${summary.playersCount.toLocaleString("pt-BR")} jogadores · ${summary.totalPoints.toLocaleString("pt-BR")} pontos`}
+        scope={scope}
+        initialRows={ranking.rows}
+        total={ranking.total}
+        emptyText="Nenhuma cota extra nesta rodada"
+      />
     </>
   );
 }

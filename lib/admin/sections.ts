@@ -6,6 +6,20 @@ import {
 import { getFootballMainCompetitionId, parseExtraBolaoChampionshipIds } from "@/lib/boloes-extra-config";
 import { readCompetitionDisplayNamesFromDb } from "@/lib/competition-metadata-cache";
 import { getPool } from "@/lib/db";
+import {
+  ADMIN_BOLAO_RANKING_PAGE_SIZE,
+  parseExtraBolaoScopeKey,
+  type AdminBolaoRankingRow,
+  type AdminBolaoRankingScope,
+  type AdminBolaoRankingSummary,
+} from "@/lib/admin/boloes-ranking-types";
+
+export type {
+  AdminBolaoRankingRow,
+  AdminBolaoRankingScope,
+  AdminBolaoRankingSummary,
+} from "@/lib/admin/boloes-ranking-types";
+export { ADMIN_BOLAO_RANKING_PAGE_SIZE, parseExtraBolaoScopeKey } from "@/lib/admin/boloes-ranking-types";
 
 export type AdminAffiliateStats = {
   referredUsersCount: number;
@@ -171,27 +185,6 @@ export type AdminTicketDetail = AdminTicketListItem & {
   predictions: AdminTicketPredictionItem[];
 };
 
-export type AdminBolaoRankingRow = {
-  position: number;
-  ticketId: string;
-  userId: string;
-  userName: string | null;
-  userEmail: string;
-  ticketType: string;
-  extraChampionshipId: number | null;
-  isPromoBonus: boolean;
-  groupDate: string | null;
-  scorePoints: number;
-  exactCount: number;
-  outcomeCount: number;
-  goalsCount: number;
-  predictionsCount: number;
-  pendingPredictionsCount: number;
-  totalMatchesCount: number;
-  paidAt: string | null;
-  createdAt: string;
-};
-
 export type AdminDailyBolaoCard = {
   date: string;
   ticketsCount: number;
@@ -208,7 +201,7 @@ export type AdminExtraBolaoCard = {
   championshipId: number;
   displayName: string;
   iconVariant: ExtraBolaoHeroSideVariant;
-  date: string;
+  rodada: number;
   ticketsCount: number;
   playersCount: number;
   totalPoints: number;
@@ -236,68 +229,45 @@ export type AdminBoloesDashboardData = {
   selectedExtraCard: AdminExtraBolaoCard | null;
 };
 
-export async function getAdminAffiliateStats(): Promise<AdminAffiliateStats> {
-  const pool = getPool();
-  const { rows } = await pool.query<{
-    referred_users_count: string | number;
-    commissions_count: string | number;
-    commission_total_cents: string | number | null;
-    pending_withdrawals_cents: string | number | null;
-    influencers_count: string | number;
-  }>(
-    `SELECT
-       (SELECT COUNT(*) FROM users WHERE referred_by_user_id IS NOT NULL) AS referred_users_count,
-       (SELECT COUNT(*) FROM referral_commissions) AS commissions_count,
-       (SELECT COALESCE(SUM(amount_cents), 0) FROM referral_commissions) AS commission_total_cents,
-       (SELECT COALESCE(SUM(amount_cents), 0) FROM affiliate_withdrawal_requests WHERE status = 'pending') AS pending_withdrawals_cents,
-       (SELECT COUNT(*) FROM users WHERE affiliate_mode = 'influencer') AS influencers_count`
-  );
-  const row = rows[0];
+function summarizeBolaoRanking(rows: AdminBolaoRankingRow[]): AdminBolaoRankingSummary {
   return {
-    referredUsersCount: Number(row?.referred_users_count ?? 0),
-    commissionsCount: Number(row?.commissions_count ?? 0),
-    commissionTotalCents: Number(row?.commission_total_cents ?? 0),
-    pendingWithdrawalsCents: Number(row?.pending_withdrawals_cents ?? 0),
-    influencersCount: Number(row?.influencers_count ?? 0),
+    ticketsCount: rows.length,
+    playersCount: new Set(rows.map((row) => row.userId)).size,
+    totalPoints: rows.reduce((acc, row) => acc + row.scorePoints, 0),
+    finishedCount: rows.filter((row) => bolaoUsageStatus(row) === "finished").length,
+    promoTicketsCount: rows.filter((row) => row.isPromoBonus).length,
   };
 }
 
-function rankBolaoRows(rows: Omit<AdminBolaoRankingRow, "position">[]): AdminBolaoRankingRow[] {
-  return [...rows]
-    .sort((a, b) => {
-      if (b.scorePoints !== a.scorePoints) return b.scorePoints - a.scorePoints;
-      if (b.exactCount !== a.exactCount) return b.exactCount - a.exactCount;
-      if (b.outcomeCount !== a.outcomeCount) return b.outcomeCount - a.outcomeCount;
-      if (b.goalsCount !== a.goalsCount) return b.goalsCount - a.goalsCount;
-      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-    })
-    .map((row, index) => ({ ...row, position: index + 1 }));
+function resolveAdminBolaoRanking(
+  scope: AdminBolaoRankingScope,
+  baseRows: Omit<AdminBolaoRankingRow, "position">[],
+): AdminBolaoRankingRow[] {
+  if (scope.type === "principal") {
+    return rankBolaoRows(
+      baseRows.filter((row) => row.ticketType === "general" && !row.isPromoBonus),
+    );
+  }
+  if (scope.type === "daily") {
+    return rankBolaoRows(
+      baseRows.filter((row) => row.ticketType === "daily" && row.groupDate === scope.date),
+    );
+  }
+  const parsed = parseExtraBolaoScopeKey(scope.key);
+  if (!parsed) return [];
+  return rankBolaoRows(
+    baseRows.filter(
+      (row) =>
+        row.ticketType === "extra" &&
+        row.extraChampionshipId === parsed.championshipId &&
+        row.groupRound === parsed.rodada,
+    ),
+  );
 }
 
-function bolaoUsageStatus(row: Pick<AdminBolaoRankingRow, "predictionsCount" | "pendingPredictionsCount">) {
-  if (row.predictionsCount <= 0) return "available";
-  if (row.pendingPredictionsCount > 0) return "in_use";
-  return "finished";
-}
-
-export async function getAdminBoloesDashboardData(
-  selectedDailyDate?: string | null,
-  selectedExtraKey?: string | null,
-): Promise<AdminBoloesDashboardData> {
+async function loadAdminBolaoBaseRows(): Promise<Omit<AdminBolaoRankingRow, "position">[]> {
   const pool = getPool();
   const mainComp = getFootballMainCompetitionId();
-  const extraIds = parseExtraBolaoChampionshipIds();
-  const competitionLabels = await readCompetitionDisplayNamesFromDb(extraIds).catch(
-    () => ({} as Record<number, string>),
-  );
-
-  const promoCountResult = await pool.query<{ count: string }>(
-    `SELECT COUNT(*)::text AS count
-     FROM tickets
-     WHERE COALESCE(is_promo_bonus, false) = true
-       AND status IN ('paid', 'approved')`,
-  );
-  const promoTicketsTotal = Number(promoCountResult.rows[0]?.count ?? 0);
 
   const { rows } = await pool.query<{
     ticket_id: string;
@@ -308,6 +278,7 @@ export async function getAdminBoloesDashboardData(
     extra_championship_id: number | null;
     is_promo_bonus: boolean;
     group_date: string | null;
+    group_round: number | null;
     score_points: string | number | null;
     exact_count: string | number | null;
     outcome_count: string | number | null;
@@ -329,15 +300,28 @@ export async function getAdminBoloesDashboardData(
        WHERE mc.date_br IS NOT NULL
        ORDER BY p.ticket_id, p.submitted_at ASC
      ),
+     first_ticket_rodada AS (
+       SELECT DISTINCT ON (p.ticket_id) p.ticket_id, mc.rodada
+       FROM predictions p
+       INNER JOIN matches_cache mc ON mc.match_id = p.match_id
+       WHERE mc.rodada IS NOT NULL
+       ORDER BY p.ticket_id, p.submitted_at ASC
+     ),
      ticket_groups AS (
        SELECT
          t.id,
          CASE
-           WHEN t.ticket_type IN ('daily', 'extra') THEN COALESCE(fpd.date_br, to_char(COALESCE(t.paid_at, t.created_at), 'DD/MM/YYYY'))
+           WHEN t.ticket_type = 'daily' THEN COALESCE(fpd.date_br, to_char(COALESCE(t.paid_at, t.created_at), 'DD/MM/YYYY'))
+           WHEN t.ticket_type = 'extra' THEN NULL
            ELSE 'GERAL'
-         END AS group_date
+         END AS group_date,
+         CASE
+           WHEN t.ticket_type = 'extra' THEN COALESCE(NULLIF(t.round_number, 0), ftr.rodada)
+           ELSE NULL
+         END AS group_round
        FROM tickets t
        LEFT JOIN first_prediction_dates fpd ON fpd.ticket_id::text = t.id::text
+       LEFT JOIN first_ticket_rodada ftr ON ftr.ticket_id::text = t.id::text
        WHERE t.status IN ('paid', 'approved')
      ),
      prediction_scores AS (
@@ -391,16 +375,22 @@ export async function getAdminBoloesDashboardData(
        t.extra_championship_id,
        COALESCE(t.is_promo_bonus, false) AS is_promo_bonus,
        tg.group_date,
+       tg.group_round,
        COALESCE(ps.score_points, 0) AS score_points,
        COALESCE(ps.exact_count, 0) AS exact_count,
        COALESCE(ps.outcome_count, 0) AS outcome_count,
        COALESCE(ps.goals_count, 0) AS goals_count,
        COALESCE(pc.predictions_count, 0) AS predictions_count,
        CASE
-         WHEN t.ticket_type IN ('daily', 'extra') THEN (
+         WHEN t.ticket_type = 'extra' THEN (
+           SELECT COUNT(*) FROM matches_cache mc
+           WHERE mc.competition_id = t.extra_championship_id
+             AND mc.rodada = tg.group_round
+         )
+         WHEN t.ticket_type = 'daily' THEN (
            SELECT COUNT(*) FROM matches_cache mc
            WHERE mc.date_br = tg.group_date
-             AND mc.competition_id = CASE WHEN t.ticket_type = 'extra' THEN t.extra_championship_id ELSE ${mainComp} END
+             AND mc.competition_id = ${mainComp}
          )
          ELSE (SELECT COUNT(*) FROM matches_cache WHERE competition_id = ${mainComp})
        END AS total_matches_count,
@@ -412,10 +402,10 @@ export async function getAdminBoloesDashboardData(
      LEFT JOIN prediction_counts pc ON pc.ticket_id::text = t.id::text
      LEFT JOIN prediction_scores ps ON ps.ticket_id::text = t.id::text
      WHERE t.status IN ('paid', 'approved')
-     ORDER BY t.created_at DESC`
+     ORDER BY t.created_at DESC`,
   );
 
-  const baseRows = rows.map<Omit<AdminBolaoRankingRow, "position">>((row) => {
+  return rows.map<Omit<AdminBolaoRankingRow, "position">>((row) => {
     const predictionsCount = Number(row.predictions_count ?? 0);
     const totalMatchesCount = Number(row.total_matches_count ?? 0);
     return {
@@ -427,6 +417,7 @@ export async function getAdminBoloesDashboardData(
       extraChampionshipId: row.extra_championship_id,
       isPromoBonus: Boolean(row.is_promo_bonus),
       groupDate: row.group_date,
+      groupRound: row.group_round != null ? Number(row.group_round) : null,
       scorePoints: Number(row.score_points ?? 0),
       exactCount: Number(row.exact_count ?? 0),
       outcomeCount: Number(row.outcome_count ?? 0),
@@ -438,6 +429,93 @@ export async function getAdminBoloesDashboardData(
       createdAt: row.created_at.toISOString(),
     };
   });
+}
+
+export async function getAdminBolaoRankingPage(
+  scope: AdminBolaoRankingScope,
+  pagination: { offset?: number; limit?: number } = {},
+): Promise<{
+  rows: AdminBolaoRankingRow[];
+  total: number;
+  summary: AdminBolaoRankingSummary;
+}> {
+  const offset = Math.max(0, pagination.offset ?? 0);
+  const limit = Math.min(
+    100,
+    Math.max(1, pagination.limit ?? ADMIN_BOLAO_RANKING_PAGE_SIZE),
+  );
+  const baseRows = await loadAdminBolaoBaseRows();
+  const ranked = resolveAdminBolaoRanking(scope, baseRows);
+  return {
+    rows: ranked.slice(offset, offset + limit),
+    total: ranked.length,
+    summary: summarizeBolaoRanking(ranked),
+  };
+}
+
+export async function getAdminAffiliateStats(): Promise<AdminAffiliateStats> {
+  const pool = getPool();
+  const { rows } = await pool.query<{
+    referred_users_count: string | number;
+    commissions_count: string | number;
+    commission_total_cents: string | number | null;
+    pending_withdrawals_cents: string | number | null;
+    influencers_count: string | number;
+  }>(
+    `SELECT
+       (SELECT COUNT(*) FROM users WHERE referred_by_user_id IS NOT NULL) AS referred_users_count,
+       (SELECT COUNT(*) FROM referral_commissions) AS commissions_count,
+       (SELECT COALESCE(SUM(amount_cents), 0) FROM referral_commissions) AS commission_total_cents,
+       (SELECT COALESCE(SUM(amount_cents), 0) FROM affiliate_withdrawal_requests WHERE status = 'pending') AS pending_withdrawals_cents,
+       (SELECT COUNT(*) FROM users WHERE affiliate_mode = 'influencer') AS influencers_count`
+  );
+  const row = rows[0];
+  return {
+    referredUsersCount: Number(row?.referred_users_count ?? 0),
+    commissionsCount: Number(row?.commissions_count ?? 0),
+    commissionTotalCents: Number(row?.commission_total_cents ?? 0),
+    pendingWithdrawalsCents: Number(row?.pending_withdrawals_cents ?? 0),
+    influencersCount: Number(row?.influencers_count ?? 0),
+  };
+}
+
+function rankBolaoRows(rows: Omit<AdminBolaoRankingRow, "position">[]): AdminBolaoRankingRow[] {
+  return [...rows]
+    .sort((a, b) => {
+      if (b.scorePoints !== a.scorePoints) return b.scorePoints - a.scorePoints;
+      if (b.exactCount !== a.exactCount) return b.exactCount - a.exactCount;
+      if (b.outcomeCount !== a.outcomeCount) return b.outcomeCount - a.outcomeCount;
+      if (b.goalsCount !== a.goalsCount) return b.goalsCount - a.goalsCount;
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    })
+    .map((row, index) => ({ ...row, position: index + 1 }));
+}
+
+function bolaoUsageStatus(row: Pick<AdminBolaoRankingRow, "predictionsCount" | "pendingPredictionsCount">) {
+  if (row.predictionsCount <= 0) return "available";
+  if (row.pendingPredictionsCount > 0) return "in_use";
+  return "finished";
+}
+
+export async function getAdminBoloesDashboardData(
+  selectedDailyDate?: string | null,
+  selectedExtraKey?: string | null,
+): Promise<AdminBoloesDashboardData> {
+  const pool = getPool();
+  const extraIds = parseExtraBolaoChampionshipIds();
+  const competitionLabels = await readCompetitionDisplayNamesFromDb(extraIds).catch(
+    () => ({} as Record<number, string>),
+  );
+
+  const promoCountResult = await pool.query<{ count: string }>(
+    `SELECT COUNT(*)::text AS count
+     FROM tickets
+     WHERE COALESCE(is_promo_bonus, false) = true
+       AND status IN ('paid', 'approved')`,
+  );
+  const promoTicketsTotal = Number(promoCountResult.rows[0]?.count ?? 0);
+
+  const baseRows = await loadAdminBolaoBaseRows();
 
   const principalRanking = rankBolaoRows(
     baseRows.filter((row) => row.ticketType === "general" && !row.isPromoBonus),
@@ -451,8 +529,13 @@ export async function getAdminBoloesDashboardData(
       dailyGroups.set(row.groupDate, group);
       continue;
     }
-    if (row.ticketType === "extra" && row.groupDate && row.extraChampionshipId != null) {
-      const key = `${row.extraChampionshipId}:${row.groupDate}`;
+    if (
+      row.ticketType === "extra" &&
+      row.extraChampionshipId != null &&
+      row.groupRound != null &&
+      row.groupRound > 0
+    ) {
+      const key = `${row.extraChampionshipId}:r${row.groupRound}`;
       const group = extraGroups.get(key) ?? [];
       group.push(row);
       extraGroups.set(key, group);
@@ -489,7 +572,7 @@ export async function getAdminBoloesDashboardData(
   const extraCards = Array.from(extraGroups.entries())
     .map(([key, groupRows]) => {
       const championshipId = groupRows[0]?.extraChampionshipId ?? 0;
-      const date = groupRows[0]?.groupDate ?? "";
+      const rodada = groupRows[0]?.groupRound ?? 0;
       const displayName =
         competitionLabels[championshipId] ?? extraBolaoFallbackDisplayName(championshipId);
       const ranked = rankBolaoRows(groupRows);
@@ -498,7 +581,7 @@ export async function getAdminBoloesDashboardData(
         championshipId,
         displayName,
         iconVariant: getExtraBolaoHeroSideVariant(championshipId, displayName),
-        date,
+        rodada,
         ticketsCount: groupRows.length,
         playersCount: new Set(groupRows.map((row) => row.userId)).size,
         totalPoints: groupRows.reduce((acc, row) => acc + row.scorePoints, 0),
@@ -511,9 +594,7 @@ export async function getAdminBoloesDashboardData(
     })
     .sort((a, b) => {
       if (a.displayName !== b.displayName) return a.displayName.localeCompare(b.displayName, "pt-BR");
-      const [ad, am, ay] = a.date.split("/").map(Number);
-      const [bd, bm, by] = b.date.split("/").map(Number);
-      return Date.UTC(by, bm - 1, bd) - Date.UTC(ay, am - 1, ad);
+      return b.rodada - a.rodada;
     });
 
   const selectedExtraKeySafe =
