@@ -1011,18 +1011,48 @@ function PalpiteCardTeamColumn({
   );
 }
 
-function formatLiveStatusBadge(jogo: Jogo): string {
-  const min = jogo.liveMinuto != null ? `${jogo.liveMinuto}'` : "";
-  const tempo =
+const PALPITE_LIVE_BADGE_RED = "#D94E44";
+
+function formatLiveStatusBadge(jogo: Jogo, nowMs: number): string {
+  const raw = (jogo.statusBruto ?? "").toLowerCase();
+  if (raw.includes("intervalo")) {
+    const min = jogo.liveMinuto != null ? `${jogo.liveMinuto}'` : "";
+    return ["AO VIVO", min, "INT"].filter(Boolean).join(" ");
+  }
+
+  let min = jogo.liveMinuto != null ? `${jogo.liveMinuto}'` : "";
+  let tempo =
     jogo.liveTempo === 1 ? "1T" : jogo.liveTempo === 2 ? "2T" : "";
+
+  if (!tempo && jogo.liveMinuto != null) {
+    tempo = jogo.liveMinuto <= 45 ? "1T" : "2T";
+  }
+
+  if (!min || !tempo) {
+    const label = formatLiveClockLabel(jogo, nowMs);
+    if (label && label !== "Intervalo") {
+      const mm = label.match(/(\d+)\s*min/);
+      if (!min && mm) min = `${mm[1]}'`;
+      if (!tempo) {
+        if (label.includes("1º tempo")) tempo = "1T";
+        else if (label.includes("2º tempo")) tempo = "2T";
+      }
+    }
+  }
+
   return ["AO VIVO", min, tempo].filter(Boolean).join(" ");
 }
 
 function PalpiteCardLiveBadge({ label }: { label: string }) {
   return (
     <div className="flex justify-center px-5 pt-4 pb-1">
-      <span className="inline-flex items-center gap-1.5 rounded-md bg-[#E53935] px-2.5 py-1 text-[12px] font-black uppercase tracking-wide text-white">
-        <span className="size-1.5 shrink-0 rounded-full bg-white" aria-hidden />
+      <span
+        className="inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-[12px] font-black uppercase leading-none tracking-wide text-white"
+        style={{ backgroundColor: PALPITE_LIVE_BADGE_RED }}
+        role="status"
+        aria-live="polite"
+      >
+        <span className="size-[7px] shrink-0 rounded-full bg-white" aria-hidden />
         {label}
       </span>
     </div>
@@ -1370,7 +1400,7 @@ function JogoCard({
     !palpiteEnviado;
   const showSeuPalpite =
     (phase === "live" || phase === "post") && hasInitialPrediction;
-  const liveBadgeLabel = formatLiveStatusBadge(jogo);
+  const liveBadgeLabel = formatLiveStatusBadge(jogo, nowMs);
   const showPreHeader = phase === "pre";
   const showPreDivider = showPreHeader && (palpiteEnviado || semPalpite);
 
