@@ -15,6 +15,7 @@ import {
 import logoApp from "@/app/assets/logo-2.png";
 import type { InstallSheetPlatform } from "@/app/shared/install-app-banner";
 import { getInstallSiteHost } from "@/app/shared/install-app-banner";
+import { enablePushNotifications, isPushSupported } from "@/lib/push/client";
 
 type InstallAppSheetProps = {
   open: boolean;
@@ -134,6 +135,8 @@ export function InstallAppSheet({
 }: InstallAppSheetProps) {
   const siteHost = getInstallSiteHost();
   const [portalReady, setPortalReady] = useState(false);
+  const [pushLoading, setPushLoading] = useState(false);
+  const [pushMessage, setPushMessage] = useState<string | null>(null);
 
   useEffect(() => {
     setPortalReady(true);
@@ -232,6 +235,47 @@ export function InstallAppSheet({
             >
               Instalar agora
             </button>
+          ) : null}
+
+          {isPushSupported() ? (
+            <div className="mt-6 rounded-xl border border-white/10 bg-white/[0.03] p-4">
+              <p className="text-[13px] font-bold text-white">
+                Notificações no celular
+              </p>
+              <p className="mt-1 text-[12px] font-medium leading-relaxed text-white/45">
+                {platform === "ios"
+                  ? "Após adicionar à tela inicial (iOS 16.4+), ative os avisos para não perder rodadas e prazos."
+                  : "Ative os avisos push para receber lembretes mesmo com o app fechado."}
+              </p>
+              {pushMessage ? (
+                <p className="mt-2 text-[11px] font-bold text-amber-300/90">
+                  {pushMessage}
+                </p>
+              ) : null}
+              <button
+                type="button"
+                disabled={pushLoading}
+                onClick={() => {
+                  setPushLoading(true);
+                  setPushMessage(null);
+                  void enablePushNotifications().then((result) => {
+                    setPushLoading(false);
+                    if (result.ok) {
+                      setPushMessage("Notificações ativadas.");
+                      return;
+                    }
+                    if (result.reason === "denied") {
+                      setPushMessage("Permissão negada no navegador.");
+                    } else {
+                      setPushMessage("Tente de novo após instalar o app.");
+                    }
+                  });
+                }}
+                className="mt-4 flex h-11 w-full items-center justify-center rounded-xl border border-primary/40 bg-primary/10 text-[11px] font-black uppercase tracking-wide text-primary disabled:opacity-50"
+              >
+                {pushLoading ? "Ativando..." : "Ativar notificações"}
+              </button>
+            </div>
           ) : null}
         </div>
       </div>

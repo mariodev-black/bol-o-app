@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { NavBottom } from "@/app/shared/NavBottom";
+import { PushNotificationsBanner } from "@/app/shared/PushNotificationsBanner";
 import { Header } from "../shared/Header";
 import { Suspense } from "react";
 import { buildPageMetadata } from "@/lib/seo/config";
@@ -17,6 +18,7 @@ export default function AuthenticatedLayout({
 }) {
   return (
     <div className="min-h-screen flex flex-col">
+      <PushNotificationsBanner />
       <Header />
       <div className="flex flex-1 pt-[var(--app-header-height,96px)] md:pt-[var(--app-header-height,96px)]">
         <main className="flex min-w-0 flex-1 flex-col pb-32 md:pb-8">{children}</main>

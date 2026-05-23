@@ -127,6 +127,11 @@ export function buildRootMetadata(): Metadata {
       canonicalOrigin: marketing,
     }),
     applicationName: SITE_NAME,
+    appleWebApp: {
+      capable: true,
+      title: SITE_NAME,
+      statusBarStyle: "black-translucent",
+    },
     category: "sports",
     classification: "Bolão esportivo, palpites futebol, Copa do Mundo",
     formatDetection: {

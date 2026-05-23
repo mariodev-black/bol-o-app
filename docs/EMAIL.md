@@ -180,6 +180,17 @@ Fluxo completo:
 
 ---
 
+## Disparo manual — painel Admin → Notificações
+
+O admin pode escolher **App**, **E-mail** ou **App + E-mail** (`/admin/notifications`).
+
+- E-mail usa `kind: marketing`, tag Resend `admin_broadcast`, template `lib/email/templates/admin-broadcast.ts`.
+- Pausa entre envios: `EMAIL_CAMPAIGN_DELAY_MS` (padrão 600 ms).
+- Mais de 30 destinatários: e-mail segue em **background** após a resposta da API (`next/server` `after`).
+- Histórico em `admin_notification_batches` + dedupe por lote em `email_campaign_sends` (`admin_notif_{batchId}`).
+
+---
+
 ## Campanha — 17ª rodada Brasileirão (23/05/2026)
 
 Disparo único para **todos os e-mails** em `users` (1 envio por e-mail, sem duplicata).

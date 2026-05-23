@@ -1,5 +1,15 @@
 import type { LucideIcon } from "lucide-react";
-import { BarChart3, ClipboardList, CreditCard, Handshake, Settings, Trophy, Ticket, Users } from "lucide-react";
+import {
+  BarChart3,
+  Bell,
+  ClipboardList,
+  CreditCard,
+  Handshake,
+  Settings,
+  Trophy,
+  Ticket,
+  Users,
+} from "lucide-react";
 
 export type AdminNavItem = {
   href: string;
@@ -10,6 +20,7 @@ export type AdminNavItem = {
 export const ADMIN_NAV: AdminNavItem[] = [
   { href: "/admin", label: "Dashboard", icon: BarChart3 },
   { href: "/admin/users", label: "Usuários", icon: Users },
+  { href: "/admin/notifications", label: "Notificações", icon: Bell },
   { href: "/admin/boloes", label: "Bolões", icon: Trophy },
   { href: "/admin/affiliates", label: "Afiliados", icon: Handshake },
   { href: "/admin/palpites", label: "Palpites", icon: ClipboardList },

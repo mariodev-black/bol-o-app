@@ -14,6 +14,7 @@ import { getPool } from "../lib/db";
 const FILES = [
   "20260523-user-notifications.sql",
   "20260524-user-notifications-bolao-promo.sql",
+  "20260525-push-subscriptions.sql",
 ] as const;
 
 async function main() {

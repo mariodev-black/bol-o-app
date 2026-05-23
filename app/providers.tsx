@@ -6,6 +6,7 @@ import { AuthProvider } from "@/app/shared/AuthContext";
 import { AppServerConfigProvider } from "@/app/shared/AppServerConfigContext";
 import { ExtraGiftPromoHost } from "@/app/shared/ExtraGiftPromoHost";
 import { ProfileCompletionHost } from "@/app/shared/ProfileCompletionHost";
+import { PwaManager } from "@/app/shared/PwaManager";
 import { ReferralCapture } from "@/app/shared/ReferralCapture";
 import { SidenavProvider } from "@/app/shared/SidenavContext";
 import type { AuthUser } from "@/lib/auth/auth-user";
@@ -24,6 +25,7 @@ export function Providers({
     <BolaoToastProvider>
       <AppServerConfigProvider value={appServerConfig}>
       <AuthProvider initialUser={initialAuthUser}>
+        <PwaManager />
         <ProfileCompletionHost>
           <ExtraGiftPromoHost>
             <Suspense fallback={null}>

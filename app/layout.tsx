@@ -59,6 +59,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  themeColor: "#B1EB0B",
+  colorScheme: "dark",
 };
 
 export const metadata: Metadata = buildRootMetadata();
