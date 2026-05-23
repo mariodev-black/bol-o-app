@@ -18,7 +18,6 @@ import {
   CircleCheck,
   Star,
   Bell,
-  Coins,
   AlertTriangle,
   Disc,
   Loader2,
@@ -31,12 +30,11 @@ import {
   Clock,
   Lock,
 } from "lucide-react";
-import {
-  TrophyGold,
-  TrophySilver,
-  TrophyBronze,
-} from "@/app/components/RankingTrophies";
 import bgPalpitesDesk from "@/app/assets/bg-palpites-desktop.png";
+import { PalpitesRankingTab } from "@/app/(authenticated)/palpites/_components/PalpitesRankingTab";
+import { PalpitesTopPalpiteiros } from "@/app/(authenticated)/palpites/_components/PalpitesTopPalpiteiros";
+import { fetchRankingBoardClient } from "@/lib/ranking/load-board-client";
+import type { RankingBoardMeta, RankingBoardRow } from "@/lib/ranking/board-types";
 import { calcPredictionPoints } from "./lib/predictionsStorage";
 import { inferBolaoTypeFromTicketPrefix } from "@/lib/ticket-kind";
 import {
@@ -1760,18 +1758,6 @@ function TabelaView({
   );
 }
 
-// ── Ranking ───────────────────────────────────────────────────
-type RankingRowView = {
-  pos: number;
-  nome: string;
-  iniciais: string;
-  acertos: number;
-  pts: number;
-  exact: number;
-  gols: number;
-  isMe?: boolean;
-};
-
 type ResumoStats = {
   palpites: number;
   acertos: number;
@@ -1823,265 +1809,9 @@ export type PalpitesInitialData = {
   grupo: string;
   erro: boolean;
   predictionsMap: Record<number, { scoreCasa: number; scoreVisitante: number }>;
-  rankingRows: RankingRowView[];
   resumoStats: ResumoStats;
   historicoRows: HistoricoRowView[];
 };
-
-function RankingMedal({ pos, size = 28 }: { pos: number; size?: number }) {
-  if (pos === 1) return <TrophyGold size={size} />;
-  if (pos === 2) return <TrophySilver size={size} />;
-  if (pos === 3) return <TrophyBronze size={size} />;
-  return (
-    <span
-      className="text-[11px] font-bold"
-      style={{ color: "rgba(255,255,255,0.25)" }}
-    >
-      #{pos}
-    </span>
-  );
-}
-
-function RankingAvatar({
-  iniciais,
-  isMe,
-  size = 32,
-}: {
-  iniciais: string;
-  isMe?: boolean;
-  size?: number;
-}) {
-  return (
-    <div
-      className="rounded-full flex items-center justify-center font-bold shrink-0"
-      style={{
-        width: size,
-        height: size,
-        fontSize: size * 0.38,
-        background: isMe ? "rgba(218,182,130,0.15)" : "rgba(255,255,255,0.07)",
-        color: isMe ? "#D7FF59" : "rgba(255,255,255,0.5)",
-        border: isMe
-          ? "1px solid rgba(218,182,130,0.25)"
-          : "1px solid rgba(255,255,255,0.08)",
-      }}
-    >
-      {iniciais}
-    </div>
-  );
-}
-
-function RankingView({
-  rows,
-  stats,
-  bolaoType,
-}: {
-  rows: RankingRowView[];
-  stats: ResumoStats;
-  bolaoType: PredictionBolaoType;
-}) {
-  const lockCopy = palpiteLockUiCopy(bolaoType);
-  const MEU = rows.find((r) => r.isMe) ??
-    rows[0] ?? {
-    pos: 0,
-    nome: "Você",
-    iniciais: "VO",
-    acertos: 0,
-    pts: 0,
-    exact: 0,
-    gols: 0,
-  };
-  return (
-    <div className="flex flex-col gap-3">
-      {/* Minha posição */}
-      <div
-        className="rounded-2xl px-4 py-4"
-        style={{
-          background: "linear-gradient(135deg, #F6D13B2E 0%, #F1E8631F 100%)",
-          border: "1px solid rgba(80,120,40,0.25)",
-        }}
-      >
-        <p className="text-[12px] text-[#FFFFFF8C] font-bold tracking-widest uppercase mb-3">
-          Sua posição atual
-        </p>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="relative shrink-0">
-              <RankingAvatar iniciais={MEU.iniciais} isMe size={44} />
-              <div
-                className="absolute -bottom-1 -right-1 w-[18px] h-[18px] rounded-full flex items-center justify-center"
-                style={{ background: "#B1EB0B" }}
-              >
-                <Coins
-                  className="w-2.5 h-2.5"
-                  style={{ color: "#0E141B" }}
-                  strokeWidth={2.5}
-                />
-              </div>
-            </div>
-            <div>
-              <p className="text-white font-black text-[18px] leading-tight">
-                #{MEU.pos} no Ranking
-              </p>
-              <p className="text-[12px] mt-0.5 text-[#E8FF8A]">
-                {MEU.acertos} acertos · {MEU.pts} pontos
-              </p>
-            </div>
-          </div>
-          <div className="text-right">
-            <p
-              className="font-black text-[34px] leading-none"
-              style={{ color: "#E8FF8A" }}
-            >
-              {MEU.pts}
-            </p>
-            <p className="text-[12px] mt-0.5 text-[#FFFFFF59]">pontos</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-2">
-        {[
-          {
-            Icon: Target,
-            val: stats.palpites,
-            label: "Palpites",
-            color: "#B1EB0B",
-          },
-          {
-            Icon: CircleCheck,
-            val: stats.acertos,
-            label: "Acertos",
-            color: "#B1EB0B",
-          },
-          { Icon: Star, val: stats.pontos, label: "Pontos", color: "#D7FF59" },
-        ].map(({ Icon, val, label, color }) => (
-          <div
-            key={label}
-            className="rounded-2xl py-4 flex flex-col items-center gap-1"
-            style={{
-              background: "#0B0D0C",
-              border: "1px solid rgba(177,235,11,0.12)",
-            }}
-          >
-            <Icon className="w-5 h-5 mb-1" style={{ color }} strokeWidth={2} />
-            <span className="text-white font-black text-[22px] leading-none">
-              {val}
-            </span>
-            <span
-              className="text-[11px]"
-              style={{ color: "rgba(255,255,255,0.3)" }}
-            >
-              {label}
-            </span>
-          </div>
-        ))}
-      </div>
-
-      {/* Top Palpiteiros */}
-      <div
-        className="rounded-2xl overflow-hidden"
-        style={{
-          background: "#0B0D0C",
-          border: "1px solid rgba(177,235,11,0.14)",
-        }}
-      >
-        <div
-          className="flex items-center justify-between px-4 py-3"
-          style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
-        >
-          <span className="text-white font-bold text-[14px]">
-            Top Palpiteiros
-          </span>
-          <button
-            className="text-[13px] font-semibold"
-            style={{ color: "#B1EB0B" }}
-          >
-            Ver todos
-          </button>
-        </div>
-
-        {rows.map((r, i) => (
-          <div
-            key={r.pos}
-            className="flex items-center gap-3 px-4 py-3"
-            style={{
-              background: r.isMe ? "rgba(177,235,11,0.06)" : "transparent",
-              borderBottom:
-                i < rows.length - 1
-                  ? "1px solid rgba(255,255,255,0.04)"
-                  : "none",
-            }}
-          >
-            <div className="w-7 h-7 flex items-center justify-center shrink-0">
-              <RankingMedal pos={r.pos} size={28} />
-            </div>
-            <RankingAvatar iniciais={r.iniciais} isMe={r.isMe} size={36} />
-            <div className="flex-1 min-w-0">
-              <p className="text-white font-semibold text-[13px] truncate">
-                {r.nome}
-                {r.isMe && (
-                  <span
-                    className="text-[11px] font-normal ml-1"
-                    style={{ color: "rgba(255,255,255,0.3)" }}
-                  >
-                    (você)
-                  </span>
-                )}
-              </p>
-              <p
-                className="text-[11px]"
-                style={{ color: "rgba(255,255,255,0.3)" }}
-              >
-                {r.acertos} acertos
-              </p>
-            </div>
-            <div className="shrink-0 flex items-baseline gap-0.5">
-              <span
-                className="font-black text-[16px]"
-                style={{ color: r.isMe ? "#B1EB0B" : "#fff" }}
-              >
-                {r.pts}
-              </span>
-              <span
-                className="text-[12px]"
-                style={{ color: "rgba(255,255,255,0.2)" }}
-              >
-                pts
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Prazo */}
-      <div
-        className="rounded-2xl px-4 py-4 flex items-start gap-3"
-        style={{
-          background: "rgba(218,182,130,0.06)",
-          border: "1px solid rgba(218,182,130,0.18)",
-        }}
-      >
-        <Bell
-          className="w-5 h-5 shrink-0 mt-0.5"
-          style={{ color: "#D7FF59" }}
-          strokeWidth={2}
-        />
-        <div>
-          <p className="font-bold text-[13px]" style={{ color: "#D7FF59" }}>
-            Prazo para palpitar
-          </p>
-          <p
-            className="text-[12px] mt-1 leading-relaxed"
-            style={{ color: "rgba(218,182,130,0.5)" }}
-          >
-            {lockCopy.rankingBloco}
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function TicketPerforationLine() {
   return (
@@ -2553,7 +2283,9 @@ function DesktopSidebar({
   tabela,
   grupos,
   onGrupo,
-  rankingRows,
+  rankingBoardRows,
+  rankingBoardLoading,
+  ticketId,
   stats,
   bolaoType,
 }: {
@@ -2561,7 +2293,9 @@ function DesktopSidebar({
   tabela: TabelaGrupos | null;
   grupos: string[];
   onGrupo: (g: string) => void;
-  rankingRows: RankingRowView[];
+  rankingBoardRows: RankingBoardRow[];
+  rankingBoardLoading: boolean;
+  ticketId: string | null;
   stats: ResumoStats;
   bolaoType: PredictionBolaoType;
 }) {
@@ -2753,104 +2487,22 @@ function DesktopSidebar({
         ))}
       </div>
 
-      {/* Top Palpiteiros */}
-      <div
-        className="rounded-2xl overflow-hidden"
-        style={{
-          background: "#0B0D0C",
-          border: "1px solid rgba(177,235,11,0.14)",
-        }}
-      >
-        <div
-          className="flex items-center justify-between px-4 py-3"
-          style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
-        >
-          <span className="text-white font-bold text-[13px]">
-            Top Palpiteiros
-          </span>
-          <button
-            className="text-[12px] font-semibold"
-            style={{ color: "#B1EB0B" }}
-          >
-            Ver todos
-          </button>
-        </div>
-        {rankingRows.map((r, i) => (
-          <div
-            key={r.pos}
-            className="flex items-center gap-2.5 px-3 py-2.5"
-            style={{
-              background: r.isMe ? "rgba(177,235,11,0.07)" : "transparent",
-              borderBottom:
-                i < rankingRows.length - 1
-                  ? "1px solid rgba(255,255,255,0.04)"
-                  : "none",
-            }}
-          >
-            {/* Medal / position */}
-            <div className="w-6 h-6 flex items-center justify-center shrink-0">
-              <RankingMedal pos={r.pos} size={24} />
-            </div>
-            {/* Avatar */}
-            <RankingAvatar iniciais={r.iniciais} isMe={r.isMe} size={32} />
-            <div className="flex-1 min-w-0">
-              <p className="text-white font-semibold text-[12px] truncate">
-                {r.nome}
-                {r.isMe && (
-                  <span
-                    className="text-[12px] font-normal ml-0.5"
-                    style={{ color: "rgba(255,255,255,0.3)" }}
-                  >
-                    (você)
-                  </span>
-                )}
-              </p>
-              <p
-                className="text-[12px]"
-                style={{ color: "rgba(255,255,255,0.3)" }}
-              >
-                {r.acertos} acertos
-              </p>
-            </div>
-            <div className="shrink-0 flex items-baseline gap-0.5">
-              <span
-                className="font-black text-[14px]"
-                style={{ color: r.isMe ? "#B1EB0B" : "#fff" }}
-              >
-                {r.pts}
-              </span>
-              <span
-                className="text-[9px]"
-                style={{ color: "rgba(255,255,255,0.2)" }}
-              >
-                pts
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
+      <PalpitesTopPalpiteiros
+        rows={rankingBoardRows}
+        loading={rankingBoardLoading}
+        ticketId={ticketId}
+        compact
+      />
 
-      {/* Prazo */}
-      <div
-        className="rounded-2xl px-4 py-4 flex items-start gap-3"
-        style={{
-          background: "rgba(218,182,130,0.06)",
-          border: "1px solid rgba(218,182,130,0.18)",
-        }}
-      >
+      <div className="flex items-start gap-3 rounded-2xl border border-primary/20 bg-primary/6 px-4 py-4">
         <Bell
-          className="w-4 h-4 shrink-0 mt-0.5"
-          style={{ color: "#D7FF59" }}
+          className="mt-0.5 size-4 shrink-0 text-primary"
           strokeWidth={2}
+          aria-hidden
         />
         <div>
-          <p className="font-bold text-[12px]" style={{ color: "#D7FF59" }}>
-            Prazo para palpitar
-          </p>
-          <p
-            className="text-[11px] mt-1 leading-relaxed"
-            style={{ color: "rgba(218,182,130,0.5)" }}
-          >
+          <p className="text-[12px] font-bold text-primary">Prazo para palpitar</p>
+          <p className="mt-1 text-[11px] leading-relaxed text-white/55">
             {lockCopy.rankingBloco}
           </p>
         </div>
@@ -3333,8 +2985,14 @@ function PalpitesPageContent({
   );
   const [loadingTabela, setLoadingTabela] = useState(false);
   const [resultTab, setResultTab] = useState<ResultTabView>("jogos");
-  const [rankingRows, setRankingRows] = useState<RankingRowView[]>(
-    initialData?.rankingRows ?? [],
+  const [rankingBoardRows, setRankingBoardRows] = useState<RankingBoardRow[]>(
+    [],
+  );
+  const [rankingBoardMeta, setRankingBoardMeta] =
+    useState<RankingBoardMeta | null>(null);
+  const [rankingBoardLoading, setRankingBoardLoading] = useState(false);
+  const [rankingBoardError, setRankingBoardError] = useState<string | null>(
+    null,
   );
   const [resumoStats, setResumoStats] = useState<ResumoStats>(
     initialData?.resumoStats ?? {
@@ -3685,40 +3343,19 @@ function PalpitesPageContent({
   );
 
   useEffect(() => {
-    (async () => {
-      try {
-        const q = new URLSearchParams();
-        if (ticketId) q.set("ticketId", ticketId);
-        const r = await fetch(`/api/palpites/ranking?${q.toString()}`, {
-          credentials: "include",
-          cache: "no-store",
-        });
-        const d = (await r.json()) as {
-          ranking?: Array<{
-            pos: number;
-            ticketId: string;
-            totalPoints: number;
-            outcomeCount: number;
-            exactCount: number;
-            goalsCount: number;
-            isMe: boolean;
-          }>;
-        };
-        if (!r.ok || !Array.isArray(d.ranking)) return;
-        setRankingRows(
-          d.ranking.map((row) => ({
-            pos: row.pos,
-            nome: row.ticketId,
-            iniciais: row.ticketId.slice(0, 2).toUpperCase(),
-            acertos: row.outcomeCount,
-            pts: row.totalPoints,
-            exact: row.exactCount,
-            gols: row.goalsCount,
-            isMe: row.isMe,
-          })),
-        );
-      } catch { }
+    let cancelled = false;
+    setRankingBoardLoading(true);
+    void (async () => {
+      const result = await fetchRankingBoardClient(bolaoType, ticketId);
+      if (cancelled) return;
+      setRankingBoardRows(result.rows);
+      setRankingBoardMeta(result.meta);
+      setRankingBoardError(result.error);
+      setRankingBoardLoading(false);
     })();
+    return () => {
+      cancelled = true;
+    };
   }, [bolaoType, ticketId, jogosPlacarSignature]);
 
   useEffect(() => {
@@ -4300,7 +3937,9 @@ function PalpitesPageContent({
       })),
     };
   });
-  const myRankingPos = rankingRows.find((row) => row.isMe)?.pos ?? null;
+  const myRankingPos =
+    rankingBoardRows.find((row) => row.isMe)?.pos ?? null;
+  const rankingLockBloco = palpiteLockUiCopy(bolaoType).rankingBloco;
   const scrollToGroup = (groupKey: string) => {
     setGrupo(groupKey);
     if (typeof window === "undefined") return;
@@ -4610,7 +4249,16 @@ function PalpitesPageContent({
               />
             )}
             {showRanking ? (
-              <RankingView rows={rankingRows} stats={resumoStats} bolaoType={bolaoType} />
+              <PalpitesRankingTab
+                ticketId={ticketId}
+                bolaoType={bolaoType}
+                resumoStats={resumoStats}
+                rows={rankingBoardRows}
+                meta={rankingBoardMeta}
+                loading={rankingBoardLoading}
+                error={rankingBoardError}
+                lockBloco={rankingLockBloco}
+              />
             ) : null}
             {showResumo ? (
               <TicketResumoView
@@ -4653,7 +4301,16 @@ function PalpitesPageContent({
                 jogosById={jogosById}
               />
             ) : showRanking ? (
-              <RankingView rows={rankingRows} stats={resumoStats} bolaoType={bolaoType} />
+              <PalpitesRankingTab
+                ticketId={ticketId}
+                bolaoType={bolaoType}
+                resumoStats={resumoStats}
+                rows={rankingBoardRows}
+                meta={rankingBoardMeta}
+                loading={rankingBoardLoading}
+                error={rankingBoardError}
+                lockBloco={rankingLockBloco}
+              />
             ) : erro ? (
               <div className="flex flex-col items-center py-16">
                 <AlertTriangle
@@ -4783,7 +4440,9 @@ function PalpitesPageContent({
               tabela={tabela}
               grupos={grupos}
               onGrupo={setGrupo}
-              rankingRows={rankingRows}
+              rankingBoardRows={rankingBoardRows}
+              rankingBoardLoading={rankingBoardLoading}
+              ticketId={ticketId}
               stats={resumoStats}
               bolaoType={bolaoType}
             />

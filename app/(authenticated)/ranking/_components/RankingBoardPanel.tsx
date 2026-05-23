@@ -271,7 +271,7 @@ function RankingMyCotaFooterCard({
             className="mt-3 rounded-xl border border-white/8 px-3.5 py-3"
             style={{ background: "#0e0e0e" }}
           >
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-white/45">
+            <p className="text-[16px] font-semibold uppercase tracking-widest text-white/80">
               Meta top 10
             </p>
             {tieAtTenth ? (
@@ -280,24 +280,14 @@ function RankingMyCotaFooterCard({
                 <span className="font-semibold tabular-nums text-white">
                   {tenth?.totalPoints ?? "—"} pts
                 </span>{" "}
-                do 10º. O desempate considera acertos e critérios do bolão.
               </p>
             ) : (
-              <p className="mt-1.5 text-[13px] font-medium leading-relaxed text-white/78">
+              <p className="mt-1.5 text-[16px] font-medium leading-relaxed text-white/78">
                 Faltam{" "}
                 <span className="text-[15px] font-bold tabular-nums text-primary">
                   {gap}
                 </span>{" "}
                 {gap === 1 ? "ponto" : "pontos"} para entrar no top 10
-                {tenth ? (
-                  <>
-                    {" "}
-                    <span className="text-white/50">·</span> 10º com{" "}
-                    <span className="font-semibold tabular-nums text-white">
-                      {tenth.totalPoints} pts
-                    </span>
-                  </>
-                ) : null}
               </p>
             )}
           </div>

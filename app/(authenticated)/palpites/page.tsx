@@ -10,7 +10,6 @@ import { getFootballMainCompetitionId, getSoleConfiguredExtraChampionshipId } fr
 import { extraBolaoFallbackDisplayName } from "@/lib/boloes-extra-competition-branding";
 import { getPool } from "@/lib/db";
 import { parseKickoffFromPartidaPayload, pickScoreFromPartidaPayload } from "@/lib/partida-placar";
-import { fetchExtraChampionshipIdByTicketIds } from "@/lib/ticket-competition-server";
 import { pickTabelaGruposForPalpites } from "@/lib/tabela-palpites-normalize";
 import { resolveEffectiveExtraRoundForTicket } from "@/lib/football/extras-rodada";
 import { syncExtra } from "@/lib/football/sync-orchestrator";
@@ -379,7 +378,6 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
   const grupos = parsedPartidas.grupos;
 
   let predictionsMap: Record<number, { scoreCasa: number; scoreVisitante: number }> = {};
-  let rankingRows: PalpitesInitialData["rankingRows"] = [];
   let resumoStats: PalpitesInitialData["resumoStats"] = { palpites: 0, acertos: 0, pontos: 0, exatos: 0 };
   let historicoRows: PalpitesInitialData["historicoRows"] = [];
 
@@ -446,105 +444,6 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
       resumoStats = { palpites, acertos, pontos, exatos };
     }
 
-    let rankingPreds = await listPredictions({ userId, bolaoType: tid ? bolaoType : undefined });
-    if (tid && (bolaoType === "diario" || bolaoType === "extra")) {
-      const filterComp =
-        bolaoType === "diario"
-          ? mainComp
-          : extraChampionshipId != null &&
-              Number.isFinite(Number(extraChampionshipId)) &&
-              Number(extraChampionshipId) > 0
-            ? Number(extraChampionshipId)
-            : mainComp;
-      const selectedDates = new Set(
-        rankingPreds
-          .filter((p) => p.ticket_id === tid)
-          .map((p) => getMatchFromMap(matches, filterComp, Number(p.match_id))?.dateBR)
-          .filter((d): d is string => Boolean(d))
-      );
-      if (selectedDates.size > 0) {
-        rankingPreds = rankingPreds.filter((p) => {
-          const d = getMatchFromMap(matches, filterComp, Number(p.match_id))?.dateBR;
-          return d ? selectedDates.has(d) : false;
-        });
-      } else {
-        rankingPreds = rankingPreds.filter((p) => p.ticket_id === tid);
-      }
-    }
-    const extraForRanking = await fetchExtraChampionshipIdByTicketIds([
-      ...new Set(rankingPreds.filter((p) => p.bolao_type === "extra").map((p) => p.ticket_id)),
-    ]);
-    const byTicket = new Map<string, {
-      ticketId: string;
-      totalPoints: number;
-      exactCount: number;
-      outcomeCount: number;
-      goalsCount: number;
-      bestStreak: number;
-      firstSubmitAt: number;
-      hitSequence: Array<{ order: number; hit: boolean }>;
-    }>();
-    for (const p of rankingPreds) {
-      const matchId = Number(p.match_id);
-      if (!Number.isFinite(matchId)) continue;
-      const comp = p.bolao_type === "extra" ? extraForRanking.get(p.ticket_id) ?? null : mainComp;
-      if (comp == null || !Number.isFinite(comp) || comp <= 0) continue;
-      const m = getMatchFromMap(matches, comp, matchId);
-      if (!m || m.resultCasa == null || m.resultVisitante == null) continue;
-      const cur =
-        byTicket.get(p.ticket_id) ??
-        {
-          ticketId: p.ticket_id,
-          totalPoints: 0,
-          exactCount: 0,
-          outcomeCount: 0,
-          goalsCount: 0,
-          bestStreak: 0,
-          firstSubmitAt: new Date(p.submitted_at).getTime(),
-          hitSequence: [],
-        };
-      const calc = calcPredictionPoints(p.score_casa, p.score_visitante, m.resultCasa, m.resultVisitante);
-      cur.totalPoints += calc.points;
-      cur.exactCount += calc.exact ? 1 : 0;
-      cur.outcomeCount += calc.outcomeHit ? 1 : 0;
-      cur.goalsCount += calc.goalsHitCount;
-      cur.hitSequence.push({
-        order: m.kickoffAt ? new Date(m.kickoffAt).getTime() : matchId,
-        hit: calc.points > 0,
-      });
-      const sub = new Date(p.submitted_at).getTime();
-      if (sub < cur.firstSubmitAt) cur.firstSubmitAt = sub;
-      byTicket.set(p.ticket_id, cur);
-    }
-    const rows = Array.from(byTicket.values()).map((row) => {
-      let current = 0;
-      for (const item of row.hitSequence.sort((a, b) => a.order - b.order)) {
-        if (item.hit) {
-          current += 1;
-          row.bestStreak = Math.max(row.bestStreak, current);
-        } else {
-          current = 0;
-        }
-      }
-      return row;
-    }).sort((a, b) => {
-      if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
-      if (b.exactCount !== a.exactCount) return b.exactCount - a.exactCount;
-      if (b.outcomeCount !== a.outcomeCount) return b.outcomeCount - a.outcomeCount;
-      if (b.goalsCount !== a.goalsCount) return b.goalsCount - a.goalsCount;
-      if (b.bestStreak !== a.bestStreak) return b.bestStreak - a.bestStreak;
-      return a.firstSubmitAt - b.firstSubmitAt;
-    });
-    rankingRows = rows.map((r, idx) => ({
-      pos: idx + 1,
-      nome: r.ticketId,
-      iniciais: r.ticketId.slice(0, 2).toUpperCase(),
-      acertos: r.outcomeCount,
-      pts: r.totalPoints,
-      exact: r.exactCount,
-      gols: r.goalsCount,
-      isMe: tid ? tid === r.ticketId : false,
-    }));
   }
 
   return {
@@ -560,7 +459,6 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
     grupo: grupos[0] ?? "GERAL",
     erro: !partidasOk || !tabelaRes.ok,
     predictionsMap,
-    rankingRows,
     resumoStats,
     historicoRows,
   };
