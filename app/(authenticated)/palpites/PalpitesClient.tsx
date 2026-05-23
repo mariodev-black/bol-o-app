@@ -29,8 +29,6 @@ import {
   X,
   Info,
   Clock,
-  Calendar,
-  Flame,
   Lock,
 } from "lucide-react";
 import {
@@ -471,42 +469,30 @@ function parseAllPartidas(fases: Record<string, any> | undefined): {
   return { jogos, grupos: Array.from(grupos).sort() };
 }
 
-/** Superfícies do card de palpite — mesma família verde-escura do app (#060B18 / primary). */
-const PALPITE_CARD_BG =
-  "linear-gradient(168deg, #151916 0%, #121513 52%, #0F1210 100%)";
+/** Card de palpite — referência visual (#111111). */
+const PALPITE_CARD_BG = "#111111";
+const PALPITE_SCORE_BOX_BG = "#1E1E1E";
+const PALPITE_MATCH_PANEL_BG = "#1A1A1A";
 const PALPITE_PANEL_BG = "#0C0F0D";
-const PALPITE_STEPPER_BG = "#080A09";
 
-/** Tipografia do card — referência: estado pré-jogo. */
+/** Rótulo de status — só texto (sem fundo), maior, itálico e font-black. */
+const PALPITE_STATUS_LABEL_CLASS =
+  "text-[16px] font-black uppercase italic tracking-wide text-white";
+const PALPITE_STATUS_SENT_CLASS =
+  "inline-flex items-center gap-1.5 text-[16px] font-black uppercase italic tracking-wide text-primary";
+
 const PALPITE_CARD_TYPE = {
-  badge: "text-[14px] font-black uppercase tracking-wide",
-  meta: "text-[14px] font-semibold",
-  metaPrimary: "text-[16px] font-semibold leading-tight text-primary",
-  metaMuted: "text-[16px] font-semibold text-white/50",
-  metaLive: "text-[14px] font-black text-[#FF6B6B]",
-  panelTitle:
-    "mb-3 text-center text-[14px] font-black uppercase tracking-[0.14em] text-white/70",
-  panelTitleTight:
-    "mb-2.5 text-center text-[14px] font-black uppercase tracking-[0.12em] text-white/70",
-  sideLabel: "text-[12px] font-bold uppercase text-white/80",
-  teamName:
-    "w-full min-w-0 px-0.5 text-center text-[16px] font-bold uppercase leading-snug text-white line-clamp-2",
-  teamNameShield:
-    "mt-2 w-full min-w-0 px-0.5 text-center text-[16px] font-bold uppercase leading-snug text-white line-clamp-2",
+  statusOpen: "text-[14px] font-bold uppercase tracking-wide text-white/50",
+  statusLive: "text-[14px] font-black uppercase tracking-wide text-[#FF6B6B]",
+  statusResult:
+    "text-[14px] font-black uppercase tracking-wide text-primary",
+  metaHour: "text-[15px] font-semibold tabular-nums text-white",
+  teamSigla: "text-[15px] font-bold uppercase text-white",
   scoreHero:
     "font-black tabular-nums leading-none text-white text-[2.35rem] sm:text-[2.5rem]",
   scoreSep: "mx-1.5 text-2xl font-bold text-white/40",
-  scoreLabel:
-    "text-[12px] font-black uppercase tracking-[0.1em] text-white/45",
-  scorePhase: "mt-1 text-[12px] font-bold uppercase tracking-wide text-white/50",
-  scorePhaseAccent:
-    "mt-1 text-[12px] font-bold uppercase tracking-wide text-primary/70",
-  bodyMsg: "text-[14px] font-medium text-white/55",
-  lockMsg: "text-[14px] font-semibold text-white/55",
+  bodyMsg: "pt-2 text-center text-[13px] font-medium text-white/45",
 } as const;
-
-const PALPITE_CARD_PANEL_CLASS =
-  "py-4";
 
 // ── Escudo do time ────────────────────────────────────────────
 function Escudo({
@@ -565,36 +551,54 @@ function Escudo({
 function CardSkeleton() {
   return (
     <div
-      className="mb-3 overflow-hidden rounded-2xl animate-pulse"
+      className="mb-4 overflow-hidden rounded-2xl animate-pulse px-5 py-4"
       style={{ background: PALPITE_CARD_BG }}
     >
-      <div className="flex items-start justify-between px-5 pt-5 pb-4">
-        <div className="space-y-2">
-          <div className="h-4 w-28 bg-white/10 rounded" />
-          <div className="h-3 w-20 bg-white/5 rounded" />
-        </div>
-        <div className="h-6 w-20 bg-white/10 rounded-full" />
+      <div className="mb-4 flex items-center justify-between">
+        <div className="h-4 w-32 rounded bg-white/10" />
+        <div className="h-4 w-12 rounded bg-white/10" />
       </div>
-      <div className="flex items-center justify-between px-5 py-5 gap-2">
-        <div className="w-14 h-14 rounded-2xl bg-white/10" />
+      <div className="flex items-center justify-between gap-3">
         <div className="flex flex-col items-center gap-2">
-          <div className="w-9 h-9 rounded-xl bg-white/10" />
-          <div className="w-10 h-8 bg-white/10 rounded" />
-          <div className="w-9 h-9 rounded-xl bg-white/10" />
+          <div className="size-20 rounded-2xl bg-white/10" />
+          <div className="h-3 w-10 rounded bg-white/10" />
         </div>
-        <div className="w-6 h-6 bg-white/10 rounded" />
+        <div className="flex gap-2">
+          <div
+            className="h-[72px] w-[52px] rounded-xl"
+            style={{ background: PALPITE_SCORE_BOX_BG }}
+          />
+          <div
+            className="h-[72px] w-[52px] rounded-xl"
+            style={{ background: PALPITE_SCORE_BOX_BG }}
+          />
+        </div>
         <div className="flex flex-col items-center gap-2">
-          <div className="w-9 h-9 rounded-xl bg-white/10" />
-          <div className="w-10 h-8 bg-white/10 rounded" />
-          <div className="w-9 h-9 rounded-xl bg-white/10" />
+          <div className="size-20 rounded-2xl bg-white/10" />
+          <div className="h-3 w-10 rounded bg-white/10" />
         </div>
-        <div className="w-14 h-14 rounded-2xl bg-white/10" />
-      </div>
-      <div className="mb-2" />
-      <div className="px-4 pb-4">
-        <div className="h-12 w-full rounded-xl" style={{ background: PALPITE_PANEL_BG }} />
       </div>
     </div>
+  );
+}
+
+function RodadaSectionHeader({
+  label,
+  groupKey,
+}: {
+  label: string;
+  groupKey?: string;
+}) {
+  return (
+    <p className="mb-3 text-[13px] font-bold uppercase tracking-[0.06em]">
+      <span className="text-white">{label}</span>
+      {groupKey ? (
+        <>
+          <span className="text-white"> — </span>
+          <span className="text-primary">GRUPO {groupKey}</span>
+        </>
+      ) : null}
+    </p>
   );
 }
 
@@ -602,24 +606,26 @@ function CardSkeleton() {
 function ScoreDisplay({
   value,
   dir,
+  unset = false,
 }: {
   value: number | null;
   dir: "up" | "down";
+  unset?: boolean;
 }) {
-  const unset = value === null;
+  const showDash = unset || value === null;
   return (
-    <div className="relative flex h-11 w-full items-center justify-center overflow-hidden">
+    <div className="flex min-h-[32px] flex-1 w-full items-center justify-center">
       <span
-        key={unset ? "unset" : value}
-        className={`absolute font-black tabular-nums leading-none text-[30px] sm:text-[32px] ${unset ? "text-white/35" : "text-white"} ${!unset && (dir === "up" ? "animate-score-up" : "animate-score-down")}`}
+        key={showDash ? "unset" : value}
+        className={`font-black tabular-nums leading-none text-[32px] ${showDash ? "text-white/35" : "text-white"} ${!showDash && (dir === "up" ? "animate-score-up" : "animate-score-down")}`}
       >
-        {unset ? "—" : value}
+        {showDash ? "—" : value}
       </span>
     </div>
   );
 }
 
-/** Stepper vertical — seta cima aumenta, seta baixo diminui; número anima. */
+/** Stepper vertical — setas brancas; exibe 0 quando ainda sem palpite salvo. */
 function VertScoreStepper({
   value,
   dir,
@@ -634,29 +640,32 @@ function VertScoreStepper({
   disabled?: boolean;
 }) {
   const atUnset = value === null;
+  const displayValue = value ?? 0;
+  const stepperBtn =
+    "flex h-7 w-full shrink-0 items-center justify-center text-white transition active:scale-[0.92] disabled:cursor-not-allowed disabled:opacity-30";
   return (
     <div
-      className="flex w-[52px] shrink-0 flex-col items-center overflow-hidden rounded-[14px] border border-white/[0.07]"
-      style={{ background: PALPITE_STEPPER_BG }}
+      className="flex w-[52px] shrink-0 flex-col gap-4 items-center rounded-xl p-2 border border-white/10"
+      style={{ background: "#000000" }}
     >
       <button
         type="button"
         onClick={onInc}
         disabled={disabled}
         aria-label="Aumentar gols"
-        className="flex w-full items-center justify-center py-2 text-primary transition active:scale-[0.92] disabled:cursor-not-allowed disabled:opacity-35"
+        className={stepperBtn}
       >
-        <ChevronUp className="size-5" strokeWidth={2.75} aria-hidden />
+        <ChevronUp className="size-8" strokeWidth={1.5} aria-hidden />
       </button>
-      <ScoreDisplay value={value} dir={dir} />
+      <ScoreDisplay value={displayValue} dir={dir} unset={false} />
       <button
         type="button"
         onClick={onDec}
         disabled={disabled || atUnset}
         aria-label="Diminuir gols"
-        className="flex w-full items-center justify-center py-2 text-primary transition active:scale-[0.92] disabled:cursor-not-allowed disabled:opacity-35"
+        className={stepperBtn}
       >
-        <ChevronDown className="size-5" strokeWidth={2.75} aria-hidden />
+        <ChevronDown className="size-8" strokeWidth={1.5} aria-hidden />
       </button>
     </div>
   );
@@ -875,22 +884,6 @@ function formatPontosLabel(n: number): string {
 
 type JogoCardPhase = "pre" | "live" | "post";
 
-const DIAS_SEMANA_CURTO = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
-const MESES_CURTO = [
-  "Jan",
-  "Fev",
-  "Mar",
-  "Abr",
-  "Mai",
-  "Jun",
-  "Jul",
-  "Ago",
-  "Set",
-  "Out",
-  "Nov",
-  "Dez",
-];
-
 function formatKickoffHourOnly(jogo: Jogo): string {
   const fromHora = safeHourLabel(jogo.hora);
   if (fromHora !== "--:--") return fromHora;
@@ -903,20 +896,6 @@ function formatKickoffHourOnly(jogo: Jogo): string {
     minute: "2-digit",
     hourCycle: "h23",
   }).format(dt);
-}
-
-function formatKickoffMetaLong(jogo: Jogo): string {
-  if (jogo.kickoffAt) {
-    const dt = new Date(jogo.kickoffAt);
-    if (!Number.isNaN(dt.getTime())) {
-      const wd = DIAS_SEMANA_CURTO[dt.getDay()] ?? "";
-      const day = dt.getDate();
-      const month = MESES_CURTO[dt.getMonth()] ?? "";
-      const time = formatKickoffHourOnly(jogo);
-      return `${wd}, ${day} ${month} • ${time}`;
-    }
-  }
-  return `${formatData(jogo.dataBR, jogo.kickoffAt)}, ${formatKickoffHourOnly(jogo)}`;
 }
 
 /** Contagem até fechar palpites — texto curto (dias → horas → minutos). */
@@ -960,70 +939,75 @@ function getLiveMinuteBadge(jogo: Jogo, nowMs: number): string {
   return label.replace(/·/g, "").trim();
 }
 
+function PalpiteScoreBox({
+  value,
+  unset = false,
+}: {
+  value: number;
+  unset?: boolean;
+}) {
+  return (
+    <span
+      className={`flex h-[72px] w-[52px] items-center justify-center rounded-xl font-black tabular-nums text-[32px] leading-none ${unset ? "text-white/35" : "text-white"}`}
+      style={{ background: PALPITE_SCORE_BOX_BG }}
+    >
+      {unset ? "—" : value}
+    </span>
+  );
+}
+
 function PalpiteScoreBoxes({
   casa,
   visitante,
-  size = "md",
 }: {
   casa: number;
   visitante: number;
-  size?: "md" | "sm";
 }) {
-  const box =
-    size === "sm"
-      ? "min-h-10 min-w-10 text-[26px] sm:text-[28px]"
-      : "min-h-11 min-w-11 text-[30px] sm:text-[32px]";
   return (
     <div
-      className="flex items-center justify-center gap-2.5"
+      className="flex items-center justify-center gap-2"
       role="group"
       aria-label="Placar do palpite"
     >
-      <span
-        className={`flex items-center justify-center rounded-lg px-2 font-black tabular-nums text-white ${box}`}
-        style={{ background: PALPITE_STEPPER_BG }}
-      >
-        {casa}
-      </span>
-      <span className="text-xl font-bold text-white/40" aria-hidden>
+      <PalpiteScoreBox value={casa} />
+      <span className="text-[15px] font-bold text-white/50" aria-hidden>
         x
       </span>
-      <span
-        className={`flex items-center justify-center rounded-lg px-2 font-black tabular-nums text-white ${box}`}
-        style={{ background: PALPITE_STEPPER_BG }}
-      >
-        {visitante}
-      </span>
+      <PalpiteScoreBox value={visitante} />
     </div>
   );
 }
 
-function PalpiteEmptyScoreBoxes({ size = "md" }: { size?: "md" | "sm" }) {
-  const box =
-    size === "sm"
-      ? "min-h-10 min-w-10 text-[26px] sm:text-[28px]"
-      : "min-h-11 min-w-11 text-[30px] sm:text-[32px]";
+function PalpiteEmptyScoreBoxes() {
   return (
     <div
-      className="flex items-center justify-center gap-2.5"
+      className="flex items-center justify-center gap-2"
       role="group"
       aria-label="Palpite ainda não definido"
     >
-      <span
-        className={`flex items-center justify-center rounded-lg px-2 font-black text-white/35 ${box}`}
-        style={{ background: PALPITE_STEPPER_BG }}
-      >
-        —
-      </span>
-      <span className="text-xl font-bold text-white/40" aria-hidden>
+      <PalpiteScoreBox value={0} unset />
+      <span className="text-[15px] font-bold text-white/50" aria-hidden>
         x
       </span>
-      <span
-        className={`flex items-center justify-center rounded-lg px-2 font-black text-white/35 ${box}`}
-        style={{ background: PALPITE_STEPPER_BG }}
-      >
-        —
-      </span>
+      <PalpiteScoreBox value={0} unset />
+    </div>
+  );
+}
+
+function PalpiteCardTeamColumn({
+  url,
+  alt,
+  sigla,
+}: {
+  url: string;
+  alt: string;
+  sigla?: string;
+}) {
+  const label = (sigla?.trim() || alt).slice(0, 3).toUpperCase();
+  return (
+    <div className="flex min-w-0 flex-col items-center gap-2">
+      <Escudo url={url} alt={alt} sigla={sigla} size="lg" />
+      <p className={PALPITE_CARD_TYPE.teamSigla}>{label}</p>
     </div>
   );
 }
@@ -1031,91 +1015,85 @@ function PalpiteEmptyScoreBoxes({ size = "md" }: { size?: "md" | "sm" }) {
 function PalpiteCardStatusBar({
   phase,
   countdownLabel,
-  kickoffMeta,
   kickoffHour,
   liveMinute,
-  hasPalpite,
+  palpiteEnviado,
+  semPalpite,
 }: {
   phase: JogoCardPhase;
   countdownLabel: string;
-  kickoffMeta: string;
   kickoffHour: string;
   liveMinute: string | null;
-  /** Palpite salvo no servidor para este jogo. */
-  hasPalpite: boolean;
+  palpiteEnviado: boolean;
+  semPalpite: boolean;
 }) {
+  const hourSlot = (
+    <span
+      className={`inline-flex shrink-0 items-center gap-1.5 ${PALPITE_CARD_TYPE.metaHour}`}
+    >
+      <Clock className="size-3.5 shrink-0 text-white" strokeWidth={2.2} aria-hidden />
+      {kickoffHour}
+    </span>
+  );
+
   if (phase === "live") {
     return (
-      <div
-        className="flex items-center justify-between gap-2 border-b border-white/[0.06] px-4 py-2.5 sm:px-5"
-        style={{ background: "rgba(0,0,0,0.18)" }}
-      >
+      <div className="flex items-center justify-between gap-3 px-5 pt-4">
         <span
-          className={`inline-flex items-center gap-1.5 rounded-md bg-[#E53935] px-2 py-0.5 ${PALPITE_CARD_TYPE.badge} text-white`}
+          className={`inline-flex items-center gap-1.5 ${PALPITE_CARD_TYPE.statusLive}`}
         >
-          <Disc className="size-3 shrink-0 fill-white text-white" strokeWidth={0} aria-hidden />
+          <Disc className="size-3 shrink-0 fill-[#FF6B6B] text-[#FF6B6B]" strokeWidth={0} aria-hidden />
           AO VIVO
+          {liveMinute ? (
+            <span className="text-white/70">· {liveMinute}</span>
+          ) : null}
         </span>
-        <span className={`inline-flex items-center gap-1 ${PALPITE_CARD_TYPE.metaLive}`}>
-          <Flame className="size-3.5 shrink-0" strokeWidth={2.4} aria-hidden />
-          {liveMinute ?? "Ao vivo"}
-        </span>
-        <span className={`flex min-w-0 max-w-[42%] items-center justify-end gap-1 truncate ${PALPITE_CARD_TYPE.metaMuted}`}>
-          <Calendar className="size-3 shrink-0" strokeWidth={2} aria-hidden />
-          {kickoffMeta}
-        </span>
+        {hourSlot}
       </div>
     );
   }
 
   if (phase === "post") {
     return (
-      <div
-        className="flex items-center justify-between gap-2 border-b border-white/[0.06] px-4 py-2.5 sm:px-5"
-        style={{ background: "rgba(0,0,0,0.18)" }}
-      >
+      <div className="flex items-center justify-between gap-3 px-5 pt-4">
         <span
-          className={`inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-0.5 ${PALPITE_CARD_TYPE.badge} text-[#0E141B]`}
+          className={`inline-flex items-center gap-1.5 ${PALPITE_CARD_TYPE.statusResult}`}
         >
-          <CircleCheck className="size-3 shrink-0" strokeWidth={2.5} aria-hidden />
-          Resultado
+          <CircleCheck className="size-3.5 shrink-0" strokeWidth={2.5} aria-hidden />
+          RESULTADO
         </span>
-        <span className={`flex min-w-0 items-center gap-1 ${PALPITE_CARD_TYPE.metaMuted}`}>
-          <Calendar className="size-3 shrink-0" strokeWidth={2} aria-hidden />
-          {kickoffMeta}
-        </span>
+        {hourSlot}
       </div>
     );
   }
 
-  const preBadge = hasPalpite
-    ? {
-      label: "Aguardando",
-      className: `shrink-0 rounded-md bg-primary px-2.5 py-0.5 ${PALPITE_CARD_TYPE.badge} text-[#0E141B]`,
-    }
-    : {
-      label: "Sem palpite",
-      className: `shrink-0 rounded-md border border-white/12 bg-white/[0.06] px-2.5 py-0.5 ${PALPITE_CARD_TYPE.badge} text-white/55`,
-    };
+  if (palpiteEnviado) {
+    return (
+      <div className="flex items-center justify-between gap-3 px-5 pt-4">
+        <span className={PALPITE_STATUS_SENT_CLASS}>
+          <Lock className="size-3.5 shrink-0" strokeWidth={2.5} aria-hidden />
+          PALPITE ENVIADO
+        </span>
+        {hourSlot}
+      </div>
+    );
+  }
+
+  if (semPalpite) {
+    return (
+      <div className="flex items-center justify-between gap-3 px-5 pt-4">
+        <span className={PALPITE_STATUS_LABEL_CLASS}>SEM PALPITE</span>
+        {hourSlot}
+      </div>
+    );
+  }
 
   return (
-    <div
-      className="flex items-center justify-between gap-1.5 border-b border-white/[0.06] px-4 py-2.5 sm:px-5"
-      style={{ background: "rgba(0,0,0,0.18)" }}
-    >
-      <span className={preBadge.className}>{preBadge.label}</span>
-      <span
-        className={`inline-flex min-w-0 max-w-[38%] shrink items-center justify-center gap-1 truncate ${PALPITE_CARD_TYPE.metaPrimary}`}
-      >
-        <Clock className="size-3 shrink-0" strokeWidth={2.2} aria-hidden />
-        <span className="truncate">{countdownLabel}</span>
+    <div className="flex items-center justify-between gap-3 px-5 pt-4">
+      <span className={PALPITE_CARD_TYPE.statusOpen}>
+        {countdownLabel}
       </span>
-      <span
-        className={`flex shrink-0 items-center justify-end gap-1 tabular-nums ${PALPITE_CARD_TYPE.metaMuted}`}
-      >
-        <Clock className="size-3 shrink-0" strokeWidth={2} aria-hidden />
-        <span>{kickoffHour}</span>
-      </span>
+      {hourSlot}
     </div>
   );
 }
@@ -1300,7 +1278,6 @@ function JogoCard({
   const { scoreCasa, scoreVisitante } = scores;
 
   const lockLeadMs = palpiteLockBeforeKickoffMs(bolaoType);
-  const lockUi = palpiteLockUiCopy(bolaoType);
   const lockAtMs = jogo.kickoffAt
     ? new Date(jogo.kickoffAt).getTime() - lockLeadMs
     : null;
@@ -1372,7 +1349,6 @@ function JogoCard({
   const stepperDisabled =
     readOnly || !canChangeScores || !editingEnabled || predictionsLoading;
   const phase = getJogoCardPhase(jogo, nowMs);
-  const kickoffMeta = formatKickoffMetaLong(jogo);
   const kickoffHour = formatKickoffHourOnly(jogo);
   const countdownLabel = formatCountdownCompact(lockAtMs, nowMs);
   const liveMinute = getLiveMinuteBadge(jogo, nowMs);
@@ -1458,260 +1434,147 @@ function JogoCard({
   const liveVisit = jogo.resultVisitante ?? 0;
   const palpiteLocked =
     phase !== "pre" || !canEdit || isLockedByTime || readOnly;
-  const showPalpitePanelTitle =
-    hasInitialPrediction || scoresAreComplete(scores);
+  const palpiteEnviado =
+    hasInitialPrediction && (palpiteLocked || phase !== "pre");
+  const semPalpite = phase === "pre" && !hasInitialPrediction;
+  const showSteppers =
+    phase === "pre" && canChangeScores && !predictionsLoading;
+
+  const centerScores = (() => {
+    if (predictionsLoading) {
+      return (
+        <div className="flex items-center justify-center gap-2">
+          <div
+            className="h-[72px] w-[52px] animate-pulse rounded-xl"
+            style={{ background: PALPITE_SCORE_BOX_BG }}
+          />
+          <span className="text-[15px] font-bold text-white/50" aria-hidden>
+            x
+          </span>
+          <div
+            className="h-[72px] w-[52px] animate-pulse rounded-xl"
+            style={{ background: PALPITE_SCORE_BOX_BG }}
+          />
+        </div>
+      );
+    }
+    if (phase === "post") {
+      return (
+        <PalpiteScoreBoxes casa={displayCasa} visitante={displayVisitante} />
+      );
+    }
+    if (phase === "live") {
+      return <PalpiteScoreBoxes casa={liveCasa} visitante={liveVisit} />;
+    }
+    if (showSteppers) {
+      return (
+        <div className="flex items-center justify-center gap-2">
+          <VertScoreStepper
+            value={scoreCasa}
+            dir={dirCasa}
+            onInc={() => increment("casa")}
+            onDec={() => decrement("casa")}
+            disabled={stepperDisabled}
+          />
+          <VertScoreStepper
+            value={scoreVisitante}
+            dir={dirVisitante}
+            onInc={() => increment("visitante")}
+            onDec={() => decrement("visitante")}
+            disabled={stepperDisabled}
+          />
+        </div>
+      );
+    }
+    if (hasInitialPrediction && scoresAreComplete(scores)) {
+      return (
+        <PalpiteScoreBoxes
+          casa={scores.scoreCasa}
+          visitante={scores.scoreVisitante}
+        />
+      );
+    }
+    return <PalpiteEmptyScoreBoxes />;
+  })();
+
+  const footerMsg = (() => {
+    if (phase !== "pre") return null;
+    if (readOnlyPending) return "Aguardando o início da partida.";
+    if (readOnlyPlacarPendente || readOnlyAguardandoPlacarPosTempo) {
+      return "Estamos sincronizando o placar oficial. Volte em instantes.";
+    }
+    if (isLockedByTime) return "Prazo encerrado para novos palpites.";
+    if (!hasInitialPrediction && readOnly) {
+      return "Você não fez palpite nesta partida.";
+    }
+    return null;
+  })();
 
   return (
     <div
-      className="mb-4 overflow-hidden rounded-2xl border border-white/[0.06]"
+      className="mb-4 overflow-hidden rounded-2xl"
       style={{ background: PALPITE_CARD_BG }}
     >
       <PalpiteCardStatusBar
         phase={phase}
         countdownLabel={countdownLabel}
-        kickoffMeta={kickoffMeta}
         kickoffHour={kickoffHour}
         liveMinute={liveMinute}
-        hasPalpite={hasInitialPrediction}
+        palpiteEnviado={palpiteEnviado}
+        semPalpite={semPalpite}
       />
 
-      {phase === "post" ? (
-        <>
-          <div
-            className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 px-4 py-4 sm:px-5"
-            style={{
-              borderBottom: "1px solid rgba(255,255,255,0.06)",
-            }}
-          >
-            <div className="flex min-w-0 flex-col items-center">
-              <Escudo
-                url={jogo.escudoCasa}
-                alt={jogo.timeCasa}
-                sigla={jogo.siglasCasa}
-                size="lg"
-              />
-              <p className={PALPITE_CARD_TYPE.teamNameShield}>{jogo.timeCasa}</p>
-            </div>
-            <div className="flex flex-col items-center px-1">
-              <p className={PALPITE_CARD_TYPE.scoreLabel}>Placar oficial</p>
-              <p className={`mt-1 ${PALPITE_CARD_TYPE.scoreHero}`}>
-                {displayCasa}
-                <span className={PALPITE_CARD_TYPE.scoreSep}>x</span>
-                {displayVisitante}
-              </p>
-              <p className={PALPITE_CARD_TYPE.scorePhaseAccent}>Fim de jogo</p>
-            </div>
-            <div className="flex min-w-0 flex-col items-center">
-              <Escudo
-                url={jogo.escudoVisitante}
-                alt={jogo.timeVisitante}
-                sigla={jogo.siglasVisitante}
-                size="lg"
-              />
-              <p className={PALPITE_CARD_TYPE.teamNameShield}>{jogo.timeVisitante}</p>
-            </div>
-          </div>
-
-          {hasInitialPrediction ? (
-            <>
-              <div
-                className={`mx-4 mb-3 sm:mx-5 ${PALPITE_CARD_PANEL_CLASS}`}
-                style={{ background: PALPITE_PANEL_BG }}
-              >
-                <p className={`flex items-center justify-center gap-1.5 ${PALPITE_CARD_TYPE.panelTitleTight}`}>
-                  <Target className="size-3.5 shrink-0 text-primary" strokeWidth={2.4} aria-hidden />
-                  Meu palpite
-                </p>
-                <PalpiteScoreBoxes
-                  casa={initialPrediction!.scoreCasa}
-                  visitante={initialPrediction!.scoreVisitante}
-                />
-              </div>
-
-              {showResultadoDetalhado && review && resultadoResumo ? (
-                <PalpitePontuacaoBreakdown
-                  expanded={pontosExpanded}
-                  onToggle={() => setPontosExpanded((v) => !v)}
-                  review={review}
-                  resumo={resultadoResumo}
-                  linhas={pontosLinhas}
-                />
-              ) : null}
-            </>
-          ) : (
-            <p className={`px-4 pb-4 text-center sm:px-5 ${PALPITE_CARD_TYPE.bodyMsg}`}>
-              Você não fez palpite nesta partida.
-            </p>
-          )}
-        </>
-      ) : phase === "live" ? (
-        <>
-          <div
-            className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 px-4 py-4 sm:px-5"
-            style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
-          >
-            <div className="flex min-w-0 flex-col items-center">
-              <Escudo
-                url={jogo.escudoCasa}
-                alt={jogo.timeCasa}
-                sigla={jogo.siglasCasa}
-                size="lg"
-              />
-              <p className={PALPITE_CARD_TYPE.teamNameShield}>{jogo.timeCasa}</p>
-            </div>
-            <div className="flex flex-col items-center px-1">
-              <p className={PALPITE_CARD_TYPE.scoreHero}>
-                {liveCasa}
-                <span className={PALPITE_CARD_TYPE.scoreSep}>x</span>
-                {liveVisit}
-              </p>
-              {liveTempoLabel ? (
-                <p className={PALPITE_CARD_TYPE.scorePhase}>{liveTempoLabel}</p>
-              ) : null}
-            </div>
-            <div className="flex min-w-0 flex-col items-center">
-              <Escudo
-                url={jogo.escudoVisitante}
-                alt={jogo.timeVisitante}
-                sigla={jogo.siglasVisitante}
-                size="lg"
-              />
-              <p className={PALPITE_CARD_TYPE.teamNameShield}>{jogo.timeVisitante}</p>
-            </div>
-          </div>
-
-          {hasInitialPrediction ? (
-            <div
-              className={`mx-4 mb-3 sm:mx-5 ${PALPITE_CARD_PANEL_CLASS}`}
-              style={{ background: PALPITE_PANEL_BG }}
-            >
-              <p className={`flex items-center justify-center gap-1.5 ${PALPITE_CARD_TYPE.panelTitleTight}`}>
-                <Target className="size-3.5 shrink-0 text-primary" strokeWidth={2.4} aria-hidden />
-                Seu palpite
-              </p>
-              <PalpiteScoreBoxes
-                casa={initialPrediction!.scoreCasa}
-                visitante={initialPrediction!.scoreVisitante}
-              />
-            </div>
-          ) : null}
-
-          <div
-            className={`mx-4 mb-4 flex items-center justify-center gap-2 sm:mx-5 ${PALPITE_CARD_PANEL_CLASS}`}
-            style={{ background: PALPITE_PANEL_BG }}
-          >
-            <Lock className="size-4 shrink-0 text-white/40" strokeWidth={2} aria-hidden />
-            <p className={PALPITE_CARD_TYPE.lockMsg}>Palpite enviado e bloqueado</p>
-          </div>
-        </>
-      ) : (
-        <>
-          <div
-            className={`mx-4 mb-4 sm:mx-5 ${PALPITE_CARD_PANEL_CLASS}`}
-          >
-            {showPalpitePanelTitle ? (
-              <p
-                className={`flex items-center justify-center gap-1.5 ${PALPITE_CARD_TYPE.panelTitle}`}
-              >
-                <Target
-                  className="size-3.5 shrink-0 text-primary"
-                  strokeWidth={2.4}
-                  aria-hidden
-                />
-                Seu palpite
+      <div
+        className={
+          semPalpite || (phase === "pre" && showSteppers)
+            ? "p-6"
+            : "px-5 pb-5 pt-3"
+        }
+      >
+        <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
+          <PalpiteCardTeamColumn
+            url={jogo.escudoCasa}
+            alt={jogo.timeCasa}
+            sigla={jogo.siglasCasa}
+          />
+          <div className="flex flex-col items-center justify-center px-1">
+            {centerScores}
+            {phase === "live" && liveTempoLabel ? (
+              <p className="mt-2 text-[11px] font-bold uppercase tracking-wide text-white/45">
+                {liveTempoLabel}
               </p>
             ) : null}
-            <div
-              className={`flex items-center justify-between gap-2 ${showPalpitePanelTitle ? "" : "pt-1"}`}
-            >
-              <div className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
-                <Escudo
-                  url={jogo.escudoCasa}
-                  alt={jogo.timeCasa}
-                  sigla={jogo.siglasCasa}
-                  size="md"
-                />
-                <p className={PALPITE_CARD_TYPE.sideLabel}>Casa</p>
-                <p className={PALPITE_CARD_TYPE.teamName}>{jogo.timeCasa}</p>
-              </div>
-              <div className="flex shrink-0 items-center justify-center gap-2 px-0.5">
-                {predictionsLoading ? (
-                  <>
-                    <div
-                      className="h-[108px] w-[52px] animate-pulse rounded-[14px]"
-                      style={{ background: PALPITE_STEPPER_BG }}
-                    />
-                    <div
-                      className="h-[108px] w-[52px] animate-pulse rounded-[14px]"
-                      style={{ background: PALPITE_STEPPER_BG }}
-                    />
-                  </>
-                ) : canChangeScores ? (
-                  <>
-                    <VertScoreStepper
-                      value={scoreCasa}
-                      dir={dirCasa}
-                      onInc={() => increment("casa")}
-                      onDec={() => decrement("casa")}
-                      disabled={stepperDisabled}
-                    />
-                    <VertScoreStepper
-                      value={scoreVisitante}
-                      dir={dirVisitante}
-                      onInc={() => increment("visitante")}
-                      onDec={() => decrement("visitante")}
-                      disabled={stepperDisabled}
-                    />
-                  </>
-                ) : hasInitialPrediction && scoresAreComplete(scores) ? (
-                  <PalpiteScoreBoxes
-                    casa={scores.scoreCasa}
-                    visitante={scores.scoreVisitante}
-                  />
-                ) : (
-                  <PalpiteEmptyScoreBoxes />
-                )}
-              </div>
-              <div className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
-                <Escudo
-                  url={jogo.escudoVisitante}
-                  alt={jogo.timeVisitante}
-                  sigla={jogo.siglasVisitante}
-                  size="md"
-                />
-                <p className={PALPITE_CARD_TYPE.sideLabel}>Fora</p>
-                <p className={PALPITE_CARD_TYPE.teamName}>{jogo.timeVisitante}</p>
-              </div>
-            </div>
           </div>
+          <PalpiteCardTeamColumn
+            url={jogo.escudoVisitante}
+            alt={jogo.timeVisitante}
+            sigla={jogo.siglasVisitante}
+          />
+        </div>
+      </div>
 
-          {palpiteLocked && hasInitialPrediction ? (
-            <div
-              className={`mx-4 mb-4 flex items-center justify-center gap-2 sm:mx-5 ${PALPITE_CARD_PANEL_CLASS}`}
-              style={{ background: PALPITE_PANEL_BG }}
-            >
-              <Lock className="size-4 shrink-0 text-white/40" strokeWidth={2} aria-hidden />
-              <p className={PALPITE_CARD_TYPE.lockMsg}>Palpite enviado e bloqueado</p>
-            </div>
-          ) : readOnlyPending ? (
-            <p className={`px-4 pb-4 text-center sm:px-5 ${PALPITE_CARD_TYPE.bodyMsg}`}>
-              Aguardando o início da partida.
-            </p>
-          ) : readOnlyPlacarPendente || readOnlyAguardandoPlacarPosTempo ? (
-            <p className={`px-4 pb-4 text-center sm:px-5 ${PALPITE_CARD_TYPE.bodyMsg}`}>
-              Estamos sincronizando o placar oficial. Volte em instantes.
-            </p>
-          ) : isLockedByTime ? (
-            <p className={`px-4 pb-4 text-center sm:px-5 ${PALPITE_CARD_TYPE.bodyMsg}`}>
-              Prazo encerrado para novos palpites.
-            </p>
-          ) : !hasInitialPrediction && readOnly ? (
-            <p className={`px-4 pb-4 text-center sm:px-5 ${PALPITE_CARD_TYPE.bodyMsg}`}>
-              Você não fez palpite nesta partida.
-            </p>
-          ) : null}
-        </>
-      )}
+      {phase === "post" && !hasInitialPrediction ? (
+        <p className={`px-5 pb-4 ${PALPITE_CARD_TYPE.bodyMsg}`}>
+          Você não fez palpite nesta partida.
+        </p>
+      ) : null}
+
+      {phase === "post" &&
+      showResultadoDetalhado &&
+      review &&
+      resultadoResumo ? (
+        <PalpitePontuacaoBreakdown
+          expanded={pontosExpanded}
+          onToggle={() => setPontosExpanded((v) => !v)}
+          review={review}
+          resumo={resultadoResumo}
+          linhas={pontosLinhas}
+        />
+      ) : null}
+
+      {footerMsg ? (
+        <p className={`px-5 pb-4 ${PALPITE_CARD_TYPE.bodyMsg}`}>{footerMsg}</p>
+      ) : null}
     </div>
   );
 }
@@ -4780,24 +4643,7 @@ function PalpitesPageContent({
                       {rodadas.map(({ label, jogos: rJogos }) => (
                         <div key={`${groupKey}-${label}`}>
 
-                          <div className="flex items-center gap-3 mb-3 mt-1">
-                            <span
-                              className="text-[11px] font-bold tracking-widest uppercase shrink-0"
-                              style={{ color: "rgba(255,255,255,0.45)" }}
-                            >
-                              {label}
-                            </span>
-                            <span
-                              className="text-[11px] font-bold tracking-widest uppercase shrink-0"
-                              style={{ color: "rgba(177,235,11,0.55)" }}
-                            >
-                              · Grupo {groupKey}
-                            </span>
-                            <div
-                              className="flex-1 h-px"
-                              style={{ background: "rgba(255,255,255,0.06)" }}
-                            />
-                          </div>
+                          <RodadaSectionHeader label={label} groupKey={groupKey} />
                           {rJogos.map((jogo) => (
                             <JogoCard
                               key={jogo.id}
@@ -4819,7 +4665,7 @@ function PalpitesPageContent({
                 ) : (
                   jogosPorRodada.map(({ label, jogos: rJogos }) => (
                     <div key={label}>
-
+                      <RodadaSectionHeader label={label} />
                       {rJogos.map((jogo) => (
                         <JogoCard
                           key={jogo.id}
