@@ -5,7 +5,6 @@ import {
   Activity,
   ArrowRight,
   CalendarDays,
-  Check,
   ChevronDown,
   ChevronRight,
   ClipboardList,
@@ -22,6 +21,11 @@ import iconPremierLeague from "@/app/assets/icon-premier-league.png";
 import iconCopaBrasil from "@/app/assets/icon-copa-brasil.png";
 import iconCopaMundo from "@/app/assets/icon-copa-mundo.png";
 import ticketBlue from "@/app/assets/Ticket-Blue.png";
+import {
+  bolaoDisplayPhaseSortRank,
+  bolaoDisplayStatusMeta,
+  type BolaoDisplayPhase,
+} from "@/lib/boloes/display-status";
 import { getExtraBolaoHeroSideVariant } from "@/lib/boloes-extra-competition-branding";
 import { extraBolaoIconSrc, isExtraBolaoBrandedIcon } from "@/app/shared/extra-bolao-icons";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -34,6 +38,7 @@ export type ActivePrincipalBolao = {
   cotaLabel: string;
   href: string;
   status: "ativo";
+  displayPhase: BolaoDisplayPhase;
   statusLabel: string;
   sent: number;
   total: number;
@@ -48,6 +53,7 @@ export type ActiveDailyBolao = {
   cotaLabel: string;
   href: string;
   status: "ativo" | "aguardando" | "usado";
+  displayPhase: BolaoDisplayPhase;
   statusLabel: string;
   gamesCount: number;
   countdownLabel: string;
@@ -65,6 +71,7 @@ export type ActiveBolaoListItem = {
   cotaLabel: string;
   href: string;
   status: "ativo" | "aguardando" | "usado";
+  displayPhase: BolaoDisplayPhase;
   statusLabel: string;
   sent?: number;
   total?: number;
@@ -246,10 +253,8 @@ function pointsLabel(points: number) {
 function sortBoloesByAvailabilityForShowcase(
   items: ActiveBolaoListItem[],
 ): ActiveBolaoListItem[] {
-  const rank = (s: ActiveBolaoListItem["status"]) =>
-    s === "ativo" ? 0 : s === "aguardando" ? 1 : 2;
   return [...items].sort((a, b) => {
-    const d = rank(a.status) - rank(b.status);
+    const d = bolaoDisplayPhaseSortRank(a.displayPhase) - bolaoDisplayPhaseSortRank(b.displayPhase);
     if (d !== 0) return d;
     return a.id.localeCompare(b.id);
   });
@@ -477,28 +482,15 @@ function BolaoIcon({ type }: { type: "copa" | "dia" | "extra" }) {
   );
 }
 
-function StatusPill({
-  status,
-  label,
-}: {
-  status: ActiveDailyBolao["status"] | "ativo";
-  label: string;
-}) {
-  const isActive = status === "ativo";
-  const isUsed = status === "usado";
-  const tone = isUsed ? "#F87171" : isActive ? GREEN_SOFT : YELLOW;
+function StatusPill({ phase }: { phase: BolaoDisplayPhase }) {
+  const meta = bolaoDisplayStatusMeta(phase);
 
   return (
     <span
-      className="inline-flex h-[18px] items-center rounded-[5px] border px-2 text-[8px] font-black uppercase tracking-[0.12em]"
-      style={{ background: `${tone}1F`, borderColor: `${tone}55`, color: tone }}
+      className="inline-flex max-w-full rounded-[5px] border px-2 py-0.5 text-[8px] font-black uppercase leading-tight tracking-[0.1em]"
+      style={{ background: `${meta.tone}1A`, borderColor: `${meta.tone}50`, color: meta.tone }}
     >
-      <span
-        className="mr-1 size-[5px] rounded-full"
-        style={{ background: tone }}
-        aria-hidden
-      />
-      {label}
+      {meta.shortLabel}
     </span>
   );
 }
@@ -592,7 +584,7 @@ function ActiveBoloesList({
                 </p>
 
                 <div className="mt-5">
-                  <StatusPill status={item.status} label={item.statusLabel} />
+                  <StatusPill phase={item.displayPhase} />
                 </div>
 
                 {isPrincipal ? (
@@ -981,65 +973,17 @@ function ShowcaseHeroStatusPill({
   );
 }
 
-function showcaseStatusColor(
-  status: ActiveBolaoListItem["status"] | undefined,
-  finished: boolean,
-): string {
-  if (finished || status === "usado") return "#F87171";
-  if (status === "ativo") return GREEN;
-  if (status === "aguardando") return YELLOW;
-  return "rgba(255,255,255,0.85)";
-}
-
-/** Texto curto no badge (rótulo completo fica no title). */
-function showcaseStatusBadgeLabel(label: string): string {
-  const l = label.trim().toLowerCase();
-  if (l.includes("aguardando")) return "Aguardando";
-  if (l.includes("em uso")) return "Em uso";
-  if (l.includes("palpites abertos")) return "Aberto";
-  return label;
-}
-
-function showcaseStatusIcon(
-  status: ActiveBolaoListItem["status"] | undefined,
-  finished: boolean,
-) {
-  if (finished || status === "usado") {
-    return <Lock className="size-4 shrink-0" strokeWidth={2.25} aria-hidden />;
-  }
-  if (status === "ativo") {
-    return <Activity className="size-4 shrink-0" strokeWidth={2.25} aria-hidden />;
-  }
-  if (status === "aguardando") {
-    return <CalendarDays className="size-4 shrink-0" strokeWidth={2.25} aria-hidden />;
-  }
-  return <ClipboardList className="size-4 shrink-0" strokeWidth={2.25} aria-hidden />;
-}
-
-/** Badge de status do card showcase — alinhado ao StatusPill da lista. */
-function ShowcaseCardStatusBadge({
-  status,
-  label,
-  finished,
-}: {
-  status?: ActiveBolaoListItem["status"];
-  label: string;
-  finished: boolean;
-}) {
-  const tone = showcaseStatusColor(status, finished);
+/** Badge de status do card showcase — fluxo: pendentes → enviados → disputa → finalizado. */
+function ShowcaseCardStatusBadge({ phase }: { phase: BolaoDisplayPhase }) {
+  const meta = bolaoDisplayStatusMeta(phase);
 
   return (
     <span
-      className="inline-flex max-w-full items-center gap-1 rounded-[6px] border px-2 py-1 text-[9px] font-black uppercase leading-tight tracking-[0.06em] min-[380px]:text-[10px]"
-      style={{ background: `${tone}1A`, borderColor: `${tone}45`, color: tone }}
-      title={label}
+      className="inline-block max-w-full rounded-[6px] border px-2 py-1 text-[9px] font-black uppercase leading-tight tracking-[0.05em] min-[380px]:text-[10px]"
+      style={{ background: `${meta.tone}1A`, borderColor: `${meta.tone}45`, color: meta.tone }}
+      title={meta.label}
     >
-      <span
-        className="size-1.5 shrink-0 rounded-full"
-        style={{ background: tone }}
-        aria-hidden
-      />
-      <span className="min-w-0 truncate">{label}</span>
+      {meta.shortLabel}
     </span>
   );
 }
@@ -1051,8 +995,7 @@ function ShowcaseCotaCard({
   kind,
   displayTitle,
   cotaLabel,
-  status,
-  statusLabel,
+  displayPhase,
   countdownLabel,
   countdownTargetMs,
   now,
@@ -1064,8 +1007,7 @@ function ShowcaseCotaCard({
   kind: "principal" | "diario" | "extra";
   displayTitle: string;
   cotaLabel?: string;
-  status?: ActiveBolaoListItem["status"];
-  statusLabel?: string;
+  displayPhase: BolaoDisplayPhase;
   countdownLabel: string;
   countdownTargetMs: number | null;
   now: number;
@@ -1073,12 +1015,18 @@ function ShowcaseCotaCard({
 }) {
   const prizes = SHOWCASE_PRIZES[kind];
   const header = showcaseHeaderParts(displayTitle, kind);
-  const finished = lockHasPassed(countdownTargetMs, now) || status === "usado";
-  const countdownDisplay = finished ? "Encerrado" : formatCountdown(countdownTargetMs, now);
-  const timerLabel = finished ? "Encerrado" : countdownLabel.toUpperCase();
-  const statusDisplay =
-    statusLabel ??
-    (finished ? "Encerrado" : status === "ativo" ? "Ativo" : status === "aguardando" ? "Aguardando" : "—");
+  const finished = displayPhase === "finalizado";
+  const inDispute = displayPhase === "disputa";
+  const countdownDisplay = finished
+    ? "Encerrado"
+    : inDispute
+      ? "Ao vivo"
+      : formatCountdown(countdownTargetMs, now);
+  const timerLabel = finished
+    ? "Encerrado"
+    : inDispute
+      ? "Status"
+      : countdownLabel.toUpperCase();
   return (
     <Link
       href={href}
@@ -1151,11 +1099,7 @@ function ShowcaseCotaCard({
                 Status
               </p>
               <div className="mt-0.5 flex justify-start">
-                <ShowcaseCardStatusBadge
-                  status={status}
-                  label={showcaseStatusBadgeLabel(statusDisplay)}
-                  finished={finished}
-                />
+                <ShowcaseCardStatusBadge phase={displayPhase} />
               </div>
             </div>
             
@@ -1202,10 +1146,13 @@ function ActiveShowcaseCard({
             : ticketBlue
       : iconCopaMundo;
   const showVerResultados =
-    item.status === "usado" || lockHasPassed(item.countdownTargetMs ?? null, now);
+    item.displayPhase === "finalizado" ||
+    item.displayPhase === "disputa" ||
+    (item.displayPhase === "enviados" && lockHasPassed(item.countdownTargetMs ?? null, now));
 
   const countdownLabel =
-    item.status === "aguardando" ? "Começa em" : "Fecha em";
+    item.countdownLabel ??
+    (item.status === "aguardando" ? "Começa em" : "Fecha em");
 
   return (
     <ShowcaseCotaCard
@@ -1215,12 +1162,17 @@ function ActiveShowcaseCard({
       kind={kind}
       displayTitle={item.title}
       cotaLabel={item.cotaLabel}
-      status={item.status}
-      statusLabel={item.statusLabel}
+      displayPhase={item.displayPhase}
       countdownLabel={countdownLabel}
       countdownTargetMs={item.countdownTargetMs ?? null}
       now={now}
-      ctaLabel={showVerResultados ? "Ver resultados" : "Fazer palpites"}
+      ctaLabel={
+        item.displayPhase === "pendentes"
+          ? "Fazer palpites"
+          : showVerResultados
+            ? "Ver resultados"
+            : "Ver palpites"
+      }
     />
   );
 }

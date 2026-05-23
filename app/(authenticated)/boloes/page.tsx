@@ -26,6 +26,10 @@ import {
   mergeExtraChampionshipFromPaidTickets,
 } from "@/lib/ticket-competition-server";
 import { resolveDiarioPlayableDate } from "@/lib/diario-playable-date";
+import {
+  bolaoDisplayStatusMeta,
+  computeBolaoDisplayPhase,
+} from "@/lib/boloes/display-status";
 import { extraBolaoCurrentRoundsByChampionship } from "@/lib/ticket-shop-extra-rounds";
 
 function extraBolaoDisplayTitle(
@@ -181,6 +185,47 @@ function totalMatchesForTicket(ticket: PaidTicketRow, matches: MatchMap): number
     ).length;
   }
   return Array.from(matches.values()).filter((match) => !isFinishedStatus(match.status)).length;
+}
+
+function scopeMatchesForTicket(ticket: PaidTicketRow, matches: MatchMap): MatchInfo[] {
+  const mainComp = getFootballMainCompetitionId();
+  if (ticket.ticketType === "general") {
+    return Array.from(matches.values()).filter(
+      (m) => (Number(m.competitionId) || mainComp) === mainComp,
+    );
+  }
+  if (ticket.ticketType === "daily") {
+    const date = ticket.playDate || resolveDiarioPlayableDate(matches, { competitionId: mainComp });
+    return Array.from(matches.values()).filter(
+      (m) =>
+        m.dateBR === date && (Number(m.competitionId) || mainComp) === mainComp,
+    );
+  }
+  const comp = Number(ticket.extraChampionshipId);
+  if (!Number.isFinite(comp) || comp <= 0) return [];
+  const date = ticket.playDate || resolveDiarioPlayableDate(matches, { competitionId: comp });
+  return Array.from(matches.values()).filter(
+    (m) => m.dateBR === date && (Number(m.competitionId) || comp) === comp,
+  );
+}
+
+function bolaoStatusFromMetrics(
+  ticket: PaidTicketRow,
+  metrics: TicketMetrics,
+  matches: MatchMap,
+): { displayPhase: ReturnType<typeof computeBolaoDisplayPhase>; statusLabel: string } {
+  const displayPhase = computeBolaoDisplayPhase({
+    sent: metrics.sent,
+    total: metrics.total,
+    available: metrics.available,
+    scopeMatches: scopeMatchesForTicket(ticket, matches),
+    dailyStatus: ticket.dailyStatus ?? null,
+  });
+  const meta = bolaoDisplayStatusMeta(displayPhase);
+  return {
+    displayPhase,
+    statusLabel: meta.label,
+  };
 }
 
 function buildRankingMap(
@@ -451,14 +496,17 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
     };
 
     if (ticket.ticketType === "general") {
+      const { displayPhase, statusLabel } = bolaoStatusFromMetrics(ticket, metrics, matches);
+      const legacyStatus = displayPhase === "finalizado" ? "usado" : "ativo";
       return {
         id: ticket.id,
         type: "principal",
         title: "Bolão do Milhão",
         cotaLabel: `Cota #${shortTicketId(ticket.id)}`,
         href: `/palpites?${new URLSearchParams({ ticket: ticket.id }).toString()}`,
-        status: "ativo",
-        statusLabel: "Ativo",
+        status: legacyStatus,
+        displayPhase,
+        statusLabel,
         sent: metrics.sent,
         total: metrics.total,
         progress: metrics.progress,
@@ -489,8 +537,13 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
         dateMatches.filter((m) => isOpenMatch(m, PALPITE_LOCK_MS_EXTRA)),
         PALPITE_LOCK_MS_EXTRA,
       );
-      const status: ActiveDailyStatus =
-        ticket.dailyStatus === "usado" ? "usado" : ticket.dailyStatus === "em_uso" ? "ativo" : "aguardando";
+      const { displayPhase, statusLabel } = bolaoStatusFromMetrics(ticket, metrics, matches);
+      const legacyStatus =
+        displayPhase === "finalizado"
+          ? "usado"
+          : displayPhase === "pendentes"
+            ? "aguardando"
+            : "ativo";
       return {
         id: ticket.id,
         type: "extra",
@@ -498,11 +551,16 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
         title,
         cotaLabel: `Cota #${shortTicketId(ticket.id)}`,
         href: `/palpites?${new URLSearchParams({ ticket: ticket.id }).toString()}`,
-        status,
-        statusLabel:
-          status === "usado" ? "Usado" : status === "ativo" ? "Em uso — seu dia" : "Aguardando início",
+        status: legacyStatus as ActiveDailyStatus,
+        displayPhase,
+        statusLabel,
         gamesCount: dateMatches.length,
-        countdownLabel: status === "aguardando" ? "Início em" : "Fecha em",
+        countdownLabel:
+          displayPhase === "finalizado"
+            ? "Encerrado"
+            : displayPhase === "pendentes" && legacyStatus === "aguardando"
+              ? "Início em"
+              : "Fecha em",
         countdownTargetMs: closeAt,
         position: metrics.position,
         points: metrics.points,
@@ -519,18 +577,29 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
       dateMatches.filter((match) => isOpenMatch(match, PALPITE_LOCK_MS_DIARIO)),
       PALPITE_LOCK_MS_DIARIO,
     );
-    const status: ActiveDailyStatus =
-      ticket.dailyStatus === "usado" ? "usado" : ticket.dailyStatus === "em_uso" ? "ativo" : "aguardando";
+    const { displayPhase, statusLabel } = bolaoStatusFromMetrics(ticket, metrics, matches);
+    const legacyStatus =
+      displayPhase === "finalizado"
+        ? "usado"
+        : displayPhase === "pendentes"
+          ? "aguardando"
+          : "ativo";
     return {
       id: ticket.id,
       type: "diario",
       title: "Bolão do Dia",
       cotaLabel: `Cota #${shortTicketId(ticket.id)}`,
       href: `/palpites?${new URLSearchParams({ ticket: ticket.id }).toString()}`,
-      status,
-      statusLabel: status === "usado" ? "Usado" : status === "ativo" ? "Em uso — seu dia" : "Aguardando início",
+      status: legacyStatus as ActiveDailyStatus,
+      displayPhase,
+      statusLabel,
       gamesCount: dateMatches.length,
-      countdownLabel: status === "aguardando" ? "Início em" : "Fecha em",
+      countdownLabel:
+        displayPhase === "finalizado"
+          ? "Encerrado"
+          : displayPhase === "pendentes" && legacyStatus === "aguardando"
+            ? "Início em"
+            : "Fecha em",
       countdownTargetMs: closeAt,
       position: metrics.position,
       points: metrics.points,
@@ -542,13 +611,19 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
     principal: firstGeneral
       ? (() => {
           const metrics = metricsByTicket.get(firstGeneral.id)!;
+          const { displayPhase, statusLabel } = bolaoStatusFromMetrics(
+            firstGeneral,
+            metrics,
+            matches,
+          );
           return {
             id: firstGeneral.id,
             title: "Bolão do Milhão",
             cotaLabel: `Cota #${shortTicketId(firstGeneral.id)}`,
             href: `/palpites?${new URLSearchParams({ ticket: firstGeneral.id }).toString()}`,
-            status: "ativo" as const,
-            statusLabel: "Ativo",
+            status: (displayPhase === "finalizado" ? "usado" : "ativo") as "ativo",
+            displayPhase,
+            statusLabel,
             sent: metrics.sent,
             total: metrics.total,
             progress: metrics.progress,
@@ -569,18 +644,32 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
             dateMatches.filter((match) => isOpenMatch(match, PALPITE_LOCK_MS_DIARIO)),
             PALPITE_LOCK_MS_DIARIO,
           );
-          const status: ActiveDailyStatus =
-            firstDaily.dailyStatus === "usado" ? "usado" : firstDaily.dailyStatus === "em_uso" ? "ativo" : "aguardando";
+          const { displayPhase, statusLabel } = bolaoStatusFromMetrics(
+            firstDaily,
+            metrics,
+            matches,
+          );
+          const legacyStatus =
+            displayPhase === "finalizado"
+              ? "usado"
+              : displayPhase === "pendentes"
+                ? "aguardando"
+                : "ativo";
           return {
             id: firstDaily.id,
             title: "Bolão do Dia",
             cotaLabel: `Cota #${shortTicketId(firstDaily.id)}`,
             href: `/palpites?${new URLSearchParams({ ticket: firstDaily.id }).toString()}`,
-            status,
-            statusLabel:
-              status === "usado" ? "Usado" : status === "ativo" ? "Em uso — seu dia" : "Aguardando início",
+            status: legacyStatus as ActiveDailyStatus,
+            displayPhase,
+            statusLabel,
             gamesCount: dateMatches.length,
-            countdownLabel: status === "aguardando" ? "Início em" : "Fecha em",
+            countdownLabel:
+              displayPhase === "finalizado"
+                ? "Encerrado"
+                : displayPhase === "pendentes" && legacyStatus === "aguardando"
+                  ? "Início em"
+                  : "Fecha em",
             countdownTargetMs: closeAt,
             position: metrics.position,
             points: metrics.points,
