@@ -13,6 +13,7 @@
     "db:notifications": "tsx --tsconfig tsconfig.scripts.json scripts/run-notifications-migration.ts",
     "pwa:icons": "tsx --tsconfig tsconfig.scripts.json scripts/generate-pwa-icons.ts",
     "check:email-env": "tsx --tsconfig tsconfig.scripts.json scripts/check-email-env.ts",
+    "debug:threexpay": "tsx --tsconfig tsconfig.scripts.json scripts/debug-threexpay-cash-in.ts",
     "build": "next build",
     "deploy:github": "bash scripts/deploy-from-github.sh",
     "start": "next start",

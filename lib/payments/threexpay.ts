@@ -37,12 +37,15 @@ type ThreeXPayCashInResponse = {
   status?: string;
   message?: string;
   payment?: {
+    status?: string;
     transaction_id?: string;
     payment_code?: string;
     link?: string;
     qrcode?: string;
     qr_code?: string;
+    total?: number;
   };
+  transaction_id?: string;
   transaction?: {
     id?: string;
     status?: string;
@@ -85,9 +88,15 @@ function pickProviderTransactionId(json: ThreeXPayCashInResponse): string | null
   return null;
 }
 
-function pickStatus(json: ThreeXPayCashInResponse): string {
-  const s = json.status ?? json.transaction?.status;
-  return s ? String(s) : "PENDING";
+/**
+ * Cash-in: `status: SUCCESS` = API ok; pagamento real em `payment.status` (ex. PENDING).
+ */
+function pickPaymentStatus(json: ThreeXPayCashInResponse): string {
+  const paymentStatus = json.payment?.status?.trim();
+  if (paymentStatus) return paymentStatus;
+  const txStatus = json.transaction?.status?.trim();
+  if (txStatus) return txStatus;
+  return "PENDING";
 }
 
 export async function createThreeXPayCashIn(input: CreateThreeXPayCashInInput): Promise<{
@@ -153,7 +162,7 @@ export async function createThreeXPayCashIn(input: CreateThreeXPayCashInInput): 
 
   return {
     providerTransactionId,
-    status: pickStatus(json),
+    status: pickPaymentStatus(json),
     pixQrcode,
     pixEnd2EndId: null,
     rawResponse: json,

@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Bell, X } from "lucide-react";
+import { Bell } from "lucide-react";
 import logoApp from "@/app/assets/logo-2.png";
 import { useAuth } from "@/app/shared/AuthContext";
 import {
@@ -78,12 +78,6 @@ export function PushNotificationsModal() {
     };
   }, [ready, isLoggedIn, tryOpen]);
 
-  const handleDismiss = useCallback(() => {
-    persistPushPromptDismissed();
-    clearPushModalPending();
-    setOpen(false);
-  }, []);
-
   const handleEnable = useCallback(async () => {
     if (!canRequestPushInThisContext()) {
       setNeedsStandalone(true);
@@ -104,9 +98,7 @@ export function PushNotificationsModal() {
     }
 
     if (result.reason === "denied") {
-      setMessage("Permissão negada. Você pode ativar depois nas configurações do sistema.");
-      persistPushPromptDismissed();
-      clearPushModalPending();
+      setMessage("Permissão negada. Ative nas configurações do sistema e toque em Ativar novamente.");
     } else if (result.reason === "no-vapid") {
       setMessage("Notificações temporariamente indisponíveis. Tente mais tarde.");
     } else {
@@ -118,15 +110,10 @@ export function PushNotificationsModal() {
     if (!open) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") handleDismiss();
-    };
-    window.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = prev;
-      window.removeEventListener("keydown", onKey);
     };
-  }, [open, handleDismiss]);
+  }, [open]);
 
   if (!open || !portalReady) return null;
 
@@ -139,15 +126,13 @@ export function PushNotificationsModal() {
       aria-modal="true"
       aria-labelledby="push-notifications-modal-title"
     >
-      <button
-        type="button"
+      <div
         className="animate-perfil-avatar-overlay-in absolute inset-0 z-0 bg-black/82 backdrop-blur-[3px]"
-        aria-label="Fechar"
-        onClick={handleDismiss}
+        aria-hidden
       />
 
       <div className="animate-perfil-avatar-sheet-in relative z-10 w-full max-w-md overflow-hidden rounded-t-2xl border border-white/12 bg-[#101010] shadow-[0_-16px_56px_rgba(0,0,0,0.6)] sm:rounded-2xl sm:shadow-2xl">
-        <div className="flex items-start justify-between gap-3 border-b border-white/10 px-5 py-4">
+        <div className="flex items-start gap-3 border-b border-white/10 px-5 py-4">
           <div className="flex min-w-0 items-center gap-3">
             <Image
               src={logoApp}
@@ -169,14 +154,6 @@ export function PushNotificationsModal() {
               </h2>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={handleDismiss}
-            className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-white/12 bg-white/5 text-white transition-colors hover:bg-white/10"
-            aria-label="Fechar"
-          >
-            <X className="size-5" strokeWidth={2.2} />
-          </button>
         </div>
 
         <div className="space-y-5 px-5 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
@@ -209,7 +186,7 @@ export function PushNotificationsModal() {
             </p>
           ) : null}
 
-          <div className="flex flex-col gap-2.5 pt-1">
+          <div className="pt-1">
             <button
               type="button"
               disabled={loading || (needsStandalone && !installed)}
@@ -221,13 +198,6 @@ export function PushNotificationsModal() {
               }}
             >
               {loading ? "Ativando..." : "Ativar notificações"}
-            </button>
-            <button
-              type="button"
-              onClick={handleDismiss}
-              className="flex h-11 w-full items-center justify-center rounded-xl border border-white/12 bg-white/5 text-[11px] font-black uppercase tracking-wide text-white/55 transition-colors hover:bg-white/8 hover:text-white/75"
-            >
-              Agora não
             </button>
           </div>
         </div>

@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-import { normalizeGatewayStatus } from "@/lib/payments/gateway";
+import {
+  isThreeXPayWebhookPaidStatus,
+  normalizeGatewayStatus,
+} from "@/lib/payments/gateway";
 import { updateTransactionStatusByProviderId } from "@/lib/payments/transactions";
 
 export const runtime = "nodejs";
@@ -21,25 +24,22 @@ type ThreeXPayWebhookPayload = {
   externalId?: string;
   e2e_id?: string;
   e2eId?: string;
+  debtorAccount?: { name?: string; document?: string; accountType?: string };
   [k: string]: unknown;
 };
 
 function pickLookupId(p: ThreeXPayWebhookPayload): string | null {
-  return (
-    p.transactionId?.trim() ||
-    p.externalId?.trim() ||
-    null
-  );
-}
-
-function pickStatus(p: ThreeXPayWebhookPayload): string | null {
-  const raw = p.transactionStatus?.trim();
-  if (!raw) return null;
-  return normalizeGatewayStatus(raw);
+  return p.transactionId?.trim() || p.externalId?.trim() || null;
 }
 
 function pickPixEnd2EndId(p: ThreeXPayWebhookPayload): string | null {
   return p.e2e_id?.trim() || p.e2eId?.trim() || null;
+}
+
+/** Status terminal além de PAID (cancelado, expirado, falhou). */
+function isTerminalNonPaidWebhookStatus(transactionStatus: string): boolean {
+  const normalized = normalizeGatewayStatus(transactionStatus);
+  return normalized === "cancelled" || normalized === "expired" || normalized === "failed";
 }
 
 export async function POST(request: Request) {
@@ -55,25 +55,39 @@ export async function POST(request: Request) {
   }
 
   const lookupId = pickLookupId(json);
-  const status = pickStatus(json);
-  if (!lookupId || !status) {
+  const transactionStatus = json.transactionStatus?.trim() ?? "";
+
+  if (!lookupId || !transactionStatus) {
     return NextResponse.json(
       { error: "Payload sem transactionId/externalId ou transactionStatus" },
       { status: 400 },
     );
   }
 
+  const isPaid = isThreeXPayWebhookPaidStatus(transactionStatus);
+  const isTerminal = isTerminalNonPaidWebhookStatus(transactionStatus);
+
   console.info("[threexpay/webhook] received", {
     lookupId,
-    status,
+    transactionStatus,
+    isPaid,
     transactionType: json.transactionType,
     externalId: json.externalId,
     e2e_id: pickPixEnd2EndId(json),
   });
 
+  if (!isPaid && !isTerminal) {
+    return NextResponse.json({
+      ok: true,
+      ignored: true,
+      reason: "Aguardando PAID; status atual ignorado para fluxo de pagamento",
+      transactionStatus,
+    });
+  }
+
   const processed = await updateTransactionStatusByProviderId({
     providerTransactionId: lookupId,
-    status,
+    status: transactionStatus,
     pixEnd2EndId: pickPixEnd2EndId(json),
     rawWebhook: json,
   });
@@ -83,7 +97,7 @@ export async function POST(request: Request) {
       {
         error: "Transacao nao encontrada para processar webhook",
         lookupId,
-        status,
+        transactionStatus,
       },
       { status: 404 },
     );
@@ -91,6 +105,7 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     ok: true,
+    paid: isPaid,
     transactionId: processed.transactionId,
     status: processed.status,
   });

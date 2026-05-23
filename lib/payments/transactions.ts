@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { getPool } from "@/lib/db";
 import {
+  CASH_IN_INITIAL_STATUS,
   PAYMENT_PROVIDER,
   normalizeGatewayStatus,
   paymentWebhookUrl,
@@ -216,7 +217,15 @@ export async function createDepositTransaction(input: CreateDepositTransactionIn
       },
       expirationSeconds: Number(process.env.THREEXPAY_PIX_EXPIRATION_SECONDS) || 86400,
     });
-    const gatewayStatus = normalizeGatewayStatus(gateway.status);
+    const initialStatus = CASH_IN_INITIAL_STATUS;
+
+    console.info("[payment/create] 3xPay cash-in", {
+      transactionId,
+      providerTransactionId: gateway.providerTransactionId,
+      apiStatus: gateway.rawResponse.status,
+      paymentStatus: gateway.rawResponse.payment?.status,
+      initialStatus,
+    });
 
     const { rows } = await pool.query<{
       id: string;
@@ -243,7 +252,7 @@ export async function createDepositTransaction(input: CreateDepositTransactionIn
       [
         transactionId,
         gateway.providerTransactionId,
-        gatewayStatus,
+        initialStatus,
         gateway.pixQrcode,
         gateway.pixEnd2EndId,
         JSON.stringify(gateway.rawRequest),

@@ -71,13 +71,7 @@ function formatBRL(cents: number) {
 
 function isPaidStatus(s: string): boolean {
   const v = (s || "").toLowerCase().trim();
-  return (
-    v === "paid" ||
-    v === "approved" ||
-    v === "success" ||
-    v === "completed" ||
-    v === "confirmed"
-  );
+  return v === "paid" || v === "approved" || v === "completed" || v === "confirmed";
 }
 
 function progressiveDiscountPercent(quantity: number): number {
