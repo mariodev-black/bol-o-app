@@ -14,7 +14,6 @@ import {
   ChevronUp,
   BarChart2,
   Trophy,
-  AlignJustify,
   Target,
   CircleCheck,
   Star,
@@ -62,6 +61,7 @@ import {
   palpiteEligibilityFromJogo,
 } from "@/lib/palpites-match-open";
 import { pickTabelaGruposForPalpites } from "@/lib/tabela-palpites-normalize";
+import { PalpitesViewTabs } from "@/app/(authenticated)/palpites/_components/PalpitesViewTabs";
 
 // ── Tipos ────────────────────────────────────────────────────
 type TabView = "jogos" | "tabela" | "ranking" | "resumo";
@@ -4651,53 +4651,28 @@ function PalpitesPageContent({
         {/* ── COLUNA ESQUERDA ─────────────────────────── */}
         <div>
           {/* Mobile: tabs */}
-          {readOnlyMode ? (
-            <div className="lg:hidden flex items-center gap-1 mb-5 p-1 rounded-xl bg-[#0B0D0C] border border-white/8">
-              {(
-                [
-                  { key: "jogos", label: "Jogos", icon: AlignJustify },
-                  { key: "ranking", label: "Ranking", icon: Trophy },
-                ] as const
-              ).map(({ key, label, icon: Icon }) => (
-                <button
-                  key={key}
-                  onClick={() => setResultTab(key)}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[15px] font-semibold transition-all duration-200"
-                  style={{
-                    background: resultTab === key ? "#B1EB0B" : "transparent",
-                    color:
-                      resultTab === key ? "#0E141B" : "rgba(255,255,255,0.45)",
-                  }}
-                >
-                  <Icon className="w-3.5 h-3.5" />
-                  {label}
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div className="lg:hidden flex items-center gap-1 mb-5 p-1 rounded-xl bg-[#0B0D0C] border border-white/8">
-              {(
-                [
-                  { key: "jogos", label: "Jogos", icon: AlignJustify },
-                  { key: "tabela", label: "Tabela", icon: BarChart2 },
-                  { key: "ranking", label: "Ranking", icon: Trophy },
-                ] as const
-              ).map(({ key, label, icon: Icon }) => (
-                <button
-                  key={key}
-                  onClick={() => setTab(key)}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[18px] font-semibold transition-all duration-200"
-                  style={{
-                    background: tab === key ? "#B1EB0B" : "transparent",
-                    color: tab === key ? "#0E141B" : "rgba(255,255,255,0.45)",
-                  }}
-                >
-                  <Icon className="w-4 h-4" />
-                  {label}
-                </button>
-              ))}
-            </div>
-          )}
+          <div className="mb-5 lg:hidden">
+            {readOnlyMode ? (
+              <PalpitesViewTabs
+                items={[
+                  { key: "jogos", label: "Jogos" },
+                  { key: "ranking", label: "Ranking" },
+                ]}
+                value={resultTab}
+                onChange={setResultTab}
+              />
+            ) : (
+              <PalpitesViewTabs
+                items={[
+                  { key: "jogos", label: "Jogos" },
+                  { key: "tabela", label: "Tabela" },
+                  { key: "ranking", label: "Ranking" },
+                ]}
+                value={tab}
+                onChange={setTab}
+              />
+            )}
+          </div>
 
           {/* Mobile: filtro grupos (exceto ranking) */}
           {grupos.length > 1 &&
@@ -4891,31 +4866,16 @@ function PalpitesPageContent({
           {/* Desktop: grid 2 colunas de cards por rodada */}
           <div className="hidden lg:block">
             {readOnlyMode && (
-              <div className="flex items-center gap-1 mb-5 p-1 rounded-xl bg-[#0B0D0C] border border-white/8 w-[280px]">
-                {(
-                  [
-                    { key: "jogos", label: "Jogos", icon: AlignJustify },
-                    { key: "ranking", label: "Ranking", icon: Trophy },
-                    { key: "resumo", label: "Resumo", icon: BarChart2 },
-                  ] as const
-                ).map(({ key, label, icon: Icon }) => (
-                  <button
-                    key={key}
-                    onClick={() => setResultTab(key)}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[13px] font-semibold transition-all duration-200"
-                    style={{
-                      background: resultTab === key ? "#B1EB0B" : "transparent",
-                      color:
-                        resultTab === key
-                          ? "#0E141B"
-                          : "rgba(255,255,255,0.45)",
-                    }}
-                  >
-                    <Icon className="w-3.5 h-3.5" />
-                    {label}
-                  </button>
-                ))}
-              </div>
+              <PalpitesViewTabs
+                className="mb-5 w-full max-w-md"
+                items={[
+                  { key: "jogos", label: "Jogos" },
+                  { key: "ranking", label: "Ranking" },
+                  { key: "resumo", label: "Resumo" },
+                ]}
+                value={resultTab}
+                onChange={setResultTab}
+              />
             )}
 
             {showResumo ? (
@@ -5090,10 +5050,16 @@ function PalpitesPageShell() {
         <div className="h-10 w-64 rounded-xl bg-white/10" />
         <div className="h-4 w-40 rounded mt-2 bg-white/10" />
       </div>
-      <div className="lg:hidden flex items-center gap-1 mb-5 p-1 rounded-xl bg-[#0B0D0C] border border-white/8">
-        <div className="h-9 flex-1 rounded-lg bg-white/10" />
-        <div className="h-9 flex-1 rounded-lg bg-white/10" />
-        <div className="h-9 flex-1 rounded-lg bg-white/10" />
+      <div className="mb-5 pointer-events-none lg:hidden">
+        <PalpitesViewTabs
+          items={[
+            { key: "jogos", label: "Jogos" },
+            { key: "tabela", label: "Tabela" },
+            { key: "ranking", label: "Ranking" },
+          ]}
+          value="jogos"
+          onChange={() => {}}
+        />
       </div>
       <CardSkeleton />
       <CardSkeleton />

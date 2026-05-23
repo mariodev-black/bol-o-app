@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { useBolaoToast } from "@/app/components/BolaoToast";
+import { useIsAdminAppRoute } from "@/app/shared/app-route-guards";
 import { useAuth } from "@/app/shared/AuthContext";
 import { isValidCpf } from "@/lib/auth/cpf";
 import { isValidBrazilNationalDigits } from "@/lib/auth/phone";
@@ -30,13 +31,14 @@ function validatePhoneBRDigits(d: string): boolean {
  */
 export function ProfileCompletionHost({ children }: { children: React.ReactNode }) {
   const toast = useBolaoToast();
+  const isAdminRoute = useIsAdminAppRoute();
   const { ready, user, applySessionUser, logout } = useAuth();
   const [cpf, setCpf] = useState("");
   const [phone, setPhone] = useState("");
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const needsGate = Boolean(ready && user && user.profileComplete === false);
+  const needsGate = Boolean(ready && user && user.profileComplete === false && !isAdminRoute);
   /** Nome já vindo do Google: campo só editável se estiver vazio. */
   const nameFieldDisabled = Boolean(user && (user.name?.trim().length ?? 0) >= 2);
 

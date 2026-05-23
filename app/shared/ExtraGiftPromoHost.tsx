@@ -26,6 +26,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Check, X } from "lucide-react";
 import confetti from "canvas-confetti";
+import { useIsAdminAppRoute } from "@/app/shared/app-route-guards";
 import { useAuth } from "@/app/shared/AuthContext";
 import { useBolaoToast } from "@/app/components/BolaoToast";
 import { extraBolaoIconSrc } from "@/app/shared/extra-bolao-icons";
@@ -305,6 +306,7 @@ function ClaimedStep({
 
 export function ExtraGiftPromoHost({ children }: { children: React.ReactNode }) {
   const { ready, isLoggedIn, user } = useAuth();
+  const isAdminRoute = useIsAdminAppRoute();
   const router = useRouter();
   const toast = useBolaoToast();
 
@@ -402,7 +404,7 @@ export function ExtraGiftPromoHost({ children }: { children: React.ReactNode }) 
    *  carregamento da página — não há polling. */
   useEffect(() => {
     let cancelled = false;
-    if (!ready || !isLoggedIn || profileBlocksPromo || !user?.id) {
+    if (isAdminRoute || !ready || !isLoggedIn || profileBlocksPromo || !user?.id) {
       setOpen(false);
       setStatus(null);
       lastFetchRef.current = null;
@@ -453,7 +455,7 @@ export function ExtraGiftPromoHost({ children }: { children: React.ReactNode }) 
     return () => {
       cancelled = true;
     };
-  }, [ready, isLoggedIn, profileBlocksPromo, user?.id]);
+  }, [isAdminRoute, ready, isLoggedIn, profileBlocksPromo, user?.id]);
 
   const handleOfferClose = useCallback(
     (permanent: boolean) => {
@@ -602,7 +604,7 @@ export function ExtraGiftPromoHost({ children }: { children: React.ReactNode }) 
     };
   }, []);
 
-  const showModal = open && status != null;
+  const showModal = open && status != null && !isAdminRoute;
 
   return (
     <>
