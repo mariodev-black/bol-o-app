@@ -139,6 +139,40 @@ Fluxo completo:
 
 ---
 
+## Campanha — 17ª rodada Brasileirão (20/05/2026)
+
+Disparo único para **todos os e-mails** em `users` (1 envio por e-mail, sem duplicata).
+
+| Item | Valor |
+|------|--------|
+| Horário | **09:12 BRT** (20/05/2026) |
+| Cron Vercel | `12 12 20 5 *` UTC + retomadas `22,32,42,52` no mesmo dia |
+| Rota | `GET /api/cron/email-campaign-brasileirao-r17` |
+| Dedupe | tabela `email_campaign_sends` (`campaign_id` + e-mail) |
+
+Antes do deploy:
+
+```bash
+npm run db:email-campaign
+npm run check:email-env
+```
+
+Teste (não envia):
+
+```bash
+npx tsx --tsconfig tsconfig.scripts.json scripts/send-brasileirao-r17-campaign.ts --dry-run
+```
+
+Envio manual (ignora horário; **não** reenvia quem já está na tabela):
+
+```bash
+npx tsx --tsconfig tsconfig.scripts.json scripts/send-brasileirao-r17-campaign.ts --force
+```
+
+Cron manual: `GET /api/cron/email-campaign-brasileirao-r17?force=1` com `Authorization: Bearer CRON_SECRET`.
+
+---
+
 ## Desenvolvimento local
 
 Sem `RESEND_API_KEY`: e-mails (boas-vindas e senha) aparecem no **log do servidor** (`[email] dev — ...`).

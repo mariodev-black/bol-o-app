@@ -37,6 +37,10 @@ export function getEmailPalpitesUrl(): string {
   return getEmailAppUrl("/palpites");
 }
 
+export function getEmailIndiqueUrl(): string {
+  return getEmailAppUrl("/indique");
+}
+
 export function isResendConfigured(): boolean {
   return Boolean(process.env.RESEND_API_KEY?.trim() && getEmailFrom());
 }

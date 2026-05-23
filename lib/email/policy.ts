@@ -8,5 +8,10 @@
 
 export const EMAIL_TAG_WELCOME = "welcome" as const;
 export const EMAIL_TAG_PASSWORD_RESET = "password_reset" as const;
+/** Campanha única: lembrete 17ª rodada Brasileirão (20/05/2026 09:12 BRT). */
+export const EMAIL_TAG_CAMPAIGN_BRASILEIRAO_R17 = "campaign_brasileirao_r17" as const;
 
-export type ResendEmailCategory = typeof EMAIL_TAG_WELCOME | typeof EMAIL_TAG_PASSWORD_RESET;
+export type ResendEmailCategory =
+  | typeof EMAIL_TAG_WELCOME
+  | typeof EMAIL_TAG_PASSWORD_RESET
+  | typeof EMAIL_TAG_CAMPAIGN_BRASILEIRAO_R17;

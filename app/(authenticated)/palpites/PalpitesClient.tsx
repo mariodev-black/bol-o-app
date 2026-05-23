@@ -1311,15 +1311,15 @@ function JogoCard({
     phase === "post" ? jogo.resultVisitante! : palpiteVisitante;
   const review =
     phase === "post" &&
-    hasInitialPrediction &&
-    temPlacarOficial &&
-    scoresAreComplete(scores)
+      hasInitialPrediction &&
+      temPlacarOficial &&
+      scoresAreComplete(scores)
       ? calcPredictionPoints(
-          scores.scoreCasa,
-          scores.scoreVisitante,
-          jogo.resultCasa!,
-          jogo.resultVisitante!,
-        )
+        scores.scoreCasa,
+        scores.scoreVisitante,
+        jogo.resultCasa!,
+        jogo.resultVisitante!,
+      )
       : null;
 
   const koMs = kickoffMsFromJogo(jogo);
@@ -1348,12 +1348,12 @@ function JogoCard({
   const pontosLinhas =
     review != null && temPlacarOficial && initialPrediction
       ? palpitePontosBreakdown(
-          review,
-          initialPrediction.scoreCasa,
-          initialPrediction.scoreVisitante,
-          jogo.resultCasa!,
-          jogo.resultVisitante!,
-        )
+        review,
+        initialPrediction.scoreCasa,
+        initialPrediction.scoreVisitante,
+        jogo.resultCasa!,
+        jogo.resultVisitante!,
+      )
       : [];
 
   const liveCasa = jogo.resultCasa ?? 0;
@@ -2847,6 +2847,31 @@ function parseDatePill(dataBR: string) {
   };
 }
 
+function dayDiffFromToday(dateBR: string, todayBR: string): number | null {
+  const a = brDateToUtcMs(dateBR);
+  const b = brDateToUtcMs(todayBR);
+  if (a == null || b == null) return null;
+  return Math.round((a - b) / 86_400_000);
+}
+
+function formatPalpiteDateChipLabel(dateBR: string, todayBR: string): string {
+  const diff = dayDiffFromToday(dateBR, todayBR);
+  if (diff === -1) return "Ontem";
+  if (diff === 0) return "Hoje";
+  if (diff === 1) return "Amanhã";
+  const fmt = parseDatePill(dateBR);
+  if (!fmt) return dateBR;
+  const wd =
+    fmt.diaSemana.length >= 3
+      ? fmt.diaSemana.charAt(0) + fmt.diaSemana.slice(1, 3).toLowerCase()
+      : fmt.diaSemana;
+  const mes =
+    fmt.mes.length >= 3
+      ? fmt.mes.charAt(0) + fmt.mes.slice(1, 3).toLowerCase()
+      : fmt.mes;
+  return `${wd} ${fmt.dia}. ${mes}`;
+}
+
 function sortedRoundDates(jogos: Jogo[], rodada: number): string[] {
   return Array.from(
     new Set(
@@ -2905,17 +2930,15 @@ function pickNextDateInRound(
   return currentDate ?? datas[0] ?? null;
 }
 
-// ── Barra de progresso da rodada (sticky fora do nav = cola ao rolar jogos) ──
+// ── Barra de progresso da rodada ───────────────────────────────
 function RoundProgressBar({
   jogos,
   selectedRodada,
   hasPalpite,
-  sticky = false,
 }: {
   jogos: Jogo[];
   selectedRodada: number;
   hasPalpite: (matchId: number) => boolean;
-  sticky?: boolean;
 }) {
   const jogosNaRodada = useMemo(
     () => jogos.filter((j) => j.rodada === selectedRodada),
@@ -2925,49 +2948,40 @@ function RoundProgressBar({
   const jogosPalpitados = jogosNaRodada.filter((j) => hasPalpite(j.id)).length;
   const pct =
     totalJogos > 0 ? Math.round((jogosPalpitados / totalJogos) * 100) : 0;
+  const countDisplay =
+    jogosPalpitados > 0
+      ? String(jogosPalpitados).padStart(2, "0")
+      : String(jogosPalpitados);
 
   return (
-    <div
-      className={
-        sticky
-          ? "sticky z-30 mb-3 mt-4 w-full rounded-[14px] border border-white/[0.08] bg-[#0B0D0C]/95 px-4 py-3 shadow-[0_8px_24px_rgba(0,0,0,0.45)] backdrop-blur-md supports-[backdrop-filter]:bg-[#0B0D0C]/88"
-          : "mb-3 rounded-[14px] border border-white/[0.08] px-4 py-3"
-      }
-      style={{
-        background: sticky ? undefined : "#0B0D0C",
-        ...(sticky ? { top: "var(--app-header-height, 86.5px)" } : {}),
-      }}
-    >
-      <div className="mb-2 flex items-center justify-between">
-        <span
-          className="text-[12px] font-semibold"
-          style={{ color: "rgba(255,255,255,0.50)" }}
-        >
-          <span className="font-black text-white">{jogosPalpitados}</span> /{" "}
-          {totalJogos} palpites feitos
-        </span>
-        <span
-          className="text-[12px] font-black"
-          style={{
-            color: pct === 100 ? "#B1EB0B" : "rgba(255,255,255,0.40)",
-          }}
-        >
+    <div className="rounded-2xl bg-zinc-900 px-4 py-4">
+      <div className="mb-3 flex items-baseline justify-between gap-3">
+        <p className="min-w-0 text-[15px] leading-snug text-white">
+          <span
+            className="font-black tabular-nums"
+            style={{
+              color: jogosPalpitados > 0 ? "#B1EB0B" : "#FFFFFF",
+            }}
+          >
+            {countDisplay}
+          </span>
+          <span className="font-bold tabular-nums text-white">
+            {" "}
+            / {totalJogos}
+          </span>
+          <span className="font-bold text-white"> Palpites feitos</span>
+        </p>
+        <span className="shrink-0 text-[15px] font-bold tabular-nums text-white">
           {pct}%
         </span>
       </div>
       <div
-        className="h-[5px] overflow-hidden rounded-full"
-        style={{ background: "rgba(255,255,255,0.07)" }}
+        className="h-2 overflow-hidden rounded-full"
+        style={{ backgroundColor: "#1E2900" }}
       >
         <div
           className="h-full rounded-full transition-[width] duration-700 ease-out"
-          style={{
-            width: `${pct}%`,
-            background:
-              pct === 100
-                ? "linear-gradient(90deg, #B1EB0B, #E8FF8A)"
-                : "linear-gradient(90deg, #B1EB0B, #D4F040)",
-          }}
+          style={{ width: `${pct}%`, backgroundColor: "#B1EB0B" }}
         />
       </div>
     </div>
@@ -3006,101 +3020,45 @@ function useRoundNavDates(
   return { datas, dateStatus };
 }
 
-function RoundDateStrip({
+/** Faixa horizontal: Ontem · Hoje · Amanhã · datas (referência mobile). */
+function PalpiteDateChipsStrip({
   datas,
   selectedDate,
   onDate,
-  dateStatus,
+  todayBR,
   dateStripRef,
 }: {
   datas: string[];
   selectedDate: string | null;
   onDate: (d: string) => void;
-  dateStatus: (d: string) => "done" | "partial" | "pending";
+  todayBR: string;
   dateStripRef: React.RefObject<HTMLDivElement | null>;
 }) {
-  if (datas.length <= 1) return null;
+  if (datas.length === 0) return null;
 
   return (
     <div
-      className="overflow-hidden rounded-[14px]"
-      style={{
-        background: "#0B0D0C",
-        border: "1px solid rgba(255,255,255,0.08)",
-      }}
+      ref={dateStripRef}
+      className="flex w-full items-center gap-5 overflow-x-auto scroll-smooth px-4 py-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
-      <div
-        ref={dateStripRef}
-        className="flex gap-2 overflow-x-auto scroll-smooth px-3 py-3 scrollbar-hide"
-      >
-        {datas.map((d) => {
-          const fmt = parseDatePill(d);
-          if (!fmt) return null;
-          const status = dateStatus(d);
-          const isSelected = selectedDate === d;
-          const accent = isSelected ? "#B1EB0B" : "rgba(255,255,255,0.52)";
-          return (
-            <button
-              key={d}
-              type="button"
-              data-palpite-date={d}
-              onClick={() => onDate(d)}
-              className="flex shrink-0 flex-col items-center rounded-[10px] px-3.5 py-2.5 transition-all duration-200 active:scale-95"
-              style={
-                isSelected
-                  ? {
-                    background: "rgba(177,235,11,0.12)",
-                    border: "1px solid rgba(177,235,11,0.55)",
-                    minWidth: 72,
-                    boxShadow: "0 0 14px rgba(177,235,11,0.2)",
-                  }
-                  : {
-                    background: "rgba(255,255,255,0.04)",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    minWidth: 72,
-                  }
-              }
-            >
-              <span className="flex items-center gap-1.5">
-                <span
-                  className="text-[13px] font-black uppercase tracking-[0.08em]"
-                  style={{ color: accent }}
-                >
-                  {fmt.diaSemana}
-                </span>
-                {status === "done" ? (
-                  <span
-                    className="flex size-[15px] shrink-0 items-center justify-center rounded-full bg-primary"
-                    aria-hidden
-                  >
-                    <Check
-                      className="size-[9px] text-[#0E141B]"
-                      strokeWidth={3.5}
-                    />
-                  </span>
-                ) : (
-                  <span
-                    className="size-[9px] shrink-0 rounded-full"
-                    style={{ background: "#E6C220" }}
-                    aria-hidden
-                  />
-                )}
-              </span>
-              <span className="mt-1 flex items-baseline gap-1">
-                <span className="text-[19px] font-black leading-none text-white">
-                  {fmt.dia}
-                </span>
-                <span
-                  className="text-[13px] font-black uppercase tracking-[0.04em]"
-                  style={{ color: accent }}
-                >
-                  {fmt.mes}
-                </span>
-              </span>
-            </button>
-          );
-        })}
-      </div>
+      {datas.map((d) => {
+        const isSelected = selectedDate === d;
+        const label = formatPalpiteDateChipLabel(d, todayBR);
+        return (
+          <button
+            key={d}
+            type="button"
+            data-palpite-date={d}
+            onClick={() => onDate(d)}
+            className={`shrink-0 whitespace-nowrap rounded-[8px] px-4 py-2.5 text-[18px] leading-none transition-colors active:scale-[0.98] ${isSelected
+                ? "bg-zinc-800 font-bold text-white"
+                : "bg-transparent font-semibold text-zinc-400 hover:text-zinc-300"
+              }`}
+          >
+            {label}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -3112,19 +3070,17 @@ function BolaoRoundStickyDateProgress({
   hasPalpite,
   selectedDate,
   onDate,
+  todayBR,
 }: {
   jogos: Jogo[];
   selectedRodada: number;
   hasPalpite: (matchId: number) => boolean;
   selectedDate: string | null;
   onDate: (d: string) => void;
+  todayBR: string;
 }) {
   const dateStripRef = useRef<HTMLDivElement>(null);
-  const { datas, dateStatus } = useRoundNavDates(
-    jogos,
-    selectedRodada,
-    hasPalpite,
-  );
+  const { datas } = useRoundNavDates(jogos, selectedRodada, hasPalpite);
 
   useEffect(() => {
     if (!selectedDate || !dateStripRef.current) return;
@@ -3140,21 +3096,27 @@ function BolaoRoundStickyDateProgress({
 
   return (
     <div
-      className="sticky z-40 -mx-4 mb-3 flex w-[calc(100%+2rem)] flex-col gap-2.5 px-4 pb-1 pt-0.5 backdrop-blur-md supports-[backdrop-filter]:bg-[#090A09]/75"
+      className="sticky z-40 -mx-4 mb-3 flex w-[calc(100%+2rem)] flex-col gap-3 bg-black pb-1 pt-0.5"
       style={{ top: "var(--app-header-height, 96px)" }}
     >
-      <RoundDateStrip
-        datas={datas}
-        selectedDate={selectedDate}
-        onDate={onDate}
-        dateStatus={dateStatus}
-        dateStripRef={dateStripRef}
-      />
-      <RoundProgressBar
-        jogos={jogos}
-        selectedRodada={selectedRodada}
-        hasPalpite={hasPalpite}
-      />
+      {datas.length > 0 ? (
+        <div className="w-full bg-[#111111]">
+          <PalpiteDateChipsStrip
+            datas={datas}
+            selectedDate={selectedDate}
+            onDate={onDate}
+            todayBR={todayBR}
+            dateStripRef={dateStripRef}
+          />
+        </div>
+      ) : null}
+      <div className="bg-black px-4">
+        <RoundProgressBar
+          jogos={jogos}
+          selectedRodada={selectedRodada}
+          hasPalpite={hasPalpite}
+        />
+      </div>
     </div>
   );
 }
@@ -3196,11 +3158,7 @@ function RoundPhaseNav({
   const canPrev = rodadaIdx > 0;
   const canNext = rodadaIdx < rodadas.length - 1;
 
-  const { datas, dateStatus } = useRoundNavDates(
-    jogos,
-    selectedRodada,
-    hasPalpite,
-  );
+  const { datas } = useRoundNavDates(jogos, selectedRodada, hasPalpite);
 
   useEffect(() => {
     if (headerOnly || !selectedDate || !dateStripRef.current) return;
@@ -3301,22 +3259,20 @@ function RoundPhaseNav({
         null
       ) : null}
 
-      <RoundDateStrip
+      <PalpiteDateChipsStrip
         datas={datas}
         selectedDate={selectedDate}
         onDate={(d) => onDate(d)}
-        dateStatus={dateStatus}
+        todayBR={todayBR()}
         dateStripRef={dateStripRef}
       />
 
       {!hideProgress ? (
-        <div className="w-full px-4">
-          <RoundProgressBar
-            jogos={jogos}
-            selectedRodada={selectedRodada}
-            hasPalpite={hasPalpite}
-          />
-        </div>
+        <RoundProgressBar
+          jogos={jogos}
+          selectedRodada={selectedRodada}
+          hasPalpite={hasPalpite}
+        />
       ) : null}
     </div>
   );
@@ -4520,6 +4476,7 @@ function PalpitesPageContent({
               hasPalpite={hasPalpite}
               selectedDate={selectedDate}
               onDate={setSelectedDate}
+              todayBR={today}
             />
           ) : null}
 
@@ -4842,7 +4799,7 @@ function PalpitesPageShell() {
             { key: "ranking", label: "Ranking" },
           ]}
           value="jogos"
-          onChange={() => {}}
+          onChange={() => { }}
         />
       </div>
       <CardSkeleton />
