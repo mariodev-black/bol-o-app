@@ -39,6 +39,9 @@ export function getInstallSiteHost(): string {
   return window.location.host || "bolaodomilhao.com.br";
 }
 
+/** Altura do chrome mínimo no PWA (menu + sininho), abaixo do notch. */
+export const PWA_FLOATING_CHROME_PX = 48;
+
 export function syncAppHeaderHeightCss(
   bannerVisible: boolean,
   mainHeaderPx: number = HEADER_MAIN_HEIGHT_MOBILE_PX,
@@ -50,5 +53,19 @@ export function syncAppHeaderHeightCss(
   root.style.setProperty(
     "--app-header-height",
     `${mainHeaderPx + bannerPx}px`,
+  );
+}
+
+/** PWA instalado: sem header completo; só safe-area + barra flutuante. */
+export function syncPwaStandaloneLayoutCss(): void {
+  const root = document.documentElement;
+  root.style.setProperty("--app-header-banner-height", "0px");
+  root.style.setProperty(
+    "--app-header-main-height",
+    `calc(env(safe-area-inset-top, 0px) + ${PWA_FLOATING_CHROME_PX}px)`,
+  );
+  root.style.setProperty(
+    "--app-header-height",
+    `calc(env(safe-area-inset-top, 0px) + ${PWA_FLOATING_CHROME_PX}px)`,
   );
 }

@@ -16,7 +16,9 @@ import {
   HEADER_MAIN_HEIGHT_MOBILE_PX,
   readInstallBannerDismissed,
   syncAppHeaderHeightCss,
+  syncPwaStandaloneLayoutCss,
 } from "@/app/shared/install-app-banner";
+import { useStandalonePwa } from "@/app/shared/useStandalonePwa";
 
 const NAV_LINKS_GUEST = [
   { label: "Como funciona?", href: "/#como-funciona", external: false },
@@ -60,6 +62,7 @@ export function Header() {
   const { openSidenav } = useSidenav();
   const [bannerVisible, setBannerVisible] = useState(false);
   const [bannerHydrated, setBannerHydrated] = useState(false);
+  const isPwa = useStandalonePwa();
 
   useEffect(() => {
     setBannerVisible(!readInstallBannerDismissed());
@@ -70,6 +73,11 @@ export function Header() {
 
   useEffect(() => {
     if (!bannerHydrated || !ready) return;
+
+    if (isPwa) {
+      syncPwaStandaloneLayoutCss();
+      return;
+    }
 
     const mq = window.matchMedia("(min-width: 1024px)");
     const update = () => {
@@ -83,7 +91,7 @@ export function Header() {
     update();
     mq.addEventListener("change", update);
     return () => mq.removeEventListener("change", update);
-  }, [bannerVisible, bannerHydrated, ready, isHomePage]);
+  }, [bannerVisible, bannerHydrated, ready, isHomePage, isPwa]);
 
   const dismissBanner = useCallback(() => {
     setBannerVisible(false);
@@ -98,11 +106,16 @@ export function Header() {
     [cadastroHref],
   );
 
-  /** Banner de instalar app: todas as telas exceto a home padrão (`/`). */
-  const showInstallBanner = bannerHydrated && bannerVisible && !isHomePage;
+  /** Banner de instalar app: navegador mobile, exceto home (`/`). */
+  const showInstallBanner =
+    bannerHydrated && bannerVisible && !isHomePage && !isPwa;
 
   if (!ready) {
     // evita flicker entre "logado" e "deslogado" durante a hidratação
+    return null;
+  }
+
+  if (isPwa) {
     return null;
   }
 
