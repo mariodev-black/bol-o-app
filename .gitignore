@@ -38,5 +38,8 @@ next-env.d.ts
 public/avataruploads/*
 !public/avataruploads/.gitkeep
 
+# export local de telefones (PII)
+docs/USUARIOS-CADASTRADOS-NUMEROS.md
+
 # deploy webhook logs (mantém pasta com logs/.gitkeep)
 /logs/*.log

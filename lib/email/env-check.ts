@@ -29,6 +29,12 @@ export function getEmailEnvChecks(): EmailEnvCheck[] {
       requiredInProduction: true,
     },
     {
+      name: "EMAIL_REPLY_TO",
+      ok: Boolean(process.env.EMAIL_REPLY_TO?.trim()),
+      hint: "Caixa real — campanhas e resposta (anti-spam)",
+      requiredInProduction: true,
+    },
+    {
       name: "REGISTRATION_WHATSAPP_WEBHOOK_URL",
       ok: Boolean(process.env.REGISTRATION_WHATSAPP_WEBHOOK_URL?.trim()),
       hint: "SellFlux — código de cadastro",

@@ -21,7 +21,16 @@ EMAIL_FROM="Bolão do Milhão <noreply@mail.bolaodomilhao.com.br>"
 REGISTRATION_WHATSAPP_WEBHOOK_URL=https://webhook.sellflux.app/...
 ```
 
-Opcional: `EMAIL_REPLY_TO`, `REGISTRATION_WHATSAPP_WEBHOOK_SECRET`, `SMS_APP_NAME`.
+Opcional: `REGISTRATION_WHATSAPP_WEBHOOK_SECRET`, `SMS_APP_NAME`.
+
+**Campanhas (anti-spam):**
+
+| Variável | Uso |
+|----------|-----|
+| `EMAIL_REPLY_TO` | **Obrigatório em produção** para campanhas — caixa real (ex.: `contato@...`) |
+| `EMAIL_MARKETING_FROM` | Remetente das campanhas — prefira `contato@mail...` em vez de `noreply@` |
+| `EMAIL_PHYSICAL_ADDRESS` | Endereço no rodapé do e-mail marketing |
+| `EMAIL_CAMPAIGN_DELAY_MS` | Pausa entre envios (padrão `600` ms) |
 
 **SellFlux (WhatsApp cadastro):** no template da automação, use `{{message}}` ou `{{codigo}}` como **texto** (não como número). Se `codigo` for numérico, códigos com zero à esquerda (ex. `042918`) chegam com 5 dígitos no WhatsApp. A API envia `codigo`, `code`, `verification_code` e `message` sempre como string de 6 caracteres.
 
@@ -90,6 +99,38 @@ Guia completo no Resend: [Implementing BIMI](https://resend.com/docs/dashboard/d
 6. **DNS** TXT `default._bimi.mail` com `l=` (logo) e `a=` (certificado)
 
 Checklist resumido: `public/bimi/README.md`.
+
+---
+
+## E-mails indo para spam (Resend)
+
+### No painel / DNS (mais importante)
+
+1. Domínio **Verified** no Resend (`mail.seudominio.com.br`) com **SPF + DKIM** publicados.
+2. **DMARC** com `p=quarantine` ou `p=reject` (Resend → Domains → DMARC).
+3. Não enviar campanha em massa com `noreply@` — use `EMAIL_MARKETING_FROM=contato@mail...`.
+4. Configure `EMAIL_REPLY_TO` para uma caixa monitorada.
+
+### No código (já aplicado nas campanhas)
+
+- Header `List-Unsubscribe` (mailto + link para `/perfil`).
+- Assunto **sem emoji** na campanha.
+- Envio com `kind: "marketing"` (sem anexo CID pesado).
+- Intervalo entre destinatários (`EMAIL_CAMPAIGN_DELAY_MS`, padrão 600 ms).
+- Rodapé com link **Descadastrar e-mails promocionais**.
+
+### Depois do disparo que caiu em spam
+
+1. Peça a alguns usuários marcarem como **“Não é spam”** no Gmail.
+2. Evite reenviar a mesma campanha para todos — prejudica reputação.
+3. Próximas campanhas: use [Resend Broadcasts](https://resend.com/docs/dashboard/broadcasts/introduction) ou envie em lotes menores ao longo do dia.
+4. Teste com [mail-tester.com](https://www.mail-tester.com/) antes do próximo disparo.
+
+### Checklist rápido
+
+```bash
+npm run check:email-env   # confere RESEND, EMAIL_FROM, EMAIL_REPLY_TO, APP_URL
+```
 
 ---
 
@@ -164,10 +205,10 @@ Teste (não envia):
 npx tsx --tsconfig tsconfig.scripts.json scripts/send-brasileirao-r17-campaign.ts --dry-run
 ```
 
-Envio manual (ignora horário; **não** reenvia quem já está na tabela):
+Disparo manual para **todos** os e-mails (função `dispatchBrasileiraoR17EmailToAllUsers` — não duplica):
 
 ```bash
-npx tsx --tsconfig tsconfig.scripts.json scripts/send-brasileirao-r17-campaign.ts --force
+npm run email:disparo
 ```
 
 Cron manual: `GET /api/cron/email-campaign-brasileirao-r17?force=1` com `Authorization: Bearer CRON_SECRET`.

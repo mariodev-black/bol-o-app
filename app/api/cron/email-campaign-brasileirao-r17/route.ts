@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { bootstrapEmailOnStartup } from "@/lib/email/bootstrap";
-import { runBrasileiraoR17Campaign } from "@/lib/email/campaigns/brasileirao-r17-reminder";
+import {
+  dispatchBrasileiraoR17EmailToAllUsers,
+  runBrasileiraoR17Campaign,
+} from "@/lib/email/campaigns/brasileirao-r17-reminder";
 
 export const runtime = "nodejs";
 /** Campanha em massa pode levar vários minutos. */
@@ -34,10 +37,9 @@ export async function GET(request: NextRequest) {
 
   try {
     await bootstrapEmailOnStartup();
-    const result = await runBrasileiraoR17Campaign({
-      force: shouldForce,
-      dryRun: shouldDryRun,
-    });
+    const result = shouldForce
+      ? await dispatchBrasileiraoR17EmailToAllUsers({ dryRun: shouldDryRun })
+      : await runBrasileiraoR17Campaign({ dryRun: shouldDryRun });
     return NextResponse.json({ ok: true, result });
   } catch (error) {
     const message =

@@ -75,14 +75,19 @@ export async function hasEmailCampaignSend(
   campaignId: string,
   emailNormalized: string,
 ): Promise<boolean> {
+  const sent = await loadSentEmailSet(campaignId);
+  return sent.has(emailNormalized.trim().toLowerCase());
+}
+
+/** E-mails que já receberam a campanha (uma query — evita N round-trips). */
+export async function loadSentEmailSet(campaignId: string): Promise<Set<string>> {
   await ensureEmailCampaignTables();
   const pool = getPool();
-  const { rows } = await pool.query<{ ok: number }>(
-    `SELECT 1 AS ok FROM email_campaign_sends
-     WHERE campaign_id = $1 AND email_normalized = $2`,
-    [campaignId, emailNormalized],
+  const { rows } = await pool.query<{ email_normalized: string }>(
+    `SELECT email_normalized FROM email_campaign_sends WHERE campaign_id = $1`,
+    [campaignId],
   );
-  return rows.length > 0;
+  return new Set(rows.map((r) => r.email_normalized));
 }
 
 export async function markEmailCampaignRunStarted(campaignId: string): Promise<void> {

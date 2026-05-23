@@ -1,4 +1,3 @@
-import { EMAIL_BRAND as C } from "@/lib/email/brand";
 import {
   getEmailAppName,
   getEmailBoloesUrl,
@@ -13,6 +12,7 @@ import {
   emailPrimaryButton,
   emailSectionTitle,
   emailStepsList,
+  emailStrong,
   emailTextLink,
   renderEmailShell,
 } from "@/lib/email/templates/email-shell";
@@ -37,7 +37,7 @@ export function buildWelcomeEmail(params: WelcomeEmailParams): {
   const bodyHtml = `
     ${emailGreeting(first ? `Olá, ${first},` : "Olá,")}
     ${emailBodyText(
-      `Bem-vindo ao <strong style="color:${C.text};">${escapeEmailHtml(appName)}</strong> — ${escapeEmailHtml(SITE_TAGLINE)}.`,
+      `Bem-vindo ao ${emailStrong(escapeEmailHtml(appName))} — ${escapeEmailHtml(SITE_TAGLINE)}.`,
     )}
     ${emailBodyText(
       "Seu cadastro foi concluído. Agora você pode comprar tickets, enviar palpites antes do apito inicial e acompanhar sua posição no ranking com pontuação automática após cada jogo.",

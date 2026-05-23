@@ -2,13 +2,14 @@ import { parseTransactionalEmail } from "@/lib/email/address";
 import {
   countEmailCampaignSends,
   ensureEmailCampaignTables,
-  hasEmailCampaignSend,
   listCampaignRecipients,
+  loadSentEmailSet,
   markEmailCampaignRunCompleted,
   markEmailCampaignRunStarted,
   tryRecordEmailCampaignSend,
   type CampaignRecipient,
 } from "@/lib/email/campaign-sends";
+import { getCampaignSendDelayMs } from "@/lib/email/deliverability";
 import { EMAIL_TAG_CAMPAIGN_BRASILEIRAO_R17 } from "@/lib/email/policy";
 import { sendEmail } from "@/lib/email/send";
 import { buildBrasileiraoR17ReminderEmail } from "@/lib/email/templates/brasileirao-r17-reminder";
@@ -26,7 +27,7 @@ export const BRASILEIRAO_R17_SCHEDULE = {
   minute: 12,
 } as const;
 
-const SEND_DELAY_MS = 120;
+const SEND_DELAY_MS = getCampaignSendDelayMs();
 
 function brtYmd(): string {
   return new Intl.DateTimeFormat("en-CA", {
@@ -66,19 +67,17 @@ export function isBrasileiraoR17ScheduleWindow(now = new Date()): boolean {
   return true;
 }
 
-async function isCampaignFullyDispatched(
+function countPendingRecipients(
   recipients: CampaignRecipient[],
-): Promise<boolean> {
+  alreadySent: Set<string>,
+): number {
+  let pending = 0;
   for (const recipient of recipients) {
     const parsed = parseTransactionalEmail(recipient.email);
     if (!parsed.ok) continue;
-    const done = await hasEmailCampaignSend(
-      BRASILEIRAO_R17_CAMPAIGN_ID,
-      parsed.email,
-    );
-    if (!done) return false;
+    if (!alreadySent.has(parsed.email)) pending += 1;
   }
-  return true;
+  return pending;
 }
 
 function sleep(ms: number): Promise<void> {
@@ -95,8 +94,18 @@ export type RunBrasileiraoR17CampaignResult = {
 };
 
 /**
+ * Dispara agora o e-mail da 17ª rodada para **todos** os usuários com e-mail cadastrado.
+ * Não reenvia quem já está em `email_campaign_sends` para esta campanha.
+ */
+export async function dispatchBrasileiraoR17EmailToAllUsers(opts?: {
+  dryRun?: boolean;
+}): Promise<RunBrasileiraoR17CampaignResult> {
+  return runBrasileiraoR17Campaign({ force: true, dryRun: opts?.dryRun });
+}
+
+/**
  * Envia a campanha para todos os e-mails cadastrados (1x por e-mail).
- * `force` ignora horário e status completed, mas mantém dedupe por e-mail.
+ * `force` ignora horário, mas mantém dedupe por e-mail.
  */
 export async function runBrasileiraoR17Campaign(opts?: {
   force?: boolean;
@@ -119,13 +128,15 @@ export async function runBrasileiraoR17Campaign(opts?: {
   }
 
   const recipients = await listCampaignRecipients();
+  const alreadySent = await loadSentEmailSet(BRASILEIRAO_R17_CAMPAIGN_ID);
+  const pending = countPendingRecipients(recipients, alreadySent);
 
-  if (!force && !dryRun && (await isCampaignFullyDispatched(recipients))) {
+  if (!force && !dryRun && pending === 0) {
     return {
       ran: false,
       reason: "campanha-ja-concluida",
       sent: 0,
-      skipped: 0,
+      skipped: recipients.length,
       failed: 0,
       totalRecipients: recipients.length,
     };
@@ -137,7 +148,11 @@ export async function runBrasileiraoR17Campaign(opts?: {
       if (!dryRun) {
         await markEmailCampaignRunStarted(BRASILEIRAO_R17_CAMPAIGN_ID);
       }
-      return runBrasileiraoR17CampaignBatch({ recipients, dryRun });
+      return runBrasileiraoR17CampaignBatch({
+        recipients,
+        dryRun,
+        alreadySent,
+      });
     },
   );
 
@@ -158,12 +173,19 @@ export async function runBrasileiraoR17Campaign(opts?: {
 async function runBrasileiraoR17CampaignBatch(input: {
   recipients: CampaignRecipient[];
   dryRun: boolean;
+  alreadySent: Set<string>;
 }): Promise<RunBrasileiraoR17CampaignResult> {
-  const { recipients, dryRun } = input;
+  const { recipients, dryRun, alreadySent } = input;
   let sent = 0;
   let skipped = 0;
   let failed = 0;
   let lastError: string | null = null;
+
+  console.info("[campaign] destinatários", {
+    total: recipients.length,
+    pendentes: countPendingRecipients(recipients, alreadySent),
+    jaEnviados: alreadySent.size,
+  });
 
   for (const recipient of recipients) {
     const parsed = parseTransactionalEmail(recipient.email);
@@ -172,11 +194,7 @@ async function runBrasileiraoR17CampaignBatch(input: {
       continue;
     }
 
-    const already = await hasEmailCampaignSend(
-      BRASILEIRAO_R17_CAMPAIGN_ID,
-      parsed.email,
-    );
-    if (already) {
+    if (alreadySent.has(parsed.email)) {
       skipped += 1;
       continue;
     }
@@ -197,6 +215,7 @@ async function runBrasileiraoR17CampaignBatch(input: {
       html: personalized.html,
       text: personalized.text,
       category: EMAIL_TAG_CAMPAIGN_BRASILEIRAO_R17,
+      kind: "marketing",
     });
 
     if (!result.ok) {
@@ -218,9 +237,11 @@ async function runBrasileiraoR17CampaignBatch(input: {
 
     if (!recorded) {
       skipped += 1;
+      alreadySent.add(parsed.email);
       continue;
     }
 
+    alreadySent.add(parsed.email);
     sent += 1;
     if (sent % 25 === 0) {
       console.info("[campaign] progresso", { sent, total: recipients.length });
@@ -228,7 +249,8 @@ async function runBrasileiraoR17CampaignBatch(input: {
     await sleep(SEND_DELAY_MS);
   }
 
-  const fullyDone = dryRun || (await isCampaignFullyDispatched(recipients));
+  const fullyDone =
+    dryRun || countPendingRecipients(recipients, alreadySent) === 0;
 
   if (!dryRun && fullyDone) {
     const totalSent = await countEmailCampaignSends(BRASILEIRAO_R17_CAMPAIGN_ID);

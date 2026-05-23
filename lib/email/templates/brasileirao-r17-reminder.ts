@@ -1,4 +1,3 @@
-import { EMAIL_BRAND as C } from "@/lib/email/brand";
 import {
   getEmailAppName,
   getEmailIndiqueUrl,
@@ -9,6 +8,7 @@ import {
   emailBodyText,
   emailGreeting,
   emailPrimaryButton,
+  emailStrong,
   renderEmailShell,
 } from "@/lib/email/templates/email-shell";
 
@@ -23,8 +23,8 @@ export function buildBrasileiraoR17ReminderEmail(
   const palpitesUrl = getEmailPalpitesUrl();
   const indiqueUrl = getEmailIndiqueUrl();
   const first = emailFirstName(params.recipientName);
-  const headline = "17ª rodada do Brasileirão — manda teus palpites!";
-  const subject = `${headline} 🔥`;
+  const headline = "17ª rodada do Brasileirão — envie seus palpites";
+  const subject = headline;
 
   const bodyHtml = `
     ${emailGreeting(
@@ -33,7 +33,7 @@ export function buildBrasileiraoR17ReminderEmail(
         : "Fala, boleiro 👀",
     )}
     ${emailBodyText(
-      `A <strong style="color:${C.text};">17ª rodada do Brasileirão</strong> já vai começar e teus palpites podem te colocar lá em cima na classificação 🔥`,
+      `A ${emailStrong("17ª rodada do Brasileirão")} já vai começar e teus palpites podem te colocar lá em cima na classificação 🔥`,
     )}
     ${emailBodyText(
       `🏆 Bolão grátis<br />
@@ -42,11 +42,11 @@ export function buildBrasileiraoR17ReminderEmail(
     )}
     ${emailBodyText(
       `Então já manda teus palpites porque:<br /><br />
-      <strong style="color:${C.text};">sem palpite = sem chance</strong> 😂`,
+      ${emailStrong("sem palpite = sem chance")} 😂`,
     )}
     ${emailBodyText(
       `E chama tua resenha também 👀<br /><br />
-      Além de disputar junto contigo, tu ainda ganha <strong style="color:${C.text};">R$8,00</strong> por cada amigo indicado 🔥<br /><br />
+      Além de disputar junto contigo, tu ainda ganha ${emailStrong("R$8,00")} por cada amigo indicado 🔥<br /><br />
       Quanto mais amigo entrar, mais grana tu pode fazer 😎`,
     )}
     ${emailPrimaryButton(palpitesUrl, "Enviar palpites")}
@@ -55,11 +55,12 @@ export function buildBrasileiraoR17ReminderEmail(
 
   const html = renderEmailShell({
     preheader:
-      "Bolão grátis valendo 10 mil — palpita no fim de semana e chama a resenha.",
+      "Bolão grátis valendo 10 mil. Palpites do fim de semana no Brasileirão.",
     headline,
     bodyHtml,
+    marketingFooter: true,
     footerNote:
-      "Você recebeu este e-mail por ter conta no Bolão do Milhão. Se não quiser mais este tipo de mensagem, responda pedindo remoção.",
+      "Você recebeu este e-mail por ter conta ativa no Bolão do Milhão.",
   });
 
   const greeting = first ? `Fala, ${first} 👀` : "Fala, boleiro 👀";
@@ -84,6 +85,8 @@ export function buildBrasileiraoR17ReminderEmail(
     "",
     `Enviar palpites: ${palpitesUrl}`,
     `Chamar amigos: ${indiqueUrl}`,
+    "",
+    "Para não receber mais e-mails promocionais, responda este e-mail pedindo descadastro.",
     "",
     appName,
   ].join("\n");

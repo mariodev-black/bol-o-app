@@ -8,6 +8,7 @@
     "db:indexes": "psql \"${DATABASE_URL:-postgresql://${DATABASE_USER}:${DATABASE_PASSWORD}@${DATABASE_HOST:-localhost}:${DATABASE_PORT:-5432}/${DATABASE_NAME}}\" -f scripts/sql/20260517-performance-indexes.sql",
     "db:password-reset": "tsx --tsconfig tsconfig.scripts.json scripts/run-password-reset-migration.ts",
     "db:email-campaign": "tsx --tsconfig tsconfig.scripts.json scripts/run-email-campaign-migration.ts",
+    "email:disparo": "tsx --tsconfig tsconfig.scripts.json scripts/send-brasileirao-r17-campaign.ts",
     "db:notifications": "tsx --tsconfig tsconfig.scripts.json scripts/run-notifications-migration.ts",
     "check:email-env": "tsx --tsconfig tsconfig.scripts.json scripts/check-email-env.ts",
     "build": "next build",

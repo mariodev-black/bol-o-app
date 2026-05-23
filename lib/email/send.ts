@@ -1,15 +1,26 @@
 import { getEmailFrom, getEmailReplyTo, isResendConfigured } from "@/lib/email/config";
 import { getResendClient } from "@/lib/email/client";
+import {
+  buildMarketingEmailHeaders,
+  getEmailMarketingFrom,
+} from "@/lib/email/deliverability";
 import { getEmailLogoAttachmentForResend } from "@/lib/email/logo-embed";
 import type { ResendEmailCategory } from "@/lib/email/policy";
+
+export type SendEmailKind = "transactional" | "marketing";
 
 export type SendEmailInput = {
   to: string;
   subject: string;
   html: string;
   text: string;
-  /** Categoria obrigatória — ver `lib/email/policy.ts` (só welcome e password_reset). */
+  /** Categoria obrigatória — ver `lib/email/policy.ts`. */
   category: ResendEmailCategory;
+  /**
+   * `marketing` — campanhas em massa: remetente contato@, List-Unsubscribe, sem anexo CID.
+   * `transactional` (padrão) — boas-vindas, senha.
+   */
+  kind?: SendEmailKind;
 };
 
 export type SendEmailResult =
@@ -37,14 +48,32 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
     return { ok: true, devLogged: true };
   }
 
-  const from = getEmailFrom()!;
+  const kind = input.kind ?? "transactional";
+  const from =
+    kind === "marketing"
+      ? getEmailMarketingFrom() ?? getEmailFrom()
+      : getEmailFrom();
+  if (!from) {
+    return { ok: false, error: "EMAIL_FROM não configurado." };
+  }
+
+  const replyTo = getEmailReplyTo();
+  if (kind === "marketing" && !replyTo) {
+    console.warn(
+      "[email] EMAIL_REPLY_TO ausente — campanhas têm mais chance de ir para spam.",
+    );
+  }
+
   const client = getResendClient();
   if (!client) {
     return { ok: false, error: "Cliente de e-mail indisponível." };
   }
 
-  const logoAttachment = getEmailLogoAttachmentForResend();
+  const logoAttachment =
+    kind === "transactional" ? getEmailLogoAttachmentForResend() : null;
   const attachments = logoAttachment ? [logoAttachment] : undefined;
+  const headers =
+    kind === "marketing" ? buildMarketingEmailHeaders() : undefined;
 
   const { data, error } = await client.emails.send({
     from,
@@ -52,11 +81,13 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
     subject: input.subject,
     html: input.html,
     text: input.text,
-    replyTo: getEmailReplyTo(),
+    replyTo: replyTo ?? undefined,
     attachments,
+    headers,
     tags: [
       { name: "category", value: input.category },
       { name: "app", value: "bolao-do-milhao" },
+      { name: "kind", value: kind },
     ],
   });
 
