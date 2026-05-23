@@ -8,6 +8,9 @@ export async function register() {
     console.error("[db] pool warm-up failed on boot", error);
   }
 
+  const { bootstrapEmailOnStartup } = await import("@/lib/email/bootstrap");
+  await bootstrapEmailOnStartup();
+
   const { startSchedulerV2 } = await import("@/lib/football/scheduler-v2");
   startSchedulerV2();
 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { bootstrapEmailOnStartup } from "@/lib/email/bootstrap";
 import { runBrasileiraoR17Campaign } from "@/lib/email/campaigns/brasileirao-r17-reminder";
 
 export const runtime = "nodejs";
@@ -17,7 +18,7 @@ function authorized(request: NextRequest): boolean {
 /**
  * Disparo da campanha 17ª rodada Brasileirão.
  *
- * Agendado: 20/05/2026 09:12 BRT (12:12 UTC) via vercel.json.
+ * Agendado: 23/05/2026 09:12 BRT (12:12 UTC) via vercel.json.
  * `?force=1` — ignora horário (mantém dedupe por e-mail no banco).
  * `?dryRun=1` — lista destinatários sem enviar.
  */
@@ -32,6 +33,7 @@ export async function GET(request: NextRequest) {
   const shouldDryRun = dryRun === "1" || dryRun === "true";
 
   try {
+    await bootstrapEmailOnStartup();
     const result = await runBrasileiraoR17Campaign({
       force: shouldForce,
       dryRun: shouldDryRun,

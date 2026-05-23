@@ -120,10 +120,10 @@ Regras: código TTL 10 min, até 3 reenvios imediatos (depois espera 5 min), má
 ## Checklist antes do deploy
 
 ```bash
-npm run check:email-env    # valida RESEND, EMAIL_FROM, APP_URL, webhook WhatsApp
-npm run db:password-reset  # migration (se ainda não rodou)
 npm run build
 ```
+
+(`db:password-reset` e tabelas de campanha também são criadas no primeiro uso / boot quando necessário.)
 
 Teste manual (Resend):
 
@@ -139,21 +139,22 @@ Fluxo completo:
 
 ---
 
-## Campanha — 17ª rodada Brasileirão (20/05/2026)
+## Campanha — 17ª rodada Brasileirão (23/05/2026)
 
 Disparo único para **todos os e-mails** em `users` (1 envio por e-mail, sem duplicata).
 
 | Item | Valor |
 |------|--------|
-| Horário | **09:12 BRT** (20/05/2026) |
-| Cron Vercel | `12 12 20 5 *` UTC + retomadas `22,32,42,52` no mesmo dia |
+| Horário | **09:12 BRT** (23/05/2026) |
+| Cron Vercel | `12 12 23 5 *` UTC + retomadas `22,32,42,52` no mesmo dia |
 | Rota | `GET /api/cron/email-campaign-brasileirao-r17` |
 | Dedupe | tabela `email_campaign_sends` (`campaign_id` + e-mail) |
 
-Antes do deploy:
+**Boot automático:** ao subir o Node (`instrumentation.ts`), o app cria as tabelas `email_campaign_*` (se faltarem) e valida variáveis de e-mail no log — **não** precisa rodar migration nem `check:email-env` antes do deploy.
+
+Opcional (só diagnóstico local):
 
 ```bash
-npm run db:email-campaign
 npm run check:email-env
 ```
 

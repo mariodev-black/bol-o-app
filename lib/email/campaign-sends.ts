@@ -2,38 +2,49 @@ import { getPool } from "@/lib/db";
 
 export type EmailCampaignRunStatus = "pending" | "running" | "completed";
 
-async function ensureTables(): Promise<void> {
-  const pool = getPool();
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS email_campaign_runs (
-      campaign_id TEXT PRIMARY KEY,
-      status TEXT NOT NULL DEFAULT 'pending',
-      started_at TIMESTAMPTZ,
-      completed_at TIMESTAMPTZ,
-      sent_count INT NOT NULL DEFAULT 0,
-      skipped_count INT NOT NULL DEFAULT 0,
-      failed_count INT NOT NULL DEFAULT 0,
-      last_error TEXT,
-      CONSTRAINT email_campaign_runs_status_chk
-        CHECK (status IN ('pending', 'running', 'completed'))
-    );
-    CREATE TABLE IF NOT EXISTS email_campaign_sends (
-      campaign_id TEXT NOT NULL,
-      email_normalized TEXT NOT NULL,
-      user_id UUID,
-      resend_id TEXT,
-      sent_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-      PRIMARY KEY (campaign_id, email_normalized)
-    );
-    CREATE INDEX IF NOT EXISTS email_campaign_sends_campaign_sent_idx
-      ON email_campaign_sends (campaign_id, sent_at DESC);
-  `);
+let campaignTablesReady: Promise<void> | null = null;
+
+/** Idempotente — chamado no boot e antes de cada operação de campanha. */
+export function ensureEmailCampaignTables(): Promise<void> {
+  if (!campaignTablesReady) {
+    campaignTablesReady = (async () => {
+      const pool = getPool();
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS email_campaign_runs (
+          campaign_id TEXT PRIMARY KEY,
+          status TEXT NOT NULL DEFAULT 'pending',
+          started_at TIMESTAMPTZ,
+          completed_at TIMESTAMPTZ,
+          sent_count INT NOT NULL DEFAULT 0,
+          skipped_count INT NOT NULL DEFAULT 0,
+          failed_count INT NOT NULL DEFAULT 0,
+          last_error TEXT,
+          CONSTRAINT email_campaign_runs_status_chk
+            CHECK (status IN ('pending', 'running', 'completed'))
+        );
+        CREATE TABLE IF NOT EXISTS email_campaign_sends (
+          campaign_id TEXT NOT NULL,
+          email_normalized TEXT NOT NULL,
+          user_id UUID,
+          resend_id TEXT,
+          sent_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+          PRIMARY KEY (campaign_id, email_normalized)
+        );
+        CREATE INDEX IF NOT EXISTS email_campaign_sends_campaign_sent_idx
+          ON email_campaign_sends (campaign_id, sent_at DESC);
+      `);
+    })().catch((err) => {
+      campaignTablesReady = null;
+      throw err;
+    });
+  }
+  return campaignTablesReady;
 }
 
 export async function getEmailCampaignRunStatus(
   campaignId: string,
 ): Promise<EmailCampaignRunStatus | null> {
-  await ensureTables();
+  await ensureEmailCampaignTables();
   const pool = getPool();
   const { rows } = await pool.query<{ status: EmailCampaignRunStatus }>(
     `SELECT status FROM email_campaign_runs WHERE campaign_id = $1`,
@@ -49,7 +60,7 @@ export async function tryRecordEmailCampaignSend(input: {
   userId: string | null;
   resendId: string | null;
 }): Promise<boolean> {
-  await ensureTables();
+  await ensureEmailCampaignTables();
   const pool = getPool();
   const { rowCount } = await pool.query(
     `INSERT INTO email_campaign_sends (campaign_id, email_normalized, user_id, resend_id)
@@ -64,7 +75,7 @@ export async function hasEmailCampaignSend(
   campaignId: string,
   emailNormalized: string,
 ): Promise<boolean> {
-  await ensureTables();
+  await ensureEmailCampaignTables();
   const pool = getPool();
   const { rows } = await pool.query<{ ok: number }>(
     `SELECT 1 AS ok FROM email_campaign_sends
@@ -75,7 +86,7 @@ export async function hasEmailCampaignSend(
 }
 
 export async function markEmailCampaignRunStarted(campaignId: string): Promise<void> {
-  await ensureTables();
+  await ensureEmailCampaignTables();
   const pool = getPool();
   await pool.query(
     `INSERT INTO email_campaign_runs (campaign_id, status, started_at)
@@ -91,7 +102,7 @@ export async function markEmailCampaignRunStarted(campaignId: string): Promise<v
 }
 
 export async function countEmailCampaignSends(campaignId: string): Promise<number> {
-  await ensureTables();
+  await ensureEmailCampaignTables();
   const pool = getPool();
   const { rows } = await pool.query<{ c: number }>(
     `SELECT COUNT(*)::int AS c FROM email_campaign_sends WHERE campaign_id = $1`,
@@ -107,7 +118,7 @@ export async function markEmailCampaignRunCompleted(input: {
   failedCount: number;
   lastError?: string | null;
 }): Promise<void> {
-  await ensureTables();
+  await ensureEmailCampaignTables();
   const pool = getPool();
   await pool.query(
     `UPDATE email_campaign_runs SET

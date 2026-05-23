@@ -2,23 +2,23 @@
   "crons": [
     {
       "path": "/api/cron/email-campaign-brasileirao-r17",
-      "schedule": "12 12 20 5 *"
+      "schedule": "12 12 23 5 *"
     },
     {
       "path": "/api/cron/email-campaign-brasileirao-r17",
-      "schedule": "22 12 20 5 *"
+      "schedule": "22 12 23 5 *"
     },
     {
       "path": "/api/cron/email-campaign-brasileirao-r17",
-      "schedule": "32 12 20 5 *"
+      "schedule": "32 12 23 5 *"
     },
     {
       "path": "/api/cron/email-campaign-brasileirao-r17",
-      "schedule": "42 12 20 5 *"
+      "schedule": "42 12 23 5 *"
     },
     {
       "path": "/api/cron/email-campaign-brasileirao-r17",
-      "schedule": "52 12 20 5 *"
+      "schedule": "52 12 23 5 *"
     }
   ]
 }

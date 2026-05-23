@@ -1,6 +1,7 @@
 import { parseTransactionalEmail } from "@/lib/email/address";
 import {
   countEmailCampaignSends,
+  ensureEmailCampaignTables,
   hasEmailCampaignSend,
   listCampaignRecipients,
   markEmailCampaignRunCompleted,
@@ -16,11 +17,11 @@ import { tryWithFootballAdvisoryLock } from "@/lib/football/advisory-locks";
 const ADVISORY_LOCK_BRASILEIRAO_R17_EMAIL = 7_202_612;
 
 /** Identificador único — não reenvia o mesmo e-mail para a mesma campanha. */
-export const BRASILEIRAO_R17_CAMPAIGN_ID = "brasileirao_r17_20260520";
+export const BRASILEIRAO_R17_CAMPAIGN_ID = "brasileirao_r17_20260523";
 
-/** Disparo agendado: 20/05/2026 às 09:12 (America/Sao_Paulo). */
+/** Disparo agendado: 23/05/2026 às 09:12 (America/Sao_Paulo). */
 export const BRASILEIRAO_R17_SCHEDULE = {
-  dateBrt: "2026-05-20",
+  dateBrt: "2026-05-23",
   hour: 9,
   minute: 12,
 } as const;
@@ -103,6 +104,8 @@ export async function runBrasileiraoR17Campaign(opts?: {
 }): Promise<RunBrasileiraoR17CampaignResult> {
   const force = Boolean(opts?.force);
   const dryRun = Boolean(opts?.dryRun);
+
+  await ensureEmailCampaignTables();
 
   if (!force && !dryRun && !isBrasileiraoR17ScheduleWindow()) {
     return {
