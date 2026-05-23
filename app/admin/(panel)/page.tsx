@@ -164,13 +164,33 @@ export default async function AdminDashboardPage({
       : "Agrupado por dia no período selecionado.";
   const ticketTypeItems = stats.ticketTypeBreakdown.map((item) => ({
     label: formatAdminTicketType(item.label),
-    value: item.value,
+    paidCount: item.paidCount,
+    promoCount: item.promoCount,
+    total: item.paidCount + item.promoCount,
   }));
-  const maxTicketType = Math.max(1, ...ticketTypeItems.map((item) => item.value));
+  const maxTicketType = Math.max(1, ...ticketTypeItems.map((item) => item.total));
   const cards = [
-    { label: "Receita confirmada", value: formatAdminBRL(stats.revenueCents), hint: `${stats.paidTransactionsCount} transações pagas` },
-    { label: "Cotas pagas", value: stats.paidTicketsCount.toLocaleString("pt-BR"), hint: `${stats.ticketsCount} cotas totais` },
-    { label: "Conversão PIX", value: `${stats.conversionRate}%`, hint: `${stats.pendingTransactionsCount} pendentes` },
+    {
+      label: "Receita confirmada",
+      value: formatAdminBRL(stats.revenueCents),
+      hint: `${stats.paidTransactionsCount} transações pagas no período`,
+    },
+    {
+      label: "Cotas pagas",
+      value: stats.paidTicketsCount.toLocaleString("pt-BR"),
+      hint: `${stats.promoTicketsCount.toLocaleString("pt-BR")} grátis · ${stats.ticketsCount.toLocaleString("pt-BR")} ativas`,
+    },
+    {
+      label: "Conversão PIX",
+      value: `${stats.conversionRate}%`,
+      hint: `${stats.pendingTransactionsCount} pendentes no período`,
+    },
+    {
+      label: "Cotas grátis",
+      value: stats.promoTicketsCount.toLocaleString("pt-BR"),
+      hint: "Brinde extra resgatado no período",
+      accent: true,
+    },
   ];
   return (
     <>
@@ -180,34 +200,64 @@ export default async function AdminDashboardPage({
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
         {cards.map((card) => (
-          <article key={card.label} className="rounded-[18px] border border-white/8 bg-[#101010] p-5 shadow-[0_18px_40px_rgba(0,0,0,0.28)]">
+          <article
+            key={card.label}
+            className={`rounded-[18px] border p-5 shadow-[0_18px_40px_rgba(0,0,0,0.28)] ${
+              "accent" in card && card.accent
+                ? "border-amber-400/25 bg-amber-400/8"
+                : "border-white/8 bg-[#101010]"
+            }`}
+          >
             <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/80">{card.label}</p>
-            <p className="mt-4 text-[26px] font-black leading-none tracking-[-0.05em] text-primary sm:text-[30px]">{card.value}</p>
+            <p
+              className={`mt-4 text-[26px] font-black leading-none tracking-[-0.05em] sm:text-[30px] ${
+                "accent" in card && card.accent ? "text-amber-200" : "text-primary"
+              }`}
+            >
+              {card.value}
+            </p>
             <p className="mt-3 text-[12px] font-bold text-white/80">{card.hint}</p>
           </article>
         ))}
-        <article className="rounded-[18px] border border-white/8 bg-[#101010] p-5 shadow-[0_18px_40px_rgba(0,0,0,0.28)]">
-          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/80">Cotas por tipo</p>
-          <div className="mt-4 grid gap-3">
-            {ticketTypeItems.length ? ticketTypeItems.map((item) => (
+      </div>
+      <article className="mt-3 rounded-[18px] border border-white/8 bg-[#101010] p-5 shadow-[0_18px_40px_rgba(0,0,0,0.28)]">
+        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/80">Cotas por tipo</p>
+        <p className="mt-1 text-[11px] font-medium text-white/38">Verde = pagas · Âmbar = grátis (período selecionado)</p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {ticketTypeItems.length ? (
+            ticketTypeItems.map((item) => (
               <div key={item.label}>
                 <div className="mb-2 flex items-center justify-between gap-3">
-                  <span className="text-[11px] font-black uppercase tracking-[0.12em] text-white/50">{item.label}</span>
-                  <span className="text-[12px] font-black text-primary">{item.value.toLocaleString("pt-BR")}</span>
+                  <span className="text-[11px] font-black uppercase tracking-[0.12em] text-white/50">
+                    {item.label}
+                  </span>
+                  <span className="text-[11px] font-black tabular-nums">
+                    <span className="text-primary">{item.paidCount.toLocaleString("pt-BR")}</span>
+                    <span className="text-white/35"> · </span>
+                    <span className="text-amber-300">{item.promoCount.toLocaleString("pt-BR")}</span>
+                  </span>
                 </div>
-                <div className="h-2 overflow-hidden rounded-full bg-white/7">
+                <div className="flex h-2 overflow-hidden rounded-full bg-white/7">
                   <div
-                    className="h-full rounded-full bg-primary shadow-[0_0_18px_rgba(177,235,11,0.28)]"
-                    style={{ width: `${Math.max(4, (item.value / maxTicketType) * 100)}%` }}
+                    className="h-full bg-primary"
+                    style={{
+                      width: `${Math.max(item.paidCount > 0 ? 4 : 0, (item.paidCount / maxTicketType) * 100)}%`,
+                    }}
+                  />
+                  <div
+                    className="h-full bg-amber-400/75"
+                    style={{
+                      width: `${Math.max(item.promoCount > 0 ? 4 : 0, (item.promoCount / maxTicketType) * 100)}%`,
+                    }}
                   />
                 </div>
               </div>
-            )) : (
-              <p className="text-[12px] font-bold text-white/80">Sem cotas no período.</p>
-            )}
-          </div>
-        </article>
-      </div>
+            ))
+          ) : (
+            <p className="text-[12px] font-bold text-white/80">Sem cotas no período.</p>
+          )}
+        </div>
+      </article>
       <div className="mt-5 w-full">
         <AreaChart title="Receita confirmada" subtitle={`Volume pago. ${periodSubtitle}`} points={revenuePoints} valueFormatter={formatAdminBRL} />
       </div>

@@ -122,44 +122,75 @@ function ticketEligibleForPlayDate(
   return dates.has(poolPlayDate);
 }
 
-/** Palpites do ticket neste campeonato → rodadas (`matches_cache.rodada`). */
-function buildTicketPlayRoundsByCompetition(
+/** Primeira rodada com palpite (por `submitted_at`), igual ao admin (`first_ticket_rodada`). */
+function buildTicketFirstPlayRoundByCompetition(
   predictions: PredictionAggregateRow[],
   matches: MatchMap,
   allowedTicketIds: Set<string>,
   competitionId: number,
-): Map<string, Set<number>> {
-  const ticketRounds = new Map<string, Set<number>>();
+): Map<string, number> {
+  const first = new Map<string, { rodada: number; at: number }>();
   for (const p of predictions) {
     if (!allowedTicketIds.has(p.ticket_id)) continue;
     const mi = getMatchFromMap(matches, competitionId, Number(p.match_id));
     if (!mi || Number(mi.competitionId) !== competitionId) continue;
     const rodada = mi.rodada;
     if (rodada == null || !Number.isFinite(rodada) || rodada <= 0) continue;
-    let set = ticketRounds.get(p.ticket_id);
-    if (!set) {
-      set = new Set();
-      ticketRounds.set(p.ticket_id, set);
-    }
-    set.add(rodada);
+    const at = new Date(p.submitted_at).getTime();
+    if (!Number.isFinite(at)) continue;
+    const cur = first.get(p.ticket_id);
+    if (!cur || at < cur.at) first.set(p.ticket_id, { rodada, at });
   }
-  return ticketRounds;
+  const out = new Map<string, number>();
+  for (const [ticketId, v] of first) out.set(ticketId, v.rodada);
+  return out;
 }
 
-/** Extra: basta 1 palpite na rodada do pool (não precisa completar todos os jogos). */
+async function resolveEffectiveRodadaCached(
+  competitionId: number,
+  roundNumber: number,
+  cache: Map<string, number>,
+): Promise<number> {
+  const key = `${competitionId}:${roundNumber}`;
+  const hit = cache.get(key);
+  if (hit != null) return hit;
+  const effective = await resolveEffectiveExtraRoundForTicket(competitionId, roundNumber, {
+    allowProviderCall: false,
+  });
+  const rodada = effective?.rodada ?? roundNumber;
+  cache.set(key, rodada);
+  return rodada;
+}
+
+/** Rodada do bolão extra da cota: `tickets.round_number` ou 1º palpite (como no admin). */
+async function buildAssignedExtraRodadaByTicket(
+  tickets: PaidTicketRow[],
+  firstPlayRound: Map<string, number>,
+  competitionId: number,
+): Promise<Map<string, number | null>> {
+  const effectiveCache = new Map<string, number>();
+  const out = new Map<string, number | null>();
+  for (const t of tickets) {
+    const rn = t.round_number;
+    if (rn != null && Number.isFinite(rn) && rn > 0) {
+      out.set(t.id, await resolveEffectiveRodadaCached(competitionId, rn, effectiveCache));
+      continue;
+    }
+    const fromPred = firstPlayRound.get(t.id);
+    out.set(t.id, fromPred != null && fromPred > 0 ? fromPred : null);
+  }
+  return out;
+}
+
 function ticketEligibleForExtraPool(
-  ticket: PaidTicketRow,
+  ticketId: string,
   poolRodada: number,
-  ticketPlayRounds: Map<string, Set<number>>,
+  assignedRodadaByTicket: Map<string, number | null>,
+  currentRodada: number | null,
 ): boolean {
-  const rounds = ticketPlayRounds.get(ticket.id);
-  if (rounds && rounds.size > 0) {
-    return rounds.has(poolRodada);
-  }
-  if (ticket.round_number != null && ticket.round_number > 0) {
-    return ticket.round_number === poolRodada;
-  }
-  return true;
+  const assigned = assignedRodadaByTicket.get(ticketId);
+  if (assigned != null) return assigned === poolRodada;
+  return currentRodada != null && currentRodada === poolRodada;
 }
 
 function matchInExtraPool(
@@ -174,36 +205,30 @@ function matchInExtraPool(
   return mi.dateBR === poolPlayDate;
 }
 
-async function resolveExtraPoolRodada(
+async function resolveExtraPoolRodadaForFocus(
   focusTicketId: string,
   extraComp: number,
-  focusMatchIds: number[],
+  paidExtra: PaidTicketRow[],
+  allExtra: PredictionAggregateRow[],
   matches: MatchMap,
-): Promise<number | null> {
-  const pool = getPool();
-  const { rows } = await pool.query<{ round_number: number | null }>(
-    `SELECT round_number FROM tickets WHERE id = $1 LIMIT 1`,
-    [focusTicketId],
+): Promise<{ poolRodada: number | null; currentRodada: number | null; assignedRodadaByTicket: Map<string, number | null> }> {
+  const allowedExtraIds = new Set(paidExtra.map((t) => t.id));
+  const firstPlayRound = buildTicketFirstPlayRoundByCompetition(
+    allExtra,
+    matches,
+    allowedExtraIds,
+    extraComp,
   );
-  const ticketRound = rows[0]?.round_number;
-
-  if (ticketRound != null && Number.isFinite(ticketRound) && ticketRound > 0) {
-    const effective = await resolveEffectiveExtraRoundForTicket(extraComp, ticketRound, {
-      allowProviderCall: false,
-    });
-    return effective?.rodada ?? ticketRound;
-  }
-
-  const fromMatches = new Set<number>();
-  for (const mid of focusMatchIds) {
-    const mi = getMatchFromMap(matches, extraComp, mid);
-    if (mi?.rodada != null && mi.rodada > 0) fromMatches.add(mi.rodada);
-  }
-  if (fromMatches.size === 1) return [...fromMatches][0]!;
-  if (fromMatches.size > 1) return Math.max(...fromMatches);
-
+  const assignedRodadaByTicket = await buildAssignedExtraRodadaByTicket(
+    paidExtra,
+    firstPlayRound,
+    extraComp,
+  );
   const current = await resolveCurrentExtraRound(extraComp, { allowProviderCall: false });
-  return current?.rodada ?? null;
+  const currentRodada = current?.rodada ?? null;
+  const fromFocus = assignedRodadaByTicket.get(focusTicketId);
+  const poolRodada = fromFocus ?? currentRodada;
+  return { poolRodada, currentRodada, assignedRodadaByTicket };
 }
 
 type PaidTicketRow = {
@@ -658,25 +683,6 @@ async function buildLeaderboardDiarioUncached(focusTicketId: string): Promise<{ 
 export async function buildLeaderboardExtraForTicket(
   focusTicketId: string
 ): Promise<{ rows: LeaderboardRow[]; meta: LeaderboardBoardMeta }> {
-  const getCached = unstable_cache(
-    async () => buildLeaderboardExtraUncached(focusTicketId),
-    ["leaderboard", "extra", focusTicketId, "v6"],
-    { revalidate: RANKING_REVALIDATE_SEC, tags: ["leaderboard"] }
-  );
-  return getCached();
-}
-
-async function buildLeaderboardExtraUncached(
-  focusTicketId: string
-): Promise<{ rows: LeaderboardRow[]; meta: LeaderboardBoardMeta }> {
-  const emptyMeta = (): LeaderboardBoardMeta => ({
-    participantCount: 0,
-    revenueCents: 0,
-    poolCentsApprox: 0,
-    nextPalpiteLockMs: null,
-    approxPremiados: 0,
-    hasResultedMatchesInPool: false,
-  });
   const pool = getPool();
   const { rows: ticketCheck } = await pool.query<{
     id: string;
@@ -684,46 +690,88 @@ async function buildLeaderboardExtraUncached(
     extra_championship_id: number | null;
   }>(
     `SELECT id::text AS id, ticket_type::text AS ticket_type, extra_championship_id
-     FROM tickets WHERE id = $1 AND status = 'paid' LIMIT 1`,
-    [focusTicketId]
+     FROM tickets WHERE id = $1 AND status IN ('paid', 'approved') LIMIT 1`,
+    [focusTicketId],
   );
   const ticketRow = ticketCheck[0];
   if (!ticketRow || ticketRow.ticket_type !== "extra" || ticketRow.extra_championship_id == null) {
-    return { rows: [], meta: emptyMeta() };
+    return { rows: [], meta: emptyMetaForExtra() };
   }
   const extraComp = Number(ticketRow.extra_championship_id);
 
-  const [matches, paidExtra, focusMatchIds, allExtra] = await Promise.all([
+  const [matches, paidExtra, allExtra] = await Promise.all([
     fetchMatchesMap().catch(() => new Map<string, MatchInfo>()),
     loadPaidTickets("extra", extraComp, { includePromoBonus: true }),
-    listMatchIdsForTicketPredictions(focusTicketId),
     listPredictionsAggregateByBolao("extra"),
   ]);
 
-  const datesFromFocus = new Set<string>();
-  for (const mid of focusMatchIds) {
-    const d = getMatchFromMap(matches, extraComp, mid)?.dateBR;
-    if (d) datesFromFocus.add(d);
-  }
-
-  const playable = resolveDiarioPlayableDate(matches, { competitionId: extraComp });
-  let poolPlayDate: string;
-  if (datesFromFocus.size === 1) {
-    poolPlayDate = [...datesFromFocus][0]!;
-  } else if (datesFromFocus.size > 1) {
-    poolPlayDate = datesFromFocus.has(playable) ? playable : minBrDate(datesFromFocus);
-  } else {
-    poolPlayDate = playable;
-  }
-
-  const poolRodada = await resolveExtraPoolRodada(
+  const { poolRodada } = await resolveExtraPoolRodadaForFocus(
     focusTicketId,
     extraComp,
-    focusMatchIds,
+    paidExtra,
+    allExtra,
     matches,
   );
+  if (poolRodada == null || poolRodada <= 0) {
+    return { rows: [], meta: emptyMetaForExtra() };
+  }
+
+  const getCached = unstable_cache(
+    async () => buildLeaderboardExtraForCompRoundUncached(extraComp, poolRodada),
+    ["leaderboard", "extra", String(extraComp), String(poolRodada), "v7"],
+    { revalidate: RANKING_REVALIDATE_SEC, tags: ["leaderboard"] },
+  );
+  return getCached();
+}
+
+function emptyMetaForExtra(): LeaderboardBoardMeta {
+  return {
+    participantCount: 0,
+    revenueCents: 0,
+    poolCentsApprox: 0,
+    nextPalpiteLockMs: null,
+    approxPremiados: 0,
+    hasResultedMatchesInPool: false,
+  };
+}
+
+async function buildLeaderboardExtraForCompRoundUncached(
+  extraComp: number,
+  poolRodada: number,
+): Promise<{ rows: LeaderboardRow[]; meta: LeaderboardBoardMeta }> {
+  if (extraComp <= 0 || poolRodada <= 0) {
+    return { rows: [], meta: emptyMetaForExtra() };
+  }
+
+  const [matches, paidExtra, allExtra] = await Promise.all([
+    fetchMatchesMap().catch(() => new Map<string, MatchInfo>()),
+    loadPaidTickets("extra", extraComp, { includePromoBonus: true }),
+    listPredictionsAggregateByBolao("extra"),
+  ]);
 
   const allowedExtraIds = new Set(paidExtra.map((t) => t.id));
+  const firstPlayRound = buildTicketFirstPlayRoundByCompetition(
+    allExtra,
+    matches,
+    allowedExtraIds,
+    extraComp,
+  );
+  const assignedRodadaByTicket = await buildAssignedExtraRodadaByTicket(
+    paidExtra,
+    firstPlayRound,
+    extraComp,
+  );
+  const currentRodadaResolved =
+    (await resolveCurrentExtraRound(extraComp, { allowProviderCall: false }))?.rodada ?? null;
+
+  const playable = resolveDiarioPlayableDate(matches, { competitionId: extraComp });
+  let poolPlayDate = playable;
+  for (const m of matches.values()) {
+    if (Number(m.competitionId) === extraComp && m.rodada === poolRodada && m.dateBR) {
+      poolPlayDate = m.dateBR;
+      break;
+    }
+  }
 
   const cohortPreds = allExtra.filter((p) => {
     if (!allowedExtraIds.has(p.ticket_id)) return false;
@@ -734,22 +782,14 @@ async function buildLeaderboardExtraUncached(
 
   const agg = aggregatePredictions(cohortPreds, matches, allowedExtraIds, extraComp);
 
-  const ticketPlayRounds = buildTicketPlayRoundsByCompetition(
-    allExtra,
-    matches,
-    allowedExtraIds,
-    extraComp,
-  );
-
   const sortedTickets = paidExtra
     .filter((t) =>
-      poolRodada != null
-        ? ticketEligibleForExtraPool(t, poolRodada, ticketPlayRounds)
-        : ticketEligibleForPlayDate(
-            t.id,
-            poolPlayDate,
-            buildTicketPlayDatesByCompetition(allExtra, matches, allowedExtraIds, extraComp),
-          ),
+      ticketEligibleForExtraPool(
+        t.id,
+        poolRodada,
+        assignedRodadaByTicket,
+        currentRodadaResolved,
+      ),
     )
     .map((t) => {
       const a = agg.get(t.id);
@@ -827,7 +867,36 @@ async function buildLeaderboardExtraUncached(
 export async function buildLeaderboardExtraForTicketDebug(
   focusTicketId: string,
 ): Promise<{ rows: LeaderboardRow[]; meta: LeaderboardBoardMeta }> {
-  return buildLeaderboardExtraUncached(focusTicketId);
+  const pool = getPool();
+  const { rows: ticketCheck } = await pool.query<{
+    ticket_type: string;
+    extra_championship_id: number | null;
+  }>(
+    `SELECT ticket_type::text AS ticket_type, extra_championship_id
+     FROM tickets WHERE id = $1 AND status IN ('paid', 'approved') LIMIT 1`,
+    [focusTicketId],
+  );
+  const ticketRow = ticketCheck[0];
+  if (!ticketRow || ticketRow.ticket_type !== "extra" || ticketRow.extra_championship_id == null) {
+    return { rows: [], meta: emptyMetaForExtra() };
+  }
+  const extraComp = Number(ticketRow.extra_championship_id);
+  const [matches, paidExtra, allExtra] = await Promise.all([
+    fetchMatchesMap().catch(() => new Map<string, MatchInfo>()),
+    loadPaidTickets("extra", extraComp, { includePromoBonus: true }),
+    listPredictionsAggregateByBolao("extra"),
+  ]);
+  const { poolRodada } = await resolveExtraPoolRodadaForFocus(
+    focusTicketId,
+    extraComp,
+    paidExtra,
+    allExtra,
+    matches,
+  );
+  if (poolRodada == null || poolRodada <= 0) {
+    return { rows: [], meta: emptyMetaForExtra() };
+  }
+  return buildLeaderboardExtraForCompRoundUncached(extraComp, poolRodada);
 }
 
 type UserLite = {

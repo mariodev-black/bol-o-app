@@ -3,6 +3,7 @@
 import { adminStatGridClass, adminStatValueClass } from "@/app/admin/_components/admin-layout";
 import { AdminTableScroll } from "@/app/admin/_components/AdminTableScroll";
 import type { AdminUserListItem } from "@/lib/admin/users";
+import { Download, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -52,7 +53,40 @@ export function AdminUsersClient({ users }: { users: AdminUserListItem[] }) {
   const [query, setQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("recent");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  async function handleExportUsers() {
+    setExporting(true);
+    setExportError(null);
+    try {
+      const resp = await fetch("/api/admin/users/export", {
+        credentials: "include",
+        cache: "no-store",
+      });
+      if (!resp.ok) {
+        const data = (await resp.json().catch(() => ({}))) as { error?: string };
+        throw new Error(typeof data.error === "string" ? data.error : "Não foi possível exportar.");
+      }
+      const blob = await resp.blob();
+      const disposition = resp.headers.get("Content-Disposition") ?? "";
+      const match = /filename="([^"]+)"/.exec(disposition);
+      const filename = match?.[1] ?? `usuarios-bolao-${new Date().toISOString().slice(0, 10)}.csv`;
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setExportError(e instanceof Error ? e.message : "Erro ao exportar usuários.");
+    } finally {
+      setExporting(false);
+    }
+  }
 
   const filteredUsers = useMemo(() => {
     const digitsQuery = onlyDigits(query);
@@ -131,8 +165,9 @@ export function AdminUsersClient({ users }: { users: AdminUserListItem[] }) {
       </div>
 
       <section className="mb-5 rounded-[18px] border border-white/8 bg-[#101010] p-4">
-        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_240px]">
-          <label className="block">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          <div className="grid flex-1 gap-3 lg:grid-cols-[minmax(0,1fr)_240px]">
+            <label className="block">
             <span className="mb-2 block text-[12px] font-black uppercase tracking-[0.18em] text-white/80">
               Buscar por nome, e-mail ou CPF
             </span>
@@ -167,7 +202,29 @@ export function AdminUsersClient({ users }: { users: AdminUserListItem[] }) {
               ))}
             </select>
           </label>
+          </div>
+          <div className="flex shrink-0 flex-col gap-1.5 lg:pb-0.5">
+            <button
+              type="button"
+              onClick={() => void handleExportUsers()}
+              disabled={exporting || users.length === 0}
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-[12px] border border-primary/30 bg-primary/10 px-5 text-[11px] font-black uppercase tracking-[0.12em] text-primary transition-colors hover:bg-primary/16 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {exporting ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+              ) : (
+                <Download className="size-4" strokeWidth={2.25} aria-hidden />
+              )}
+              {exporting ? "Exportando…" : "Exportar Excel"}
+            </button>
+            <p className="text-center text-[10px] font-medium text-white/38 lg:text-right">
+              Nome, e-mail e telefone · {users.length.toLocaleString("pt-BR")} usuários
+            </p>
+          </div>
         </div>
+        {exportError ? (
+          <p className="mt-3 text-[12px] font-medium text-red-400">{exportError}</p>
+        ) : null}
       </section>
 
       <section className="overflow-hidden rounded-[18px] border border-white/8 bg-[#101010]">

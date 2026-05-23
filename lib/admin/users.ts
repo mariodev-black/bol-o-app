@@ -332,11 +332,18 @@ export type AdminDashboardBreakdownItem = {
   value: number;
 };
 
+export type AdminDashboardTicketTypeItem = {
+  label: string;
+  paidCount: number;
+  promoCount: number;
+};
+
 export type AdminDashboardData = {
   usersCount: number;
   adminsCount: number;
   ticketsCount: number;
   paidTicketsCount: number;
+  promoTicketsCount: number;
   transactionsCount: number;
   paidTransactionsCount: number;
   pendingTransactionsCount: number;
@@ -345,9 +352,21 @@ export type AdminDashboardData = {
   usersTodayCount: number;
   conversionRate: number;
   dailySeries: AdminDashboardSeriesPoint[];
-  ticketTypeBreakdown: AdminDashboardBreakdownItem[];
+  ticketTypeBreakdown: AdminDashboardTicketTypeItem[];
   transactionStatusBreakdown: AdminDashboardBreakdownItem[];
 };
+
+const DASHBOARD_TZ = "America/Sao_Paulo";
+
+/** Intervalo [início, fim+1dia) no fuso de São Paulo — alinha filtro do dashboard ao calendário BR. */
+function sqlBrTimestampRange(column: string, startParam = "$1", endParam = "$2"): string {
+  return `${column} >= (${startParam}::text || ' 00:00:00')::timestamp AT TIME ZONE '${DASHBOARD_TZ}'
+    AND ${column} < (${endParam}::text || ' 00:00:00')::timestamp AT TIME ZONE '${DASHBOARD_TZ}' + interval '1 day'`;
+}
+
+function sqlBrDateEquals(column: string, dayColumn: string): string {
+  return `(${column} AT TIME ZONE '${DASHBOARD_TZ}')::date = ${dayColumn}`;
+}
 
 function dashboardRangeDays(startDate: string, endDate: string) {
   const [startYear, startMonth, startDay] = startDate.split("-").map(Number);
@@ -363,20 +382,23 @@ export async function getAdminDashboardStats(input: {
 }): Promise<AdminDashboardData> {
   const pool = getPool();
   const params = [input.startDate, input.endDate];
+  const brTicketRange = sqlBrTimestampRange("created_at");
+  const brUserRange = sqlBrTimestampRange("u.created_at");
+  const brTxRangeBare = sqlBrTimestampRange("created_at");
   const sameDay = input.startDate === input.endDate;
   const longRange = !sameDay && dashboardRangeDays(input.startDate, input.endDate) > 14;
   const seriesParams = sameDay ? [input.startDate] : params;
   const seriesQuery = sameDay
     ? `WITH slots AS (
          SELECT generate_series(
-           $1::date,
-           $1::date + interval '20 hours',
+           ($1::text || ' 00:00:00')::timestamp AT TIME ZONE '${DASHBOARD_TZ}',
+           ($1::text || ' 20:00:00')::timestamp AT TIME ZONE '${DASHBOARD_TZ}',
            interval '4 hours'
          ) AS period_start
        )
        SELECT
          slots.period_start AS day,
-         to_char(slots.period_start, 'HH24"h"') AS label,
+         to_char(slots.period_start AT TIME ZONE '${DASHBOARD_TZ}', 'HH24"h"') AS label,
          (SELECT COUNT(*) FROM users u WHERE u.created_at >= slots.period_start AND u.created_at < slots.period_start + interval '4 hours') AS users_count,
          (SELECT COUNT(*) FROM transactions tx WHERE tx.created_at >= slots.period_start AND tx.created_at < slots.period_start + interval '4 hours') AS transactions_count,
          (SELECT COUNT(*) FROM transactions tx WHERE tx.created_at >= slots.period_start AND tx.created_at < slots.period_start + interval '4 hours' AND tx.status IN ('paid', 'approved')) AS paid_transactions_count,
@@ -386,24 +408,33 @@ export async function getAdminDashboardStats(input: {
     : longRange
       ? `WITH buckets AS (
            SELECT generate_series(
-             $1::date,
-             $2::date,
+             ($1::text || ' 00:00:00')::timestamp AT TIME ZONE '${DASHBOARD_TZ}',
+             ($2::text || ' 00:00:00')::timestamp AT TIME ZONE '${DASHBOARD_TZ}',
              interval '4 days'
            ) AS period_start
+         ),
+         bounds AS (
+           SELECT
+             period_start,
+             LEAST(
+               period_start + interval '4 days',
+               ($2::text || ' 00:00:00')::timestamp AT TIME ZONE '${DASHBOARD_TZ}' + interval '1 day'
+             ) AS period_end
+           FROM buckets
          )
          SELECT
-           buckets.period_start AS day,
+           bounds.period_start AS day,
            CASE
-             WHEN LEAST(buckets.period_start + interval '3 days', $2::date)::date = buckets.period_start::date
-               THEN to_char(buckets.period_start, 'DD/MM')
-             ELSE to_char(buckets.period_start, 'DD/MM') || '-' || to_char(LEAST(buckets.period_start + interval '3 days', $2::date), 'DD/MM')
+             WHEN (bounds.period_end - interval '1 day')::date = bounds.period_start::date
+               THEN to_char(bounds.period_start AT TIME ZONE '${DASHBOARD_TZ}', 'DD/MM')
+             ELSE to_char(bounds.period_start AT TIME ZONE '${DASHBOARD_TZ}', 'DD/MM') || '-' || to_char((bounds.period_end - interval '1 day') AT TIME ZONE '${DASHBOARD_TZ}', 'DD/MM')
            END AS label,
-           (SELECT COUNT(*) FROM users u WHERE u.created_at >= buckets.period_start AND u.created_at < LEAST(buckets.period_start + interval '4 days', $2::date + interval '1 day')) AS users_count,
-           (SELECT COUNT(*) FROM transactions tx WHERE tx.created_at >= buckets.period_start AND tx.created_at < LEAST(buckets.period_start + interval '4 days', $2::date + interval '1 day')) AS transactions_count,
-           (SELECT COUNT(*) FROM transactions tx WHERE tx.created_at >= buckets.period_start AND tx.created_at < LEAST(buckets.period_start + interval '4 days', $2::date + interval '1 day') AND tx.status IN ('paid', 'approved')) AS paid_transactions_count,
-           (SELECT COALESCE(SUM(tx.amount_cents), 0) FROM transactions tx WHERE tx.created_at >= buckets.period_start AND tx.created_at < LEAST(buckets.period_start + interval '4 days', $2::date + interval '1 day') AND tx.status IN ('paid', 'approved')) AS revenue_cents
-         FROM buckets
-         ORDER BY buckets.period_start ASC`
+           (SELECT COUNT(*) FROM users u WHERE u.created_at >= bounds.period_start AND u.created_at < bounds.period_end) AS users_count,
+           (SELECT COUNT(*) FROM transactions tx WHERE tx.created_at >= bounds.period_start AND tx.created_at < bounds.period_end) AS transactions_count,
+           (SELECT COUNT(*) FROM transactions tx WHERE tx.created_at >= bounds.period_start AND tx.created_at < bounds.period_end AND tx.status IN ('paid', 'approved')) AS paid_transactions_count,
+           (SELECT COALESCE(SUM(tx.amount_cents), 0) FROM transactions tx WHERE tx.created_at >= bounds.period_start AND tx.created_at < bounds.period_end AND tx.status IN ('paid', 'approved')) AS revenue_cents
+         FROM bounds
+         ORDER BY bounds.period_start ASC`
     : `WITH days AS (
          SELECT generate_series(
            $1::date,
@@ -414,12 +445,11 @@ export async function getAdminDashboardStats(input: {
        SELECT
          days.day,
          to_char(days.day, 'DD/MM') AS label,
-         (SELECT COUNT(*) FROM users u WHERE u.created_at::date = days.day) AS users_count,
-         (SELECT COUNT(*) FROM transactions tx WHERE tx.created_at::date = days.day) AS transactions_count,
-         (SELECT COUNT(*) FROM transactions tx WHERE tx.created_at::date = days.day AND tx.status IN ('paid', 'approved')) AS paid_transactions_count,
-         (SELECT COALESCE(SUM(tx.amount_cents), 0) FROM transactions tx WHERE tx.created_at::date = days.day AND tx.status IN ('paid', 'approved')) AS revenue_cents
+         (SELECT COUNT(*) FROM users u WHERE ${sqlBrDateEquals("u.created_at", "days.day")}) AS users_count,
+         (SELECT COUNT(*) FROM transactions tx WHERE ${sqlBrDateEquals("tx.created_at", "days.day")}) AS transactions_count,
+         (SELECT COUNT(*) FROM transactions tx WHERE ${sqlBrDateEquals("tx.created_at", "days.day")} AND tx.status IN ('paid', 'approved')) AS paid_transactions_count,
+         (SELECT COALESCE(SUM(tx.amount_cents), 0) FROM transactions tx WHERE ${sqlBrDateEquals("tx.created_at", "days.day")} AND tx.status IN ('paid', 'approved')) AS revenue_cents
        FROM days
-       GROUP BY days.day
        ORDER BY days.day ASC`;
   const [summary, series, ticketTypes, statuses] = await Promise.all([
     pool.query<{
@@ -427,6 +457,7 @@ export async function getAdminDashboardStats(input: {
     admins_count: string | number;
     tickets_count: string | number;
     paid_tickets_count: string | number;
+    promo_tickets_count: string | number;
     transactions_count: string | number;
     paid_transactions_count: string | number;
     pending_transactions_count: string | number;
@@ -435,16 +466,17 @@ export async function getAdminDashboardStats(input: {
     users_today_count: string | number;
   }>(
       `SELECT
-         (SELECT COUNT(*) FROM users WHERE created_at >= $1::date AND created_at < ($2::date + interval '1 day')) AS users_count,
+         (SELECT COUNT(*) FROM users u WHERE ${brUserRange}) AS users_count,
          (SELECT COUNT(*) FROM users WHERE role IN ('admin', 'super_admin')) AS admins_count,
-         (SELECT COUNT(*) FROM tickets WHERE created_at >= $1::date AND created_at < ($2::date + interval '1 day')) AS tickets_count,
-         (SELECT COUNT(*) FROM tickets WHERE status = 'paid' AND created_at >= $1::date AND created_at < ($2::date + interval '1 day')) AS paid_tickets_count,
-         (SELECT COUNT(*) FROM transactions WHERE created_at >= $1::date AND created_at < ($2::date + interval '1 day')) AS transactions_count,
-         (SELECT COUNT(*) FROM transactions WHERE status IN ('paid', 'approved') AND created_at >= $1::date AND created_at < ($2::date + interval '1 day')) AS paid_transactions_count,
-         (SELECT COUNT(*) FROM transactions WHERE status IN ('pending_payment', 'pending', 'creating', 'waiting_payment') AND created_at >= $1::date AND created_at < ($2::date + interval '1 day')) AS pending_transactions_count,
-         (SELECT COUNT(*) FROM transactions WHERE status IN ('failed', 'canceled', 'cancelled', 'refused', 'expired') AND created_at >= $1::date AND created_at < ($2::date + interval '1 day')) AS failed_transactions_count,
-         (SELECT COALESCE(SUM(amount_cents), 0) FROM transactions WHERE status IN ('paid', 'approved') AND created_at >= $1::date AND created_at < ($2::date + interval '1 day')) AS revenue_cents,
-         (SELECT COUNT(*) FROM users WHERE created_at >= $1::date AND created_at < ($2::date + interval '1 day')) AS users_today_count`,
+         (SELECT COUNT(*) FROM tickets WHERE status IN ('paid', 'approved') AND ${brTicketRange}) AS tickets_count,
+         (SELECT COUNT(*) FROM tickets WHERE status IN ('paid', 'approved') AND NOT COALESCE(is_promo_bonus, false) AND ${brTicketRange}) AS paid_tickets_count,
+         (SELECT COUNT(*) FROM tickets WHERE status IN ('paid', 'approved') AND COALESCE(is_promo_bonus, false) = true AND ${brTicketRange}) AS promo_tickets_count,
+         (SELECT COUNT(*) FROM transactions WHERE ${brTxRangeBare}) AS transactions_count,
+         (SELECT COUNT(*) FROM transactions WHERE status IN ('paid', 'approved') AND ${brTxRangeBare}) AS paid_transactions_count,
+         (SELECT COUNT(*) FROM transactions WHERE status IN ('pending_payment', 'pending', 'creating', 'waiting_payment') AND ${brTxRangeBare}) AS pending_transactions_count,
+         (SELECT COUNT(*) FROM transactions WHERE status IN ('failed', 'canceled', 'cancelled', 'refused', 'expired') AND ${brTxRangeBare}) AS failed_transactions_count,
+         (SELECT COALESCE(SUM(amount_cents), 0) FROM transactions WHERE status IN ('paid', 'approved') AND ${brTxRangeBare}) AS revenue_cents,
+         (SELECT COUNT(*) FROM users u WHERE ${brUserRange}) AS users_today_count`,
       params
     ),
     pool.query<{
@@ -455,18 +487,22 @@ export async function getAdminDashboardStats(input: {
       paid_transactions_count: string | number;
       revenue_cents: string | number | null;
     }>(seriesQuery, seriesParams),
-    pool.query<{ label: string; value: string | number }>(
-      `SELECT ticket_type AS label, COUNT(*) AS value
+    pool.query<{ label: string; paid_count: string | number; promo_count: string | number }>(
+      `SELECT
+         ticket_type AS label,
+         COUNT(*) FILTER (WHERE NOT COALESCE(is_promo_bonus, false)) AS paid_count,
+         COUNT(*) FILTER (WHERE COALESCE(is_promo_bonus, false)) AS promo_count
        FROM tickets
-       WHERE created_at >= $1::date AND created_at < ($2::date + interval '1 day')
+       WHERE status IN ('paid', 'approved')
+         AND ${brTicketRange}
        GROUP BY ticket_type
-       ORDER BY value DESC`,
+       ORDER BY COUNT(*) DESC`,
       params
     ),
     pool.query<{ label: string; value: string | number }>(
       `SELECT status AS label, COUNT(*) AS value
        FROM transactions
-       WHERE created_at >= $1::date AND created_at < ($2::date + interval '1 day')
+       WHERE ${brTxRangeBare}
        GROUP BY status
        ORDER BY value DESC`,
       params
@@ -481,6 +517,7 @@ export async function getAdminDashboardStats(input: {
     adminsCount: Number(row?.admins_count ?? 0),
     ticketsCount: Number(row?.tickets_count ?? 0),
     paidTicketsCount: Number(row?.paid_tickets_count ?? 0),
+    promoTicketsCount: Number(row?.promo_tickets_count ?? 0),
     transactionsCount,
     paidTransactionsCount,
     pendingTransactionsCount: Number(row?.pending_transactions_count ?? 0),
@@ -498,7 +535,8 @@ export async function getAdminDashboardStats(input: {
     })),
     ticketTypeBreakdown: ticketTypes.rows.map((item) => ({
       label: item.label,
-      value: Number(item.value ?? 0),
+      paidCount: Number(item.paid_count ?? 0),
+      promoCount: Number(item.promo_count ?? 0),
     })),
     transactionStatusBreakdown: statuses.rows.map((item) => ({
       label: item.label,
