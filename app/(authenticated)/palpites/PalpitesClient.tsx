@@ -1328,9 +1328,7 @@ function JogoCard({
   const phase = getJogoCardPhase(jogo, nowMs);
   const kickoffHour = formatKickoffHourOnly(jogo);
   const countdownLabel = formatCountdownCompact(lockAtMs, nowMs);
-  const [pontosExpanded, setPontosExpanded] = useState(
-    () => phase === "post",
-  );
+  const [pontosExpanded, setPontosExpanded] = useState(false);
 
   const temPlacarOficial =
     jogo.resultCasa != null && jogo.resultVisitante != null;
@@ -3858,16 +3856,10 @@ function PalpitesPageContent({
     : tab === "ranking";
   const showResumo = readOnlyMode ? resultTab === "resumo" : tab === "resumo";
 
-  const jogosBase = jogosOnPlayableDate.filter((j) => {
-    if (!dailyLike) return true;
-    if (readOnlyMode) return true;
-    return j.status !== "encerrado";
-  });
+  /** Inclui jogos encerrados para o usuário ver placar, pontuação e detalhes do palpite. */
+  const jogosBase = jogosOnPlayableDate;
 
-  const jogosDisplayBase =
-    dailyLike && diarioLockedMode
-      ? jogosBase.filter((j) => Boolean(predictionsMap[j.id]))
-      : jogosBase;
+  const jogosDisplayBase = jogosBase;
 
   const hasEditableMatches = jogosDisplayBase.some((j) =>
     isJogoEditavelParaPalpite(j, bolaoType),

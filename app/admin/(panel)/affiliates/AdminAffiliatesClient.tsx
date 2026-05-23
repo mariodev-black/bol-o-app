@@ -180,7 +180,7 @@ export function AdminAffiliatesClient({ data }: { data: AdminAffiliateDashboardD
                   <th className="px-4 py-4">Modelo</th>
                   <th className="px-4 py-4">Código</th>
                   <th className="px-4 py-4">Indicados</th>
-                  <th className="px-4 py-4">Pagos</th>
+                  <th className="px-4 py-4">Cotas pagas</th>
                   <th className="px-4 py-4">Comissões</th>
                   <th className="px-4 py-4">Criado em</th>
                 </tr>

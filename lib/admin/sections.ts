@@ -5,6 +5,7 @@ import {
 } from "@/lib/boloes-extra-competition-branding";
 import { getFootballMainCompetitionId, parseExtraBolaoChampionshipIds } from "@/lib/boloes-extra-config";
 import { readCompetitionDisplayNamesFromDb } from "@/lib/competition-metadata-cache";
+import { SQL_TICKET_PAID } from "@/lib/admin/ticket-count-sql";
 import { getPool } from "@/lib/db";
 import {
   ADMIN_BOLAO_RANKING_PAGE_SIZE,
@@ -651,10 +652,11 @@ export async function getAdminAffiliateDashboardData(): Promise<AdminAffiliateDa
          COALESCE(u.influencer_cpa_bps, 0) AS influencer_cpa_bps,
          (SELECT COUNT(*) FROM users referred WHERE referred.referred_by_user_id::text = u.id::text) AS referred_users_count,
          (
-           SELECT COUNT(DISTINCT referred.id)
+           SELECT COUNT(*)
            FROM users referred
-           JOIN tickets paid_tickets ON paid_tickets.user_id::text = referred.id::text AND paid_tickets.status = 'paid'
+           JOIN tickets t ON t.user_id::text = referred.id::text
            WHERE referred.referred_by_user_id::text = u.id::text
+             AND ${SQL_TICKET_PAID}
          ) AS paid_referrals_count,
          (SELECT COUNT(*) FROM referral_commissions c WHERE c.referrer_user_id::text = u.id::text) AS commissions_count,
          (SELECT COALESCE(SUM(c.amount_cents), 0) FROM referral_commissions c WHERE c.referrer_user_id::text = u.id::text) AS commissions_cents,
@@ -684,7 +686,7 @@ export async function getAdminAffiliateDashboardData(): Promise<AdminAffiliateDa
          referrer.id AS referrer_id,
          referrer.name AS referrer_name,
          referrer.email AS referrer_email,
-         COUNT(t.id) FILTER (WHERE t.status = 'paid') AS paid_tickets_count,
+         COUNT(t.id) FILTER (WHERE ${SQL_TICKET_PAID}) AS paid_tickets_count,
          referred.created_at
        FROM users referred
        JOIN users referrer ON referrer.id::text = referred.referred_by_user_id::text

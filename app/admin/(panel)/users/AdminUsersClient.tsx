@@ -269,7 +269,14 @@ export function AdminUsersClient({ users }: { users: AdminUserListItem[] }) {
                   <td className="px-4 py-4">
                     <Link href={`/admin/users/${user.id}`} className="block">
                       <p className="text-[18px] font-black leading-none text-white">{user.ticketsCount.toLocaleString("pt-BR")}</p>
-                      <p className="mt-1 text-[14px] font-bold text-white/80">{user.paidTicketsCount.toLocaleString("pt-BR")} pagas</p>
+                      <p className="mt-1 text-[14px] font-bold text-primary">
+                        {user.paidTicketsCount.toLocaleString("pt-BR")} pagas
+                      </p>
+                      {user.ticketsCount > user.paidTicketsCount ? (
+                        <p className="mt-0.5 text-[14px] font-bold text-amber-300/90">
+                          {(user.ticketsCount - user.paidTicketsCount).toLocaleString("pt-BR")} grátis
+                        </p>
+                      ) : null}
                     </Link>
                   </td>
                   <td className="px-4 py-4">

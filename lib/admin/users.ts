@@ -1,3 +1,9 @@
+import {
+  SQL_TICKET_ACTIVE,
+  SQL_TICKET_PAID,
+  SQL_TICKET_PAID_BARE,
+  SQL_TICKET_PROMO_BARE,
+} from "@/lib/admin/ticket-count-sql";
 import { getPool } from "@/lib/db";
 
 export type AdminUserListItem = {
@@ -106,8 +112,8 @@ export async function listAdminUsers(): Promise<AdminUserListItem[]> {
        COALESCE(u.influencer_cpa_bps, 0) AS influencer_cpa_bps,
        COALESCE(u.balance_cents, 0) AS balance_cents,
        COALESCE(u.affiliate_balance_cents, 0) AS affiliate_balance_cents,
-       COUNT(t.id) AS tickets_count,
-       COUNT(t.id) FILTER (WHERE t.status = 'paid') AS paid_tickets_count,
+       COUNT(t.id) FILTER (WHERE ${SQL_TICKET_ACTIVE}) AS tickets_count,
+       COUNT(t.id) FILTER (WHERE ${SQL_TICKET_PAID}) AS paid_tickets_count,
        COALESCE(us.score_points, 0) AS score_points,
        u.created_at
      FROM users u
@@ -179,8 +185,8 @@ export async function getAdminUserDetail(userId: string): Promise<AdminUserDetai
        u.referral_code,
        u.referred_by_user_id,
        u.email_verified_at,
-       (SELECT COUNT(*) FROM tickets t WHERE t.user_id::text = u.id::text) AS tickets_count,
-       (SELECT COUNT(*) FROM tickets t WHERE t.user_id::text = u.id::text AND t.status = 'paid') AS paid_tickets_count,
+       (SELECT COUNT(*) FROM tickets t WHERE t.user_id::text = u.id::text AND ${SQL_TICKET_ACTIVE}) AS tickets_count,
+       (SELECT COUNT(*) FROM tickets t WHERE t.user_id::text = u.id::text AND ${SQL_TICKET_PAID}) AS paid_tickets_count,
        (SELECT COUNT(*) FROM transactions tx WHERE tx.user_id::text = u.id::text) AS transactions_count,
        (SELECT COUNT(*) FROM transactions tx WHERE tx.user_id::text = u.id::text AND tx.status IN ('paid', 'approved')) AS paid_transactions_count,
        (SELECT COALESCE(SUM(tx.amount_cents), 0) FROM transactions tx WHERE tx.user_id::text = u.id::text AND tx.status IN ('paid', 'approved')) AS revenue_cents,
@@ -257,8 +263,8 @@ export async function getAdminUserDetail(userId: string): Promise<AdminUserDetai
        referred.name,
        referred.email,
        referred.cpf,
-       COUNT(t.id) AS tickets_count,
-       COUNT(t.id) FILTER (WHERE t.status = 'paid') AS paid_tickets_count,
+       COUNT(t.id) FILTER (WHERE ${SQL_TICKET_ACTIVE}) AS tickets_count,
+       COUNT(t.id) FILTER (WHERE ${SQL_TICKET_PAID}) AS paid_tickets_count,
        referred.created_at
      FROM users referred
      LEFT JOIN tickets t ON t.user_id::text = referred.id::text
@@ -469,8 +475,8 @@ export async function getAdminDashboardStats(input: {
          (SELECT COUNT(*) FROM users u WHERE ${brUserRange}) AS users_count,
          (SELECT COUNT(*) FROM users WHERE role IN ('admin', 'super_admin')) AS admins_count,
          (SELECT COUNT(*) FROM tickets WHERE status IN ('paid', 'approved') AND ${brTicketRange}) AS tickets_count,
-         (SELECT COUNT(*) FROM tickets WHERE status IN ('paid', 'approved') AND NOT COALESCE(is_promo_bonus, false) AND ${brTicketRange}) AS paid_tickets_count,
-         (SELECT COUNT(*) FROM tickets WHERE status IN ('paid', 'approved') AND COALESCE(is_promo_bonus, false) = true AND ${brTicketRange}) AS promo_tickets_count,
+         (SELECT COUNT(*) FROM tickets WHERE ${SQL_TICKET_PAID_BARE} AND ${brTicketRange}) AS paid_tickets_count,
+         (SELECT COUNT(*) FROM tickets WHERE ${SQL_TICKET_PROMO_BARE} AND ${brTicketRange}) AS promo_tickets_count,
          (SELECT COUNT(*) FROM transactions WHERE ${brTxRangeBare}) AS transactions_count,
          (SELECT COUNT(*) FROM transactions WHERE status IN ('paid', 'approved') AND ${brTxRangeBare}) AS paid_transactions_count,
          (SELECT COUNT(*) FROM transactions WHERE status IN ('pending_payment', 'pending', 'creating', 'waiting_payment') AND ${brTxRangeBare}) AS pending_transactions_count,
@@ -490,8 +496,8 @@ export async function getAdminDashboardStats(input: {
     pool.query<{ label: string; paid_count: string | number; promo_count: string | number }>(
       `SELECT
          ticket_type AS label,
-         COUNT(*) FILTER (WHERE NOT COALESCE(is_promo_bonus, false)) AS paid_count,
-         COUNT(*) FILTER (WHERE COALESCE(is_promo_bonus, false)) AS promo_count
+         COUNT(*) FILTER (WHERE ${SQL_TICKET_PAID_BARE}) AS paid_count,
+         COUNT(*) FILTER (WHERE ${SQL_TICKET_PROMO_BARE}) AS promo_count
        FROM tickets
        WHERE status IN ('paid', 'approved')
          AND ${brTicketRange}
