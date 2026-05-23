@@ -14,6 +14,8 @@
     "pwa:icons": "tsx --tsconfig tsconfig.scripts.json scripts/generate-pwa-icons.ts",
     "check:email-env": "tsx --tsconfig tsconfig.scripts.json scripts/check-email-env.ts",
     "debug:threexpay": "tsx --tsconfig tsconfig.scripts.json scripts/debug-threexpay-cash-in.ts",
+    "debug:ranking-extra": "tsx --tsconfig tsconfig.scripts.json scripts/debug-ranking-extra.ts",
+    "debug:ranking-sql": "tsx --tsconfig tsconfig.scripts.json scripts/debug-ranking-sql.ts",
     "build": "next build",
     "deploy:github": "bash scripts/deploy-from-github.sh",
     "start": "next start",

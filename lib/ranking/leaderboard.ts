@@ -10,6 +10,10 @@ import {
 import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
 import { getPool } from "@/lib/db";
 import { resolveDiarioPlayableDate } from "@/lib/diario-playable-date";
+import {
+  resolveCurrentExtraRound,
+  resolveEffectiveExtraRoundForTicket,
+} from "@/lib/football/extras-rodada";
 import { calculatePrizePoolCents } from "@/lib/prizes/distribution";
 import { clampAvatarIndex } from "@/lib/auth/avatar-index";
 import { isStoredAvatarUploadFilename } from "@/lib/user/avatar-filename";
@@ -83,12 +87,138 @@ function minBrDate(dates: Iterable<string>): string {
   return best ?? [...dates][0] ?? "";
 }
 
+/** Datas de jogos em que cada cota tem palpite (por campeonato). */
+function buildTicketPlayDatesByCompetition(
+  predictions: PredictionAggregateRow[],
+  matches: MatchMap,
+  allowedTicketIds: Set<string>,
+  competitionId: number,
+): Map<string, Set<string>> {
+  const ticketDates = new Map<string, Set<string>>();
+  for (const p of predictions) {
+    if (!allowedTicketIds.has(p.ticket_id)) continue;
+    const mi = getMatchFromMap(matches, competitionId, Number(p.match_id));
+    if (!mi || Number(mi.competitionId) !== competitionId) continue;
+    const date = mi.dateBR;
+    if (!date) continue;
+    let set = ticketDates.get(p.ticket_id);
+    if (!set) {
+      set = new Set();
+      ticketDates.set(p.ticket_id, set);
+    }
+    set.add(date);
+  }
+  return ticketDates;
+}
+
+/** Cota entra no pool do dia: sem palpite ainda ou pelo menos um palpite nesta data. */
+function ticketEligibleForPlayDate(
+  ticketId: string,
+  poolPlayDate: string,
+  ticketPlayDates: Map<string, Set<string>>,
+): boolean {
+  const dates = ticketPlayDates.get(ticketId);
+  if (!dates || dates.size === 0) return true;
+  return dates.has(poolPlayDate);
+}
+
+/** Palpites do ticket neste campeonato → rodadas (`matches_cache.rodada`). */
+function buildTicketPlayRoundsByCompetition(
+  predictions: PredictionAggregateRow[],
+  matches: MatchMap,
+  allowedTicketIds: Set<string>,
+  competitionId: number,
+): Map<string, Set<number>> {
+  const ticketRounds = new Map<string, Set<number>>();
+  for (const p of predictions) {
+    if (!allowedTicketIds.has(p.ticket_id)) continue;
+    const mi = getMatchFromMap(matches, competitionId, Number(p.match_id));
+    if (!mi || Number(mi.competitionId) !== competitionId) continue;
+    const rodada = mi.rodada;
+    if (rodada == null || !Number.isFinite(rodada) || rodada <= 0) continue;
+    let set = ticketRounds.get(p.ticket_id);
+    if (!set) {
+      set = new Set();
+      ticketRounds.set(p.ticket_id, set);
+    }
+    set.add(rodada);
+  }
+  return ticketRounds;
+}
+
+/** Extra: basta 1 palpite na rodada do pool (não precisa completar todos os jogos). */
+function ticketEligibleForExtraPool(
+  ticket: PaidTicketRow,
+  poolRodada: number,
+  ticketPlayRounds: Map<string, Set<number>>,
+): boolean {
+  const rounds = ticketPlayRounds.get(ticket.id);
+  if (rounds && rounds.size > 0) {
+    return rounds.has(poolRodada);
+  }
+  if (ticket.round_number != null && ticket.round_number > 0) {
+    return ticket.round_number === poolRodada;
+  }
+  return true;
+}
+
+function matchInExtraPool(
+  mi: MatchInfo | undefined,
+  poolRodada: number | null,
+  poolPlayDate: string,
+): boolean {
+  if (!mi) return false;
+  if (poolRodada != null && mi.rodada != null && mi.rodada > 0) {
+    return mi.rodada === poolRodada;
+  }
+  return mi.dateBR === poolPlayDate;
+}
+
+async function resolveExtraPoolRodada(
+  focusTicketId: string,
+  extraComp: number,
+  focusMatchIds: number[],
+  matches: MatchMap,
+): Promise<number | null> {
+  const pool = getPool();
+  const { rows } = await pool.query<{ round_number: number | null }>(
+    `SELECT round_number FROM tickets WHERE id = $1 LIMIT 1`,
+    [focusTicketId],
+  );
+  const ticketRound = rows[0]?.round_number;
+
+  if (ticketRound != null && Number.isFinite(ticketRound) && ticketRound > 0) {
+    const effective = await resolveEffectiveExtraRoundForTicket(extraComp, ticketRound, {
+      allowProviderCall: false,
+    });
+    return effective?.rodada ?? ticketRound;
+  }
+
+  const fromMatches = new Set<number>();
+  for (const mid of focusMatchIds) {
+    const mi = getMatchFromMap(matches, extraComp, mid);
+    if (mi?.rodada != null && mi.rodada > 0) fromMatches.add(mi.rodada);
+  }
+  if (fromMatches.size === 1) return [...fromMatches][0]!;
+  if (fromMatches.size > 1) return Math.max(...fromMatches);
+
+  const current = await resolveCurrentExtraRound(extraComp, { allowProviderCall: false });
+  return current?.rodada ?? null;
+}
+
 type PaidTicketRow = {
   id: string;
   user_id: string;
   ticket_type: "general" | "daily" | "extra";
   total_amount_cents: number;
   extra_championship_id?: number | null;
+  round_number?: number | null;
+  is_promo_bonus?: boolean;
+};
+
+type LoadPaidTicketsOpts = {
+  /** Cotas grátis (brinde) entram no ranking extra, mas não na receita do prêmio. */
+  includePromoBonus?: boolean;
 };
 
 const RANKING_REVALIDATE_SEC = Math.min(
@@ -236,32 +366,39 @@ export type LeaderboardBoardMeta = {
 
 async function loadPaidTickets(
   ticketType: "general" | "daily" | "extra",
-  extraChampionshipId?: number
+  extraChampionshipId?: number,
+  opts?: LoadPaidTicketsOpts,
 ): Promise<PaidTicketRow[]> {
   const pool = getPool();
+  const includePromo = opts?.includePromoBonus === true;
   if (ticketType === "extra" && extraChampionshipId != null) {
     const { rows } = await pool.query<{
       id: string;
       user_id: string;
       ticket_type: "extra";
       extra_championship_id: number | null;
+      round_number: number | null;
+      is_promo_bonus: boolean;
       total_amount_cents: string | number | null;
     }>(
       `SELECT t.id::text AS id, t.user_id::text AS user_id, t.ticket_type,
-              t.extra_championship_id,
+              t.extra_championship_id, t.round_number,
+              COALESCE(t.is_promo_bonus, false) AS is_promo_bonus,
               COALESCE(t.total_amount_cents, 0) AS total_amount_cents
        FROM tickets t
-       WHERE t.status = 'paid'
-         AND NOT COALESCE(t.is_promo_bonus, false)
+       WHERE t.status IN ('paid', 'approved')
          AND t.ticket_type = 'extra'
-         AND t.extra_championship_id = $1`,
-      [extraChampionshipId]
+         AND t.extra_championship_id = $1
+         AND ($2::boolean OR NOT COALESCE(t.is_promo_bonus, false))`,
+      [extraChampionshipId, includePromo],
     );
     return rows.map((r) => ({
       id: r.id,
       user_id: r.user_id,
       ticket_type: r.ticket_type,
       extra_championship_id: r.extra_championship_id,
+      round_number: r.round_number,
+      is_promo_bonus: Boolean(r.is_promo_bonus),
       total_amount_cents: Number(r.total_amount_cents ?? 0),
     }));
   }
@@ -274,7 +411,7 @@ async function loadPaidTickets(
     `SELECT t.id::text AS id, t.user_id::text AS user_id, t.ticket_type,
             COALESCE(t.total_amount_cents, 0) AS total_amount_cents
      FROM tickets t
-     WHERE t.status = 'paid'
+     WHERE t.status IN ('paid', 'approved')
        AND NOT COALESCE(t.is_promo_bonus, false)
        AND t.ticket_type = $1`,
     [ticketType]
@@ -284,13 +421,14 @@ async function loadPaidTickets(
     user_id: r.user_id,
     ticket_type: r.ticket_type,
     total_amount_cents: Number(r.total_amount_cents ?? 0),
+    is_promo_bonus: false,
   }));
 }
 
 export async function buildLeaderboardPrincipal(): Promise<{ rows: LeaderboardRow[]; meta: LeaderboardBoardMeta }> {
   const getCached = unstable_cache(
     async () => buildLeaderboardPrincipalUncached(),
-    ["leaderboard", "principal", "v5"],
+    ["leaderboard", "principal", "v6"],
     { revalidate: RANKING_REVALIDATE_SEC, tags: ["leaderboard"] }
   );
   return getCached();
@@ -304,8 +442,7 @@ async function buildLeaderboardPrincipalUncached(): Promise<{ rows: LeaderboardR
     listPredictionsAggregateByBolao("principal"),
   ]);
 
-  const ticketIdsWithPalpite = new Set(preds.map((p) => p.ticket_id));
-  const paidInPool = paidTickets.filter((t) => ticketIdsWithPalpite.has(t.id));
+  const paidInPool = paidTickets;
 
   const allowed = new Set(paidInPool.map((t) => t.id));
   const agg = aggregatePredictions(preds, matches, allowed, mainComp);
@@ -376,7 +513,7 @@ async function buildLeaderboardPrincipalUncached(): Promise<{ rows: LeaderboardR
 export async function buildLeaderboardDiarioForTicket(focusTicketId: string): Promise<{ rows: LeaderboardRow[]; meta: LeaderboardBoardMeta }> {
   const getCached = unstable_cache(
     async () => buildLeaderboardDiarioUncached(focusTicketId),
-    ["leaderboard", "diario", focusTicketId, "v5"],
+    ["leaderboard", "diario", focusTicketId, "v6"],
     { revalidate: RANKING_REVALIDATE_SEC, tags: ["leaderboard"] }
   );
   return getCached();
@@ -439,10 +576,15 @@ async function buildLeaderboardDiarioUncached(focusTicketId: string): Promise<{ 
 
   const agg = aggregatePredictions(cohortPreds, matches, allowedDailyIds, mainComp);
 
-  const ticketIdsInCohort = new Set(cohortPreds.map((p) => p.ticket_id));
+  const ticketPlayDates = buildTicketPlayDatesByCompetition(
+    allDiario,
+    matches,
+    allowedDailyIds,
+    mainComp,
+  );
 
   const sortedTickets = paidDaily
-    .filter((t) => ticketIdsInCohort.has(t.id))
+    .filter((t) => ticketEligibleForPlayDate(t.id, poolPlayDate, ticketPlayDates))
     .map((t) => {
       const a = agg.get(t.id);
       return {
@@ -518,7 +660,7 @@ export async function buildLeaderboardExtraForTicket(
 ): Promise<{ rows: LeaderboardRow[]; meta: LeaderboardBoardMeta }> {
   const getCached = unstable_cache(
     async () => buildLeaderboardExtraUncached(focusTicketId),
-    ["leaderboard", "extra", focusTicketId, "v3"],
+    ["leaderboard", "extra", focusTicketId, "v6"],
     { revalidate: RANKING_REVALIDATE_SEC, tags: ["leaderboard"] }
   );
   return getCached();
@@ -553,7 +695,7 @@ async function buildLeaderboardExtraUncached(
 
   const [matches, paidExtra, focusMatchIds, allExtra] = await Promise.all([
     fetchMatchesMap().catch(() => new Map<string, MatchInfo>()),
-    loadPaidTickets("extra", extraComp),
+    loadPaidTickets("extra", extraComp, { includePromoBonus: true }),
     listMatchIdsForTicketPredictions(focusTicketId),
     listPredictionsAggregateByBolao("extra"),
   ]);
@@ -574,21 +716,41 @@ async function buildLeaderboardExtraUncached(
     poolPlayDate = playable;
   }
 
+  const poolRodada = await resolveExtraPoolRodada(
+    focusTicketId,
+    extraComp,
+    focusMatchIds,
+    matches,
+  );
+
   const allowedExtraIds = new Set(paidExtra.map((t) => t.id));
 
   const cohortPreds = allExtra.filter((p) => {
     if (!allowedExtraIds.has(p.ticket_id)) return false;
     const mi = getMatchFromMap(matches, extraComp, Number(p.match_id));
     if (!mi || Number(mi.competitionId) !== extraComp) return false;
-    return mi.dateBR === poolPlayDate;
+    return matchInExtraPool(mi, poolRodada, poolPlayDate);
   });
 
   const agg = aggregatePredictions(cohortPreds, matches, allowedExtraIds, extraComp);
 
-  const ticketIdsInCohort = new Set(cohortPreds.map((p) => p.ticket_id));
+  const ticketPlayRounds = buildTicketPlayRoundsByCompetition(
+    allExtra,
+    matches,
+    allowedExtraIds,
+    extraComp,
+  );
 
   const sortedTickets = paidExtra
-    .filter((t) => ticketIdsInCohort.has(t.id))
+    .filter((t) =>
+      poolRodada != null
+        ? ticketEligibleForExtraPool(t, poolRodada, ticketPlayRounds)
+        : ticketEligibleForPlayDate(
+            t.id,
+            poolPlayDate,
+            buildTicketPlayDatesByCompetition(allExtra, matches, allowedExtraIds, extraComp),
+          ),
+    )
     .map((t) => {
       const a = agg.get(t.id);
       return {
@@ -632,7 +794,9 @@ async function buildLeaderboardExtraUncached(
   });
 
   const cohortTicketIds = new Set(sortedTickets.map((t) => t.ticketId));
-  const revenueCents = paidExtra.filter((t) => cohortTicketIds.has(t.id)).reduce((s, t) => s + t.total_amount_cents, 0);
+  const revenueCents = paidExtra
+    .filter((t) => cohortTicketIds.has(t.id) && !t.is_promo_bonus)
+    .reduce((s, t) => s + t.total_amount_cents, 0);
   const participantCount = sortedTickets.length;
   const poolCentsApprox = calculatePrizePoolCents(revenueCents);
 
@@ -657,6 +821,13 @@ async function buildLeaderboardExtraUncached(
       hasResultedMatchesInPool,
     },
   };
+}
+
+/** Para scripts de debug (fora do Next.js). */
+export async function buildLeaderboardExtraForTicketDebug(
+  focusTicketId: string,
+): Promise<{ rows: LeaderboardRow[]; meta: LeaderboardBoardMeta }> {
+  return buildLeaderboardExtraUncached(focusTicketId);
 }
 
 type UserLite = {

@@ -1,4 +1,10 @@
-import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
+import {
+  extraBolaoFallbackDisplayName,
+  getExtraBolaoHeroSideVariant,
+  type ExtraBolaoHeroSideVariant,
+} from "@/lib/boloes-extra-competition-branding";
+import { getFootballMainCompetitionId, parseExtraBolaoChampionshipIds } from "@/lib/boloes-extra-config";
+import { readCompetitionDisplayNamesFromDb } from "@/lib/competition-metadata-cache";
 import { getPool } from "@/lib/db";
 
 export type AdminAffiliateStats = {
@@ -172,6 +178,8 @@ export type AdminBolaoRankingRow = {
   userName: string | null;
   userEmail: string;
   ticketType: string;
+  extraChampionshipId: number | null;
+  isPromoBonus: boolean;
   groupDate: string | null;
   scorePoints: number;
   exactCount: number;
@@ -195,7 +203,24 @@ export type AdminDailyBolaoCard = {
   topRows: AdminBolaoRankingRow[];
 };
 
+export type AdminExtraBolaoCard = {
+  key: string;
+  championshipId: number;
+  displayName: string;
+  iconVariant: ExtraBolaoHeroSideVariant;
+  date: string;
+  ticketsCount: number;
+  playersCount: number;
+  totalPoints: number;
+  promoTicketsCount: number;
+  availableCount: number;
+  inUseCount: number;
+  finishedCount: number;
+  topRows: AdminBolaoRankingRow[];
+};
+
 export type AdminBoloesDashboardData = {
+  promoTicketsTotal: number;
   principal: {
     ticketsCount: number;
     playersCount: number;
@@ -203,8 +228,12 @@ export type AdminBoloesDashboardData = {
     ranking: AdminBolaoRankingRow[];
   };
   dailyCards: AdminDailyBolaoCard[];
+  extraCards: AdminExtraBolaoCard[];
   selectedDailyDate: string | null;
   selectedDailyRanking: AdminBolaoRankingRow[];
+  selectedExtraKey: string | null;
+  selectedExtraRanking: AdminBolaoRankingRow[];
+  selectedExtraCard: AdminExtraBolaoCard | null;
 };
 
 export async function getAdminAffiliateStats(): Promise<AdminAffiliateStats> {
@@ -251,15 +280,33 @@ function bolaoUsageStatus(row: Pick<AdminBolaoRankingRow, "predictionsCount" | "
   return "finished";
 }
 
-export async function getAdminBoloesDashboardData(selectedDailyDate?: string | null): Promise<AdminBoloesDashboardData> {
+export async function getAdminBoloesDashboardData(
+  selectedDailyDate?: string | null,
+  selectedExtraKey?: string | null,
+): Promise<AdminBoloesDashboardData> {
   const pool = getPool();
   const mainComp = getFootballMainCompetitionId();
+  const extraIds = parseExtraBolaoChampionshipIds();
+  const competitionLabels = await readCompetitionDisplayNamesFromDb(extraIds).catch(
+    () => ({} as Record<number, string>),
+  );
+
+  const promoCountResult = await pool.query<{ count: string }>(
+    `SELECT COUNT(*)::text AS count
+     FROM tickets
+     WHERE COALESCE(is_promo_bonus, false) = true
+       AND status IN ('paid', 'approved')`,
+  );
+  const promoTicketsTotal = Number(promoCountResult.rows[0]?.count ?? 0);
+
   const { rows } = await pool.query<{
     ticket_id: string;
     user_id: string;
     user_name: string | null;
     user_email: string;
     ticket_type: string;
+    extra_championship_id: number | null;
+    is_promo_bonus: boolean;
     group_date: string | null;
     score_points: string | number | null;
     exact_count: string | number | null;
@@ -341,6 +388,8 @@ export async function getAdminBoloesDashboardData(selectedDailyDate?: string | n
        u.name AS user_name,
        u.email AS user_email,
        t.ticket_type,
+       t.extra_championship_id,
+       COALESCE(t.is_promo_bonus, false) AS is_promo_bonus,
        tg.group_date,
        COALESCE(ps.score_points, 0) AS score_points,
        COALESCE(ps.exact_count, 0) AS exact_count,
@@ -375,6 +424,8 @@ export async function getAdminBoloesDashboardData(selectedDailyDate?: string | n
       userName: row.user_name,
       userEmail: row.user_email,
       ticketType: row.ticket_type,
+      extraChampionshipId: row.extra_championship_id,
+      isPromoBonus: Boolean(row.is_promo_bonus),
       groupDate: row.group_date,
       scorePoints: Number(row.score_points ?? 0),
       exactCount: Number(row.exact_count ?? 0),
@@ -388,13 +439,24 @@ export async function getAdminBoloesDashboardData(selectedDailyDate?: string | n
     };
   });
 
-  const principalRanking = rankBolaoRows(baseRows.filter((row) => row.ticketType === "general"));
+  const principalRanking = rankBolaoRows(
+    baseRows.filter((row) => row.ticketType === "general" && !row.isPromoBonus),
+  );
   const dailyGroups = new Map<string, Omit<AdminBolaoRankingRow, "position">[]>();
+  const extraGroups = new Map<string, Omit<AdminBolaoRankingRow, "position">[]>();
   for (const row of baseRows) {
-    if (row.ticketType !== "daily" || !row.groupDate) continue;
-    const group = dailyGroups.get(row.groupDate) ?? [];
-    group.push(row);
-    dailyGroups.set(row.groupDate, group);
+    if (row.ticketType === "daily" && row.groupDate) {
+      const group = dailyGroups.get(row.groupDate) ?? [];
+      group.push(row);
+      dailyGroups.set(row.groupDate, group);
+      continue;
+    }
+    if (row.ticketType === "extra" && row.groupDate && row.extraChampionshipId != null) {
+      const key = `${row.extraChampionshipId}:${row.groupDate}`;
+      const group = extraGroups.get(key) ?? [];
+      group.push(row);
+      extraGroups.set(key, group);
+    }
   }
 
   const dailyCards = Array.from(dailyGroups.entries())
@@ -424,7 +486,48 @@ export async function getAdminBoloesDashboardData(selectedDailyDate?: string | n
     ? rankBolaoRows(dailyGroups.get(selectedDailyDateSafe) ?? [])
     : [];
 
+  const extraCards = Array.from(extraGroups.entries())
+    .map(([key, groupRows]) => {
+      const championshipId = groupRows[0]?.extraChampionshipId ?? 0;
+      const date = groupRows[0]?.groupDate ?? "";
+      const displayName =
+        competitionLabels[championshipId] ?? extraBolaoFallbackDisplayName(championshipId);
+      const ranked = rankBolaoRows(groupRows);
+      return {
+        key,
+        championshipId,
+        displayName,
+        iconVariant: getExtraBolaoHeroSideVariant(championshipId, displayName),
+        date,
+        ticketsCount: groupRows.length,
+        playersCount: new Set(groupRows.map((row) => row.userId)).size,
+        totalPoints: groupRows.reduce((acc, row) => acc + row.scorePoints, 0),
+        promoTicketsCount: groupRows.filter((row) => row.isPromoBonus).length,
+        availableCount: groupRows.filter((row) => bolaoUsageStatus(row) === "available").length,
+        inUseCount: groupRows.filter((row) => bolaoUsageStatus(row) === "in_use").length,
+        finishedCount: groupRows.filter((row) => bolaoUsageStatus(row) === "finished").length,
+        topRows: ranked.slice(0, 3),
+      };
+    })
+    .sort((a, b) => {
+      if (a.displayName !== b.displayName) return a.displayName.localeCompare(b.displayName, "pt-BR");
+      const [ad, am, ay] = a.date.split("/").map(Number);
+      const [bd, bm, by] = b.date.split("/").map(Number);
+      return Date.UTC(by, bm - 1, bd) - Date.UTC(ay, am - 1, ad);
+    });
+
+  const selectedExtraKeySafe =
+    selectedExtraKey && extraGroups.has(selectedExtraKey)
+      ? selectedExtraKey
+      : extraCards[0]?.key ?? null;
+  const selectedExtraCard =
+    extraCards.find((card) => card.key === selectedExtraKeySafe) ?? null;
+  const selectedExtraRanking = selectedExtraKeySafe
+    ? rankBolaoRows(extraGroups.get(selectedExtraKeySafe) ?? [])
+    : [];
+
   return {
+    promoTicketsTotal,
     principal: {
       ticketsCount: principalRanking.length,
       playersCount: new Set(principalRanking.map((row) => row.userId)).size,
@@ -432,8 +535,12 @@ export async function getAdminBoloesDashboardData(selectedDailyDate?: string | n
       ranking: principalRanking,
     },
     dailyCards,
+    extraCards,
     selectedDailyDate: selectedDailyDateSafe,
     selectedDailyRanking,
+    selectedExtraKey: selectedExtraKeySafe,
+    selectedExtraRanking,
+    selectedExtraCard,
   };
 }
 

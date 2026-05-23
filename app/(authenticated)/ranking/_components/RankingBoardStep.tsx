@@ -58,7 +58,8 @@ export function RankingBoardStep({
   stats,
   provisionalNote,
   padTopThree,
-  rowsFourToTen,
+  rowsAfterPodium,
+  allRows,
   myRowsFooter,
   onBack,
   refreshClockMs,
@@ -76,7 +77,8 @@ export function RankingBoardStep({
     RankingBoardRow | null,
     RankingBoardRow | null,
   ];
-  rowsFourToTen: RankingBoardRow[];
+  rowsAfterPodium: RankingBoardRow[];
+  allRows: RankingBoardRow[];
   myRowsFooter: RankingBoardRow[];
   onBack: () => void;
   refreshClockMs?: number;
@@ -109,8 +111,10 @@ export function RankingBoardStep({
                 provisionalNote ? <div className="mb-3">{provisionalNote}</div> : null
               }
               padTopThree={padTopThree}
-              rowsFourToTen={rowsFourToTen}
+              rowsAfterPodium={rowsAfterPodium}
+              allRows={allRows}
               myRowsFooter={myRowsFooter}
+              totalCount={rows.length}
             />
           )}
 

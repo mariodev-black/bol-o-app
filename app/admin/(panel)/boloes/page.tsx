@@ -1,96 +1,157 @@
 import { AdminPageTitle } from "@/app/admin/_components/AdminShell";
+import { AdminBolaoDashboardCard } from "@/app/admin/(panel)/boloes/_components/AdminBolaoDashboardCard";
 import { getAdminBoloesDashboardData } from "@/lib/admin/sections";
-import Link from "next/link";
+import { Gift, Layers, Ticket, Trophy, Users } from "lucide-react";
 
 export default async function AdminBoloesPage() {
   const data = await getAdminBoloesDashboardData();
+
+  const totalPaidTickets =
+    data.principal.ticketsCount +
+    data.dailyCards.reduce((s, c) => s + c.ticketsCount, 0) +
+    data.extraCards.reduce((s, c) => s + c.ticketsCount, 0);
 
   return (
     <>
       <AdminPageTitle
         title="Bolões apostados"
-        subtitle="Bolão principal e bolões diários com apostas. Clique em um card para abrir o ranking detalhado."
+        subtitle="Visão por tipo de bolão com logos, métricas e cotas gratuitas resgatadas no brinde."
       />
 
-      <section className="rounded-[18px] border border-white/8 bg-[#101010] p-4">
-        <div className="mb-4">
-          <h2 className="text-[15px] font-black text-white">Todos os bolões</h2>
+      <section className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {[
+          { icon: Layers, label: "Cotas pagas", value: totalPaidTickets },
+          { icon: Gift, label: "Grátis resgatadas", value: data.promoTicketsTotal, accent: true },
+          { icon: Trophy, label: "Principal", value: data.principal.ticketsCount },
+          {
+            icon: Ticket,
+            label: "Extras",
+            value: data.extraCards.reduce((s, c) => s + c.ticketsCount, 0),
+          },
+        ].map(({ icon: Icon, label, value, accent }) => (
+          <div
+            key={label}
+            className={`rounded-[16px] border p-4 ${
+              accent ? "border-amber-400/25 bg-amber-400/8" : "border-white/8 bg-[#101010]"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Icon
+                className={`size-4 ${accent ? "text-amber-300" : "text-primary"}`}
+                strokeWidth={2.2}
+                aria-hidden
+              />
+              <p className="text-[10px] font-black uppercase tracking-[0.12em] text-white/38">{label}</p>
+            </div>
+            <p className="mt-2 text-[22px] font-black tabular-nums text-white">
+              {value.toLocaleString("pt-BR")}
+            </p>
+          </div>
+        ))}
+      </section>
+
+      <section className="space-y-6 rounded-[18px] border border-white/8 bg-[#101010] p-4 sm:p-5">
+        <div>
+          <h2 className="text-[15px] font-black text-white">Bolão principal</h2>
           <p className="mt-1 text-[12px] font-medium text-white/38">
-            Primeiro o bolão principal; ao lado e abaixo ficam os bolões diários existentes com cotas apostadas.
+            Copa do Mundo — ranking geral de cotas principais pagas.
           </p>
         </div>
+        <AdminBolaoDashboardCard
+          href="/admin/boloes/principal"
+          kind="principal"
+          eyebrow="FIFA World Cup"
+          title="Bolão principal"
+          subtitle="Ranking geral de cotas principais."
+          badge={`${data.principal.totalPoints.toLocaleString("pt-BR")} pts`}
+          stats={{
+            ticketsCount: data.principal.ticketsCount,
+            playersCount: data.principal.playersCount,
+            totalPoints: data.principal.totalPoints,
+          }}
+        />
+      </section>
 
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <Link
-            href="/admin/boloes/principal"
-            className="block rounded-[18px] border border-white/8 bg-white/3 p-5 transition-colors hover:border-primary/20 hover:bg-white/5 lg:col-span-1"
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-[12px] font-black uppercase tracking-[0.2em] text-primary">Principal</p>
-                <h3 className="mt-3 text-[20px] font-black leading-none tracking-[-0.04em] text-white sm:text-[24px]">Bolão principal</h3>
-                <p className="mt-2 text-[12px] font-bold text-white/38">Ranking geral de cotas principais.</p>
-              </div>
-              <span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-black text-primary">
-                Geral
-              </span>
-            </div>
-            <div className="mt-6 grid grid-cols-3 gap-2 text-center">
-              {[
-                ["Cotas", data.principal.ticketsCount],
-                ["Jogadores", data.principal.playersCount],
-                ["Pontos", data.principal.totalPoints],
-              ].map(([label, value]) => (
-                <div key={label} className="rounded-[12px] border border-white/8 bg-black/25 px-2 py-3">
-                  <p className="text-[12px] font-black uppercase text-white/30">{label}</p>
-                  <p className="mt-1 text-[16px] font-black text-white">{Number(value).toLocaleString("pt-BR")}</p>
-                </div>
-              ))}
-            </div>
-            <p className="mt-5 text-[12px] font-black uppercase tracking-[0.14em] text-primary">Abrir detalhes</p>
-          </Link>
-
-          <div className="grid gap-4 sm:grid-cols-2 lg:col-span-2">
-            {data.dailyCards.length ? data.dailyCards.map((card) => {
-              return (
-                <Link
-                  key={card.date}
-                  href={`/admin/boloes/diario?data=${encodeURIComponent(card.date)}`}
-                  className="block rounded-[18px] border border-white/8 bg-white/3 p-5 transition-colors hover:border-primary/20 hover:bg-white/5"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-[12px] font-black uppercase tracking-[0.2em] text-primary">Diário</p>
-                      <h3 className="mt-3 text-[22px] font-black leading-none tracking-[-0.04em] text-white">{card.date}</h3>
-                      <p className="mt-2 text-[12px] font-bold text-white/38">Bolão diário com apostas nesta data.</p>
-                    </div>
-                    <span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-black text-primary">
-                      {card.totalPoints} pts
-                    </span>
-                  </div>
-                  <div className="mt-5 grid grid-cols-3 gap-2 text-center">
-                    {[
-                      ["Cotas", card.ticketsCount],
-                      ["Jogadores", card.playersCount],
-                      ["Fim", card.finishedCount],
-                    ].map(([label, value]) => (
-                      <div key={label} className="rounded-[12px] border border-white/8 bg-black/25 px-2 py-3">
-                        <p className="text-[12px] font-black uppercase text-white/30">{label}</p>
-                        <p className="mt-1 text-[16px] font-black text-white">{Number(value).toLocaleString("pt-BR")}</p>
-                      </div>
-                    ))}
-                  </div>
-                  <p className="mt-5 text-[12px] font-black uppercase tracking-[0.14em] text-primary">Abrir detalhes</p>
-                </Link>
-              );
-            }) : (
-              <div className="rounded-[18px] border border-white/8 bg-white/3 p-6 text-center sm:col-span-2">
-                <p className="text-[14px] font-black text-white">Nenhum bolão diário encontrado</p>
-                <p className="mt-2 text-[12px] text-white/38">Quando houver cotas diárias pagas, elas aparecem aqui.</p>
-              </div>
-            )}
-          </div>
+      <section className="mt-4 space-y-4 rounded-[18px] border border-white/8 bg-[#101010] p-4 sm:p-5">
+        <div>
+          <h2 className="text-[15px] font-black text-white">Bolões diários</h2>
+          <p className="mt-1 text-[12px] font-medium text-white/38">
+            Uma data por card — cotas com jogos naquele dia.
+          </p>
         </div>
+        {data.dailyCards.length ? (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {data.dailyCards.map((card) => (
+              <AdminBolaoDashboardCard
+                key={card.date}
+                href={`/admin/boloes/diario?data=${encodeURIComponent(card.date)}`}
+                kind="daily"
+                eyebrow="Bolão do dia"
+                title={card.date}
+                subtitle="Palpites e ranking desta data."
+                badge={`${card.totalPoints.toLocaleString("pt-BR")} pts`}
+                stats={{
+                  ticketsCount: card.ticketsCount,
+                  playersCount: card.playersCount,
+                  finishedCount: card.finishedCount,
+                }}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-[16px] border border-dashed border-white/12 bg-white/2 px-6 py-10 text-center">
+            <Users className="mx-auto size-8 text-white/20" strokeWidth={1.75} aria-hidden />
+            <p className="mt-3 text-[14px] font-black text-white">Nenhum bolão diário</p>
+            <p className="mt-2 text-[12px] text-white/38">Cotas diárias pagas aparecem aqui.</p>
+          </div>
+        )}
+      </section>
+
+      <section className="mt-4 space-y-4 rounded-[18px] border border-white/8 bg-[#101010] p-4 sm:p-5">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-[15px] font-black text-white">Bolões extra</h2>
+            <p className="mt-1 text-[12px] font-medium text-white/38">
+              Brasileirão, Premier e outros campeonatos — inclui cotas do brinde grátis.
+            </p>
+          </div>
+          {data.promoTicketsTotal > 0 ? (
+            <p className="inline-flex items-center gap-2 rounded-full border border-amber-400/25 bg-amber-400/10 px-3 py-1.5 text-[11px] font-black text-amber-200">
+              <Gift className="size-3.5" strokeWidth={2.25} aria-hidden />
+              {data.promoTicketsTotal.toLocaleString("pt-BR")} cotas grátis no total
+            </p>
+          ) : null}
+        </div>
+        {data.extraCards.length ? (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {data.extraCards.map((card) => (
+              <AdminBolaoDashboardCard
+                key={card.key}
+                href={`/admin/boloes/extra?key=${encodeURIComponent(card.key)}`}
+                kind="extra"
+                extraVariant={card.iconVariant}
+                eyebrow="Bolão extra"
+                title={card.displayName}
+                subtitle={`Rodada / jogos em ${card.date}`}
+                badge={card.date}
+                stats={{
+                  ticketsCount: card.ticketsCount,
+                  playersCount: card.playersCount,
+                  finishedCount: card.finishedCount,
+                  promoTicketsCount: card.promoTicketsCount,
+                }}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-[16px] border border-dashed border-white/12 bg-white/2 px-6 py-10 text-center">
+            <Ticket className="mx-auto size-8 text-white/20" strokeWidth={1.75} aria-hidden />
+            <p className="mt-3 text-[14px] font-black text-white">Nenhum bolão extra</p>
+            <p className="mt-2 text-[12px] text-white/38">
+              Cotas extra pagas ou resgatadas no brinde aparecem aqui.
+            </p>
+          </div>
+        )}
       </section>
     </>
   );

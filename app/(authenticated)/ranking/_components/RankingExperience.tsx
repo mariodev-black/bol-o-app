@@ -295,7 +295,8 @@ export function RankingExperience() {
   }, []);
 
   const topThree = useMemo(() => rankingRows.slice(0, 3), [rankingRows]);
-  const rowsFourToTen = useMemo(() => rankingRows.slice(3, 10), [rankingRows]);
+  /** Tabela: apenas 4º ao 10º (pódio = top 3). */
+  const rowsAfterPodium = useMemo(() => rankingRows.slice(3, 10), [rankingRows]);
   const padTopThree = useMemo(
     () =>
       [topThree[0] ?? null, topThree[1] ?? null, topThree[2] ?? null] as const,
@@ -305,15 +306,18 @@ export function RankingExperience() {
     () => rankingRows.filter((r) => r.isMe),
     [rankingRows],
   );
-  const myRowsFooter = useMemo(() => {
-    const sorted = [...myRows].sort(
-      (a, b) =>
-        a.pos - b.pos || String(a.ticketId).localeCompare(String(b.ticketId)),
-    );
-    if (sorted.length === 0) return [];
-    if (sorted.length >= 2) return sorted;
-    return sorted[0]!.pos > 10 ? sorted : [];
-  }, [myRows]);
+  /** Cotas do usuário fora do top 10 — listadas abaixo da tabela. */
+  const myRowsFooter = useMemo(
+    () =>
+      [...myRows]
+        .filter((r) => r.pos > 10)
+        .sort(
+          (a, b) =>
+            a.pos - b.pos ||
+            String(a.ticketId).localeCompare(String(b.ticketId)),
+        ),
+    [myRows],
+  );
 
   const awaitingRankingScores = useMemo(() => {
     if (loadingBoard || rankingRows.length === 0) return false;
@@ -453,7 +457,8 @@ export function RankingExperience() {
             stats={stats}
             provisionalNote={provisionalRankingNote}
             padTopThree={padTopThree}
-            rowsFourToTen={rowsFourToTen}
+            rowsAfterPodium={rowsAfterPodium}
+            allRows={rankingRows}
             myRowsFooter={myRowsFooter}
             onBack={handleBackFromBoard}
             refreshClockMs={tick}
