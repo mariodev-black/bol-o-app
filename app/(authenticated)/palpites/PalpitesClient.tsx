@@ -3498,7 +3498,17 @@ function PalpitesPageContent({
 
   const jogosDisplayBase = jogosBase;
 
-  const hasEditableMatches = jogosDisplayBase.some((j) =>
+  /** Dia/rodada visível nas abas (Ontem/Hoje/…) — o rodapé só reflete este escopo. */
+  const jogosEscopoVisivel = useMemo(() => {
+    if (!hasBoloesFlow) return jogosDisplayBase;
+    return jogosDisplayBase.filter((j) => {
+      if (selectedRodada != null && j.rodada !== selectedRodada) return false;
+      if (selectedDate && j.dataBR !== selectedDate) return false;
+      return true;
+    });
+  }, [hasBoloesFlow, jogosDisplayBase, selectedRodada, selectedDate]);
+
+  const hasEditableMatches = jogosEscopoVisivel.some((j) =>
     isJogoEditavelParaPalpite(j, bolaoType),
   );
   const showPalpitesFooter =
@@ -3517,21 +3527,9 @@ function PalpitesPageContent({
     selectedRodada != null;
 
   const jogosEscopoSalvar = useMemo(() => {
-    return jogosDisplayBase.filter((j) => {
-      if (
-        filterPalpitesByDay &&
-        (j.rodada !== rodadaAtualSalvar || j.dataBR !== selectedDate)
-      ) {
-        return false;
-      }
-      return true;
-    });
-  }, [
-    jogosDisplayBase,
-    filterPalpitesByDay,
-    rodadaAtualSalvar,
-    selectedDate,
-  ]);
+    if (hasBoloesFlow) return jogosEscopoVisivel;
+    return jogosDisplayBase;
+  }, [hasBoloesFlow, jogosEscopoVisivel, jogosDisplayBase]);
 
   /** Palpites já salvos no dia/escopo visível (não no ticket inteiro). */
   const hasSavedPalpitesOnScope = useMemo(
