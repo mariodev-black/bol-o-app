@@ -90,8 +90,14 @@ export function computeBolaoDisplayPhase(input: {
   const allFinished =
     scope.length > 0 && scope.every((m) => isBolaoMatchFinished(m));
 
-  if (input.dailyStatus === "usado" || allFinished) {
+  if (allFinished) {
     return "finalizado";
+  }
+
+  // `dailyStatus: usado` é legado por data; não finaliza se ainda há jogo aberto no escopo (ex.: extra por rodada).
+  if (input.dailyStatus === "usado") {
+    const anyUnfinished = scope.some((m) => !isBolaoMatchFinished(m));
+    if (!anyUnfinished) return "finalizado";
   }
 
   const anyInPlay = scope.some((m) => {

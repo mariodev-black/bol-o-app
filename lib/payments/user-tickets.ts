@@ -1,4 +1,8 @@
 import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
+import {
+  isExtraTicketByRound,
+  paidTicketExtraRoundNumber,
+} from "@/lib/boloes/ticket-match-scope";
 import { getPool } from "@/lib/db";
 import { brToday, minBrDate, resolveDiarioPlayableDate, utcMsForBrDate } from "@/lib/diario-playable-date";
 import { fetchMatchesMap, getMatchFromMap, type MatchMap } from "@/lib/football-api";
@@ -11,6 +15,8 @@ export type PaidTicketRow = {
   paidAt: string | null;
   createdAt: string;
   extraChampionshipId?: number | null;
+  /** Bolão extra por rodada (`tickets.round_number`). */
+  extraRoundNumber?: number | null;
   dailyStatus?: "disponivel" | "em_uso" | "usado";
   playDate?: string | null;
   availableGames?: number;
@@ -62,11 +68,12 @@ export async function listPaidTicketsForUser(userId: string): Promise<PaidTicket
         id: string;
         ticket_type: "general" | "daily" | "extra";
         extra_championship_id: number | null;
+        round_number: number | null;
         quantity: number;
         paid_at: Date | null;
         created_at: Date;
       }>(
-        `SELECT id, ticket_type, extra_championship_id, quantity, paid_at, created_at
+        `SELECT id, ticket_type, extra_championship_id, round_number, quantity, paid_at, created_at
          FROM tickets
          WHERE user_id = $1 AND status = 'paid'
          ORDER BY COALESCE(paid_at, created_at) DESC NULLS LAST, created_at DESC`,
@@ -79,6 +86,13 @@ export async function listPaidTicketsForUser(userId: string): Promise<PaidTicket
       id: r.id,
       ticketType: r.ticket_type,
       extraChampionshipId: r.ticket_type === "extra" ? r.extra_championship_id : null,
+      extraRoundNumber:
+        r.ticket_type === "extra" &&
+        r.round_number != null &&
+        Number.isFinite(Number(r.round_number)) &&
+        Number(r.round_number) > 0
+          ? Number(r.round_number)
+          : null,
       quantity: Math.max(1, r.quantity),
       paidAt: r.paid_at ? r.paid_at.toISOString() : null,
       createdAt: r.created_at.toISOString(),
@@ -146,29 +160,56 @@ export async function listPaidTicketsForUser(userId: string): Promise<PaidTicket
           ? openMatchesDefaultLock.filter((m) => m.competitionId === scopeComp)
           : openMatchesExtraLock.filter((m) => m.competitionId === scopeComp);
       const playableDate = resolveDiarioPlayableDate(matchMap, { competitionId: scopeComp });
+      const extraRound = paidTicketExtraRoundNumber(t);
+
+      const openInTicketScope = (om: OpenMatch): boolean => {
+        if (extraRound == null) return om.dateBR === playableDate;
+        const m = getMatchFromMap(matchMap, scopeComp, om.matchId);
+        return m != null && Number(m.rodada) === extraRound;
+      };
 
       if (palpitesCount === 0) {
-        const availableGames = scopeOpen.filter((m) => m.dateBR === playableDate).length;
+        const availableGames = scopeOpen.filter(openInTicketScope).length;
         return { ...t, dailyStatus: "disponivel" as const, playDate: playableDate, availableGames, palpitesCount: 0 };
       }
 
       const predictedIds = new Set<number>(ticketPreds.map((p) => Number(p.match_id)).filter(Number.isFinite));
       const matchDates = new Set<string>();
-      let allFinished = true;
+      let allPredictedFinished = true;
       for (const p of ticketPreds) {
         const m = getMatchFromMap(matchMap, scopeComp, Number(p.match_id));
         if (m?.dateBR) matchDates.add(m.dateBR);
         const finished = m ? isFinishedStatus(m.status) || (m.resultCasa != null && m.resultVisitante != null) : true;
-        if (!finished) allFinished = false;
+        if (!finished) allPredictedFinished = false;
       }
+
+      let dailyStatus: NonNullable<PaidTicketRow["dailyStatus"]>;
+      if (isExtraTicketByRound(t)) {
+        const roundMatches = Array.from(matchMap.values()).filter(
+          (m) =>
+            (Number(m.competitionId) || scopeComp) === scopeComp &&
+            Number(m.rodada) === extraRound,
+        );
+        const allRoundFinished =
+          roundMatches.length > 0 &&
+          roundMatches.every(
+            (m) =>
+              isFinishedStatus(m.status) ||
+              (m.resultCasa != null && m.resultVisitante != null),
+          );
+        dailyStatus = allRoundFinished ? "usado" : "em_uso";
+      } else {
+        const predDate = minBrDate(matchDates);
+        const predMinMs = predDate ? utcMsForBrDate(predDate) : null;
+        const todayCalMs = utcMsForBrDate(today);
+        const usedByDate = predMinMs != null && todayCalMs != null && predMinMs < todayCalMs;
+        dailyStatus = allPredictedFinished || usedByDate ? "usado" : "em_uso";
+      }
+
       const predDate = minBrDate(matchDates);
-      const predMinMs = predDate ? utcMsForBrDate(predDate) : null;
-      const todayCalMs = utcMsForBrDate(today);
-      const usedByDate = predMinMs != null && todayCalMs != null && predMinMs < todayCalMs;
-      const dailyStatus: NonNullable<PaidTicketRow["dailyStatus"]> = allFinished || usedByDate ? "usado" : "em_uso";
       const targetDate = predDate ?? playableDate;
       const availableGames = scopeOpen
-        .filter((m) => m.dateBR === targetDate)
+        .filter(openInTicketScope)
         .reduce((acc, m) => (predictedIds.has(m.matchId) ? acc : acc + 1), 0);
       return { ...t, dailyStatus, playDate: targetDate, availableGames, palpitesCount };
     });

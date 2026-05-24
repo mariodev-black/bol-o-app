@@ -30,7 +30,11 @@ import {
   bolaoDisplayStatusMeta,
   computeBolaoDisplayPhase,
 } from "@/lib/boloes/display-status";
-import { extraBolaoCurrentRoundsByChampionship } from "@/lib/ticket-shop-extra-rounds";
+import { scopeMatchesForPaidTicket } from "@/lib/boloes/ticket-match-scope";
+import {
+  extraBolaoCurrentRoundsByChampionship,
+  type ExtraBolaoRoundInfo,
+} from "@/lib/ticket-shop-extra-rounds";
 
 function extraBolaoDisplayTitle(
   championshipId: number,
@@ -163,50 +167,9 @@ function shortTicketId(id: string): string {
 }
 
 function totalMatchesForTicket(ticket: PaidTicketRow, matches: MatchMap): number {
-  const mainComp = getFootballMainCompetitionId();
-  if (ticket.ticketType === "daily") {
-    const date = ticket.playDate || resolveDiarioPlayableDate(matches, { competitionId: mainComp });
-    return Array.from(matches.values()).filter(
-      (m) =>
-        m.dateBR === date &&
-        (Number(m.competitionId) || mainComp) === mainComp &&
-        !isFinishedStatus(m.status),
-    ).length;
-  }
-  if (ticket.ticketType === "extra") {
-    const comp = Number(ticket.extraChampionshipId);
-    if (!Number.isFinite(comp) || comp <= 0) return 0;
-    const date = ticket.playDate || resolveDiarioPlayableDate(matches, { competitionId: comp });
-    return Array.from(matches.values()).filter(
-      (m) =>
-        m.dateBR === date &&
-        (Number(m.competitionId) || comp) === comp &&
-        !isFinishedStatus(m.status),
-    ).length;
-  }
-  return Array.from(matches.values()).filter((match) => !isFinishedStatus(match.status)).length;
-}
-
-function scopeMatchesForTicket(ticket: PaidTicketRow, matches: MatchMap): MatchInfo[] {
-  const mainComp = getFootballMainCompetitionId();
-  if (ticket.ticketType === "general") {
-    return Array.from(matches.values()).filter(
-      (m) => (Number(m.competitionId) || mainComp) === mainComp,
-    );
-  }
-  if (ticket.ticketType === "daily") {
-    const date = ticket.playDate || resolveDiarioPlayableDate(matches, { competitionId: mainComp });
-    return Array.from(matches.values()).filter(
-      (m) =>
-        m.dateBR === date && (Number(m.competitionId) || mainComp) === mainComp,
-    );
-  }
-  const comp = Number(ticket.extraChampionshipId);
-  if (!Number.isFinite(comp) || comp <= 0) return [];
-  const date = ticket.playDate || resolveDiarioPlayableDate(matches, { competitionId: comp });
-  return Array.from(matches.values()).filter(
-    (m) => m.dateBR === date && (Number(m.competitionId) || comp) === comp,
-  );
+  return scopeMatchesForPaidTicket(ticket, matches).filter(
+    (m) => !isFinishedStatus(m.status),
+  ).length;
 }
 
 function bolaoStatusFromMetrics(
@@ -218,7 +181,7 @@ function bolaoStatusFromMetrics(
     sent: metrics.sent,
     total: metrics.total,
     available: metrics.available,
-    scopeMatches: scopeMatchesForTicket(ticket, matches),
+    scopeMatches: scopeMatchesForPaidTicket(ticket, matches),
     dailyStatus: ticket.dailyStatus ?? null,
   });
   const meta = bolaoDisplayStatusMeta(displayPhase);
@@ -322,7 +285,9 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
     listDistinctExtraPredictionTicketIds().catch(() => [] as string[]),
     warmCompetitionMetadataCache(configuredExtraIds).catch(() => ({}) as Record<number, string>),
     countParticipantsByBolaoType().catch(() => ({ principal: 0, diario: 0, extra: 0 })),
-    extraBolaoCurrentRoundsByChampionship(configuredExtraIds).catch(() => ({})),
+    extraBolaoCurrentRoundsByChampionship(configuredExtraIds).catch(
+      () => ({}) as Record<number, ExtraBolaoRoundInfo>,
+    ),
   ]);
 
   const ensureCompIds = competitionIdsEnsureFromPaidTickets(tickets);
@@ -525,16 +490,9 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
           : "Bolão extra";
       const title =
         safeComp > 0 ? extraBolaoDisplayTitle(safeComp, baseName, extraRounds) : baseName;
-      const date =
-        ticket.playDate ||
-        (safeComp > 0 ? resolveDiarioPlayableDate(matches, { competitionId: safeComp }) : playableDate);
-      const dateMatches = Array.from(matches.values()).filter(
-        (m) =>
-          m.dateBR === date &&
-          (safeComp <= 0 || (Number(m.competitionId) || safeComp) === safeComp),
-      );
+      const scopeMatches = scopeMatchesForPaidTicket(ticket, matches);
       const closeAt = nextLockMs(
-        dateMatches.filter((m) => isOpenMatch(m, PALPITE_LOCK_MS_EXTRA)),
+        scopeMatches.filter((m) => isOpenMatch(m, PALPITE_LOCK_MS_EXTRA)),
         PALPITE_LOCK_MS_EXTRA,
       );
       const { displayPhase, statusLabel } = bolaoStatusFromMetrics(ticket, metrics, matches);
@@ -554,7 +512,7 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
         status: legacyStatus as ActiveDailyStatus,
         displayPhase,
         statusLabel,
-        gamesCount: dateMatches.length,
+        gamesCount: scopeMatches.length,
         countdownLabel:
           displayPhase === "finalizado"
             ? "Encerrado"
@@ -700,12 +658,26 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
         closesAtMs: generalCloseAtMs,
       },
       extras: configuredExtraIds.map((championshipId) => {
-        const pd = resolveDiarioPlayableDate(matches, { competitionId: championshipId });
-        const dateMatches = Array.from(matches.values()).filter(
-          (m) =>
-            m.dateBR === pd && (Number(m.competitionId) || championshipId) === championshipId,
+        const roundInfo = extraRounds[championshipId];
+        const scopeMatches =
+          roundInfo != null
+            ? Array.from(matches.values()).filter(
+                (m) =>
+                  (Number(m.competitionId) || championshipId) === championshipId &&
+                  Number(m.rodada) === roundInfo.roundNumber,
+              )
+            : Array.from(matches.values()).filter((m) => {
+                const pd = resolveDiarioPlayableDate(matches, {
+                  competitionId: championshipId,
+                });
+                return (
+                  m.dateBR === pd &&
+                  (Number(m.competitionId) || championshipId) === championshipId
+                );
+              });
+        const openOnDate = scopeMatches.filter((m) =>
+          isOpenMatch(m, PALPITE_LOCK_MS_EXTRA),
         );
-        const openOnDate = dateMatches.filter((m) => isOpenMatch(m, PALPITE_LOCK_MS_EXTRA));
         const baseName =
           competitionLabels[championshipId] ??
           extraBolaoFallbackDisplayName(championshipId);
