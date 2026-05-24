@@ -308,30 +308,34 @@ function buildSimulatedBotStats(
     return statsFromPoints(poolKey, botIndex, 0, games, real);
   }
 
-  const leadBump = Math.floor(seededUnit(poolKey, 0, 50) * 3);
-
   let totalPoints: number;
 
   if (maxReal > 0) {
-    // Já há pontuação real: bots espelham o placar atual (sem multiplicar por progress de novo).
-    const spread = Math.max(
-      4,
-      Math.min(14, Math.floor(maxReal * 0.22) + 2 + Math.floor(seededUnit(poolKey, 9, 51) * 2)),
+    // Espelha o líder real (ex.: 40 pts) — top 10 fica logo acima, sem escada 44, 43, 42…
+    const spread = Math.min(
+      6,
+      Math.max(3, Math.floor(maxReal * 0.1) + 3 + Math.floor(seededUnit(poolKey, 9, 51) * 2)),
     );
-    const topPts = maxReal + leadBump + (maxReal > real.p75Points ? 1 : 0);
+    const topPts = maxReal + Math.floor(seededUnit(poolKey, 0, 50) * 2);
     const bottomPts = Math.max(
       real.tenthRealPoints + 1,
-      maxReal - spread,
-      Math.ceil(maxReal * 0.85),
+      topPts - spread,
     );
-    const rankT = botIndex / Math.max(1, RANKING_TOP10_BOT_COUNT - 1);
-    totalPoints = Math.round(topPts - (topPts - bottomPts) * rankT);
 
-    const minForBot = Math.max(
-      maxReal + 1 - botIndex,
-      real.tenthRealPoints + 1 + Math.max(0, 9 - botIndex - 1),
-    );
-    totalPoints = Math.max(totalPoints, minForBot);
+    const rankT = botIndex / Math.max(1, RANKING_TOP10_BOT_COUNT - 1);
+    const base = topPts - (topPts - bottomPts) * rankT;
+    const jitter = Math.floor(seededUnit(poolKey, botIndex, 55) * 3) - 1;
+    totalPoints = Math.round(base + jitter);
+    totalPoints = Math.min(topPts, Math.max(bottomPts, totalPoints));
+
+    if (botIndex === 0) {
+      totalPoints = Math.min(totalPoints, maxReal + 2);
+      totalPoints = Math.max(totalPoints, maxReal);
+    }
+    if (botIndex === RANKING_TOP10_BOT_COUNT - 1) {
+      totalPoints = Math.max(totalPoints, bottomPts);
+      totalPoints = Math.min(totalPoints, Math.max(bottomPts, maxReal - 1));
+    }
   } else {
     const topAtFull = Math.floor(games * 6 * 0.55);
     const bottomAtFull = Math.max(0, Math.floor(topAtFull * 0.45));
@@ -351,16 +355,22 @@ function clampBotsToRealPool(
   poolKey: string,
   games: number,
 ): void {
-  if (real.maxPoints <= 0) return;
+  if (real.maxPoints <= 0 || bots.length === 0) return;
 
-  const floorLast = Math.max(real.maxPoints, real.tenthRealPoints) + 1;
+  const capTop = real.maxPoints + 2;
+  const floorLast = Math.max(real.tenthRealPoints + 1, real.maxPoints - 6);
 
-  for (let i = 0; i < bots.length; i++) {
-    const minPts = Math.max(real.maxPoints + 1 + (9 - i), floorLast - (9 - i));
-    const bot = bots[i]!;
-    if (bot.totalPoints < minPts) {
-      Object.assign(bot, statsFromPoints(poolKey, i, minPts, games, real));
-    }
+  const first = bots[0]!;
+  if (first.totalPoints > capTop) {
+    Object.assign(first, statsFromPoints(poolKey, 0, capTop, games, real));
+  }
+
+  const last = bots[bots.length - 1]!;
+  if (last.totalPoints < floorLast) {
+    Object.assign(
+      last,
+      statsFromPoints(poolKey, bots.length - 1, floorLast, games, real),
+    );
   }
 }
 
@@ -379,7 +389,8 @@ function enforceBotLeaderboardOrder(
     const prev = bots[i - 1]!;
     const cur = bots[i]!;
     if (cur.totalPoints >= prev.totalPoints) {
-      const nextPts = Math.max(0, prev.totalPoints - 1);
+      const step = seededUnit(poolKey, i, 60) > 0.55 ? 2 : 1;
+      const nextPts = Math.max(0, prev.totalPoints - step);
       Object.assign(cur, statsFromPoints(poolKey, i, nextPts, games, real));
     }
   }
