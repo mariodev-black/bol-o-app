@@ -8,12 +8,45 @@ const LEGACY_FILLER_TICKET_PREFIX = "ranking-filler-ticket:";
 
 export const RANKING_TOP10_BOT_COUNT = 10;
 
+/** Referência do bolão real para calibrar pontos e acertos dos bots. */
+export type RealPoolSnapshot = {
+  maxPoints: number;
+  maxOutcomeCount: number;
+  maxExactCount: number;
+  maxGoalsCount: number;
+  p75Points: number;
+};
+
 export type RankingBotPoolContext = {
   hasResultedMatches: boolean;
   estimatedGamesInPool?: number;
   finishedGamesInPool?: number;
   liveGamesInPool?: number;
+  realPool?: RealPoolSnapshot;
 };
+
+function summarizeRealPool(realRows: LeaderboardRow[]): RealPoolSnapshot {
+  if (realRows.length === 0) {
+    return {
+      maxPoints: 0,
+      maxOutcomeCount: 0,
+      maxExactCount: 0,
+      maxGoalsCount: 0,
+      p75Points: 0,
+    };
+  }
+  const sorted = [...realRows].sort((a, b) => b.totalPoints - a.totalPoints);
+  const top = sorted[0]!;
+  const p75Idx = Math.min(sorted.length - 1, Math.floor(sorted.length * 0.25));
+  const p75 = sorted[p75Idx]!;
+  return {
+    maxPoints: top.totalPoints,
+    maxOutcomeCount: top.outcomeCount,
+    maxExactCount: top.exactCount,
+    maxGoalsCount: top.goalsCount,
+    p75Points: p75.totalPoints,
+  };
+}
 
 /** Nomes completos fictícios — mistura de perfis para o top 10 simulado. */
 const SIMULATED_FULL_NAMES = [
@@ -173,11 +206,16 @@ function poolScoringProgress(ctx: RankingBotPoolContext): number {
   return Math.min(1, (finished + live * liveWeight) / total);
 }
 
+/**
+ * Decompõe pontos como no bolão (6 exato, 3–4 resultado, 1–2 gols).
+ * Mantém acertos coerentes com a pontuação e com o líder real.
+ */
 function statsFromPoints(
   poolKey: string,
   botIndex: number,
   totalPoints: number,
   games: number,
+  realPool?: RealPoolSnapshot,
 ): Pick<
   LeaderboardRow,
   "totalPoints" | "exactCount" | "outcomeCount" | "goalsCount" | "bestStreak"
@@ -192,24 +230,55 @@ function statsFromPoints(
     };
   }
 
-  const exactCount =
-    totalPoints >= 9
-      ? Math.min(3, Math.floor(seededUnit(poolKey, botIndex, 20) * 3) + 1)
-      : totalPoints >= 4 && seededUnit(poolKey, botIndex, 21) > 0.5
-        ? 1
-        : 0;
+  let rem = totalPoints;
+  let exactCount = 0;
+  while (rem >= 6 && exactCount < games) {
+    exactCount += 1;
+    rem -= 6;
+  }
 
-  const outcomeCount = Math.max(
-    exactCount,
-    Math.min(games, exactCount + Math.floor(seededUnit(poolKey, botIndex, 22) * 5) + 2),
-  );
-  const goalsCount = Math.max(
-    outcomeCount,
-    outcomeCount + Math.floor(seededUnit(poolKey, botIndex, 23) * 4),
-  );
+  let partialHits = 0;
+  while (rem >= 3 && exactCount + partialHits < games) {
+    const chunk =
+      rem >= 4 && seededUnit(poolKey, botIndex, 25) > 0.38 ? 4 : 3;
+    if (rem < chunk) break;
+    rem -= chunk;
+    partialHits += 1;
+  }
+
+  let outcomeCount = exactCount + partialHits;
+  if (rem > 0 && outcomeCount < games) {
+    outcomeCount += 1;
+    rem = 0;
+  }
+
+  let goalsCount = outcomeCount + (rem > 0 ? 1 : 0);
+  goalsCount = Math.min(games + 2, Math.max(outcomeCount, goalsCount));
+
+  if (realPool && realPool.maxPoints > 0) {
+    const ratio = Math.min(1.15, totalPoints / realPool.maxPoints);
+    const maxOutcome = Math.min(
+      games,
+      Math.max(exactCount, Math.ceil(realPool.maxOutcomeCount * ratio)),
+    );
+    const maxExact = Math.min(
+      games,
+      Math.max(0, Math.ceil(realPool.maxExactCount * ratio)),
+    );
+    exactCount = Math.min(exactCount, maxExact);
+    outcomeCount = Math.min(Math.max(exactCount, outcomeCount), maxOutcome);
+    goalsCount = Math.min(
+      Math.max(outcomeCount, realPool.maxGoalsCount),
+      Math.max(goalsCount, outcomeCount),
+    );
+  }
+
   const bestStreak = Math.min(
     outcomeCount,
-    Math.max(exactCount > 0 ? 1 : 0, Math.floor(seededUnit(poolKey, botIndex, 24) * 4) + 1),
+    Math.max(
+      exactCount > 0 ? 1 : 0,
+      Math.floor(seededUnit(poolKey, botIndex, 24) * Math.min(4, outcomeCount)) + 1,
+    ),
   );
 
   return { totalPoints, exactCount, outcomeCount, goalsCount, bestStreak };
@@ -225,35 +294,70 @@ function buildSimulatedBotStats(
 > {
   const games = Math.max(1, Math.min(20, ctx.estimatedGamesInPool ?? 10));
   const progress = poolScoringProgress(ctx);
+  const real = ctx.realPool ?? summarizeRealPool([]);
+  const maxReal = real.maxPoints;
 
   if (!ctx.hasResultedMatches && progress <= 0) {
-    return statsFromPoints(poolKey, botIndex, 0, games);
+    return statsFromPoints(poolKey, botIndex, 0, games, real);
   }
 
-  const maxPerGame = 3;
-  const poolCap = games * maxPerGame;
-  const rankBias = (RANKING_TOP10_BOT_COUNT - 1 - botIndex) / RANKING_TOP10_BOT_COUNT;
-  const fullTarget = Math.floor(
-    poolCap * (0.55 + rankBias * 0.4) + seededUnit(poolKey, botIndex, 3) * 4,
+  const leadBump = Math.floor(seededUnit(poolKey, 0, 50) * 3);
+  const spread = Math.max(
+    3,
+    Math.min(18, Math.floor(maxReal * 0.4) + 3 + Math.floor(seededUnit(poolKey, 9, 51) * 2)),
   );
-  const minTarget = Math.max(0, fullTarget - 6);
-  const targetAtFull =
-    minTarget + Math.floor(seededUnit(poolKey, botIndex, 4) * (fullTarget - minTarget));
+
+  const topAtFull =
+    maxReal > 0
+      ? maxReal + leadBump + (maxReal > real.p75Points ? 1 : 0)
+      : Math.floor(games * 6 * 0.55);
+
+  const bottomAtFull =
+    maxReal > 0
+      ? Math.max(0, maxReal - spread)
+      : Math.max(0, Math.floor(topAtFull * 0.45));
+
+  const rankT = botIndex / Math.max(1, RANKING_TOP10_BOT_COUNT - 1);
+  const targetAtFull = Math.round(topAtFull - (topAtFull - bottomAtFull) * rankT);
 
   let totalPoints = Math.floor(targetAtFull * progress);
+  const poolCapAtProgress = Math.floor(games * 6 * progress);
+  totalPoints = Math.min(totalPoints, poolCapAtProgress);
 
-  if (progress > 0 && totalPoints < 1) {
-    totalPoints = 1;
+  if (maxReal > 0 && botIndex === 0 && progress > 0.08) {
+    const minTop = Math.max(
+      1,
+      Math.floor(maxReal * Math.min(1, progress * 1.05)) +
+        (progress >= 0.45 ? 1 : 0),
+    );
+    totalPoints = Math.max(totalPoints, minTop);
   }
 
-  if (progress > 0.05) {
-    totalPoints += Math.max(0, RANKING_TOP10_BOT_COUNT - 1 - botIndex);
+  if (maxReal > 0 && botIndex > 0) {
+    const maxBelowLeader = maxReal + leadBump;
+    const ceiling = Math.floor(maxBelowLeader - botIndex * 0.85);
+    totalPoints = Math.min(totalPoints, Math.max(0, ceiling));
   }
 
-  const maxAllowed = Math.floor(poolCap * progress) + RANKING_TOP10_BOT_COUNT;
-  totalPoints = Math.min(totalPoints, maxAllowed);
+  return statsFromPoints(poolKey, botIndex, totalPoints, games, real);
+}
 
-  return statsFromPoints(poolKey, botIndex, totalPoints, games);
+function enforceBotLeaderboardOrder(bots: LeaderboardRow[], poolKey: string): void {
+  bots.sort((a, b) => {
+    if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
+    return a.userId.localeCompare(b.userId);
+  });
+
+  const games = 20;
+  for (let i = 1; i < bots.length; i++) {
+    const prev = bots[i - 1]!;
+    const cur = bots[i]!;
+    if (cur.totalPoints >= prev.totalPoints) {
+      const nextPts = Math.max(0, prev.totalPoints - 1);
+      const stats = statsFromPoints(poolKey, i, nextPts, games, undefined);
+      Object.assign(cur, stats);
+    }
+  }
 }
 
 function generateTop10SimulatedBots(
@@ -278,10 +382,7 @@ function generateTop10SimulatedBots(
     });
   }
 
-  bots.sort((a, b) => {
-    if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
-    return a.userId.localeCompare(b.userId);
-  });
+  enforceBotLeaderboardOrder(bots, poolKey);
 
   return bots;
 }
@@ -333,7 +434,11 @@ export function mergeRankingWithBots(
   }
 
   const usedNames = new Set<string>();
-  const topBots = generateTop10SimulatedBots(poolKey, ctx, usedNames);
+  const ctxWithReal: RankingBotPoolContext = {
+    ...ctx,
+    realPool: ctx.realPool ?? summarizeRealPool(real),
+  };
+  const topBots = generateTop10SimulatedBots(poolKey, ctxWithReal, usedNames);
 
   const minList = rankingMinDisplayParticipants();
   const tailCount = Math.max(0, minList - RANKING_TOP10_BOT_COUNT - real.length);
