@@ -54,6 +54,11 @@ function summarizeRealPool(realRows: LeaderboardRow[]): RealPoolSnapshot {
   };
 }
 
+/** Menor pontuação permitida para qualquer bot (acima do top 10 real). */
+function botPointsFloor(real: RealPoolSnapshot): number {
+  return Math.max(real.maxPoints, real.tenthRealPoints) + 1;
+}
+
 /** Nomes completos fictícios — mistura de perfis para o top 10 simulado. */
 const SIMULATED_FULL_NAMES = [
   "Carlos Eduardo Oliveira",
@@ -316,31 +321,16 @@ function buildSimulatedBotStats(
   let totalPoints: number;
 
   if (maxReal > 0) {
-    // Espelha o líder real (ex.: 40 pts) — top 10 fica logo acima, sem escada 44, 43, 42…
-    const spread = Math.min(
-      6,
-      Math.max(3, Math.floor(maxReal * 0.1) + 3 + Math.floor(seededUnit(poolKey, 9, 51) * 2)),
-    );
-    const topPts = maxReal;
-    const bottomPts = Math.max(
-      real.tenthRealPoints + 1,
-      topPts - spread,
-      0,
-    );
-
-    const rankT = botIndex / Math.max(1, RANKING_TOP10_BOT_COUNT - 1);
-    const base = topPts - (topPts - bottomPts) * rankT;
-    const jitter = Math.floor(seededUnit(poolKey, botIndex, 55) * 3) - 1;
-    totalPoints = Math.round(base + jitter);
-    totalPoints = Math.min(topPts, Math.max(bottomPts, totalPoints));
-
+    const floor = botPointsFloor(real);
+    const ceiling = floor + (RANKING_TOP10_BOT_COUNT - 1);
+    totalPoints = floor + (RANKING_TOP10_BOT_COUNT - 1 - botIndex);
     if (botIndex === 0) {
-      totalPoints = Math.min(totalPoints, maxReal);
+      totalPoints = Math.min(
+        ceiling,
+        totalPoints + Math.floor(seededUnit(poolKey, 0, 55) * 2),
+      );
     }
-    if (botIndex === RANKING_TOP10_BOT_COUNT - 1) {
-      totalPoints = Math.max(totalPoints, bottomPts);
-      totalPoints = Math.min(totalPoints, Math.max(bottomPts, maxReal - 1));
-    }
+    totalPoints = Math.max(floor, Math.min(ceiling, totalPoints));
   } else {
     const topAtFull = Math.floor(games * 6 * 0.55);
     const bottomAtFull = Math.max(0, Math.floor(topAtFull * 0.45));
@@ -354,28 +344,29 @@ function buildSimulatedBotStats(
   return statsFromPoints(poolKey, botIndex, totalPoints, games, real);
 }
 
-function clampBotsToRealPool(
+function clampBotsAboveRealTop10(
   bots: LeaderboardRow[],
   real: RealPoolSnapshot,
   poolKey: string,
   games: number,
 ): void {
-  if (real.maxPoints <= 0 || bots.length === 0) return;
+  if (real.maxPoints <= 0 && real.tenthRealPoints <= 0) return;
+  if (bots.length === 0) return;
 
-  const capTop = real.maxPoints;
-  const floorLast = Math.max(real.tenthRealPoints + 1, real.maxPoints - 6);
+  const floor = botPointsFloor(real);
+  const ceiling = floor + (RANKING_TOP10_BOT_COUNT - 1);
 
-  const first = bots[0]!;
-  if (first.totalPoints > capTop) {
-    Object.assign(first, statsFromPoints(poolKey, 0, capTop, games, real));
-  }
+  bots.sort((a, b) => {
+    if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
+    return a.userId.localeCompare(b.userId);
+  });
 
-  const last = bots[bots.length - 1]!;
-  if (last.totalPoints < floorLast) {
-    Object.assign(
-      last,
-      statsFromPoints(poolKey, bots.length - 1, floorLast, games, real),
-    );
+  for (let i = 0; i < bots.length; i++) {
+    const target = Math.max(floor, ceiling - i);
+    const bot = bots[i]!;
+    if (bot.totalPoints !== target) {
+      Object.assign(bot, statsFromPoints(poolKey, i, target, games, real));
+    }
   }
 }
 
@@ -385,6 +376,8 @@ function enforceBotLeaderboardOrder(
   real: RealPoolSnapshot,
   games: number,
 ): void {
+  const floor = botPointsFloor(real);
+
   bots.sort((a, b) => {
     if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
     return a.userId.localeCompare(b.userId);
@@ -394,8 +387,8 @@ function enforceBotLeaderboardOrder(
     const prev = bots[i - 1]!;
     const cur = bots[i]!;
     if (cur.totalPoints >= prev.totalPoints) {
-      const step = seededUnit(poolKey, i, 60) > 0.55 ? 2 : 1;
-      const nextPts = Math.max(0, prev.totalPoints - step);
+      const step = 1;
+      const nextPts = Math.max(floor, prev.totalPoints - step);
       Object.assign(cur, statsFromPoints(poolKey, i, nextPts, games, real));
     }
   }
@@ -425,8 +418,8 @@ function generateTop10SimulatedBots(
     });
   }
 
-  clampBotsToRealPool(bots, real, poolKey, games);
   enforceBotLeaderboardOrder(bots, poolKey, real, games);
+  clampBotsAboveRealTop10(bots, real, poolKey, games);
 
   return bots;
 }
@@ -460,8 +453,8 @@ function generateTailBots(
 }
 
 /**
- * Bots preenchem vaga visual; quem tem mais pontos (real) sempre sobe no ranking.
- * Empate no topo: cotas reais ficam acima dos simulados.
+ * Principal, diário e extra: top 10 exibido = bots (pontos acima do top 10 real).
+ * Cotas reais começam no 11º; prêmios continuam só com participantes reais.
  */
 export function mergeRankingWithBots(
   realRows: LeaderboardRow[],
@@ -469,11 +462,10 @@ export function mergeRankingWithBots(
   ctx: RankingBotPoolContext,
 ): LeaderboardRow[] {
   const real = realRows.map((r) => ({ ...r, isFiller: false as const }));
+  const sortedReal = [...real].sort(compareLeaderboardEntries);
 
   if (!rankingBotsEnabled()) {
-    return [...real]
-      .sort(compareLeaderboardEntries)
-      .map((r, idx) => ({ ...r, pos: idx + 1 }));
+    return sortedReal.map((r, idx) => ({ ...r, pos: idx + 1 }));
   }
 
   const ctxWithReal: RankingBotPoolContext = {
@@ -486,6 +478,6 @@ export function mergeRankingWithBots(
   const tailCount = Math.max(0, minList - RANKING_TOP10_BOT_COUNT - real.length);
   const tailBots = generateTailBots(poolKey, tailCount);
 
-  const merged = [...real, ...topBots, ...tailBots].sort(compareLeaderboardEntries);
+  const merged = [...topBots, ...sortedReal, ...tailBots];
   return merged.map((r, idx) => ({ ...r, pos: idx + 1 }));
 }
