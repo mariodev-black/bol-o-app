@@ -174,12 +174,15 @@ export function rankingBotPoolKey(
   return extra ? `${mode}:${extra}` : mode;
 }
 
-function compareRealEntries(a: LeaderboardRow, b: LeaderboardRow): number {
+function compareLeaderboardEntries(a: LeaderboardRow, b: LeaderboardRow): number {
   if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
   if (b.exactCount !== a.exactCount) return b.exactCount - a.exactCount;
   if (b.outcomeCount !== b.outcomeCount) return b.outcomeCount - a.outcomeCount;
   if (b.goalsCount !== b.goalsCount) return b.goalsCount - a.goalsCount;
   if (b.bestStreak !== b.bestStreak) return b.bestStreak - a.bestStreak;
+  const aFiller = isRankingFillerRow(a);
+  const bFiller = isRankingFillerRow(b);
+  if (aFiller !== bFiller) return aFiller ? 1 : -1;
   return a.ticketId.localeCompare(b.ticketId);
 }
 
@@ -318,10 +321,11 @@ function buildSimulatedBotStats(
       6,
       Math.max(3, Math.floor(maxReal * 0.1) + 3 + Math.floor(seededUnit(poolKey, 9, 51) * 2)),
     );
-    const topPts = maxReal + Math.floor(seededUnit(poolKey, 0, 50) * 2);
+    const topPts = maxReal;
     const bottomPts = Math.max(
       real.tenthRealPoints + 1,
       topPts - spread,
+      0,
     );
 
     const rankT = botIndex / Math.max(1, RANKING_TOP10_BOT_COUNT - 1);
@@ -331,8 +335,7 @@ function buildSimulatedBotStats(
     totalPoints = Math.min(topPts, Math.max(bottomPts, totalPoints));
 
     if (botIndex === 0) {
-      totalPoints = Math.min(totalPoints, maxReal + 2);
-      totalPoints = Math.max(totalPoints, maxReal);
+      totalPoints = Math.min(totalPoints, maxReal);
     }
     if (botIndex === RANKING_TOP10_BOT_COUNT - 1) {
       totalPoints = Math.max(totalPoints, bottomPts);
@@ -359,7 +362,7 @@ function clampBotsToRealPool(
 ): void {
   if (real.maxPoints <= 0 || bots.length === 0) return;
 
-  const capTop = real.maxPoints + 2;
+  const capTop = real.maxPoints;
   const floorLast = Math.max(real.tenthRealPoints + 1, real.maxPoints - 6);
 
   const first = bots[0]!;
@@ -457,20 +460,20 @@ function generateTailBots(
 }
 
 /**
- * Sempre 10 jogadores simulados no topo; reais a partir do 11º.
- * Pontuação dos bots sobe conforme jogos encerram / estão ao vivo.
+ * Bots preenchem vaga visual; quem tem mais pontos (real) sempre sobe no ranking.
+ * Empate no topo: cotas reais ficam acima dos simulados.
  */
 export function mergeRankingWithBots(
   realRows: LeaderboardRow[],
   poolKey: string,
   ctx: RankingBotPoolContext,
 ): LeaderboardRow[] {
-  const real = [...realRows]
-    .map((r) => ({ ...r, isFiller: false as const }))
-    .sort(compareRealEntries);
+  const real = realRows.map((r) => ({ ...r, isFiller: false as const }));
 
   if (!rankingBotsEnabled()) {
-    return real.map((r, idx) => ({ ...r, pos: idx + 1 }));
+    return [...real]
+      .sort(compareLeaderboardEntries)
+      .map((r, idx) => ({ ...r, pos: idx + 1 }));
   }
 
   const ctxWithReal: RankingBotPoolContext = {
@@ -483,6 +486,6 @@ export function mergeRankingWithBots(
   const tailCount = Math.max(0, minList - RANKING_TOP10_BOT_COUNT - real.length);
   const tailBots = generateTailBots(poolKey, tailCount);
 
-  const merged = [...topBots, ...real, ...tailBots];
+  const merged = [...real, ...topBots, ...tailBots].sort(compareLeaderboardEntries);
   return merged.map((r, idx) => ({ ...r, pos: idx + 1 }));
 }

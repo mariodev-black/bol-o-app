@@ -552,7 +552,7 @@ async function loadPaidTickets(
 export async function buildLeaderboardPrincipal(): Promise<{ rows: LeaderboardRow[]; meta: LeaderboardBoardMeta }> {
   const getCached = unstable_cache(
     async () => buildLeaderboardPrincipalUncached(),
-    ["leaderboard", "principal", "v16-names-per-pool"],
+    ["leaderboard", "principal", "v17-real-over-bots"],
     { revalidate: RANKING_REVALIDATE_SEC, tags: ["leaderboard"] }
   );
   return getCached();
@@ -646,7 +646,7 @@ async function buildLeaderboardPrincipalUncached(): Promise<{ rows: LeaderboardR
 export async function buildLeaderboardDiarioForTicket(focusTicketId: string): Promise<{ rows: LeaderboardRow[]; meta: LeaderboardBoardMeta }> {
   const getCached = unstable_cache(
     async () => buildLeaderboardDiarioUncached(focusTicketId),
-    ["leaderboard", "diario", focusTicketId, "v16-names-per-pool"],
+    ["leaderboard", "diario", focusTicketId, "v17-real-over-bots"],
     { revalidate: RANKING_REVALIDATE_SEC, tags: ["leaderboard"] }
   );
   return getCached();
@@ -849,7 +849,7 @@ export async function buildLeaderboardExtraForTicket(
 
   const getCached = unstable_cache(
     async () => buildLeaderboardExtraForCompRoundUncached(extraComp, poolRodada),
-    ["leaderboard", "extra", String(extraComp), String(poolRodada), "v16-names-per-pool"],
+    ["leaderboard", "extra", String(extraComp), String(poolRodada), "v17-real-over-bots"],
     { revalidate: RANKING_REVALIDATE_SEC, tags: ["leaderboard"] },
   );
   return getCached();
