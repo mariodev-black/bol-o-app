@@ -10,6 +10,8 @@ export type RankingBoardRow = {
   bestStreak: number;
   avatarIndex: number;
   avatarUploadFilename: string | null;
+  /** Participante de preenchimento (não está neste bolão). */
+  isFiller?: boolean;
   isMe?: boolean;
 };
 
@@ -20,6 +22,8 @@ export type RankingBoardMeta = {
   nextPalpiteLockMs: number | null;
   approxPremiados: number;
   hasResultedMatchesInPool?: boolean;
+  /** Algum jogo do pool ao vivo — cliente pode atualizar o ranking com mais frequência. */
+  hasLiveMatchesInPool?: boolean;
 };
 
 export function emptyRankingBoardMeta(): RankingBoardMeta {
@@ -30,5 +34,6 @@ export function emptyRankingBoardMeta(): RankingBoardMeta {
     nextPalpiteLockMs: null,
     approxPremiados: 0,
     hasResultedMatchesInPool: false,
+    hasLiveMatchesInPool: false,
   };
 }

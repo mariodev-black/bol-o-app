@@ -37,7 +37,8 @@ type ResumoStats = {
   exatos: number;
 };
 
-const CACHE_MS = 45 * 1000;
+const CACHE_MS_DEFAULT = 45 * 1000;
+const CACHE_MS_LIVE = 12 * 1000;
 
 const boardCache = new Map<
   string,
@@ -79,10 +80,12 @@ export function RankingExperience() {
     setStepsModalOpen(true);
   }, []);
 
+  const livePollMs = meta?.hasLiveMatchesInPool ? 15_000 : 30_000;
+
   useEffect(() => {
-    const id = window.setInterval(() => setTick((t) => t + 1), 30_000);
+    const id = window.setInterval(() => setTick((t) => t + 1), livePollMs);
     return () => window.clearInterval(id);
-  }, []);
+  }, [livePollMs]);
 
   useEffect(() => {
     let cancelled = false;
@@ -137,6 +140,13 @@ export function RankingExperience() {
     return resumoQ;
   };
 
+  const boardUrlForScope = (scope: RankingScopeOption) =>
+    scope.mode === "principal"
+      ? "/api/ranking/board?mode=principal"
+      : scope.mode === "extra"
+        ? `/api/ranking/board?mode=extra&ticketId=${encodeURIComponent(scope.ticketId ?? "")}`
+        : `/api/ranking/board?mode=diario&ticketId=${encodeURIComponent(scope.ticketId ?? "")}`;
+
   const loadBoard = useCallback(async (scope: RankingScopeOption) => {
     const cacheKey = scope.key;
 
@@ -168,12 +178,7 @@ export function RankingExperience() {
       });
     };
 
-    const boardUrl =
-      scope.mode === "principal"
-        ? "/api/ranking/board?mode=principal"
-        : scope.mode === "extra"
-          ? `/api/ranking/board?mode=extra&ticketId=${encodeURIComponent(scope.ticketId ?? "")}`
-          : `/api/ranking/board?mode=diario&ticketId=${encodeURIComponent(scope.ticketId ?? "")}`;
+    const boardUrl = boardUrlForScope(scope);
 
     try {
       const resumoResp = await fetch(
@@ -192,7 +197,12 @@ export function RankingExperience() {
       const historicoPromise =
         resumo.palpites >= 1 ? loadHistorico() : Promise.resolve([]);
 
-      if (cached && Date.now() - cached.at < CACHE_MS) {
+      const cacheMs =
+        cached?.payload.meta?.hasLiveMatchesInPool === true
+          ? CACHE_MS_LIVE
+          : CACHE_MS_DEFAULT;
+
+      if (cached && Date.now() - cached.at < cacheMs) {
         setRankingRows(cached.payload.rows);
         setMeta(cached.payload.meta);
         setMatchResults(await historicoPromise);
@@ -239,6 +249,43 @@ export function RankingExperience() {
     }
   }, []);
 
+  const refreshBoardLive = useCallback(
+    async (scope: RankingScopeOption) => {
+      const boardUrl = boardUrlForScope(scope);
+      try {
+        const [boardResp, resumoResp] = await Promise.all([
+          fetch(boardUrl, { credentials: "include", cache: "no-store" }),
+          fetch(`/api/palpites/resumo?${buildResumoQuery(scope).toString()}`, {
+            credentials: "include",
+            cache: "no-store",
+          }),
+        ]);
+
+        const boardData = (await boardResp.json().catch(() => ({}))) as {
+          rows?: RankingBoardRow[];
+          meta?: RankingBoardMeta;
+        };
+        if (boardResp.ok && Array.isArray(boardData.rows)) {
+          const rows = boardData.rows;
+          const m = boardData.meta ?? emptyRankingBoardMeta();
+          setRankingRows(rows);
+          setMeta(m);
+          boardCache.set(scope.key, { at: Date.now(), payload: { rows, meta: m } });
+        }
+
+        const resumoData = (await resumoResp.json().catch(() => ({}))) as {
+          resumo?: ResumoStats;
+        };
+        if (resumoResp.ok && resumoData.resumo) {
+          setStats(resumoData.resumo);
+        }
+      } catch {
+        /* mantém último estado válido */
+      }
+    },
+    [],
+  );
+
   const fetchMatchHistorico = useCallback(
     async (scope: RankingScopeOption): Promise<RankingHistoricoRow[]> => {
       const historicoQ = buildResumoQuery(scope);
@@ -273,6 +320,11 @@ export function RankingExperience() {
     };
   }, [step, selectedScope, loadingBoard, stats.palpites, tick, fetchMatchHistorico]);
 
+  useEffect(() => {
+    if (step !== "board" || !selectedScope || tick === 0 || loadingBoard) return;
+    void refreshBoardLive(selectedScope);
+  }, [step, selectedScope, tick, loadingBoard, refreshBoardLive]);
+
   const handleSelectScope = useCallback(
     (scope: RankingScopeOption) => {
       setSelectedScope(scope);
@@ -303,7 +355,7 @@ export function RankingExperience() {
     [topThree],
   );
   const myRows = useMemo(
-    () => rankingRows.filter((r) => r.isMe),
+    () => rankingRows.filter((r) => r.isMe && !r.isFiller),
     [rankingRows],
   );
   /** Cotas do usuário fora do top 10 — listadas abaixo da tabela. */

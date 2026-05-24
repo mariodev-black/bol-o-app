@@ -4,6 +4,10 @@ import { buildLeaderboardDiarioForTicket, buildLeaderboardExtraForTicket, buildL
 import { getPool } from "@/lib/db";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+const NO_STORE = { "Cache-Control": "no-store, max-age=0" } as const;
 
 async function authUserId(request: NextRequest): Promise<string | null> {
   const token = request.cookies.get(sessionCookieName())?.value;
@@ -26,7 +30,7 @@ export async function GET(request: NextRequest) {
     if (mode === "principal") {
       const { rows, meta } = await buildLeaderboardPrincipal();
       const rowsWithMe = rows.map((r) => ({ ...r, isMe: r.userId === userId }));
-      return NextResponse.json({ rows: rowsWithMe, meta });
+      return NextResponse.json({ rows: rowsWithMe, meta }, { headers: NO_STORE });
     }
 
     if (mode === "diario" && ticketId) {
@@ -40,7 +44,7 @@ export async function GET(request: NextRequest) {
       }
       const { rows, meta } = await buildLeaderboardDiarioForTicket(ticketId);
       const rowsWithMe = rows.map((r) => ({ ...r, isMe: r.userId === userId }));
-      return NextResponse.json({ rows: rowsWithMe, meta });
+      return NextResponse.json({ rows: rowsWithMe, meta }, { headers: NO_STORE });
     }
 
     if (mode === "extra" && ticketId) {
@@ -54,7 +58,7 @@ export async function GET(request: NextRequest) {
       }
       const { rows, meta } = await buildLeaderboardExtraForTicket(ticketId);
       const rowsWithMe = rows.map((r) => ({ ...r, isMe: r.userId === userId }));
-      return NextResponse.json({ rows: rowsWithMe, meta });
+      return NextResponse.json({ rows: rowsWithMe, meta }, { headers: NO_STORE });
     }
 
     return NextResponse.json(

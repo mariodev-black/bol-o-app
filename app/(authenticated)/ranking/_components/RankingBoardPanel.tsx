@@ -10,6 +10,10 @@ import {
 } from "@/app/components/RankingTrophies";
 import { getAvatarPresetImage } from "@/lib/user/avatar-presets";
 import type { RankingBoardRow } from "@/lib/ranking/board-types";
+import {
+  isRankingFillerRow,
+  rankingFillerAvatarUserId,
+} from "@/lib/ranking/ranking-bots";
 
 const PRIMARY = "#B1EB0B";
 const CARD = "#101010";
@@ -21,17 +25,22 @@ function rankingTicketShortLabel(ticketId: string): string {
   return hex.slice(0, 6).toUpperCase();
 }
 
+function rankingRowsForTop10Gap(allRows: RankingBoardRow[]): RankingBoardRow[] {
+  return allRows.filter((r) => !isRankingFillerRow(r));
+}
+
 function pointsGapToTop10(
   row: RankingBoardRow,
   allRows: RankingBoardRow[],
 ): { gap: number; inTop10: boolean; tieAtTenth: boolean } {
-  if (row.pos <= 10) {
+  const realRows = rankingRowsForTop10Gap(allRows);
+  if (row.pos <= 10 && !isRankingFillerRow(row)) {
     return { gap: 0, inTop10: true, tieAtTenth: false };
   }
-  if (allRows.length < 10) {
+  if (realRows.length < 10) {
     return { gap: 0, inTop10: true, tieAtTenth: false };
   }
-  const tenth = allRows[9];
+  const tenth = realRows[9];
   if (!tenth) {
     return { gap: 0, inTop10: false, tieAtTenth: false };
   }
@@ -58,8 +67,10 @@ function PlayerAvatar({
 }) {
   const ring = isMe ? "ring-2 ring-primary/50" : "ring-1 ring-white/15";
 
+  const avatarUserId = rankingFillerAvatarUserId(userId);
+
   if (avatarUploadFilename) {
-    const src = `/api/public/avatar/${encodeURIComponent(userId)}?v=${encodeURIComponent(avatarUploadFilename)}`;
+    const src = `/api/public/avatar/${encodeURIComponent(avatarUserId)}?v=${encodeURIComponent(avatarUploadFilename)}`;
     return (
       <div
         className={`relative ${sizeClass} shrink-0 overflow-hidden rounded-full ${ring}`}
@@ -101,6 +112,7 @@ function PodiumCard({
   rank: 1 | 2 | 3;
   elevated: boolean;
 }) {
+  const filler = isRankingFillerRow(row);
   return (
     <div
       className={`flex min-w-0 flex-col items-stretch ${elevated ? "w-[34%] max-w-[132px] -translate-y-1" : "w-[30%] max-w-[118px]"}`}
@@ -131,11 +143,13 @@ function PodiumCard({
           <span className="truncate text-center text-[12px] font-black text-white min-[380px]:text-[13px]">
             {row.displayName}
           </span>
-          <Check
-            className="size-3 shrink-0 text-primary"
-            strokeWidth={3}
-            aria-hidden
-          />
+          {!filler ? (
+            <Check
+              className="size-3 shrink-0 text-primary"
+              strokeWidth={3}
+              aria-hidden
+            />
+          ) : null}
         </div>
         <p className="mt-2 text-[9px] font-black uppercase tracking-wide text-white/48">
           {row.outcomeCount} acertos
@@ -153,6 +167,7 @@ function PodiumCard({
 
 function RankingDataRow({ row }: { row: RankingBoardRow }) {
   const isMe = Boolean(row.isMe);
+  const filler = isRankingFillerRow(row);
   return (
     <div
       className="relative grid grid-cols-[40px_minmax(0,1fr)_64px_56px] items-center gap-1 border-b border-white/4 px-3 py-2.5 last:border-b-0"
@@ -187,11 +202,13 @@ function RankingDataRow({ row }: { row: RankingBoardRow }) {
         <span className="truncate text-[12px] font-black text-white">
           {row.displayName}
         </span>
-        <Check
-          className="size-3 shrink-0 text-primary"
-          strokeWidth={3}
-          aria-hidden
-        />
+        {!filler ? (
+          <Check
+            className="size-3 shrink-0 text-primary"
+            strokeWidth={3}
+            aria-hidden
+          />
+        ) : null}
       </div>
       <span className="text-right text-[12px] font-bold tabular-nums text-white/78">
         {row.outcomeCount}
