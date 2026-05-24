@@ -183,24 +183,26 @@ function compareRealEntries(a: LeaderboardRow, b: LeaderboardRow): number {
   return a.ticketId.localeCompare(b.ticketId);
 }
 
-function botDisplayName(
-  poolKey: string,
-  botIndex: number,
-  usedNames: Set<string>,
-): string {
-  const total = SIMULATED_FULL_NAMES.length;
-  for (let attempt = 0; attempt < total; attempt++) {
-    const idx = Math.floor(seededUnit(poolKey, botIndex, 1 + attempt) * total);
-    const name = SIMULATED_FULL_NAMES[idx]!;
-    const key = name.toLowerCase();
-    if (!usedNames.has(key)) {
-      usedNames.add(key);
-      return name;
-    }
+/**
+ * Conjunto de nomes exclusivo por bolão (`poolKey`), estável entre refreshes.
+ * Principal, diário (data) e extra (comp+rodada) nunca compartilham o mesmo top 10.
+ */
+function shuffledBotNamesForPool(poolKey: string, count: number): string[] {
+  if (count <= 0) return [];
+
+  const indices = SIMULATED_FULL_NAMES.map((_, i) => i);
+  indices.sort((a, b) => {
+    const ha = hashString(`${poolKey}|nome|${a}`);
+    const hb = hashString(`${poolKey}|nome|${b}`);
+    return ha - hb;
+  });
+
+  const names: string[] = [];
+  for (const idx of indices) {
+    names.push(SIMULATED_FULL_NAMES[idx]!);
+    if (names.length >= count) break;
   }
-  const fallback = SIMULATED_FULL_NAMES[botIndex % total]!;
-  usedNames.add(fallback.toLowerCase());
-  return fallback;
+  return names;
 }
 
 /** 0 = rodada não começou; 1 = todos os jogos encerrados (com peso ao vivo no meio). */
@@ -399,12 +401,12 @@ function enforceBotLeaderboardOrder(
 function generateTop10SimulatedBots(
   poolKey: string,
   ctx: RankingBotPoolContext,
-  usedNames: Set<string>,
 ): LeaderboardRow[] {
   const poolHash = hashString(poolKey);
   const bots: LeaderboardRow[] = [];
   const games = Math.max(1, Math.min(20, ctx.estimatedGamesInPool ?? 10));
   const real = ctx.realPool ?? summarizeRealPool([]);
+  const displayNames = shuffledBotNamesForPool(poolKey, RANKING_TOP10_BOT_COUNT);
 
   for (let i = 0; i < RANKING_TOP10_BOT_COUNT; i++) {
     const stats = buildSimulatedBotStats(poolKey, i, ctx);
@@ -412,7 +414,7 @@ function generateTop10SimulatedBots(
       pos: 0,
       ticketId: `${BOT_TICKET_PREFIX}${poolHash}:${i}`,
       userId: `${BOT_USER_PREFIX}${poolHash}:${i}`,
-      displayName: botDisplayName(poolKey, i, usedNames),
+      displayName: displayNames[i] ?? `Jogador ${i + 1}`,
       avatarIndex: clampAvatarIndex(Math.floor(seededUnit(poolKey, i, 30) * 5)),
       avatarUploadFilename: null,
       isFiller: true,
@@ -429,20 +431,19 @@ function generateTop10SimulatedBots(
 function generateTailBots(
   poolKey: string,
   count: number,
-  startIndex: number,
-  usedNames: Set<string>,
 ): LeaderboardRow[] {
   if (count <= 0) return [];
   const poolHash = hashString(poolKey);
   const rows: LeaderboardRow[] = [];
+  const displayNames = shuffledBotNamesForPool(`${poolKey}|tail`, count);
+
   for (let i = 0; i < count; i++) {
-    const idx = startIndex + i;
     rows.push({
       pos: 0,
-      ticketId: `${BOT_TICKET_PREFIX}${poolHash}:tail:${idx}`,
-      userId: `${BOT_USER_PREFIX}${poolHash}:tail:${idx}`,
-      displayName: botDisplayName(poolKey, idx + 20, usedNames),
-      avatarIndex: clampAvatarIndex(Math.floor(seededUnit(poolKey, idx, 31) * 5)),
+      ticketId: `${BOT_TICKET_PREFIX}${poolHash}:tail:${i}`,
+      userId: `${BOT_USER_PREFIX}${poolHash}:tail:${i}`,
+      displayName: displayNames[i] ?? `Jogador ${i + 1}`,
+      avatarIndex: clampAvatarIndex(Math.floor(seededUnit(poolKey, i, 31) * 5)),
       avatarUploadFilename: null,
       isFiller: true,
       totalPoints: 0,
@@ -472,16 +473,15 @@ export function mergeRankingWithBots(
     return real.map((r, idx) => ({ ...r, pos: idx + 1 }));
   }
 
-  const usedNames = new Set<string>();
   const ctxWithReal: RankingBotPoolContext = {
     ...ctx,
     realPool: ctx.realPool ?? summarizeRealPool(real),
   };
-  const topBots = generateTop10SimulatedBots(poolKey, ctxWithReal, usedNames);
+  const topBots = generateTop10SimulatedBots(poolKey, ctxWithReal);
 
   const minList = rankingMinDisplayParticipants();
   const tailCount = Math.max(0, minList - RANKING_TOP10_BOT_COUNT - real.length);
-  const tailBots = generateTailBots(poolKey, tailCount, RANKING_TOP10_BOT_COUNT, usedNames);
+  const tailBots = generateTailBots(poolKey, tailCount);
 
   const merged = [...topBots, ...real, ...tailBots];
   return merged.map((r, idx) => ({ ...r, pos: idx + 1 }));
