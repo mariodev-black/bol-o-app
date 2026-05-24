@@ -111,7 +111,7 @@ export function RankingScopeCard({
         <div className="mx-4 flex items-center gap-2.5 rounded-lg border border-white/8 bg-white/3 px-3 py-2.5">
           <ScopeStatusIcon option={option} />
           <p
-            className="text-[14px] font-black uppercase leading-tight tracking-[0.02em] min-[380px]:text-[15px]"
+            className="text-[15px] font-black uppercase leading-tight tracking-[0.02em] min-[380px]:text-[16px]"
             style={{ color: statusColor }}
           >
             {statusLabel}

@@ -92,9 +92,13 @@ export function scopeStatusIcon(option: {
 }): LucideIcon {
   if (option.status === "aguardando") return AlertTriangle;
   if (option.status === "encerrado") {
-    return option.statusLabel === "Bolão finalizado" ? Flag : CheckCircle2;
+    return option.statusLabel.toUpperCase().includes("FINALIZADO")
+      ? Flag
+      : CheckCircle2;
   }
-  return option.statusLabel === "Jogos em andamento" ? Activity : ClipboardList;
+  return option.statusLabel.toUpperCase().includes("DISPUTA")
+    ? Activity
+    : ClipboardList;
 }
 
 export function ScopeStatusIcon({

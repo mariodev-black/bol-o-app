@@ -23,6 +23,7 @@ import iconCopaMundo from "@/app/assets/icon-copa-mundo.png";
 import ticketBlue from "@/app/assets/Ticket-Blue.png";
 import {
   bolaoDisplayPhaseSortRank,
+  bolaoDisplayBadgeText,
   bolaoDisplayStatusMeta,
   type BolaoDisplayPhase,
 } from "@/lib/boloes/display-status";
@@ -487,10 +488,11 @@ function StatusPill({ phase }: { phase: BolaoDisplayPhase }) {
 
   return (
     <span
-      className="inline-flex max-w-full rounded-[5px] border px-2 py-0.5 text-[8px] font-black uppercase leading-tight tracking-[0.1em]"
+      className="inline-flex max-w-full rounded-[5px] border px-2.5 py-1 text-[10px] font-black uppercase leading-tight tracking-[0.05em] min-[380px]:text-[11px]"
       style={{ background: `${meta.tone}1A`, borderColor: `${meta.tone}50`, color: meta.tone }}
+      title={meta.label}
     >
-      {meta.shortLabel}
+      {bolaoDisplayBadgeText(phase)}
     </span>
   );
 }
@@ -979,11 +981,11 @@ function ShowcaseCardStatusBadge({ phase }: { phase: BolaoDisplayPhase }) {
 
   return (
     <span
-      className="inline-block max-w-full rounded-[6px] border px-2 py-1 text-[9px] font-black uppercase leading-tight tracking-[0.05em] min-[380px]:text-[10px]"
+      className="inline-block max-w-full whitespace-nowrap rounded-[6px] border px-2.5 py-1.5 text-[10px] font-black uppercase leading-tight tracking-[0.04em] min-[380px]:text-[11px]"
       style={{ background: `${meta.tone}1A`, borderColor: `${meta.tone}45`, color: meta.tone }}
       title={meta.label}
     >
-      {meta.shortLabel}
+      {bolaoDisplayBadgeText(phase)}
     </span>
   );
 }

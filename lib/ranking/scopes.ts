@@ -10,46 +10,31 @@ import {
   listPaidTicketsForUser,
   type PaidTicketRow,
 } from "@/lib/payments/user-tickets";
+import { getFootballMainCompetitionId, getSoleConfiguredExtraChampionshipId } from "@/lib/boloes-extra-config";
+import { fetchMatchesMap } from "@/lib/football-api";
 import {
   palpitesHrefForTicket,
   type RankingScopeOption,
-  type RankingScopeStatus,
 } from "@/lib/ranking/scopes-shared";
+import {
+  rankingScopeStatusForGeneralTickets,
+  rankingScopeStatusForTicket,
+} from "@/lib/ranking/scope-status";
 
 export type { RankingScopeOption, RankingScopeStatus } from "@/lib/ranking/scopes-shared";
 export { palpitesHrefForScope, palpitesHrefForTicket } from "@/lib/ranking/scopes-shared";
 
-function rankingScopeStatusFromTicket(
-  ticket: PaidTicketRow,
-): Pick<RankingScopeOption, "status" | "statusLabel"> {
-  const pending = (ticket.availableGames ?? 0) > 0;
-
-  if (ticket.ticketType === "general") {
-    return pending
-      ? { status: "ativa", statusLabel: "Palpites em aberto" }
-      : { status: "encerrado", statusLabel: "Sem palpites pendentes" };
+function competitionIdsEnsureFromPaidTickets(tickets: PaidTicketRow[]): number[] {
+  const sole = getSoleConfiguredExtraChampionshipId();
+  const mainComp = getFootballMainCompetitionId();
+  const out = new Set<number>([mainComp]);
+  for (const t of tickets) {
+    if (t.ticketType !== "extra") continue;
+    const c = Number(t.extraChampionshipId);
+    if (Number.isFinite(c) && c > 0) out.add(c);
+    else if (sole != null && sole > 0) out.add(sole);
   }
-
-  const daily = ticket.dailyStatus ?? "disponivel";
-  if (daily === "usado") {
-    return { status: "encerrado", statusLabel: "Bolão finalizado" };
-  }
-  if (daily === "em_uso") {
-    return pending
-      ? { status: "ativa", statusLabel: "Palpites em aberto" }
-      : { status: "ativa", statusLabel: "Jogos em andamento" };
-  }
-  // disponivel = cota sem palpites enviados — sempre orientar o usuário a apostar
-  return { status: "aguardando", statusLabel: "Aguardando seus palpites" };
-}
-
-function rankingScopeStatusFromGeneralTickets(
-  tickets: PaidTicketRow[],
-): Pick<RankingScopeOption, "status" | "statusLabel"> {
-  if (tickets.some((t) => (t.availableGames ?? 0) > 0)) {
-    return { status: "ativa", statusLabel: "Palpites em aberto" };
-  }
-  return { status: "encerrado", statusLabel: "Sem palpites pendentes" };
+  return [...out];
 }
 
 function shortId(id: string): string {
@@ -66,6 +51,10 @@ export async function buildRankingScopes(
 
   try {
     const tickets = await listPaidTicketsForUser(userId);
+    const ensureCompIds = competitionIdsEnsureFromPaidTickets(tickets);
+    const matches = await fetchMatchesMap({ ensureCompetitionIds: ensureCompIds }).catch(
+      () => new Map(),
+    );
     const general = tickets.filter((t) => t.ticketType === "general");
     const daily = tickets.filter((t) => t.ticketType === "daily");
     const extra = tickets.filter((t) => t.ticketType === "extra");
@@ -91,7 +80,7 @@ export async function buildRankingScopes(
         selectPrimary: "Bolão geral",
         selectSecondary: "Copa do Mundo 2026",
         extraChampionshipId: null,
-        ...rankingScopeStatusFromGeneralTickets(general),
+        ...rankingScopeStatusForGeneralTickets(general, matches),
         unusedPalpites: unused,
         pendingPalpitesCount,
         palpitesSentCount,
@@ -114,7 +103,7 @@ export async function buildRankingScopes(
         selectPrimary: "Bolão do dia",
         selectSecondary: date,
         extraChampionshipId: null,
-        ...rankingScopeStatusFromTicket(t),
+        ...rankingScopeStatusForTicket(t, matches),
         unusedPalpites: unused,
         pendingPalpitesCount,
         palpitesSentCount,
@@ -165,7 +154,16 @@ export async function buildRankingScopes(
       const pendingPalpitesCount = Math.max(0, t.availableGames ?? 0);
       const palpitesSentCount = Math.max(0, t.palpitesCount ?? 0);
       const roundInfo = compId != null ? extraRounds[compId] : undefined;
-      const roundLabel = roundInfo?.roundLabel?.trim() || null;
+      const ticketRound =
+        t.extraRoundNumber != null &&
+        Number.isFinite(Number(t.extraRoundNumber)) &&
+        Number(t.extraRoundNumber) > 0
+          ? Number(t.extraRoundNumber)
+          : null;
+      const roundLabel =
+        ticketRound != null
+          ? `${ticketRound}ª Rodada`
+          : roundInfo?.roundLabel?.trim() || null;
       const selectPrimary = roundLabel
         ? `${championshipName} · ${roundLabel}`
         : championshipName;
@@ -178,7 +176,7 @@ export async function buildRankingScopes(
         selectPrimary,
         selectSecondary: `${date}${ordinalSuffix}`,
         extraChampionshipId: compId ?? null,
-        ...rankingScopeStatusFromTicket(t),
+        ...rankingScopeStatusForTicket(t, matches),
         unusedPalpites: unused,
         pendingPalpitesCount,
         palpitesSentCount,

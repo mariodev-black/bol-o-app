@@ -1,5 +1,9 @@
 import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
 import {
+  isBolaoScopeRoundComplete,
+  type BolaoMatchPhaseInput,
+} from "@/lib/boloes/display-status";
+import {
   isExtraTicketByRound,
   paidTicketExtraRoundNumber,
 } from "@/lib/boloes/ticket-match-scope";
@@ -175,35 +179,46 @@ export async function listPaidTicketsForUser(userId: string): Promise<PaidTicket
 
       const predictedIds = new Set<number>(ticketPreds.map((p) => Number(p.match_id)).filter(Number.isFinite));
       const matchDates = new Set<string>();
-      let allPredictedFinished = true;
       for (const p of ticketPreds) {
         const m = getMatchFromMap(matchMap, scopeComp, Number(p.match_id));
         if (m?.dateBR) matchDates.add(m.dateBR);
-        const finished = m ? isFinishedStatus(m.status) || (m.resultCasa != null && m.resultVisitante != null) : true;
-        if (!finished) allPredictedFinished = false;
       }
 
       let dailyStatus: NonNullable<PaidTicketRow["dailyStatus"]>;
       if (isExtraTicketByRound(t)) {
-        const roundMatches = Array.from(matchMap.values()).filter(
-          (m) =>
-            (Number(m.competitionId) || scopeComp) === scopeComp &&
-            Number(m.rodada) === extraRound,
-        );
-        const allRoundFinished =
-          roundMatches.length > 0 &&
-          roundMatches.every(
+        const roundScope: BolaoMatchPhaseInput[] = Array.from(matchMap.values())
+          .filter(
             (m) =>
-              isFinishedStatus(m.status) ||
-              (m.resultCasa != null && m.resultVisitante != null),
-          );
-        dailyStatus = allRoundFinished ? "usado" : "em_uso";
+              (Number(m.competitionId) || scopeComp) === scopeComp &&
+              Number(m.rodada) === extraRound,
+          )
+          .map((m) => ({
+            status: m.status,
+            kickoffAt: m.kickoffAt,
+            dateBR: m.dateBR,
+            hour: m.hour,
+            resultCasa: m.resultCasa,
+            resultVisitante: m.resultVisitante,
+          }));
+        dailyStatus = isBolaoScopeRoundComplete(roundScope, now) ? "usado" : "em_uso";
       } else {
         const predDate = minBrDate(matchDates);
-        const predMinMs = predDate ? utcMsForBrDate(predDate) : null;
-        const todayCalMs = utcMsForBrDate(today);
-        const usedByDate = predMinMs != null && todayCalMs != null && predMinMs < todayCalMs;
-        dailyStatus = allPredictedFinished || usedByDate ? "usado" : "em_uso";
+        const targetDate = predDate ?? playableDate;
+        const dayScope: BolaoMatchPhaseInput[] = Array.from(matchMap.values())
+          .filter(
+            (m) =>
+              (Number(m.competitionId) || scopeComp) === scopeComp &&
+              m.dateBR === targetDate,
+          )
+          .map((m) => ({
+            status: m.status,
+            kickoffAt: m.kickoffAt,
+            dateBR: m.dateBR,
+            hour: m.hour,
+            resultCasa: m.resultCasa,
+            resultVisitante: m.resultVisitante,
+          }));
+        dailyStatus = isBolaoScopeRoundComplete(dayScope, now) ? "usado" : "em_uso";
       }
 
       const predDate = minBrDate(matchDates);
