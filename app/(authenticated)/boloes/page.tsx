@@ -31,7 +31,12 @@ import {
   bolaoDisplayStatusMeta,
   computeBolaoDisplayPhase,
 } from "@/lib/boloes/display-status";
-import { scopeMatchesForPaidTicket } from "@/lib/boloes/ticket-match-scope";
+import {
+  bolaoPhaseScopeForPaidTicket,
+  bolaoPhaseScopeFromPredictions,
+  matchEntriesFromPredictions,
+  scopeMatchesForPaidTicket,
+} from "@/lib/boloes/ticket-match-scope";
 import {
   extraBolaoCurrentRoundsByChampionship,
   type ExtraBolaoRoundInfo,
@@ -168,12 +173,19 @@ function bolaoStatusFromMetrics(
   ticket: PaidTicketRow,
   metrics: TicketMetrics,
   matches: MatchMap,
+  predictionMatchIds?: number[],
 ): { displayPhase: ReturnType<typeof computeBolaoDisplayPhase>; statusLabel: string } {
+  const predictionScopeMatches = bolaoPhaseScopeFromPredictions(
+    ticket,
+    matches,
+    predictionMatchIds,
+  );
   const displayPhase = computeBolaoDisplayPhase({
     sent: metrics.sent,
     total: metrics.total,
     available: metrics.available,
-    scopeMatches: scopeMatchesForPaidTicket(ticket, matches),
+    scopeMatches: bolaoPhaseScopeForPaidTicket(ticket, matches, predictionMatchIds),
+    predictionScopeMatches,
     dailyStatus: ticket.dailyStatus ?? null,
   });
   const meta = bolaoDisplayStatusMeta(displayPhase);
@@ -451,9 +463,17 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
       position: null,
       points: 0,
     };
+    const predictionMatchIds = (predictionsByTicket.get(ticket.id) ?? [])
+      .map((p) => Number(p.match_id))
+      .filter((id): id is number => Number.isFinite(id));
 
     if (ticket.ticketType === "general") {
-      const { displayPhase, statusLabel } = bolaoStatusFromMetrics(ticket, metrics, matches);
+      const { displayPhase, statusLabel } = bolaoStatusFromMetrics(
+        ticket,
+        metrics,
+        matches,
+        predictionMatchIds,
+      );
       const legacyStatus = displayPhase === "finalizado" ? "usado" : "ativo";
       return {
         id: ticket.id,
@@ -490,11 +510,22 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
             )
           : baseName;
       const scopeMatches = scopeMatchesForPaidTicket(ticket, matches);
+      const { displayPhase, statusLabel } = bolaoStatusFromMetrics(
+        ticket,
+        metrics,
+        matches,
+        predictionMatchIds,
+      );
+      const closeScopeMatches =
+        displayPhase === "finalizado"
+          ? []
+          : metrics.available === 0 && predictionMatchIds.length > 0
+            ? matchEntriesFromPredictions(ticket, matches, predictionMatchIds)
+            : scopeMatches;
       const closeAt = nextLockMs(
-        scopeMatches.filter((m) => isOpenMatch(m, PALPITE_LOCK_MS_EXTRA)),
+        closeScopeMatches.filter((m) => isOpenMatch(m, PALPITE_LOCK_MS_EXTRA)),
         PALPITE_LOCK_MS_EXTRA,
       );
-      const { displayPhase, statusLabel } = bolaoStatusFromMetrics(ticket, metrics, matches);
       const legacyStatus =
         displayPhase === "finalizado"
           ? "usado"
@@ -518,7 +549,7 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
             : displayPhase === "pendentes" && legacyStatus === "aguardando"
               ? "Início em"
               : "Fecha em",
-        countdownTargetMs: closeAt,
+        countdownTargetMs: displayPhase === "finalizado" ? null : closeAt,
         position: metrics.position,
         points: metrics.points,
         participantCount: participantsByBolao.extra,
@@ -534,7 +565,12 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
       dateMatches.filter((match) => isOpenMatch(match, PALPITE_LOCK_MS_DIARIO)),
       PALPITE_LOCK_MS_DIARIO,
     );
-    const { displayPhase, statusLabel } = bolaoStatusFromMetrics(ticket, metrics, matches);
+    const { displayPhase, statusLabel } = bolaoStatusFromMetrics(
+      ticket,
+      metrics,
+      matches,
+      predictionMatchIds,
+    );
     const legacyStatus =
       displayPhase === "finalizado"
         ? "usado"
@@ -568,10 +604,14 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
     principal: firstGeneral
       ? (() => {
           const metrics = metricsByTicket.get(firstGeneral.id)!;
+          const principalPredMatchIds = (predictionsByTicket.get(firstGeneral.id) ?? [])
+            .map((p) => Number(p.match_id))
+            .filter((id): id is number => Number.isFinite(id));
           const { displayPhase, statusLabel } = bolaoStatusFromMetrics(
             firstGeneral,
             metrics,
             matches,
+            principalPredMatchIds,
           );
           return {
             id: firstGeneral.id,
@@ -601,10 +641,14 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
             dateMatches.filter((match) => isOpenMatch(match, PALPITE_LOCK_MS_DIARIO)),
             PALPITE_LOCK_MS_DIARIO,
           );
+          const dailyPredMatchIds = (predictionsByTicket.get(firstDaily.id) ?? [])
+            .map((p) => Number(p.match_id))
+            .filter((id): id is number => Number.isFinite(id));
           const { displayPhase, statusLabel } = bolaoStatusFromMetrics(
             firstDaily,
             metrics,
             matches,
+            dailyPredMatchIds,
           );
           const legacyStatus =
             displayPhase === "finalizado"

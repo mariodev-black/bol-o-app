@@ -1,10 +1,8 @@
 import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
+import { isBolaoScopeRoundComplete } from "@/lib/boloes/display-status";
 import {
-  isBolaoScopeRoundComplete,
-  type BolaoMatchPhaseInput,
-} from "@/lib/boloes/display-status";
-import {
-  isExtraTicketByRound,
+  bolaoPhaseScopeForPaidTicket,
+  bolaoPhaseScopeFromPredictions,
   paidTicketExtraRoundNumber,
 } from "@/lib/boloes/ticket-match-scope";
 import { effectiveExtraRoundForPaidTicket } from "@/lib/ticket-shop-extra-display";
@@ -95,29 +93,13 @@ export async function listPaidTicketsForUser(userId: string): Promise<PaidTicket
       const compId = r.ticket_type === "extra" ? r.extra_championship_id : null;
       const compNum =
         compId != null && Number.isFinite(Number(compId)) ? Number(compId) : 0;
-      let extraRoundNumber: number | null =
+      const extraRoundNumber: number | null =
         r.ticket_type === "extra" && compNum > 0
           ? effectiveExtraRoundForPaidTicket({
               championshipId: compNum,
               roundNumberFromDb: r.round_number,
-              isPromoBonus: r.is_promo_bonus,
             })
           : null;
-      if (
-        r.ticket_type === "extra" &&
-        r.is_promo_bonus &&
-        compNum > 0 &&
-        extraRoundNumber != null &&
-        r.round_number !== extraRoundNumber
-      ) {
-        void pool
-          .query(
-            `UPDATE tickets SET round_number = $1, updated_at = now()
-             WHERE id = $2 AND ticket_type = 'extra' AND COALESCE(is_promo_bonus, false) = true`,
-            [extraRoundNumber, r.id],
-          )
-          .catch(() => {});
-      }
       return {
         id: r.id,
         ticketType: r.ticket_type,
@@ -212,48 +194,22 @@ export async function listPaidTicketsForUser(userId: string): Promise<PaidTicket
         if (m?.dateBR) matchDates.add(m.dateBR);
       }
 
-      let dailyStatus: NonNullable<PaidTicketRow["dailyStatus"]>;
-      if (isExtraTicketByRound(t)) {
-        const roundScope: BolaoMatchPhaseInput[] = Array.from(matchMap.values())
-          .filter(
-            (m) =>
-              (Number(m.competitionId) || scopeComp) === scopeComp &&
-              Number(m.rodada) === extraRound,
-          )
-          .map((m) => ({
-            status: m.status,
-            kickoffAt: m.kickoffAt,
-            dateBR: m.dateBR,
-            hour: m.hour,
-            resultCasa: m.resultCasa,
-            resultVisitante: m.resultVisitante,
-          }));
-        dailyStatus = isBolaoScopeRoundComplete(roundScope, now) ? "usado" : "em_uso";
-      } else {
-        const predDate = minBrDate(matchDates);
-        const targetDate = predDate ?? playableDate;
-        const dayScope: BolaoMatchPhaseInput[] = Array.from(matchMap.values())
-          .filter(
-            (m) =>
-              (Number(m.competitionId) || scopeComp) === scopeComp &&
-              m.dateBR === targetDate,
-          )
-          .map((m) => ({
-            status: m.status,
-            kickoffAt: m.kickoffAt,
-            dateBR: m.dateBR,
-            hour: m.hour,
-            resultCasa: m.resultCasa,
-            resultVisitante: m.resultVisitante,
-          }));
-        dailyStatus = isBolaoScopeRoundComplete(dayScope, now) ? "usado" : "em_uso";
-      }
+      const predMatchIds = ticketPreds.map((p) => Number(p.match_id));
+      const phaseScope = bolaoPhaseScopeForPaidTicket(t, matchMap, predMatchIds);
+      const predOnlyScope = bolaoPhaseScopeFromPredictions(t, matchMap, predMatchIds);
 
       const predDate = minBrDate(matchDates);
       const targetDate = predDate ?? playableDate;
       const availableGames = scopeOpen
         .filter(openInTicketScope)
         .reduce((acc, m) => (predictedIds.has(m.matchId) ? acc : acc + 1), 0);
+      const roundDone = isBolaoScopeRoundComplete(phaseScope, now);
+      const userGamesDone =
+        predOnlyScope.length > 0 && isBolaoScopeRoundComplete(predOnlyScope, now);
+      const dailyStatus: NonNullable<PaidTicketRow["dailyStatus"]> =
+        roundDone || (palpitesCount > 0 && availableGames === 0 && userGamesDone)
+          ? "usado"
+          : "em_uso";
       return { ...t, dailyStatus, playDate: targetDate, availableGames, palpitesCount };
     });
     return result;

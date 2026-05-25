@@ -4,7 +4,7 @@ import {
   isBolaoMatchFinished,
   type BolaoDisplayPhase,
 } from "@/lib/boloes/display-status";
-import { scopeMatchesForPaidTicket } from "@/lib/boloes/ticket-match-scope";
+import { bolaoPhaseScopeForPaidTicket } from "@/lib/boloes/ticket-match-scope";
 import type { MatchMap } from "@/lib/football-api";
 import type { PaidTicketRow } from "@/lib/payments/user-tickets";
 import type { RankingScopeStatus } from "@/lib/ranking/scopes-shared";
@@ -15,7 +15,7 @@ export function bolaoDisplayPhaseForTicket(
 ): BolaoDisplayPhase {
   const sent = Math.max(0, ticket.palpitesCount ?? 0);
   const available = Math.max(0, ticket.availableGames ?? 0);
-  const scope = scopeMatchesForPaidTicket(ticket, matches);
+  const scope = bolaoPhaseScopeForPaidTicket(ticket, matches);
   const openInScope = scope.filter((m) => !isBolaoMatchFinished(m)).length;
   const total = Math.max(sent + available, openInScope, sent);
 

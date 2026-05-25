@@ -78,11 +78,23 @@ export function isBolaoMatchFinished(
   if (isLiveOrInProgressMatchStatus(status)) return false;
 
   const kickoff = bolaoMatchKickoffMs(match);
-  if (kickoff == null) return false;
+  if (kickoff == null) {
+    const dayClose = match.dateBR
+      ? bolaoMatchKickoffMs({
+          dateBR: match.dateBR,
+          hour: match.hour ?? "23:59",
+          kickoffAt: match.kickoffAt,
+        })
+      : null;
+    if (dayClose != null && nowMs >= dayClose + matchEndClockMs()) {
+      return !isLiveOrInProgressMatchStatus(status);
+    }
+    return false;
+  }
   if (nowMs < kickoff) return false;
 
   if (nowMs >= kickoff + matchEndClockMs()) {
-    return match.resultCasa != null && match.resultVisitante != null;
+    return true;
   }
 
   return false;
@@ -146,13 +158,29 @@ export function computeBolaoDisplayPhase(input: {
   total: number;
   available: number;
   scopeMatches: BolaoMatchPhaseInput[];
+  /** Partidas em que o usuário já palpitou (cota sem jogos em aberto). */
+  predictionScopeMatches?: BolaoMatchPhaseInput[];
   dailyStatus?: "disponivel" | "em_uso" | "usado" | null;
   now?: number;
 }): BolaoDisplayPhase {
   const now = input.now ?? Date.now();
   const scope = input.scopeMatches;
+  const predScope = input.predictionScopeMatches ?? [];
+
+  if (input.dailyStatus === "usado") {
+    return "finalizado";
+  }
 
   if (isBolaoScopeRoundComplete(scope, now)) {
+    return "finalizado";
+  }
+
+  if (
+    input.sent > 0 &&
+    input.available === 0 &&
+    predScope.length > 0 &&
+    isBolaoScopeRoundComplete(predScope, now)
+  ) {
     return "finalizado";
   }
 

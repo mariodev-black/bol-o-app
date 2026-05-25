@@ -102,16 +102,14 @@ export function extraBolaoTitleForPaidTicket(
 }
 
 /**
- * Rodada efetiva da cota: brinde/promo e vitrine fixada usam pin (ex. Brasileiro 18);
- * compra paga usa `round_number` do banco.
+ * Rodada efetiva da cota paga: sempre `tickets.round_number` quando existir
+ * (cada cota mantém sua rodada — ex. 17ª finalizada e 18ª ativa).
+ * Só usa pin da vitrine/brinde quando a rodada não foi gravada.
  */
 export function effectiveExtraRoundForPaidTicket(input: {
   championshipId: number;
   roundNumberFromDb: number | null | undefined;
-  isPromoBonus?: boolean;
 }): number | null {
-  const pin = getTicketShopExtraRoundNumber(input.championshipId);
-  if (input.isPromoBonus && pin != null) return pin;
   const fromDb =
     input.roundNumberFromDb != null &&
     Number.isFinite(Number(input.roundNumberFromDb)) &&
@@ -119,7 +117,7 @@ export function effectiveExtraRoundForPaidTicket(input: {
       ? Math.trunc(Number(input.roundNumberFromDb))
       : null;
   if (fromDb != null) return fromDb;
-  return pin;
+  return getTicketShopExtraRoundNumber(input.championshipId);
 }
 
 export function applyTicketShopExtraCatalogItem<

@@ -12,7 +12,6 @@ import { getPool } from "@/lib/db";
 import { parseKickoffFromPartidaPayload, pickScoreFromPartidaPayload } from "@/lib/partida-placar";
 import { pickTabelaGruposForPalpites } from "@/lib/tabela-palpites-normalize";
 import { resolveEffectiveExtraRoundForTicket } from "@/lib/football/extras-rodada";
-import { getTicketShopExtraRoundNumber } from "@/lib/ticket-shop-extra-display";
 import { syncExtra } from "@/lib/football/sync-orchestrator";
 
 const MESES = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
@@ -281,10 +280,8 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
         const { rows: exRows } = await pool.query<{
           cid: number | null;
           rnum: number | null;
-          promo: boolean;
         }>(
-          `SELECT extra_championship_id AS cid, round_number AS rnum,
-                  COALESCE(is_promo_bonus, false) AS promo
+          `SELECT extra_championship_id AS cid, round_number AS rnum
              FROM tickets
             WHERE id::text = $1 AND user_id = $2 AND status = 'paid'
             LIMIT 1`,
@@ -293,27 +290,8 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
         const cid = exRows[0]?.cid;
         extraChampionshipId = cid != null && Number.isFinite(Number(cid)) ? Number(cid) : null;
         const rnum = exRows[0]?.rnum;
-        const isPromoBonus = Boolean(exRows[0]?.promo);
         extraRoundNumber = rnum != null && Number.isFinite(Number(rnum)) ? Number(rnum) : null;
         ticketRoundFromDb = extraRoundNumber;
-        const pinnedRound =
-          extraChampionshipId != null
-            ? getTicketShopExtraRoundNumber(extraChampionshipId)
-            : null;
-        if (isPromoBonus && pinnedRound != null) {
-          extraRoundNumber = pinnedRound;
-          extraRoundName = `${pinnedRound}ª Rodada`;
-          if (ticketRoundFromDb !== pinnedRound) {
-            await pool
-              .query(
-                `UPDATE tickets SET round_number = $1, updated_at = now()
-                  WHERE id::text = $2 AND user_id = $3 AND ticket_type = 'extra'
-                    AND COALESCE(is_promo_bonus, false) = true`,
-                [pinnedRound, tid, userId],
-              )
-              .catch(() => {});
-          }
-        }
       }
     }
   }
