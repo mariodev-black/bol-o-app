@@ -19,6 +19,7 @@ import { BoloesClient, type BoloesScreenData } from "@/app/(authenticated)/boloe
 import { BoloesPurchaseSync } from "@/app/(authenticated)/boloes/_components/BoloesPurchaseSync";
 import { getFootballMainCompetitionId, getSoleConfiguredExtraChampionshipId, parseExtraBolaoChampionshipIds } from "@/lib/boloes-extra-config";
 import { resolveExtraBolaoDisplayName } from "@/lib/boloes-extra-competition-branding";
+import { extraBolaoTitleForPaidTicket } from "@/lib/ticket-shop-extra-display";
 import { warmCompetitionMetadataCache } from "@/lib/competition-metadata-cache";
 import {
   fetchExtraChampionshipIdByTicketIds,
@@ -35,15 +36,6 @@ import {
   extraBolaoCurrentRoundsByChampionship,
   type ExtraBolaoRoundInfo,
 } from "@/lib/ticket-shop-extra-rounds";
-
-function extraBolaoDisplayTitle(
-  championshipId: number,
-  baseName: string,
-  rounds: Record<number, { roundLabel: string }>,
-): string {
-  const round = rounds[championshipId]?.roundLabel?.trim();
-  return round ? `${baseName} · ${round}` : baseName;
-}
 
 /** Minutos apos apito que consideramos a partida ja encerrada (debug-only nesta rota). */
 function matchEndClockMinutesAfterKickoff(): number {
@@ -489,7 +481,14 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
           ? resolveExtraBolaoDisplayName(safeComp, competitionLabels[safeComp])
           : "Bolão extra";
       const title =
-        safeComp > 0 ? extraBolaoDisplayTitle(safeComp, baseName, extraRounds) : baseName;
+        safeComp > 0
+          ? extraBolaoTitleForPaidTicket(
+              safeComp,
+              baseName,
+              ticket.extraRoundNumber,
+              extraRounds,
+            )
+          : baseName;
       const scopeMatches = scopeMatchesForPaidTicket(ticket, matches);
       const closeAt = nextLockMs(
         scopeMatches.filter((m) => isOpenMatch(m, PALPITE_LOCK_MS_EXTRA)),
@@ -684,7 +683,12 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
         );
         return {
           championshipId,
-          title: extraBolaoDisplayTitle(championshipId, baseName, extraRounds),
+          title: extraBolaoTitleForPaidTicket(
+            championshipId,
+            baseName,
+            undefined,
+            extraRounds,
+          ),
           href: `/tickets?bolao=extra&championshipId=${championshipId}`,
           gamesCount: openOnDate.length,
           closesAtMs: nextLockMs(openOnDate, PALPITE_LOCK_MS_EXTRA),

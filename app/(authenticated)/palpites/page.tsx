@@ -12,6 +12,7 @@ import { getPool } from "@/lib/db";
 import { parseKickoffFromPartidaPayload, pickScoreFromPartidaPayload } from "@/lib/partida-placar";
 import { pickTabelaGruposForPalpites } from "@/lib/tabela-palpites-normalize";
 import { resolveEffectiveExtraRoundForTicket } from "@/lib/football/extras-rodada";
+import { getTicketShopExtraRoundNumber } from "@/lib/ticket-shop-extra-display";
 import { syncExtra } from "@/lib/football/sync-orchestrator";
 
 const MESES = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
@@ -277,8 +278,13 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
       if (inferred) bolaoType = inferred;
       if (inferred === "extra") {
         const pool = getPool();
-        const { rows: exRows } = await pool.query<{ cid: number | null; rnum: number | null }>(
-          `SELECT extra_championship_id AS cid, round_number AS rnum
+        const { rows: exRows } = await pool.query<{
+          cid: number | null;
+          rnum: number | null;
+          promo: boolean;
+        }>(
+          `SELECT extra_championship_id AS cid, round_number AS rnum,
+                  COALESCE(is_promo_bonus, false) AS promo
              FROM tickets
             WHERE id::text = $1 AND user_id = $2 AND status = 'paid'
             LIMIT 1`,
@@ -287,8 +293,27 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
         const cid = exRows[0]?.cid;
         extraChampionshipId = cid != null && Number.isFinite(Number(cid)) ? Number(cid) : null;
         const rnum = exRows[0]?.rnum;
+        const isPromoBonus = Boolean(exRows[0]?.promo);
         extraRoundNumber = rnum != null && Number.isFinite(Number(rnum)) ? Number(rnum) : null;
         ticketRoundFromDb = extraRoundNumber;
+        const pinnedRound =
+          extraChampionshipId != null
+            ? getTicketShopExtraRoundNumber(extraChampionshipId)
+            : null;
+        if (isPromoBonus && pinnedRound != null) {
+          extraRoundNumber = pinnedRound;
+          extraRoundName = `${pinnedRound}ª Rodada`;
+          if (ticketRoundFromDb !== pinnedRound) {
+            await pool
+              .query(
+                `UPDATE tickets SET round_number = $1, updated_at = now()
+                  WHERE id::text = $2 AND user_id = $3 AND ticket_type = 'extra'
+                    AND COALESCE(is_promo_bonus, false) = true`,
+                [pinnedRound, tid, userId],
+              )
+              .catch(() => {});
+          }
+        }
       }
     }
   }
@@ -297,16 +322,17 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
       const sole = getSoleConfiguredExtraChampionshipId();
       if (sole != null) extraChampionshipId = sole;
     }
-    // Rodada efetiva: ticket.round_number ou rodada atual (com avanço 37→38 na Premier).
+    // Brinde com rodada fixa (ex. 18ª) não troca pela rodada “ao vivo” da API.
     if (
       extraChampionshipId != null &&
       Number.isFinite(extraChampionshipId) &&
-      extraChampionshipId > 0
+      extraChampionshipId > 0 &&
+      extraRoundNumber == null
     ) {
       try {
         const resolved = await resolveEffectiveExtraRoundForTicket(
           extraChampionshipId,
-          extraRoundNumber,
+          ticketRoundFromDb,
         );
         if (resolved?.rodada != null && Number.isFinite(resolved.rodada) && resolved.rodada > 0) {
           extraRoundNumber = resolved.rodada;
@@ -332,6 +358,12 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
       } catch {
         // sem rodada atual no cache → cliente decide (mostra todas as rodadas)
       }
+    } else if (
+      extraRoundNumber != null &&
+      extraRoundNumber > 0 &&
+      !extraRoundName
+    ) {
+      extraRoundName = `${extraRoundNumber}ª Rodada`;
     }
   }
 

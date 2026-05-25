@@ -7,6 +7,7 @@ import {
   isExtraTicketByRound,
   paidTicketExtraRoundNumber,
 } from "@/lib/boloes/ticket-match-scope";
+import { effectiveExtraRoundForPaidTicket } from "@/lib/ticket-shop-extra-display";
 import { getPool } from "@/lib/db";
 import { brToday, minBrDate, resolveDiarioPlayableDate, utcMsForBrDate } from "@/lib/diario-playable-date";
 import { fetchMatchesMap, getMatchFromMap, type MatchMap } from "@/lib/football-api";
@@ -21,6 +22,7 @@ export type PaidTicketRow = {
   extraChampionshipId?: number | null;
   /** Bolão extra por rodada (`tickets.round_number`). */
   extraRoundNumber?: number | null;
+  isPromoBonus?: boolean;
   dailyStatus?: "disponivel" | "em_uso" | "usado";
   playDate?: string | null;
   availableGames?: number;
@@ -73,11 +75,14 @@ export async function listPaidTicketsForUser(userId: string): Promise<PaidTicket
         ticket_type: "general" | "daily" | "extra";
         extra_championship_id: number | null;
         round_number: number | null;
+        is_promo_bonus: boolean;
         quantity: number;
         paid_at: Date | null;
         created_at: Date;
       }>(
-        `SELECT id, ticket_type, extra_championship_id, round_number, quantity, paid_at, created_at
+        `SELECT id, ticket_type, extra_championship_id, round_number,
+                COALESCE(is_promo_bonus, false) AS is_promo_bonus,
+                quantity, paid_at, created_at
          FROM tickets
          WHERE user_id = $1 AND status = 'paid'
          ORDER BY COALESCE(paid_at, created_at) DESC NULLS LAST, created_at DESC`,
@@ -86,21 +91,44 @@ export async function listPaidTicketsForUser(userId: string): Promise<PaidTicket
       fetchMatchesMap().catch(() => new Map() as MatchMap),
       listPredictionTicketMatchPairsForUser(userId).catch(() => [] as { ticket_id: string; match_id: number }[]),
     ]);
-    const mapped = rows.map((r) => ({
-      id: r.id,
-      ticketType: r.ticket_type,
-      extraChampionshipId: r.ticket_type === "extra" ? r.extra_championship_id : null,
-      extraRoundNumber:
+    const mapped = rows.map((r) => {
+      const compId = r.ticket_type === "extra" ? r.extra_championship_id : null;
+      const compNum =
+        compId != null && Number.isFinite(Number(compId)) ? Number(compId) : 0;
+      let extraRoundNumber: number | null =
+        r.ticket_type === "extra" && compNum > 0
+          ? effectiveExtraRoundForPaidTicket({
+              championshipId: compNum,
+              roundNumberFromDb: r.round_number,
+              isPromoBonus: r.is_promo_bonus,
+            })
+          : null;
+      if (
         r.ticket_type === "extra" &&
-        r.round_number != null &&
-        Number.isFinite(Number(r.round_number)) &&
-        Number(r.round_number) > 0
-          ? Number(r.round_number)
-          : null,
-      quantity: Math.max(1, r.quantity),
-      paidAt: r.paid_at ? r.paid_at.toISOString() : null,
-      createdAt: r.created_at.toISOString(),
-    }));
+        r.is_promo_bonus &&
+        compNum > 0 &&
+        extraRoundNumber != null &&
+        r.round_number !== extraRoundNumber
+      ) {
+        void pool
+          .query(
+            `UPDATE tickets SET round_number = $1, updated_at = now()
+             WHERE id = $2 AND ticket_type = 'extra' AND COALESCE(is_promo_bonus, false) = true`,
+            [extraRoundNumber, r.id],
+          )
+          .catch(() => {});
+      }
+      return {
+        id: r.id,
+        ticketType: r.ticket_type,
+        extraChampionshipId: compId,
+        extraRoundNumber,
+        isPromoBonus: Boolean(r.is_promo_bonus),
+        quantity: Math.max(1, r.quantity),
+        paidAt: r.paid_at ? r.paid_at.toISOString() : null,
+        createdAt: r.created_at.toISOString(),
+      };
+    });
     if (!matchMap.size) {
       return mapped.map((t) => ({
         ...t,

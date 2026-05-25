@@ -3,6 +3,8 @@
  * Alinhado ao brinde (`EXTRA_GIFT_PROMO_ROUNDS`); override: `TICKET_SHOP_EXTRA_ROUNDS`.
  */
 
+import { resolveExtraBolaoDisplayName } from "@/lib/boloes-extra-competition-branding";
+
 function env(name: string): string {
   const raw = process.env[name];
   return raw == null ? "" : String(raw).trim();
@@ -72,6 +74,52 @@ export function getTicketShopExtraPresentation(
 
 export function getTicketShopExtraRoundNumber(championshipId: number): number | null {
   return getTicketShopExtraPresentation(championshipId)?.roundNumber ?? null;
+}
+
+/** Título da cota extra paga — prioriza `tickets.round_number`, depois vitrine fixa. */
+export function extraBolaoTitleForPaidTicket(
+  championshipId: number,
+  baseName: string,
+  ticketRoundNumber: number | null | undefined,
+  liveRounds: Readonly<Record<number, { roundLabel: string }>>,
+): string {
+  const fromTicket =
+    ticketRoundNumber != null &&
+    Number.isFinite(Number(ticketRoundNumber)) &&
+    Number(ticketRoundNumber) > 0
+      ? Math.trunc(Number(ticketRoundNumber))
+      : null;
+  const display = resolveExtraBolaoDisplayName(championshipId, baseName);
+  if (fromTicket != null) {
+    return `${display} · ${fromTicket}ª Rodada`;
+  }
+  const pin = getTicketShopExtraPresentation(championshipId);
+  if (pin) {
+    return `${display} · ${pin.roundLabel}`;
+  }
+  const live = liveRounds[championshipId]?.roundLabel?.trim();
+  return live ? `${display} · ${live}` : display;
+}
+
+/**
+ * Rodada efetiva da cota: brinde/promo e vitrine fixada usam pin (ex. Brasileiro 18);
+ * compra paga usa `round_number` do banco.
+ */
+export function effectiveExtraRoundForPaidTicket(input: {
+  championshipId: number;
+  roundNumberFromDb: number | null | undefined;
+  isPromoBonus?: boolean;
+}): number | null {
+  const pin = getTicketShopExtraRoundNumber(input.championshipId);
+  if (input.isPromoBonus && pin != null) return pin;
+  const fromDb =
+    input.roundNumberFromDb != null &&
+    Number.isFinite(Number(input.roundNumberFromDb)) &&
+    Number(input.roundNumberFromDb) > 0
+      ? Math.trunc(Number(input.roundNumberFromDb))
+      : null;
+  if (fromDb != null) return fromDb;
+  return pin;
 }
 
 export function applyTicketShopExtraCatalogItem<
