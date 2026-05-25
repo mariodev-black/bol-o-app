@@ -7,6 +7,8 @@ import { isCopaDoBrasilChampionshipTitle } from "@/lib/boloes-copa-brasil-brandi
 const DEFAULT_BRASILEIRAO_SERIE_A_IDS: readonly number[] = [10];
 /** Premier League na API-Futebol (ex.: id 69). */
 const DEFAULT_PREMIER_LEAGUE_IDS: readonly number[] = [69];
+/** Copa Libertadores na API-Futebol (ex.: id 7). */
+const DEFAULT_LIBERTADORES_IDS: readonly number[] = [7];
 
 function configuredBrasileiraoExtraIds(): number[] {
   const raw = process.env.BRASILEIRAO_EXTRA_CHAMPIONSHIP_IDS?.trim();
@@ -22,6 +24,7 @@ function configuredBrasileiraoExtraIds(): number[] {
 
 let brasileiraoIdSetMemo: Set<number> | null = null;
 let premierLeagueIdSetMemo: Set<number> | null = null;
+let libertadoresIdSetMemo: Set<number> | null = null;
 
 function brasileiraoExtraIdSet(): Set<number> {
   if (!brasileiraoIdSetMemo) {
@@ -49,10 +52,30 @@ function premierLeagueExtraIdSet(): Set<number> {
   return premierLeagueIdSetMemo;
 }
 
+function configuredLibertadoresExtraIds(): number[] {
+  const raw = process.env.LIBERTADORES_EXTRA_CHAMPIONSHIP_IDS?.trim();
+  if (raw === undefined || raw === "") {
+    return [...DEFAULT_LIBERTADORES_IDS];
+  }
+  const parsed = raw
+    .split(/[,;\s]+/)
+    .map((s) => Number.parseInt(s.trim(), 10))
+    .filter((n) => Number.isFinite(n) && n > 0);
+  return parsed.length > 0 ? parsed : [...DEFAULT_LIBERTADORES_IDS];
+}
+
+function libertadoresExtraIdSet(): Set<number> {
+  if (!libertadoresIdSetMemo) {
+    libertadoresIdSetMemo = new Set(configuredLibertadoresExtraIds());
+  }
+  return libertadoresIdSetMemo;
+}
+
 /** Testes: limpa memo de env. */
 export function resetBrasileiraoExtraIdSetForTests(): void {
   brasileiraoIdSetMemo = null;
   premierLeagueIdSetMemo = null;
+  libertadoresIdSetMemo = null;
 }
 
 export function isPremierLeagueChampionshipTitle(name: string | undefined | null): boolean {
@@ -68,6 +91,21 @@ export function isPremierLeagueExtraChampionship(
   const id = championshipId != null && Number.isFinite(Number(championshipId)) ? Number(championshipId) : NaN;
   if (!Number.isNaN(id) && id > 0 && premierLeagueExtraIdSet().has(id)) return true;
   return isPremierLeagueChampionshipTitle(title ?? null);
+}
+
+export function isLibertadoresChampionshipTitle(name: string | undefined | null): boolean {
+  if (!name) return false;
+  const n = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return n.includes("libertadores") || n.includes("copa libertadores");
+}
+
+export function isLibertadoresExtraChampionship(
+  championshipId: number | undefined | null,
+  title?: string | null,
+): boolean {
+  const id = championshipId != null && Number.isFinite(Number(championshipId)) ? Number(championshipId) : NaN;
+  if (!Number.isNaN(id) && id > 0 && libertadoresExtraIdSet().has(id)) return true;
+  return isLibertadoresChampionshipTitle(title ?? null);
 }
 
 export function isBrasileiraoChampionshipTitle(name: string | undefined | null): boolean {
@@ -93,6 +131,7 @@ export type ExtraBolaoHeroSideVariant =
   | "copa_brasil"
   | "brasileirao"
   | "premier_league"
+  | "libertadores"
   | "generic";
 
 export function getExtraBolaoHeroSideVariant(
@@ -102,6 +141,7 @@ export function getExtraBolaoHeroSideVariant(
   if (isCopaDoBrasilChampionshipTitle(title)) return "copa_brasil";
   if (isBrasileiraoExtraChampionship(championshipId, title)) return "brasileirao";
   if (isPremierLeagueExtraChampionship(championshipId, title)) return "premier_league";
+  if (isLibertadoresExtraChampionship(championshipId, title)) return "libertadores";
   return "generic";
 }
 
@@ -109,7 +149,22 @@ export function getExtraBolaoHeroSideVariant(
 export function extraBolaoFallbackDisplayName(championshipId: number): string {
   if (brasileiraoExtraIdSet().has(championshipId)) return "Brasileirão";
   if (premierLeagueExtraIdSet().has(championshipId)) return "Premier League";
+  if (libertadoresExtraIdSet().has(championshipId)) return "Libertadores";
   return `Campeonato ${championshipId}`;
+}
+
+/**
+ * Nome exibido na loja / bolões: marca conhecida (Libertadores, etc.) vence cache
+ * genérico tipo "Campeonato 7" gravado antes do mapeamento por id.
+ */
+export function resolveExtraBolaoDisplayName(
+  championshipId: number,
+  cachedName?: string | null,
+): string {
+  const branded = extraBolaoFallbackDisplayName(championshipId);
+  if (branded !== `Campeonato ${championshipId}`) return branded;
+  const fromCache = cachedName?.trim();
+  return fromCache || branded;
 }
 
 /** Ícone do card de extra no checkout: Copa BR > Brasileirão > Premier > ticket genérico. */
@@ -117,6 +172,7 @@ export type CheckoutExtraBolaoIconVariant =
   | "copa_brasil"
   | "brasileirao"
   | "premier_league"
+  | "libertadores"
   | "generic";
 
 export function resolveCheckoutExtraBolaoIconVariant(
@@ -144,6 +200,13 @@ export function resolveCheckoutExtraBolaoIconVariant(
     }
   }
   if (isPremierLeagueChampionshipTitle(label)) return "premier_league";
+
+  for (const b of extraBoloes) {
+    if (getExtraBolaoHeroSideVariant(b.championshipId, b.displayName) === "libertadores") {
+      return "libertadores";
+    }
+  }
+  if (isLibertadoresChampionshipTitle(label)) return "libertadores";
 
   return "generic";
 }

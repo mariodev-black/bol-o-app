@@ -16,6 +16,7 @@ import {
 import { postPaymentApprovedWebhookIfConfigured } from "@/lib/payments/payment-approved-webhook";
 import { publishTransactionEvent } from "@/lib/payments/transaction-events";
 import { recordReferralCommissionIfApplicable } from "@/lib/referrals/commissions";
+import { getTicketShopExtraRoundNumber } from "@/lib/ticket-shop-extra-display";
 
 type BillingUser = {
   id: string;
@@ -163,6 +164,7 @@ export async function createDepositTransaction(input: CreateDepositTransactionIn
   const userIds: string[] = [];
   const ticketTypes: string[] = [];
   const extraIds: Array<number | null> = [];
+  const roundNumbers: Array<number | null> = [];
   const unitPrices: number[] = [];
   const totalAmounts: number[] = [];
   const externalRefs: string[] = [];
@@ -170,7 +172,11 @@ export async function createDepositTransaction(input: CreateDepositTransactionIn
     const line = lines[i]!;
     userIds.push(input.userId);
     ticketTypes.push(line.ticketType);
-    extraIds.push(line.ticketType === "extra" ? line.extraChampionshipId ?? null : null);
+    const extraId = line.ticketType === "extra" ? line.extraChampionshipId ?? null : null;
+    extraIds.push(extraId);
+    roundNumbers.push(
+      extraId != null ? getTicketShopExtraRoundNumber(extraId) : null,
+    );
     unitPrices.push(line.unitCents);
     totalAmounts.push(line.unitCents);
     externalRefs.push(`${paymentExternalRef}:p${i}`);
@@ -179,20 +185,21 @@ export async function createDepositTransaction(input: CreateDepositTransactionIn
   // `claimExtraGiftForUser` (vide `lib/promotions/extra-gift.ts`).
   const ticketInsert = await pool.query<{ id: string }>(
     `INSERT INTO tickets (
-       user_id, ticket_type, extra_championship_id, unit_price_cents, quantity,
+       user_id, ticket_type, extra_championship_id, round_number, unit_price_cents, quantity,
        total_amount_cents, is_promo_bonus, status, external_ref
      )
-     SELECT u, tt, e, up, 1, ta, false, 'pending_payment', er
+     SELECT u, tt, e, rn, up, 1, ta, false, 'pending_payment', er
      FROM UNNEST(
        $1::uuid[],
        $2::ticket_type_enum[],
        $3::int[],
        $4::int[],
        $5::int[],
-       $6::text[]
-     ) AS t(u, tt, e, up, ta, er)
+       $6::int[],
+       $7::text[]
+     ) AS t(u, tt, e, rn, up, ta, er)
      RETURNING id`,
-    [userIds, ticketTypes, extraIds, unitPrices, totalAmounts, externalRefs]
+    [userIds, ticketTypes, extraIds, roundNumbers, unitPrices, totalAmounts, externalRefs]
   );
   const ticketIds = ticketInsert.rows.map((r) => r.id);
   const ticketId = ticketIds[0]!;

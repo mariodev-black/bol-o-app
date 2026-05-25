@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import iconBrasileirao from "@/app/assets/icon-brasileirao.png";
 import iconPremierLeague from "@/app/assets/icon-premier-league.png";
+import iconLibertadores from "@/app/assets/icone-libertadores.png";
 import iconCopaBrasil from "@/app/assets/icon-copa-brasil.png";
 import iconCopaMundo from "@/app/assets/icon-copa-mundo.png";
 import ticketBlue from "@/app/assets/Ticket-Blue.png";
@@ -446,6 +447,22 @@ function ActiveRowBolaoIcon({
         />
         <p className="mt-1 whitespace-pre-line text-[8px] font-black uppercase leading-[0.96] text-primary">
           {"Premier\nLeague"}
+        </p>
+      </div>
+    );
+  }
+  if (side === "libertadores") {
+    return (
+      <div className="flex w-[58px] shrink-0 flex-col items-center justify-center px-0.5 text-center">
+        <Image
+          src={iconLibertadores}
+          alt=""
+          width={44}
+          height={44}
+          className="h-11 w-11 object-contain"
+        />
+        <p className="mt-1 whitespace-pre-line text-[8px] font-black uppercase leading-[0.96] text-primary">
+          {"Copa\nLibertadores"}
         </p>
       </div>
     );
@@ -1145,7 +1162,9 @@ function ActiveShowcaseCard({
           ? iconBrasileirao
           : extraHero === "premier_league"
             ? iconPremierLeague
-            : ticketBlue
+            : extraHero === "libertadores"
+              ? iconLibertadores
+              : ticketBlue
       : iconCopaMundo;
   const showVerResultados =
     item.displayPhase === "finalizado" ||

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { extraBolaoFallbackDisplayName } from "@/lib/boloes-extra-competition-branding";
+import { resolveExtraBolaoDisplayName } from "@/lib/boloes-extra-competition-branding";
 import { warmCompetitionMetadataCache } from "@/lib/competition-metadata-cache";
 import {
   extraBolaoCurrentRoundsByChampionship,
@@ -144,11 +144,9 @@ export async function buildRankingScopes(
       const date = t.playDate?.trim() || "Dia";
       const compId = t.extraChampionshipId;
       const championshipName =
-        compId != null && Number.isFinite(compId) && compNames[compId]
-          ? compNames[compId]!
-          : compId != null && Number.isFinite(compId)
-            ? extraBolaoFallbackDisplayName(compId)
-            : "Bolão extra";
+        compId != null && Number.isFinite(compId)
+          ? resolveExtraBolaoDisplayName(compId, compNames[compId])
+          : "Bolão extra";
       const ordinalSuffix = extraSorted.length > 1 ? ` · #${i + 1}` : "";
       const unused = (t.availableGames ?? 0) > 0;
       const pendingPalpitesCount = Math.max(0, t.availableGames ?? 0);

@@ -1,6 +1,7 @@
 import type { StaticImageData } from "next/image";
 import iconBrasileirao from "@/app/assets/icon-brasileirao.png";
 import iconPremierLeague from "@/app/assets/icon-premier-league.png";
+import iconLibertadores from "@/app/assets/icone-libertadores.png";
 import iconCopaBrasil from "@/app/assets/icon-copa-brasil.png";
 import ticketBlue from "@/app/assets/Ticket-Blue.png";
 import type {
@@ -22,6 +23,8 @@ export function extraBolaoIconSrc(
       return iconBrasileirao;
     case "premier_league":
       return iconPremierLeague;
+    case "libertadores":
+      return iconLibertadores;
     default:
       return ticketBlue;
   }

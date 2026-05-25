@@ -4,6 +4,7 @@ import iconBrasileirao from "@/app/assets/icon-brasileirao.png";
 import iconCopaBrasil from "@/app/assets/icon-copa-brasil.png";
 import iconCopaMundo from "@/app/assets/icon-copa-mundo.png";
 import iconPremierLeague from "@/app/assets/icon-premier-league.png";
+import iconLibertadores from "@/app/assets/icone-libertadores.png";
 import ticketBlue from "@/app/assets/Ticket-Blue.png";
 import type { ExtraBolaoHeroSideVariant } from "@/lib/boloes-extra-competition-branding";
 
@@ -53,7 +54,9 @@ export function AdminBolaoKindIcon({
         ? iconBrasileirao
         : extraVariant === "premier_league"
           ? iconPremierLeague
-          : null;
+          : extraVariant === "libertadores"
+            ? iconLibertadores
+            : null;
 
   if (src) {
     return (

@@ -209,7 +209,7 @@ export async function resolveCurrentExtraRound(
 ): Promise<ExtraRoundResolution | null> {
   const allowProvider = opts?.allowProviderCall !== false;
 
-  // 1) cache
+  // 1) cache (sem rodada no cache → tenta provider para derivar da fase, ex. Libertadores)
   const cached = await readChampionshipSnapshot(competitionId);
   if (cached && cached.rodada_atual_numero != null) {
     const base: ExtraRoundResolution = {

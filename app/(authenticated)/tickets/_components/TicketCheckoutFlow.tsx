@@ -21,12 +21,22 @@ import {
 import { useRouter } from "next/navigation";
 import bannerCheckout from "@/app/assets/banner-chekout.png";
 import iconBrasileirao from "@/app/assets/icon-brasileirao.png";
-import iconPremierLeague from "@/app/assets/icon-premier-league.png";
 import iconCopaBrasil from "@/app/assets/icon-copa-brasil.png";
 import iconCopaMundo from "@/app/assets/icon-copa-mundo.png";
 import ticketBlue from "@/app/assets/Ticket-Blue.png";
-import { getExtraBolaoHeroSideVariant } from "@/lib/boloes-extra-competition-branding";
+import {
+  getExtraBolaoHeroSideVariant,
+  resolveExtraBolaoDisplayName,
+} from "@/lib/boloes-extra-competition-branding";
 import { extraBolaoIconSrc, isExtraBolaoBrandedIcon } from "@/app/shared/extra-bolao-icons";
+import {
+  getTicketShopExtraPresentation,
+  applyTicketShopExtraCatalogItem,
+} from "@/lib/ticket-shop-extra-display";
+import {
+  filterTicketShopExtraBoloes,
+  filterTicketShopExtraChampionshipIds,
+} from "@/lib/ticket-shop-flags";
 import { appendTicketsFromPurchase } from "../lib/ownedTicketsStorage";
 import { AppScreenLoading } from "@/app/shared/AppScreenLoading";
 import { TicketPixGeneratedScreen } from "./pix/TicketPixGeneratedScreen";
@@ -47,10 +57,11 @@ function parseNextPublicExtraChampionshipIds(): number[] {
     (typeof process !== "undefined" ? process.env.NEXT_PUBLIC_BOLOES_EXTRA : "") ||
     "";
   if (!String(raw).trim()) return [];
-  return String(raw)
+  const parsed = String(raw)
     .split(/[,;\s]+/)
     .map((s) => Number.parseInt(s.trim(), 10))
     .filter((n) => Number.isFinite(n) && n > 0);
+  return filterTicketShopExtraChampionshipIds(parsed);
 }
 
 type ExtraBolaoOption = {
@@ -140,13 +151,17 @@ export function TicketCheckoutFlow({
     return initialTicketKind === "daily" ? 1 : 0;
   });
   const [extraBoloes, setExtraBoloes] = useState<ExtraBolaoOption[]>(() => {
-    const fromServer = (serverExtraChampionshipIds ?? []).filter((n) => Number.isFinite(n) && n > 0);
+    const fromServer = filterTicketShopExtraChampionshipIds(
+      (serverExtraChampionshipIds ?? []).filter((n) => Number.isFinite(n) && n > 0),
+    );
     const fromPublic = parseNextPublicExtraChampionshipIds();
-    const ids = [...new Set([...fromServer, ...fromPublic])];
-    return ids.map((championshipId) => ({
-      championshipId,
-      unitCents: DEFAULT_EXTRA_CENTS,
-    }));
+    const ids = filterTicketShopExtraChampionshipIds([...new Set([...fromServer, ...fromPublic])]);
+    return ids.map((championshipId) =>
+      applyTicketShopExtraCatalogItem({
+        championshipId,
+        unitCents: DEFAULT_EXTRA_CENTS,
+      }),
+    );
   });
   const [extraQtyByChampionship, setExtraQtyByChampionship] = useState<Record<number, number>>(
     () => {
@@ -285,7 +300,9 @@ export function TicketCheckoutFlow({
           });
         }
         if (r.ok && Array.isArray(d.extraBoloes) && d.extraBoloes.length > 0) {
-          setExtraBoloes(d.extraBoloes);
+          setExtraBoloes(
+            filterTicketShopExtraBoloes(d.extraBoloes.map((row) => applyTicketShopExtraCatalogItem(row))),
+          );
         }
       } catch {
         // fallback nos valores default locais
@@ -395,13 +412,19 @@ export function TicketCheckoutFlow({
   );
 
   const extraBolaoHeadline = useCallback((b: ExtraBolaoOption) => {
-    const base = b.displayName?.trim() || "Bolão extra";
+    const pin = getTicketShopExtraPresentation(b.championshipId);
+    const base = (
+      pin?.headlineName ??
+      resolveExtraBolaoDisplayName(b.championshipId, b.displayName) ??
+      "Bolão extra"
+    ).trim();
     let headline = `Bolão ${base.toUpperCase()}`;
     const round =
-      b.roundLabel?.trim() ||
-      (b.roundNumber != null && Number.isFinite(b.roundNumber)
-        ? `${b.roundNumber}ª Rodada`
-        : "");
+      pin?.roundLabel ??
+      (b.roundLabel?.trim() ||
+        (b.roundNumber != null && Number.isFinite(b.roundNumber)
+          ? `${b.roundNumber}ª Rodada`
+          : ""));
     if (round) headline = `${headline} · ${round}`;
     return headline;
   }, []);
@@ -427,7 +450,8 @@ export function TicketCheckoutFlow({
           const qty = extraQty(b.championshipId);
           if (qty <= 0) return null;
           const lineCents = progressiveDiscountTotalCents(prices.extra, qty);
-          const label = b.displayName?.trim() || "Bolão extra";
+          const label =
+            resolveExtraBolaoDisplayName(b.championshipId, b.displayName) || "Bolão extra";
           return {
             championshipId: b.championshipId,
             qty,
@@ -862,7 +886,7 @@ export function TicketCheckoutFlow({
                           alt=""
                           className={
                             branded
-                              ? "h-[68px] w-[68px] shrink-0 rounded-[12px] object-contain sm:h-[78px] sm:w-[78px]"
+                              ? "h-[68px] w-[68px] shrink-0 object-contain sm:h-[78px] sm:w-[78px]"
                               : "h-[82px] w-[62px] shrink-0 object-contain sm:h-[86px] sm:w-[62px]"
                           }
                         />
@@ -1024,7 +1048,9 @@ export function TicketCheckoutFlow({
                   const qty = extraQty(b.championshipId);
                   if (qty <= 0) return null;
                   const lineCents = progressiveDiscountTotalCents(prices.extra, qty);
-                  const label = b.displayName?.trim() || "Bolão extra";
+                  const label =
+                    resolveExtraBolaoDisplayName(b.championshipId, b.displayName) ||
+                    "Bolão extra";
                   return (
                     <div
                       key={b.championshipId}

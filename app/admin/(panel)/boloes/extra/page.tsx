@@ -4,7 +4,7 @@ import { AdminBolaoKindBadge, AdminBolaoKindIcon } from "@/app/admin/(panel)/bol
 import { AdminBolaoStat } from "@/app/admin/(panel)/boloes/_components/AdminBolaoStat";
 import { formatAdminRodadaLabel } from "@/lib/admin/format";
 import {
-  extraBolaoFallbackDisplayName,
+  resolveExtraBolaoDisplayName,
   getExtraBolaoHeroSideVariant,
 } from "@/lib/boloes-extra-competition-branding";
 import { readCompetitionDisplayNamesFromDb } from "@/lib/competition-metadata-cache";
@@ -27,7 +27,7 @@ export default async function AdminBolaoExtraPage({
     () => ({} as Record<number, string>),
   );
   const displayName =
-    labels[parsed.championshipId] ?? extraBolaoFallbackDisplayName(parsed.championshipId);
+    resolveExtraBolaoDisplayName(parsed.championshipId, labels[parsed.championshipId]);
   const iconVariant = getExtraBolaoHeroSideVariant(parsed.championshipId, displayName);
 
   const scope = { type: "extra" as const, key: selectedKey };

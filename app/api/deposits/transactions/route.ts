@@ -3,12 +3,14 @@ import { z } from "zod";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 import { createDepositTransaction, parseTicketTypeOrThrow } from "@/lib/payments/transactions";
 import { getExtraBolaoUnitCents, getTicketPriceCents } from "@/lib/payments/ticket-config";
-import { extraBolaoFallbackDisplayName } from "@/lib/boloes-extra-competition-branding";
+import { resolveExtraBolaoDisplayName } from "@/lib/boloes-extra-competition-branding";
 import { parseExtraBolaoChampionshipIds } from "@/lib/boloes-extra-config";
 import {
   readCompetitionDisplayNamesFromDb,
   warmCompetitionMetadataCache,
 } from "@/lib/competition-metadata-cache";
+import { applyTicketShopExtraCatalogItem } from "@/lib/ticket-shop-extra-display";
+import { filterTicketShopExtraBoloes } from "@/lib/ticket-shop-flags";
 import {
   extraBolaoCurrentRoundsByChampionship,
   type ExtraBolaoRoundInfo,
@@ -61,17 +63,21 @@ export async function GET() {
       daily: getTicketPriceCents("daily"),
       extra: getExtraBolaoUnitCents(),
     },
-    extraBoloes: ids.map((championshipId) => ({
-      championshipId,
-      unitCents: unit,
-      displayName: labels[championshipId] ?? extraBolaoFallbackDisplayName(championshipId),
-      ...(rounds[championshipId]
-        ? {
-            roundNumber: rounds[championshipId]!.roundNumber,
-            roundLabel: rounds[championshipId]!.roundLabel,
-          }
-        : {}),
-    })),
+    extraBoloes: filterTicketShopExtraBoloes(
+      ids.map((championshipId) =>
+        applyTicketShopExtraCatalogItem({
+          championshipId,
+          unitCents: unit,
+          displayName: resolveExtraBolaoDisplayName(championshipId, labels[championshipId]),
+          ...(rounds[championshipId]
+            ? {
+                roundNumber: rounds[championshipId]!.roundNumber,
+                roundLabel: rounds[championshipId]!.roundLabel,
+              }
+            : {}),
+        }),
+      ),
+    ),
   });
 }
 

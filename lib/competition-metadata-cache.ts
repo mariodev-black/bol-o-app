@@ -1,3 +1,4 @@
+import { resolveExtraBolaoDisplayName } from "@/lib/boloes-extra-competition-branding";
 import { getPool } from "@/lib/db";
 import { fetchFootballApiV1 } from "@/lib/football-api-fetch";
 import { upsertFootballApiCache } from "@/lib/football-api-cache-store";
@@ -33,12 +34,12 @@ function pickDisplayNameFromJson(body: unknown): string | null {
   if (nested && typeof nested === "object") {
     const n = nested as Record<string, unknown>;
     const fromNested =
-      tryStr(n.nome) ?? tryStr(n.nome_popular) ?? tryStr(n.slug)?.replace(/-/g, " ") ?? null;
+      tryStr(n.nome_popular) ?? tryStr(n.nome) ?? tryStr(n.slug)?.replace(/-/g, " ") ?? null;
     if (fromNested) return fromNested;
   }
   return (
-    tryStr(o.nome) ??
     tryStr(o.nome_popular) ??
+    tryStr(o.nome) ??
     tryStr(o.name) ??
     (typeof o.slug === "string" ? o.slug.replace(/-/g, " ") : null)
   );
@@ -88,7 +89,10 @@ async function refreshCompetitionMetaFromApi(id: number): Promise<string> {
   const key = competitionMetadataCacheKey(id);
   const json = await fetchCompetitionJsonFromApi(id);
   const picked = pickDisplayNameFromJson(json);
-  const displayName = picked && picked.length > 0 ? picked : `Campeonato ${id}`;
+  const displayName = resolveExtraBolaoDisplayName(
+    id,
+    picked && picked.length > 0 ? picked : null,
+  );
   const nextPayload: CompetitionMetaPayload = { displayName, source: json ?? undefined };
   await upsertFootballApiCache(key, id, nextPayload);
   return displayName;

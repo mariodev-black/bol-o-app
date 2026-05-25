@@ -15,6 +15,7 @@ import iconCopaBrasil from "@/app/assets/icon-copa-brasil.png";
 import iconBrasileirao from "@/app/assets/icon-brasileirao.png";
 import iconCopaMundo from "@/app/assets/icon-copa-mundo.png";
 import iconPremierLeague from "@/app/assets/icon-premier-league.png";
+import iconLibertadores from "@/app/assets/icone-libertadores.png";
 import { getExtraBolaoHeroSideVariant } from "@/lib/boloes-extra-competition-branding";
 import type {
   RankingScopeOption,
@@ -169,7 +170,9 @@ export function ScopeLogoLarge({ option }: { option: RankingScopeOption }) {
         ? iconBrasileirao
         : variant === "premier_league"
           ? iconPremierLeague
-          : null;
+          : variant === "libertadores"
+            ? iconLibertadores
+            : null;
 
   if (src) {
     return (
@@ -262,6 +265,17 @@ export function scopeGlyphForMode(
       return (
         <Image
           src={iconPremierLeague}
+          alt=""
+          width={imgPx}
+          height={imgPx}
+          className={`${dim} shrink-0 object-contain`}
+        />
+      );
+    }
+    if (variant === "libertadores") {
+      return (
+        <Image
+          src={iconLibertadores}
           alt=""
           width={imgPx}
           height={imgPx}

@@ -1,5 +1,6 @@
 import {
   extraBolaoFallbackDisplayName,
+  resolveExtraBolaoDisplayName,
   getExtraBolaoHeroSideVariant,
   type ExtraBolaoHeroSideVariant,
 } from "@/lib/boloes-extra-competition-branding";
@@ -575,7 +576,7 @@ export async function getAdminBoloesDashboardData(
       const championshipId = groupRows[0]?.extraChampionshipId ?? 0;
       const rodada = groupRows[0]?.groupRound ?? 0;
       const displayName =
-        competitionLabels[championshipId] ?? extraBolaoFallbackDisplayName(championshipId);
+        resolveExtraBolaoDisplayName(championshipId, competitionLabels[championshipId]);
       const ranked = rankBolaoRows(groupRows);
       return {
         key,

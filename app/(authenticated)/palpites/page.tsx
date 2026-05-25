@@ -7,7 +7,7 @@ import { calcPredictionPoints, listPredictions } from "@/lib/predictions";
 import { fetchMatchesMap, getMatchFromMap } from "@/lib/football-api";
 import { getPartidasFasesFromDb } from "@/lib/partidas-cache-payload";
 import { getFootballMainCompetitionId, getSoleConfiguredExtraChampionshipId } from "@/lib/boloes-extra-config";
-import { extraBolaoFallbackDisplayName } from "@/lib/boloes-extra-competition-branding";
+import { resolveExtraBolaoDisplayName } from "@/lib/boloes-extra-competition-branding";
 import { getPool } from "@/lib/db";
 import { parseKickoffFromPartidaPayload, pickScoreFromPartidaPayload } from "@/lib/partida-placar";
 import { pickTabelaGruposForPalpites } from "@/lib/tabela-palpites-normalize";
@@ -248,7 +248,7 @@ function palpitesBolaoHeading(
   extraChampionshipId: number | null,
 ): string {
   if (bolaoType === "extra" && extraChampionshipId != null && Number.isFinite(extraChampionshipId) && extraChampionshipId > 0) {
-    return extraBolaoFallbackDisplayName(extraChampionshipId);
+    return resolveExtraBolaoDisplayName(extraChampionshipId);
   }
   if (bolaoType === "diario") return "Bolão do dia";
   return "Copa do Mundo 2026";

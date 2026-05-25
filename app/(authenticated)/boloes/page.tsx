@@ -18,7 +18,7 @@ import { fetchMatchesMap, getMatchFromMap, type MatchMapEntry } from "@/lib/foot
 import { BoloesClient, type BoloesScreenData } from "@/app/(authenticated)/boloes/BoloesClient";
 import { BoloesPurchaseSync } from "@/app/(authenticated)/boloes/_components/BoloesPurchaseSync";
 import { getFootballMainCompetitionId, getSoleConfiguredExtraChampionshipId, parseExtraBolaoChampionshipIds } from "@/lib/boloes-extra-config";
-import { extraBolaoFallbackDisplayName } from "@/lib/boloes-extra-competition-branding";
+import { resolveExtraBolaoDisplayName } from "@/lib/boloes-extra-competition-branding";
 import { warmCompetitionMetadataCache } from "@/lib/competition-metadata-cache";
 import {
   fetchExtraChampionshipIdByTicketIds,
@@ -486,7 +486,7 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
       const safeComp = Number.isFinite(compId) && compId > 0 ? compId : 0;
       const baseName =
         safeComp > 0
-          ? (competitionLabels[safeComp] ?? extraBolaoFallbackDisplayName(safeComp))
+          ? resolveExtraBolaoDisplayName(safeComp, competitionLabels[safeComp])
           : "Bolão extra";
       const title =
         safeComp > 0 ? extraBolaoDisplayTitle(safeComp, baseName, extraRounds) : baseName;
@@ -678,9 +678,10 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
         const openOnDate = scopeMatches.filter((m) =>
           isOpenMatch(m, PALPITE_LOCK_MS_EXTRA),
         );
-        const baseName =
-          competitionLabels[championshipId] ??
-          extraBolaoFallbackDisplayName(championshipId);
+        const baseName = resolveExtraBolaoDisplayName(
+          championshipId,
+          competitionLabels[championshipId],
+        );
         return {
           championshipId,
           title: extraBolaoDisplayTitle(championshipId, baseName, extraRounds),

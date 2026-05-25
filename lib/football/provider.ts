@@ -17,6 +17,10 @@
 
 import { fetchFootballApiV1 } from "@/lib/football-api-fetch";
 import {
+  fetchChampionshipFaseDetail,
+  pickRodadaAtualFromFasePayload,
+} from "@/lib/football/fase-rodada-atual";
+import {
   parseKickoffFromPartidaPayload,
   pickScoreFromPartidaPayload,
 } from "@/lib/partida-placar";
@@ -105,6 +109,7 @@ export type ChampionshipSnapshotV2 = {
     status: string | null;
   } | null;
   faseAtual: {
+    faseId: number | null;
     nome: string | null;
     slug: string | null;
   } | null;
@@ -333,8 +338,35 @@ export async function fetchChampionshipSnapshot(
   }
   const raw = (await res.json()) as any;
 
-  const rodadaAtual = raw?.rodada_atual ?? null;
-  const faseAtual = raw?.fase_atual ?? null;
+  const rodadaAtualRaw = raw?.rodada_atual ?? null;
+  const faseAtualRaw = raw?.fase_atual ?? null;
+  const faseId =
+    faseAtualRaw && typeof faseAtualRaw === "object"
+      ? asInt((faseAtualRaw as any).fase_id)
+      : null;
+
+  let rodadaAtual: ChampionshipSnapshotV2["rodadaAtual"] =
+    rodadaAtualRaw && typeof rodadaAtualRaw === "object"
+      ? {
+          numero: asInt((rodadaAtualRaw as any).rodada),
+          slug: asStr((rodadaAtualRaw as any).slug),
+          nome: asStr((rodadaAtualRaw as any).nome),
+          status: asStr((rodadaAtualRaw as any).status),
+        }
+      : null;
+
+  if (!rodadaAtual?.numero && faseId) {
+    const faseDetail = await fetchChampionshipFaseDetail(competitionId, faseId);
+    const fromFase = pickRodadaAtualFromFasePayload(faseDetail);
+    if (fromFase?.numero) {
+      rodadaAtual = {
+        numero: fromFase.numero,
+        slug: fromFase.slug,
+        nome: fromFase.nome,
+        status: fromFase.status,
+      };
+    }
+  }
 
   return {
     competitionId,
@@ -345,18 +377,12 @@ export async function fetchChampionshipSnapshot(
     status: asStr(raw?.status),
     logo: asStr(raw?.logo),
     totalRodadas: asInt(raw?.total_rodadas),
-    rodadaAtual: rodadaAtual && typeof rodadaAtual === "object"
+    rodadaAtual,
+    faseAtual: faseAtualRaw && typeof faseAtualRaw === "object"
       ? {
-          numero: asInt((rodadaAtual as any).rodada),
-          slug: asStr((rodadaAtual as any).slug),
-          nome: asStr((rodadaAtual as any).nome),
-          status: asStr((rodadaAtual as any).status),
-        }
-      : null,
-    faseAtual: faseAtual && typeof faseAtual === "object"
-      ? {
-          nome: asStr((faseAtual as any).nome),
-          slug: asStr((faseAtual as any).slug),
+          faseId,
+          nome: asStr((faseAtualRaw as any).nome),
+          slug: asStr((faseAtualRaw as any).slug),
         }
       : null,
     raw,
@@ -429,26 +455,53 @@ export async function fetchRodadaMatches(
     (await fetchChampionshipSnapshot(competitionId).catch(() => null)) ??
     null;
 
-  const partidas: any[] = Array.isArray(data?.partidas) ? data.partidas : [];
   const rodadaSlug = asStr(data?.slug) ?? `rodada-${rodada}`;
   const out: ProviderMatchV2[] = [];
+  const baseCtx = {
+    competitionId,
+    championshipNome: meta?.nome ?? null,
+    championshipSlug: meta?.slug ?? null,
+    championshipTemporada: meta?.temporada ?? null,
+    rodada,
+    rodadaSlug,
+    roundKey: rodadaSlug,
+  };
 
-  for (const p of partidas) {
+  const pushPartida = (p: unknown, groupKey: string | null) => {
     const mapped = mapPartida(p, {
-      competitionId,
-      phaseKey: "fase-unica",
-      fasesNome: "Fase única",
-      fasesSlug: "fase-unica",
-      rodada,
-      rodadaSlug,
-      roundKey: rodadaSlug,
-      groupKey: null,
-      championshipNome: meta?.nome ?? null,
-      championshipSlug: meta?.slug ?? null,
-      championshipTemporada: meta?.temporada ?? null,
+      ...baseCtx,
+      phaseKey: groupKey ?? "fase-unica",
+      fasesNome: groupKey ?? "Fase única",
+      fasesSlug: groupKey ?? "fase-unica",
+      groupKey,
     });
     if (mapped) out.push(mapped);
+  };
+
+  if (Array.isArray(data?.partidas)) {
+    for (const p of data.partidas) pushPartida(p, null);
+    return out;
   }
+
+  for (const [key, value] of Object.entries(data ?? {})) {
+    if (key === "partidas" && Array.isArray(value)) {
+      for (const p of value) pushPartida(p, null);
+      continue;
+    }
+    if (!key.startsWith("grupo")) continue;
+    const list = Array.isArray(value)
+      ? value
+      : value && typeof value === "object" && Array.isArray((value as any).partidas)
+        ? (value as any).partidas
+        : null;
+    if (!list) continue;
+    for (const p of list) pushPartida(p, key);
+  }
+
+  if (out.length === 0) {
+    walkPrincipalPartidas(data, baseCtx, [], out);
+  }
+
   return out;
 }
 
