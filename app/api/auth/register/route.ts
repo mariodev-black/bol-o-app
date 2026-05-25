@@ -7,6 +7,7 @@ import { attachSessionCookie } from "@/lib/auth/session";
 import { responseForDbError } from "@/lib/db-errors";
 import { isValidBrazilNationalDigits, normalizeBrazilPhoneE164 } from "@/lib/auth/phone";
 import { createUserWithPassword, getRegistrationConflicts } from "@/lib/auth/users";
+import { postRegistrationCompletedWebhook } from "@/lib/auth/registration-complete-webhook";
 import { sendWelcomeEmail } from "@/lib/email/registration";
 import { ensureWelcomeNotification } from "@/lib/notifications/user-notifications";
 
@@ -112,6 +113,13 @@ export async function POST(request: NextRequest) {
     });
     void ensureWelcomeNotification(user.id, fullName).catch((err) => {
       console.error("[auth/register] welcome notification", err);
+    });
+    void postRegistrationCompletedWebhook({
+      name: fullName,
+      email,
+      phoneE164,
+    }).catch((err) => {
+      console.error("[auth/register] registration complete webhook", err);
     });
     authLog("register_ok", {
       userIdPrefix: `${user.id.slice(0, 8)}…`,

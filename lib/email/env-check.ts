@@ -41,6 +41,11 @@ export function getEmailEnvChecks(): EmailEnvCheck[] {
       requiredInProduction: true,
     },
     {
+      name: "REGISTRATION_COMPLETED_WEBHOOK_URL",
+      ok: Boolean(process.env.REGISTRATION_COMPLETED_WEBHOOK_URL?.trim()),
+      hint: "SellFlux — cadastro concluído (nome, e-mail, telefone)",
+    },
+    {
       name: "AUTH_SECRET",
       ok: (process.env.AUTH_SECRET?.trim().length ?? 0) >= 32,
       hint: "Mín. 32 caracteres",
