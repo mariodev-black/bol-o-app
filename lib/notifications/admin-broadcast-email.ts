@@ -10,6 +10,9 @@ import { EMAIL_TAG_ADMIN_BROADCAST } from "@/lib/email/policy";
 import { sendEmail } from "@/lib/email/send";
 import type { AdminBroadcastEmailButton } from "@/lib/email/templates/admin-broadcast";
 import { buildAdminBroadcastEmail } from "@/lib/email/templates/admin-broadcast";
+import { buildPremierPrizeReleasedBroadcastEmail } from "@/lib/email/templates/prize-released";
+
+export type AdminBroadcastEmailLayout = "default" | "prize_released";
 import { getPool } from "@/lib/db";
 import { updateAdminBroadcastBatchEmailStats } from "@/lib/notifications/admin-broadcast";
 
@@ -67,6 +70,7 @@ export async function sendAdminBroadcastEmails(input: {
   preview: string;
   body: string;
   button: AdminBroadcastEmailButton | null;
+  emailLayout?: AdminBroadcastEmailLayout;
 }): Promise<{ sent: number; failed: number; skipped: number }> {
   const recipients = await listAdminBroadcastEmailRecipients(input.userIds);
   const campaignId = adminBroadcastEmailCampaignId(input.batchId);
@@ -100,13 +104,20 @@ export async function sendAdminBroadcastEmails(input: {
       continue;
     }
 
-    const built = buildAdminBroadcastEmail({
-      recipientName: recipient.name,
-      title: input.title,
-      preview: input.preview,
-      body: input.body,
-      button: input.button ?? undefined,
-    });
+    const built =
+      input.emailLayout === "prize_released"
+        ? buildPremierPrizeReleasedBroadcastEmail({
+            recipientName: recipient.name,
+            body: input.body,
+            button: input.button,
+          })
+        : buildAdminBroadcastEmail({
+            recipientName: recipient.name,
+            title: input.title,
+            preview: input.preview,
+            body: input.body,
+            button: input.button ?? undefined,
+          });
 
     const result = await sendEmail({
       to: parsed.email,

@@ -69,8 +69,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
     return { ok: false, error: "Cliente de e-mail indisponível." };
   }
 
-  const logoAttachment =
-    kind === "transactional" ? getEmailLogoAttachmentForResend() : null;
+  const logoAttachment = getEmailLogoAttachmentForResend();
   const attachments = logoAttachment ? [logoAttachment] : undefined;
   const headers =
     kind === "marketing" ? buildMarketingEmailHeaders() : undefined;

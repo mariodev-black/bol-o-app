@@ -29,6 +29,8 @@ type Body = {
   /** Se false, e-mail sem botão CTA (só texto). */
   includeEmailButton?: boolean;
   pushUrl?: string;
+  /** `prize_released` — layout escuro com logo e faixas de prêmio. */
+  emailLayout?: "default" | "prize_released";
 };
 
 function trimField(value: unknown, max: number): string {
@@ -131,6 +133,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const emailLayout =
+      payload.emailLayout === "prize_released" ? "prize_released" : "default";
+
     const result = await dispatchAdminBroadcast({
       batchId,
       userIds,
@@ -140,6 +145,7 @@ export async function POST(request: NextRequest) {
       body: messageBody,
       pushUrl,
       emailButton,
+      emailLayout: channels.includes("email") ? emailLayout : "default",
     });
 
     console.info("[admin/notifications/send]", {

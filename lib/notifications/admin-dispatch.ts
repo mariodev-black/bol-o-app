@@ -1,6 +1,9 @@
 import { isAllowedAdminBroadcastButtonUrl } from "@/lib/email/resolve-button-url";
 import { PWA_START_PATH } from "@/lib/pwa/config";
-import { sendAdminBroadcastEmails } from "@/lib/notifications/admin-broadcast-email";
+import {
+  sendAdminBroadcastEmails,
+  type AdminBroadcastEmailLayout,
+} from "@/lib/notifications/admin-broadcast-email";
 import type { AdminBroadcastChannel } from "@/lib/notifications/admin-broadcast-shared";
 import type { AdminDispatchResult } from "@/lib/notifications/admin-broadcast-shared";
 import {
@@ -21,6 +24,7 @@ export type AdminDispatchInput = {
   body: string;
   pushUrl: string;
   emailButton: { label: string; url: string } | null;
+  emailLayout?: AdminBroadcastEmailLayout;
 };
 
 export async function dispatchAdminBroadcast(
@@ -88,6 +92,7 @@ export async function dispatchAdminBroadcast(
         preview,
         body,
         button: input.emailButton,
+        emailLayout: input.emailLayout,
       });
 
     if (willQueueEmail) {

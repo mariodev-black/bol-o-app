@@ -32,6 +32,18 @@ const inputClass =
 
 const DEFAULT_CHANNELS: AdminBroadcastChannel[] = ["app", "push"];
 
+type AdminEmailLayout = "default" | "prize_released";
+
+const PRIZE_RELEASED_EMAIL_PRESET = {
+  title: "Premiação Liberada",
+  preview: "Top 10 premiado — confira sua colocação e saque na plataforma.",
+  body: "O bolão da última rodada da Premier League foi finalizado e o TOP 10 já foi premiado 🔥",
+  includeEmailButton: true,
+  buttonLabel: "Ir para Bolões",
+  buttonUrl: "/boloes",
+  emailLayout: "prize_released" as const satisfies AdminEmailLayout,
+};
+
 function formatDispatchSuccess(
   channels: AdminBroadcastChannel[],
   d: {
@@ -113,6 +125,7 @@ export function AdminNotificationsClient({
   const [buttonUrl, setButtonUrl] = useState("");
   const [pushUrl, setPushUrl] = useState("");
   const [channels, setChannels] = useState<AdminBroadcastChannel[]>(DEFAULT_CHANNELS);
+  const [emailLayout, setEmailLayout] = useState<AdminEmailLayout>("default");
   const [sendToAll, setSendToAll] = useState(false);
   const [selected, setSelected] = useState<RecipientUser[]>([]);
   const [loading, setLoading] = useState(false);
@@ -182,6 +195,7 @@ export function AdminNotificationsClient({
                 includeEmailButton,
                 buttonLabel,
                 buttonUrl,
+                emailLayout,
               }
             : {}),
         }),
@@ -202,6 +216,7 @@ export function AdminNotificationsClient({
       setTitle("");
       setPreview("");
       setBody("");
+      setEmailLayout("default");
       if (!sendToAll) setSelected([]);
       router.refresh();
       void loadHistory();
@@ -252,6 +267,35 @@ export function AdminNotificationsClient({
             channels={channels}
             onChannelsChange={setChannels}
           />
+
+          {channelIncludesEmail(channels) ? (
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                className="rounded-full border border-primary/40 bg-primary/10 px-4 py-2 text-[12px] font-black uppercase tracking-wide text-primary transition-colors hover:bg-primary/20"
+                onClick={() => {
+                  const p = PRIZE_RELEASED_EMAIL_PRESET;
+                  setTitle(p.title);
+                  setPreview(p.preview);
+                  setBody(p.body);
+                  setIncludeEmailButton(p.includeEmailButton);
+                  setButtonLabel(p.buttonLabel);
+                  setButtonUrl(p.buttonUrl);
+                  setEmailLayout(p.emailLayout);
+                  if (!channels.includes("email")) {
+                    setChannels((c) => [...c, "email"]);
+                  }
+                }}
+              >
+                Template: Premiação liberada
+              </button>
+              {emailLayout === "prize_released" ? (
+                <span className="text-[12px] font-semibold text-white/45">
+                  E-mail escuro com logo e faixas 1º–3º (editável no corpo)
+                </span>
+              ) : null}
+            </div>
+          ) : null}
 
           <div className="mt-5 grid gap-4">
             <label className="grid gap-2">

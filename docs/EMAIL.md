@@ -50,7 +50,7 @@ Recomendado usar um **subdomínio** só para e-mail (ex.: `mail.bolaodomilhao.co
 
 O prefixo (`noreply`, `contato`) pode ser outro; o que precisa bater é o **subdomínio verificado**.
 
-6. Logo **dentro** do e-mail: anexo inline (CID) no envio; fallback `{APP_URL}/email/logo-email.png`.
+6. Logo **dentro** do e-mail: anexo inline (CID `bolao-logo`) em **todos** os envios (transacional e campanhas); fallback `{APP_URL}/email/logo-email.png` se o arquivo local não existir.
 
 ---
 
@@ -115,7 +115,7 @@ Checklist resumido: `public/bimi/README.md`.
 
 - Header `List-Unsubscribe` (mailto + link para `/perfil`).
 - Assunto **sem emoji** na campanha.
-- Envio com `kind: "marketing"` (sem anexo CID pesado).
+- Envio com `kind: "marketing"` (inclui logo CID como nos transacionais).
 - Intervalo entre destinatários (`EMAIL_CAMPAIGN_DELAY_MS`, padrão 600 ms).
 - Rodapé com link **Descadastrar e-mails promocionais**.
 
@@ -184,7 +184,9 @@ Fluxo completo:
 
 O admin pode escolher **App**, **E-mail** ou **App + E-mail** (`/admin/notifications`).
 
-- E-mail usa `kind: marketing`, tag Resend `admin_broadcast`, template `lib/email/templates/admin-broadcast.ts`.
+- E-mail padrão: `lib/email/templates/admin-broadcast.ts` (layout transacional).
+- Template **Premiação liberada**: botão “Template: Premiação liberada” no painel → `emailLayout: prize_released` → `lib/email/templates/prize-released.ts` (logo PNG inline, faixas 1º–3º, CTA).
+- `kind: marketing`, tag Resend `admin_broadcast`.
 - Pausa entre envios: `EMAIL_CAMPAIGN_DELAY_MS` (padrão 600 ms).
 - Mais de 30 destinatários: e-mail segue em **background** após a resposta da API (`next/server` `after`).
 - Histórico em `admin_notification_batches` + dedupe por lote em `email_campaign_sends` (`admin_notif_{batchId}`).
