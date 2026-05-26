@@ -8,8 +8,10 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { ArrowRight, Crown, Ticket, Timer, X } from "lucide-react";
 import { useIsAdminAppRoute } from "@/app/shared/app-route-guards";
 import { useAuth } from "@/app/shared/AuthContext";
@@ -21,12 +23,22 @@ import {
   isMainBolaoPromoModalAlwaysVisible,
   isMainBolaoPromoModalEnabled,
 } from "@/lib/promotions/main-bolao-promo";
+import {
+  isMainPromoDebug,
+  promoDebugLog,
+} from "@/lib/promotions/main-bolao-promo-debug";
 import bgModalPromo from "@/app/assets/bg-modal-promo.jpeg";
 import logo from "@/app/assets/logo.svg";
 
 const PROMO_FONT = "var(--font-montserrat), ui-sans-serif, system-ui, sans-serif";
-/** localStorage — separado de sessionStorage/chaves antigas de teste. */
 const DISMISS_STORAGE_KEY = "bolao_milhao_promo_gratis_modal_v2";
+const PENDING_AFTER_NAV_KEY = "bolao_milhao_promo_pending_nav_v1";
+/** Após navegar, aguarda antes de exibir o modal. */
+const OPEN_AFTER_NAVIGATE_MS = 1000;
+const ENTER_MS = 520;
+const EXIT_MS = 380;
+/** Acima de ExtraGift (110), NavBottom (70), Notifications (140). */
+const PROMO_MODAL_Z = 150;
 
 function readPromoDismissed(): boolean {
   if (typeof window === "undefined") return false;
@@ -45,11 +57,28 @@ function writePromoDismissed(): void {
     /* ignore */
   }
 }
-/** Após navegar, aguarda antes de exibir o modal. */
-const OPEN_AFTER_NAVIGATE_MS = 1000;
-/** Duração da animação de entrada/saída. */
-const ENTER_MS = 520;
-const EXIT_MS = 380;
+
+function markPendingAfterNav(): void {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.setItem(PENDING_AFTER_NAV_KEY, String(Date.now()));
+  } catch {
+    /* ignore */
+  }
+}
+
+function takePendingAfterNav(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const raw = sessionStorage.getItem(PENDING_AFTER_NAV_KEY);
+    if (!raw) return false;
+    sessionStorage.removeItem(PENDING_AFTER_NAV_KEY);
+    const at = Number(raw);
+    return Number.isFinite(at) && Date.now() - at < 20_000;
+  } catch {
+    return false;
+  }
+}
 
 /** Título hero — contorno branco leve + sombra para baixo (contraste na foto) */
 const PROMO_HERO_WHITE =
@@ -70,7 +99,6 @@ function MainBolaoPromoModal({
       style={{ fontFamily: PROMO_FONT }}
       onClick={(e) => e.stopPropagation()}
     >
-      {/* Fundo em toda a área do modal */}
       <Image
         src={bgModalPromo}
         alt=""
@@ -79,7 +107,6 @@ function MainBolaoPromoModal({
         className="-z-20 object-cover object-center"
         sizes="(max-width: 380px) 100vw, 380px"
       />
-      {/* Header absoluto — logo e fechar sobre o fundo */}
       <header className="absolute inset-x-0 top-0 z-20 flex items-start justify-between px-3 pt-3">
         <Image
           src={logo}
@@ -99,7 +126,6 @@ function MainBolaoPromoModal({
         </button>
       </header>
 
-      {/* Textos + gradiente só na base (não sobe demais na foto) */}
       <div className="absolute inset-x-0 bottom-0 z-10">
         <div
           className="pointer-events-none absolute inset-x-0 bottom-0 h-[min(360px,46dvh)]"
@@ -110,57 +136,57 @@ function MainBolaoPromoModal({
           aria-hidden
         />
         <div className="relative px-4 pb-5 pt-6">
-        <p
-          className={`text-center text-[26px] font-black italic uppercase leading-none tracking-tight text-white min-[380px]:text-[28px] ${PROMO_HERO_WHITE}`}
-        >
-          Entre no
-        </p>
-        <h2
-          id="main-bolao-promo-title"
-          className={`mt-1.5 text-center text-[42px] font-black uppercase leading-[0.9] tracking-tight text-white min-[380px]:text-[46px] ${PROMO_HERO_WHITE}`}
-        >
-          Bolão do
-          <br />
-          <span
-            className={`inline-flex items-center justify-center gap-1.5 text-primary ${PROMO_HERO_PRIMARY}`}
+          <p
+            className={`text-center text-[26px] font-black italic uppercase leading-none tracking-tight text-white min-[380px]:text-[28px] ${PROMO_HERO_WHITE}`}
           >
-            <Crown
-              className="size-8 shrink-0 text-primary drop-shadow-[0_2px_6px_rgba(0,0,0,0.9),0_0_18px_rgba(182,246,0,0.45)] min-[380px]:size-9"
-              strokeWidth={2.6}
-              aria-hidden
-            />
-            Milhão
-          </span>
-        </h2>
-
-        <p
-          className={`mt-4 text-center text-[15px] font-black uppercase tracking-wide text-white min-[380px]:text-[16px] ${PROMO_SUBLINE_WHITE}`}
-        >
-          + de <span className="text-primary">R$1 milhão</span> em premiações
-        </p>
-
-        <div className="mx-auto mt-5 flex w-full max-w-[320px] items-center justify-center gap-2.5 rounded-full border border-primary/70 bg-black/50 px-4 py-3 backdrop-blur-sm">
-          <Timer className="size-6 shrink-0 text-primary" strokeWidth={2.2} aria-hidden />
-          <p className="text-center text-[14px] font-black uppercase tracking-wide text-white min-[380px]:text-[15px]">
-            Últimas cotas <span className="text-primary">disponíveis!</span>
+            Entre no
           </p>
-        </div>
+          <h2
+            id="main-bolao-promo-title"
+            className={`mt-1.5 text-center text-[42px] font-black uppercase leading-[0.9] tracking-tight text-white min-[380px]:text-[46px] ${PROMO_HERO_WHITE}`}
+          >
+            Bolão do
+            <br />
+            <span
+              className={`inline-flex items-center justify-center gap-1.5 text-primary ${PROMO_HERO_PRIMARY}`}
+            >
+              <Crown
+                className="size-8 shrink-0 text-primary drop-shadow-[0_2px_6px_rgba(0,0,0,0.9),0_0_18px_rgba(182,246,0,0.45)] min-[380px]:size-9"
+                strokeWidth={2.6}
+                aria-hidden
+              />
+              Milhão
+            </span>
+          </h2>
 
-        <Link
-          href="/tickets?bolao=general"
-          onClick={onClose}
-          className="mt-5 flex min-h-[56px] w-full items-center justify-center gap-2 rounded-full bg-primary px-4 text-[17px] font-black italic uppercase tracking-wide text-[#0a0a0a] shadow-[0_4px_24px_rgba(182,246,0,0.35)] transition-transform active:scale-[0.98] min-[380px]:text-[18px]"
-        >
-          Garantir minha cota
-          <ArrowRight className="size-5 shrink-0 min-[380px]:size-6" strokeWidth={2.8} aria-hidden />
-        </Link>
+          <p
+            className={`mt-4 text-center text-[15px] font-black uppercase tracking-wide text-white min-[380px]:text-[16px] ${PROMO_SUBLINE_WHITE}`}
+          >
+            + de <span className="text-primary">R$1 milhão</span> em premiações
+          </p>
 
-        <p
-          className={`mt-4 flex items-center justify-center gap-2 text-center text-[13px] font-bold uppercase tracking-wide text-white min-[380px]:text-[14px] ${PROMO_SUBLINE_WHITE}`}
-        >
-          <Ticket className="size-5 shrink-0 text-primary" strokeWidth={2.2} aria-hidden />
-          Menos de <span className="text-primary">R$0,30</span> por partida
-        </p>
+          <div className="mx-auto mt-5 flex w-full max-w-[320px] items-center justify-center gap-2.5 rounded-full border border-primary/70 bg-black/50 px-4 py-3 backdrop-blur-sm">
+            <Timer className="size-6 shrink-0 text-primary" strokeWidth={2.2} aria-hidden />
+            <p className="text-center text-[14px] font-black uppercase tracking-wide text-white min-[380px]:text-[15px]">
+              Últimas cotas <span className="text-primary">disponíveis!</span>
+            </p>
+          </div>
+
+          <Link
+            href="/tickets?bolao=general"
+            onClick={onClose}
+            className="mt-5 flex min-h-[56px] w-full items-center justify-center gap-2 rounded-full bg-primary px-4 text-[17px] font-black italic uppercase tracking-wide text-[#0a0a0a] shadow-[0_4px_24px_rgba(182,246,0,0.35)] transition-transform active:scale-[0.98] min-[380px]:text-[18px]"
+          >
+            Garantir minha cota
+            <ArrowRight className="size-5 shrink-0 min-[380px]:size-6" strokeWidth={2.8} aria-hidden />
+          </Link>
+
+          <p
+            className={`mt-4 flex items-center justify-center gap-2 text-center text-[13px] font-bold uppercase tracking-wide text-white min-[380px]:text-[14px] ${PROMO_SUBLINE_WHITE}`}
+          >
+            <Ticket className="size-5 shrink-0 text-primary" strokeWidth={2.2} aria-hidden />
+            Menos de <span className="text-primary">R$0,30</span> por partida
+          </p>
         </div>
       </div>
     </div>
@@ -168,12 +194,13 @@ function MainBolaoPromoModal({
 }
 
 export function MainBolaoPromoModalHost({ children }: { children: React.ReactNode }) {
-  const { ready, isLoggedIn, user } = useAuth();
+  const pathname = usePathname();
+  const { isLoggedIn, user } = useAuth();
   const isAdminRoute = useIsAdminAppRoute();
-  /** Modal no DOM (permite animar saída antes de desmontar). */
   const [visible, setVisible] = useState(false);
-  /** Estado “aberto” da animação (backdrop + card). */
   const [active, setActive] = useState(false);
+  const [portalReady, setPortalReady] = useState(false);
+  const [debugStatus, setDebugStatus] = useState<string>("idle");
   const openDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const exitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const closingRef = useRef(false);
@@ -182,13 +209,25 @@ export function MainBolaoPromoModalHost({ children }: { children: React.ReactNod
   const alwaysVisible = isMainBolaoPromoModalAlwaysVisible();
   const profileBlocks = Boolean(user && user.profileComplete === false);
 
-  const canOfferModal = useCallback(() => {
-    if (!enabled || isAdminRoute || !isLoggedIn || profileBlocks) {
-      return false;
-    }
-    if (alwaysVisible) return true;
-    return !readPromoDismissed();
+  useEffect(() => {
+    setPortalReady(true);
+  }, []);
+
+  const getBlockReason = useCallback((): string | null => {
+    if (!enabled) return "disabled_env";
+    if (isAdminRoute) return "admin_route";
+    if (!isLoggedIn) return "not_logged_in";
+    if (profileBlocks) return "profile_incomplete";
+    if (!alwaysVisible && readPromoDismissed()) return "dismissed";
+    return null;
   }, [alwaysVisible, enabled, isAdminRoute, isLoggedIn, profileBlocks]);
+
+  const canOfferModal = useCallback(() => getBlockReason() === null, [getBlockReason]);
+
+  const setDebug = useCallback((status: string, extra?: Record<string, unknown>) => {
+    setDebugStatus(status);
+    promoDebugLog(status, extra);
+  }, []);
 
   const clearTimers = useCallback(() => {
     if (openDelayRef.current != null) {
@@ -205,15 +244,40 @@ export function MainBolaoPromoModalHost({ children }: { children: React.ReactNod
 
   const finishClose = useCallback(() => {
     closingRef.current = false;
-  }, []);
+    setDebug("closed");
+  }, [setDebug]);
 
   const playEnter = useCallback(() => {
+    setDebug("showing");
     setVisible(true);
     setActive(false);
     requestAnimationFrame(() => {
       requestAnimationFrame(() => setActive(true));
     });
-  }, []);
+  }, [setDebug]);
+
+  const scheduleOpenAfterDelay = useCallback(() => {
+    const block = getBlockReason();
+    if (block) {
+      setDebug(`blocked:${block}`, {
+        enabled,
+        alwaysVisible,
+        pathname,
+      });
+      return;
+    }
+
+    clearTimers();
+    closingRef.current = false;
+    setActive(false);
+    setVisible(false);
+    setDebug("scheduled", { delayMs: OPEN_AFTER_NAVIGATE_MS, pathname });
+
+    openDelayRef.current = setTimeout(() => {
+      openDelayRef.current = null;
+      playEnter();
+    }, OPEN_AFTER_NAVIGATE_MS);
+  }, [clearTimers, getBlockReason, pathname, playEnter, setDebug, alwaysVisible, enabled]);
 
   const handleClose = useCallback(() => {
     if (closingRef.current) return;
@@ -229,72 +293,90 @@ export function MainBolaoPromoModalHost({ children }: { children: React.ReactNod
     }, EXIT_MS);
   }, [alwaysVisible, clearTimers, finishClose]);
 
-  const scheduleModal = useCallback(() => {
-    if (!canOfferModal()) return;
-
-    clearTimers();
-    closingRef.current = false;
-    setActive(false);
-    setVisible(false);
-
-    openDelayRef.current = setTimeout(() => {
-      openDelayRef.current = null;
-      playEnter();
-    }, OPEN_AFTER_NAVIGATE_MS);
-  }, [canOfferModal, clearTimers, playEnter]);
-
   const requestModal = useCallback(
     (options?: MainBolaoPromoRequestOptions) => {
+      const willNavigate = Boolean(options?.navigate);
+      setDebug("request", { willNavigate, pathname });
+
       try {
         options?.navigate?.();
-      } catch {
-        /* navegação não deve bloquear o modal */
+      } catch (err) {
+        promoDebugLog("navigate_error", {
+          message: err instanceof Error ? err.message : String(err),
+        });
       }
-      scheduleModal();
+
+      if (!canOfferModal()) return;
+
+      if (willNavigate) {
+        markPendingAfterNav();
+        return;
+      }
+
+      scheduleOpenAfterDelay();
     },
-    [scheduleModal],
+    [canOfferModal, pathname, scheduleOpenAfterDelay, setDebug],
   );
 
-  const contextValue = useMemo(
-    () => ({ requestModal }),
-    [requestModal],
-  );
+  useEffect(() => {
+    if (!takePendingAfterNav()) return;
+    setDebug("pending_nav_consumed", { pathname });
+    scheduleOpenAfterDelay();
+  }, [pathname, scheduleOpenAfterDelay, setDebug]);
+
+  const contextValue = useMemo(() => ({ requestModal }), [requestModal]);
+
+  const overlay =
+    visible && portalReady ? (
+      <div
+        className={[
+          "fixed inset-0 flex items-center justify-center p-3 sm:p-4",
+          "bg-black/75 backdrop-blur-[2px]",
+          "transition-opacity ease-out pointer-events-auto",
+          active ? "opacity-100" : "opacity-0",
+        ].join(" ")}
+        style={{
+          zIndex: PROMO_MODAL_Z,
+          transitionDuration: `${active ? ENTER_MS : EXIT_MS}ms`,
+        }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="main-bolao-promo-title"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) handleClose();
+        }}
+      >
+        <div
+          className={[
+            "w-full max-w-[380px] transition-[opacity,transform] pointer-events-auto",
+            active
+              ? "scale-100 translate-y-0 opacity-100 ease-out"
+              : "scale-[0.92] translate-y-5 opacity-0 ease-in",
+          ].join(" ")}
+          style={{
+            transitionDuration: `${active ? ENTER_MS : EXIT_MS}ms`,
+            transitionTimingFunction: active
+              ? "cubic-bezier(0.22, 1, 0.36, 1)"
+              : "cubic-bezier(0.4, 0, 0.6, 1)",
+          }}
+        >
+          <MainBolaoPromoModal onClose={handleClose} />
+        </div>
+      </div>
+    ) : null;
 
   return (
     <MainBolaoPromoProvider value={contextValue}>
       {children}
-      {visible ? (
+      {portalReady && overlay ? createPortal(overlay, document.body) : null}
+      {isMainPromoDebug() ? (
         <div
-          className={[
-            "fixed inset-0 z-115 flex items-center justify-center p-3 sm:p-4",
-            "bg-black/75 backdrop-blur-[2px]",
-            "transition-opacity ease-out",
-            active ? "opacity-100" : "opacity-0",
-          ].join(" ")}
-          style={{ transitionDuration: `${active ? ENTER_MS : EXIT_MS}ms` }}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="main-bolao-promo-title"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) handleClose();
-          }}
+          className="fixed bottom-20 left-2 max-w-[min(100vw-16px,280px)] rounded-md border border-primary/40 bg-black/90 px-2 py-1 font-mono text-[10px] leading-snug text-primary pointer-events-none"
+          style={{ zIndex: PROMO_MODAL_Z + 1 }}
         >
-          <div
-            className={[
-              "w-full max-w-[380px] transition-[opacity,transform]",
-              active
-                ? "scale-100 translate-y-0 opacity-100 ease-out"
-                : "scale-[0.92] translate-y-5 opacity-0 ease-in",
-            ].join(" ")}
-            style={{
-              transitionDuration: `${active ? ENTER_MS : EXIT_MS}ms`,
-              transitionTimingFunction: active
-                ? "cubic-bezier(0.22, 1, 0.36, 1)"
-                : "cubic-bezier(0.4, 0, 0.6, 1)",
-            }}
-          >
-            <MainBolaoPromoModal onClose={handleClose} />
-          </div>
+          promo: {debugStatus}
+          <br />
+          enabled={String(enabled)} z={PROMO_MODAL_Z}
         </div>
       ) : null}
     </MainBolaoPromoProvider>

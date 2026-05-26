@@ -19,10 +19,7 @@ function envBool(name: string, defaultValue: boolean): boolean {
 
 /** Exibir modal (client-safe — prefixo NEXT_PUBLIC_). */
 export function isMainBolaoPromoModalEnabled(): boolean {
-  return envBool(
-    "NEXT_PUBLIC_MAIN_BOLAO_PROMO_MODAL_ENABLED",
-    process.env.NODE_ENV === "development",
-  );
+  return envBool("NEXT_PUBLIC_MAIN_BOLAO_PROMO_MODAL_ENABLED", true);
 }
 
 /** Em dev: reabre a cada visita; em prod: pode persistir dismiss (futuro). */
