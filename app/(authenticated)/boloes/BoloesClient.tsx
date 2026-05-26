@@ -1219,16 +1219,16 @@ function ActiveShowcaseCard({
   const ctaLabel = isGratisExtra
     ? item.displayPhase === "pendentes"
       ? "Fazer palpites"
-      : "Ver classificação"
+      : showVerResultados
+        ? "Ver resultados"
+        : "Ver palpites"
     : item.displayPhase === "pendentes"
       ? "Fazer palpites"
       : showVerResultados
         ? "Ver resultados"
         : "Ver palpites";
 
-  const href = isGratisExtra && item.displayPhase !== "pendentes"
-    ? `/ranking?default=${encodeURIComponent(item.id)}`
-    : item.href;
+  const href = item.href;
 
   return (
     <ShowcaseCotaCard
