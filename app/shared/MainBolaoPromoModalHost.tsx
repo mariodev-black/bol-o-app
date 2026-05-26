@@ -25,7 +25,26 @@ import bgModalPromo from "@/app/assets/bg-modal-promo.jpeg";
 import logo from "@/app/assets/logo.svg";
 
 const PROMO_FONT = "var(--font-montserrat), ui-sans-serif, system-ui, sans-serif";
-const SESSION_DISMISS_KEY = "main_bolao_promo_dismissed";
+/** localStorage — separado de sessionStorage/chaves antigas de teste. */
+const DISMISS_STORAGE_KEY = "bolao_milhao_promo_gratis_modal_v2";
+
+function readPromoDismissed(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return localStorage.getItem(DISMISS_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writePromoDismissed(): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(DISMISS_STORAGE_KEY, "1");
+  } catch {
+    /* ignore */
+  }
+}
 /** Após navegar, aguarda antes de exibir o modal. */
 const OPEN_AFTER_NAVIGATE_MS = 1000;
 /** Duração da animação de entrada/saída. */
@@ -168,11 +187,7 @@ export function MainBolaoPromoModalHost({ children }: { children: React.ReactNod
       return false;
     }
     if (alwaysVisible) return true;
-    try {
-      return sessionStorage.getItem(SESSION_DISMISS_KEY) !== "1";
-    } catch {
-      return true;
-    }
+    return !readPromoDismissed();
   }, [alwaysVisible, enabled, isAdminRoute, isLoggedIn, profileBlocks]);
 
   const clearTimers = useCallback(() => {
@@ -206,11 +221,7 @@ export function MainBolaoPromoModalHost({ children }: { children: React.ReactNod
     clearTimers();
     setActive(false);
     if (!alwaysVisible) {
-      try {
-        sessionStorage.setItem(SESSION_DISMISS_KEY, "1");
-      } catch {
-        /* ignore */
-      }
+      writePromoDismissed();
     }
     exitTimerRef.current = setTimeout(() => {
       setVisible(false);

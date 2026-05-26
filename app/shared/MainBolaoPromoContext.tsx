@@ -35,7 +35,7 @@ export function isGratisBolaoExtraTicket(
   bolaoType: string | undefined,
   isPromoBonus?: boolean,
 ): boolean {
-  return bolaoType === "extra" && isPromoBonus === true;
+  return bolaoType === "extra" && isPromoBonus !== false;
 }
 
 export function useMainBolaoPromoModal(): MainBolaoPromoContextValue {

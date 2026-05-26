@@ -31,7 +31,7 @@ import {
 } from "@/lib/boloes/display-status";
 import { getExtraBolaoHeroSideVariant } from "@/lib/boloes-extra-competition-branding";
 import { extraBolaoIconSrc, isExtraBolaoBrandedIcon } from "@/app/shared/extra-bolao-icons";
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { RankingPalpitesStepsModal } from "@/app/(authenticated)/ranking/_components/RankingPalpitesStepsModal";
 import { useMainBolaoPromoModal } from "@/app/shared/MainBolaoPromoContext";
 import { ScoringExplainerModal } from "@/app/shared/ScoringExplainerModal";
@@ -1060,22 +1060,15 @@ function ShowcaseCotaCard({
     fullWidth ? "w-full" : "w-[368px] max-w-[88vw] shrink-0 snap-center",
   ].join(" ");
 
-  const handlePromoNav = (e: MouseEvent) => {
-    if (!promoInterceptClick) return;
-    e.preventDefault();
-    e.stopPropagation();
+  const aria = cotaLabel ? `${ctaLabel}, ${cotaLabel}` : ctaLabel;
+
+  const goPromoFlow = () => {
     router.push(href);
     requestModal();
   };
 
-  return (
-    <Link
-      href={href}
-      aria-label={cotaLabel ? `${ctaLabel}, ${cotaLabel}` : ctaLabel}
-      onClick={handlePromoNav}
-      className={cardClass}
-      style={{ background: SHOWCASE_CARD_BG }}
-    >
+  const cardBody = (
+    <>
       {/* Header — logo + campeonato / premiação */}
       <div className="flex items-start gap-3 px-4 pb-4 pt-4">
         <div className="flex w-[88px] shrink-0 items-center justify-center pt-0.5">
@@ -1153,6 +1146,31 @@ function ShowcaseCotaCard({
           <ArrowRight className="size-4 shrink-0" strokeWidth={2.6} aria-hidden />
         </span>
       </div>
+    </>
+  );
+
+  if (promoInterceptClick) {
+    return (
+      <button
+        type="button"
+        aria-label={aria}
+        onClick={goPromoFlow}
+        className={`${cardClass} w-full cursor-pointer text-left`}
+        style={{ background: SHOWCASE_CARD_BG }}
+      >
+        {cardBody}
+      </button>
+    );
+  }
+
+  return (
+    <Link
+      href={href}
+      aria-label={aria}
+      className={cardClass}
+      style={{ background: SHOWCASE_CARD_BG }}
+    >
+      {cardBody}
     </Link>
   );
 }
@@ -1191,7 +1209,8 @@ function ActiveShowcaseCard({
     item.displayPhase === "disputa" ||
     (item.displayPhase === "enviados" && lockHasPassed(item.countdownTargetMs ?? null, now));
 
-  const isGratisExtra = kind === "extra" && item.isPromoBonus === true;
+  /** Bolão extra grátis — só pula se `isPromoBonus === false` (extra pago). */
+  const isGratisExtra = kind === "extra" && item.isPromoBonus !== false;
 
   const countdownLabel =
     item.countdownLabel ??
