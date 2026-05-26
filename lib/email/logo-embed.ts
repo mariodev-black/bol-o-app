@@ -43,9 +43,14 @@ export function renderEmailLogoImg(options?: {
   width?: number;
   alt?: string;
   delivery?: EmailLogoDelivery;
+  /** Classe para media queries no template (ex.: `pr-logo-img`). */
+  className?: string;
 }): string {
   const alt = (options?.alt ?? "Bolão do Milhão").replace(/"/g, "&quot;");
   const width = options?.width ?? 220;
+  const classAttr = options?.className?.trim()
+    ? ` class="${options.className.trim().replace(/"/g, "")}"`
+    : "";
   const hasFile = getEmailLogoFilePath() !== null;
   const hostedUrl = getEmailLogoUrl();
   const delivery = options?.delivery ?? "inline";
@@ -60,5 +65,5 @@ export function renderEmailLogoImg(options?: {
     return `<span style="font-size:18px;font-weight:800;color:#B1EB0B;letter-spacing:0.02em;">Bolão do Milhão</span>`;
   }
 
-  return `<img src="${src}" alt="${alt}" width="${width}" style="display:block;width:${width}px;max-width:100% !important;height:auto !important;margin:0 auto;border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;" />`;
+  return `<img${classAttr} src="${src}" alt="${alt}" width="${width}" style="display:block;width:${width}px;max-width:100% !important;height:auto !important;margin:0 auto;border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;" />`;
 }

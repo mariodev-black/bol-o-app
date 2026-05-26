@@ -8,7 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ChevronDown,
   ChevronUp,
@@ -32,6 +32,10 @@ import {
 } from "lucide-react";
 import bgPalpitesDesk from "@/app/assets/bg-palpites-desktop.png";
 import { PalpitesRankingTab } from "@/app/(authenticated)/palpites/_components/PalpitesRankingTab";
+import {
+  isGratisBolaoExtraTicket,
+  useMainBolaoPromoModal,
+} from "@/app/shared/MainBolaoPromoContext";
 import { PalpitesTopPalpiteiros } from "@/app/(authenticated)/palpites/_components/PalpitesTopPalpiteiros";
 import { fetchRankingBoardClient } from "@/lib/ranking/load-board-client";
 import type { RankingBoardMeta, RankingBoardRow } from "@/lib/ranking/board-types";
@@ -679,6 +683,22 @@ function scoresAreComplete(
   scores: JogoCardScores,
 ): scores is { scoreCasa: number; scoreVisitante: number } {
   return scores.scoreCasa !== null && scores.scoreVisitante !== null;
+}
+
+/** Todos os jogos do bolão (escopo da tela) com palpite salvo — fim do fluxo grátis. */
+function allJogosHavePalpite(
+  jogos: Jogo[],
+  predictions: Record<number, { scoreCasa: number; scoreVisitante: number }>,
+): boolean {
+  if (jogos.length === 0) return false;
+  return jogos.every((j) => {
+    const p = predictions[j.id];
+    return (
+      p != null &&
+      Number.isFinite(p.scoreCasa) &&
+      Number.isFinite(p.scoreVisitante)
+    );
+  });
 }
 
 function stepScoreUp(value: number | null): number {
@@ -1786,6 +1806,8 @@ type HistoricoRowView = {
 export type PalpitesInitialData = {
   ticketId: string | null;
   bolaoType: "principal" | "diario" | "extra";
+  /** Cota extra grátis (brinde). */
+  isPromoBonus?: boolean;
   extraChampionshipId?: number | null;
   /**
    * Bolão extra "por rodada": valor de `tickets.round_number`.
@@ -2288,6 +2310,7 @@ function DesktopSidebar({
   ticketId,
   stats,
   bolaoType,
+  onRankingLinkClick,
 }: {
   grupo: string;
   tabela: TabelaGrupos | null;
@@ -2298,6 +2321,7 @@ function DesktopSidebar({
   ticketId: string | null;
   stats: ResumoStats;
   bolaoType: PredictionBolaoType;
+  onRankingLinkClick?: () => void;
 }) {
   const lockCopy = palpiteLockUiCopy(bolaoType);
   const grupoKey = `grupo-${grupo.toLowerCase()}`;
@@ -2492,6 +2516,7 @@ function DesktopSidebar({
         loading={rankingBoardLoading}
         ticketId={ticketId}
         compact
+        onRankingLinkClick={onRankingLinkClick}
       />
 
       <div className="flex items-start gap-3 rounded-2xl border border-primary/20 bg-primary/6 px-4 py-4">
@@ -2965,6 +2990,8 @@ function PalpitesPageContent({
   initialData: PalpitesInitialData | null;
 }) {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const { requestModal } = useMainBolaoPromoModal();
   const showPalpitesDebug = searchParams.get("debugPalpites") === "1";
   const resultMode = searchParams.get("mode") === "resultado";
   const ticketId = searchParams.get("ticket");
@@ -2974,6 +3001,29 @@ function PalpitesPageContent({
   const [bolaoType, setBolaoType] = useState<"principal" | "diario" | "extra">(
     initialData?.bolaoType ?? "principal",
   );
+  const isGratisExtra = isGratisBolaoExtraTicket(
+    bolaoType,
+    initialData?.isPromoBonus,
+  );
+  const runWithPromoIfGratis = useCallback(
+    (action: () => void) => {
+      if (!isGratisExtra) {
+        action();
+        return;
+      }
+      requestModal({ navigate: action });
+    },
+    [isGratisExtra, requestModal],
+  );
+  const openGratisRanking = useCallback(() => {
+    if (!ticketId) return;
+    const href = `/ranking?default=${encodeURIComponent(ticketId)}`;
+    requestModal({
+      navigate: () => {
+        router.push(href);
+      },
+    });
+  }, [requestModal, router, ticketId]);
   const [tab, setTab] = useState<TabView>("jogos");
   const [grupo, setGrupo] = useState(initialData?.grupo ?? "");
   const [jogos, setJogos] = useState<Jogo[]>(initialData?.jogos ?? []);
@@ -3674,6 +3724,12 @@ function PalpitesPageContent({
           setSelectedDate(nextDate);
         }
       }
+      if (
+        isGratisExtra &&
+        allJogosHavePalpite(jogosDisplayBase, predictionsAfter)
+      ) {
+        requestModal();
+      }
     } catch (e) {
       setSaveAllError(
         e instanceof Error ? e.message : "Falha ao salvar palpites",
@@ -4075,7 +4131,13 @@ function PalpitesPageContent({
                   { key: "ranking", label: "Ranking" },
                 ]}
                 value={resultTab}
-                onChange={setResultTab}
+                onChange={(next) => {
+                  if (next === "ranking") {
+                    runWithPromoIfGratis(() => setResultTab("ranking"));
+                    return;
+                  }
+                  setResultTab(next);
+                }}
               />
             ) : (
               <PalpitesViewTabs
@@ -4085,7 +4147,13 @@ function PalpitesPageContent({
                   { key: "ranking", label: "Ranking" },
                 ]}
                 value={tab}
-                onChange={setTab}
+                onChange={(next) => {
+                  if (next === "ranking") {
+                    runWithPromoIfGratis(() => setTab("ranking"));
+                    return;
+                  }
+                  setTab(next);
+                }}
               />
             )}
           </div>
@@ -4256,6 +4324,9 @@ function PalpitesPageContent({
                 loading={rankingBoardLoading}
                 error={rankingBoardError}
                 lockBloco={rankingLockBloco}
+                onRankingLinkClick={
+                  isGratisExtra ? openGratisRanking : undefined
+                }
               />
             ) : null}
             {showResumo ? (
@@ -4283,7 +4354,13 @@ function PalpitesPageContent({
                   { key: "resumo", label: "Resumo" },
                 ]}
                 value={resultTab}
-                onChange={setResultTab}
+                onChange={(next) => {
+                  if (next === "ranking") {
+                    runWithPromoIfGratis(() => setResultTab("ranking"));
+                    return;
+                  }
+                  setResultTab(next);
+                }}
               />
             )}
 
@@ -4308,6 +4385,9 @@ function PalpitesPageContent({
                 loading={rankingBoardLoading}
                 error={rankingBoardError}
                 lockBloco={rankingLockBloco}
+                onRankingLinkClick={
+                  isGratisExtra ? openGratisRanking : undefined
+                }
               />
             ) : erro ? (
               <div className="flex flex-col items-center py-16">
@@ -4443,6 +4523,9 @@ function PalpitesPageContent({
               ticketId={ticketId}
               stats={resumoStats}
               bolaoType={bolaoType}
+              onRankingLinkClick={
+                isGratisExtra ? openGratisRanking : undefined
+              }
             />
           </div>
         )}

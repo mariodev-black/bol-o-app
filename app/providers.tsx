@@ -5,6 +5,7 @@ import { BolaoToastProvider } from "@/app/components/BolaoToast";
 import { AuthProvider } from "@/app/shared/AuthContext";
 import { AppServerConfigProvider } from "@/app/shared/AppServerConfigContext";
 import { ExtraGiftPromoHost } from "@/app/shared/ExtraGiftPromoHost";
+import { MainBolaoPromoModalHost } from "@/app/shared/MainBolaoPromoModalHost";
 import { ProfileCompletionHost } from "@/app/shared/ProfileCompletionHost";
 import { PwaManager } from "@/app/shared/PwaManager";
 import { ReferralCapture } from "@/app/shared/ReferralCapture";
@@ -28,10 +29,12 @@ export function Providers({
         <PwaManager />
         <ProfileCompletionHost>
           <ExtraGiftPromoHost>
-            <Suspense fallback={null}>
-              <ReferralCapture />
-            </Suspense>
-            <SidenavProvider>{children}</SidenavProvider>
+            <MainBolaoPromoModalHost>
+              <Suspense fallback={null}>
+                <ReferralCapture />
+              </Suspense>
+              <SidenavProvider>{children}</SidenavProvider>
+            </MainBolaoPromoModalHost>
           </ExtraGiftPromoHost>
         </ProfileCompletionHost>
       </AuthProvider>

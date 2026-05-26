@@ -59,6 +59,7 @@ export function PalpitesRankingTab({
   loading,
   error,
   lockBloco,
+  onRankingLinkClick,
 }: {
   ticketId: string | null;
   bolaoType: PredictionBolaoType;
@@ -68,6 +69,8 @@ export function PalpitesRankingTab({
   loading: boolean;
   error: string | null;
   lockBloco?: string;
+  /** Bolão grátis: intercepta link "Ranking completo". */
+  onRankingLinkClick?: () => void;
 }) {
   const [matchResults, setMatchResults] = useState<RankingHistoricoRow[]>([]);
   const [loadingMatches, setLoadingMatches] = useState(false);
@@ -189,13 +192,24 @@ export function PalpitesRankingTab({
           {participants.toLocaleString("pt-BR")} participantes
         </p>
         {ticketId ? (
-          <Link
-            href={`/ranking?default=${encodeURIComponent(ticketId)}`}
-            className="inline-flex items-center gap-0.5 text-[13px] font-bold text-primary hover:text-primary/85"
-          >
-            Ranking completo
-            <ChevronRight className="size-4" strokeWidth={2.5} aria-hidden />
-          </Link>
+          onRankingLinkClick ? (
+            <button
+              type="button"
+              onClick={onRankingLinkClick}
+              className="inline-flex items-center gap-0.5 text-[13px] font-bold text-primary hover:text-primary/85"
+            >
+              Ranking completo
+              <ChevronRight className="size-4" strokeWidth={2.5} aria-hidden />
+            </button>
+          ) : (
+            <Link
+              href={`/ranking?default=${encodeURIComponent(ticketId)}`}
+              className="inline-flex items-center gap-0.5 text-[13px] font-bold text-primary hover:text-primary/85"
+            >
+              Ranking completo
+              <ChevronRight className="size-4" strokeWidth={2.5} aria-hidden />
+            </Link>
+          )
         ) : null}
       </div>
 

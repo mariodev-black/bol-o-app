@@ -54,11 +54,13 @@ export function PalpitesTopPalpiteiros({
   loading,
   ticketId,
   compact,
+  onRankingLinkClick,
 }: {
   rows: RankingBoardRow[];
   loading?: boolean;
   ticketId: string | null;
   compact?: boolean;
+  onRankingLinkClick?: () => void;
 }) {
   const top = rows.slice(0, compact ? 3 : 5);
 
@@ -76,12 +78,22 @@ export function PalpitesTopPalpiteiros({
       >
         <span className="text-[13px] font-bold text-white">Top Palpiteiros</span>
         {ticketId ? (
-          <Link
-            href={`/ranking?default=${encodeURIComponent(ticketId)}`}
-            className="text-[12px] font-semibold text-primary hover:text-primary/85"
-          >
-            Ver todos
-          </Link>
+          onRankingLinkClick ? (
+            <button
+              type="button"
+              onClick={onRankingLinkClick}
+              className="text-[12px] font-semibold text-primary hover:text-primary/85"
+            >
+              Ver todos
+            </button>
+          ) : (
+            <Link
+              href={`/ranking?default=${encodeURIComponent(ticketId)}`}
+              className="text-[12px] font-semibold text-primary hover:text-primary/85"
+            >
+              Ver todos
+            </Link>
+          )
         ) : null}
       </div>
 

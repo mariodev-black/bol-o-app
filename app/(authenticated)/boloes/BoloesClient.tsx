@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import {
   Activity,
   ArrowRight,
@@ -30,8 +31,9 @@ import {
 } from "@/lib/boloes/display-status";
 import { getExtraBolaoHeroSideVariant } from "@/lib/boloes-extra-competition-branding";
 import { extraBolaoIconSrc, isExtraBolaoBrandedIcon } from "@/app/shared/extra-bolao-icons";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { RankingPalpitesStepsModal } from "@/app/(authenticated)/ranking/_components/RankingPalpitesStepsModal";
+import { useMainBolaoPromoModal } from "@/app/shared/MainBolaoPromoContext";
 import { ScoringExplainerModal } from "@/app/shared/ScoringExplainerModal";
 
 export type ActivePrincipalBolao = {
@@ -85,6 +87,8 @@ export type ActiveBolaoListItem = {
   points: number;
   /** Tickets distintos com palpite neste bolão (card vitrine). */
   participantCount?: number;
+  /** Cota extra grátis (brinde `is_promo_bonus`). */
+  isPromoBonus?: boolean;
 };
 
 export type BoloesScreenData = {
@@ -1019,6 +1023,7 @@ function ShowcaseCotaCard({
   countdownTargetMs,
   now,
   ctaLabel,
+  promoInterceptClick,
 }: {
   href: string;
   fullWidth?: boolean;
@@ -1031,7 +1036,11 @@ function ShowcaseCotaCard({
   countdownTargetMs: number | null;
   now: number;
   ctaLabel: string;
+  /** Bolão grátis: modal promocional antes de seguir o link. */
+  promoInterceptClick?: boolean;
 }) {
+  const router = useRouter();
+  const { requestModal } = useMainBolaoPromoModal();
   const prizes = SHOWCASE_PRIZES[kind];
   const header = showcaseHeaderParts(displayTitle, kind);
   const finished = displayPhase === "finalizado";
@@ -1046,14 +1055,27 @@ function ShowcaseCotaCard({
     : inDispute
       ? "Status"
       : countdownLabel.toUpperCase();
+  const cardClass = [
+    "group flex min-h-0 flex-col overflow-hidden rounded-[14px] transition-transform duration-300 active:scale-[0.985]",
+    fullWidth ? "w-full" : "w-[368px] max-w-[88vw] shrink-0 snap-center",
+  ].join(" ");
+
+  const handlePromoNav = (e: MouseEvent) => {
+    if (!promoInterceptClick) return;
+    e.preventDefault();
+    requestModal({
+      navigate: () => {
+        router.push(href);
+      },
+    });
+  };
+
   return (
     <Link
       href={href}
       aria-label={cotaLabel ? `${ctaLabel}, ${cotaLabel}` : ctaLabel}
-      className={[
-        "group flex min-h-0 flex-col overflow-hidden rounded-[14px] transition-transform duration-300 active:scale-[0.985]",
-        fullWidth ? "w-full" : "w-[368px] max-w-[88vw] shrink-0 snap-center",
-      ].join(" ")}
+      onClick={handlePromoNav}
+      className={cardClass}
       style={{ background: SHOWCASE_CARD_BG }}
     >
       {/* Header — logo + campeonato / premiação */}
@@ -1171,13 +1193,29 @@ function ActiveShowcaseCard({
     item.displayPhase === "disputa" ||
     (item.displayPhase === "enviados" && lockHasPassed(item.countdownTargetMs ?? null, now));
 
+  const isGratisExtra = kind === "extra" && item.isPromoBonus === true;
+
   const countdownLabel =
     item.countdownLabel ??
     (item.status === "aguardando" ? "Começa em" : "Fecha em");
 
+  const ctaLabel = isGratisExtra
+    ? item.displayPhase === "pendentes"
+      ? "Fazer palpites"
+      : "Ver classificação"
+    : item.displayPhase === "pendentes"
+      ? "Fazer palpites"
+      : showVerResultados
+        ? "Ver resultados"
+        : "Ver palpites";
+
+  const href = isGratisExtra && item.displayPhase !== "pendentes"
+    ? `/ranking?default=${encodeURIComponent(item.id)}`
+    : item.href;
+
   return (
     <ShowcaseCotaCard
-      href={item.href}
+      href={href}
       fullWidth={fullWidth}
       logoSrc={image}
       kind={kind}
@@ -1187,13 +1225,8 @@ function ActiveShowcaseCard({
       countdownLabel={countdownLabel}
       countdownTargetMs={item.countdownTargetMs ?? null}
       now={now}
-      ctaLabel={
-        item.displayPhase === "pendentes"
-          ? "Fazer palpites"
-          : showVerResultados
-            ? "Ver resultados"
-            : "Ver palpites"
-      }
+      ctaLabel={ctaLabel}
+      promoInterceptClick={isGratisExtra}
     />
   );
 }

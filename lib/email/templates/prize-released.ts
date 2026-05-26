@@ -5,6 +5,12 @@ import { emailFirstName, escapeEmailHtml } from "@/lib/email/recipient";
 import { resolveAdminBroadcastButtonUrl } from "@/lib/email/resolve-button-url";
 
 const EMAIL_WIDTH = 600;
+/** Altura da faixa da logo (desktop). */
+const HEADER_HEIGHT_DESKTOP = 80;
+/** Altura da faixa da logo no mobile. */
+const HEADER_HEIGHT_MOBILE = 60;
+const LOGO_WIDTH_DESKTOP = 140;
+const LOGO_WIDTH_MOBILE = 96;
 
 const C = {
   bg: "#0a0a0a",
@@ -32,9 +38,13 @@ const PRIZE_EMAIL_STYLES = `
   .pr-btn-td { background-color: ${C.accent} !important; border-radius: 50px !important; }
   .pr-btn-link { color: ${C.buttonText} !important; text-decoration: none !important; font-weight: 800 !important; }
   .pr-fluid { width: 100% !important; max-width: ${EMAIL_WIDTH}px !important; }
+  .pr-header { height: ${HEADER_HEIGHT_DESKTOP}px !important; max-height: ${HEADER_HEIGHT_DESKTOP}px !important; padding: 14px 24px 8px !important; line-height: 0 !important; }
+  .pr-logo-link { display: inline-block !important; line-height: 0 !important; max-width: 100% !important; }
+  .pr-logo-img { width: ${LOGO_WIDTH_DESKTOP}px !important; max-width: ${LOGO_WIDTH_DESKTOP}px !important; max-height: 52px !important; height: auto !important; margin: 0 auto !important; }
   @media only screen and (max-width: 620px) {
     .pr-outer-pad { padding: 16px 10px 24px !important; }
-    .pr-logo-pad { padding: 24px 16px 12px !important; }
+    .pr-header { height: ${HEADER_HEIGHT_MOBILE}px !important; max-height: ${HEADER_HEIGHT_MOBILE}px !important; padding: 10px 16px !important; }
+    .pr-logo-img { width: ${LOGO_WIDTH_MOBILE}px !important; max-width: ${LOGO_WIDTH_MOBILE}px !important; max-height: 40px !important; }
     .pr-title-pad { padding: 0 16px 20px !important; }
     .pr-content-pad { padding: 0 16px 28px !important; }
     .pr-h1 { font-size: 20px !important; line-height: 1.25 !important; letter-spacing: -0.3px !important; }
@@ -141,7 +151,11 @@ export function buildPrizeReleasedEmail(
   const ctaHref = resolveAdminBroadcastButtonUrl(
     (params.ctaHref ?? getEmailBoloesUrl()).trim(),
   );
-  const logo = renderEmailLogoImg({ width: 180, alt: appName });
+  const logo = renderEmailLogoImg({
+    width: LOGO_WIDTH_DESKTOP,
+    alt: appName,
+    className: "pr-logo-img",
+  });
   const progressNote =
     params.progressNoteHtml?.trim() ||
     `<span style="font-size:18px;line-height:1;">🏅</span> Premiação dividida de forma progressiva até o 10º colocado.`;
@@ -179,8 +193,8 @@ export function buildPrizeReleasedEmail(
         <!--[if mso]><table role="presentation" align="center" border="0" cellpadding="0" cellspacing="0" width="${EMAIL_WIDTH}"><tr><td><![endif]-->
         <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="${EMAIL_WIDTH}" class="pr-card pr-fluid" style="width:100%;max-width:${EMAIL_WIDTH}px;background-color:${C.card};border-radius:16px;border:1px solid ${C.border};">
           <tr>
-            <td class="pr-logo-pad" align="center" bgcolor="${C.card}" style="background-color:${C.card};padding:32px 24px 16px;">
-              <a href="${escapeAttr(appUrl)}" target="_blank" style="text-decoration:none;display:inline-block;max-width:100%;">
+            <td class="pr-header pr-logo-pad" align="center" valign="middle" height="${HEADER_HEIGHT_DESKTOP}" bgcolor="${C.card}" style="background-color:${C.card};height:${HEADER_HEIGHT_DESKTOP}px;max-height:${HEADER_HEIGHT_DESKTOP}px;padding:14px 24px 8px;line-height:0;">
+              <a class="pr-logo-link" href="${escapeAttr(appUrl)}" target="_blank" style="text-decoration:none;display:inline-block;line-height:0;max-width:100%;">
                 ${logo}
               </a>
             </td>

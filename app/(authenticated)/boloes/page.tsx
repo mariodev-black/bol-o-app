@@ -553,6 +553,7 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
         position: metrics.position,
         points: metrics.points,
         participantCount: participantsByBolao.extra,
+        isPromoBonus: ticket.isPromoBonus === true,
       };
     }
 

@@ -268,6 +268,7 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
   let extraRoundNumber: number | null = null;
   let extraRoundName: string | null = null;
   let ticketRoundFromDb: number | null = null;
+  let isPromoBonus = false;
   const tid = ticketId?.trim() ?? "";
   if (tid) {
     const fromPrefix = inferBolaoTypeFromTicketPrefix(tid);
@@ -275,21 +276,24 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
     if (userId) {
       const inferred = await inferBolaoTypeFromTicketId(tid);
       if (inferred) bolaoType = inferred;
+      const pool = getPool();
+      const { rows: ticketRows } = await pool.query<{
+        cid: number | null;
+        rnum: number | null;
+        is_promo_bonus: boolean;
+      }>(
+        `SELECT extra_championship_id AS cid, round_number AS rnum,
+                COALESCE(is_promo_bonus, false) AS is_promo_bonus
+           FROM tickets
+          WHERE id::text = $1 AND user_id = $2 AND status = 'paid'
+          LIMIT 1`,
+        [tid, userId],
+      );
+      isPromoBonus = Boolean(ticketRows[0]?.is_promo_bonus);
       if (inferred === "extra") {
-        const pool = getPool();
-        const { rows: exRows } = await pool.query<{
-          cid: number | null;
-          rnum: number | null;
-        }>(
-          `SELECT extra_championship_id AS cid, round_number AS rnum
-             FROM tickets
-            WHERE id::text = $1 AND user_id = $2 AND status = 'paid'
-            LIMIT 1`,
-          [tid, userId],
-        );
-        const cid = exRows[0]?.cid;
+        const cid = ticketRows[0]?.cid;
         extraChampionshipId = cid != null && Number.isFinite(Number(cid)) ? Number(cid) : null;
-        const rnum = exRows[0]?.rnum;
+        const rnum = ticketRows[0]?.rnum;
         extraRoundNumber = rnum != null && Number.isFinite(Number(rnum)) ? Number(rnum) : null;
         ticketRoundFromDb = extraRoundNumber;
       }
@@ -459,6 +463,7 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
   return {
     ticketId,
     bolaoType,
+    isPromoBonus,
     extraChampionshipId,
     extraRoundNumber,
     extraRoundName,
