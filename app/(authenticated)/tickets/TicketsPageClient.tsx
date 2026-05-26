@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { AppScreenLoading } from "@/app/shared/AppScreenLoading";
 import { TicketCheckoutFlow } from "./_components/TicketCheckoutFlow";
+import { LpTicketCheckoutFlow } from "./_components/LpTicketCheckoutFlow";
 
 function TicketsPageContent({
   serverExtraChampionshipIds,
@@ -15,6 +16,10 @@ function TicketsPageContent({
   ticketsHideDaily: boolean;
 }) {
   const search = useSearchParams();
+  const lpFlow =
+    search.get("lp") === "1" ||
+    search.get("lp") === "true" ||
+    search.get("flow") === "lp";
   const bolaoRaw = search.get("bolao");
   const bolao =
     bolaoRaw === "diario" && !ticketsHideDaily
@@ -31,15 +36,19 @@ function TicketsPageContent({
     bolao === "diario" ? "daily" : bolao === "extra" && initialExtraChampionshipId != null ? "extra" : "general";
 
   return (
-    <div className="flex min-h-screen min-h-0 flex-1 flex-col bg-black">
-      <TicketCheckoutFlow
-        key={`${bolao}-${initialExtraChampionshipId ?? ""}-${ticketsExtraOnly ? "xo" : ticketsHideDaily ? "hd" : "all"}`}
-        initialTicketKind={initialTicketKind}
-        initialExtraChampionshipId={initialExtraChampionshipId}
-        serverExtraChampionshipIds={serverExtraChampionshipIds}
-        ticketsExtraOnly={ticketsExtraOnly}
-        ticketsHideDaily={ticketsHideDaily}
-      />
+    <div className="flex min-h-screen flex-1 flex-col bg-black">
+      {lpFlow ? (
+        <LpTicketCheckoutFlow />
+      ) : (
+        <TicketCheckoutFlow
+          key={`${bolao}-${initialExtraChampionshipId ?? ""}-${ticketsExtraOnly ? "xo" : ticketsHideDaily ? "hd" : "all"}`}
+          initialTicketKind={initialTicketKind}
+          initialExtraChampionshipId={initialExtraChampionshipId}
+          serverExtraChampionshipIds={serverExtraChampionshipIds}
+          ticketsExtraOnly={ticketsExtraOnly}
+          ticketsHideDaily={ticketsHideDaily}
+        />
+      )}
     </div>
   );
 }
