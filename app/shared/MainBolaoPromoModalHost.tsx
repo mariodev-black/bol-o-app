@@ -164,7 +164,7 @@ export function MainBolaoPromoModalHost({ children }: { children: React.ReactNod
   const profileBlocks = Boolean(user && user.profileComplete === false);
 
   const canOfferModal = useCallback(() => {
-    if (!enabled || isAdminRoute || !ready || !isLoggedIn || profileBlocks) {
+    if (!enabled || isAdminRoute || !isLoggedIn || profileBlocks) {
       return false;
     }
     if (alwaysVisible) return true;
@@ -173,7 +173,7 @@ export function MainBolaoPromoModalHost({ children }: { children: React.ReactNod
     } catch {
       return true;
     }
-  }, [alwaysVisible, enabled, isAdminRoute, isLoggedIn, profileBlocks, ready]);
+  }, [alwaysVisible, enabled, isAdminRoute, isLoggedIn, profileBlocks]);
 
   const clearTimers = useCallback(() => {
     if (openDelayRef.current != null) {
@@ -218,25 +218,30 @@ export function MainBolaoPromoModalHost({ children }: { children: React.ReactNod
     }, EXIT_MS);
   }, [alwaysVisible, clearTimers, finishClose]);
 
+  const scheduleModal = useCallback(() => {
+    if (!canOfferModal()) return;
+
+    clearTimers();
+    closingRef.current = false;
+    setActive(false);
+    setVisible(false);
+
+    openDelayRef.current = setTimeout(() => {
+      openDelayRef.current = null;
+      playEnter();
+    }, OPEN_AFTER_NAVIGATE_MS);
+  }, [canOfferModal, clearTimers, playEnter]);
+
   const requestModal = useCallback(
     (options?: MainBolaoPromoRequestOptions) => {
-      options?.navigate?.();
-
-      if (!canOfferModal()) {
-        return;
+      try {
+        options?.navigate?.();
+      } catch {
+        /* navegação não deve bloquear o modal */
       }
-
-      clearTimers();
-      closingRef.current = false;
-      setActive(false);
-      setVisible(false);
-
-      openDelayRef.current = setTimeout(() => {
-        openDelayRef.current = null;
-        playEnter();
-      }, OPEN_AFTER_NAVIGATE_MS);
+      scheduleModal();
     },
-    [canOfferModal, clearTimers, playEnter],
+    [scheduleModal],
   );
 
   const contextValue = useMemo(

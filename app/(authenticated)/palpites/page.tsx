@@ -281,15 +281,21 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
         cid: number | null;
         rnum: number | null;
         is_promo_bonus: boolean;
+        total_amount_cents: number | null;
+        ticket_type: string;
       }>(
-        `SELECT extra_championship_id AS cid, round_number AS rnum,
-                COALESCE(is_promo_bonus, false) AS is_promo_bonus
+        `SELECT extra_championship_id AS cid, round_number AS rnum, ticket_type,
+                COALESCE(is_promo_bonus, false) AS is_promo_bonus,
+                COALESCE(total_amount_cents, 0) AS total_amount_cents
            FROM tickets
           WHERE id::text = $1 AND user_id = $2 AND status = 'paid'
           LIMIT 1`,
         [tid, userId],
       );
-      isPromoBonus = Boolean(ticketRows[0]?.is_promo_bonus);
+      const row = ticketRows[0];
+      isPromoBonus =
+        Boolean(row?.is_promo_bonus) ||
+        (row?.ticket_type === "extra" && Number(row?.total_amount_cents ?? 0) === 0);
       if (inferred === "extra") {
         const cid = ticketRows[0]?.cid;
         extraChampionshipId = cid != null && Number.isFinite(Number(cid)) ? Number(cid) : null;

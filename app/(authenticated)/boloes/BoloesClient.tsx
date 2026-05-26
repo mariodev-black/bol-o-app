@@ -1063,11 +1063,9 @@ function ShowcaseCotaCard({
   const handlePromoNav = (e: MouseEvent) => {
     if (!promoInterceptClick) return;
     e.preventDefault();
-    requestModal({
-      navigate: () => {
-        router.push(href);
-      },
-    });
+    e.stopPropagation();
+    router.push(href);
+    requestModal();
   };
 
   return (

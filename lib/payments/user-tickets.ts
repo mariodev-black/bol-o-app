@@ -74,12 +74,14 @@ export async function listPaidTicketsForUser(userId: string): Promise<PaidTicket
         extra_championship_id: number | null;
         round_number: number | null;
         is_promo_bonus: boolean;
+        total_amount_cents: number | null;
         quantity: number;
         paid_at: Date | null;
         created_at: Date;
       }>(
         `SELECT id, ticket_type, extra_championship_id, round_number,
                 COALESCE(is_promo_bonus, false) AS is_promo_bonus,
+                COALESCE(total_amount_cents, 0) AS total_amount_cents,
                 quantity, paid_at, created_at
          FROM tickets
          WHERE user_id = $1 AND status = 'paid'
@@ -105,7 +107,9 @@ export async function listPaidTicketsForUser(userId: string): Promise<PaidTicket
         ticketType: r.ticket_type,
         extraChampionshipId: compId,
         extraRoundNumber,
-        isPromoBonus: Boolean(r.is_promo_bonus),
+        isPromoBonus:
+          Boolean(r.is_promo_bonus) ||
+          (r.ticket_type === "extra" && Number(r.total_amount_cents ?? 0) === 0),
         quantity: Math.max(1, r.quantity),
         paidAt: r.paid_at ? r.paid_at.toISOString() : null,
         createdAt: r.created_at.toISOString(),

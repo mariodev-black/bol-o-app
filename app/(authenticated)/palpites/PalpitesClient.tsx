@@ -3007,23 +3007,18 @@ function PalpitesPageContent({
   );
   const runWithPromoIfGratis = useCallback(
     (action: () => void) => {
-      if (!isGratisExtra) {
-        action();
-        return;
-      }
-      requestModal({ navigate: action });
+      action();
+      if (!isGratisExtra) return;
+      requestModal();
     },
     [isGratisExtra, requestModal],
   );
   const openGratisRanking = useCallback(() => {
     if (!ticketId) return;
     const href = `/ranking?default=${encodeURIComponent(ticketId)}`;
-    requestModal({
-      navigate: () => {
-        router.push(href);
-      },
-    });
-  }, [requestModal, router, ticketId]);
+    router.push(href);
+    if (isGratisExtra) requestModal();
+  }, [isGratisExtra, requestModal, router, ticketId]);
   const [tab, setTab] = useState<TabView>("jogos");
   const [grupo, setGrupo] = useState(initialData?.grupo ?? "");
   const [jogos, setJogos] = useState<Jogo[]>(initialData?.jogos ?? []);
