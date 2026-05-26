@@ -17,11 +17,7 @@ import {
 import { calculatePrizePoolCents } from "@/lib/prizes/distribution";
 import { clampAvatarIndex } from "@/lib/auth/avatar-index";
 import { isLiveOrInProgressMatchStatus } from "@/lib/palpites-match-open";
-import {
-  mergeRankingWithBots,
-  rankingBotPoolKey,
-  type RankingBotPoolContext,
-} from "@/lib/ranking/ranking-bots";
+import { isRankingFillerRow } from "@/lib/ranking/ranking-bots";
 import { isStoredAvatarUploadFilename } from "@/lib/user/avatar-filename";
 
 export function avatarIndexFromDb(v: string | number | null | undefined): number {
@@ -475,15 +471,28 @@ function poolMatchScoringProgress(
   return { total: Math.max(1, total), finished, live };
 }
 
+function compareLeaderboardRows(a: LeaderboardRow, b: LeaderboardRow): number {
+  if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
+  if (b.exactCount !== a.exactCount) return b.exactCount - a.exactCount;
+  if (b.outcomeCount !== a.outcomeCount) return b.outcomeCount - a.outcomeCount;
+  if (b.goalsCount !== a.goalsCount) return b.goalsCount - a.goalsCount;
+  if (b.bestStreak !== a.bestStreak) return b.bestStreak - a.bestStreak;
+  const aFiller = isRankingFillerRow(a);
+  const bFiller = isRankingFillerRow(b);
+  if (aFiller !== bFiller) return aFiller ? 1 : -1;
+  return a.ticketId.localeCompare(b.ticketId);
+}
+
 function finalizeLeaderboardDisplay(
   rows: LeaderboardRow[],
   meta: LeaderboardBoardMeta,
-  poolKey: string,
-  ctx: RankingBotPoolContext,
 ): { rows: LeaderboardRow[]; meta: LeaderboardBoardMeta } {
-  const merged = mergeRankingWithBots(rows, poolKey, ctx);
+  const realOnly = rows
+    .filter((r) => !isRankingFillerRow(r))
+    .map((r) => ({ ...r, isFiller: false as const }));
+  const sorted = [...realOnly].sort(compareLeaderboardRows);
   return {
-    rows: merged,
+    rows: sorted.map((r, idx) => ({ ...r, pos: idx + 1 })),
     meta,
   };
 }
@@ -552,7 +561,7 @@ async function loadPaidTickets(
 export async function buildLeaderboardPrincipal(): Promise<{ rows: LeaderboardRow[]; meta: LeaderboardBoardMeta }> {
   const getCached = unstable_cache(
     async () => buildLeaderboardPrincipalUncached(),
-    ["leaderboard", "principal", "v20-bot-floor-top10"],
+    ["leaderboard", "principal", "v21-real-only"],
     { revalidate: RANKING_REVALIDATE_SEC, tags: ["leaderboard"] }
   );
   return getCached();
@@ -632,21 +641,13 @@ async function buildLeaderboardPrincipalUncached(): Promise<{ rows: LeaderboardR
     hasLiveMatchesInPool,
   };
 
-  const poolFilter = (m: MatchInfo) => (Number(m.competitionId) || mainComp) === mainComp;
-  const poolProg = poolMatchScoringProgress(matches, poolFilter);
-
-  return finalizeLeaderboardDisplay(rows, meta, rankingBotPoolKey("principal"), {
-    hasResultedMatches: hasResultedMatchesInPool || hasLiveMatchesInPool,
-    estimatedGamesInPool: poolProg.total,
-    finishedGamesInPool: poolProg.finished,
-    liveGamesInPool: poolProg.live,
-  });
+  return finalizeLeaderboardDisplay(rows, meta);
 }
 
 export async function buildLeaderboardDiarioForTicket(focusTicketId: string): Promise<{ rows: LeaderboardRow[]; meta: LeaderboardBoardMeta }> {
   const getCached = unstable_cache(
     async () => buildLeaderboardDiarioUncached(focusTicketId),
-    ["leaderboard", "diario", focusTicketId, "v20-bot-floor-top10"],
+    ["leaderboard", "diario", focusTicketId, "v21-real-only"],
     { revalidate: RANKING_REVALIDATE_SEC, tags: ["leaderboard"] }
   );
   return getCached();
@@ -791,24 +792,7 @@ async function buildLeaderboardDiarioUncached(focusTicketId: string): Promise<{ 
     hasLiveMatchesInPool,
   };
 
-  const diarioFilter = (m: MatchInfo) => {
-    if (!m.dateBR) return false;
-    if (Number(m.competitionId) !== mainComp) return false;
-    return m.dateBR === poolPlayDate;
-  };
-  const diarioProg = poolMatchScoringProgress(matches, diarioFilter);
-
-  return finalizeLeaderboardDisplay(
-    rows,
-    meta,
-    rankingBotPoolKey("diario", { date: poolPlayDate }),
-    {
-      hasResultedMatches: hasResultedMatchesInPool || hasLiveMatchesInPool,
-      estimatedGamesInPool: diarioProg.total,
-      finishedGamesInPool: diarioProg.finished,
-      liveGamesInPool: diarioProg.live,
-    },
-  );
+  return finalizeLeaderboardDisplay(rows, meta);
 }
 
 export async function buildLeaderboardExtraForTicket(
@@ -849,7 +833,7 @@ export async function buildLeaderboardExtraForTicket(
 
   const getCached = unstable_cache(
     async () => buildLeaderboardExtraForCompRoundUncached(extraComp, poolRodada),
-    ["leaderboard", "extra", String(extraComp), String(poolRodada), "v20-bot-floor-top10"],
+    ["leaderboard", "extra", String(extraComp), String(poolRodada), "v21-real-only"],
     { revalidate: RANKING_REVALIDATE_SEC, tags: ["leaderboard"] },
   );
   return getCached();
@@ -997,23 +981,7 @@ async function buildLeaderboardExtraForCompRoundUncached(
     hasLiveMatchesInPool,
   };
 
-  const extraFilter = (m: MatchInfo) => {
-    if (Number(m.competitionId) !== extraComp) return false;
-    return m.rodada === poolRodada;
-  };
-  const extraProg = poolMatchScoringProgress(matches, extraFilter);
-
-  return finalizeLeaderboardDisplay(
-    rows,
-    meta,
-    rankingBotPoolKey("extra", { comp: extraComp, rodada: poolRodada }),
-    {
-      hasResultedMatches: hasResultedMatchesInPool || hasLiveMatchesInPool,
-      estimatedGamesInPool: extraProg.total,
-      finishedGamesInPool: extraProg.finished,
-      liveGamesInPool: extraProg.live,
-    },
-  );
+  return finalizeLeaderboardDisplay(rows, meta);
 }
 
 /** Para scripts de debug (fora do Next.js). */
