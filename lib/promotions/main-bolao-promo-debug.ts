@@ -1,10 +1,7 @@
-/** Ative com `?debugMainPromo=1` ou `localStorage.setItem('bolao_debug_main_promo','1')`. */
-export const PROMO_DEBUG_STORAGE_KEY = "bolao_debug_main_promo";
-
+/** Ative com `?debugMainPromo=1` na URL. */
 export function isMainPromoDebug(): boolean {
   if (typeof window === "undefined") return false;
   try {
-    if (localStorage.getItem(PROMO_DEBUG_STORAGE_KEY) === "1") return true;
     return new URLSearchParams(window.location.search).has("debugMainPromo");
   } catch {
     return false;

@@ -22,10 +22,10 @@ export function isMainBolaoPromoModalEnabled(): boolean {
   return envBool("NEXT_PUBLIC_MAIN_BOLAO_PROMO_MODAL_ENABLED", true);
 }
 
-/** Em dev: reabre a cada visita; em prod: pode persistir dismiss (futuro). */
+/**
+ * @deprecated Fechar o modal não persiste mais bloqueio — reabre em cada gatilho do fluxo.
+ * Mantido só para não quebrar imports antigos.
+ */
 export function isMainBolaoPromoModalAlwaysVisible(): boolean {
-  return envBool(
-    "NEXT_PUBLIC_MAIN_BOLAO_PROMO_MODAL_ALWAYS",
-    process.env.NODE_ENV === "development",
-  );
+  return true;
 }

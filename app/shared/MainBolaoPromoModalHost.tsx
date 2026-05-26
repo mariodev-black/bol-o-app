@@ -19,10 +19,7 @@ import {
   MainBolaoPromoProvider,
   type MainBolaoPromoRequestOptions,
 } from "@/app/shared/MainBolaoPromoContext";
-import {
-  isMainBolaoPromoModalAlwaysVisible,
-  isMainBolaoPromoModalEnabled,
-} from "@/lib/promotions/main-bolao-promo";
+import { isMainBolaoPromoModalEnabled } from "@/lib/promotions/main-bolao-promo";
 import {
   isMainPromoDebug,
   promoDebugLog,
@@ -31,8 +28,6 @@ import bgModalPromo from "@/app/assets/bg-modal-promo.jpeg";
 import logo from "@/app/assets/logo.svg";
 
 const PROMO_FONT = "var(--font-montserrat), ui-sans-serif, system-ui, sans-serif";
-const DISMISS_STORAGE_KEY = "bolao_milhao_promo_gratis_modal_v2";
-const PENDING_AFTER_NAV_KEY = "bolao_milhao_promo_pending_nav_v1";
 /** Após navegar, aguarda antes de exibir o modal. */
 const OPEN_AFTER_NAVIGATE_MS = 1000;
 const ENTER_MS = 520;
@@ -40,45 +35,8 @@ const EXIT_MS = 380;
 /** Acima de ExtraGift (110), NavBottom (70), Notifications (140). */
 const PROMO_MODAL_Z = 150;
 
-function readPromoDismissed(): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    return localStorage.getItem(DISMISS_STORAGE_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
-function writePromoDismissed(): void {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(DISMISS_STORAGE_KEY, "1");
-  } catch {
-    /* ignore */
-  }
-}
-
-function markPendingAfterNav(): void {
-  if (typeof window === "undefined") return;
-  try {
-    sessionStorage.setItem(PENDING_AFTER_NAV_KEY, String(Date.now()));
-  } catch {
-    /* ignore */
-  }
-}
-
-function takePendingAfterNav(): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    const raw = sessionStorage.getItem(PENDING_AFTER_NAV_KEY);
-    if (!raw) return false;
-    sessionStorage.removeItem(PENDING_AFTER_NAV_KEY);
-    const at = Number(raw);
-    return Number.isFinite(at) && Date.now() - at < 20_000;
-  } catch {
-    return false;
-  }
-}
+/** Só em memória — sem localStorage/sessionStorage. */
+let pendingOpenAfterNav = false;
 
 /** Título hero — contorno branco leve + sombra para baixo (contraste na foto) */
 const PROMO_HERO_WHITE =
@@ -206,7 +164,6 @@ export function MainBolaoPromoModalHost({ children }: { children: React.ReactNod
   const closingRef = useRef(false);
 
   const enabled = isMainBolaoPromoModalEnabled();
-  const alwaysVisible = isMainBolaoPromoModalAlwaysVisible();
   const profileBlocks = Boolean(user && user.profileComplete === false);
 
   useEffect(() => {
@@ -218,9 +175,8 @@ export function MainBolaoPromoModalHost({ children }: { children: React.ReactNod
     if (isAdminRoute) return "admin_route";
     if (!isLoggedIn) return "not_logged_in";
     if (profileBlocks) return "profile_incomplete";
-    if (!alwaysVisible && readPromoDismissed()) return "dismissed";
     return null;
-  }, [alwaysVisible, enabled, isAdminRoute, isLoggedIn, profileBlocks]);
+  }, [enabled, isAdminRoute, isLoggedIn, profileBlocks]);
 
   const canOfferModal = useCallback(() => getBlockReason() === null, [getBlockReason]);
 
@@ -259,11 +215,7 @@ export function MainBolaoPromoModalHost({ children }: { children: React.ReactNod
   const scheduleOpenAfterDelay = useCallback(() => {
     const block = getBlockReason();
     if (block) {
-      setDebug(`blocked:${block}`, {
-        enabled,
-        alwaysVisible,
-        pathname,
-      });
+      setDebug(`blocked:${block}`, { enabled, pathname });
       return;
     }
 
@@ -277,21 +229,18 @@ export function MainBolaoPromoModalHost({ children }: { children: React.ReactNod
       openDelayRef.current = null;
       playEnter();
     }, OPEN_AFTER_NAVIGATE_MS);
-  }, [clearTimers, getBlockReason, pathname, playEnter, setDebug, alwaysVisible, enabled]);
+  }, [clearTimers, getBlockReason, pathname, playEnter, setDebug, enabled]);
 
   const handleClose = useCallback(() => {
     if (closingRef.current) return;
     closingRef.current = true;
     clearTimers();
     setActive(false);
-    if (!alwaysVisible) {
-      writePromoDismissed();
-    }
     exitTimerRef.current = setTimeout(() => {
       setVisible(false);
       finishClose();
     }, EXIT_MS);
-  }, [alwaysVisible, clearTimers, finishClose]);
+  }, [clearTimers, finishClose]);
 
   const requestModal = useCallback(
     (options?: MainBolaoPromoRequestOptions) => {
@@ -309,7 +258,7 @@ export function MainBolaoPromoModalHost({ children }: { children: React.ReactNod
       if (!canOfferModal()) return;
 
       if (willNavigate) {
-        markPendingAfterNav();
+        pendingOpenAfterNav = true;
         return;
       }
 
@@ -319,7 +268,8 @@ export function MainBolaoPromoModalHost({ children }: { children: React.ReactNod
   );
 
   useEffect(() => {
-    if (!takePendingAfterNav()) return;
+    if (!pendingOpenAfterNav) return;
+    pendingOpenAfterNav = false;
     setDebug("pending_nav_consumed", { pathname });
     scheduleOpenAfterDelay();
   }, [pathname, scheduleOpenAfterDelay, setDebug]);
