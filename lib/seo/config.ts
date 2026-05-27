@@ -176,7 +176,7 @@ export const HOME_FAQ = [
   {
     question: "Como funciona a pontuação do bolão?",
     answer:
-      "Você ganha mais pontos ao acertar o placar exato; também pontua por acertar vencedor, gols de um time e outras combinações previstas no regulamento do Bolão do Milhão.",
+      "Cada palpite pode render até 6 pontos: placar exato (+6), vencedor com gols de um time (+4), acertar vencedor ou empate (+3) ou gols de um time (+1).",
   },
   {
     question: "O Bolão do Milhão é confiável?",

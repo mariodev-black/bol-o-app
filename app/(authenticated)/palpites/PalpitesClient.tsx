@@ -803,41 +803,47 @@ function copyPontuacaoPartida(
   realCasa: number,
   realVis: number,
 ): { title: string; subtitle?: string; tone: "win" | "partial" | "miss" } {
+  const ptsLabel =
+    review.points === 1 ? "+1 ponto" : review.points > 0 ? `+${review.points} pontos` : "0 pontos";
+
   if (review.exact) {
     return {
-      title: `Placar exato: +${review.points} pontos`,
-      subtitle:
-        "Você acertou quantos gols o time da casa fez e quantos o visitante fez.",
+      title: `Placar exato · ${ptsLabel}`,
+      subtitle: "Acertou o placar completo.",
       tone: "win",
     };
   }
   if (review.outcomeHit) {
+    const realDraw = realCasa === realVis;
+    const titleBase =
+      review.goalsHitCount >= 1
+        ? "Vencedor + gols de 1 time"
+        : realDraw
+          ? "Acertou o empate"
+          : "Acertou o vencedor";
     const subtitle =
       review.goalsHitCount >= 1
-        ? "Você acertou quem venceu ou se empatou, e também acertou um dos números do placar."
-        : "Você acertou quem venceu ou se o jogo terminou empatado.";
+        ? "Acertou o vencedor e os gols de um time."
+        : "Acertou vencedor ou empate.";
     return {
-      title: `Resultado do jogo certo: +${review.points} pontos`,
+      title: `${titleBase} · ${ptsLabel}`,
       subtitle,
       tone: "win",
     };
   }
   if (review.points > 0) {
-    const subtitle =
-      predCasa === realCasa && predVis !== realVis
-        ? "Só o número de gols do time da casa estava igual ao jogo."
-        : predVis === realVis && predCasa !== realCasa
-          ? "Só o número de gols do visitante estava igual ao jogo."
-          : "Parte do placar bateu com o jogo.";
     return {
-      title: `Você ganhou ${review.points} ponto${review.points > 1 ? "s" : ""} nesta partida`,
-      subtitle,
+      title: `Gols de 1 time · ${ptsLabel}`,
+      subtitle:
+        review.goalsHitCount >= 2
+          ? "Acertou os gols dos dois times, sem o resultado."
+          : "Acertou os gols de apenas um time.",
       tone: "partial",
     };
   }
   return {
-    title: "Nenhum ponto nesta partida",
-    subtitle: `O jogo terminou ${realCasa} a ${realVis}. Você tinha colocado ${predCasa} a ${predVis}.`,
+    title: "Sem pontos",
+    subtitle: `Resultado ${realCasa} × ${realVis} · palpite ${predCasa} × ${predVis}.`,
     tone: "miss",
   };
 }
@@ -856,25 +862,30 @@ function palpitePontosBreakdown(
 
   if (review.exact) {
     return [
-      { label: "Resultado da partida", hit: true, points: 0 },
-      { label: "Placar correto", hit: true, points: 6 },
-      { label: "Gols do time da casa", hit: true, points: 0 },
-      { label: "Gols do time visitante", hit: true, points: 0 },
+      { label: "Placar exato", hit: true, points: 6 },
+      { label: "Acertou o vencedor", hit: true, points: 0 },
+      { label: "Gols de 1 time (casa)", hit: true, points: 0 },
+      { label: "Gols de 1 time (visitante)", hit: true, points: 0 },
     ];
   }
 
   if (review.outcomeHit) {
     const bonusGol = Math.max(0, review.points - 3);
+    const realDraw = realCasa === realVisitante;
     return [
-      { label: "Resultado da partida", hit: true, points: 3 },
-      { label: "Placar correto", hit: false, points: 0 },
       {
-        label: "Gols do time da casa",
+        label: realDraw ? "Acertou o empate" : "Acertou o vencedor",
+        hit: true,
+        points: 3,
+      },
+      { label: "Placar exato", hit: false, points: 0 },
+      {
+        label: "Gols de 1 time (casa)",
         hit: golsCasa,
         points: golsCasa && bonusGol > 0 ? 1 : 0,
       },
       {
-        label: "Gols do time visitante",
+        label: "Gols de 1 time (visitante)",
         hit: golsVis,
         points: golsVis && bonusGol > 0 ? 1 : 0,
       },
@@ -882,11 +893,11 @@ function palpitePontosBreakdown(
   }
 
   return [
-    { label: "Resultado da partida", hit: false, points: 0 },
-    { label: "Placar correto", hit: false, points: 0 },
-    { label: "Gols do time da casa", hit: golsCasa, points: golsCasa ? 1 : 0 },
+    { label: "Acertou o vencedor", hit: false, points: 0 },
+    { label: "Placar exato", hit: false, points: 0 },
+    { label: "Gols de 1 time (casa)", hit: golsCasa, points: golsCasa ? 1 : 0 },
     {
-      label: "Gols do time visitante",
+      label: "Gols de 1 time (visitante)",
       hit: golsVis,
       points: golsVis ? 1 : 0,
     },

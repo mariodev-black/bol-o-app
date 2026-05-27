@@ -59,7 +59,7 @@ function NotificationDetailModal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[140] flex items-end justify-center p-0 sm:items-center sm:p-5"
+      className="fixed inset-0 z-[140] flex items-center justify-center p-4 sm:p-5"
       role="dialog"
       aria-modal="true"
       aria-labelledby="notification-detail-title"
@@ -72,7 +72,7 @@ function NotificationDetailModal({
       />
 
       <div
-        className="relative z-[1] flex max-h-[min(88dvh,640px)] w-full max-w-[440px] flex-col overflow-y-auto rounded-t-[18px] border border-primary/25 p-6 shadow-[0_24px_64px_rgba(0,0,0,0.65)] sm:rounded-[18px]"
+        className="relative z-[1] flex max-h-[min(85dvh,720px)] w-full max-w-[440px] flex-col overflow-hidden rounded-[18px] border border-primary/25 shadow-[0_24px_64px_rgba(0,0,0,0.65)]"
         style={{
           background: "linear-gradient(165deg, #101412 0%, #050605 100%)",
         }}
@@ -80,36 +80,54 @@ function NotificationDetailModal({
         <button
           type="button"
           onClick={() => onOpenChange(false)}
-          className="absolute right-4 top-4 flex size-8 items-center justify-center rounded-lg text-white/45 transition-colors hover:bg-white/8 hover:text-white"
+          className="absolute right-3 top-3 z-10 flex size-8 items-center justify-center rounded-lg text-white/45 transition-colors hover:bg-white/8 hover:text-white"
           aria-label="Fechar"
         >
           <X className="size-4" strokeWidth={2.5} />
         </button>
 
-        <p className="text-[11px] font-black uppercase tracking-[0.14em] text-primary">
-          Notificação
-        </p>
-        <h3
-          id="notification-detail-title"
-          className="mt-2 pr-10 text-left text-[20px] font-black leading-snug text-white"
-        >
-          {item.title}
-        </h3>
-        <p className="mt-1 text-[12px] text-white/45">
-          {formatNotificationDate(item.createdAt)}
-        </p>
-        <div className="mt-5 whitespace-pre-line text-[14px] leading-relaxed text-white/88">
-          {item.body}
-        </div>
-        {item.kind === "bolao_promo" ? (
-          <Link
-            href="/boloes"
-            onClick={() => onOpenChange(false)}
-            className="mt-6 flex h-11 w-full shrink-0 items-center justify-center rounded-[10px] bg-primary text-[13px] font-black uppercase tracking-wide text-black transition-opacity hover:opacity-90"
+        <div className="shrink-0 border-b border-white/8 px-5 pb-4 pt-5 pr-12">
+          <p className="text-[11px] font-black uppercase tracking-[0.14em] text-primary">
+            Notificação
+          </p>
+          <h3
+            id="notification-detail-title"
+            className="mt-2 text-left text-[18px] font-black leading-snug text-white sm:text-[20px]"
           >
-            Garantir minha cota
-          </Link>
-        ) : null}
+            {item.title}
+          </h3>
+          <p className="mt-1 text-[12px] text-white/45">
+            {formatNotificationDate(item.createdAt)}
+          </p>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4 [-webkit-overflow-scrolling:touch]">
+          <div className="whitespace-pre-line text-[14px] leading-relaxed text-white/88">
+            {item.body}
+          </div>
+        </div>
+
+        {item.kind === "bolao_promo" ? (
+          <div className="shrink-0 border-t border-white/8 px-5 py-4">
+            <Link
+              href="/boloes"
+              onClick={() => onOpenChange(false)}
+              className="flex h-11 w-full items-center justify-center rounded-[10px] bg-primary text-[13px] font-black uppercase tracking-wide text-black transition-opacity hover:opacity-90"
+            >
+              Garantir minha cota
+            </Link>
+          </div>
+        ) : (
+          <div className="shrink-0 border-t border-white/8 px-5 py-3">
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              className="flex h-10 w-full items-center justify-center rounded-[10px] border border-white/10 bg-[#111111] text-[13px] font-bold text-white/85 transition-colors hover:border-white/18 hover:bg-[#161616] hover:text-white"
+            >
+              Fechar
+            </button>
+          </div>
+        )}
       </div>
     </div>,
     document.body,
