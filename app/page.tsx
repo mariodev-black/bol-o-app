@@ -7,6 +7,12 @@ import type { HomePageServerHint } from "@/lib/home-page-server-hint";
 import { buildPageMetadata } from "@/lib/seo/config";
 import { HomePageJsonLd } from "@/lib/seo/json-ld";
 import { isAppHostname, isMarketingHostname } from "@/lib/site-domain";
+import {
+  getOutrosBoloesChampionshipIds,
+  getOutrosBoloesGridItems,
+  type OutrosBolaoGridItem,
+} from "@/lib/boloes-outros-grid";
+import { countParticipantsByExtraChampionshipIds } from "@/lib/predictions";
 
 export const metadata: Metadata = buildPageMetadata({
   title: "Bolão do Milhão — Bolão da Copa 2026 | Mais de R$ 1 milhão em prêmios",
@@ -34,10 +40,19 @@ async function getHomePageServerHint(): Promise<HomePageServerHint> {
 export default async function HomePage() {
   const hint = await getHomePageServerHint();
 
+  let outrosBoloes: OutrosBolaoGridItem[] = [];
+  if (hint.initialLoggedIn) {
+    const ids = getOutrosBoloesChampionshipIds();
+    const counts = await countParticipantsByExtraChampionshipIds(ids).catch(
+      () => ({} as Record<number, number>),
+    );
+    outrosBoloes = getOutrosBoloesGridItems(counts);
+  }
+
   return (
     <>
       <HomePageJsonLd />
-      <HomePageClient hint={hint} />
+      <HomePageClient hint={hint} outrosBoloes={outrosBoloes} />
     </>
   );
 }

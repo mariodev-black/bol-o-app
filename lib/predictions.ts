@@ -208,6 +208,33 @@ export async function countParticipantsByBolaoType(): Promise<
   return out;
 }
 
+/** Participantes por campeonato extra (tickets distintos com palpite). */
+export async function countParticipantsByExtraChampionshipIds(
+  championshipIds: number[],
+): Promise<Record<number, number>> {
+  const ids = [...new Set(championshipIds.filter((id) => Number.isFinite(id) && id > 0))];
+  if (ids.length === 0) return {};
+
+  const pool = getPool();
+  const { rows } = await pool.query<{ extra_championship_id: number; n: number }>(
+    `SELECT t.extra_championship_id, COUNT(DISTINCT p.ticket_id)::int AS n
+     FROM predictions p
+     INNER JOIN tickets t ON t.id::text = p.ticket_id
+     WHERE p.bolao_type = 'extra'
+       AND t.extra_championship_id = ANY($1::int[])
+     GROUP BY t.extra_championship_id`,
+    [ids],
+  );
+
+  const out: Record<number, number> = {};
+  for (const id of ids) out[id] = 0;
+  for (const r of rows) {
+    const cid = Number(r.extra_championship_id);
+    if (Number.isFinite(cid) && cid > 0) out[cid] = Number(r.n) || 0;
+  }
+  return out;
+}
+
 export async function listDistinctExtraPredictionTicketIds(): Promise<string[]> {
   const pool = getPool();
   const { rows } = await pool.query<{ ticket_id: string }>(

@@ -48,6 +48,8 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/shared/AuthContext";
 import { useAppServerConfig } from "@/app/shared/AppServerConfigContext";
 import { useProductHref } from "@/app/shared/useProductHref";
+import { OutrosBoloesGrid } from "@/app/(authenticated)/boloes/_components/OutrosBoloesGrid";
+import type { OutrosBolaoGridItem } from "@/lib/boloes-outros-grid";
 import type { HomePageServerHint } from "@/lib/home-page-server-hint";
 
 const INSTAGRAM_W18_URL = "https://www.instagram.com/w18walter/";
@@ -355,7 +357,7 @@ function QuickActionCard({
   );
 }
 
-function LoggedInHome() {
+function LoggedInHome({ outrosBoloes }: { outrosBoloes: OutrosBolaoGridItem[] }) {
   const [matches, setMatches] = useState<HomeMatch[]>([]);
   const [matchesLoading, setMatchesLoading] = useState(true);
 
@@ -421,8 +423,6 @@ function LoggedInHome() {
           />
         </section>
         <div className="mx-auto w-full max-w-[430px] px-3.5">
-          
-
           <section className="mt-5">
             <div className="mb-3 flex items-center justify-between gap-3">
               <h2 className="text-[16px] font-black uppercase tracking-wide text-white">
@@ -470,6 +470,10 @@ function LoggedInHome() {
               </div>
             )}
           </section>
+
+          {outrosBoloes.length > 0 ? (
+            <OutrosBoloesGrid items={outrosBoloes} className="mt-5" />
+          ) : null}
 
           <section className="mt-5 grid grid-cols-2 overflow-hidden rounded-[16px] border border-white/8 bg-[#111]">
             {[
@@ -519,7 +523,13 @@ function LoggedInHome() {
   );
 }
 
-export function HomePageClient({ hint }: { hint: HomePageServerHint }) {
+export function HomePageClient({
+  hint,
+  outrosBoloes = [],
+}: {
+  hint: HomePageServerHint;
+  outrosBoloes?: OutrosBolaoGridItem[];
+}) {
   const router = useRouter();
   const { ready, isLoggedIn } = useAuth();
   const { subdomainRoutingEnabled, appOrigin } = useAppServerConfig();
@@ -546,7 +556,7 @@ export function HomePageClient({ hint }: { hint: HomePageServerHint }) {
       if (!ready) return <AppScreenLoading message="Carregando..." />;
       return null;
     }
-    return <LoggedInHome />;
+    return <LoggedInHome outrosBoloes={outrosBoloes} />;
   }
 
   /** www: logado vai para o app; visitante vê LP. */
@@ -554,7 +564,7 @@ export function HomePageClient({ hint }: { hint: HomePageServerHint }) {
     if (subdomainRoutingEnabled && onMarketing) {
       return <AppScreenLoading message="Abrindo o app..." />;
     }
-    return <LoggedInHome />;
+    return <LoggedInHome outrosBoloes={outrosBoloes} />;
   }
 
   return <PublicHome />;
