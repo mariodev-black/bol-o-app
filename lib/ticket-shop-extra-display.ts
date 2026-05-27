@@ -130,10 +130,15 @@ export function applyTicketShopExtraCatalogItem<
 >(item: T): T {
   const pin = getTicketShopExtraPresentation(item.championshipId);
   if (!pin) return item;
+  const hasLiveRound =
+    item.roundNumber != null &&
+    Number.isFinite(Number(item.roundNumber)) &&
+    Number(item.roundNumber) > 0;
   return {
     ...item,
     displayName: pin.headlineName,
-    roundNumber: pin.roundNumber,
-    roundLabel: pin.roundLabel,
+    ...(hasLiveRound
+      ? {}
+      : { roundNumber: pin.roundNumber, roundLabel: pin.roundLabel }),
   };
 }

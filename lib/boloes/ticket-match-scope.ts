@@ -66,8 +66,9 @@ export function bolaoPhaseScopeForPaidTicket(
   ticket: PaidTicketRow,
   matches: MatchMap,
   predictionMatchIds?: ReadonlyArray<number>,
+  scopeOpts?: ScopeMatchesForPaidTicketOpts,
 ): BolaoMatchPhaseInput[] {
-  const scoped = scopeMatchesForPaidTicket(ticket, matches);
+  const scoped = scopeMatchesForPaidTicket(ticket, matches, scopeOpts);
   if (scoped.length > 0) {
     return scoped.map(matchToBolaoPhaseInput);
   }
@@ -90,10 +91,16 @@ export function isExtraTicketByRound(
   return paidTicketExtraRoundNumber(ticket) != null;
 }
 
+export type ScopeMatchesForPaidTicketOpts = {
+  /** Rodada efetiva (API) — sobrescreve `tickets.round_number` quando a rodada do ticket já encerrou. */
+  extraRoundNumber?: number | null;
+};
+
 /** Partidas que definem prazo, progresso e fase do bolão desta cota. */
 export function scopeMatchesForPaidTicket(
   ticket: PaidTicketRow,
   matches: MatchMap,
+  opts?: ScopeMatchesForPaidTicketOpts,
 ): MatchMapEntry[] {
   const list = Array.from(matches.values());
   const mainComp = getFootballMainCompetitionId();
@@ -115,7 +122,12 @@ export function scopeMatchesForPaidTicket(
   const comp = Number(ticket.extraChampionshipId);
   if (!Number.isFinite(comp) || comp <= 0) return [];
 
-  const round = paidTicketExtraRoundNumber(ticket);
+  const round =
+    opts?.extraRoundNumber != null &&
+    Number.isFinite(Number(opts.extraRoundNumber)) &&
+    Number(opts.extraRoundNumber) > 0
+      ? Number(opts.extraRoundNumber)
+      : paidTicketExtraRoundNumber(ticket);
   if (round != null) {
     return list.filter(
       (m) =>

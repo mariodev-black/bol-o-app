@@ -32,10 +32,15 @@ import {
   computeBolaoDisplayPhase,
 } from "@/lib/boloes/display-status";
 import {
+  resolveEffectiveRoundForExtraTicket,
+  effectiveRoundNumberFromResolution,
+} from "@/lib/boloes/extra-ticket-effective-round";
+import {
   bolaoPhaseScopeForPaidTicket,
   bolaoPhaseScopeFromPredictions,
   matchEntriesFromPredictions,
   scopeMatchesForPaidTicket,
+  type ScopeMatchesForPaidTicketOpts,
 } from "@/lib/boloes/ticket-match-scope";
 import {
   extraBolaoCurrentRoundsByChampionship,
@@ -163,8 +168,21 @@ function shortTicketId(id: string): string {
   return clean.slice(0, 6).toUpperCase();
 }
 
-function totalMatchesForTicket(ticket: PaidTicketRow, matches: MatchMap): number {
-  return scopeMatchesForPaidTicket(ticket, matches).filter(
+function scopeOptsForTicket(
+  ticket: PaidTicketRow,
+  effectiveExtraRoundByTicketId: Map<string, number>,
+): ScopeMatchesForPaidTicketOpts | undefined {
+  if (ticket.ticketType !== "extra") return undefined;
+  const round = effectiveExtraRoundByTicketId.get(ticket.id);
+  return round != null ? { extraRoundNumber: round } : undefined;
+}
+
+function totalMatchesForTicket(
+  ticket: PaidTicketRow,
+  matches: MatchMap,
+  scopeOpts?: ScopeMatchesForPaidTicketOpts,
+): number {
+  return scopeMatchesForPaidTicket(ticket, matches, scopeOpts).filter(
     (m) => !isFinishedStatus(m.status),
   ).length;
 }
@@ -174,6 +192,7 @@ function bolaoStatusFromMetrics(
   metrics: TicketMetrics,
   matches: MatchMap,
   predictionMatchIds?: number[],
+  scopeOpts?: ScopeMatchesForPaidTicketOpts,
 ): { displayPhase: ReturnType<typeof computeBolaoDisplayPhase>; statusLabel: string } {
   const predictionScopeMatches = bolaoPhaseScopeFromPredictions(
     ticket,
@@ -184,7 +203,12 @@ function bolaoStatusFromMetrics(
     sent: metrics.sent,
     total: metrics.total,
     available: metrics.available,
-    scopeMatches: bolaoPhaseScopeForPaidTicket(ticket, matches, predictionMatchIds),
+    scopeMatches: bolaoPhaseScopeForPaidTicket(
+      ticket,
+      matches,
+      predictionMatchIds,
+      scopeOpts,
+    ),
     predictionScopeMatches,
     dailyStatus: ticket.dailyStatus ?? null,
   });
@@ -296,6 +320,32 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
 
   const ensureCompIds = competitionIdsEnsureFromPaidTickets(tickets);
   const matches = await fetchMatchesMap({ ensureCompetitionIds: ensureCompIds }).catch(() => new Map());
+
+  const effectiveExtraRoundByTicketId = new Map<string, number>();
+  const extraRoundResolutions = await Promise.all(
+    tickets
+      .filter((t) => t.ticketType === "extra")
+      .map(async (ticket) => {
+        const resolved = await resolveEffectiveRoundForExtraTicket(ticket, {
+          userId,
+          persistAdvance: true,
+        });
+        const round = effectiveRoundNumberFromResolution(resolved, ticket);
+        return { ticketId: ticket.id, resolved, round };
+      }),
+  );
+  for (const { ticketId, resolved, round } of extraRoundResolutions) {
+    if (round != null) effectiveExtraRoundByTicketId.set(ticketId, round);
+    if (resolved && parseEnvBool(process.env.DEBUG_BOLAOES)) {
+      debugBoloes("extra-effective-round", {
+        ticketId,
+        competitionId: resolved.competitionId,
+        rodada: resolved.rodada,
+        rodadaStatus: resolved.rodadaStatus,
+        rodadaNome: resolved.rodadaNome,
+      });
+    }
+  }
 
   debugBoloes("load:start", {
     userId,
@@ -410,9 +460,14 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
 
   const metricsByTicket = new Map<string, TicketMetrics>();
   for (const ticket of tickets) {
+    const scopeOpts = scopeOptsForTicket(ticket, effectiveExtraRoundByTicketId);
     const sent = predictionsByTicket.get(ticket.id)?.length ?? 0;
     const available = Math.max(0, Number(ticket.availableGames ?? 0));
-    const total = Math.max(sent + available, totalMatchesForTicket(ticket, matches), sent);
+    const total = Math.max(
+      sent + available,
+      totalMatchesForTicket(ticket, matches, scopeOpts),
+      sent,
+    );
     const ranked = ranking.get(ticket.id) ?? null;
     metricsByTicket.set(ticket.id, {
       sent,
@@ -455,6 +510,7 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
     .filter((pos): pos is number => pos != null);
   const pending = Array.from(metricsByTicket.values()).reduce((sum, item) => sum + item.available, 0);
   const allActive = tickets.map((ticket): BoloesScreenData["active"]["all"][number] => {
+    const scopeOpts = scopeOptsForTicket(ticket, effectiveExtraRoundByTicketId);
     const metrics = metricsByTicket.get(ticket.id) ?? {
       sent: 0,
       total: 0,
@@ -473,6 +529,7 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
         metrics,
         matches,
         predictionMatchIds,
+        scopeOpts,
       );
       const legacyStatus = displayPhase === "finalizado" ? "usado" : "ativo";
       return {
@@ -496,6 +553,7 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
     if (ticket.ticketType === "extra") {
       const compId = Number(ticket.extraChampionshipId);
       const safeComp = Number.isFinite(compId) && compId > 0 ? compId : 0;
+      const effectiveRound = effectiveExtraRoundByTicketId.get(ticket.id) ?? null;
       const baseName =
         safeComp > 0
           ? resolveExtraBolaoDisplayName(safeComp, competitionLabels[safeComp])
@@ -505,16 +563,17 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
           ? extraBolaoTitleForPaidTicket(
               safeComp,
               baseName,
-              ticket.extraRoundNumber,
+              effectiveRound ?? ticket.extraRoundNumber,
               extraRounds,
             )
           : baseName;
-      const scopeMatches = scopeMatchesForPaidTicket(ticket, matches);
+      const scopeMatches = scopeMatchesForPaidTicket(ticket, matches, scopeOpts);
       const { displayPhase, statusLabel } = bolaoStatusFromMetrics(
         ticket,
         metrics,
         matches,
         predictionMatchIds,
+        scopeOpts,
       );
       const closeScopeMatches =
         displayPhase === "finalizado"

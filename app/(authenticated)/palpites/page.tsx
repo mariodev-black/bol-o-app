@@ -11,7 +11,7 @@ import { resolveExtraBolaoDisplayName } from "@/lib/boloes-extra-competition-bra
 import { getPool } from "@/lib/db";
 import { parseKickoffFromPartidaPayload, pickScoreFromPartidaPayload } from "@/lib/partida-placar";
 import { pickTabelaGruposForPalpites } from "@/lib/tabela-palpites-normalize";
-import { resolveEffectiveExtraRoundForTicket } from "@/lib/football/extras-rodada";
+import { resolveEffectiveRoundForExtraTicket } from "@/lib/boloes/extra-ticket-effective-round";
 import { syncExtra } from "@/lib/football/sync-orchestrator";
 
 const MESES = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
@@ -310,48 +310,36 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
       const sole = getSoleConfiguredExtraChampionshipId();
       if (sole != null) extraChampionshipId = sole;
     }
-    // Brinde com rodada fixa (ex. 18ª) não troca pela rodada “ao vivo” da API.
     if (
       extraChampionshipId != null &&
       Number.isFinite(extraChampionshipId) &&
-      extraChampionshipId > 0 &&
-      extraRoundNumber == null
+      extraChampionshipId > 0
     ) {
       try {
-        const resolved = await resolveEffectiveExtraRoundForTicket(
-          extraChampionshipId,
-          ticketRoundFromDb,
+        const resolved = await resolveEffectiveRoundForExtraTicket(
+          {
+            id: tid,
+            ticketType: "extra",
+            extraChampionshipId,
+            extraRoundNumber: ticketRoundFromDb,
+          },
+          { userId: userId ?? undefined, persistAdvance: true },
         );
         if (resolved?.rodada != null && Number.isFinite(resolved.rodada) && resolved.rodada > 0) {
           extraRoundNumber = resolved.rodada;
           extraRoundName =
             resolved.rodadaNome?.trim() || `${resolved.rodada}ª Rodada`;
-          if (
-            userId &&
-            tid &&
-            ticketRoundFromDb != null &&
-            ticketRoundFromDb + 1 === resolved.rodada &&
-            ticketRoundFromDb < resolved.rodada
-          ) {
-            const pool = getPool();
-            await pool
-              .query(
-                `UPDATE tickets SET round_number = $1
-                  WHERE id::text = $2 AND user_id = $3 AND ticket_type = 'extra'`,
-                [resolved.rodada, tid, userId],
-              )
-              .catch(() => {});
-          }
         }
       } catch {
         // sem rodada atual no cache → cliente decide (mostra todas as rodadas)
       }
-    } else if (
-      extraRoundNumber != null &&
-      extraRoundNumber > 0 &&
-      !extraRoundName
-    ) {
-      extraRoundName = `${extraRoundNumber}ª Rodada`;
+      if (
+        extraRoundNumber != null &&
+        extraRoundNumber > 0 &&
+        !extraRoundName
+      ) {
+        extraRoundName = `${extraRoundNumber}ª Rodada`;
+      }
     }
   }
 
@@ -383,9 +371,11 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
     bolaoType === "extra" &&
     extraChampionshipId != null &&
     extraRoundNumber != null &&
-    jogos.filter((j) => j.rodada === extraRoundNumber).length === 0
+    extraRoundNumber > 0
   ) {
-    await syncExtra(extraChampionshipId).catch(() => {});
+    await syncExtra(extraChampionshipId, {
+      extraRodadas: [extraRoundNumber],
+    }).catch(() => {});
     try {
       fases = (await getPartidasFasesFromDb(extraChampionshipId)) as Record<string, any>;
       parsedPartidas = parseAllPartidas(fases);
