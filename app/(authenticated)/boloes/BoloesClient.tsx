@@ -1273,7 +1273,8 @@ function BoloesAjudaSection() {
   return (
     <>
       <section
-        className="mt-6 mb-8"
+        id="boloes-ajuda"
+        className="mt-6 mb-8 scroll-mt-24"
         aria-labelledby="boloes-ajuda-heading"
       >
         <div

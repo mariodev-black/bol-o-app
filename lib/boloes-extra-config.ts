@@ -22,6 +22,11 @@ export function getFootballMainCompetitionId(): number {
   return Number.parseInt(env("FOOTBALL_COMPETITION_ID") || "72", 10) || 72;
 }
 
+/** Copa do Mundo (bolão geral) — alias de getFootballMainCompetitionId. */
+export function getCopaChampionshipId(): number {
+  return getFootballMainCompetitionId();
+}
+
 /** Principal + extras, sem duplicar. Usado em sync e leitura do `matches_cache`. */
 export function getAllSyncedCompetitionIds(): number[] {
   const main = getFootballMainCompetitionId();

@@ -45,7 +45,7 @@ type BottomItem = {
 const BOTTOM_ITEMS_PROFILE: BottomItem[] = [
   { label: "INÍCIO", ariaLabel: "Início", href: "/", icon: Home },
   { label: "INDICAR", ariaLabel: "Afiliado — indique e ganhe", href: "/indique", icon: Share2 },
-  { label: "PALPITES", ariaLabel: "Meus bolões e palpites", href: "/boloes", icon: Target },
+  { label: "PALPITAR", ariaLabel: "Palpitar nos jogos", href: "/boloes", icon: Target },
   { label: "PRÊMIOS", ariaLabel: "Premiação", href: "/premiacao", icon: Gift },
   { label: "RANKING", ariaLabel: "Ranking", href: "/ranking", icon: BarChart3 },
 ];
@@ -58,7 +58,7 @@ const BOTTOM_ITEMS_PUBLIC: BottomItem[] = [
     href: "/cadastrar?from=%2Findique",
     icon: Share2,
   },
-  { label: "PALPITES", ariaLabel: "Meus bolões e palpites", href: "/boloes", icon: Target },
+  { label: "PALPITAR", ariaLabel: "Meus bolões e palpites", href: "/boloes", icon: Target },
   { label: "PRÊMIOS", ariaLabel: "Premiação", href: "/premiacao", icon: Gift },
   { label: "RANKING", ariaLabel: "Ranking", href: "/ranking", icon: BarChart3 },
 ];

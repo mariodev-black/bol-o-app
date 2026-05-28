@@ -38,13 +38,14 @@ export function ExplainerModal({
   }, []);
 
   useEffect(() => {
+    if (!portalReady) return;
     if (open) {
       setMounted(true);
       setClosing(false);
-    } else if (mounted) {
-      setClosing(true);
+      return;
     }
-  }, [open, mounted]);
+    if (mounted) setClosing(true);
+  }, [open, portalReady, mounted]);
 
   useEffect(() => {
     if (!closing) return;
@@ -77,7 +78,7 @@ export function ExplainerModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [mounted, closing, requestClose]);
 
-  if (!mounted || !portalReady) return null;
+  if (!portalReady || (!open && !mounted)) return null;
 
   const overlayAnim = closing
     ? "animate-ranking-steps-overlay-out"
@@ -88,7 +89,7 @@ export function ExplainerModal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-end justify-center p-0 sm:items-center sm:p-4 sm:p-6"
+      className="fixed inset-0 z-[160] flex items-end justify-center p-0 sm:items-center sm:p-4 sm:p-6"
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}

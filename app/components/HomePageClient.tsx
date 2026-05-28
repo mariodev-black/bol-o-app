@@ -16,7 +16,6 @@ import {
   ChartNoAxesColumnIncreasing,
   ChevronRight,
   ClipboardList,
-  Flame,
   Medal,
   Newspaper,
   ScanSearch,
@@ -31,10 +30,7 @@ import logo from "@/app/assets/logo.svg";
 import iconInsta from "@/app/assets/icon-insta.svg";
 import bgHeroDesktop from "@/app/assets/home-desk.png";
 import bgPixel from "@/app/assets/bg-hero-pixels.png";
-import slider1 from "@/app/assets/sliders/1.jpeg";
-import slider2 from "@/app/assets/sliders/2.jpeg";
-import slider3 from "@/app/assets/sliders/3.jpeg";
-import { HomeHeroCarousel, type HomeHeroSlide } from "@/app/components/HomeHeroCarousel";
+import bannerHomeLoggedIn from "@/app/assets/banner-chekout-v2.png";
 import { FlagsMarquee } from "@/app/components/FlagsMarquee";
 import { WhyParticipateSection } from "@/app/components/WhyParticipateSection";
 import { PrizesTestimonialsSection } from "@/app/components/PrizesTestimonialsSection";
@@ -43,22 +39,26 @@ import { HomeFaqSection } from "@/app/components/HomeFaqSection";
 import { HomeFromRedirectWhenLoggedIn } from "@/app/shared/HomeFromRedirectWhenLoggedIn";
 import { TicketPurchaseLink } from "@/app/shared/TicketPurchaseLink";
 import { AppScreenLoading } from "@/app/shared/AppScreenLoading";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/shared/AuthContext";
 import { useAppServerConfig } from "@/app/shared/AppServerConfigContext";
 import { useProductHref } from "@/app/shared/useProductHref";
 import { OutrosBoloesGrid } from "@/app/(authenticated)/boloes/_components/OutrosBoloesGrid";
+import { QuemEstaNoBolaoSection } from "@/app/components/QuemEstaNoBolaoSection";
+import { PalpitesAbertosGrid } from "@/app/components/PalpitesAbertosGrid";
+import { HomeComoFuncionaPontuacaoSection } from "@/app/components/HomeComoFuncionaPontuacaoSection";
+import { ScoringExplainerModal } from "@/app/shared/ScoringExplainerModal";
+import { HomeClassificacaoCtaSection } from "@/app/components/HomeClassificacaoCtaSection";
+import type { PalpiteAbertoMatch } from "@/lib/home-palpites-abertos";
+import {
+  collectPalpitesAbertosFromPartidasPayload,
+  pickPalpitesAbertosForHome,
+} from "@/lib/home-palpites-abertos";
 import type { OutrosBolaoGridItem } from "@/lib/boloes-outros-grid";
 import type { HomePageServerHint } from "@/lib/home-page-server-hint";
 
 const INSTAGRAM_W18_URL = "https://www.instagram.com/w18walter/";
-
-const HOME_SLIDER_SLIDES: readonly HomeHeroSlide[] = [
-  { src: slider1, alt: "Bolão do Milhão — slide 1", href: "/boloes", linkAriaLabel: "Ir para bolões" },
-  { src: slider2, alt: "Bolão do Milhão — slide 2", href: "/premiacao", linkAriaLabel: "Ir para premiação" },
-  { src: slider3, alt: "Bolão do Milhão — slide 3", href: "/indique", linkAriaLabel: "Ir para indique e ganhe" },
-];
 
 const HERO_STATS = [
   {
@@ -166,148 +166,15 @@ const QUICK_ACTIONS = [
   },
 ] as const;
 
-type HomeMatch = {
-  partida_id: number;
-  competition_id?: number;
-  status: string;
-  data_realizacao: string;
-  hora_realizacao: string;
-  data_realizacao_iso?: string | null;
-  time_mandante: {
-    nome_popular?: string;
-    sigla?: string;
-    escudo?: string | null;
-  };
-  time_visitante: {
-    nome_popular?: string;
-    sigla?: string;
-    escudo?: string | null;
-  };
-};
-
 type PartidasResponse = {
   partidas?: Record<string, unknown>;
 };
 
-let loggedHomeMatchesCache: { at: number; matches: HomeMatch[] } | null = null;
-const LOGGED_HOME_MATCHES_CACHE_MS = 3 * 60 * 1000;
-
-function collectHomeMatches(input: unknown): HomeMatch[] {
-  const matches: HomeMatch[] = [];
-  const visit = (node: unknown) => {
-    if (!node) return;
-    if (Array.isArray(node)) {
-      for (const item of node) {
-        if (
-          item &&
-          typeof item === "object" &&
-          "partida_id" in item &&
-          "time_mandante" in item &&
-          "time_visitante" in item
-        ) {
-          matches.push(item as HomeMatch);
-        } else {
-          visit(item);
-        }
-      }
-      return;
-    }
-    if (typeof node === "object") {
-      for (const value of Object.values(node as Record<string, unknown>)) {
-        visit(value);
-      }
-    }
-  };
-  visit(input);
-  return matches;
-}
-
-function matchDateMs(match: HomeMatch): number {
-  if (match.data_realizacao_iso) {
-    const parsed = Date.parse(match.data_realizacao_iso);
-    if (Number.isFinite(parsed)) return parsed;
-  }
-  const [day, month, year] = String(match.data_realizacao || "").split("/");
-  const [hour, minute] = String(match.hora_realizacao || "00:00").split(":");
-  const date = new Date(
-    Number(year),
-    Number(month) - 1,
-    Number(day),
-    Number(hour || 0),
-    Number(minute || 0),
-  ).getTime();
-  return Number.isFinite(date) ? date : Number.MAX_SAFE_INTEGER;
-}
-
-function matchDayLabel(match: HomeMatch): string {
-  const ms = matchDateMs(match);
-  if (!Number.isFinite(ms) || ms === Number.MAX_SAFE_INTEGER)
-    return match.data_realizacao || "Em breve";
-  const today = new Date();
-  const target = new Date(ms);
-  const sameDay =
-    today.getFullYear() === target.getFullYear() &&
-    today.getMonth() === target.getMonth() &&
-    today.getDate() === target.getDate();
-  if (sameDay) return "Hoje";
-  return new Intl.DateTimeFormat("pt-BR", {
-    weekday: "short",
-    day: "2-digit",
-    month: "2-digit",
-  })
-    .format(target)
-    .replace(".", "");
-}
-
-/** Sigla curta do time (ex.: FLA, COR) — não o nome completo. */
-function teamDisplaySlug(team: HomeMatch["time_mandante"]): string {
-  const sigla = team.sigla?.trim();
-  if (sigla) return sigla.toUpperCase();
-  const popular = team.nome_popular?.trim();
-  if (popular) return popular.slice(0, 3).toUpperCase();
-  return "---";
-}
-
-function TeamShield({ team }: { team: HomeMatch["time_mandante"] }) {
-  const sigla = teamDisplaySlug(team);
-  return (
-    <span className="home-match-shield" aria-hidden>
-      {team.escudo ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={team.escudo} alt="" className="home-match-shield-img" />
-      ) : (
-        <span className="text-[12px] font-black text-primary">{sigla}</span>
-      )}
-    </span>
-  );
-}
-
-function UpcomingMatchCard({ match }: { match: HomeMatch }) {
-  const dayLabel = matchDayLabel(match).toUpperCase();
-  const time = match.hora_realizacao || "--:--";
-
-  return (
-    <Link href="/boloes" className="home-match-card group">
-      <div className="home-match-side home-match-side--home">
-        <span className="home-match-team-name">{teamDisplaySlug(match.time_mandante)}</span>
-        <TeamShield team={match.time_mandante} />
-      </div>
-
-      <div className="home-match-center">
-        <span className="home-match-center-rule home-match-center-rule--left" aria-hidden />
-        <span className="home-match-center-rule home-match-center-rule--right" aria-hidden />
-        <p className="home-match-day">{dayLabel}</p>
-        <p className="home-match-time">{time}</p>
-        <span className="home-match-vs">VS</span>
-      </div>
-
-      <div className="home-match-side home-match-side--away">
-        <TeamShield team={match.time_visitante} />
-        <span className="home-match-team-name">{teamDisplaySlug(match.time_visitante)}</span>
-      </div>
-    </Link>
-  );
-}
+let loggedHomePalpitesCache: {
+  at: number;
+  matches: PalpiteAbertoMatch[];
+} | null = null;
+const LOGGED_HOME_PALPITES_CACHE_MS = 3 * 60 * 1000;
 
 function HomeStatCard({
   icon: Icon,
@@ -357,23 +224,40 @@ function QuickActionCard({
   );
 }
 
-function LoggedInHome({ outrosBoloes }: { outrosBoloes: OutrosBolaoGridItem[] }) {
-  const [matches, setMatches] = useState<HomeMatch[]>([]);
-  const [matchesLoading, setMatchesLoading] = useState(true);
+function LoggedInHome({
+  outrosBoloes,
+  palpitesAbertos: initialPalpitesAbertos,
+}: {
+  outrosBoloes: OutrosBolaoGridItem[];
+  palpitesAbertos: PalpiteAbertoMatch[];
+}) {
+  const [palpitesAbertos, setPalpitesAbertos] = useState(initialPalpitesAbertos);
+  const [palpitesLoading, setPalpitesLoading] = useState(
+    initialPalpitesAbertos.length === 0,
+  );
+  const [scoringExplainerOpen, setScoringExplainerOpen] = useState(false);
+
+  useEffect(() => {
+    setPalpitesAbertos(initialPalpitesAbertos);
+    setPalpitesLoading(initialPalpitesAbertos.length === 0);
+  }, [initialPalpitesAbertos]);
 
   useEffect(() => {
     let cancelled = false;
-    async function loadMatches() {
+    async function loadPalpitesAbertos() {
       if (
-        loggedHomeMatchesCache &&
-        Date.now() - loggedHomeMatchesCache.at < LOGGED_HOME_MATCHES_CACHE_MS
+        loggedHomePalpitesCache &&
+        Date.now() - loggedHomePalpitesCache.at < LOGGED_HOME_PALPITES_CACHE_MS
       ) {
-        setMatches(loggedHomeMatchesCache.matches);
-        setMatchesLoading(false);
+        if (!cancelled) {
+          setPalpitesAbertos(loggedHomePalpitesCache.matches);
+          setPalpitesLoading(false);
+        }
         return;
       }
 
-      setMatchesLoading(true);
+      const showLoading = palpitesAbertos.length === 0;
+      if (showLoading) setPalpitesLoading(true);
       try {
         const response = await fetch("/api/partidas?allSynced=1", {
           cache: "force-cache",
@@ -382,27 +266,21 @@ function LoggedInHome({ outrosBoloes }: { outrosBoloes: OutrosBolaoGridItem[] })
           .json()
           .catch(() => ({}))) as PartidasResponse;
         if (!response.ok) throw new Error("Falha ao carregar partidas");
-        const minUpcomingMs = Date.now() - 12 * 60 * 60 * 1000;
-        const nextMatches = collectHomeMatches(data.partidas)
-          .filter((match) => matchDateMs(match) >= minUpcomingMs)
-          .sort((a, b) => matchDateMs(a) - matchDateMs(b))
-          .slice(0, 4);
-        loggedHomeMatchesCache = { at: Date.now(), matches: nextMatches };
-        if (!cancelled) setMatches(nextMatches);
+        const all = collectPalpitesAbertosFromPartidasPayload(data.partidas);
+        const picked = pickPalpitesAbertosForHome(all, 2);
+        loggedHomePalpitesCache = { at: Date.now(), matches: picked };
+        if (!cancelled) setPalpitesAbertos(picked);
       } catch {
-        if (!cancelled) setMatches([]);
+        if (!cancelled) setPalpitesAbertos([]);
       } finally {
-        if (!cancelled) setMatchesLoading(false);
+        if (!cancelled) setPalpitesLoading(false);
       }
     }
-    void loadMatches();
+    void loadPalpitesAbertos();
     return () => {
       cancelled = true;
     };
   }, []);
-
-  const featuredMatch = matches[0] ?? null;
-  const secondaryMatches = useMemo(() => matches.slice(1, 4), [matches]);
 
   return (
     <HomePageContainer>
@@ -411,111 +289,49 @@ function LoggedInHome({ outrosBoloes }: { outrosBoloes: OutrosBolaoGridItem[] })
       </Suspense>
       <Header />
       <main className="min-h-screen bg-black pb-32 text-white">
-        <section className="relative w-full">
-          <HomeHeroCarousel
-            mode="peek"
-            slides={HOME_SLIDER_SLIDES}
-            intervalMs={5000}
-            slideDurationMs={520}
-            peekSlideRatio={0.88}
-            showNavigation={false}
-            sizes="(max-width: 430px) 88vw, 88vw"
-          />
-        </section>
-        <div className="mx-auto w-full max-w-[430px] px-3.5">
-          <section className="mt-5">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <h2 className="text-[16px] font-black uppercase tracking-wide text-white">
-                Próximos jogos
-              </h2>
-              
-            </div>
-
-            {matchesLoading ? (
-              <AppScreenLoading
-                variant="compact"
-                message="Carregando partidas..."
-                className="w-full"
+        <section className="w-full pt-1">
+          <div className="mx-auto w-full max-w-[430px] px-3.5">
+            <Link
+              href="/boloes"
+              className="block overflow-hidden rounded-[16px] border border-white/8 bg-[#0a0a0a] shadow-[0_10px_36px_rgba(0,0,0,0.45)]"
+              aria-label="Entre no maior bolão da Copa — ver bolões"
+            >
+              <Image
+                src={bannerHomeLoggedIn}
+                alt="Entre no maior bolão da Copa — mais de 1 milhão em premiações"
+                className="h-auto w-full object-cover object-center"
+                priority
+                sizes="(max-width: 430px) 100vw, 430px"
+                draggable={false}
               />
-            ) : featuredMatch ? (
-              <div className="space-y-2.5">
-                <UpcomingMatchCard match={featuredMatch} />
-                {secondaryMatches.map((match) => (
-                  <UpcomingMatchCard
-                    key={`${match.competition_id ?? 0}-${match.partida_id}`}
-                    match={match}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="rounded-[16px] border border-primary/20 bg-primary/[0.07] p-4 text-center">
-                <Flame
-                  className="mx-auto size-7 text-primary"
-                  strokeWidth={2.1}
-                />
-                <p className="mt-2 text-[16px] font-black uppercase text-white">
-                  Jogos em atualização
-                </p>
-                <p className="mx-auto mt-1 max-w-[260px] text-[12px] font-medium leading-snug text-white/55">
-                  Assim que a tabela liberar novas partidas, elas aparecem aqui
-                  para você palpitar.
-                </p>
-                <Link
-                  href="/boloes"
-                  className="mt-3 inline-flex h-9 items-center gap-2 rounded-[10px] bg-primary px-3 text-[12px] font-black uppercase text-[#0E141B]"
-                >
-                  Ir para palpites{" "}
-                  <ArrowRight className="size-3.5" strokeWidth={2.8} />
-                </Link>
-              </div>
-            )}
-          </section>
+            </Link>
+          </div>
+        </section>
 
+        <div className="mx-auto w-full max-w-[430px] px-3.5">
           {outrosBoloes.length > 0 ? (
             <OutrosBoloesGrid items={outrosBoloes} className="mt-5" />
           ) : null}
 
-          <section className="mt-5 grid grid-cols-2 overflow-hidden rounded-[16px] border border-white/8 bg-[#111]">
-            {[
-              { icon: Users, label: "Participantes", value: "128.732" },
-              { icon: Wallet, label: "Montante", value: "R$3.247.890" },
-              { icon: Trophy, label: "Prêmio total", value: "R$1.000.000" },
-              { icon: BarChart3, label: "Bolões criados", value: "37.891" },
-            ].map(({ icon, label, value }) => (
-              <HomeStatCard
-                key={label}
-                icon={icon}
-                label={label}
-                value={value}
-              />
-            ))}
-          </section>
+          <QuemEstaNoBolaoSection className="mt-5" />
 
-          <section className="mt-4 rounded-[16px] border border-primary/25 bg-primary/[0.07] p-4 shadow-[0_0_24px_rgba(177,235,11,0.1)]">
-            <div className="grid grid-cols-[44px_minmax(0,1fr)_142px] items-center gap-3">
-              <span className="flex size-11 shrink-0 items-center justify-center rounded-[12px] border border-primary/30 bg-black/40">
-                <Ticket className="size-5 text-primary" strokeWidth={2.2} />
-              </span>
-              <div className="min-w-0 flex-1">
-                <h2 className="text-[14px] font-black uppercase leading-tight text-white">
-                  Próximo passo enviar palpites
-                </h2>
-                <p className="mt-1 text-[13px] font-medium leading-snug text-white/55">
-                  Confira os jogos disponíveis e não perca o prazo de cada
-                  partida.
-                </p>
-              </div>
-              <Link
-                href="/boloes"
-                className="flex h-11 items-center justify-center gap-2 rounded-[12px] bg-primary px-3 text-[11px] font-black uppercase text-[#0E141B] shadow-[0_6px_28px_rgba(177,235,11,0.32)]"
-              >
-                Enviar palpites
-                <ArrowRight className="size-4" strokeWidth={2.8} />
-              </Link>
-            </div>
-          </section>
+          <PalpitesAbertosGrid
+            matches={palpitesAbertos}
+            loading={palpitesLoading}
+            className="mt-5"
+          />
+
+          <HomeComoFuncionaPontuacaoSection
+            onVerMaisPontuacao={() => setScoringExplainerOpen(true)}
+          />
+
+          <HomeClassificacaoCtaSection />
         </div>
       </main>
+      <ScoringExplainerModal
+        open={scoringExplainerOpen}
+        onOpenChange={setScoringExplainerOpen}
+      />
       <Suspense fallback={null}>
         <NavBottom />
       </Suspense>
@@ -526,9 +342,11 @@ function LoggedInHome({ outrosBoloes }: { outrosBoloes: OutrosBolaoGridItem[] })
 export function HomePageClient({
   hint,
   outrosBoloes = [],
+  palpitesAbertos = [],
 }: {
   hint: HomePageServerHint;
   outrosBoloes?: OutrosBolaoGridItem[];
+  palpitesAbertos?: PalpiteAbertoMatch[];
 }) {
   const router = useRouter();
   const { ready, isLoggedIn } = useAuth();
@@ -548,7 +366,14 @@ export function HomePageClient({
     if (subdomainRoutingEnabled && onMarketing) {
       window.location.assign(`${appOrigin.replace(/\/+$/, "")}/`);
     }
-  }, [ready, isLoggedIn, onAppHost, onMarketing, subdomainRoutingEnabled, appOrigin]);
+  }, [
+    ready,
+    isLoggedIn,
+    onAppHost,
+    onMarketing,
+    subdomainRoutingEnabled,
+    appOrigin,
+  ]);
 
   /** App: home logada em `/`; visitante → cadastro (nunca LP). */
   if (onAppHost) {
@@ -556,7 +381,12 @@ export function HomePageClient({
       if (!ready) return <AppScreenLoading message="Carregando..." />;
       return null;
     }
-    return <LoggedInHome outrosBoloes={outrosBoloes} />;
+    return (
+      <LoggedInHome
+        outrosBoloes={outrosBoloes}
+        palpitesAbertos={palpitesAbertos}
+      />
+    );
   }
 
   /** www: logado vai para o app; visitante vê LP. */
@@ -564,7 +394,12 @@ export function HomePageClient({
     if (subdomainRoutingEnabled && onMarketing) {
       return <AppScreenLoading message="Abrindo o app..." />;
     }
-    return <LoggedInHome outrosBoloes={outrosBoloes} />;
+    return (
+      <LoggedInHome
+        outrosBoloes={outrosBoloes}
+        palpitesAbertos={palpitesAbertos}
+      />
+    );
   }
 
   return <PublicHome />;
@@ -783,23 +618,23 @@ function PublicHome() {
           <div className="flex animate-marquee">
             {[...SCORE_TICKER_SEGMENTS, ...SCORE_TICKER_SEGMENTS].map(
               (_, idx) => (
-              <span
-                key={idx}
-                className="inline-flex shrink-0 items-center gap-4 px-6 md:gap-5 md:px-8"
-              >
-                <span className="whitespace-nowrap text-sm font-bold tracking-wide text-[#0A1F1F] md:text-base">
-                  O Top 10 ganha prêmios milionários!
+                <span
+                  key={idx}
+                  className="inline-flex shrink-0 items-center gap-4 px-6 md:gap-5 md:px-8"
+                >
+                  <span className="whitespace-nowrap text-sm font-bold tracking-wide text-[#0A1F1F] md:text-base">
+                    O Top 10 ganha prêmios milionários!
+                  </span>
+                  <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#0f291c] md:h-10 md:w-10">
+                    <Image
+                      src={cifraoIcon}
+                      alt=""
+                      width={22}
+                      height={22}
+                      className="h-5 w-5 object-contain md:h-6 md:w-6"
+                    />
+                  </span>
                 </span>
-                <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#0f291c] md:h-10 md:w-10">
-                  <Image
-                    src={cifraoIcon}
-                    alt=""
-                    width={22}
-                    height={22}
-                    className="h-5 w-5 object-contain md:h-6 md:w-6"
-                  />
-                </span>
-              </span>
               ),
             )}
           </div>

@@ -13,6 +13,8 @@ import {
   type OutrosBolaoGridItem,
 } from "@/lib/boloes-outros-grid";
 import { countParticipantsByExtraChampionshipIds } from "@/lib/predictions";
+import type { PalpiteAbertoMatch } from "@/lib/home-palpites-abertos";
+import { loadHomePalpitesAbertosFromCache } from "@/lib/home-palpites-abertos.server";
 
 export const metadata: Metadata = buildPageMetadata({
   title: "Bolão do Milhão — Bolão da Copa 2026 | Mais de R$ 1 milhão em prêmios",
@@ -41,18 +43,27 @@ export default async function HomePage() {
   const hint = await getHomePageServerHint();
 
   let outrosBoloes: OutrosBolaoGridItem[] = [];
+  let palpitesAbertos: PalpiteAbertoMatch[] = [];
   if (hint.initialLoggedIn) {
     const ids = getOutrosBoloesChampionshipIds();
-    const counts = await countParticipantsByExtraChampionshipIds(ids).catch(
-      () => ({} as Record<number, number>),
-    );
+    const [counts, palpites] = await Promise.all([
+      countParticipantsByExtraChampionshipIds(ids).catch(
+        () => ({} as Record<number, number>),
+      ),
+      loadHomePalpitesAbertosFromCache(2).catch(() => [] as PalpiteAbertoMatch[]),
+    ]);
     outrosBoloes = getOutrosBoloesGridItems(counts);
+    palpitesAbertos = palpites;
   }
 
   return (
     <>
       <HomePageJsonLd />
-      <HomePageClient hint={hint} outrosBoloes={outrosBoloes} />
+      <HomePageClient
+        hint={hint}
+        outrosBoloes={outrosBoloes}
+        palpitesAbertos={palpitesAbertos}
+      />
     </>
   );
 }

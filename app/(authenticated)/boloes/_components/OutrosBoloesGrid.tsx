@@ -6,22 +6,37 @@ import { Users } from "lucide-react";
 import { formatParticipantsShort } from "@/app/(authenticated)/ranking/_components/ranking-scope-ui";
 import type { OutrosBolaoGridItem } from "@/lib/boloes-outros-grid";
 import iconBrasileirao2 from "@/app/assets/icon-brasileirao2.png";
-import iconLaliga2 from "@/app/assets/icon-laliga2.png";
+import iconCopaMundo2026 from "@/app/assets/icon-copa-mundo2.png";
 import iconPremiere2 from "@/app/assets/icon-premiere2.png";
+import {
+  getBrasileiraoChampionshipId,
+  getPremierChampionshipId,
+} from "@/lib/boloes-outros-grid";
+import { getCopaChampionshipId } from "@/lib/boloes-extra-config";
 import type { StaticImageData } from "next/image";
 
 const GREEN = "#B1EB0B";
 const CARD_BG = "#111111";
 const MUTED = "#FFFFFFAD";
 
+const LOGO_BY_CHAMPIONSHIP_ID: Record<number, StaticImageData> = {
+  [getCopaChampionshipId()]: iconCopaMundo2026,
+  [getBrasileiraoChampionshipId()]: iconBrasileirao2,
+  [getPremierChampionshipId()]: iconPremiere2,
+};
+
 const LOGO_BY_LABEL: Record<string, StaticImageData> = {
-  BRASILEIRÃO: iconBrasileirao2,
+  "COPA DO MUNDO": iconCopaMundo2026,
+  "BRASILEIRÃO": iconBrasileirao2,
   "PREMIER LEAGUE": iconPremiere2,
-  "LA LIGA": iconLaliga2,
 };
 
 function logoForItem(item: OutrosBolaoGridItem): StaticImageData {
-  return LOGO_BY_LABEL[item.label] ?? iconBrasileirao2;
+  return (
+    LOGO_BY_CHAMPIONSHIP_ID[item.championshipId] ??
+    LOGO_BY_LABEL[item.label] ??
+    iconBrasileirao2
+  );
 }
 
 function OutrosBolaoCard({ item }: { item: OutrosBolaoGridItem }) {
@@ -31,27 +46,31 @@ function OutrosBolaoCard({ item }: { item: OutrosBolaoGridItem }) {
   return (
     <Link
       href={href}
-      className="flex min-w-0 flex-col items-center rounded-[14px] px-2 py-4 transition-[filter,transform] active:scale-[0.98] hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      className="flex min-w-0 flex-col items-center rounded-[14px] px-2 py-5 transition-[filter,transform] active:scale-[0.98] hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
       style={{ backgroundColor: CARD_BG }}
       aria-label={`${item.label}, ${participantsLabel} participantes`}
     >
       <div className="flex h-[56px] w-full items-center justify-center">
         <Image
           src={logoForItem(item)}
-          alt={item.label}
-          width={120}
+          alt=""
+          width={140}
           height={56}
           className="h-[52px] w-auto max-w-[92%] object-contain"
           draggable={false}
         />
       </div>
 
+      <p className="mt-2 w-full px-0.5 text-center text-[10px] font-black uppercase leading-tight tracking-[0.02em] text-white min-[360px]:text-[11px]">
+        {item.label}
+      </p>
+
       <div
-        className="mt-3 flex items-center justify-center gap-1.5"
+        className="mt-2.5 flex items-center justify-center gap-2"
         style={{ color: MUTED }}
       >
-        <Users className="size-4 shrink-0 opacity-90" strokeWidth={2.2} aria-hidden />
-        <span className="text-[14px] font-semibold leading-none">{participantsLabel}</span>
+        <Users className="size-5 shrink-0 opacity-90" strokeWidth={2.2} aria-hidden />
+        <span className="text-[19px] font-semibold leading-none">{participantsLabel}</span>
       </div>
     </Link>
   );
