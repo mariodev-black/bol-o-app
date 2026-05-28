@@ -1,9 +1,9 @@
 @import "tailwindcss";
 
 :root {
-  --app-header-main-height: 86.5px;
+  --app-header-main-height: 55px;
   --app-header-banner-height: 0px;
-  --app-header-height: 86.5px;
+  --app-header-height: 55px;
 
   /* Brand palette */
   --background: #000000;

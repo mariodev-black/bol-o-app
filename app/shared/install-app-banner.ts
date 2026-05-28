@@ -2,7 +2,8 @@
 export const INSTALL_BANNER_STORAGE_KEY = "bolao_install_banner_dismissed";
 
 export const INSTALL_BANNER_HEIGHT_PX = 52;
-export const HEADER_MAIN_HEIGHT_MOBILE_PX = 86.5;
+export const PUSH_NOTIFICATIONS_BANNER_HEIGHT_PX = 52;
+export const HEADER_MAIN_HEIGHT_MOBILE_PX = 55;
 export const HEADER_MAIN_HEIGHT_DESKTOP_PX = 80;
 
 export function readInstallBannerDismissed(): boolean {
@@ -40,10 +41,13 @@ export function getInstallSiteHost(): string {
 }
 
 export function syncAppHeaderHeightCss(
-  bannerVisible: boolean,
+  installBannerVisible: boolean,
   mainHeaderPx: number = HEADER_MAIN_HEIGHT_MOBILE_PX,
+  pushBannerVisible = false,
 ): void {
-  const bannerPx = bannerVisible ? INSTALL_BANNER_HEIGHT_PX : 0;
+  const bannerPx =
+    (installBannerVisible ? INSTALL_BANNER_HEIGHT_PX : 0) +
+    (pushBannerVisible ? PUSH_NOTIFICATIONS_BANNER_HEIGHT_PX : 0);
   const root = document.documentElement;
   root.style.setProperty("--app-header-banner-height", `${bannerPx}px`);
   root.style.setProperty("--app-header-main-height", `${mainHeaderPx}px`);

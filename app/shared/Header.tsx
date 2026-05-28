@@ -11,6 +11,7 @@ import { NotificationsBell } from "@/app/shared/NotificationsBell";
 import { useAuth } from "@/app/shared/AuthContext";
 import { useSidenav } from "@/app/shared/SidenavContext";
 import { InstallAppBanner } from "@/app/shared/InstallAppBanner";
+import { PushNotificationsBanner } from "@/app/shared/PushNotificationsBanner";
 import {
   HEADER_MAIN_HEIGHT_DESKTOP_PX,
   HEADER_MAIN_HEIGHT_MOBILE_PX,
@@ -36,12 +37,14 @@ const NAV_LINKS_LOGGED = [
 ];
 
 function HeaderShell({
-  showBanner,
-  onDismissBanner,
+  showInstallBanner,
+  onDismissInstallBanner,
+  onPushBannerVisibility,
   children,
 }: {
-  showBanner: boolean;
-  onDismissBanner: () => void;
+  showInstallBanner: boolean;
+  onDismissInstallBanner: () => void;
+  onPushBannerVisibility: (visible: boolean) => void;
   children: React.ReactNode;
 }) {
   return (
@@ -49,7 +52,10 @@ function HeaderShell({
       className="fixed top-0 left-0 right-0 z-50 w-full bg-black"
       style={{ backgroundColor: "#000000" }}
     >
-      {showBanner ? <InstallAppBanner onDismiss={onDismissBanner} /> : null}
+      {showInstallBanner ? (
+        <InstallAppBanner onDismiss={onDismissInstallBanner} />
+      ) : null}
+      <PushNotificationsBanner onVisibilityChange={onPushBannerVisibility} />
       {children}
     </header>
   );
@@ -59,19 +65,20 @@ export function Header() {
   const pathname = usePathname();
   const { ready, isLoggedIn } = useAuth();
   const { openSidenav } = useSidenav();
-  const [bannerVisible, setBannerVisible] = useState(false);
-  const [bannerHydrated, setBannerHydrated] = useState(false);
+  const [installBannerVisible, setInstallBannerVisible] = useState(false);
+  const [installBannerHydrated, setInstallBannerHydrated] = useState(false);
+  const [pushBannerVisible, setPushBannerVisible] = useState(false);
   const isPwa = useStandalonePwa();
 
   useEffect(() => {
-    setBannerVisible(!readInstallBannerDismissed());
-    setBannerHydrated(true);
+    setInstallBannerVisible(!readInstallBannerDismissed());
+    setInstallBannerHydrated(true);
   }, []);
 
   const isHomePage = (pathname ?? "") === "/";
 
   useEffect(() => {
-    if (!bannerHydrated || !ready) return;
+    if (!installBannerHydrated || !ready) return;
 
     const mq = window.matchMedia("(min-width: 1024px)");
     const update = () => {
@@ -79,17 +86,24 @@ export function Header() {
         ? HEADER_MAIN_HEIGHT_DESKTOP_PX
         : HEADER_MAIN_HEIGHT_MOBILE_PX;
       const showInstallBanner =
-        bannerVisible && !isHomePage && !isPwa;
-      syncAppHeaderHeightCss(showInstallBanner, mainHeight);
+        installBannerVisible && !isHomePage && !isPwa;
+      syncAppHeaderHeightCss(showInstallBanner, mainHeight, pushBannerVisible);
     };
 
     update();
     mq.addEventListener("change", update);
     return () => mq.removeEventListener("change", update);
-  }, [bannerVisible, bannerHydrated, ready, isHomePage, isPwa]);
+  }, [
+    installBannerVisible,
+    installBannerHydrated,
+    ready,
+    isHomePage,
+    isPwa,
+    pushBannerVisible,
+  ]);
 
-  const dismissBanner = useCallback(() => {
-    setBannerVisible(false);
+  const dismissInstallBanner = useCallback(() => {
+    setInstallBannerVisible(false);
   }, []);
 
   const cadastroHref = useProductHref("/cadastrar?from=/tickets");
@@ -103,7 +117,7 @@ export function Header() {
 
   /** Faixa “Instale o app”: só no navegador (não no PWA instalado), exceto home. */
   const showInstallBanner =
-    bannerHydrated && bannerVisible && !isHomePage && !isPwa;
+    installBannerHydrated && installBannerVisible && !isHomePage && !isPwa;
 
   if (!ready) {
     // evita flicker entre "logado" e "deslogado" durante a hidratação
@@ -112,15 +126,19 @@ export function Header() {
 
   if (isLoggedIn) {
     return (
-      <HeaderShell showBanner={showInstallBanner} onDismissBanner={dismissBanner}>
-        <div className="grid h-[86.5px] grid-cols-[48px_1fr_48px] items-center px-5 lg:hidden">
+      <HeaderShell
+        showInstallBanner={showInstallBanner}
+        onDismissInstallBanner={dismissInstallBanner}
+        onPushBannerVisibility={setPushBannerVisible}
+      >
+        <div className="grid h-[var(--app-header-main-height,55px)] grid-cols-[40px_1fr_40px] items-center px-4 lg:hidden">
           <button
             type="button"
-            className="flex h-10 w-10 items-center justify-start"
+            className="flex h-9 w-9 items-center justify-start"
             aria-label="Abrir menu"
             onClick={openSidenav}
           >
-            <MenuIcon className="h-6 w-6 text-white" strokeWidth={2.25} />
+            <MenuIcon className="h-5 w-5 text-white" strokeWidth={2.25} />
           </button>
 
           <Link href="/" className="flex items-center justify-center justify-self-center shrink-0" aria-label="Início">
@@ -132,7 +150,7 @@ export function Header() {
               quality={100}
               sizes="168px"
               priority
-              className="h-[40px] w-auto"
+              className="h-[28px] w-auto"
             />
           </Link>
 
@@ -197,20 +215,24 @@ export function Header() {
   const hideOnMobileGuestHome = (pathname ?? "") === "/";
 
   return (
-    <HeaderShell showBanner={showInstallBanner} onDismissBanner={dismissBanner}>
+    <HeaderShell
+      showInstallBanner={showInstallBanner}
+      onDismissInstallBanner={dismissInstallBanner}
+      onPushBannerVisibility={setPushBannerVisible}
+    >
       <div
         className={[
-          "w-full grid-cols-[48px_1fr_48px] items-center px-5 lg:justify-between lg:px-20 h-[86.5px]",
+          "w-full grid-cols-[40px_1fr_40px] items-center px-4 lg:justify-between lg:px-20 h-[var(--app-header-main-height,55px)] lg:h-[80px]",
           hideOnMobileGuestHome ? "hidden lg:flex" : "grid lg:flex",
         ].join(" ")}
       >
         <button
           type="button"
-          className="flex h-10 w-10 items-center justify-start lg:hidden"
+          className="flex h-9 w-9 items-center justify-start lg:hidden"
           aria-label="Abrir menu"
           onClick={openSidenav}
         >
-          <MenuIcon className="h-6 w-6 text-white" strokeWidth={2.25} />
+          <MenuIcon className="h-5 w-5 text-white" strokeWidth={2.25} />
         </button>
 
         <Link href="/" className="flex items-center justify-center justify-self-center shrink-0 lg:justify-self-auto" aria-label="Início">
@@ -222,11 +244,11 @@ export function Header() {
             quality={100}
             sizes="(max-width: 1023px) 168px, 106px"
             priority
-            className="h-[40px] w-auto lg:h-11"
+            className="h-[28px] w-auto lg:h-11"
           />
         </Link>
 
-        <div className="h-10 w-10 lg:hidden" aria-hidden="true" />
+        <div className="h-9 w-9 lg:hidden" aria-hidden="true" />
 
         <nav className="hidden lg:flex items-center gap-7">
           {guestNavLinks.map(({ label, href }, index) => (

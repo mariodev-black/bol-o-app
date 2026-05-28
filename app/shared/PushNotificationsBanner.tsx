@@ -14,7 +14,11 @@ import {
 } from "@/lib/push/push-prompt";
 import { useAuth } from "@/app/shared/AuthContext";
 
-export function PushNotificationsBanner() {
+export function PushNotificationsBanner({
+  onVisibilityChange,
+}: {
+  onVisibilityChange?: (visible: boolean) => void;
+}) {
   const { ready, isLoggedIn } = useAuth();
   const [visible, setVisible] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -34,6 +38,10 @@ export function PushNotificationsBanner() {
     const t = window.setTimeout(() => setVisible(true), 1200);
     return () => window.clearTimeout(t);
   }, [ready, isLoggedIn]);
+
+  useEffect(() => {
+    onVisibilityChange?.(visible);
+  }, [visible, onVisibilityChange]);
 
   const handleDismiss = useCallback(() => {
     persistPushPromptDismissed();
@@ -70,7 +78,7 @@ export function PushNotificationsBanner() {
 
   return (
     <div
-      className="border-b border-primary/25 bg-primary/8 px-3 py-2.5 sm:px-5"
+      className="shrink-0 border-b border-primary/25 bg-primary/8 px-3 py-2.5 sm:px-5"
       role="region"
       aria-label="Ativar notificações push"
     >

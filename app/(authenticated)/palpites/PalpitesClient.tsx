@@ -2813,7 +2813,7 @@ function BolaoRoundStickyDateProgress({
   return (
     <div
       className="sticky z-40 -mx-4 mb-3 flex w-[calc(100%+2rem)] flex-col gap-3 bg-black pb-1 pt-0.5"
-      style={{ top: "var(--app-header-height, 96px)" }}
+      style={{ top: "var(--app-header-height, 55px)" }}
     >
       {datas.length > 0 ? (
         <div className="w-full bg-[#111111]">

@@ -394,18 +394,18 @@ export function NotificationsBell({ variant }: { variant: "mobile" | "desktop" }
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="relative flex h-10 w-10 items-center justify-end rounded-xl"
+        className="relative flex h-9 w-9 items-center justify-end rounded-xl"
         aria-label="Notificações"
         aria-expanded={open}
       >
         <Bell
-          className={`h-6 w-6 ${open ? "text-primary" : "text-white"}`}
+          className={`h-5 w-5 ${open ? "text-primary" : "text-white"}`}
           strokeWidth={2}
         />
         {showDot ? (
           <span
             aria-hidden
-            className="absolute right-0 top-1.5 size-2 rounded-full bg-primary shadow-[0_0_0_3px_rgba(177,235,11,0.12)]"
+            className="absolute right-0 top-1 size-2 rounded-full bg-primary shadow-[0_0_0_3px_rgba(177,235,11,0.12)]"
           />
         ) : null}
       </button>
@@ -418,7 +418,7 @@ export function NotificationsBell({ variant }: { variant: "mobile" | "desktop" }
             aria-label="Fechar notificações"
             onClick={() => setOpen(false)}
           />
-          <div className="fixed inset-x-3 top-[92px] z-[80] sm:absolute sm:inset-x-auto sm:right-0 sm:top-[calc(100%+10px)]">
+          <div className="fixed inset-x-3 top-[calc(var(--app-header-height,55px)+8px)] z-[80] sm:absolute sm:inset-x-auto sm:right-0 sm:top-[calc(100%+10px)]">
             {panel}
           </div>
         </>
