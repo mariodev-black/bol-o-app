@@ -231,7 +231,9 @@ function LoggedInHome({
   outrosBoloes: OutrosBolaoGridItem[];
   palpitesAbertos: PalpiteAbertoMatch[];
 }) {
-  const [palpitesAbertos, setPalpitesAbertos] = useState(initialPalpitesAbertos);
+  const [palpitesAbertos, setPalpitesAbertos] = useState(
+    initialPalpitesAbertos,
+  );
   const [palpitesLoading, setPalpitesLoading] = useState(
     initialPalpitesAbertos.length === 0,
   );
@@ -315,17 +317,19 @@ function LoggedInHome({
 
           <QuemEstaNoBolaoSection className="mt-5" />
 
+          <HomeComoFuncionaPontuacaoSection
+            onVerMaisPontuacao={() => setScoringExplainerOpen(true)}
+          />
+
+
           <PalpitesAbertosGrid
             matches={palpitesAbertos}
             loading={palpitesLoading}
             className="mt-5"
           />
 
-          <HomeComoFuncionaPontuacaoSection
-            onVerMaisPontuacao={() => setScoringExplainerOpen(true)}
-          />
+<HomeClassificacaoCtaSection />
 
-          <HomeClassificacaoCtaSection />
         </div>
       </main>
       <ScoringExplainerModal
