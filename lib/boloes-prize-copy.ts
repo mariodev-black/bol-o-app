@@ -12,6 +12,18 @@ export type ShowcasePrizeCopy = {
 export const PRINCIPAL_MILHAO_FIRST_PLACE_LINE =
   "Bolão do Milhão: expectativa de R$ 180.000 para o 1º colocado.";
 
+/** Top 10 — pool exemplo R$ 1M (mesmos valores oficiais de /premiacao). */
+export const MILHAO_MARKETING_TOP_PRIZES = {
+  first: "R$ 180.000",
+  secondary: [
+    { label: "2º Lugar", value: "R$ 90.000" },
+    { label: "3º Lugar", value: "R$ 50.000" },
+    { label: "4º Lugar", value: "R$ 35.000" },
+    /** Soma dos prêmios do 5º ao 10º lugar no pool de exemplo. */
+    { label: "5º - 10º", value: "R$ 84.000" },
+  ],
+} as const;
+
 const EXTRA_FIRST_PLACE_BY_VARIANT: Record<ExtraBolaoHeroSideVariant, string> = {
   brasileirao: "Bolão do Brasileirão: R$ 1.000 para o 1º colocado.",
   libertadores: "Bolão da Libertadores: R$ 1.000 para o 1º colocado.",

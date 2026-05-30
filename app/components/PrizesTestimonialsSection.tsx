@@ -5,13 +5,9 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Star, Trophy } from "lucide-react";
 import overlaySection from "@/app/assets/overlay-section.png";
 import { cn } from "@/app/lib/utils";
+import { MILHAO_MARKETING_TOP_PRIZES } from "@/lib/boloes-prize-copy";
 
-const SECONDARY_PRIZES = [
-  { label: "2º Lugar", value: "R$ 200.000" },
-  { label: "3º Lugar", value: "R$ 100.000" },
-  { label: "4º Lugar", value: "R$ 50.000" },
-  { label: "5º - 10º", value: "R$ 1.500.000" },
-] as const;
+const SECONDARY_PRIZES = MILHAO_MARKETING_TOP_PRIZES.secondary;
 
 /** Alturas finais (px): mobile / sm — barras mais altas; gradiente Figma nas colunas */
 const CHART_BARS = [
@@ -307,7 +303,7 @@ export function PrizesTestimonialsSection() {
                   aria-hidden
                 />
                 <p className="text-center text-2xl font-black tabular-nums leading-none text-primary sm:text-[40px]">
-                  R$ 500.000
+                  {MILHAO_MARKETING_TOP_PRIZES.first}
                 </p>
                 <p className="mt-2 text-center text-xs font-semibold uppercase tracking-wider text-white/80">
                   1º Lugar
