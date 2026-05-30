@@ -779,7 +779,12 @@ function parseExtraTitleParts(title: string): { name: string; round: string | nu
 
 function buildNoTicketsProducts(
   upcoming: BoloesScreenData["upcoming"],
-  options: { ticketsExtraOnly: boolean; ticketsHideDaily: boolean },
+  options: {
+    ticketsExtraOnly: boolean;
+    ticketsHideDaily: boolean;
+    /** Vitrine vazia (/boloes): só Bolão do Milhão, sem diário nem extras. */
+    principalOnly?: boolean;
+  },
 ): NoTicketsProduct[] {
   const items: NoTicketsProduct[] = [];
 
@@ -798,6 +803,10 @@ function buildNoTicketsProducts(
       iconSrc: iconCopaMundo.src,
       brandedIcon: true,
     });
+
+    if (options.principalOnly) {
+      return items;
+    }
 
     if (!options.ticketsHideDaily) {
       const dailyPrizes = SHOWCASE_PRIZES.diario;
@@ -1526,7 +1535,12 @@ function NoTicketsState({
   ticketsHideDaily?: boolean;
 }) {
   const products = useMemo(
-    () => buildNoTicketsProducts(upcoming, { ticketsExtraOnly, ticketsHideDaily }),
+    () =>
+      buildNoTicketsProducts(upcoming, {
+        ticketsExtraOnly,
+        ticketsHideDaily,
+        principalOnly: !ticketsExtraOnly,
+      }),
     [upcoming, ticketsExtraOnly, ticketsHideDaily],
   );
 
@@ -1585,13 +1599,15 @@ function NoTicketsState({
           </section>
         ) : null}
 
-        <Link
-          href={ticketsHref}
-          className="mt-6 flex h-[50px] w-full items-center justify-center gap-2 rounded-[14px] border border-primary/30 bg-primary/10 text-[16px] font-black uppercase tracking-[0.04em] text-primary transition-colors hover:bg-primary/15 active:scale-[0.98]"
-        >
-          Ver todos na loja de tickets
-          <ArrowRight className="size-4 shrink-0" strokeWidth={2.6} aria-hidden />
-        </Link>
+        {ticketsExtraOnly ? (
+          <Link
+            href={ticketsHref}
+            className="mt-6 flex h-[50px] w-full items-center justify-center gap-2 rounded-[14px] border border-primary/30 bg-primary/10 text-[16px] font-black uppercase tracking-[0.04em] text-primary transition-colors hover:bg-primary/15 active:scale-[0.98]"
+          >
+            Ver todos na loja de tickets
+            <ArrowRight className="size-4 shrink-0" strokeWidth={2.6} aria-hidden />
+          </Link>
+        ) : null}
 
         <div className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[11px] font-medium text-white/40">
           <span className="inline-flex items-center gap-1.5">

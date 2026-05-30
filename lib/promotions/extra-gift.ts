@@ -1,7 +1,7 @@
 /**
  * Brinde "Bolão extra grátis" pós-login.
  *
- * Cotas fixas por campeonato/rodada (default: Libertadores 6ª + Brasileirão 18ª).
+ * Cotas fixas por campeonato/rodada (default: Brasileirão 18ª).
  * Configure com `EXTRA_GIFT_PROMO_CHAMPIONSHIP_IDS` e `EXTRA_GIFT_PROMO_ROUNDS`.
  */
 
@@ -32,12 +32,11 @@ export function isExtraGiftPromoEnabled(): boolean {
   return envBool("EXTRA_GIFT_PROMO_ENABLED");
 }
 
-/** Default do modal: Libertadores + Brasileirão (sem Premier). */
-const DEFAULT_EXTRA_GIFT_CHAMPIONSHIP_IDS: readonly number[] = [7, 10];
+/** Default do modal: só Brasileirão (sem Libertadores nem Premier). */
+const DEFAULT_EXTRA_GIFT_CHAMPIONSHIP_IDS: readonly number[] = [10];
 
 /** Rodadas fixas do brinde quando `EXTRA_GIFT_PROMO_ROUNDS` não define o id. */
 const DEFAULT_EXTRA_GIFT_ROUND_BY_CHAMPIONSHIP: Readonly<Record<number, number>> = {
-  7: 6,
   10: 18,
 };
 
@@ -68,21 +67,23 @@ function parseExtraGiftPromoRoundsMap(): Map<number, number> {
   return map;
 }
 
-/** Premier League não entra no modal de resgate de cotas grátis. */
+/** Libertadores e Premier não entram no brinde pós-cadastro. */
 function isExcludedFromExtraGiftPromo(
   championshipId: number,
   title?: string | null,
 ): boolean {
-  return isPremierLeagueExtraChampionship(championshipId, title);
+  if (isPremierLeagueExtraChampionship(championshipId, title)) return true;
+  if (isLibertadoresExtraChampionship(championshipId, title)) return true;
+  return false;
 }
 
-function withoutPremierExtraGiftIds(ids: readonly number[]): number[] {
+function filterExtraGiftPromoIds(ids: readonly number[]): number[] {
   return ids.filter((id) => !isExcludedFromExtraGiftPromo(id, null));
 }
 
 /**
  * Campeonatos + rodada fixa do brinde (não usa rodada “ao vivo” da API).
- * Default: `7,10` (Libertadores 6ª, Brasileirão 18ª) — não inclui Premier.
+ * Default: `10` (Brasileirão 18ª) — sem Libertadores nem Premier.
  */
 export function getExtraGiftPromoTargets(): ExtraGiftPromoTarget[] {
   if (!isExtraGiftPromoEnabled()) return [];
@@ -110,7 +111,7 @@ export function getExtraGiftPromoTargets(): ExtraGiftPromoTarget[] {
     }
   }
 
-  ids = withoutPremierExtraGiftIds(ids);
+  ids = filterExtraGiftPromoIds(ids);
 
   const out: ExtraGiftPromoTarget[] = [];
   for (const championshipId of ids) {
@@ -267,6 +268,7 @@ export async function getExtraGiftStatusForUser(userId: string): Promise<ExtraGi
   const promoLeagues = leagues.filter(
     (l) =>
       l.leagueKind !== "premier_league" &&
+      l.leagueKind !== "libertadores" &&
       !isExcludedFromExtraGiftPromo(l.championshipId, l.championshipName ?? l.displayName),
   );
 

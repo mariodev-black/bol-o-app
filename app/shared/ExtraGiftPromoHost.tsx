@@ -68,10 +68,12 @@ function leagueIconVariant(kind: ExtraGiftLeagueKind) {
         : "generic";
 }
 
-function withoutPremierGiftLeagues<T extends { leagueKind: ExtraGiftLeagueKind }>(
+function filterExtraGiftDisplayLeagues<T extends { leagueKind: ExtraGiftLeagueKind }>(
   rows: readonly T[],
 ): T[] {
-  return rows.filter((row) => row.leagueKind !== "premier_league");
+  return rows.filter(
+    (row) => row.leagueKind !== "premier_league" && row.leagueKind !== "libertadores",
+  );
 }
 
 function OfferStep({
@@ -85,7 +87,7 @@ function OfferStep({
   onClaim: () => void;
   onClose: () => void;
 }) {
-  const pendingLeagues = withoutPremierGiftLeagues(status.leagues);
+  const pendingLeagues = filterExtraGiftDisplayLeagues(status.leagues);
   const pendingCount = pendingLeagues.filter((l) => !l.alreadyClaimed).length;
   const cotaCount = pendingCount > 0 ? pendingCount : pendingLeagues.length;
 
@@ -157,7 +159,7 @@ function ClaimedStep({
   onPlay: () => void;
   onClose: () => void;
 }) {
-  const sorted = [...withoutPremierGiftLeagues(leagues)].sort(
+  const sorted = [...filterExtraGiftDisplayLeagues(leagues)].sort(
     (a, b) => a.championshipId - b.championshipId,
   );
 
@@ -383,7 +385,7 @@ export function ExtraGiftPromoHost({ children }: { children: React.ReactNode }) 
         return;
       }
 
-      const rows: ClaimedTicketRow[] = withoutPremierGiftLeagues(
+      const rows: ClaimedTicketRow[] = filterExtraGiftDisplayLeagues(
         data.tickets.map((t) => ({
           championshipId: t.championshipId,
           displayName: t.displayName,
