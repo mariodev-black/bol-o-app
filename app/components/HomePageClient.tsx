@@ -453,11 +453,11 @@ function PublicHome() {
                 prêmios que podem mudar sua vida.
               </p>
               <TicketPurchaseLink
-                ariaLabel="Garantir minha cota"
+                ariaLabel="Garantir Minha Participação"
                 className="hero-fluid-cta cta-pulse-ring relative mt-3 overflow-visible rounded-[14px] bg-primary px-7 py-3.5 font-bold text-[#0E141B] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:mt-4 sm:px-10 sm:py-4 lg:mt-5"
               >
                 <span className="relative z-10">
-                  GARANTIR MINHA COTA R$ 39,90
+                  Garantir Minha Participação R$ 39,90
                 </span>
               </TicketPurchaseLink>
               <div className="mt-6 grid w-full max-w-2xl grid-cols-3 gap-x-2 gap-y-3 sm:mt-5 sm:flex sm:max-w-2xl sm:flex-nowrap sm:justify-center sm:gap-x-6 sm:gap-y-0 md:gap-x-8 lg:mt-8 lg:max-w-none lg:justify-start lg:gap-x-8 xl:gap-x-10">

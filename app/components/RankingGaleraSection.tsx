@@ -531,7 +531,7 @@ export function RankingGaleraSection() {
           {/* Último no mobile: abaixo do ranking; no desktop: coluna da direita, linha de baixo */}
           <div className="order-3 col-span-full flex w-full justify-center lg:order-3 lg:col-span-1 lg:col-start-2 lg:row-start-2 lg:justify-center">
             <TicketPurchaseLink
-              ariaLabel="Garantir minha cota"
+              ariaLabel="Garantir Minha Participação"
               className="cta-pulse-ring relative mx-auto mt-2 w-full overflow-visible rounded-[10px] bg-primary px-6 py-4 text-[13px] font-bold uppercase leading-snug tracking-wide text-[#0E141B] shadow-[0_14px_44px_rgba(177,235,11,0.28)] transition hover:brightness-110 active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:mt-5 sm:max-w-none sm:py-[1.125rem] sm:text-[14px] lg:mt-0 lg:w-8/12 lg:rounded-2xl lg:text-[15px]"
             >
               <span className="relative z-10">

@@ -86,11 +86,11 @@ export function CopaCtaBandSection() {
                 R$ 39,90
               </p>
               <TicketPurchaseLink
-                ariaLabel="Garantir minha cota"
+                ariaLabel="Garantir Minha Participação"
                 className="cta-pulse-ring w-full relative  overflow-visible rounded-xl bg-primary px-4 py-4 text-[15px] font-bold leading-tight tracking-tight text-[#0E141B] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:mt-2.5 sm:px-5 sm:py-4 sm:text-[15px]"
               >
                 <span className="relative z-10">
-                  GARANTIR MINHA COTA R$ 39,90
+                  Garantir Minha Participação R$ 39,90
                 </span>
               </TicketPurchaseLink>
               <div className="relative mt-6 flex items-center gap-3 text-[14px] font-bold uppercase leading-none tracking-[-0.02em] text-white">

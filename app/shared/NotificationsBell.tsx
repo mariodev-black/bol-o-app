@@ -114,7 +114,7 @@ function NotificationDetailModal({
               onClick={() => onOpenChange(false)}
               className="flex h-11 w-full items-center justify-center rounded-[10px] bg-primary text-[13px] font-black uppercase tracking-wide text-black transition-opacity hover:opacity-90"
             >
-              Garantir minha cota
+              Garantir Minha Participação
             </Link>
           </div>
         ) : (

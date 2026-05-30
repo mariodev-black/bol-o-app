@@ -179,21 +179,14 @@ export function Footer() {
                   <Headphones className="w-4 h-4 shrink-0" />
                   Central de ajuda
                 </Link>
-                <Link
-                  href="#"
-                  className="flex items-center gap-2 text-sm transition-colors hover:text-white"
-                  style={{ color: "rgba(255,255,255,0.55)" }}
-                >
-                  <Phone className="w-4 h-4 shrink-0" />
-                  0800 000 4548
-                </Link>
+                
                 <Link
                   href="#"
                   className="flex items-center gap-2 text-sm transition-colors hover:text-white"
                   style={{ color: "rgba(255,255,255,0.55)" }}
                 >
                   <Mail className="w-4 h-4 shrink-0" />
-                  suporte@bolaodomilhao.com
+                  atendimento@bolaodomilhao.com.br
                 </Link>
               </div>
 
@@ -280,7 +273,7 @@ export function Footer() {
         {/* Col 2 — Texto legal (centro) */}
         <p className="text-[12px] leading-relaxed lg:text-center" style={{ color: "rgba(255,255,255,0.3)" }}>
           Este site é operado por EB INTERMEDIAÇÕES E JOGOS S/A, empresa brasileira
-          inscrita no CNPJ sob o nº 52.839.845/0001-25 e devidamente autorizada pela
+          inscrita no CNPJ sob o nº 61.349.217/0001-04 e devidamente autorizada pela
           Secretaria de Prêmios e Apostas através da Portaria SPA/MF nº 320, de 17 de
           fevereiro de 2025.
         </p>

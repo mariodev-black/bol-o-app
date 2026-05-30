@@ -135,7 +135,7 @@ function MainBolaoPromoModal({
             onClick={onClose}
             className="mt-5 flex min-h-[56px] w-full items-center justify-center gap-2 rounded-full bg-primary px-4 text-[17px] font-black italic uppercase tracking-wide text-[#0a0a0a] shadow-[0_4px_24px_rgba(182,246,0,0.35)] transition-transform active:scale-[0.98] min-[380px]:text-[18px]"
           >
-            Garantir minha cota
+            Garantir Minha Participação
             <ArrowRight className="size-5 shrink-0 min-[380px]:size-6" strokeWidth={2.8} aria-hidden />
           </Link>
 
