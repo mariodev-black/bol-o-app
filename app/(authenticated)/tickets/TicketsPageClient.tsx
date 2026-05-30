@@ -10,10 +10,12 @@ function TicketsPageContent({
   serverExtraChampionshipIds,
   ticketsExtraOnly,
   ticketsHideDaily,
+  ticketsPrincipalOnly = false,
 }: {
   serverExtraChampionshipIds: number[];
   ticketsExtraOnly: boolean;
   ticketsHideDaily: boolean;
+  ticketsPrincipalOnly?: boolean;
 }) {
   const search = useSearchParams();
   const lpFlow =
@@ -21,8 +23,9 @@ function TicketsPageContent({
     search.get("lp") === "true" ||
     search.get("flow") === "lp";
   const bolaoRaw = search.get("bolao");
-  const bolao =
-    bolaoRaw === "diario" && !ticketsHideDaily
+  const bolao = ticketsPrincipalOnly
+    ? "principal"
+    : bolaoRaw === "diario" && !ticketsHideDaily
       ? "diario"
       : bolaoRaw === "extra"
         ? "extra"
@@ -41,12 +44,13 @@ function TicketsPageContent({
         <LpTicketCheckoutFlow />
       ) : (
         <TicketCheckoutFlow
-          key={`${bolao}-${initialExtraChampionshipId ?? ""}-${ticketsExtraOnly ? "xo" : ticketsHideDaily ? "hd" : "all"}`}
+          key={`${bolao}-${initialExtraChampionshipId ?? ""}-${ticketsPrincipalOnly ? "principal" : ticketsExtraOnly ? "xo" : ticketsHideDaily ? "hd" : "all"}`}
           initialTicketKind={initialTicketKind}
           initialExtraChampionshipId={initialExtraChampionshipId}
           serverExtraChampionshipIds={serverExtraChampionshipIds}
           ticketsExtraOnly={ticketsExtraOnly}
           ticketsHideDaily={ticketsHideDaily}
+          ticketsPrincipalOnly={ticketsPrincipalOnly}
         />
       )}
     </div>
@@ -54,13 +58,15 @@ function TicketsPageContent({
 }
 
 export function TicketsPageClient({
-  serverExtraChampionshipIds,
-  ticketsExtraOnly,
-  ticketsHideDaily,
+  serverExtraChampionshipIds = [],
+  ticketsExtraOnly = false,
+  ticketsHideDaily = false,
+  ticketsPrincipalOnly = false,
 }: {
-  serverExtraChampionshipIds: number[];
-  ticketsExtraOnly: boolean;
-  ticketsHideDaily: boolean;
+  serverExtraChampionshipIds?: number[];
+  ticketsExtraOnly?: boolean;
+  ticketsHideDaily?: boolean;
+  ticketsPrincipalOnly?: boolean;
 }) {
   return (
     <Suspense
@@ -73,7 +79,8 @@ export function TicketsPageClient({
       <TicketsPageContent
         serverExtraChampionshipIds={serverExtraChampionshipIds}
         ticketsExtraOnly={ticketsExtraOnly}
-        ticketsHideDaily={ticketsHideDaily}
+        ticketsHideDaily={ticketsHideDaily || ticketsPrincipalOnly}
+        ticketsPrincipalOnly={ticketsPrincipalOnly}
       />
     </Suspense>
   );

@@ -130,6 +130,8 @@ type TicketCheckoutFlowProps = {
   ticketsExtraOnly?: boolean;
   /** Quando true (env `TICKETS_HIDE_DAILY`): oculta só o bolão do dia; geral e extra permanecem. */
   ticketsHideDaily?: boolean;
+  /** Loja `/tickets`: exibe somente Bolão do Milhão (principal). */
+  ticketsPrincipalOnly?: boolean;
 };
 
 const MAX_QTY = 20;
@@ -140,17 +142,20 @@ export function TicketCheckoutFlow({
   serverExtraChampionshipIds = [],
   ticketsExtraOnly = false,
   ticketsHideDaily = false,
+  ticketsPrincipalOnly = false,
 }: TicketCheckoutFlowProps) {
   const router = useRouter();
   const [principalQty, setPrincipalQty] = useState(() => {
     if (ticketsExtraOnly) return 0;
+    if (ticketsPrincipalOnly) return 1;
     return initialTicketKind === "daily" || initialTicketKind === "extra" ? 0 : 1;
   });
   const [dailyQty, setDailyQty] = useState(() => {
-    if (ticketsExtraOnly || ticketsHideDaily) return 0;
+    if (ticketsExtraOnly || ticketsHideDaily || ticketsPrincipalOnly) return 0;
     return initialTicketKind === "daily" ? 1 : 0;
   });
   const [extraBoloes, setExtraBoloes] = useState<ExtraBolaoOption[]>(() => {
+    if (ticketsPrincipalOnly) return [];
     const fromServer = filterTicketShopExtraChampionshipIds(
       (serverExtraChampionshipIds ?? []).filter((n) => Number.isFinite(n) && n > 0),
     );
@@ -165,6 +170,7 @@ export function TicketCheckoutFlow({
   });
   const [extraQtyByChampionship, setExtraQtyByChampionship] = useState<Record<number, number>>(
     () => {
+      if (ticketsPrincipalOnly) return {};
       if (
         _initialExtraChampionshipId != null &&
         (ticketsExtraOnly || initialTicketKind === "extra")
@@ -204,9 +210,17 @@ export function TicketCheckoutFlow({
   }, [ticketsExtraOnly]);
 
   useEffect(() => {
-    if (!ticketsHideDaily) return;
+    if (!ticketsHideDaily && !ticketsPrincipalOnly) return;
     setDailyQty(0);
-  }, [ticketsHideDaily]);
+  }, [ticketsHideDaily, ticketsPrincipalOnly]);
+
+  useEffect(() => {
+    if (!ticketsPrincipalOnly) return;
+    setPrincipalQty((q) => (q > 0 ? q : 1));
+    setDailyQty(0);
+    setExtraQtyByChampionship({});
+    setExtraBoloes([]);
+  }, [ticketsPrincipalOnly]);
 
   useEffect(() => {
     setExtraQtyByChampionship((prev) => {
@@ -299,7 +313,12 @@ export function TicketCheckoutFlow({
             extra: d.prices.extra ?? DEFAULT_EXTRA_CENTS,
           });
         }
-        if (r.ok && Array.isArray(d.extraBoloes) && d.extraBoloes.length > 0) {
+        if (
+          r.ok &&
+          Array.isArray(d.extraBoloes) &&
+          d.extraBoloes.length > 0 &&
+          !ticketsPrincipalOnly
+        ) {
           setExtraBoloes(
             filterTicketShopExtraBoloes(d.extraBoloes.map((row) => applyTicketShopExtraCatalogItem(row))),
           );
@@ -313,7 +332,7 @@ export function TicketCheckoutFlow({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [ticketsPrincipalOnly]);
 
   // SSE — canal primário (funciona em dev; pode não funcionar em serverless multi-instância)
   useEffect(() => {
@@ -859,7 +878,8 @@ export function TicketCheckoutFlow({
               </div>
               )}
 
-              {extraBoloes.map((b) => {
+              {!ticketsPrincipalOnly &&
+              extraBoloes.map((b) => {
                 const qty = extraQty(b.championshipId);
                 const variant = getExtraBolaoHeroSideVariant(b.championshipId, b.displayName);
                 const iconSrc = extraBolaoIconSrc(variant).src;
@@ -1044,7 +1064,8 @@ export function TicketCheckoutFlow({
                   </span>
                 </div>
                 )}
-                {extraBoloes.map((b) => {
+                {!ticketsPrincipalOnly &&
+                extraBoloes.map((b) => {
                   const qty = extraQty(b.championshipId);
                   if (qty <= 0) return null;
                   const lineCents = progressiveDiscountTotalCents(prices.extra, qty);
