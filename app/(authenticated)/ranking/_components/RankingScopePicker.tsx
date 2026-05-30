@@ -54,19 +54,30 @@ function ScopesByKindSections({
   highlightTicketId,
   onOpenRanking,
   onOpenSteps,
+  flat = false,
 }: {
   scopes: RankingScopeOption[];
   highlightTicketId: string;
   onOpenRanking: (scope: RankingScopeOption) => void;
   onOpenSteps: (scope: RankingScopeOption) => void;
+  /** Lista única (ex.: finalizados) — sem agrupar por campeonato. */
+  flat?: boolean;
 }) {
-  const { principal, diario, extraGroups } = groupScopesByKind(scopes);
+  if (flat) {
+    return (
+      <ScopeCardsRow
+        items={scopes}
+        highlightTicketId={highlightTicketId}
+        onOpenRanking={onOpenRanking}
+        onOpenSteps={onOpenSteps}
+      />
+    );
+  }
 
-  if (
-    principal.length === 0 &&
-    diario.length === 0 &&
-    extraGroups.length === 0
-  ) {
+  const { principal, diario, extraGroups } = groupScopesByKind(scopes);
+  const extraItems = extraGroups.flatMap((group) => group.items);
+
+  if (principal.length === 0 && diario.length === 0 && extraItems.length === 0) {
     return null;
   }
 
@@ -96,17 +107,17 @@ function ScopesByKindSections({
         </section>
       ) : null}
 
-      {extraGroups.map((group) => (
-        <section key={group.championshipId} className="mt-6">
-          <RankingScopeGroupLabel>{group.label}</RankingScopeGroupLabel>
+      {extraItems.length > 0 ? (
+        <section className="mt-6">
+          <RankingScopeGroupLabel>Bolão extra</RankingScopeGroupLabel>
           <ScopeCardsRow
-            items={group.items}
+            items={extraItems}
             highlightTicketId={highlightTicketId}
             onOpenRanking={onOpenRanking}
             onOpenSteps={onOpenSteps}
           />
         </section>
-      ))}
+      ) : null}
     </>
   );
 }
@@ -144,6 +155,7 @@ export function RankingScopePicker({
             highlightTicketId={highlightTicketId}
             onOpenRanking={onOpenRanking}
             onOpenSteps={onOpenSteps}
+            flat
           />
         </section>
       ) : null}

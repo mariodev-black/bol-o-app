@@ -91,6 +91,7 @@ async function findSubmission(userId: string): Promise<{
   predCasa: number;
   predVisitante: number;
 } | null> {
+  await ensureBrasilPanamaPlacarPromoTable();
   const pool = getPool();
   const { rows } = await pool.query<{ pred_casa: number; pred_visitante: number }>(
     `SELECT pred_casa, pred_visitante
@@ -120,6 +121,27 @@ function buildSignupLink(referralCode: string): string {
   const origin = getAppOrigin().replace(/\/+$/, "");
   if (!referralCode) return `${origin}/`;
   return `${origin}/?ref=${encodeURIComponent(referralCode)}`;
+}
+
+let tableReady: Promise<void> | null = null;
+
+async function ensureBrasilPanamaPlacarPromoTable(): Promise<void> {
+  if (!tableReady) {
+    tableReady = (async () => {
+      const pool = getPool();
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS brasil_panama_placar_promo_submissions (
+          user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          pred_casa SMALLINT NOT NULL CHECK (pred_casa >= 0 AND pred_casa <= 99),
+          pred_visitante SMALLINT NOT NULL CHECK (pred_visitante >= 0 AND pred_visitante <= 99),
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS brasil_panama_placar_promo_submissions_created_at_idx
+          ON brasil_panama_placar_promo_submissions (created_at DESC);
+      `);
+    })();
+  }
+  await tableReady;
 }
 
 const EMPTY_STATUS = (): BrasilPanamaPlacarPromoStatus => ({
@@ -202,6 +224,7 @@ export async function submitBrasilPanamaPlacarPromoForUser(
     return { ok: true, status };
   }
 
+  await ensureBrasilPanamaPlacarPromoTable();
   const pool = getPool();
   await pool.query(
     `INSERT INTO brasil_panama_placar_promo_submissions (user_id, pred_casa, pred_visitante)
