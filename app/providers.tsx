@@ -4,6 +4,7 @@ import React, { Suspense } from "react";
 import { BolaoToastProvider } from "@/app/components/BolaoToast";
 import { AuthProvider } from "@/app/shared/AuthContext";
 import { AppServerConfigProvider } from "@/app/shared/AppServerConfigContext";
+import { BrasilPanamaPlacarPromoHost } from "@/app/shared/BrasilPanamaPlacarPromoHost";
 import { ChampionsPlacarPromoHost } from "@/app/shared/ChampionsPlacarPromoHost";
 import { ExtraGiftPromoHost } from "@/app/shared/ExtraGiftPromoHost";
 import { MainBolaoPromoModalHost } from "@/app/shared/MainBolaoPromoModalHost";
@@ -29,16 +30,18 @@ export function Providers({
       <AuthProvider initialUser={initialAuthUser}>
         <PwaManager />
         <ProfileCompletionHost>
-          <ChampionsPlacarPromoHost>
-            <ExtraGiftPromoHost>
-              <MainBolaoPromoModalHost>
-                <Suspense fallback={null}>
-                  <ReferralCapture />
-                </Suspense>
-                <SidenavProvider>{children}</SidenavProvider>
-              </MainBolaoPromoModalHost>
-            </ExtraGiftPromoHost>
-          </ChampionsPlacarPromoHost>
+          <BrasilPanamaPlacarPromoHost>
+            <ChampionsPlacarPromoHost>
+              <ExtraGiftPromoHost>
+                <MainBolaoPromoModalHost>
+                  <Suspense fallback={null}>
+                    <ReferralCapture />
+                  </Suspense>
+                  <SidenavProvider>{children}</SidenavProvider>
+                </MainBolaoPromoModalHost>
+              </ExtraGiftPromoHost>
+            </ChampionsPlacarPromoHost>
+          </BrasilPanamaPlacarPromoHost>
         </ProfileCompletionHost>
       </AuthProvider>
       </AppServerConfigProvider>
