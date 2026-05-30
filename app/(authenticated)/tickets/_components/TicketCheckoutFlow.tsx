@@ -28,6 +28,7 @@ import {
   getExtraBolaoHeroSideVariant,
   resolveExtraBolaoDisplayName,
 } from "@/lib/boloes-extra-competition-branding";
+import { getExtraBolaoFirstPlaceLine } from "@/lib/boloes-prize-copy";
 import { extraBolaoIconSrc, isExtraBolaoBrandedIcon } from "@/app/shared/extra-bolao-icons";
 import {
   getTicketShopExtraPresentation,
@@ -915,6 +916,9 @@ export function TicketCheckoutFlow({
                         <div className="min-w-0">
                           <p className="text-[12px] font-medium leading-snug text-white/80 sm:text-[11px]">
                             Cota extra na rodada atual deste campeonato.
+                          </p>
+                          <p className="mt-1.5 text-[11px] font-bold leading-snug text-primary/90 sm:text-[12px]">
+                            {getExtraBolaoFirstPlaceLine(b.championshipId, b.displayName)}
                           </p>
                           <div className="mt-3 flex w-fit items-center gap-1 rounded-[10px] border border-white/10 bg-[#0f0f0f] p-1">
                             <button

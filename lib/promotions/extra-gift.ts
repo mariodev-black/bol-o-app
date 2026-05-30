@@ -6,6 +6,7 @@
  */
 
 import { getPool } from "@/lib/db";
+import { getExtraBolaoFirstPlaceLine } from "@/lib/boloes-prize-copy";
 import {
   extraBolaoFallbackDisplayName,
   resolveExtraBolaoDisplayName,
@@ -141,12 +142,18 @@ export function formatExtraGiftLeagueNames(
   return `${names.slice(0, -1).join(", ")} e ${names[names.length - 1]}`;
 }
 
-/** Cópia do step 1 do modal (ex.: "Libertadores e Brasileirão · valendo R$ 10 MIL cada"). */
+/** Cópia do step 1 do modal (ex.: linha de 1º colocado por liga). */
 export function formatExtraGiftOfferSubtitle(
-  leagues: ReadonlyArray<{ displayName: string }>,
-  prizeLabel: string,
+  leagues: ReadonlyArray<{ displayName: string; championshipId: number }>,
 ): string {
-  return `${formatExtraGiftLeagueNames(leagues)} · valendo ${prizeLabel} cada`;
+  if (leagues.length === 0) return "Bolão extra grátis";
+  if (leagues.length === 1) {
+    const league = leagues[0]!;
+    return getExtraBolaoFirstPlaceLine(league.championshipId, league.displayName);
+  }
+  return leagues
+    .map((l) => getExtraBolaoFirstPlaceLine(l.championshipId, l.displayName))
+    .join(" · ");
 }
 
 /** @deprecated Use `leagues[].displayName` no status. Mantido para admin/config. */
@@ -279,7 +286,7 @@ export async function getExtraGiftStatusForUser(userId: string): Promise<ExtraGi
     leagues: promoLeagues,
     allClaimed,
     canClaim,
-    offerSubtitle: formatExtraGiftOfferSubtitle(promoLeagues, prizeLabel),
+    offerSubtitle: formatExtraGiftOfferSubtitle(promoLeagues),
     showOfferModal,
     championshipId: first.championshipId,
     rodada: first.rodada,

@@ -20,6 +20,7 @@ import { useAuth } from "@/app/shared/AuthContext";
 import { useBolaoToast } from "@/app/components/BolaoToast";
 import { extraBolaoIconSrc } from "@/app/shared/extra-bolao-icons";
 import type { ExtraGiftLeagueKind } from "@/lib/promotions/extra-gift";
+import { getExtraBolaoFirstPlaceLine } from "@/lib/boloes-prize-copy";
 import poupUpImage from "@/app/assets/poup-up.png";
 
 const audioTorcidaSrc = "/audio/audio-torcida.mp3";
@@ -148,12 +149,10 @@ function OfferStep({
 }
 
 function ClaimedStep({
-  prizeLabel,
   leagues,
   onPlay,
   onClose,
 }: {
-  prizeLabel: string;
   leagues: ClaimedTicketRow[];
   onPlay: () => void;
   onClose: () => void;
@@ -218,10 +217,8 @@ function ClaimedStep({
                 1 cota grátis · {league.rodadaNome}
               </p>
             </div>
-            <p className="shrink-0 text-right text-[10px] font-bold uppercase leading-tight text-primary">
-              Valendo
-              <br />
-              <span className="text-[11px] text-white">{prizeLabel}</span>
+            <p className="shrink-0 max-w-[108px] text-right text-[10px] font-bold leading-snug text-primary">
+              {getExtraBolaoFirstPlaceLine(league.championshipId, league.displayName)}
             </p>
           </li>
         ))}
@@ -523,7 +520,6 @@ export function ExtraGiftPromoHost({ children }: { children: React.ReactNode }) 
             />
           ) : (
             <ClaimedStep
-              prizeLabel={status.prizeLabel}
               leagues={claimedTickets}
               onPlay={handlePlay}
               onClose={handleClaimedClose}

@@ -30,6 +30,10 @@ import {
   type BolaoDisplayPhase,
 } from "@/lib/boloes/display-status";
 import { getExtraBolaoHeroSideVariant } from "@/lib/boloes-extra-competition-branding";
+import {
+  getExtraBolaoFirstPlaceLine,
+  SHOWCASE_PRIZES,
+} from "@/lib/boloes-prize-copy";
 import { extraBolaoIconSrc, isExtraBolaoBrandedIcon } from "@/app/shared/extra-bolao-icons";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { RankingPalpitesStepsModal } from "@/app/(authenticated)/ranking/_components/RankingPalpitesStepsModal";
@@ -152,15 +156,6 @@ const EMPTY_UPCOMING: BoloesScreenData["upcoming"] = {
 };
 const INK = "#0E141B";
 const SHOWCASE_CARD_BG = "#111111";
-
-const SHOWCASE_PRIZES: Record<
-  "principal" | "diario" | "extra",
-  { total: string; first: string }
-> = {
-  principal: { total: "R$ 1.000.000", first: "R$ 500.000" },
-  diario: { total: "R$ 10.000", first: "R$ 5.000" },
-  extra: { total: "R$ 10.000", first: "R$ 5.000" },
-};
 
 /** Rótulos do header como na referência (CAMPEONATO / BRASILEIRO). */
 function showcaseHeaderParts(
@@ -770,6 +765,7 @@ type NoTicketsProduct = {
   priceLabel: string;
   prizeTotal: string;
   prizeFirst: string;
+  prizeFirstLine?: string;
   iconSrc: string;
   brandedIcon: boolean;
 };
@@ -798,6 +794,7 @@ function buildNoTicketsProducts(
       priceLabel: upcoming.principal.priceLabel,
       prizeTotal: principalPrizes.total,
       prizeFirst: principalPrizes.first,
+      prizeFirstLine: principalPrizes.firstPlaceLine,
       iconSrc: iconCopaMundo.src,
       brandedIcon: true,
     });
@@ -833,6 +830,7 @@ function buildNoTicketsProducts(
       priceLabel: ex.priceLabel,
       prizeTotal: extraPrizes.total,
       prizeFirst: extraPrizes.first,
+      prizeFirstLine: getExtraBolaoFirstPlaceLine(ex.championshipId, name),
       iconSrc: icon.src,
       brandedIcon: isExtraBolaoBrandedIcon(variant),
     });
@@ -1011,6 +1009,41 @@ function ShowcaseCardStatusBadge({ phase }: { phase: BolaoDisplayPhase }) {
   );
 }
 
+function ShowcaseFirstPlaceRow({
+  first,
+  firstPlaceLine,
+  className = "mb-2",
+}: {
+  first: string;
+  firstPlaceLine?: string;
+  className?: string;
+}) {
+  if (firstPlaceLine) {
+    return (
+      <div className={`flex items-start justify-center gap-2 px-4 ${className}`}>
+        <Trophy
+          className="mt-0.5 size-4 shrink-0 text-white/85"
+          strokeWidth={2.15}
+          aria-hidden
+        />
+        <p className="text-center text-[12px] font-bold leading-snug tracking-[0.02em] text-white/85 min-[380px]:text-[13px]">
+          {firstPlaceLine}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`flex items-center justify-center gap-2 px-4 ${className}`}>
+      <Trophy className="size-4 shrink-0 text-white" strokeWidth={2.15} aria-hidden />
+      <span className="text-[14px] font-bold uppercase tracking-[0.06em] text-white/80">
+        1º lugar ganha
+      </span>
+      <span className="text-[15px] font-black leading-none text-white">{first}</span>
+    </div>
+  );
+}
+
 function ShowcaseCotaCard({
   href,
   fullWidth,
@@ -1024,6 +1057,7 @@ function ShowcaseCotaCard({
   now,
   ctaLabel,
   promoInterceptClick,
+  firstPlaceLineOverride,
 }: {
   href: string;
   fullWidth?: boolean;
@@ -1038,10 +1072,12 @@ function ShowcaseCotaCard({
   ctaLabel: string;
   /** Bolão grátis: modal promocional antes de seguir o link. */
   promoInterceptClick?: boolean;
+  firstPlaceLineOverride?: string;
 }) {
   const router = useRouter();
   const { requestModal } = useMainBolaoPromoModal();
   const prizes = SHOWCASE_PRIZES[kind];
+  const firstPlaceLine = firstPlaceLineOverride ?? prizes.firstPlaceLine;
   const header = showcaseHeaderParts(displayTitle, kind);
   const finished = displayPhase === "finalizado";
   const inDispute = displayPhase === "disputa";
@@ -1097,13 +1133,10 @@ function ShowcaseCotaCard({
           </p>
         </div>
       </div>
-      <div className="flex items-center justify-center gap-2 px-4 mb-2">
-        <Trophy className="size-4 shrink-0 text-white" strokeWidth={2.15} aria-hidden />
-        <span className="text-[14px] font-bold uppercase tracking-[0.06em] text-white/80">
-          1º lugar ganha
-        </span>
-        <span className="text-[15px] font-black leading-none text-white">{prizes.first}</span>
-      </div>
+      <ShowcaseFirstPlaceRow
+        first={prizes.first}
+        firstPlaceLine={firstPlaceLine}
+      />
       <div className="mx-4 h-px bg-white/8" aria-hidden />
 
       {/* Meta — prazo + status */}
@@ -1244,6 +1277,11 @@ function ActiveShowcaseCard({
       now={now}
       ctaLabel={ctaLabel}
       promoInterceptClick={isGratisExtra}
+      firstPlaceLineOverride={
+        isExtra
+          ? getExtraBolaoFirstPlaceLine(item.championshipId, item.title)
+          : undefined
+      }
     />
   );
 }
@@ -1397,15 +1435,11 @@ function NoTicketsHeroCard({ product }: { product: NoTicketsProduct }) {
         </div>
       </div>
 
-      <div className="flex items-center justify-center gap-2 px-4 pb-3">
-        <Trophy className="size-4 shrink-0 text-white/85" strokeWidth={2.15} aria-hidden />
-        <span className="text-[13px] font-bold uppercase tracking-[0.05em] text-white/75">
-          1º lugar ganha
-        </span>
-        <span className="text-[14px] font-black leading-none text-white">
-          {product.prizeFirst}
-        </span>
-      </div>
+      <ShowcaseFirstPlaceRow
+        first={product.prizeFirst}
+        firstPlaceLine={product.prizeFirstLine}
+        className="pb-3"
+      />
 
       <div className="mx-4 h-px bg-white/8" aria-hidden />
 
@@ -1460,8 +1494,8 @@ function NoTicketsProductRow({ product }: { product: NoTicketsProduct }) {
           <p className="mt-1.5 text-[15px] font-bold leading-snug text-white/80">
             {product.subtitle}
           </p>
-          <p className="mt-1.5 text-[16px] font-bold text-primary/90">
-            Premiação {product.prizeTotal}
+          <p className="mt-1.5 text-[13px] font-bold leading-snug text-primary/90 min-[380px]:text-[14px]">
+            {product.prizeFirstLine ?? `Premiação ${product.prizeTotal}`}
           </p>
         </div>
         <div className="text-right">
