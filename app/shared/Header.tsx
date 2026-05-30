@@ -11,7 +11,6 @@ import { NotificationsBell } from "@/app/shared/NotificationsBell";
 import { useAuth } from "@/app/shared/AuthContext";
 import { useSidenav } from "@/app/shared/SidenavContext";
 import { InstallAppBanner } from "@/app/shared/InstallAppBanner";
-import { PushNotificationsBanner } from "@/app/shared/PushNotificationsBanner";
 import {
   HEADER_MAIN_HEIGHT_DESKTOP_PX,
   HEADER_MAIN_HEIGHT_MOBILE_PX,
@@ -39,12 +38,10 @@ const NAV_LINKS_LOGGED = [
 function HeaderShell({
   showInstallBanner,
   onDismissInstallBanner,
-  onPushBannerVisibility,
   children,
 }: {
   showInstallBanner: boolean;
   onDismissInstallBanner: () => void;
-  onPushBannerVisibility: (visible: boolean) => void;
   children: React.ReactNode;
 }) {
   return (
@@ -55,7 +52,6 @@ function HeaderShell({
       {showInstallBanner ? (
         <InstallAppBanner onDismiss={onDismissInstallBanner} />
       ) : null}
-      <PushNotificationsBanner onVisibilityChange={onPushBannerVisibility} />
       {children}
     </header>
   );
@@ -67,7 +63,6 @@ export function Header() {
   const { openSidenav } = useSidenav();
   const [installBannerVisible, setInstallBannerVisible] = useState(false);
   const [installBannerHydrated, setInstallBannerHydrated] = useState(false);
-  const [pushBannerVisible, setPushBannerVisible] = useState(false);
   const isPwa = useStandalonePwa();
 
   useEffect(() => {
@@ -87,7 +82,7 @@ export function Header() {
         : HEADER_MAIN_HEIGHT_MOBILE_PX;
       const showInstallBanner =
         installBannerVisible && !isHomePage && !isPwa;
-      syncAppHeaderHeightCss(showInstallBanner, mainHeight, pushBannerVisible);
+      syncAppHeaderHeightCss(showInstallBanner, mainHeight);
     };
 
     update();
@@ -99,7 +94,6 @@ export function Header() {
     ready,
     isHomePage,
     isPwa,
-    pushBannerVisible,
   ]);
 
   const dismissInstallBanner = useCallback(() => {
@@ -129,7 +123,6 @@ export function Header() {
       <HeaderShell
         showInstallBanner={showInstallBanner}
         onDismissInstallBanner={dismissInstallBanner}
-        onPushBannerVisibility={setPushBannerVisible}
       >
         <div className="grid h-[var(--app-header-main-height,55px)] grid-cols-[40px_1fr_40px] items-center px-4 lg:hidden">
           <button
@@ -218,7 +211,6 @@ export function Header() {
     <HeaderShell
       showInstallBanner={showInstallBanner}
       onDismissInstallBanner={dismissInstallBanner}
-      onPushBannerVisibility={setPushBannerVisible}
     >
       <div
         className={[

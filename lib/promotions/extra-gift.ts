@@ -67,6 +67,18 @@ function parseExtraGiftPromoRoundsMap(): Map<number, number> {
   return map;
 }
 
+/** Premier League não entra no modal de resgate de cotas grátis. */
+function isExcludedFromExtraGiftPromo(
+  championshipId: number,
+  title?: string | null,
+): boolean {
+  return isPremierLeagueExtraChampionship(championshipId, title);
+}
+
+function withoutPremierExtraGiftIds(ids: readonly number[]): number[] {
+  return ids.filter((id) => !isExcludedFromExtraGiftPromo(id, null));
+}
+
 /**
  * Campeonatos + rodada fixa do brinde (não usa rodada “ao vivo” da API).
  * Default: `7,10` (Libertadores 6ª, Brasileirão 18ª) — não inclui Premier.
@@ -96,6 +108,8 @@ export function getExtraGiftPromoTargets(): ExtraGiftPromoTarget[] {
       ids = DEFAULT_EXTRA_GIFT_CHAMPIONSHIP_IDS.filter((id) => configuredSet.has(id));
     }
   }
+
+  ids = withoutPremierExtraGiftIds(ids);
 
   const out: ExtraGiftPromoTarget[] = [];
   for (const championshipId of ids) {
@@ -243,19 +257,29 @@ export async function getExtraGiftStatusForUser(userId: string): Promise<ExtraGi
     return EMPTY_STATUS();
   }
 
+  const promoLeagues = leagues.filter(
+    (l) =>
+      l.leagueKind !== "premier_league" &&
+      !isExcludedFromExtraGiftPromo(l.championshipId, l.championshipName ?? l.displayName),
+  );
+
+  if (promoLeagues.length === 0) {
+    return EMPTY_STATUS();
+  }
+
   const prizeLabel = getExtraGiftPrizeLabel();
-  const allClaimed = leagues.every((l) => l.alreadyClaimed);
-  const canClaim = leagues.some((l) => !l.alreadyClaimed);
+  const allClaimed = promoLeagues.every((l) => l.alreadyClaimed);
+  const canClaim = promoLeagues.some((l) => !l.alreadyClaimed);
   const showOfferModal = canClaim && !allClaimed;
-  const first = leagues[0]!;
+  const first = promoLeagues[0]!;
 
   return {
     enabled: true,
     prizeLabel,
-    leagues,
+    leagues: promoLeagues,
     allClaimed,
     canClaim,
-    offerSubtitle: formatExtraGiftOfferSubtitle(leagues, prizeLabel),
+    offerSubtitle: formatExtraGiftOfferSubtitle(promoLeagues, prizeLabel),
     showOfferModal,
     championshipId: first.championshipId,
     rodada: first.rodada,
@@ -263,7 +287,7 @@ export async function getExtraGiftStatusForUser(userId: string): Promise<ExtraGi
     championshipName: first.championshipName,
     alreadyClaimed: allClaimed,
     ticketId: first.ticketId,
-    displayName: formatExtraGiftLeagueNames(leagues),
+    displayName: formatExtraGiftLeagueNames(promoLeagues),
   };
 }
 

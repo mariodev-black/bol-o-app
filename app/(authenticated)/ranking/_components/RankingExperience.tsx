@@ -2,16 +2,12 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CalendarClock, Ticket } from "lucide-react";
-import { getScopeCardAction } from "@/app/(authenticated)/ranking/_components/ranking-flow";
 import { RankingBoardStep } from "@/app/(authenticated)/ranking/_components/RankingBoardStep";
 import { RankingPalpitesStepsModal } from "@/app/(authenticated)/ranking/_components/RankingPalpitesStepsModal";
 import { RankingPageHeader } from "@/app/(authenticated)/ranking/_components/RankingPageHeader";
-import {
-  RankingScopeCard,
-  RankingScopeGroupLabel,
-} from "@/app/(authenticated)/ranking/_components/RankingScopeCard";
+import { RankingScopePicker } from "@/app/(authenticated)/ranking/_components/RankingScopePicker";
 import { RankingFullPageSkeleton } from "@/app/(authenticated)/ranking/_components/RankingPageSkeletons";
 import {
   RANKING_CARD_BG,
@@ -116,15 +112,6 @@ export function RankingExperience() {
       cancelled = true;
     };
   }, [highlightTicketId]);
-
-  const firstDailyIndex = useMemo(
-    () => scopes.findIndex((s) => s.mode === "diario"),
-    [scopes],
-  );
-  const firstExtraIndex = useMemo(
-    () => scopes.findIndex((s) => s.mode === "extra"),
-    [scopes],
-  );
 
   const buildResumoQuery = (scope: RankingScopeOption) => {
     const resumoQ = new URLSearchParams();
@@ -459,43 +446,12 @@ export function RankingExperience() {
                 </div>
               </section>
             ) : (
-              <section className="mt-8 space-y-4">
-                {scopes.map((option, idx) => {
-                  const showBolaoGeralHeader =
-                    idx === 0 && scopes[0]?.mode === "principal";
-                  const showBolaoDiaHeader =
-                    firstDailyIndex !== -1 && idx === firstDailyIndex;
-                  const showBolaoExtraHeader =
-                    firstExtraIndex !== -1 && idx === firstExtraIndex;
-                  const highlighted =
-                    Boolean(highlightTicketId) &&
-                    option.ticketId === highlightTicketId;
-                  return (
-                    <Fragment key={option.key}>
-                      {showBolaoGeralHeader ? (
-                        <RankingScopeGroupLabel>Bolão geral</RankingScopeGroupLabel>
-                      ) : null}
-                      {showBolaoDiaHeader ? (
-                        <RankingScopeGroupLabel>Bolão do dia</RankingScopeGroupLabel>
-                      ) : null}
-                      {showBolaoExtraHeader ? (
-                        <RankingScopeGroupLabel>Bolão extra</RankingScopeGroupLabel>
-                      ) : null}
-                      <RankingScopeCard
-                        option={option}
-                        highlighted={highlighted}
-                        action={getScopeCardAction(option)}
-                        onOpenRanking={() => handleSelectScope(option)}
-                        onOpenSteps={
-                          getScopeCardAction(option) === "palpites"
-                            ? () => openStepsModal(option)
-                            : undefined
-                        }
-                      />
-                    </Fragment>
-                  );
-                })}
-              </section>
+              <RankingScopePicker
+                scopes={scopes}
+                highlightTicketId={highlightTicketId}
+                onOpenRanking={handleSelectScope}
+                onOpenSteps={openStepsModal}
+              />
             )}
           </>
         ) : selectedScope ? (

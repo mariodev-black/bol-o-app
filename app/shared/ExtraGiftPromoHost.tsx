@@ -67,6 +67,12 @@ function leagueIconVariant(kind: ExtraGiftLeagueKind) {
         : "generic";
 }
 
+function withoutPremierGiftLeagues<T extends { leagueKind: ExtraGiftLeagueKind }>(
+  rows: readonly T[],
+): T[] {
+  return rows.filter((row) => row.leagueKind !== "premier_league");
+}
+
 function OfferStep({
   status,
   loading,
@@ -78,8 +84,9 @@ function OfferStep({
   onClaim: () => void;
   onClose: () => void;
 }) {
-  const pendingCount = status.leagues.filter((l) => !l.alreadyClaimed).length;
-  const cotaCount = pendingCount > 0 ? pendingCount : status.leagues.length;
+  const pendingLeagues = withoutPremierGiftLeagues(status.leagues);
+  const pendingCount = pendingLeagues.filter((l) => !l.alreadyClaimed).length;
+  const cotaCount = pendingCount > 0 ? pendingCount : pendingLeagues.length;
 
   return (
     <div
@@ -151,7 +158,9 @@ function ClaimedStep({
   onPlay: () => void;
   onClose: () => void;
 }) {
-  const sorted = [...leagues].sort((a, b) => a.championshipId - b.championshipId);
+  const sorted = [...withoutPremierGiftLeagues(leagues)].sort(
+    (a, b) => a.championshipId - b.championshipId,
+  );
 
   return (
     <div
@@ -377,14 +386,16 @@ export function ExtraGiftPromoHost({ children }: { children: React.ReactNode }) 
         return;
       }
 
-      const rows: ClaimedTicketRow[] = data.tickets.map((t) => ({
-        championshipId: t.championshipId,
-        displayName: t.displayName,
-        leagueKind: t.leagueKind,
-        ticketId: t.ticketId,
-        rodada: t.rodada,
-        rodadaNome: t.rodadaNome?.trim() || `${t.rodada}ª Rodada`,
-      }));
+      const rows: ClaimedTicketRow[] = withoutPremierGiftLeagues(
+        data.tickets.map((t) => ({
+          championshipId: t.championshipId,
+          displayName: t.displayName,
+          leagueKind: t.leagueKind,
+          ticketId: t.ticketId,
+          rodada: t.rodada,
+          rodadaNome: t.rodadaNome?.trim() || `${t.rodada}ª Rodada`,
+        })),
+      );
 
       setClaimedTickets(rows);
       setStatus((prev) =>

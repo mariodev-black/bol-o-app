@@ -19,8 +19,35 @@ function envBool(name: string, defaultValue = false): boolean {
 
 export const CHAMPIONS_PLACAR_FRIENDS_GOAL = 10;
 
+/** Final UCL 2026 — PSG x Arsenal; palpite fecha no apito (21:00 CEST / 16:00 BRT). */
+const DEFAULT_CHAMPIONS_PLACAR_CLOSES_AT = "2026-05-30T16:00:00-03:00";
+
 export function isChampionsPlacarPromoEnabled(): boolean {
-  return envBool("CHAMPIONS_PLACAR_PROMO_ENABLED", true);
+  return envBool("CHAMPIONS_PLACAR_PROMO_ENABLED", false);
+}
+
+function parseClosesAtMs(raw: string): number | null {
+  const ms = Date.parse(raw.trim());
+  return Number.isFinite(ms) ? ms : null;
+}
+
+/** Horário limite para novos palpites (início da partida). */
+export function getChampionsPlacarPromoClosesAtMs(): number | null {
+  const fromEnv = env("CHAMPIONS_PLACAR_PROMO_CLOSES_AT");
+  if (fromEnv) {
+    const ms = parseClosesAtMs(fromEnv);
+    if (ms != null) return ms;
+  }
+  return parseClosesAtMs(DEFAULT_CHAMPIONS_PLACAR_CLOSES_AT);
+}
+
+export function isChampionsPlacarPromoSubmissionOpen(
+  nowMs = Date.now(),
+): boolean {
+  if (!isChampionsPlacarPromoEnabled()) return false;
+  const closesAt = getChampionsPlacarPromoClosesAtMs();
+  if (closesAt == null) return true;
+  return nowMs < closesAt;
 }
 
 export type ChampionsPlacarPromoStatus = {
@@ -112,7 +139,7 @@ const EMPTY_STATUS = (): ChampionsPlacarPromoStatus => ({
 export async function getChampionsPlacarPromoStatusForUser(
   userId: string,
 ): Promise<ChampionsPlacarPromoStatus> {
-  if (!isChampionsPlacarPromoEnabled()) {
+  if (!isChampionsPlacarPromoSubmissionOpen()) {
     return EMPTY_STATUS();
   }
 
@@ -150,8 +177,8 @@ export async function submitChampionsPlacarPromoForUser(
   predCasa: number,
   predVisitante: number,
 ): Promise<SubmitChampionsPlacarResult> {
-  if (!isChampionsPlacarPromoEnabled()) {
-    return { ok: false, error: "Promoção indisponível." };
+  if (!isChampionsPlacarPromoSubmissionOpen()) {
+    return { ok: false, error: "Palpite encerrado. A partida já começou." };
   }
 
   if (

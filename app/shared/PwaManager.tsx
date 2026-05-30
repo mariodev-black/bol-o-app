@@ -10,7 +10,7 @@ import { useEffect, useRef } from "react";
 
 /**
  * Registra o service worker em sessões logadas (base do PWA + push).
- * O pedido de permissão fica no PushNotificationsBanner.
+ * O pedido de permissão fica no PushNotificationsModal.
  */
 export function PwaManager() {
   const { ready, isLoggedIn } = useAuth();

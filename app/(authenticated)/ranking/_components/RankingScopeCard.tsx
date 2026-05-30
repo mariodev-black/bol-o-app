@@ -21,16 +21,22 @@ import {
   type RankingScopeOption,
 } from "@/lib/ranking/scopes-shared";
 
+const CAROUSEL_CARD_CLASS =
+  "w-[368px] max-w-[88vw] shrink-0 snap-center";
+
 export function RankingScopeCard({
   option,
   highlighted,
   action,
+  carouselItem = false,
   onOpenRanking,
   onOpenSteps,
 }: {
   option: RankingScopeOption;
   highlighted?: boolean;
   action: RankingScopeCardAction;
+  /** Largura fixa dentro do carrossel horizontal (como /boloes). */
+  carouselItem?: boolean;
   onOpenRanking: () => void;
   onOpenSteps?: () => void;
 }) {
@@ -46,6 +52,7 @@ export function RankingScopeCard({
   const showPendingBar = pendingBarLine != null;
   const goToPalpites = action === "palpites";
   const href = palpitesHrefForScope(option);
+  const layoutClass = carouselItem ? CAROUSEL_CARD_CLASS : "w-full";
 
   const cardStyle = {
     background: RANKING_CARD_BG,
@@ -170,7 +177,7 @@ export function RankingScopeCard({
       type="button"
       onClick={onOpenRanking}
       aria-label={`Ver classificação: ${header.category} ${header.title}`}
-      className="group flex w-full flex-col overflow-hidden rounded-[16px] text-left transition active:scale-[0.985] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      className={`group flex flex-col overflow-hidden rounded-[16px] text-left transition active:scale-[0.985] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${layoutClass}`}
       style={cardStyle}
     >
       {headerBlock}
