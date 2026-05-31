@@ -54,7 +54,7 @@ export function AdminPromocoesClient({
     { label: "Palpites enviados", value: data.stats.submissionsCount.toLocaleString("pt-BR") },
     { label: "Placares exatos", value: data.stats.exactHitsCount.toLocaleString("pt-BR") },
     {
-      label: "Elegíveis camisa (10 ind.)",
+      label: `Elegíveis camisa (${data.friendsGoal} ind.)`,
       value: data.stats.shirtEligibleCount.toLocaleString("pt-BR"),
     },
     {
@@ -127,7 +127,7 @@ export function AdminPromocoesClient({
               <th className="px-3 py-3">Placar</th>
               <th className="px-3 py-3">Indicações</th>
               <th className="px-3 py-3">Cota grátis</th>
-              <th className="px-3 py-3">Camisa (10 ind.)</th>
+              <th className="px-3 py-3">Camisa ({data.friendsGoal} ind.)</th>
               <th className="px-3 py-3">Enviado em</th>
             </tr>
           </thead>

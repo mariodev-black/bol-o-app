@@ -17,7 +17,7 @@ function envBool(name: string, defaultValue = false): boolean {
   return s === "1" || s === "true" || s === "yes" || s === "on";
 }
 
-export const BRASIL_PANAMA_PLACAR_FRIENDS_GOAL = 10;
+export const BRASIL_PANAMA_PLACAR_FRIENDS_GOAL = 3;
 
 /** Maracanã — palpite fecha no apito (21:30 UTC / 18:30 BRT). */
 const DEFAULT_BRASIL_PANAMA_PLACAR_CLOSES_AT = "2026-05-31T18:30:00-03:00";

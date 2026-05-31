@@ -17,7 +17,7 @@ function envBool(name: string, defaultValue = false): boolean {
   return s === "1" || s === "true" || s === "yes" || s === "on";
 }
 
-export const CHAMPIONS_PLACAR_FRIENDS_GOAL = 10;
+export const CHAMPIONS_PLACAR_FRIENDS_GOAL = 3;
 
 /** Final UCL 2026 — PSG x Arsenal; palpite fecha no apito (21:00 CEST / 16:00 BRT). */
 const DEFAULT_CHAMPIONS_PLACAR_CLOSES_AT = "2026-05-30T16:00:00-03:00";

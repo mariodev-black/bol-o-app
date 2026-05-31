@@ -227,6 +227,7 @@ function OfferStep({
   loading,
   onSubmit,
   onClose,
+  friendsGoal,
 }: {
   predCasa: number;
   predVisitante: number;
@@ -235,6 +236,7 @@ function OfferStep({
   loading: boolean;
   onSubmit: () => void;
   onClose: () => void;
+  friendsGoal: number;
 }) {
   return (
     <PromoHeroShell
@@ -326,7 +328,7 @@ function OfferStep({
           </strong>
           . A camisa oficial será liberada ao convidar{" "}
           <strong className="font-bold" style={{ color: GREEN }}>
-            10 amigos
+            {friendsGoal} amigos
           </strong>
           .
         </p>
@@ -402,7 +404,7 @@ function SuccessStep({
 
       <div className="mt-6 border-t border-white/8 pt-5">
         <p className="text-center text-[11px] font-black uppercase tracking-[0.12em] text-white/70">
-          Convide 10 amigos e garanta
+          Convide {friendsGoal} amigos e garanta
         </p>
         <p
           className="mt-1 text-center text-[15px] font-black italic uppercase leading-tight tracking-wide"
@@ -487,7 +489,7 @@ function SuccessStep({
             strokeWidth={2.2}
           />
           <span>
-            Ao completar 10 indicações válidas, sua camisa será{" "}
+            Ao completar {friendsGoal} indicações válidas, sua camisa será{" "}
             <strong className="font-bold" style={{ color: GREEN }}>
               liberada automaticamente
             </strong>
@@ -664,6 +666,7 @@ export function ChampionsPlacarPromoHost({
               loading={loading}
               onSubmit={() => void handleSubmit()}
               onClose={handleClose}
+              friendsGoal={status.friendsGoal}
             />
           ) : (
             <SuccessStep
