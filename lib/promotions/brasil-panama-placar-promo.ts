@@ -23,7 +23,7 @@ export const BRASIL_PANAMA_PLACAR_FRIENDS_GOAL = 3;
 const DEFAULT_BRASIL_PANAMA_PLACAR_CLOSES_AT = "2026-05-31T18:30:00-03:00";
 
 export function isBrasilPanamaPlacarPromoEnabled(): boolean {
-  return envBool("BRASIL_PANAMA_PLACAR_PROMO_ENABLED", true);
+  return envBool("BRASIL_PANAMA_PLACAR_PROMO_ENABLED", false);
 }
 
 function parseClosesAtMs(raw: string): number | null {
