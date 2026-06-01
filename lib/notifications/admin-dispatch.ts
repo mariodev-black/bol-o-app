@@ -25,6 +25,12 @@ export type AdminDispatchInput = {
   pushUrl: string;
   emailButton: { label: string; url: string } | null;
   emailLayout?: AdminBroadcastEmailLayout;
+  /** PWA: título curto (default: `title`). */
+  pushTitle?: string;
+  /** PWA: corpo da notificação (default: `preview`). */
+  pushPreview?: string;
+  /** Scripts/CLI: não usa `after()` do Next (envio de e-mail síncrono ou em background local). */
+  syncEmail?: boolean;
 };
 
 export async function dispatchAdminBroadcast(
@@ -33,7 +39,9 @@ export async function dispatchAdminBroadcast(
   const { batchId, userIds, channels, title, preview, body } = input;
 
   const willQueueEmail =
-    channels.includes("email") && userIds.length > EMAIL_ASYNC_THRESHOLD;
+    channels.includes("email") &&
+    userIds.length > EMAIL_ASYNC_THRESHOLD &&
+    input.syncEmail !== true;
 
   await recordAdminBroadcastBatch({
     batchId,
@@ -72,8 +80,8 @@ export async function dispatchAdminBroadcast(
     const pushResult = await sendPushToUserIds({
       userIds,
       payload: {
-        title,
-        body: preview,
+        title: (input.pushTitle ?? title).trim(),
+        body: (input.pushPreview ?? preview).trim(),
         url: input.pushUrl,
         tag: `admin_broadcast:${batchId}`,
       },
@@ -97,19 +105,26 @@ export async function dispatchAdminBroadcast(
 
     if (willQueueEmail) {
       emailQueued = true;
-      const { after } = await import("next/server");
-      after(async () => {
-        try {
-          await runEmail();
-        } catch (e) {
-          console.error("[admin-dispatch] email background", e);
-          await updateAdminBroadcastBatchEmailStats(batchId, {
-            emailSent: 0,
-            emailFailed: userIds.length,
-            emailQueued: false,
-          });
-        }
-      });
+      try {
+        const { after } = await import("next/server");
+        after(async () => {
+          try {
+            await runEmail();
+          } catch (e) {
+            console.error("[admin-dispatch] email background", e);
+            await updateAdminBroadcastBatchEmailStats(batchId, {
+              emailSent: 0,
+              emailFailed: userIds.length,
+              emailQueued: false,
+            });
+          }
+        });
+      } catch {
+        const emailResult = await runEmail();
+        emailSent = emailResult.sent;
+        emailFailed = emailResult.failed;
+        emailQueued = false;
+      }
     } else {
       const emailResult = await runEmail();
       emailSent = emailResult.sent;

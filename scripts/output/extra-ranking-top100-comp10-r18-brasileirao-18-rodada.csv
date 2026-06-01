@@ -1,0 +1,101 @@
+posicao,campeonato,rodada,nome,email,user_id,ticket_id,pontos,placares_exatos,acertos_resultado,gols_time,premio_sequencia
+1,Campeonato Brasileiro,18,Elywerton Francisco,89352496elywerton@gmail.com,842efd9e-ddd2-4443-9716-139660bf98c4,94fcd788-f638-4a3e-82a3-60cc375725c3,38,4,8,2,7
+2,Campeonato Brasileiro,18,Francisco Bruno da Silva Sobrinho,silvabruno0950@gmail.com,3b074147-b7db-4774-93a5-c526362ab06c,c6cd8341-6ff7-4c6b-87e5-380d41811130,34,3,7,4,6
+3,Campeonato Brasileiro,18,francisco teixeira,fj4338055@gmail.com,07dde99c-101f-417c-802d-2a6abdd20263,20506cb4-11fd-4037-bda3-a4c4897eb432,33,2,7,6,10
+4,Campeonato Brasileiro,18,Wendreu Henrique Vitorino dos santos,wendreu9090@gmail.com,386c5f1a-e245-48ea-8423-cd1cf33dfc3f,9cff5e53-71e6-4b45-b4a7-d1837371a0a3,33,2,7,6,8
+5,Campeonato Brasileiro,18,Rafael Gomes teotônio ferreira,rafaelgomesferreira157@gmail.com,662825f9-0fef-40cb-9df4-5218bdfe8b50,b39881f0-51b5-433a-a014-e3021eac62e1,32,3,6,5,10
+6,Campeonato Brasileiro,18,Emerson Terra Da Silva,terradasilvae@gmail.com,e3739ae3-8001-44fd-bb9c-cd69dfc46654,51698f5c-5e08-4ecf-b253-38ea9dfea0a8,32,2,7,5,10
+7,Campeonato Brasileiro,18,Romario Santos,romariopelegrine5@gmail.com,d4d5ca88-863b-4671-9968-7da01422becd,95339c55-c858-4377-8cb5-c34ba941a17c,32,2,7,5,6
+8,Campeonato Brasileiro,18,Marcos Souza,barbozamarcos150@gmail.com,2f7ef16c-12a5-4e38-8e02-a91738ddb833,f7caccc3-c30b-4862-9566-87d271b22333,32,1,7,8,10
+9,Campeonato Brasileiro,18,Anderson Da Silva Nascimento,andersonsilvardo93@gmail.com,76fd79b4-638d-45ef-b146-18f25b05726d,a55fc6a4-877d-4f99-a0c8-79d0f2c03032,31,4,5,4,6
+10,Campeonato Brasileiro,18,Ediene Pereira Ramos,ediene.cska@gmail.com,f294ebe4-6dcb-43c9-9c1a-e21496329eba,bf427478-9007-459e-bba0-00cf6dfc1edc,31,3,6,4,5
+11,Campeonato Brasileiro,18,Erivaldo Lopes,erivaldojunior363@gmail.com,fc976588-282b-493f-9098-8ffe9e3be79e,e01103a0-726a-4b5b-bf97-c03b2f731be6,31,2,7,4,4
+12,Campeonato Brasileiro,18,ULISSES GUIMARAES SARLO,ulisses.sarlo@hotmail.com,ef1d34cc-d878-4086-b53b-44a2a0f53831,1749d4a8-7c19-417e-b807-2ecce2185984,31,2,6,7,10
+13,Campeonato Brasileiro,18,Romel Pereira,romelpera7@gmail.com,c22244b7-03eb-40e1-8a69-432ff4d787d5,c240cbbc-af87-40c8-a45d-85cda86cc937,31,1,8,4,7
+14,Campeonato Brasileiro,18,Lenilson Santos Luz,lenilsonsantos498@gmail.com,f5959390-da5c-47cf-8edc-667eca5e68c2,7a8e917d-0936-4bc0-8fe2-112e0c8a005f,31,1,7,7,6
+15,Campeonato Brasileiro,18,Maycon Vinicius Carvalho Souza,mayconviniciuscarvalhosouza88@gmail.com,84a13ffd-0347-4a67-8f40-1cf4076799cc,8cdd09b5-01f6-4008-9430-695c9c195a98,30,2,6,6,10
+16,Campeonato Brasileiro,18,Rodrigo candido dos Santos,rodrigo.crdsantos333@gmail.com,efa66420-bde1-4231-86be-d0298e96da3a,d2b7768a-c6ab-4ee7-a024-7ab0c383fc8f,30,2,6,6,10
+17,Campeonato Brasileiro,18,DENIS DE OLIVEIRA SANTOS,vilasiri.baixada.santista15@gmail.com,1c9f62e4-5c63-4854-b40c-1304821d38d3,4cda7d61-2792-46bb-b5ca-00328f279439,30,2,6,6,6
+18,Campeonato Brasileiro,18,João Batista,juniorpassosnunes24@gmail.com,95dca845-686b-4098-96cf-aa5d39ff306e,d4f2c9e4-bc25-431c-af01-3277c2a01a04,30,2,6,6,5
+19,Campeonato Brasileiro,18,Jefferson Cordeiro,cordeirojefferson013@gmail.com,2626c24c-0b15-4fd7-87c5-fd656054ea19,1a6a0820-e3f7-41e0-b7cc-b499adf859fb,30,1,7,6,8
+20,Campeonato Brasileiro,18,Weniton Buril,wenitonburil804@gmail.com,dc8ad0ba-8c40-4339-b949-7d762456e2d5,0d94a7a1-c2f8-4bcc-b6c2-3d5ff927fc24,30,1,7,6,7
+21,Campeonato Brasileiro,18,MARCOS ANACLETO,marcosdominguim@gmail.com,eebd63fe-7db7-4806-837e-a7b27597f239,288d7e6b-3fb6-4283-9e2e-86e767017c05,30,1,7,6,6
+22,Campeonato Brasileiro,18,Diego Da silva Rodrigues,diegorotmeil976@gmail.com,2bb14685-feff-4745-b276-f19fc259ba7c,d59e3247-9595-4eb7-8082-e67d8339f9e3,30,1,7,6,3
+23,Campeonato Brasileiro,18,Ronaldo Fagundes de Oliveira,ronaldofagundes162@gmail.com,a005b995-b7ab-404c-a98e-cefa4b516b8d,55162e63-dc47-4b14-afdd-026907dfbf1a,29,2,6,5,10
+24,Campeonato Brasileiro,18,Francisco Olavo de oliveira Oliveira,franciscoolavodeoliveirao3@gmail.com,80899be6-f2b7-4fdd-ab1a-7ff0251f9ba5,a703a8bd-f10a-4241-bcb5-0364675e0d0a,29,2,6,5,9
+25,Campeonato Brasileiro,18,ANTONIO RIVALDO DA SILVA SOUSA,rivaldosous09@gmail.com,da62eb14-47ff-48f6-af1e-c5ef7cdf7180,2d650ba5-248f-4b85-953f-c019ad7f2117,29,2,6,5,7
+26,Campeonato Brasileiro,18,leonardo david azevedo ramos,leo191tk@gmail.com,84e9c7ca-c0ee-401b-9b42-5dc49b873915,50660ebf-40b7-4860-9a79-4a297ac95e58,29,2,6,5,7
+27,Campeonato Brasileiro,18,Leandro candido da silva,leandro47cs@hotmail.com,a6dd30a3-ad57-4b96-845c-f0db7eae6ac3,7484b133-d8f6-418b-9eb0-7c3f2c98e595,29,2,6,5,7
+28,Campeonato Brasileiro,18,Nathalai Machado,nathalaimachado@gmail.com,ea322114-0000-46d4-b955-ae3c53d5a6db,b4c64b19-cab6-4848-95de-28c3e25c11cb,29,2,6,5,7
+29,Campeonato Brasileiro,18,Antônio dos Santos Pereira,d46366274@gmail.com,f27751d3-ffcd-496e-b3ad-03157b3e29e5,0208f14f-ede8-4ee4-a473-2d0f9eb3012a,29,2,6,5,5
+30,Campeonato Brasileiro,18,Nelis Ramos De Oliveira,nelisramos08@gmail.com,69a4ecf8-3e9c-4d96-b2ba-5ce1eb019de4,abdb395a-7ebc-4eb9-b534-5fb7bfac9b0e,29,2,6,5,5
+31,Campeonato Brasileiro,18,Ridelson Regis Costa,ridelsoncosta@hotmail.com,b16312a5-bc8d-4fbe-b374-38319caece45,ce41bc4f-178e-46d3-b248-15f43543789a,29,2,6,5,5
+32,Campeonato Brasileiro,18,Francisco Odecio Barbosa Macena,odeciobarbosa3216@gmail.com,c42f7049-2630-4c7c-8dc7-34cb2f7310da,c470a1d3-d150-4e6d-a206-b1b0629a8c1e,29,1,7,5,10
+33,Campeonato Brasileiro,18,Mário de Souza Tomáz,martineztomaz32@gmail.com,a83c0691-1e58-485d-93e7-96c33c83ffba,7e611ed7-e769-47c2-89b9-09092dd82fef,29,1,7,5,6
+34,Campeonato Brasileiro,18,Marcos Vinicius Lima de jesus dos Santos,viniciusllima68@gmail.com,8d8d15d2-8b67-431d-9d79-85f12b04398a,480205ba-1e7b-4eb0-acb5-63d0b6472967,29,1,7,5,5
+35,Campeonato Brasileiro,18,Lucas Guilherme Barros Ferro,lucasguibarros245@gmail.com,3f0dae07-efb7-4c91-a637-0a138b7ab8b9,5fda9387-41f7-44d3-ac57-a94073cae256,29,1,6,8,10
+36,Campeonato Brasileiro,18,GILSON DOS SANTOS MONTEIRO,gilson.smonteiro@yahoo.com,7f0f9b6f-c652-48e4-baf5-e4dff85e401d,675b6b2b-f9c1-404a-a11e-c769cca8f836,29,1,6,8,10
+37,Campeonato Brasileiro,18,Odelio Aparecido de Souza,odelioapsouza@gmail.com,3f366945-bb4f-4d75-893d-29360bdab61c,2173f922-f1ff-47f1-b033-ea411f032ca4,28,3,5,4,6
+38,Campeonato Brasileiro,18,Rafael Antonio Guaregua Ramirez,guareguarafael406@gmail.com,00106f1d-46de-44db-89a8-1893bf907fc5,522ef309-52bb-4e8c-b4d1-d876e51cfc4e,28,2,6,4,8
+39,Campeonato Brasileiro,18,Elton Santos,sufy38368@gmail.com,cb077164-a2ef-4c1a-8aea-d7fe3f2de884,d6e57bee-8bd4-49e6-9b18-c75c219cb7bc,28,2,6,4,7
+40,Campeonato Brasileiro,18,Weslley Souza,ws1328431@gmail.com,38deb954-0fd7-47ad-93cc-8df2e54a624d,ba089c8e-81c9-4eb4-aec0-24ac4877e42a,28,2,6,4,6
+41,Campeonato Brasileiro,18,Francisco Lucas da Costa,lucascostq92@gmail.com,53150ab5-4c4d-4b26-962f-909a5d208a4c,711a9a1c-f1e6-472a-b16c-051a555e2388,28,2,6,4,4
+42,Campeonato Brasileiro,18,Edilson de Oliveira romeiro,edilsonromeiro02@gmail.com,f5d7c559-23ce-44a8-93d6-6edcc568ded5,bf3bf485-1336-417f-a4f7-cf16d35333ee,28,2,6,4,4
+43,Campeonato Brasileiro,18,Bruno Henrique,brunohenriquedesouza46@gmail.com,b856e693-0204-4690-bcd3-3ee32f9d05b5,50d4b5e7-e247-4e03-82d0-b288dd11bd84,28,1,7,4,8
+44,Campeonato Brasileiro,18,LUCAS BARBOSA,lucasccra2023@gmail.com,0209bf51-9251-4c04-9281-ae9a66f58a2b,1fc03872-657c-4c54-9c07-dfa5dd7c497a,28,1,7,4,7
+45,Campeonato Brasileiro,18,João Gabriel Lima Oliveira,limaoliveirajoaogabriel@gmail.com,85028771-8024-483a-9014-c322140b6bff,73e80f70-9f59-493c-b3bf-94aef2814b16,28,1,7,4,6
+46,Campeonato Brasileiro,18,Francisco Leudo do Nascimento Barreto,bleudo4@gmail.com,e59bff2f-c0c0-47cd-ba9b-a94e7cd0626f,9eea8442-939d-45aa-8c8e-065f30d5ec1a,28,1,7,4,4
+47,Campeonato Brasileiro,18,Fleiquison Santos Andrade,fleiquisonandrade@gmail.com,c45537e4-e1f2-4588-9c92-714c7d004395,55c35eb8-458a-4ee6-aebf-b05079984dd6,28,1,6,7,10
+48,Campeonato Brasileiro,18,Erico Alessandro Melo de Oliveira,ericooliver2501@gmail.com,f0dd5235-4379-4efc-83ba-4f002b4b4739,fe04e9af-2b6a-42d0-9991-cafc55270f51,28,1,6,7,10
+49,Campeonato Brasileiro,18,Luiz Eduardo Dos Santos,dos455481@gmail.com,3d13ff80-ac62-4cf2-a5d6-1dd38ac0219e,a0d1e9b8-8d7b-4820-b364-390fcf3dc420,28,1,6,7,7
+50,Campeonato Brasileiro,18,Maycon Rodrigues,mayconravirodrigues@gmail.com,4b9eafed-65a9-4d3a-bee2-dc1a4825bad6,895a6ddb-c6f6-4c19-9599-86db84fa4c28,28,1,6,7,6
+51,Campeonato Brasileiro,18,Maurício Sousa Teixeira,sousateixeira2013@bol.com.br,a108fe20-e8e9-45dc-b0c2-3880b8e60ddc,e0ebed2c-fedf-4706-98b0-5f0a0b08c841,28,1,6,7,6
+52,Campeonato Brasileiro,18,CARLOS HENRIQUE,carlos2938game@gmail.com,53fed18f-5118-45db-ba10-6770d9d31070,84b1e970-db91-430b-8d7e-828f629256c8,28,1,6,7,4
+53,Campeonato Brasileiro,18,Belchior Andrade dos Santos,belchior10@hotmail.com.br,6b9d8eff-f438-44a9-aab8-91f0a784efb5,72f1589a-99c7-44e9-84f2-3cca43e6c9db,28,0,8,4,8
+54,Campeonato Brasileiro,18,EMERSON NASCIMENTO MENEZES,refen_1981@hotmail.com,22baf29a-87fa-4a22-9c9d-40721db56fd4,4f4ef18c-4f6e-4a4e-a8c6-cba4735c0d51,28,0,7,7,7
+55,Campeonato Brasileiro,18,Jaime Silva dias de oliveira,pinhasilva851@gmail.com,b40f0454-ac87-4386-95c4-fa116d24981e,50273b4e-9d10-4dcf-ad81-7df8b2ac65d4,27,4,5,0,5
+56,Campeonato Brasileiro,18,Jonathan Santos Correia,jonathancorreia049@gmail.com,6091d0e9-3186-4191-a188-f4e5c6d9f765,4e5a1ea2-a0bc-417a-b22b-cf207dc4c21b,27,2,6,3,7
+57,Campeonato Brasileiro,18,Marcio Jose de paula,marciodeusfiel123_@hotmail.com,125ba31e-9394-4c45-87a2-9f834d1564a8,bcdd84b9-1c1e-464f-a418-0052f8e55b7f,27,2,6,3,7
+58,Campeonato Brasileiro,18,Victor Cassiano de Oliveira,vc1590929@gmail.com,78f27900-9452-40e5-9053-bf47b5bbe8f4,8295d732-53c9-4092-b3ec-22a151ff41e9,27,2,5,6,10
+59,Campeonato Brasileiro,18,welington santos lopes,welington7lopes@gmail.com,76ad7869-f8b8-45e2-a043-3e1b48765923,97f6b61d-dec4-4c46-af84-03dd6b854d49,27,2,5,6,9
+60,Campeonato Brasileiro,18,Oscar Neves Patrício,oscarfatura@gmail.com,757b269d-cd1f-41b9-9467-77a5af2ee8ef,19806b84-9049-48e9-997d-7d40e5625103,27,2,5,6,8
+61,Campeonato Brasileiro,18,George menezes,geoflu23@gmail.com,9576a145-d691-40c4-bec2-706518d033e4,c3603ad3-7fe6-420d-925d-fac426126349,27,2,5,6,8
+62,Campeonato Brasileiro,18,Maicon AlmeidaOliveiraSilva,almeidamaicon87@gmail.com,bc890e84-a022-4181-9952-2971ff1c7fa2,2ec3af7d-dea2-441c-9a74-a22ff5b85cbe,27,1,7,3,6
+63,Campeonato Brasileiro,18,Bruno Oliveira Andrade,brunooliveiraandrade2013@gmail.com,9b4a3ea8-ebee-4bcc-853d-8308f97d3b22,7d291783-20ec-49ce-8527-28d8882b63eb,27,1,7,3,5
+64,Campeonato Brasileiro,18,Erivaldo da Silva higino,erivaldohigino4@gmail.com,717a7156-c077-4e40-ad9f-2ffa66ddfa16,37ce9117-3b0c-420b-be45-bf7e1cc030bd,27,1,6,6,6
+65,Campeonato Brasileiro,18,Ricardo Santana leite,rdsatana9090@gmail.com,d51e14f7-0636-44d2-a266-653f30cc6681,6b7126b1-6b82-4ba7-aba2-4ddd4f5b8c3f,27,1,6,6,5
+66,Campeonato Brasileiro,18,Cauã Wagner,cauawagner30@gmail.com,16306ec2-82e7-427c-b7c1-b2bf804a1c0a,dddce271-1fb9-4e01-86dd-404dfa9ce951,27,0,7,6,5
+67,Campeonato Brasileiro,18,Michael Edson Acordi,michaelacordi38@gmail.com,2d4d5d88-f5e1-4bea-840f-0f69603c9897,e3536a57-9f62-4cd5-82a0-2efff133f416,27,0,7,6,3
+68,Campeonato Brasileiro,18,PRISCILA GREGORIO DE SOUZA,albertamozir01@gmail.com,cdafb3a0-4fe3-4b5c-b1c6-65ef308c2439,8d8d041d-61b5-40be-84f6-a1a1471d5615,26,2,6,2,3
+69,Campeonato Brasileiro,18,Paulo Ricardo Tavares Cruz da Silva,p6326291@gmail.com,7813c7db-abf1-4b60-9afa-aea06cbe533e,eccb3aab-4873-4d34-830b-ae03fd139bad,26,2,6,2,2
+70,Campeonato Brasileiro,18,Rafael Santos Souza,r0952412@gmail.com,88ada6c6-921a-46a8-9a97-7fff301df1b2,32c46959-b6a8-4692-8ad8-792acb2dddfc,26,2,5,5,8
+71,Campeonato Brasileiro,18,Walter henrique da Silva,walter18henrique@gmail.com,ef58a9f2-bf26-49e0-8237-4c6ecf61f9b3,937bbe24-cd66-4cda-b9cb-17327fe17f6b,26,2,5,5,8
+72,Campeonato Brasileiro,18,JANUARIO OLIVEIRA,januario.kinha@gmail.com,089874db-4ffc-4313-89bf-014d0df4da1d,573ef7f6-6104-4b2a-b18c-42a2db3a8599,26,2,5,5,5
+73,Campeonato Brasileiro,18,Eliel De Freitas,lielfreitasvs@gmail.com,e5cc7430-759f-41c8-b431-012f078d6155,f5cf43fb-133d-4ab2-9b3d-95917dfebd89,26,2,5,5,5
+74,Campeonato Brasileiro,18,Eduardo N,edujuballopes@gmail.com,c3674599-711f-4343-8c09-ac77eeaa4523,755ed260-8c50-4d29-8209-1178a546cfbe,26,1,6,5,7
+75,Campeonato Brasileiro,18,THIAGO DE Oliveira,deleonthiago829@gmail.com,f0ffcb4d-0f2f-479a-8408-bf2729c7403a,a3c1994b-b043-4b00-bd55-079737d672e1,26,1,6,5,7
+76,Campeonato Brasileiro,18,Rodrigo Ferreira,rodrigoferreira2065@gmail.com,47b7a9f6-fd05-4828-8481-6be2dc95da25,f298f0b5-cf26-4e8d-a81f-684f83637b4b,26,1,6,5,7
+77,Campeonato Brasileiro,18,Willams Rodrigo,cwillamsrodrigodasilvaconceica@gmail.com,4634083a-aca7-4dd2-af7b-a0c3cd61b7bb,ffabe0ea-2eb7-4bad-b672-60b0787095c9,26,1,6,5,7
+78,Campeonato Brasileiro,18,Daniel silva de abreu,ds0366428@gmail.com,4895f3ae-678c-4497-9c06-372ee826ef9c,4bd23ad6-378d-4671-8c99-4e9a358d8480,26,1,6,5,6
+79,Campeonato Brasileiro,18,Rhuan Ferreira Fernandes da Silva,rhuanferreira7777@gmail.com,16a7f38e-0187-4fc9-9e5a-24a475a3739a,846c2c33-7394-4fd9-a94b-c88e17562ad2,26,1,6,5,6
+80,Campeonato Brasileiro,18,Jonas Silva,jonassilva.js21.js@gmail.com,8b4521bb-8375-4295-840e-a5bc5284e35f,c9ed5ba8-2522-4c36-a333-5e9980d6f6c2,26,1,6,5,6
+81,Campeonato Brasileiro,18,Kaiami Ramos Bezerra,kaiamiramos2@gmail.com,8f12a086-39a0-4192-be04-170736e14a4f,7a73fe74-c018-4e5b-a3a4-1006d74000c0,26,1,6,5,4
+82,Campeonato Brasileiro,18,Ederson Fontoura,edersonfontoura27@gmail.com,fbcdc277-d4e9-4679-89b2-06b7f1ef4c04,fb7286f7-a3f6-4085-a9d9-e2d5134c9fb8,26,1,5,8,10
+83,Campeonato Brasileiro,18,Adilson Barbosa da Silva,abarbosadasilva698@gmail.com,61ba18b2-1b0f-4142-b948-1cbcdda303de,fbf9cbf7-122b-44d4-a929-f33aed7c2172,26,1,5,8,10
+84,Campeonato Brasileiro,18,Antônio Júnior Soares da Cunha,juninho.soares201273@gmail.com,83596427-180d-450c-9a0e-db7128e6ab64,70222fd8-3d2d-4185-8037-75de18e43028,26,1,5,8,5
+85,Campeonato Brasileiro,18,Rogerio Reale,rogerioreale50@gmail.com,02022f8f-3892-485e-902a-b96685a80e68,4d940190-56d7-4f7b-a525-f82134787686,26,0,7,5,7
+86,Campeonato Brasileiro,18,Luander junior Silva Moraes,luanderj2@gmail.com,4701cf5c-de9f-460d-b116-a3129a19b176,8037fe09-a410-4cad-85b4-6b45b865c948,26,0,7,5,5
+87,Campeonato Brasileiro,18,Antônio Auricelio Albano Araujo,auricelioaraujoantonio@gmail.com,f68e6cdd-e9ee-47b1-b616-4eb9e9413137,9748f4c6-bc58-4e8c-9826-8a75042c549e,26,0,7,5,5
+88,Campeonato Brasileiro,18,Gabriel rosa do Vale,rosag3137@gmail.com,f69e5712-53c5-44ac-9945-95592371168b,f8a4305e-8c82-4c0f-b01d-d4923c45d36f,25,2,5,4,4
+89,Campeonato Brasileiro,18,Bruno da Silva Ferreira,bruno411991@gmail.com,d921d1c7-03a8-46e7-bae7-8b6c868982fb,777ad1c0-72e7-4d38-9d87-7de29ee494d7,25,2,5,4,3
+90,Campeonato Brasileiro,18,Ermeson Alves do Nascimento,klebersonmario951@gmail.com,2bb6dc40-fabd-49b4-8ed1-ea91987ba6d7,352847eb-1edc-4ad5-ab09-359eab10a725,25,2,4,7,8
+91,Campeonato Brasileiro,18,Carmindo Gonçalves de almeida,kakagoncalves1984@gmail.com,9a44d979-9155-47cb-aaca-3a364163800a,6aa92173-56fc-4831-a9a7-47e518e6dc4d,25,1,6,4,9
+92,Campeonato Brasileiro,18,leonardo david azevedo ramos,leo191tk@gmail.com,84e9c7ca-c0ee-401b-9b42-5dc49b873915,8b76b0a1-27f0-4c34-9222-cb4e45399a7e,25,1,6,4,8
+93,Campeonato Brasileiro,18,Carlos Eduardo,ccarloseduardodasilva777@gmail.com,2300b968-8423-4347-bf9a-01f94e81f99c,d0a3b837-d43a-4b65-8cfe-9d00fa8c4452,25,1,6,4,7
+94,Campeonato Brasileiro,18,Álvaro Franklin de Souza 2,alvinhojamaica@gmail.com,2b380624-835c-42fb-956e-f988e46ed360,05414543-76a8-4dc2-b899-d535af7c05ae,25,1,6,4,6
+95,Campeonato Brasileiro,18,Rogério Dourado,rogeriodourado252@gmail.com,1f19075c-4d56-4037-9a52-ac0f23b3c4c9,956bc99d-4dcd-4222-8ab2-bdd433d8ea52,25,1,6,4,6
+96,Campeonato Brasileiro,18,Wenderson Rodrigues,todayrofinho@gmail.com,c5d73513-ccf1-48ee-bcee-728bf68b6ddd,d2f00a1f-2fa5-4f84-8ae7-f321f9270972,25,1,6,4,6
+97,Campeonato Brasileiro,18,werles Oliveira de Araújo,werlesaraujo112590.woa@gmail.com,a6e73852-74b4-4a52-ac24-a743482db50c,677d194a-2ad0-4256-bb25-98871ebdcd0e,25,1,6,4,5
+98,Campeonato Brasileiro,18,ivanildo de santana,ivanildodesantanas755@gmail.com,d6dc6d08-a2bc-489a-b795-135c9b80afe0,037e3be3-d012-4da6-8a7e-a931ae5f516e,25,1,6,4,3
+99,Campeonato Brasileiro,18,Tiago Henrique de oliveira,thiagohenriquedeoliveira05@gmail.com,bc6578e8-ebf0-4840-9877-2d41ce5a8a61,21b662d1-e3e0-4013-b7d0-d78b3e4c8952,25,1,6,4,3
+100,Campeonato Brasileiro,18,Wilson Marques,marqueswilsonff@gmail.com,c49c5772-7bc8-4d6a-b091-61f228dd3c62,4aff4bb5-721c-421b-9852-cef14e84b6db,25,1,6,4,3

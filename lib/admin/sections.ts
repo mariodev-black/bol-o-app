@@ -247,7 +247,7 @@ function resolveAdminBolaoRanking(
 ): AdminBolaoRankingRow[] {
   if (scope.type === "principal") {
     return rankBolaoRows(
-      baseRows.filter((row) => row.ticketType === "general" && !row.isPromoBonus),
+      baseRows.filter((row) => row.ticketType === "general"),
     );
   }
   if (scope.type === "daily") {
@@ -520,7 +520,7 @@ export async function getAdminBoloesDashboardData(
   const baseRows = await loadAdminBolaoBaseRows();
 
   const principalRanking = rankBolaoRows(
-    baseRows.filter((row) => row.ticketType === "general" && !row.isPromoBonus),
+    baseRows.filter((row) => row.ticketType === "general"),
   );
   const dailyGroups = new Map<string, Omit<AdminBolaoRankingRow, "position">[]>();
   const extraGroups = new Map<string, Omit<AdminBolaoRankingRow, "position">[]>();

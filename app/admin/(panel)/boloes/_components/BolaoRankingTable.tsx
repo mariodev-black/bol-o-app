@@ -95,7 +95,7 @@ export function BolaoRankingTable({
       <div className="px-5 py-12 text-center">
         <p className="text-[15px] font-black text-white">{emptyText}</p>
         <p className="mt-2 text-[13px] text-white/38">
-          Quando houver cotas pagas e palpites, o ranking aparece aqui.
+          Quando houver cotas (pagas ou grátis) e palpites, o ranking aparece aqui.
         </p>
       </div>
     );

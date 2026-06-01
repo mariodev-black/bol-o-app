@@ -160,6 +160,35 @@ export async function listPredictionsAggregateByBolao(
   }));
 }
 
+/** Palpites extra só de cotas do campeonato (evita misturar bolões no ranking). */
+export async function listPredictionsAggregateByExtraCompetition(
+  competitionId: number,
+): Promise<PredictionAggregateRow[]> {
+  const pool = getPool();
+  const { rows } = await pool.query<{
+    ticket_id: string;
+    match_id: string | number;
+    score_casa: number;
+    score_visitante: number;
+    submitted_at: Date;
+  }>(
+    `SELECT p.ticket_id, p.match_id, p.score_casa, p.score_visitante, p.submitted_at
+     FROM predictions p
+     INNER JOIN tickets t ON t.id::text = p.ticket_id::text
+     WHERE p.bolao_type = 'extra'
+       AND t.extra_championship_id = $1
+       AND t.status IN ('paid', 'approved')`,
+    [competitionId],
+  );
+  return rows.map((r) => ({
+    ticket_id: r.ticket_id,
+    match_id: Number(r.match_id),
+    score_casa: r.score_casa,
+    score_visitante: r.score_visitante,
+    submitted_at: r.submitted_at,
+  }));
+}
+
 /** Ranking global (bolões): só colunas necessárias — evita SELECT * em tabela grande. */
 export async function listPredictionsForGlobalRanking(): Promise<PredictionRankingRow[]> {
   const pool = getPool();

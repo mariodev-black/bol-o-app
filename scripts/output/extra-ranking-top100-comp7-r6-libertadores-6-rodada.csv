@@ -1,0 +1,101 @@
+posicao,campeonato,rodada,nome,email,user_id,ticket_id,pontos,placares_exatos,acertos_resultado,gols_time,premio_sequencia
+1,Copa Libertadores da América,6,Jonas Silva,jonassilva.js21.js@gmail.com,8b4521bb-8375-4295-840e-a5bc5284e35f,235ac0a6-ce64-47d6-a57e-f177491a7761,53,5,11,5,6
+2,Copa Libertadores da América,6,João Vitor de Oliveira Silva,joliveirasilva506@gmail.com,edcf3498-ca7c-4185-b4bf-8087b3db686b,cb4d0118-7770-46fd-9777-4abbaaaabfc9,51,5,11,3,4
+3,Copa Libertadores da América,6,Joao Vitor Brito,joaovitorpaguesafe@gmail.com,5c6fcd59-872d-4cde-a357-6a5e676148fa,25c37793-437b-4688-806f-2dccf3644eb6,49,4,11,4,6
+4,Copa Libertadores da América,6,Ricardo Santana leite,rdsatana9090@gmail.com,d51e14f7-0636-44d2-a266-653f30cc6681,17ded4a5-096f-42c7-8b87-f43dca334e41,49,3,11,7,6
+5,Copa Libertadores da América,6,Jonathan Santos Correia,jonathancorreia049@gmail.com,6091d0e9-3186-4191-a188-f4e5c6d9f765,f424fd65-4cf4-4852-8a85-8fb052b4dd8b,47,4,10,5,6
+6,Copa Libertadores da América,6,welington santos lopes,welington7lopes@gmail.com,76ad7869-f8b8-45e2-a043-3e1b48765923,ed6236ee-bc6e-44d3-a63f-bb2c1c26224c,45,4,9,6,6
+7,Copa Libertadores da América,6,Bruno da Silva Ferreira,bruno411991@gmail.com,d921d1c7-03a8-46e7-bae7-8b6c868982fb,e743a07a-69c7-42f8-888e-85fde72019e8,45,3,10,6,6
+8,Copa Libertadores da América,6,João amador do Valle junior,junioramador1940@gmail.com,4a5f0c25-3f29-4235-a6b0-669ca4e7b65c,8efd4904-d5ed-4824-be07-72c92868a729,45,1,11,9,6
+9,Copa Libertadores da América,6,Eduardo Francisco Do Nascimento Silva,eduardofrancisco34567@gmail.com,e9293ef8-2e51-4fad-ad79-f55567d61fa6,ea166efa-c27e-42af-a90a-1b8d567ff356,44,3,10,5,6
+10,Copa Libertadores da América,6,Artur Tavares,tavaresartur908@gmail.com,a966ae60-059d-4d3e-930c-c11211ff377b,c185e056-8654-4457-b8b1-8e9f4a2b6887,44,2,10,8,9
+11,Copa Libertadores da América,6,Welliton Vieira da Silva,swelliton1996@gmail.com,c0e8f056-a308-4aea-a82a-fc93801efe7e,2ad4213a-394d-4695-b825-4ccafe9fea40,44,1,11,8,9
+12,Copa Libertadores da América,6,Ginivaldo Viana,vianagenivaldo114@gmail.com,6093a086-49e9-4999-8a65-cf4ae035dcc4,16efbc71-2993-4bb9-80e1-43eb7f6173d4,43,2,10,7,6
+13,Copa Libertadores da América,6,Nicollas Eduardo,nik12edumoreira@gmail.com,46c66524-d4d6-496e-96d9-23886d3a5cea,62f6f5c5-7149-455d-a5ab-4dee6d9622a4,42,3,9,6,7
+14,Copa Libertadores da América,6,Rodrigo Ferreira,rodrigoferreira2065@gmail.com,47b7a9f6-fd05-4828-8481-6be2dc95da25,69b76790-f2c0-4907-bd6c-ceca65d510cf,42,2,10,6,5
+15,Copa Libertadores da América,6,Antonio PRICOLI,pricolihappy@uol.com.br,5a5abad6-7ccf-47ea-85e4-0e556edcd7aa,f5dbc705-8e13-4bc9-aa93-b7b3e49f8826,42,1,10,9,9
+16,Copa Libertadores da América,6,Jader Oliveira da Purificação,jaderoliveira0211@gmail.com,dfe7a16e-5522-4dff-9b12-d01a57fe0e5e,269cd58c-5c9b-4161-8667-e0eb0a732b6d,41,2,10,5,7
+17,Copa Libertadores da América,6,Kauan ventura da silva,kauanventura2020@gmail.com,42a101b9-5f6a-4d20-8efa-b9760f0d1075,e355a97f-9425-42f5-aa2c-709d8fc9d2f2,41,2,10,5,3
+18,Copa Libertadores da América,6,Joviano José carrijo junior,juninhocarrijo@hotmail.com,62e33643-9fbd-43b0-967b-3bfb6b2ca073,76648906-4318-4603-b30e-615d6d133f4b,41,1,11,5,8
+19,Copa Libertadores da América,6,Francisco Bruno da Silva Sobrinho,silvabruno0950@gmail.com,3b074147-b7db-4774-93a5-c526362ab06c,60cffa0b-819a-48b4-a8bf-cb4c9b7aa6b6,41,0,11,8,9
+20,Copa Libertadores da América,6,Daniel Pereira da Silva,dieliaprado@gmail.com,178c4175-cebb-49fb-b812-7fbc419b65ec,15efef0f-2b0f-4236-9fcc-7a42af369bc4,40,3,9,4,5
+21,Copa Libertadores da América,6,Lucas Martins de Souza,lucassaopaulo936@gmail.com,3382f557-95de-4d42-9f37-82105e50618e,ce1c0163-a9b8-476d-91a0-03b9bd1b370b,40,2,9,7,8
+22,Copa Libertadores da América,6,Pedro jose da Silva mendes,fn7pedrinxl@gmail.com,8e84e1b7-7da7-4365-904e-8238a3715db8,943a12b4-bc81-4521-8eaf-9b0f7f325f0f,40,1,9,10,6
+23,Copa Libertadores da América,6,Lucas Guilherme Barros Ferro,lucasguibarros245@gmail.com,3f0dae07-efb7-4c91-a637-0a138b7ab8b9,94876759-2077-497e-aad4-3b1dad3cdc9a,39,2,10,3,5
+24,Copa Libertadores da América,6,Gustavo Henrique Rezende,gustavo.rezende122@gmail.com,c018cc49-f451-455d-8ca4-55cca7f8c3ad,5d9f7ebf-85cf-458c-b9c0-8bb370a1109f,39,2,9,6,9
+25,Copa Libertadores da América,6,Esequiel feitosa dantas,esequielfeitosa@icloud.com,e833160b-d992-4a1b-8867-4108c732ee49,4c493f07-c700-4e5c-a0ec-4a040b69b4f0,39,2,9,6,6
+26,Copa Libertadores da América,6,Carlos Alberto Molinary da Costa,molinary.carlosalberto@gmail.com,c467f7bf-b811-47dc-a0dd-94e70f72d1f1,881d96e2-c691-4cbc-bf87-64d7f06f9b57,39,2,9,6,6
+27,Copa Libertadores da América,6,Tarciso Martins de Oliveira,martinstarcisio666@gmail.com,bc48e157-f99a-4636-bf59-6e9ecd7191f6,3a4812bd-e0dd-4353-b717-58526f0c98d0,39,2,8,9,6
+28,Copa Libertadores da América,6,Rogerio Reale,rogerioreale50@gmail.com,02022f8f-3892-485e-902a-b96685a80e68,e3fe63f3-6485-4049-a17a-8ec8bb6b1786,39,1,10,6,6
+29,Copa Libertadores da América,6,Diones jose dos  santos,santosdiones557@gmail.com,9ac6d30d-2755-4033-bbe3-62278208028d,496e3b07-5d38-47c1-9bf1-60bec0d23243,39,1,9,9,9
+30,Copa Libertadores da América,6,Carlos Alberto da Silva Freitas,casfp1972@gmail.com,d61aebfa-328b-49dd-b9ed-02ed551a12ac,d54c5eaf-d276-4161-a870-2bb9d18f1592,38,2,9,5,6
+31,Copa Libertadores da América,6,Odelio Aparecido de Souza,odelioapsouza@gmail.com,3f366945-bb4f-4d75-893d-29360bdab61c,21e6a7c1-c1d0-44c0-808a-a317d6e7bc64,38,2,9,5,5
+32,Copa Libertadores da América,6,MARCOS ANACLETO,marcosdominguim@gmail.com,eebd63fe-7db7-4806-837e-a7b27597f239,874f3ffa-626e-4264-9511-ab2d73930092,38,1,10,5,6
+33,Copa Libertadores da América,6,Hyago Nascimento,hyagonascimento225@gmail.com,0c186430-acdd-4367-8fc3-d901b55ee77f,dcc52df1-e7a1-46d2-ae8d-1f6edf048569,38,1,10,5,6
+34,Copa Libertadores da América,6,ULISSES GUIMARAES SARLO,ulisses.sarlo@hotmail.com,ef1d34cc-d878-4086-b53b-44a2a0f53831,d3fa7393-5b2c-49ce-819d-51179225fb6f,38,1,9,8,9
+35,Copa Libertadores da América,6,Fabricio Lima Da Silva,fls8059563@gmail.com,e813f4ac-b0e8-4f42-8f81-3b51849b963a,83e6d25f-06df-4df6-8928-07bfaca4def8,38,1,9,8,8
+36,Copa Libertadores da América,6,Diego Sousa Silva,ds163647@gmail.com,fda53c43-00ca-4b59-ab56-01407843cc22,c563f262-b5f6-43fd-b9d0-a3199235d7ae,37,2,8,7,6
+37,Copa Libertadores da América,6,Vitoria faria de almeida,vitoriadealmeida101@gmail.com,6bd7b0f2-77b3-4f8d-93f7-8a37b2b23cab,a351dbb6-70be-4ab3-a53a-cc9801215e8b,37,1,9,7,7
+38,Copa Libertadores da América,6,Maycon Vinicius Carvalho Souza,mayconviniciuscarvalhosouza88@gmail.com,84a13ffd-0347-4a67-8f40-1cf4076799cc,0dcf283a-e346-4bb4-ad11-1a24be8ac6e2,37,0,10,7,4
+39,Copa Libertadores da América,6,fredson ferraz,fredson-ferraz@hotmail.com,d35ecca0-b410-49a4-b123-f56248f85426,18552248-ac9b-4d5f-8603-6e2676c826fa,36,3,8,3,6
+40,Copa Libertadores da América,6,Carlos Eduardo,carloseduardoe291@gmail.com,e9a89348-948b-40d2-885c-d8da55a3d204,c85cc972-787b-4f42-988e-1c592dd2fa99,36,3,7,6,5
+41,Copa Libertadores da América,6,Ana Cristina Mendonça de Andrade,acma2882@gmail.com,a9b1abbe-3073-45f8-80d1-d65118c3b6bb,513ef5d7-7a3c-4314-b61c-606dc0b3d878,36,1,9,6,8
+42,Copa Libertadores da América,6,João Gabriel Lima Oliveira,limaoliveirajoaogabriel@gmail.com,85028771-8024-483a-9014-c322140b6bff,210f30d7-3507-450d-8848-9c957b66a029,36,1,9,6,6
+43,Copa Libertadores da América,6,Anderson Kewerton da Silva,andersonkewerton271@gmail.com,80b052ab-c22f-4b13-9cce-577e33a04186,838ac128-5e37-4855-b274-b8a8b13b5941,36,0,10,6,6
+44,Copa Libertadores da América,6,Carlos Alberto da Cruz de Jesus,begoodedacruz21@gmail.com,cb2867af-3d30-428d-b4fc-289ab1148647,3949b657-7fd4-4a0a-9d27-cc07c53fc912,36,0,9,9,7
+45,Copa Libertadores da América,6,João Batista Moisés de lima,joaozinhomoises13@gmail.com,a13b98f6-e267-4255-9ff7-6da716b3578c,052a2a02-f5d6-43ad-9c41-9289b71e4ab8,36,0,9,9,5
+46,Copa Libertadores da América,6,Rogerio oliveira Silva Tomé,rogerinhodj061@gmail.com,92e539dd-d3fb-40c5-bbb7-c1dfdc62a02e,82f18caf-fa4a-4064-b58b-fb05417e15a6,36,0,9,9,5
+47,Copa Libertadores da América,6,Benetonis Nascimento Silva,benetonissilva534@gmail.com,b02efbd2-4697-453a-ae1e-4fbf3cb3c94b,29e12ea4-9673-48ff-8739-6700f43e167e,35,2,8,5,6
+48,Copa Libertadores da América,6,Elywerton Francisco,89352496elywerton@gmail.com,842efd9e-ddd2-4443-9716-139660bf98c4,56652f2a-8f8c-46bc-adc6-a31de792cab5,35,1,9,5,6
+49,Copa Libertadores da América,6,Mário de Souza Tomáz,martineztomaz32@gmail.com,a83c0691-1e58-485d-93e7-96c33c83ffba,14a085c8-7402-42e0-a912-85509c58f28d,35,1,9,5,4
+50,Copa Libertadores da América,6,Weverton Braga felipe,wevertonbraga45@gmail.com,dfc8d3e0-fe28-45a3-aec1-01a7fb72b43a,8d2bc323-7d22-4f04-be61-1fc92acb79c5,35,1,9,5,4
+51,Copa Libertadores da América,6,Olegario Junior,olegarioj148@gmail.com,65395be1-fdf3-4e5c-bcca-165626f32705,34bbf4d1-e769-4df4-b148-7743c15b3955,35,1,7,11,9
+52,Copa Libertadores da América,6,Abimael Gomes dos Santos,abimaelgomesf4@gmail.com,d2a32fff-0d93-4979-88c5-2ac5d42e7d5a,db113c0f-85be-4c75-8043-50c5f814bcad,35,0,10,5,3
+53,Copa Libertadores da América,6,Fabio da Silva melo,fabinho.9179@gmail.com,280abcd9-2416-45a4-b98a-6cb85f3240b1,e4261656-14e8-4a3e-b44b-1f4d80ccb138,34,1,9,4,4
+54,Copa Libertadores da América,6,Antônio dos Santos Pereira,d46366274@gmail.com,f27751d3-ffcd-496e-b3ad-03157b3e29e5,eaef8be4-f654-42df-9dbf-15b1f1731549,34,1,8,7,4
+55,Copa Libertadores da América,6,Rafael Santos Souza,r0952412@gmail.com,88ada6c6-921a-46a8-9a97-7fff301df1b2,c1951c94-392c-42bb-9992-a2504bb3786e,34,0,9,7,6
+56,Copa Libertadores da América,6,Adriel Ribeiro Sá,adrielribeirosa57@gmail.com,94d8b5fe-df88-47fe-a40e-e4dbba462165,4c8616de-f9d9-4e70-980a-296c20cd1ece,33,1,9,3,3
+57,Copa Libertadores da América,6,Maycon Rodrigues da silva Silva,maycondinho.hdhdbh@gmail.com,b21b67ca-65f6-42db-9d8d-a34f1b43cb2c,bab43e49-8a59-4371-95b3-1b36d99b1c16,33,1,8,6,7
+58,Copa Libertadores da América,6,Victor Cassiano de Oliveira,vc1590929@gmail.com,78f27900-9452-40e5-9053-bf47b5bbe8f4,088c433c-4dcc-4bf7-aa8c-bc35c710e91d,33,1,8,6,6
+59,Copa Libertadores da América,6,Bryan muniz,bryanmuniz687@gmail.com,7d9de0dc-6bd6-41fa-bb83-1718cf980264,86d19219-55d0-49e4-bc73-a1541d4c4544,33,1,8,6,4
+60,Copa Libertadores da América,6,Wellington Davi Mendonça,wdavimendonca@gmail.com,33cf7f29-bed4-49e4-9ee2-39e971ccd7ba,a6f16204-d429-493f-aa2f-f84ef701b38a,33,1,7,9,9
+61,Copa Libertadores da América,6,Jocenei calistro de Souza,joceneicalistro11@gmail.com,f9219e15-b39f-4043-8321-b6271a1412d1,03800600-bea2-4615-b690-03433a0f20cd,33,1,7,9,8
+62,Copa Libertadores da América,6,Agno Santos Souza,pretinsouza16@gmail.com,dcccb0dc-4065-4b36-9395-167881a32028,004395ba-5075-4857-ba89-723752341808,33,1,7,9,6
+63,Copa Libertadores da América,6,Romario Santos,romariopelegrine5@gmail.com,d4d5ca88-863b-4671-9968-7da01422becd,9c57d853-2664-4b01-9704-b64346d1ddee,33,1,7,9,5
+64,Copa Libertadores da América,6,VLADSON YURI MARCELINO CARNEIRO,meliodassomo@gmail.com,94f726dc-b270-4f21-90c8-6792b3684098,c67bab81-60fa-4081-9492-1563bd2a8b8d,33,0,9,6,6
+65,Copa Libertadores da América,6,Eduardo N,edujuballopes@gmail.com,c3674599-711f-4343-8c09-ac77eeaa4523,582f78f8-be5f-4f4f-86fc-187b99c4d771,32,2,7,5,3
+66,Copa Libertadores da América,6,Gabriel rosa do Vale,rosag3137@gmail.com,f69e5712-53c5-44ac-9945-95592371168b,4f39a7e6-95b5-42ac-a567-4cadbc43cf76,32,1,8,5,6
+67,Copa Libertadores da América,6,Carlos Henrique Abreu,carloshenriqueabreu57@gmail.com,81397e5e-a655-4a9f-8633-545fa37c87ae,4c1a0e8f-a4c2-46de-9707-e147b5b1234c,32,0,9,5,9
+68,Copa Libertadores da América,6,Suran Miranda Pestana,vanderlanda.m.32@gmail.com,30d26a7d-6130-43b9-aafc-355b15c7f82b,f1ea3694-ea3d-42f0-b5da-1e23ca0399ce,32,0,9,5,3
+69,Copa Libertadores da América,6,DOUGLAS DIAS DE CAMPOS,douglascampos1803@gmail.com,a5baaff5-23f8-44da-8d87-cea24ea923ad,65fd9cbe-cf69-42be-93dc-3ca63aaa9ff8,32,0,8,8,5
+70,Copa Libertadores da América,6,Luiz Fernando Carvalho,raphaelveigapalmeiras14@gmail.com,64ed6f33-5b5b-4711-965c-b19fa875be3a,76c15a81-f7c6-4f5e-a429-2157fed8d63a,32,0,8,8,4
+71,Copa Libertadores da América,6,Wallace Barbosa Soares,wallace301309@gmail.com,6022a3f7-8576-402c-b70f-294a3f7b1441,9132e76d-bc28-49b9-a40b-23fd97d3d43f,31,0,8,7,5
+72,Copa Libertadores da América,6,Carlos Eduardo dos santos costa,santoscarloseduardo667@gmail.com,77fb8bd0-6f96-4297-9289-dbaf344d995b,7506fee7-bf2e-4911-a912-b4c04257ee7e,30,1,7,6,6
+73,Copa Libertadores da América,6,Aldemir Da rocha,aldemirdarocha21@gmail.com,fd17632c-7a41-4ee0-9571-dd4872bd7b43,4a8dff89-f92b-4648-8c82-b8137c324fdc,30,1,7,6,4
+74,Copa Libertadores da América,6,José de Jesus Galdence Junior,juniorgaldence8@gmail.com,3ce33a3e-26cd-4c89-8af8-96864c26eb95,6c0845d2-4511-4a33-8c91-51981a75c9ed,30,1,6,9,6
+75,Copa Libertadores da América,6,Claudivan Da Silva,beyeballondor28@gmail.com,0f8144f2-152e-46e6-8bd0-8dadf9c178f8,4bd79e9b-d7a6-4457-860f-10658d381462,30,0,8,6,7
+76,Copa Libertadores da América,6,Cauã Wagner,cauawagner30@gmail.com,16306ec2-82e7-427c-b7c1-b2bf804a1c0a,a0b521a0-aba6-402b-a9ce-b48b55e428a1,30,0,8,6,6
+77,Copa Libertadores da América,6,Carmindo Gonçalves de almeida,kakagoncalves1984@gmail.com,9a44d979-9155-47cb-aaca-3a364163800a,5e6d5760-f42e-48fa-b499-b8b8a4287d90,29,1,5,11,4
+78,Copa Libertadores da América,6,Rhuan Ferreira Fernandes da Silva,rhuanferreira7777@gmail.com,16a7f38e-0187-4fc9-9e5a-24a475a3739a,7ffefb5b-6b13-461c-842a-d2a8abc5f7fe,29,0,8,5,7
+79,Copa Libertadores da América,6,Carlos Eduardo,ccarloseduardodasilva777@gmail.com,2300b968-8423-4347-bf9a-01f94e81f99c,5a6b0b13-fb5e-4720-a908-353031c402cf,29,0,8,5,6
+80,Copa Libertadores da América,6,Wenderson Rodrigues,todayrofinho@gmail.com,c5d73513-ccf1-48ee-bcee-728bf68b6ddd,ce1b3fe5-7579-4ed0-849c-245e35e0b58b,28,2,6,4,3
+81,Copa Libertadores da América,6,Adalberto da Silva Santos,raissasousadejesus2006@gmail.com,6b97715f-818b-4fe4-a399-a3473855701a,0b5e939c-7be5-4542-a1de-4788bac59237,27,3,5,3,3
+82,Copa Libertadores da América,6,Reginaldo luiz da silva viana,reginaldoluizdasilvavianaluiz@gmail.com,e5b10e64-5546-44a6-b88d-3555f04fce21,07c1757c-f114-4609-be50-b99f98cc2688,27,0,7,6,6
+83,Copa Libertadores da América,6,Maycon7c Luis Araujo,araujomaycon847@gmail.com,778ad8bd-2545-49a9-82b3-0a78c1feece9,2b811e80-cbe2-488c-94ab-7cbde7c0c21e,26,1,6,5,6
+84,Copa Libertadores da América,6,Gabriel nunes Barbosa,marltthpinheiro@gmail.com,3642d52f-9a79-42ae-b5ea-cb11f37f9cfc,a6c1210f-11ba-42d3-819a-5db4c2a564ae,26,1,6,5,4
+85,Copa Libertadores da América,6,raquelson Ruan,raquelsonruan@gmail.com,2e2e8bb8-ec48-4e33-8396-cf14b6d321b0,7a4eecc8-6153-4234-9af5-acae04029515,26,0,7,5,4
+86,Copa Libertadores da América,6,Karina Ferreira,karina.arierref@gmail.com,3f164718-48bc-48bf-b5de-bc1c8d9d6823,58b7192e-7d59-4a2c-bd92-ddea626a4a62,25,0,7,4,3
+87,Copa Libertadores da América,6,Ricardo Ramos,ricardinhoramosmagalhaes@gmail.com,bece7a99-91c5-4f7c-8d64-dd30d29a808d,6d4402b8-fb54-4317-8081-177c73a8c7d4,25,0,6,7,4
+88,Copa Libertadores da América,6,Leonardo morais raiol piedade,csleonardomorais988@gmail.com,2ec1fb48-e308-4923-9f7c-ac6798c66552,82bf76e6-9653-467c-b853-276d469a3686,25,0,5,10,7
+89,Copa Libertadores da América,6,RICHARLLISON ANDRADE RIBEIRO,richarllisonribeiro@gmail.com,55d726ad-6276-496f-9e77-73d4d0196d4e,532b0c08-c688-4b0a-add3-2620a153bd03,24,0,7,3,4
+90,Copa Libertadores da América,6,Kauan Felipe Custodio Dias,kauanfelipedias03@gmail.com,1b35ed7b-30ea-47c9-bc4a-a1ae5938c735,d8193a6a-1a7d-4f0a-8431-ea9cb3f641a4,24,0,6,6,5
+91,Copa Libertadores da América,6,Renato Rezende,renatomiguel_76@icloud.com,cd17d745-bb0e-46f8-845b-eb2ed3183e81,b4f09085-0c14-4d26-afbf-a5e094511237,23,2,5,2,4
+92,Copa Libertadores da América,6,Douglas Gustavo Alves Fonseca,da632349@gmail.com,f98deaaf-eda6-4b4d-86eb-f89a38914624,15aafa01-19dc-4960-8d75-6e096790a599,23,1,5,5,7
+93,Copa Libertadores da América,6,Marcelo José,marcelojosedelima08@gmail.com,69a41d9f-6383-4ca3-800d-05e1aace5dc7,87b95d84-f818-4d54-8d2c-40ba31504b13,23,1,5,5,4
+94,Copa Libertadores da América,6,Igor Rafael,igorsalesfluminense@gmail.com,9bbb453d-6c96-44d5-a94e-5a8551d4a036,1a8fc9de-c56d-486a-870e-3f76100688cb,23,0,7,2,3
+95,Copa Libertadores da América,6,Mateus Salvador Pinheiro,pinheiromateus031@gmail.com,e32a320c-4dbb-446f-965e-1d4c641b764d,55c43c33-57fa-49ad-a32f-15695a2f88a7,23,0,5,8,6
+96,Copa Libertadores da América,6,Rodrigo alves pedroni,pedroni2012@gmail.com,476f1d3d-ae2e-48b3-92d4-f08b812ed642,ba0a6a52-1bd5-4c11-ad6a-dcd7e141333f,22,2,5,1,3
+97,Copa Libertadores da América,6,Juscelio José da Silva,jjs.fiel@gmail.com,aab9e091-71b2-41e0-9fae-69ff48b3b597,46d99f69-e317-4556-930f-bea6ce823477,21,1,5,3,6
+98,Copa Libertadores da América,6,Camila vitória,camilavitoriasousasilva304@gmail.com,26542979-5432-4a7d-b26d-45a2859c3e80,0bac74bd-833b-43e4-a3aa-dcd9d5c7bdb0,21,1,4,6,5
+99,Copa Libertadores da América,6,Maria das vitorias ferreira silva,rb.renatobandeira@gmail.com,2eabda87-acc3-471d-a5fd-c57b52ebc198,763eb06f-f7ed-4c1b-8603-d3cb1a6300ce,21,0,6,3,4
+100,Copa Libertadores da América,6,Aparecido Ferreira do Nascimento,ander122nascimento456@gmail.com,cc759c53-7b01-46ff-988f-685089092f21,efce3478-1874-4edf-ad73-09076e6b4040,21,0,5,6,6

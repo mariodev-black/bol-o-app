@@ -16,7 +16,7 @@ export default function AdminSettingsPage() {
     { label: "Cota principal", value: formatAdminBRL(getTicketPriceCents("general")) },
     { label: "Cota extra", value: formatAdminBRL(getExtraTicketPriceCents()) },
     { label: "Bolão diário", value: formatAdminBRL(getTicketPriceCents("daily")) },
-    { label: "Sessão admin 2FA", value: "2 horas" },
+    { label: "Sessão admin 2FA", value: "24 horas" },
     {
       label: "Brinde extra pós-login",
       value: extraGiftPromo.enabled

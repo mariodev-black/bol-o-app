@@ -3,7 +3,7 @@ import { BolaoDetailRankingSection } from "@/app/admin/(panel)/boloes/_component
 import { AdminBolaoKindBadge, AdminBolaoKindIcon } from "@/app/admin/(panel)/boloes/_components/AdminBolaoKindIcon";
 import { AdminBolaoStat } from "@/app/admin/(panel)/boloes/_components/AdminBolaoStat";
 import { getAdminBolaoRankingPage } from "@/lib/admin/sections";
-import { Target, Ticket, Users } from "lucide-react";
+import { Gift, Target, Ticket, Users } from "lucide-react";
 import Link from "next/link";
 
 export default async function AdminBolaoPrincipalPage() {
@@ -23,7 +23,7 @@ export default async function AdminBolaoPrincipalPage() {
       </div>
       <AdminPageTitle
         title="Bolão principal"
-        subtitle="Ranking completo do bolão principal com scroll infinito."
+        subtitle="Ranking do bolão principal — cotas pagas e grátis (prêmio / brinde)."
       />
 
       <div className="mb-5 flex flex-col gap-4 rounded-[18px] border border-white/8 bg-[#101010] p-5 sm:flex-row sm:items-center">
@@ -33,8 +33,11 @@ export default async function AdminBolaoPrincipalPage() {
           <p className="mt-2 text-[22px] font-black text-white">FIFA World Cup</p>
           <p className="mt-1 text-[13px] font-medium text-white/45">Bolão principal — ranking geral</p>
         </div>
-        <div className="grid w-full grid-cols-3 gap-2 sm:max-w-sm">
+        <div className="grid w-full grid-cols-2 gap-2 sm:max-w-md sm:grid-cols-4">
           <AdminBolaoStat icon={Ticket} label="Cotas" value={summary.ticketsCount} accent="primary" />
+          {summary.promoTicketsCount > 0 ? (
+            <AdminBolaoStat icon={Gift} label="Grátis" value={summary.promoTicketsCount} accent="amber" />
+          ) : null}
           <AdminBolaoStat icon={Users} label="Jogadores" value={summary.playersCount} />
           <AdminBolaoStat icon={Target} label="Pontos" value={summary.totalPoints} />
         </div>
@@ -42,7 +45,7 @@ export default async function AdminBolaoPrincipalPage() {
 
       <BolaoDetailRankingSection
         title="Ranking do bolão principal"
-        description={`${summary.ticketsCount.toLocaleString("pt-BR")} cotas · ${summary.playersCount.toLocaleString("pt-BR")} jogadores · ${summary.totalPoints.toLocaleString("pt-BR")} pontos`}
+        description={`${summary.ticketsCount.toLocaleString("pt-BR")} cotas${summary.promoTicketsCount > 0 ? ` (${summary.promoTicketsCount.toLocaleString("pt-BR")} grátis)` : ""} · ${summary.playersCount.toLocaleString("pt-BR")} jogadores · ${summary.totalPoints.toLocaleString("pt-BR")} pontos`}
         scope={scope}
         initialRows={ranking.rows}
         total={ranking.total}

@@ -6,7 +6,8 @@ import { getPool } from "@/lib/db";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 
 const ADMIN_2FA_COOKIE = "bolao_admin_2fa";
-const ADMIN_2FA_MAX_AGE = 60 * 60 * 2;
+/** Sessão admin (pós-2FA): cookie + JWT — 24h */
+const ADMIN_2FA_MAX_AGE_SEC = 60 * 60 * 24;
 
 export type AdminUser = {
   id: string;
@@ -40,7 +41,7 @@ export function admin2faCookieOptions() {
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax" as const,
     path: "/",
-    maxAge: ADMIN_2FA_MAX_AGE,
+    maxAge: ADMIN_2FA_MAX_AGE_SEC,
   };
 }
 
@@ -84,7 +85,7 @@ export async function signAdmin2faToken(userId: string): Promise<string> {
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(userId)
     .setIssuedAt()
-    .setExpirationTime("2h")
+    .setExpirationTime(`${ADMIN_2FA_MAX_AGE_SEC}s`)
     .sign(getSecretKey());
 }
 

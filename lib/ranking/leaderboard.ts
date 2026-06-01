@@ -4,6 +4,7 @@ import {
   calcPredictionPoints,
   listMatchIdsForTicketPredictions,
   listPredictionsAggregateByBolao,
+  listPredictionsAggregateByExtraCompetition,
   palpiteLockBeforeKickoffMs,
   type PredictionAggregateRow,
 } from "@/lib/predictions";
@@ -11,6 +12,7 @@ import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
 import { getPool } from "@/lib/db";
 import { resolveDiarioPlayableDate } from "@/lib/diario-playable-date";
 import {
+  listMatchesForExtraRound,
   resolveCurrentExtraRound,
   resolveEffectiveExtraRoundForTicket,
 } from "@/lib/football/extras-rodada";
@@ -238,10 +240,21 @@ type PaidTicketRow = {
   user_id: string;
   ticket_type: "general" | "daily" | "extra";
   total_amount_cents: number;
+  unit_price_cents?: number;
+  quantity?: number;
   extra_championship_id?: number | null;
   round_number?: number | null;
   is_promo_bonus?: boolean;
 };
+
+function paidTicketRevenueCents(t: PaidTicketRow): number {
+  if (t.is_promo_bonus) return 0;
+  const total = Number(t.total_amount_cents ?? 0);
+  if (total > 0) return total;
+  const unit = Number(t.unit_price_cents ?? 0);
+  const qty = Number(t.quantity ?? 1);
+  return unit > 0 && qty > 0 ? unit * qty : 0;
+}
 
 type LoadPaidTicketsOpts = {
   /** Cotas grátis (brinde) entram no ranking extra, mas não na receita do prêmio. */
@@ -513,11 +526,15 @@ async function loadPaidTickets(
       round_number: number | null;
       is_promo_bonus: boolean;
       total_amount_cents: string | number | null;
+      unit_price_cents: string | number | null;
+      quantity: string | number | null;
     }>(
       `SELECT t.id::text AS id, t.user_id::text AS user_id, t.ticket_type,
               t.extra_championship_id, t.round_number,
               COALESCE(t.is_promo_bonus, false) AS is_promo_bonus,
-              COALESCE(t.total_amount_cents, 0) AS total_amount_cents
+              COALESCE(t.total_amount_cents, 0) AS total_amount_cents,
+              COALESCE(t.unit_price_cents, 0) AS unit_price_cents,
+              COALESCE(t.quantity, 1) AS quantity
        FROM tickets t
        WHERE t.status IN ('paid', 'approved')
          AND t.ticket_type = 'extra'
@@ -533,6 +550,8 @@ async function loadPaidTickets(
       round_number: r.round_number,
       is_promo_bonus: Boolean(r.is_promo_bonus),
       total_amount_cents: Number(r.total_amount_cents ?? 0),
+      unit_price_cents: Number(r.unit_price_cents ?? 0),
+      quantity: Number(r.quantity ?? 1),
     }));
   }
   const { rows } = await pool.query<{
@@ -858,13 +877,15 @@ async function buildLeaderboardExtraForCompRoundUncached(
     return { rows: [], meta: emptyMetaForExtra() };
   }
 
-  const [matches, paidExtra, allExtra] = await Promise.all([
+  const [matches, paidExtra, allExtra, roundMatches] = await Promise.all([
     fetchMatchesMap().catch(() => new Map<string, MatchInfo>()),
     loadPaidTickets("extra", extraComp, { includePromoBonus: true }),
-    listPredictionsAggregateByBolao("extra"),
+    listPredictionsAggregateByExtraCompetition(extraComp),
+    listMatchesForExtraRound(extraComp, poolRodada),
   ]);
 
   const allowedExtraIds = new Set(paidExtra.map((t) => t.id));
+  const roundMatchIds = new Set(roundMatches.map((m) => m.match_id));
   const firstPlayRound = buildTicketFirstPlayRoundByCompetition(
     allExtra,
     matches,
@@ -881,16 +902,27 @@ async function buildLeaderboardExtraForCompRoundUncached(
 
   const playable = resolveDiarioPlayableDate(matches, { competitionId: extraComp });
   let poolPlayDate = playable;
-  for (const m of matches.values()) {
-    if (Number(m.competitionId) === extraComp && m.rodada === poolRodada && m.dateBR) {
-      poolPlayDate = m.dateBR;
-      break;
+  const roundDates = new Set(
+    roundMatches.map((m) => m.date_br).filter((d): d is string => Boolean(d?.trim())),
+  );
+  if (roundDates.size > 0) {
+    poolPlayDate = [...roundDates].sort()[0]!;
+  } else {
+    for (const m of matches.values()) {
+      if (Number(m.competitionId) === extraComp && m.rodada === poolRodada && m.dateBR) {
+        poolPlayDate = m.dateBR;
+        break;
+      }
     }
   }
 
   const cohortPreds = allExtra.filter((p) => {
     if (!allowedExtraIds.has(p.ticket_id)) return false;
-    const mi = getMatchFromMap(matches, extraComp, Number(p.match_id));
+    const mid = Number(p.match_id);
+    if (roundMatchIds.size > 0) {
+      return roundMatchIds.has(mid);
+    }
+    const mi = getMatchFromMap(matches, extraComp, mid);
     if (!mi || Number(mi.competitionId) !== extraComp) return false;
     return matchInExtraPool(mi, poolRodada, poolPlayDate);
   });
@@ -950,8 +982,8 @@ async function buildLeaderboardExtraForCompRoundUncached(
 
   const cohortTicketIds = new Set(sortedTickets.map((t) => t.ticketId));
   const revenueCents = paidExtra
-    .filter((t) => cohortTicketIds.has(t.id) && !t.is_promo_bonus)
-    .reduce((s, t) => s + t.total_amount_cents, 0);
+    .filter((t) => cohortTicketIds.has(t.id))
+    .reduce((s, t) => s + paidTicketRevenueCents(t), 0);
   const participantCount = sortedTickets.length;
   const poolCentsApprox = calculatePrizePoolCents(revenueCents);
 
@@ -982,6 +1014,14 @@ async function buildLeaderboardExtraForCompRoundUncached(
   };
 
   return finalizeLeaderboardDisplay(rows, meta);
+}
+
+/** Ranking completo de um bolão extra fixo (campeonato + rodada) — scripts/admin. */
+export async function buildLeaderboardExtraForCompAndRound(
+  extraComp: number,
+  poolRodada: number,
+): Promise<{ rows: LeaderboardRow[]; meta: LeaderboardBoardMeta }> {
+  return buildLeaderboardExtraForCompRoundUncached(extraComp, poolRodada);
 }
 
 /** Para scripts de debug (fora do Next.js). */
