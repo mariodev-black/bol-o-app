@@ -56,6 +56,7 @@ import {
   type PredictionBolaoType,
 } from "@/lib/palpites-kickoff-lock";
 import {
+  hasOfficialMatchResult,
   isLockedByKickoff,
   isMatchOpenForPalpite,
   palpiteEligibilityFromJogo,
@@ -951,8 +952,7 @@ function formatCountdownCompact(lockAtMs: number | null, nowMs: number): string 
 }
 
 function getJogoCardPhase(jogo: Jogo, nowMs: number): JogoCardPhase {
-  const temPlacar =
-    jogo.resultCasa != null && jogo.resultVisitante != null;
+  const temPlacar = hasOfficialMatchResult(palpiteEligibilityFromJogo(jogo), nowMs);
   if (isMatchLiveForDisplay(jogo, nowMs)) return "live";
   if (temPlacar) return "post";
   return "pre";
@@ -1359,8 +1359,10 @@ function JogoCard({
   const countdownLabel = formatCountdownCompact(lockAtMs, nowMs);
   const [pontosExpanded, setPontosExpanded] = useState(false);
 
-  const temPlacarOficial =
-    jogo.resultCasa != null && jogo.resultVisitante != null;
+  const temPlacarOficial = hasOfficialMatchResult(
+    palpiteEligibilityFromJogo(jogo),
+    nowMs,
+  );
   const palpiteCasa = scoreCasa ?? 0;
   const palpiteVisitante = scoreVisitante ?? 0;
   const displayCasa = phase === "post" ? jogo.resultCasa! : palpiteCasa;

@@ -11,6 +11,7 @@ import { getAllSyncedCompetitionIds, getFootballMainCompetitionId } from "@/lib/
 import { registerMatchMapMemoryInvalidate } from "@/lib/match-map-cache-invalidator";
 import { parseKickoffFromPartidaPayload } from "@/lib/partida-placar";
 import { readMatchesCache } from "@/lib/matches-cache";
+import { resolveOfficialMatchResults } from "@/lib/palpites-match-open";
 import type { MatchMap } from "@/lib/match-map-types";
 import { matchMapKey } from "@/lib/match-map-types";
 
@@ -88,12 +89,18 @@ function mapFromCacheRows(rows: Awaited<ReturnType<typeof readMatchesCache>>): M
     const cid = Number(r.competition_id) || getFootballMainCompetitionId();
     const mid = Number(r.match_id);
     const { dateBR, hour } = dateBrHourFromCacheRow(r);
+    const { resultCasa, resultVisitante } = resolveOfficialMatchResults({
+      status: String(r.status || "aberto"),
+      kickoffAt: r.kickoff_at,
+      resultCasa: r.result_casa,
+      resultVisitante: r.result_visitante,
+    });
     out.set(matchMapKey(cid, mid), {
       id: mid,
       kickoffAt: r.kickoff_at,
       status: String(r.status || "aberto"),
-      resultCasa: r.result_casa,
-      resultVisitante: r.result_visitante,
+      resultCasa,
+      resultVisitante,
       home: r.home_sigla || r.home_name || "CASA",
       away: r.away_sigla || r.away_name || "VISIT",
       homeName: r.home_name || r.home_sigla || "CASA",

@@ -79,6 +79,32 @@ export function isMatchStartedByKickoff(
   return ko != null && nowMs >= ko;
 }
 
+/** Placar oficial disponível (ignora 0×0 placeholder em partidas ainda não iniciadas). */
+export function hasOfficialMatchResult(
+  input: PalpiteMatchEligibilityInput,
+  nowMs = Date.now(),
+): boolean {
+  if (input.resultCasa == null || input.resultVisitante == null) return false;
+  const status = String(input.status ?? "");
+  if (isFinishedMatchStatus(status) || isLiveOrInProgressMatchStatus(status)) {
+    return true;
+  }
+  return isMatchStartedByKickoff(input.kickoffAt, nowMs);
+}
+
+export function resolveOfficialMatchResults(
+  input: PalpiteMatchEligibilityInput,
+  nowMs = Date.now(),
+): { resultCasa: number | null; resultVisitante: number | null } {
+  if (!hasOfficialMatchResult(input, nowMs)) {
+    return { resultCasa: null, resultVisitante: null };
+  }
+  return {
+    resultCasa: input.resultCasa ?? null,
+    resultVisitante: input.resultVisitante ?? null,
+  };
+}
+
 /** Motivo pelo qual o palpite não pode ser salvo (espelha POST /api/palpites). */
 export function getPalpiteRejectReason(
   input: PalpiteMatchEligibilityInput,
@@ -87,7 +113,7 @@ export function getPalpiteRejectReason(
 ): PalpiteRejectReason {
   const status = String(input.status ?? "");
   if (isFinishedMatchStatus(status)) return "finished";
-  if (input.resultCasa != null && input.resultVisitante != null) return "finished";
+  if (hasOfficialMatchResult(input, nowMs)) return "finished";
   if (isLiveOrInProgressMatchStatus(status)) return "live";
   if (isMatchStartedByKickoff(input.kickoffAt, nowMs)) return "match_started";
   if (isLockedByKickoff(input.kickoffAt, nowMs, bolaoType)) return "lock_window";

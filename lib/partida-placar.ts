@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /** Extração de placar e apito a partir do JSON da API Futebol / payloads espelhados no cache. */
 
+import { hasOfficialMatchResult } from "@/lib/palpites-match-open";
+
 function parseScoresFromPlacarString(raw: unknown): { casa: number; visita: number } | null {
   if (typeof raw !== "string") return null;
   const matches = [...raw.matchAll(/(\d+)\s*[xX]\s*(\d+)/g)];
@@ -29,7 +31,7 @@ export function parseKickoffFromPartidaPayload(p: any): string | null {
   return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}T${hhmm}:00-03:00`;
 }
 
-export function pickScoreFromPartidaPayload(p: any, side: "casa" | "visitante"): number | null {
+function pickRawScoreFromPartidaPayload(p: any, side: "casa" | "visitante"): number | null {
   const casaKeys = [
     "placar_mandante",
     "placar_casa",
@@ -52,4 +54,20 @@ export function pickScoreFromPartidaPayload(p: any, side: "casa" | "visitante"):
   const parsed = parseScoresFromPlacarString(p?.placar);
   if (parsed) return side === "casa" ? parsed.casa : parsed.visita;
   return null;
+}
+
+export function pickScoreFromPartidaPayload(p: any, side: "casa" | "visitante"): number | null {
+  const resultCasa = pickRawScoreFromPartidaPayload(p, "casa");
+  const resultVisitante = pickRawScoreFromPartidaPayload(p, "visitante");
+  if (resultCasa == null || resultVisitante == null) return null;
+  const status = String(p?.status ?? "");
+  const kickoffAt = parseKickoffFromPartidaPayload(p);
+  if (
+    !hasOfficialMatchResult(
+      { status, kickoffAt, resultCasa, resultVisitante },
+    )
+  ) {
+    return null;
+  }
+  return side === "casa" ? resultCasa : resultVisitante;
 }

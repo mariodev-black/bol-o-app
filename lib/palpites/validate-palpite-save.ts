@@ -2,6 +2,7 @@ import { getMatchFromMap, resolveKickoffAtIso } from "@/lib/football-api";
 import { brToday, resolveDiarioPlayableDate, utcMsForBrDate } from "@/lib/diario-playable-date";
 import {
   getPalpiteRejectReason,
+  hasOfficialMatchResult,
   isMatchOpenForPalpite,
   palpiteRejectErrorMessage,
 } from "@/lib/palpites-match-open";
@@ -113,7 +114,12 @@ export async function validatePalpiteForSave(
         st.includes("adiad") ||
         st.includes("suspens") ||
         st.includes("interromp") ||
-        (m.resultCasa != null && m.resultVisitante != null);
+        hasOfficialMatchResult({
+          status: m.status,
+          kickoffAt: m.kickoffAt,
+          resultCasa: m.resultCasa,
+          resultVisitante: m.resultVisitante,
+        });
       const ko = m.kickoffAt ? new Date(m.kickoffAt).getTime() : null;
       const locked = ko != null && Number.isFinite(ko) && Date.now() >= ko - lockLead;
       if (!finished && !locked) {
@@ -157,7 +163,13 @@ export async function validatePalpiteForSave(
           st.includes("adiad") ||
           st.includes("suspens") ||
           st.includes("interromp") ||
-          (m.resultCasa != null && m.resultVisitante != null);
+          (m != null &&
+            hasOfficialMatchResult({
+              status: m.status,
+              kickoffAt: m.kickoffAt,
+              resultCasa: m.resultCasa,
+              resultVisitante: m.resultVisitante,
+            }));
         if (!finished) allFinished = false;
       }
       if (hasDateMismatch || allFinished) {

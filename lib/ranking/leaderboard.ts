@@ -18,7 +18,7 @@ import {
 } from "@/lib/football/extras-rodada";
 import { calculatePrizePoolCents } from "@/lib/prizes/distribution";
 import { clampAvatarIndex } from "@/lib/auth/avatar-index";
-import { isLiveOrInProgressMatchStatus } from "@/lib/palpites-match-open";
+import { hasOfficialMatchResult, isLiveOrInProgressMatchStatus } from "@/lib/palpites-match-open";
 import { isRankingFillerRow } from "@/lib/ranking/ranking-bots";
 import { isStoredAvatarUploadFilename } from "@/lib/user/avatar-filename";
 
@@ -388,7 +388,13 @@ function poolHasAnyResultedMatch(
   competitionId: number,
 ): boolean {
   return poolMatchesForPreds(poolPreds, matches, allowedTicketIds, competitionId).some(
-    (m) => m.resultCasa != null && m.resultVisitante != null,
+    (m) =>
+      hasOfficialMatchResult({
+        status: m.status,
+        kickoffAt: m.kickoffAt,
+        resultCasa: m.resultCasa,
+        resultVisitante: m.resultVisitante,
+      }),
   );
 }
 
@@ -406,7 +412,19 @@ function poolHasLiveMatch(
     competitionId,
   )) {
     if (isLiveOrInProgressMatchStatus(String(m.status ?? ""))) return true;
-    if (m.resultCasa != null && m.resultVisitante != null) continue;
+    if (
+      hasOfficialMatchResult(
+        {
+          status: m.status,
+          kickoffAt: m.kickoffAt,
+          resultCasa: m.resultCasa,
+          resultVisitante: m.resultVisitante,
+        },
+        now,
+      )
+    ) {
+      continue;
+    }
     const kickoff = m.kickoffAt ? new Date(m.kickoffAt).getTime() : NaN;
     if (Number.isFinite(kickoff) && kickoff <= now && !isFinishedStatus(m.status)) {
       return true;
@@ -463,7 +481,15 @@ function poolMatchScoringProgress(
   for (const m of matches.values()) {
     if (!filter(m)) continue;
     total += 1;
-    const hasScore = m.resultCasa != null && m.resultVisitante != null;
+    const hasScore = hasOfficialMatchResult(
+      {
+        status: m.status,
+        kickoffAt: m.kickoffAt,
+        resultCasa: m.resultCasa,
+        resultVisitante: m.resultVisitante,
+      },
+      now,
+    );
     if (isFinishedStatus(m.status) && hasScore) {
       finished += 1;
       continue;

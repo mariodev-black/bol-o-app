@@ -10,6 +10,7 @@ import { getFootballMainCompetitionId, getSoleConfiguredExtraChampionshipId } fr
 import { resolveExtraBolaoDisplayName } from "@/lib/boloes-extra-competition-branding";
 import { getPool } from "@/lib/db";
 import { parseKickoffFromPartidaPayload, pickScoreFromPartidaPayload } from "@/lib/partida-placar";
+import { hasOfficialMatchResult } from "@/lib/palpites-match-open";
 import { pickTabelaGruposForPalpites } from "@/lib/tabela-palpites-normalize";
 import { resolveEffectiveRoundForExtraTicket } from "@/lib/boloes/extra-ticket-effective-round";
 import { syncExtra } from "@/lib/football/sync-orchestrator";
@@ -421,7 +422,14 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
           const normalizedMatchId = Number.isFinite(matchId) ? matchId : null;
           const m =
             normalizedMatchId != null ? getMatchFromMap(matches, histComp, normalizedMatchId) : undefined;
-          const scored = m?.resultCasa != null && m?.resultVisitante != null;
+          const scored =
+            m != null &&
+            hasOfficialMatchResult({
+              status: m.status,
+              kickoffAt: m.kickoffAt,
+              resultCasa: m.resultCasa,
+              resultVisitante: m.resultVisitante,
+            });
           const calc =
             scored && m
               ? calcPredictionPoints(p.score_casa, p.score_visitante, m.resultCasa!, m.resultVisitante!)
