@@ -1,5 +1,9 @@
 import { fetchMatchesMap, getMatchFromMap } from "@/lib/football-api";
 import { calcPredictionPoints, listPredictions } from "@/lib/predictions";
+import {
+  filterPredictionsForExtraTicketRound,
+  resolveExtraTicketRoundScope,
+} from "@/lib/palpites/extra-ticket-round-scope";
 import { inferBolaoTypeFromTicketId } from "@/lib/ticket-kind-server";
 import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
 import { fetchExtraChampionshipIdByTicketIds } from "@/lib/ticket-competition-server";
@@ -25,10 +29,18 @@ export async function computePalpitesResumo(
     bolaoType = inferred;
   }
 
-  const [preds, matches] = await Promise.all([
+  const [predsRaw, matches] = await Promise.all([
     listPredictions({ userId, bolaoType, ticketId }),
     fetchMatchesMap(),
   ]);
+
+  let preds = predsRaw;
+  if (bolaoType === "extra" && ticketId) {
+    const roundScope = await resolveExtraTicketRoundScope(ticketId);
+    if (roundScope) {
+      preds = filterPredictionsForExtraTicketRound(preds, roundScope, matches);
+    }
+  }
 
   const mainComp = getFootballMainCompetitionId();
   const extraMap = await fetchExtraChampionshipIdByTicketIds(

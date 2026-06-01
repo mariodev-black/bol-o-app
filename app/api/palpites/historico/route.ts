@@ -6,6 +6,10 @@ import {
   formatRankingHistoricoLiveLabel,
   isRankingHistoricoLive,
 } from "@/lib/ranking/historico-display";
+import {
+  filterPredictionsForExtraTicketRound,
+  resolveExtraTicketRoundScope,
+} from "@/lib/palpites/extra-ticket-round-scope";
 import { inferBolaoTypeFromTicketId } from "@/lib/ticket-kind-server";
 import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
 import { fetchExtraChampionshipIdByTicketIds } from "@/lib/ticket-competition-server";
@@ -42,8 +46,16 @@ export async function GET(request: NextRequest) {
     bolaoType = undefined;
   }
   const limit = Math.min(100, Math.max(1, Number.parseInt(request.nextUrl.searchParams.get("limit") ?? "20", 10) || 20));
-  const preds = await listPredictions({ userId, bolaoType, ticketId });
+  const predsRaw = await listPredictions({ userId, bolaoType, ticketId });
   const matches = await fetchMatchesMap();
+
+  let preds = predsRaw;
+  if (bolaoType === "extra" && ticketId) {
+    const roundScope = await resolveExtraTicketRoundScope(ticketId);
+    if (roundScope) {
+      preds = filterPredictionsForExtraTicketRound(preds, roundScope, matches);
+    }
+  }
   const mainComp = getFootballMainCompetitionId();
   const extraMap = await fetchExtraChampionshipIdByTicketIds(
     [...new Set(preds.filter((p) => p.bolao_type === "extra").map((p) => p.ticket_id))],
