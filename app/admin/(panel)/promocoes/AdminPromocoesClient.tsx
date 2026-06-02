@@ -3,6 +3,7 @@
 import { adminStatGridClass } from "@/app/admin/_components/admin-layout";
 import { AdminTableScroll } from "@/app/admin/_components/AdminTableScroll";
 import { formatAdminDate } from "@/lib/admin/format";
+import type { AdminBrasilEgitoPromoDashboard } from "@/lib/admin/brasil-egito-placar-promo";
 import type { AdminBrasilPanamaPromoDashboard } from "@/lib/admin/brasil-panama-placar-promo";
 import Link from "next/link";
 
@@ -40,10 +41,22 @@ function EligibleBadge({ eligible }: { eligible: boolean }) {
   );
 }
 
-export function AdminPromocoesClient({
+type PlacarPromoDashboard =
+  | AdminBrasilEgitoPromoDashboard
+  | AdminBrasilPanamaPromoDashboard;
+
+type PlacarPromoRow =
+  | AdminBrasilEgitoPromoDashboard["rows"][number]
+  | AdminBrasilPanamaPromoDashboard["rows"][number];
+
+function PlacarPromoSection({
+  title,
+  resultEnvPrefix,
   data,
 }: {
-  data: AdminBrasilPanamaPromoDashboard;
+  title: string;
+  resultEnvPrefix: string;
+  data: PlacarPromoDashboard;
 }) {
   const resultLabel =
     data.officialResult != null
@@ -67,7 +80,7 @@ export function AdminPromocoesClient({
     <div className="space-y-6">
       <section className="rounded-xl border border-white/10 bg-[#111] p-4 sm:p-5">
         <h2 className="text-[15px] font-black uppercase tracking-wide text-white">
-          Brasil x Panamá — Placar exato
+          {title}
         </h2>
         <p className="mt-1 text-[13px] text-white/55">
           Placar oficial:{" "}
@@ -86,11 +99,11 @@ export function AdminPromocoesClient({
           <p className="mt-2 text-[12px] font-medium text-amber-300/90">
             Configure{" "}
             <code className="rounded bg-white/8 px-1 py-0.5 text-[11px]">
-              BRASIL_PANAMA_PLACAR_RESULT_CASA
+              {resultEnvPrefix}_RESULT_CASA
             </code>{" "}
             e{" "}
             <code className="rounded bg-white/8 px-1 py-0.5 text-[11px]">
-              BRASIL_PANAMA_PLACAR_RESULT_VISITANTE
+              {resultEnvPrefix}_RESULT_VISITANTE
             </code>{" "}
             no servidor para marcar quem acertou.
           </p>
@@ -139,7 +152,7 @@ export function AdminPromocoesClient({
                 </td>
               </tr>
             ) : (
-              data.rows.map((row) => (
+              data.rows.map((row: PlacarPromoRow) => (
                 <tr
                   key={row.userId}
                   className="border-b border-white/6 text-white/85 hover:bg-white/[0.03]"
@@ -186,6 +199,31 @@ export function AdminPromocoesClient({
           </tbody>
         </table>
       </AdminTableScroll>
+    </div>
+  );
+}
+
+export function AdminPromocoesClient({
+  brasilEgito,
+  brasilPanama,
+}: {
+  brasilEgito: AdminBrasilEgitoPromoDashboard;
+  brasilPanama: AdminBrasilPanamaPromoDashboard;
+}) {
+  return (
+    <div className="space-y-12">
+      <PlacarPromoSection
+        title="Brasil x Egito — Placar exato"
+        resultEnvPrefix="BRASIL_EGITO_PLACAR"
+        data={brasilEgito}
+      />
+      {brasilPanama.stats.submissionsCount > 0 || brasilPanama.promoEnabled ? (
+        <PlacarPromoSection
+          title="Brasil x Panamá — Placar exato (legado)"
+          resultEnvPrefix="BRASIL_PANAMA_PLACAR"
+          data={brasilPanama}
+        />
+      ) : null}
     </div>
   );
 }

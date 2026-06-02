@@ -190,7 +190,13 @@ export async function syncAllConfigured(): Promise<{
     }
 
     const extras: SyncCompetitionResult[] = [];
+    const { getFootballApiSyncExcludedCompetitionIds } = await import(
+      "@/lib/football/amistosos-friendlies-config"
+    );
+    const skipSync = new Set(getFootballApiSyncExcludedCompetitionIds());
+
     for (const id of parseExtraBolaoChampionshipIds()) {
+      if (skipSync.has(id)) continue;
       try {
         extras.push(await syncExtra(id));
       } catch (err) {

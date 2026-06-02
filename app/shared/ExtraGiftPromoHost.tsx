@@ -7,20 +7,21 @@
  *   STEP 2 → confirmação após POST bem-sucedido.
  *
  * Visibilidade e “já resgatou” vêm só do backend (GET/POST `/api/promotions/extra-gift`).
- * Sem localStorage.
+ * Fechar o modal sem resgatar não persiste dismiss — só some até recarregar/navegar.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Check, X } from "lucide-react";
+import { ArrowRight, Check, Ticket, X } from "lucide-react";
 import confetti from "canvas-confetti";
 import { useIsAdminAppRoute } from "@/app/shared/app-route-guards";
 import { useAuth } from "@/app/shared/AuthContext";
 import { useBolaoToast } from "@/app/components/BolaoToast";
 import { extraBolaoIconSrc } from "@/app/shared/extra-bolao-icons";
-import type { ExtraGiftLeagueKind } from "@/lib/promotions/extra-gift";
-import { getExtraBolaoFirstPlaceLine } from "@/lib/boloes-prize-copy";
+import type { ExtraGiftLeagueKind } from "@/lib/promotions/extra-gift-shared";
+import { formatShortTicketId } from "@/lib/tickets/short-ticket-id";
+import logoAmistoso from "@/app/assets/logo-amistoso.png";
 import poupUpImage from "@/app/assets/poup-up.png";
 
 const audioTorcidaSrc = "/audio/audio-torcida.mp3";
@@ -59,13 +60,12 @@ type ClaimedTicketRow = {
 type Step = "offer" | "claimed";
 
 function leagueIconVariant(kind: ExtraGiftLeagueKind) {
-  return kind === "brasileirao"
-    ? "brasileirao"
-    : kind === "premier_league"
-      ? "premier_league"
-      : kind === "libertadores"
-        ? "libertadores"
-        : "generic";
+  if (kind === "amistosos") return "amistosos";
+  if (kind === "serie_b") return "serie_b";
+  if (kind === "brasileirao") return "brasileirao";
+  if (kind === "premier_league") return "premier_league";
+  if (kind === "libertadores") return "libertadores";
+  return "generic";
 }
 
 function filterExtraGiftDisplayLeagues<T extends { leagueKind: ExtraGiftLeagueKind }>(
@@ -87,7 +87,9 @@ function OfferStep({
   onClaim: () => void;
   onClose: () => void;
 }) {
-  const pendingLeagues = filterExtraGiftDisplayLeagues(status.leagues);
+  const pendingLeagues = [...filterExtraGiftDisplayLeagues(status.leagues)].sort(
+    (a, b) => a.championshipId - b.championshipId,
+  );
   const pendingCount = pendingLeagues.filter((l) => !l.alreadyClaimed).length;
   const cotaCount = pendingCount > 0 ? pendingCount : pendingLeagues.length;
 
@@ -133,9 +135,27 @@ function OfferStep({
           {cotaCount} {cotaCount === 1 ? "cota grátis" : "cotas grátis"}!
         </h2>
 
-        <p className="mt-6 mb-2 text-center text-[16px] font-bold leading-snug text-white">
+        <p className="mt-5 text-center text-[14px] font-semibold leading-snug text-white/85">
           {status.offerSubtitle}
         </p>
+
+        <ul className="mt-3 space-y-2">
+          {pendingLeagues.map((league) => (
+            <li
+              key={league.championshipId}
+              className="rounded-xl border border-white/10 bg-[#1a1a1a] px-3 py-2.5 text-center"
+            >
+              <p className="text-[13px] font-black uppercase leading-tight text-white">
+                {league.displayName}
+              </p>
+              {league.rodadaNome ? (
+                <p className="mt-1 text-[12px] font-medium leading-snug text-white/55">
+                  {league.rodadaNome}
+                </p>
+              ) : null}
+            </li>
+          ))}
+        </ul>
 
         <button
           type="button"
@@ -165,75 +185,102 @@ function ClaimedStep({
 
   return (
     <div
-      className="relative w-full max-w-[320px] rounded-2xl border border-white/10 bg-[#141414] px-4 pb-4 pt-10"
+      className="relative w-full max-w-[350px] pt-[168px]"
       style={{ fontFamily: PROMO_FONT }}
       onClick={(e) => e.stopPropagation()}
     >
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 z-0 flex justify-center px-6"
+        aria-hidden
+      >
+        <Image
+          src={logoAmistoso}
+          alt="FIFA Amistosos"
+          priority
+          draggable={false}
+          className="h-auto w-full max-w-[220px] select-none drop-shadow-[0_12px_28px_rgba(0,0,0,0.65)]"
+        />
+      </div>
+
       <button
         type="button"
         onClick={onClose}
         aria-label="Fechar"
-        className="absolute right-2.5 top-2.5 flex size-8 items-center justify-center rounded-full bg-black/60 text-white/90 transition-colors hover:bg-black"
+        className="absolute right-1 top-1 z-30 flex size-9 items-center justify-center rounded-full bg-black/70 text-white ring-1 ring-white/15 backdrop-blur-sm transition-colors hover:bg-black"
       >
-        <X className="size-3.5" strokeWidth={2.5} aria-hidden />
+        <X className="size-4" strokeWidth={2.5} aria-hidden />
       </button>
 
-      <header className="text-center">
-        <div
-          className="mx-auto mb-2.5 flex size-10 items-center justify-center rounded-full bg-primary/15 ring-1 ring-primary/50"
-          aria-hidden
-        >
-          <Check className="size-5 text-primary" strokeWidth={2.5} />
-        </div>
-        <h2
-          id="extra-gift-claimed-title"
-          className="text-[17px] font-black uppercase tracking-tight text-white"
-        >
-          Cotas liberadas
-        </h2>
-        <p className="mt-1 text-[12px] font-medium leading-snug text-white/65">
-          {sorted.length > 1
-            ? "Você ganhou 1 cota grátis em cada bolão extra:"
-            : "Sua cota grátis já está na sua conta."}
-        </p>
-      </header>
-
-      <ul className="mt-4 space-y-2">
-        {sorted.map((league) => (
-          <li
-            key={league.championshipId}
-            className="flex items-center gap-2.5 rounded-xl border border-white/8 bg-[#1a1a1a] px-2.5 py-2"
+      <div className="relative z-10 rounded-4xl border border-white/8 bg-[#141414] px-5 pb-5 pt-6">
+        <header className="text-center">
+          <div
+            className="mx-auto mb-2.5 flex size-10 items-center justify-center rounded-full bg-primary/15 ring-1 ring-primary/50"
+            aria-hidden
           >
-            <Image
-              src={extraBolaoIconSrc(leagueIconVariant(league.leagueKind))}
-              alt=""
-              width={36}
-              height={36}
-              className="size-9 shrink-0 object-contain"
-            />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[12px] font-bold uppercase tracking-wide text-white">
-                {league.displayName}
-              </p>
-              <p className="text-[11px] font-medium text-white/55">
-                1 cota grátis · {league.rodadaNome}
-              </p>
-            </div>
-            <p className="shrink-0 max-w-[108px] text-right text-[10px] font-bold leading-snug text-primary">
-              {getExtraBolaoFirstPlaceLine(league.championshipId, league.displayName)}
-            </p>
-          </li>
-        ))}
-      </ul>
+            <Check className="size-5 text-primary" strokeWidth={2.5} />
+          </div>
+          <h2
+            id="extra-gift-claimed-title"
+            className="text-[18px] font-black uppercase tracking-tight text-white"
+          >
+            Cotas liberadas!
+          </h2>
+          <p className="mt-1 text-[12px] font-medium leading-snug text-white/60">
+            {sorted.length > 1
+              ? "Seus tickets grátis já estão na conta:"
+              : "Seu ticket grátis já está na conta."}
+          </p>
+        </header>
 
-      <button
-        type="button"
-        onClick={onPlay}
-        className="mt-4 flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-full bg-primary px-3 text-[12px] font-black uppercase tracking-wide text-[#0E141B] transition-transform active:scale-[0.98]"
-      >
-        Ir para meus bolões
-        <ArrowRight className="size-4" strokeWidth={2.5} aria-hidden />
-      </button>
+        <ul className="mt-4 space-y-2.5">
+          {sorted.map((league) => (
+            <li
+              key={league.ticketId}
+              className="rounded-xl border border-white/10 bg-[#1a1a1a] px-3 py-2.5"
+            >
+              <div className="flex items-center gap-2.5">
+                <Image
+                  src={extraBolaoIconSrc(leagueIconVariant(league.leagueKind))}
+                  alt=""
+                  width={40}
+                  height={40}
+                  className="size-10 shrink-0 object-contain"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[12px] font-black uppercase leading-tight text-white">
+                    {league.displayName}
+                  </p>
+                  <p className="mt-0.5 text-[11px] font-medium text-white/55">
+                    {league.rodadaNome}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-2 flex items-center gap-2 rounded-lg border border-primary/25 bg-primary/8 px-2.5 py-1.5">
+                <Ticket
+                  className="size-4 shrink-0 text-primary"
+                  strokeWidth={2.2}
+                  aria-hidden
+                />
+                <span className="text-[11px] font-bold uppercase tracking-wide text-white/80">
+                  Ticket grátis
+                </span>
+                <span className="ml-auto font-mono text-[12px] font-black tabular-nums text-primary">
+                  #{formatShortTicketId(league.ticketId)}
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
+
+        <button
+          type="button"
+          onClick={onPlay}
+          className="mt-4 flex min-h-[48px] w-full items-center justify-center gap-1.5 rounded-full bg-primary px-3 text-[13px] font-black uppercase tracking-wide text-[#0E141B] transition-transform active:scale-[0.98]"
+        >
+          Ir para meus bolões
+          <ArrowRight className="size-4" strokeWidth={2.5} aria-hidden />
+        </button>
+      </div>
     </div>
   );
 }
@@ -325,6 +372,13 @@ export function ExtraGiftPromoHost({ children }: { children: React.ReactNode }) 
       setOpen(false);
       setStatus(null);
       return;
+    }
+
+    try {
+      window.sessionStorage.removeItem("bolao_extra_gift_dismissed");
+      window.sessionStorage.removeItem("bolao_extra_gift_v2_dismissed");
+    } catch {
+      /* ignore */
     }
 
     (async () => {

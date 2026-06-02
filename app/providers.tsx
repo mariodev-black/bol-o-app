@@ -4,7 +4,7 @@ import React, { Suspense } from "react";
 import { BolaoToastProvider } from "@/app/components/BolaoToast";
 import { AuthProvider } from "@/app/shared/AuthContext";
 import { AppServerConfigProvider } from "@/app/shared/AppServerConfigContext";
-import { BrasilPanamaPlacarPromoHost } from "@/app/shared/BrasilPanamaPlacarPromoHost";
+import { BrasilEgitoPlacarPromoHost } from "@/app/shared/BrasilEgitoPlacarPromoHost";
 import { ChampionsPlacarPromoHost } from "@/app/shared/ChampionsPlacarPromoHost";
 import { ExtraGiftPromoHost } from "@/app/shared/ExtraGiftPromoHost";
 import { MainBolaoPromoModalHost } from "@/app/shared/MainBolaoPromoModalHost";
@@ -30,7 +30,7 @@ export function Providers({
       <AuthProvider initialUser={initialAuthUser}>
         <PwaManager />
         <ProfileCompletionHost>
-          <BrasilPanamaPlacarPromoHost>
+          <BrasilEgitoPlacarPromoHost>
             <ChampionsPlacarPromoHost>
               <ExtraGiftPromoHost>
                 <MainBolaoPromoModalHost>
@@ -41,7 +41,7 @@ export function Providers({
                 </MainBolaoPromoModalHost>
               </ExtraGiftPromoHost>
             </ChampionsPlacarPromoHost>
-          </BrasilPanamaPlacarPromoHost>
+          </BrasilEgitoPlacarPromoHost>
         </ProfileCompletionHost>
       </AuthProvider>
       </AppServerConfigProvider>

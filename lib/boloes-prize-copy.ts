@@ -26,6 +26,8 @@ export const MILHAO_MARKETING_TOP_PRIZES = {
 
 const EXTRA_FIRST_PLACE_BY_VARIANT: Record<ExtraBolaoHeroSideVariant, string> = {
   brasileirao: "Bolão do Brasileirão: R$ 1.000 para o 1º colocado.",
+  serie_b: "Bolão Série B: R$ 10.000 em premiações — 1º R$ 1.000.",
+  amistosos: "Bolão dos Amistosos: 1º R$ 1.000 · 2º R$ 500 · 3º R$ 300.",
   libertadores: "Bolão da Libertadores: R$ 1.000 para o 1º colocado.",
   premier_league: "Bolão da Premier League: R$ 1.000 para o 1º colocado.",
   copa_brasil: "Bolão da Copa do Brasil: R$ 1.000 para o 1º colocado.",

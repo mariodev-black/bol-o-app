@@ -1,4 +1,8 @@
 import { isCopaDoBrasilChampionshipTitle } from "@/lib/boloes-copa-brasil-branding";
+import {
+  isAmistososFriendliesCompetition,
+  isSerieBExtraGiftChampionship,
+} from "@/lib/football/amistosos-friendlies";
 
 /**
  * IDs na API-Futebol v1 tratados como Brasileirão (ex. Série A = 10).
@@ -130,6 +134,8 @@ export function isBrasileiraoExtraChampionship(
 export type ExtraBolaoHeroSideVariant =
   | "copa_brasil"
   | "brasileirao"
+  | "serie_b"
+  | "amistosos"
   | "premier_league"
   | "libertadores"
   | "generic";
@@ -138,6 +144,8 @@ export function getExtraBolaoHeroSideVariant(
   championshipId: number | undefined | null,
   title: string | undefined | null,
 ): ExtraBolaoHeroSideVariant {
+  if (isAmistososFriendliesCompetition(championshipId)) return "amistosos";
+  if (isSerieBExtraGiftChampionship(Number(championshipId))) return "serie_b";
   if (isCopaDoBrasilChampionshipTitle(title)) return "copa_brasil";
   if (isBrasileiraoExtraChampionship(championshipId, title)) return "brasileirao";
   if (isPremierLeagueExtraChampionship(championshipId, title)) return "premier_league";
@@ -147,6 +155,8 @@ export function getExtraBolaoHeroSideVariant(
 
 /** Nome curto quando não há metadata da API no cache. */
 export function extraBolaoFallbackDisplayName(championshipId: number): string {
+  if (isAmistososFriendliesCompetition(championshipId)) return "Bolão dos Amistosos";
+  if (isSerieBExtraGiftChampionship(championshipId)) return "Bolão Grátis Série B";
   if (brasileiraoExtraIdSet().has(championshipId)) return "Brasileirão";
   if (premierLeagueExtraIdSet().has(championshipId)) return "Premier League";
   if (libertadoresExtraIdSet().has(championshipId)) return "Libertadores";

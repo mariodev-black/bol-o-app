@@ -1,9 +1,11 @@
 /**
  * Brinde "Bolão extra grátis" pós-login.
  *
- * Cotas fixas por campeonato/rodada (default: Brasileirão 18ª).
+ * Cotas fixas por campeonato/rodada (default: Série B 12ª + Amistosos dia 6).
  * Configure com `EXTRA_GIFT_PROMO_CHAMPIONSHIP_IDS` e `EXTRA_GIFT_PROMO_ROUNDS`.
  */
+
+import "server-only";
 
 import { getPool } from "@/lib/db";
 import { getExtraBolaoFirstPlaceLine } from "@/lib/boloes-prize-copy";
@@ -15,7 +17,20 @@ import {
   isPremierLeagueExtraChampionship,
 } from "@/lib/boloes-extra-competition-branding";
 import { parseExtraBolaoChampionshipIds } from "@/lib/boloes-extra-config";
+import {
+  AMISTOSOS_FRIENDLIES_ROUND,
+  AMISTOSOS_FRIENDLIES_SUBTITLE,
+  getAmistososFriendliesCompetitionId,
+  isAmistososFriendliesCompetition,
+  isSerieBExtraGiftChampionship,
+} from "@/lib/football/amistosos-friendlies";
 import { resolveCurrentExtraRound } from "@/lib/football/extras-rodada";
+import {
+  EXTRA_GIFT_PROMO_CAMPAIGN_ID,
+  type ExtraGiftLeagueKind,
+} from "@/lib/promotions/extra-gift-shared";
+
+export { EXTRA_GIFT_PROMO_CAMPAIGN_ID, type ExtraGiftLeagueKind };
 
 function env(name: string): string {
   const raw = process.env[name];
@@ -32,13 +47,18 @@ export function isExtraGiftPromoEnabled(): boolean {
   return envBool("EXTRA_GIFT_PROMO_ENABLED");
 }
 
-/** Default do modal: só Brasileirão (sem Libertadores nem Premier). */
-const DEFAULT_EXTRA_GIFT_CHAMPIONSHIP_IDS: readonly number[] = [10];
+/** Default: Série B (12ª) + Amistosos dia 6. */
+function defaultExtraGiftChampionshipIds(): number[] {
+  return [14, getAmistososFriendliesCompetitionId()];
+}
 
 /** Rodadas fixas do brinde quando `EXTRA_GIFT_PROMO_ROUNDS` não define o id. */
-const DEFAULT_EXTRA_GIFT_ROUND_BY_CHAMPIONSHIP: Readonly<Record<number, number>> = {
-  10: 18,
-};
+function defaultExtraGiftRoundByChampionship(): Readonly<Record<number, number>> {
+  return {
+    14: 12,
+    [getAmistososFriendliesCompetitionId()]: AMISTOSOS_FRIENDLIES_ROUND,
+  };
+}
 
 export type ExtraGiftPromoTarget = {
   championshipId: number;
@@ -47,7 +67,7 @@ export type ExtraGiftPromoTarget = {
 
 function parseExtraGiftPromoRoundsMap(): Map<number, number> {
   const map = new Map<number, number>(
-    Object.entries(DEFAULT_EXTRA_GIFT_ROUND_BY_CHAMPIONSHIP).map(([k, v]) => [
+    Object.entries(defaultExtraGiftRoundByChampionship()).map(([k, v]) => [
       Number(k),
       v,
     ]),
@@ -83,7 +103,7 @@ function filterExtraGiftPromoIds(ids: readonly number[]): number[] {
 
 /**
  * Campeonatos + rodada fixa do brinde (não usa rodada “ao vivo” da API).
- * Default: `10` (Brasileirão 18ª) — sem Libertadores nem Premier.
+ * Default: Série B 12ª + Amistosos dia 6.
  */
 export function getExtraGiftPromoTargets(): ExtraGiftPromoTarget[] {
   if (!isExtraGiftPromoEnabled()) return [];
@@ -107,7 +127,7 @@ export function getExtraGiftPromoTargets(): ExtraGiftPromoTarget[] {
       ids =
         Number.isFinite(id) && id > 0 && configuredSet.has(id) ? [id] : [];
     } else {
-      ids = DEFAULT_EXTRA_GIFT_CHAMPIONSHIP_IDS.filter((id) => configuredSet.has(id));
+      ids = defaultExtraGiftChampionshipIds().filter((id) => configuredSet.has(id));
     }
   }
 
@@ -144,24 +164,32 @@ export function formatExtraGiftLeagueNames(
 }
 
 /** Cópia do step 1 do modal (ex.: linha de 1º colocado por liga). */
+export function resolveExtraGiftLeagueDisplayName(
+  championshipId: number,
+  championshipName?: string | null,
+): string {
+  if (isAmistososFriendliesCompetition(championshipId)) {
+    return "Bolão dos Amistosos";
+  }
+  if (isSerieBExtraGiftChampionship(championshipId)) {
+    return "Bolão Grátis Série B";
+  }
+  return resolveExtraBolaoDisplayName(championshipId, championshipName);
+}
+
 export function formatExtraGiftOfferSubtitle(
-  leagues: ReadonlyArray<{ displayName: string; championshipId: number }>,
+  leagues: ReadonlyArray<{ displayName: string }>,
 ): string {
   if (leagues.length === 0) return "Bolão extra grátis";
-  if (leagues.length === 1) {
-    const league = leagues[0]!;
-    return getExtraBolaoFirstPlaceLine(league.championshipId, league.displayName);
-  }
-  return leagues
-    .map((l) => getExtraBolaoFirstPlaceLine(l.championshipId, l.displayName))
-    .join(" · ");
+  if (leagues.length === 1) return "Resgate sua cota grátis agora.";
+  return "Resgate 1 cota grátis em cada bolão:";
 }
 
 /** @deprecated Use `leagues[].displayName` no status. Mantido para admin/config. */
 export function getExtraGiftDisplayName(): string {
   const targets = getExtraGiftPromoTargets();
   if (targets.length === 0) return "Bolão extra";
-  const names = targets.map((t) => extraBolaoFallbackDisplayName(t.championshipId));
+  const names = targets.map((t) => resolveExtraGiftLeagueDisplayName(t.championshipId, null));
   if (names.length === 1) return names[0]!;
   if (names.length === 2) return `${names[0]} e ${names[1]}`;
   return names.join(", ");
@@ -184,8 +212,6 @@ export function getExtraGiftPromoPublicConfig(): ExtraGiftPromoPublicConfig {
     prizeLabel: getExtraGiftPrizeLabel(),
   };
 }
-
-export type ExtraGiftLeagueKind = "brasileirao" | "premier_league" | "libertadores" | "other";
 
 export type ExtraGiftLeagueStatus = {
   championshipId: number;
@@ -210,6 +236,8 @@ export type ExtraGiftStatus = {
   offerSubtitle: string;
   /** Exibir modal de oferta (há cotas pendentes). */
   showOfferModal: boolean;
+  /** Identificador da campanha (cliente / dismiss). */
+  campaignId: string;
   /** Compat legado — primeiro campeonato / primeiro ticket. */
   championshipId: number | null;
   rodada: number | null;
@@ -228,6 +256,7 @@ const EMPTY_STATUS = (): ExtraGiftStatus => ({
   canClaim: false,
   offerSubtitle: "",
   showOfferModal: false,
+  campaignId: EXTRA_GIFT_PROMO_CAMPAIGN_ID,
   championshipId: null,
   rodada: null,
   rodadaNome: null,
@@ -243,19 +272,40 @@ export async function getExtraGiftStatusForUser(userId: string): Promise<ExtraGi
     return EMPTY_STATUS();
   }
 
+  if (targets.some((t) => isAmistososFriendliesCompetition(t.championshipId))) {
+    const { ensureAmistososFriendliesMatchesSeeded } = await import(
+      "@/lib/football/amistosos-friendlies-persistence"
+    );
+    await ensureAmistososFriendliesMatchesSeeded().catch((err) => {
+      console.warn("[extra-gift] ensureAmistososFriendliesMatchesSeeded", err);
+    });
+  }
+
   const leagues: ExtraGiftLeagueStatus[] = [];
 
   for (const { championshipId, rodada } of targets) {
-    const resolved = await resolveCurrentExtraRound(championshipId).catch(() => null);
-    const championshipName = resolved?.championshipNome ?? null;
+    const isAmistosos = isAmistososFriendliesCompetition(championshipId);
+    const resolved = isAmistosos
+      ? null
+      : await resolveCurrentExtraRound(championshipId).catch(() => null);
+    const championshipName = isAmistosos
+      ? "Bolão dos Amistosos"
+      : (resolved?.championshipNome ?? null);
     const existing = await findExistingGiftTicket(userId, championshipId, rodada);
+    const displayName = resolveExtraGiftLeagueDisplayName(championshipId, championshipName);
+    const rodadaNome = isAmistosos
+      ? AMISTOSOS_FRIENDLIES_SUBTITLE
+      : isSerieBExtraGiftChampionship(championshipId)
+        ? "12ª rodada · início 05/06"
+        : `${rodada}ª rodada`;
+
     leagues.push({
       championshipId,
-      displayName: resolveExtraBolaoDisplayName(championshipId, championshipName),
+      displayName,
       leagueKind: extraGiftLeagueKind(championshipId, championshipName),
       championshipName,
       rodada,
-      rodadaNome: `${rodada}ª Rodada`,
+      rodadaNome,
       alreadyClaimed: existing != null,
       ticketId: existing?.id ?? null,
     });
@@ -290,6 +340,7 @@ export async function getExtraGiftStatusForUser(userId: string): Promise<ExtraGi
     canClaim,
     offerSubtitle: formatExtraGiftOfferSubtitle(promoLeagues),
     showOfferModal,
+    campaignId: EXTRA_GIFT_PROMO_CAMPAIGN_ID,
     championshipId: first.championshipId,
     rodada: first.rodada,
     rodadaNome: first.rodadaNome,
@@ -357,7 +408,7 @@ async function claimExtraGiftForChampionship(
   }
 
   const pool = getPool();
-  const externalRef = `extra_gift:${userId}:${championshipId}:${rodada}`;
+  const externalRef = `${EXTRA_GIFT_PROMO_CAMPAIGN_ID}:${userId}:${championshipId}:${rodada}`;
 
   try {
     const { rows } = await pool.query<{ id: string }>(
@@ -486,6 +537,8 @@ export function extraGiftLeagueKind(
   championshipId: number,
   title?: string | null,
 ): ExtraGiftLeagueKind {
+  if (isAmistososFriendliesCompetition(championshipId)) return "amistosos";
+  if (isSerieBExtraGiftChampionship(championshipId)) return "serie_b";
   if (isBrasileiraoExtraChampionship(championshipId, title)) return "brasileirao";
   if (isPremierLeagueExtraChampionship(championshipId, title)) return "premier_league";
   if (isLibertadoresExtraChampionship(championshipId, title)) return "libertadores";

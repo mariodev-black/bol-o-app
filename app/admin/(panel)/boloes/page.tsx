@@ -3,6 +3,7 @@ import { AdminBolaoDashboardCard } from "@/app/admin/(panel)/boloes/_components/
 import { AdminExtraCompetitionSection } from "@/app/admin/(panel)/boloes/_components/AdminExtraCompetitionSection";
 import { getAdminBoloesDashboardData, type AdminExtraBolaoCard } from "@/lib/admin/sections";
 import { Gift, Layers, Ticket, Trophy, Users } from "lucide-react";
+import Link from "next/link";
 
 function groupExtraCardsByCompetition(cards: AdminExtraBolaoCard[]) {
   const map = new Map<string, AdminExtraBolaoCard[]>();
@@ -126,6 +127,12 @@ export default async function AdminBoloesPage() {
             <p className="mt-1 text-[12px] font-medium text-white/38">
               Agrupado por campeonato e rodada — inclui cotas do brinde grátis.
             </p>
+            <Link
+              href="/admin/boloes/amistosos"
+              className="mt-2 inline-flex text-[12px] font-bold text-primary hover:underline"
+            >
+              Placares — Bolão dos Amistosos (manual)
+            </Link>
           </div>
           {data.promoTicketsTotal > 0 ? (
             <p className="inline-flex items-center gap-2 rounded-full border border-amber-400/25 bg-amber-400/10 px-3 py-1.5 text-[11px] font-black text-amber-200">

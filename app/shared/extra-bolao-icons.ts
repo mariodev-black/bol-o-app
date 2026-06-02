@@ -3,6 +3,8 @@ import iconBrasileirao from "@/app/assets/icon-brasileirao.png";
 import iconPremierLeague from "@/app/assets/icon-premier-league.png";
 import iconLibertadores from "@/app/assets/icone-libertadores.png";
 import iconCopaBrasil from "@/app/assets/icon-copa-brasil.png";
+import logoAmistoso from "@/app/assets/logo-amistoso.png";
+import logoSerieB from "@/app/assets/logo-serie-b.png";
 import ticketBlue from "@/app/assets/Ticket-Blue.png";
 import type {
   CheckoutExtraBolaoIconVariant,
@@ -21,6 +23,10 @@ export function extraBolaoIconSrc(
       return iconCopaBrasil;
     case "brasileirao":
       return iconBrasileirao;
+    case "serie_b":
+      return logoSerieB;
+    case "amistosos":
+      return logoAmistoso;
     case "premier_league":
       return iconPremierLeague;
     case "libertadores":

@@ -466,6 +466,20 @@ function ActiveRowBolaoIcon({
       </div>
     );
   }
+  if (side === "amistosos" || side === "serie_b") {
+    const src = extraBolaoIconSrc(side);
+    return (
+      <div className="flex w-[58px] shrink-0 flex-col items-center justify-center px-0.5 text-center">
+        <Image
+          src={src}
+          alt=""
+          width={44}
+          height={44}
+          className="h-11 w-11 object-contain"
+        />
+      </div>
+    );
+  }
   return <BolaoIcon type="extra" />;
 }
 
@@ -1236,15 +1250,9 @@ function ActiveShowcaseCard({
   const image = isPrincipal
     ? iconCopaMundo
     : isExtra
-      ? extraHero === "copa_brasil"
-        ? iconCopaBrasil
-        : extraHero === "brasileirao"
-          ? iconBrasileirao
-          : extraHero === "premier_league"
-            ? iconPremierLeague
-            : extraHero === "libertadores"
-              ? iconLibertadores
-              : ticketBlue
+      ? extraHero === "generic"
+        ? ticketBlue
+        : extraBolaoIconSrc(extraHero)
       : iconCopaMundo;
   const showVerResultados =
     item.displayPhase === "finalizado" ||

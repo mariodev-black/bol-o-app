@@ -21,6 +21,7 @@
  */
 
 import { getPool } from "@/lib/db";
+import { getFootballApiSyncExcludedCompetitionIds } from "@/lib/football/amistosos-friendlies-config";
 import {
   ADVISORY_LOCK_FOOTBALL_REALTIME_TICK,
   tryWithFootballAdvisoryLock,
@@ -74,6 +75,7 @@ WHERE
       AND kickoff_at >= now() - ($2::text || ' minutes')::interval
     )
   )
+  AND NOT (mc.competition_id = ANY($4::int[]))
 ORDER BY kickoff_at ASC NULLS LAST
 LIMIT $3
 `;
@@ -135,10 +137,12 @@ async function runRealtimeTickUnlocked(): Promise<RealtimeTickResult> {
   const preMin = workerPreKickoffMinutes();
   const cap = workerMaxPerTick();
 
+  const excludedCompetitions = getFootballApiSyncExcludedCompetitionIds();
   const { rows } = await pool.query<ActiveRow>(SELECT_ACTIVE_MATCHES_SQL, [
     String(preMin),
     String(windowMin),
     cap,
+    excludedCompetitions,
   ]);
 
   if (rows.length === 0) {
