@@ -11,11 +11,11 @@ import {
   Sparkles,
   Trophy,
 } from "lucide-react";
-import iconCopaBrasil from "@/app/assets/icon-copa-brasil.png";
-import iconBrasileirao from "@/app/assets/icon-brasileirao.png";
 import iconCopaMundo from "@/app/assets/icon-copa-mundo.png";
-import iconPremierLeague from "@/app/assets/icon-premier-league.png";
-import iconLibertadores from "@/app/assets/icone-libertadores.png";
+import {
+  extraBolaoIconSrc,
+  isExtraBolaoBrandedIcon,
+} from "@/app/shared/extra-bolao-icons";
 import { getExtraBolaoHeroSideVariant } from "@/lib/boloes-extra-competition-branding";
 import type {
   RankingScopeOption,
@@ -163,21 +163,11 @@ export function ScopeLogoLarge({ option }: { option: RankingScopeOption }) {
     option.extraChampionshipId,
     option.selectPrimary ?? primary,
   );
-  const src =
-    variant === "copa_brasil"
-      ? iconCopaBrasil
-      : variant === "brasileirao"
-        ? iconBrasileirao
-        : variant === "premier_league"
-          ? iconPremierLeague
-          : variant === "libertadores"
-            ? iconLibertadores
-            : null;
 
-  if (src) {
+  if (isExtraBolaoBrandedIcon(variant)) {
     return (
       <Image
-        src={src}
+        src={extraBolaoIconSrc(variant)}
         alt=""
         width={88}
         height={88}
@@ -239,43 +229,10 @@ export function scopeGlyphForMode(
       extraChampionshipId,
       extraSelectPrimary,
     );
-    if (variant === "copa_brasil") {
+    if (isExtraBolaoBrandedIcon(variant)) {
       return (
         <Image
-          src={iconCopaBrasil}
-          alt=""
-          width={imgPx}
-          height={imgPx}
-          className={`${dim} shrink-0 object-contain`}
-        />
-      );
-    }
-    if (variant === "brasileirao") {
-      return (
-        <Image
-          src={iconBrasileirao}
-          alt=""
-          width={imgPx}
-          height={imgPx}
-          className={`${dim} shrink-0 object-contain`}
-        />
-      );
-    }
-    if (variant === "premier_league") {
-      return (
-        <Image
-          src={iconPremierLeague}
-          alt=""
-          width={imgPx}
-          height={imgPx}
-          className={`${dim} shrink-0 object-contain`}
-        />
-      );
-    }
-    if (variant === "libertadores") {
-      return (
-        <Image
-          src={iconLibertadores}
+          src={extraBolaoIconSrc(variant)}
           alt=""
           width={imgPx}
           height={imgPx}

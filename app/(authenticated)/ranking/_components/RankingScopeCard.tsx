@@ -162,7 +162,7 @@ export function RankingScopeCard({
   if (goToPalpites) {
     return (
       <article
-        className="flex w-full flex-col overflow-hidden rounded-[16px] text-left"
+        className={`flex flex-col overflow-hidden rounded-[16px] text-left ${layoutClass}`}
         style={cardStyle}
         aria-label={`${header.category} ${header.title}`}
       >
