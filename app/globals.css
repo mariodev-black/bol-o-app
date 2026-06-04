@@ -648,6 +648,7 @@ button, [role="button"] {
 }
 .auth-field--error .auth-field-hint {
   color: #f87171;
+  font-weight: 600;
 }
 .auth-field--success .auth-field-hint {
   color: rgba(177, 235, 11, 0.65);

@@ -4,7 +4,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useBolaoToast } from "@/app/components/BolaoToast";
 import { useAuth, type AuthUser } from "@/app/shared/AuthContext";
 import { isValidCpf } from "@/lib/auth/cpf";
-import { isValidBrazilNationalDigits } from "@/lib/auth/phone";
+import {
+  getBrazilPhoneValidationMessage,
+  isValidBrazilNationalDigits,
+} from "@/lib/auth/phone";
 import {
   clearPendingReferral,
   normalizePendingReferralInput,
@@ -54,7 +57,15 @@ function isValidEmailLoose(v: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t);
 }
 
-export function CadastrarContent() {
+export function CadastrarContent({
+  embedded = false,
+  fromPath: fromPathProp,
+  onAuthSuccess,
+}: {
+  embedded?: boolean;
+  fromPath?: string | null;
+  onAuthSuccess?: () => void;
+} = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const toast = useBolaoToast();
@@ -74,6 +85,8 @@ export function CadastrarContent() {
 
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
+  const [step1Attempted, setStep1Attempted] = useState(false);
+  const [step2Attempted, setStep2Attempted] = useState(false);
 
   const refFromUrl = useMemo(
     () => normalizePendingReferralInput(searchParams.get("ref")),
@@ -84,7 +97,10 @@ export function CadastrarContent() {
     setStoredReferral(readPendingReferralCode());
   }, []);
   const referralCodeResolved = refFromUrl ?? storedReferral;
-  const fromParam = useMemo(() => searchParams.get("from"), [searchParams]);
+  const fromParam = useMemo(
+    () => fromPathProp ?? searchParams.get("from"),
+    [fromPathProp, searchParams],
+  );
 
   const cpfDigits = cpf.replace(/\D/g, "");
   const cpfValid = cpfDigits.length === 11 && isValidCpf(cpfDigits);
@@ -93,6 +109,47 @@ export function CadastrarContent() {
 
   const phoneDigits = phone.replace(/\D/g, "");
   const phoneValid = isValidBrazilNationalDigits(phoneDigits);
+  const phoneErrorMessage = getBrazilPhoneValidationMessage(phoneDigits);
+  const emailTrim = email.trim();
+  const confirmEmailTrim = confirmEmail.trim();
+  const emailValid = emailTrim.length > 0 && isValidEmailLoose(email);
+  const emailsMatch =
+    emailValid &&
+    confirmEmailTrim.length > 0 &&
+    emailTrim.toLowerCase() === confirmEmailTrim.toLowerCase();
+  const passwordValid = password.length >= 8;
+
+  const showNameError = step1Attempted && !nameValid;
+  const showCpfError =
+    step1Attempted && cpfDigits.length > 0 && !cpfValid;
+  const showPhoneError =
+    step2Attempted && !phoneValid
+      ? phoneErrorMessage ?? "Informe um celular válido com DDD."
+      : phoneDigits.length >= 8 && !phoneValid
+        ? phoneErrorMessage
+        : null;
+  const showEmailError =
+    step2Attempted && emailTrim.length > 0 && !emailValid
+      ? "Digite um e-mail válido."
+      : step2Attempted && !emailTrim
+        ? "Informe seu e-mail."
+        : null;
+  const showConfirmEmailError =
+    step2Attempted && confirmEmailTrim.length > 0 && !emailsMatch
+      ? emailTrim.length === 0
+        ? "Informe o e-mail antes de confirmar."
+        : !emailValid
+          ? "Corrija o e-mail acima antes de confirmar."
+          : "Os e-mails informados não coincidem."
+      : step2Attempted && !confirmEmailTrim
+        ? "Confirme seu e-mail."
+        : null;
+  const showPasswordError =
+    step2Attempted && password.length > 0 && !passwordValid
+      ? "A senha deve ter pelo menos 8 caracteres."
+      : step2Attempted && !password
+        ? "Crie uma senha."
+        : null;
 
   function handleCpfChange(raw: string) {
     setCpf(maskCPF(raw));
@@ -132,14 +189,8 @@ export function CadastrarContent() {
   }
 
   function goFromStep1() {
-    if (!nameValid) {
-      toast.error("Informe seu nome (mínimo 2 caracteres).");
-      return;
-    }
-    if (!cpfValid) {
-      toast.error("Informe um CPF válido.");
-      return;
-    }
+    setStep1Attempted(true);
+    if (!nameValid || !cpfValid) return;
     setStep(2);
   }
 
@@ -147,25 +198,19 @@ export function CadastrarContent() {
     e.preventDefault();
     if (step !== 2) return;
 
+    setStep2Attempted(true);
+
     if (!nameValid || !cpfValid) {
-      toast.error("Revise nome e CPF.");
+      setStep1Attempted(true);
       setStep(1);
       return;
     }
-    if (!phoneValid) {
-      toast.error("Informe um celular válido com DDD.");
-      return;
-    }
-    if (!email.trim() || !isValidEmailLoose(email)) {
-      toast.error("Digite um e-mail válido.");
-      return;
-    }
-    if (email.trim().toLowerCase() !== confirmEmail.trim().toLowerCase()) {
-      toast.error("Os e-mails informados não coincidem.");
-      return;
-    }
-    if (password.length < 8) {
-      toast.error("Crie uma senha com pelo menos 8 caracteres.");
+    if (
+      !phoneValid ||
+      !emailValid ||
+      !emailsMatch ||
+      !passwordValid
+    ) {
       return;
     }
 
@@ -215,6 +260,10 @@ export function CadastrarContent() {
         await new Promise((resolve) => setTimeout(resolve, 900));
       }
       clearPendingReferral();
+      if (embedded && onAuthSuccess) {
+        onAuthSuccess();
+        return;
+      }
       router.replace(safeReturnPath(fromParam) ?? "/tickets");
     } catch {
       toast.error("Erro de rede. Tente novamente.");
@@ -223,13 +272,6 @@ export function CadastrarContent() {
     }
   }
 
-  const step1Ready = cpfValid && nameValid;
-  const step2Ready =
-    phoneValid &&
-    email.trim().length > 0 &&
-    confirmEmail.trim().length > 0 &&
-    password.length >= 8 &&
-    !loading;
   const busy = loading;
 
   return (
@@ -246,7 +288,15 @@ export function CadastrarContent() {
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
             disabled={busy}
-            success={nameValid}
+            success={nameValid && step1Attempted}
+            error={showNameError}
+            hint={
+              showNameError
+                ? nameTrim.length === 0
+                  ? "Informe seu nome completo."
+                  : "Nome muito curto (mínimo 2 caracteres)."
+                : undefined
+            }
           />
 
           <AuthField
@@ -258,8 +308,16 @@ export function CadastrarContent() {
             onChange={(e) => handleCpfChange(e.target.value)}
             disabled={busy}
             success={cpfValid}
-            error={cpf.length > 0 && !cpfValid && cpfDigits.length >= 11}
-            hint={cpfDigits.length > 0 && cpfDigits.length < 11 ? `CPF: ${cpfDigits.length} de 11 dígitos.` : undefined}
+            error={Boolean(showCpfError)}
+            hint={
+              showCpfError
+                ? cpfDigits.length < 11
+                  ? `CPF incompleto (${cpfDigits.length} de 11 dígitos).`
+                  : "CPF inválido. Confira os números."
+                : cpfDigits.length > 0 && cpfDigits.length < 11
+                  ? `CPF: ${cpfDigits.length} de 11 dígitos.`
+                  : undefined
+            }
           />
 
           <p className="text-[12px] leading-relaxed text-white/55">
@@ -299,7 +357,7 @@ export function CadastrarContent() {
             </span>
           </button>
 
-          <AuthPrimaryButton type="button" disabled={!step1Ready || busy} onClick={goFromStep1}>
+          <AuthPrimaryButton type="button" disabled={busy} onClick={goFromStep1}>
             Avançar
           </AuthPrimaryButton>
         </div>
@@ -316,6 +374,9 @@ export function CadastrarContent() {
             value={phone}
             onChange={(e) => setPhone(maskBrazilPhone(e.target.value))}
             disabled={busy}
+            success={phoneValid}
+            error={Boolean(showPhoneError)}
+            hint={showPhoneError ?? undefined}
           />
 
           <div ref={emailRef} className="relative">
@@ -327,6 +388,9 @@ export function CadastrarContent() {
               value={email}
               onChange={(e) => handleEmailChange(e.target.value)}
               disabled={busy}
+              success={emailValid}
+              error={Boolean(showEmailError)}
+              hint={showEmailError ?? undefined}
             />
             {suggestions.length > 0 && (
               <div className="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-xl border border-[#B1EB0B]/25 bg-[#0A0A0A] shadow-lg">
@@ -359,6 +423,9 @@ export function CadastrarContent() {
             value={confirmEmail}
             onChange={(e) => setConfirmEmail(e.target.value)}
             disabled={busy}
+            success={emailsMatch}
+            error={Boolean(showConfirmEmailError)}
+            hint={showConfirmEmailError ?? undefined}
           />
 
           <AuthPasswordField
@@ -369,10 +436,19 @@ export function CadastrarContent() {
             onToggleShow={() => setShowPw((v) => !v)}
             disabled={busy}
             autoComplete="new-password"
+            success={passwordValid}
+            error={Boolean(showPasswordError)}
+            hint={showPasswordError ?? undefined}
           />
 
-          <AuthStepNav onBack={() => setStep(1)} backDisabled={busy}>
-            <AuthPrimaryButton type="submit" disabled={!step2Ready}>
+          <AuthStepNav
+            onBack={() => {
+              setStep(1);
+              setStep2Attempted(false);
+            }}
+            backDisabled={busy}
+          >
+            <AuthPrimaryButton type="submit" disabled={busy}>
               {loading ? "Criando conta..." : "Finalizar cadastro"}
             </AuthPrimaryButton>
           </AuthStepNav>

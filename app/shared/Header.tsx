@@ -9,6 +9,7 @@ import logo from "@/app/assets/logo.svg";
 import { Menu as MenuIcon } from "lucide-react";
 import { NotificationsBell } from "@/app/shared/NotificationsBell";
 import { PromotionsGiftButton } from "@/app/shared/PromotionsGiftButton";
+import { useHomeAuthModal } from "@/app/shared/HomeAuthModalContext";
 import { useAuth } from "@/app/shared/AuthContext";
 import { useSidenav } from "@/app/shared/SidenavContext";
 import { InstallAppBanner } from "@/app/shared/InstallAppBanner";
@@ -61,6 +62,7 @@ function HeaderShell({
 export function Header() {
   const pathname = usePathname();
   const { ready, isLoggedIn } = useAuth();
+  const { openLogin, openCadastro } = useHomeAuthModal();
   const { openSidenav } = useSidenav();
   const [installBannerVisible, setInstallBannerVisible] = useState(false);
   const [installBannerHydrated, setInstallBannerHydrated] = useState(false);
@@ -72,6 +74,7 @@ export function Header() {
   }, []);
 
   const isHomePage = (pathname ?? "") === "/";
+  const isGuestHomePromo = isHomePage && !isLoggedIn;
 
   useEffect(() => {
     if (!installBannerHydrated || !ready) return;
@@ -212,7 +215,49 @@ export function Header() {
     );
   }
 
-  const hideOnMobileGuestHome = (pathname ?? "") === "/";
+  if (isGuestHomePromo) {
+    return (
+      <HeaderShell
+        showInstallBanner={showInstallBanner}
+        onDismissInstallBanner={dismissInstallBanner}
+      >
+        <div className="mx-auto flex h-[var(--app-header-main-height,55px)] w-full max-w-[430px] items-center justify-between px-4 lg:h-[80px] lg:max-w-[1500px] lg:px-8">
+          <Link href="/" className="flex shrink-0 items-center" aria-label="Início">
+            <Image
+              src={logo}
+              alt="Bolão do Milhão"
+              width={168}
+              height={44}
+              quality={100}
+              sizes="168px"
+              priority
+              className="h-[26px] w-auto lg:h-11"
+            />
+          </Link>
+
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => openLogin("/")}
+              className="flex h-[34px] min-w-[78px] items-center justify-center rounded-[10px] border border-white bg-black px-3.5 text-[11px] font-bold uppercase leading-none tracking-[0.06em] text-white transition hover:bg-white/[0.06] active:scale-[0.98] lg:h-10 lg:min-w-[92px] lg:px-5 lg:text-[12px]"
+            >
+              Entrar
+            </button>
+            <button
+              type="button"
+              onClick={() => openCadastro("/")}
+              className="flex h-[34px] min-w-[92px] items-center justify-center rounded-[10px] bg-[#B1EB0B] px-3.5 text-[11px] font-black uppercase leading-none tracking-[0.06em] text-[#0E141B] transition active:scale-[0.98] lg:h-10 lg:min-w-[108px] lg:px-5 lg:text-[12px]"
+              style={{ boxShadow: "0 0 14px rgba(177,235,11,0.22)" }}
+            >
+              Cadastrar
+            </button>
+          </div>
+        </div>
+      </HeaderShell>
+    );
+  }
+
+  const hideOnMobileGuestHome = false;
 
   return (
     <HeaderShell

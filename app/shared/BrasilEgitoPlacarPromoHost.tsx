@@ -8,14 +8,9 @@
  * Estrutura independente de ChampionsPlacarPromoHost.
  */
 
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { usePathname } from "next/navigation";
 import Image from "next/image";
 import type { StaticImageData } from "next/image";
 import {
@@ -34,7 +29,15 @@ import { useIsAdminAppRoute } from "@/app/shared/app-route-guards";
 import { useAuth } from "@/app/shared/AuthContext";
 import { useBolaoToast } from "@/app/components/BolaoToast";
 import { useRegisterPromotionHub, usePromotionsHub } from "@/app/shared/PromotionsHubContext";
+import { useMainBolaoPromoModal } from "@/app/shared/MainBolaoPromoContext";
 import type { BrasilEgitoPlacarPromoStatus } from "@/lib/promotions/brasil-egito-placar-promo";
+import {
+  persistBrasilEgitoReferralModalDismissed,
+  readBrasilEgitoReferralModalDismissed,
+  isBrasilEgitoGuestFlowActive,
+  isBrasilEgitoPalpiteFinalized,
+  readPendingBrasilEgitoPalpite,
+} from "@/lib/promotions/brasil-egito-guest-flow";
 import { resolveNationalTeamShieldUrl } from "@/lib/football/national-team-shields";
 import brasilLogo from "@/app/assets/brasil-selecao-logo.png";
 import bgPromoBrasilEgito from "@/app/assets/banner-promo-brasil-egito.png";
@@ -295,7 +298,39 @@ function PlacarExatoSummary({
   );
 }
 
-function OfferStep({
+export function SignupPromptModal({
+  onCreateAccount,
+}: {
+  onCreateAccount: () => void;
+}) {
+  return (
+    <div
+      className="relative w-full max-w-[340px] rounded-4xl border border-white/8 bg-[#141414] px-5 pb-6 pt-8 shadow-[0_24px_48px_rgba(0,0,0,0.65)]"
+      style={{ fontFamily: PROMO_FONT }}
+      onClick={(e) => e.stopPropagation()}
+    >
+
+      <div className="text-center" id="brasil-egito-signup-prompt-title">
+        <p className="text-[20px] font-black leading-snug text-white">
+          Falta 1 passo para registrar seu palpite!
+        </p>
+        <p className="mt-3 text-[14px] font-medium leading-snug text-white/80">
+          Crie sua conta gratuitamente — leva menos de 30 segundos!
+        </p>
+      </div>
+
+      <button
+        type="button"
+        onClick={onCreateAccount}
+        className="mt-6 flex min-h-[52px] w-full items-center justify-center rounded-full bg-primary px-5 text-[14px] font-black uppercase italic tracking-wide text-[#0E141B] transition active:scale-[0.98]"
+      >
+        Criar conta agora
+      </button>
+    </div>
+  );
+}
+
+export function OfferStep({
   predCasa,
   predVisitante,
   onPredCasaChange,
@@ -413,7 +448,7 @@ function OfferStep({
   );
 }
 
-function SuccessStep({
+export function SuccessStep({
   predCasa,
   predVisitante,
   signupLink,
@@ -590,7 +625,9 @@ export function BrasilEgitoPlacarPromoHost({
   children: React.ReactNode;
 }) {
   const { ready, isLoggedIn, user } = useAuth();
+  const pathname = usePathname();
   const toast = useBolaoToast();
+  const { requestModal } = useMainBolaoPromoModal();
   const { getPromotionPrefetch, setPromotionPrefetch } = usePromotionsHub();
   const isAdminRoute = useIsAdminAppRoute();
   const [open, setOpen] = useState(false);
@@ -623,22 +660,34 @@ export function BrasilEgitoPlacarPromoHost({
       return data;
     }, [setPromotionPrefetch]);
 
-  const applyHubOpen = useCallback((data: BrasilEgitoPlacarPromoStatus) => {
-    setStatus(data);
-    if (data.showOfferModal) {
-      setStep("offer");
-      setPredCasa(0);
-      setPredVisitante(0);
-      setOpen(true);
-      return;
-    }
-    if (data.alreadySubmitted) {
-      if (data.predCasa != null) setPredCasa(data.predCasa);
-      if (data.predVisitante != null) setPredVisitante(data.predVisitante);
-      setStep("success");
-      setOpen(true);
-    }
-  }, []);
+  const applyHubOpen = useCallback(
+    (
+      data: BrasilEgitoPlacarPromoStatus,
+      options?: { manual?: boolean },
+    ) => {
+      setStatus(data);
+      if (data.showOfferModal) {
+        setStep("offer");
+        setPredCasa(0);
+        setPredVisitante(0);
+        setOpen(true);
+        return;
+      }
+      if (data.alreadySubmitted) {
+        if (
+          !options?.manual &&
+          readBrasilEgitoReferralModalDismissed(user?.id)
+        ) {
+          return;
+        }
+        if (data.predCasa != null) setPredCasa(data.predCasa);
+        if (data.predVisitante != null) setPredVisitante(data.predVisitante);
+        setStep("success");
+        setOpen(true);
+      }
+    },
+    [user?.id],
+  );
 
   const openFromPromotionsHub = useCallback(() => {
     const cached =
@@ -647,12 +696,12 @@ export function BrasilEgitoPlacarPromoHost({
         | BrasilEgitoPlacarPromoStatus
         | undefined);
     if (cached?.enabled) {
-      applyHubOpen(cached);
+      applyHubOpen(cached, { manual: true });
     }
     void refreshStatus().then((fresh) => {
       if (!fresh?.enabled) return;
       if (!cached?.enabled) {
-        applyHubOpen(fresh);
+        applyHubOpen(fresh, { manual: true });
         return;
       }
       setStatus(fresh);
@@ -683,10 +732,19 @@ export function BrasilEgitoPlacarPromoHost({
 
     const run = async () => {
       try {
+        if (
+          pathname === "/" ||
+          isBrasilEgitoGuestFlowActive() ||
+          readPendingBrasilEgitoPalpite() ||
+          isBrasilEgitoPalpiteFinalized(user?.id)
+        ) {
+          setOpen(false);
+          return;
+        }
         const data = await refreshStatus();
         if (cancelled) return;
         setStatus(data);
-        if (!data?.enabled || !data.showOfferModal) {
+        if (!data?.enabled || !data.showOfferModal || data.alreadySubmitted) {
           setOpen(false);
           return;
         }
@@ -718,12 +776,23 @@ export function BrasilEgitoPlacarPromoHost({
     isLoggedIn,
     profileBlocksPromo,
     user?.id,
+    pathname,
     refreshStatus,
   ]);
 
-  const handleClose = useCallback(() => {
+  const dismissReferralModal = useCallback(() => {
+    persistBrasilEgitoReferralModalDismissed(user?.id);
     setOpen(false);
-  }, []);
+    requestModal();
+  }, [requestModal, user?.id]);
+
+  const handleClose = useCallback(() => {
+    if (step === "success") {
+      dismissReferralModal();
+      return;
+    }
+    setOpen(false);
+  }, [dismissReferralModal, step]);
 
   const handleSubmit = useCallback(async () => {
     if (submittingRef.current) return;

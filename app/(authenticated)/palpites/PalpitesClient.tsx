@@ -3149,7 +3149,21 @@ function PalpitesPageContent({
   const predictionsMapRef = useRef(predictionsMap);
   predictionsMapRef.current = predictionsMap;
 
+  const ssrTicketHydrated =
+    Boolean(initialData?.ticketId && initialData.ticketId === ticketId) &&
+    Boolean(initialData?.jogos?.length);
+  const initialPlacarSigRef = useRef(
+    (initialData?.jogos ?? [])
+      .map(
+        (j) =>
+          `${j.id}:${j.resultCasa ?? ""}:${j.resultVisitante ?? ""}:${j.status}`,
+      )
+      .sort()
+      .join("|"),
+  );
+
   useEffect(() => {
+    if (initialData?.tabela && initialData.ticketId === ticketId) return;
     let cancelled = false;
     const compId =
       bolaoType === "extra" && resolvedExtraChampionshipId != null && resolvedExtraChampionshipId > 0
@@ -3171,9 +3185,9 @@ function PalpitesPageContent({
     return () => {
       cancelled = true;
     };
-  }, [bolaoType, resolvedExtraChampionshipId]);
+  }, [bolaoType, resolvedExtraChampionshipId, initialData?.tabela, initialData?.ticketId, ticketId]);
 
-  /** Partidas: sempre atualizar (SSR pode ficar velho; placar e ranking dependem disso). */
+  /** Partidas: poll em background; pula tick imediato se SSR já trouxe jogos. */
   useEffect(() => {
     let cancelled = false;
     let intervalId: ReturnType<typeof setInterval> | undefined;
@@ -3275,13 +3289,18 @@ function PalpitesPageContent({
       }
     }
 
-    void tick();
+    const skipImmediateTick =
+      Boolean(initialDataRef.current?.jogos?.length) &&
+      initialDataRef.current?.ticketId === ticketId;
+    if (!skipImmediateTick) {
+      void tick();
+    }
     intervalId = setInterval(tick, 45_000);
     return () => {
       cancelled = true;
       if (intervalId) clearInterval(intervalId);
     };
-  }, []);
+  }, [ticketId]);
 
   useEffect(() => {
     if (resultMode) setTab("jogos");
@@ -3402,22 +3421,47 @@ function PalpitesPageContent({
 
   useEffect(() => {
     let cancelled = false;
-    setRankingBoardLoading(true);
-    void (async () => {
+    const isSsrHydration =
+      ssrTicketHydrated &&
+      jogosPlacarSignature === initialPlacarSigRef.current;
+    const load = async () => {
+      if (!isSsrHydration) setRankingBoardLoading(true);
       const result = await fetchRankingBoardClient(bolaoType, ticketId);
       if (cancelled) return;
       setRankingBoardRows(result.rows);
       setRankingBoardMeta(result.meta);
       setRankingBoardError(result.error);
       setRankingBoardLoading(false);
-    })();
+    };
+    if (isSsrHydration) {
+      let idleId: number | undefined;
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
+      if (typeof requestIdleCallback === "function") {
+        idleId = requestIdleCallback(() => void load());
+      } else {
+        timeoutId = setTimeout(() => void load(), 80);
+      }
+      return () => {
+        cancelled = true;
+        if (idleId != null && typeof cancelIdleCallback === "function") {
+          cancelIdleCallback(idleId);
+        }
+        if (timeoutId != null) clearTimeout(timeoutId);
+      };
+    }
+    void load();
     return () => {
       cancelled = true;
     };
-  }, [bolaoType, ticketId, jogosPlacarSignature]);
+  }, [bolaoType, ticketId, jogosPlacarSignature, ssrTicketHydrated]);
 
   useEffect(() => {
     if (!ticketId) return;
+    const isSsrHydration =
+      ssrTicketHydrated &&
+      jogosPlacarSignature === initialPlacarSigRef.current &&
+      initialDataRef.current?.resumoStats != null;
+    if (isSsrHydration) return;
     (async () => {
       setLoadingResumo(true);
       try {
@@ -3446,7 +3490,7 @@ function PalpitesPageContent({
         setLoadingResumo(false);
       }
     })();
-  }, [ticketId, jogosPlacarSignature]);
+  }, [ticketId, jogosPlacarSignature, ssrTicketHydrated]);
 
   useEffect(() => {
     draftDirtyRef.current = new Set();

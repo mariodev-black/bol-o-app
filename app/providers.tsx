@@ -6,8 +6,9 @@ import { AuthProvider } from "@/app/shared/AuthContext";
 import { AppServerConfigProvider } from "@/app/shared/AppServerConfigContext";
 import { BrasilEgitoPlacarPromoHost } from "@/app/shared/BrasilEgitoPlacarPromoHost";
 import { PromotionsHubProvider } from "@/app/shared/PromotionsHubContext";
+import { HomeAuthModalProvider } from "@/app/shared/HomeAuthModalContext";
+import { HomeAuthModalHost } from "@/app/shared/HomeAuthModalHost";
 import { ChampionsPlacarPromoHost } from "@/app/shared/ChampionsPlacarPromoHost";
-import { ExtraGiftPromoHost } from "@/app/shared/ExtraGiftPromoHost";
 import { MainBolaoPromoModalHost } from "@/app/shared/MainBolaoPromoModalHost";
 import { ProfileCompletionHost } from "@/app/shared/ProfileCompletionHost";
 import { PwaManager } from "@/app/shared/PwaManager";
@@ -32,18 +33,19 @@ export function Providers({
         <PwaManager />
         <ProfileCompletionHost>
           <PromotionsHubProvider>
+          <HomeAuthModalProvider>
+          <MainBolaoPromoModalHost>
           <BrasilEgitoPlacarPromoHost>
             <ChampionsPlacarPromoHost>
-              <ExtraGiftPromoHost>
-                <MainBolaoPromoModalHost>
+                  <HomeAuthModalHost />
                   <Suspense fallback={null}>
                     <ReferralCapture />
                   </Suspense>
                   <SidenavProvider>{children}</SidenavProvider>
-                </MainBolaoPromoModalHost>
-              </ExtraGiftPromoHost>
             </ChampionsPlacarPromoHost>
           </BrasilEgitoPlacarPromoHost>
+          </MainBolaoPromoModalHost>
+          </HomeAuthModalProvider>
           </PromotionsHubProvider>
         </ProfileCompletionHost>
       </AuthProvider>

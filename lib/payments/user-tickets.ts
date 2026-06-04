@@ -63,10 +63,14 @@ type OpenMatch = {
 };
 
 /** Tickets com pagamento confirmado (origem do banco — fonte de verdade). */
-export async function listPaidTicketsForUser(userId: string): Promise<PaidTicketRow[]> {
+export async function listPaidTicketsForUser(
+  userId: string,
+  opts?: { matchMap?: MatchMap },
+): Promise<PaidTicketRow[]> {
   const pool = getPool();
   const mainComp = getFootballMainCompetitionId();
   try {
+    const preloadedMatchMap = opts?.matchMap;
     const [{ rows }, matchMap, preds] = await Promise.all([
       pool.query<{
         id: string;
@@ -88,7 +92,9 @@ export async function listPaidTicketsForUser(userId: string): Promise<PaidTicket
          ORDER BY COALESCE(paid_at, created_at) DESC NULLS LAST, created_at DESC`,
         [userId]
       ),
-      fetchMatchesMap().catch(() => new Map() as MatchMap),
+      preloadedMatchMap != null
+        ? Promise.resolve(preloadedMatchMap)
+        : fetchMatchesMap().catch(() => new Map() as MatchMap),
       listPredictionTicketMatchPairsForUser(userId).catch(() => [] as { ticket_id: string; match_id: number }[]),
     ]);
     const mapped = rows.map((r) => {

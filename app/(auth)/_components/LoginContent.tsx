@@ -41,7 +41,15 @@ const ACCOUNT_MSG: Record<string, string> = {
   senha_alterada: "Senha alterada com sucesso. Entre novamente com a nova senha.",
 };
 
-export function LoginContent() {
+export function LoginContent({
+  embedded = false,
+  fromPath: fromPathProp,
+  onAuthSuccess,
+}: {
+  embedded?: boolean;
+  fromPath?: string | null;
+  onAuthSuccess?: () => void;
+} = {}) {
   const [showPw, setShowPw] = useState(false);
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -52,7 +60,10 @@ export function LoginContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { loginWithPassword, refresh, isLoggedIn, ready } = useAuth();
-  const fromParam = useMemo(() => searchParams.get("from"), [searchParams]);
+  const fromParam = useMemo(
+    () => fromPathProp ?? searchParams.get("from"),
+    [fromPathProp, searchParams],
+  );
   const errorParam = useMemo(() => searchParams.get("error"), [searchParams]);
   const msgParam = useMemo(() => searchParams.get("msg"), [searchParams]);
   const refFromUrl = useMemo(
@@ -100,10 +111,10 @@ export function LoginContent() {
   }, [msgParam, toast]);
 
   useEffect(() => {
-    if (!ready || !isLoggedIn) return;
+    if (embedded || !ready || !isLoggedIn) return;
     const next = safeReturnPath(fromParam) ?? "/";
     navigateToAfterAuth(next);
-  }, [ready, isLoggedIn, fromParam, pathname, router]);
+  }, [embedded, ready, isLoggedIn, fromParam, pathname, router]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -125,6 +136,10 @@ export function LoginContent() {
         return;
       }
       await refresh();
+      if (embedded && onAuthSuccess) {
+        onAuthSuccess();
+        return;
+      }
       const next = safeReturnPath(fromParam) ?? "/";
       navigateToAfterAuth(next);
     } finally {

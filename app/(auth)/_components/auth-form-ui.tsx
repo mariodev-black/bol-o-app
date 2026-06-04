@@ -76,6 +76,7 @@ export function AuthField({
         value={value}
         className={["auth-field-input", className].filter(Boolean).join(" ")}
         aria-busy={loading}
+        aria-invalid={error ? true : undefined}
         aria-describedby={hint ? `${inputId}-hint` : undefined}
       />
       {trailNode ? (
@@ -101,6 +102,9 @@ export function AuthPasswordField({
   disabled,
   autoComplete,
   placeholder,
+  success,
+  error,
+  hint,
 }: {
   label: string;
   value: string;
@@ -110,6 +114,9 @@ export function AuthPasswordField({
   disabled?: boolean;
   autoComplete?: string;
   placeholder?: string;
+  success?: boolean;
+  error?: boolean;
+  hint?: string;
 }) {
   return (
     <AuthField
@@ -120,6 +127,9 @@ export function AuthPasswordField({
       disabled={disabled}
       autoComplete={autoComplete}
       placeholder={placeholder}
+      success={success}
+      error={error}
+      hint={hint}
       trailing={
         <button
           type="button"

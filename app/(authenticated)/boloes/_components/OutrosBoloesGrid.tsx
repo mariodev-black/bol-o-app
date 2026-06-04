@@ -79,11 +79,17 @@ function OutrosBolaoCard({ item }: { item: OutrosBolaoGridItem }) {
 export function OutrosBoloesGrid({
   items,
   className = "mt-5",
+  onVerTodos,
 }: {
   items: OutrosBolaoGridItem[];
   className?: string;
+  onVerTodos?: () => void;
 }) {
   if (items.length === 0) return null;
+
+  const verTodosClassName =
+    "shrink-0 text-[13px] font-black uppercase tracking-wide transition-opacity hover:opacity-90";
+  const verTodosStyle = { color: GREEN };
 
   return (
     <section className={className} aria-labelledby="outros-boloes-heading">
@@ -94,13 +100,24 @@ export function OutrosBoloesGrid({
         >
           OUTROS BOLÕES
         </h3>
-        <Link
-          href="/tickets?bolao=extra"
-          className="shrink-0 text-[13px] font-black uppercase tracking-wide transition-opacity hover:opacity-90"
-          style={{ color: GREEN }}
-        >
-          VER TODOS &gt;
-        </Link>
+        {onVerTodos ? (
+          <button
+            type="button"
+            onClick={onVerTodos}
+            className={verTodosClassName}
+            style={verTodosStyle}
+          >
+            VER TODOS &gt;
+          </button>
+        ) : (
+          <Link
+            href="/tickets?bolao=extra"
+            className={verTodosClassName}
+            style={verTodosStyle}
+          >
+            VER TODOS &gt;
+          </Link>
+        )}
       </div>
 
       <div className="grid grid-cols-3 gap-2">

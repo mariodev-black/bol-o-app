@@ -1,3 +1,23 @@
+/** Mensagem para exibir abaixo do campo (null = sem erro). */
+export function getBrazilPhoneValidationMessage(digits: string): string | null {
+  const d = digits.replace(/\D/g, "");
+  if (!d.length) return null;
+  if (d.length < 10) {
+    return `Informe o DDD e o número completo (${d.length} de 10 ou 11 dígitos).`;
+  }
+  if (d.length > 11) return "Número muito longo.";
+  const ddd = parseInt(d.slice(0, 2), 10);
+  if (ddd < 11 || ddd > 99) return "DDD inválido.";
+  if (/^(\d)\1{9,10}$/.test(d)) return "Número inválido.";
+  if (d.length === 11 && d[2] !== "9") {
+    return "Celular deve começar com 9 após o DDD.";
+  }
+  if (d.length === 10 && d[2] === "9") {
+    return "Use 11 dígitos para celular (com o 9 na frente).";
+  }
+  return isValidBrazilNationalDigits(d) ? null : "Número inválido.";
+}
+
 /** Valida apenas dígitos nacionais (sem código do país). Brasil: 10 (fixo) ou 11 (celular com 9). */
 export function isValidBrazilNationalDigits(digits: string): boolean {
   const d = digits.replace(/\D/g, "");

@@ -5,6 +5,9 @@
 
 import { getPool } from "@/lib/db";
 import { getAppOrigin } from "@/lib/seo/config";
+import { BRASIL_EGITO_PLACAR_FRIENDS_GOAL } from "@/lib/promotions/brasil-egito-guest-flow";
+
+export { BRASIL_EGITO_PLACAR_FRIENDS_GOAL };
 
 function env(name: string): string {
   const raw = process.env[name];
@@ -16,8 +19,6 @@ function envBool(name: string, defaultValue = false): boolean {
   if (!s) return defaultValue;
   return s === "1" || s === "true" || s === "yes" || s === "on";
 }
-
-export const BRASIL_EGITO_PLACAR_FRIENDS_GOAL = 3;
 
 /** Palpite fecha 5 min antes do apito (19:00 BRT → 18:55). */
 const DEFAULT_BRASIL_EGITO_PLACAR_CLOSES_AT = "2026-06-06T18:55:00-03:00";
@@ -218,20 +219,25 @@ export async function submitBrasilEgitoPlacarPromoForUser(
     return { ok: false, error: "Você já enviou palpites no bolão." };
   }
 
-  const existing = await findSubmission(userId);
-  if (existing) {
-    const status = await getBrasilEgitoPlacarPromoStatusForUser(userId);
-    return { ok: true, status };
-  }
-
   await ensureBrasilEgitoPlacarPromoTable();
   const pool = getPool();
   await pool.query(
     `INSERT INTO brasil_egito_placar_promo_submissions (user_id, pred_casa, pred_visitante)
      VALUES ($1::uuid, $2, $3)
-     ON CONFLICT (user_id) DO NOTHING`,
+     ON CONFLICT (user_id) DO UPDATE SET
+       pred_casa = EXCLUDED.pred_casa,
+       pred_visitante = EXCLUDED.pred_visitante`,
     [userId, predCasa, predVisitante],
   );
+
+  const saved = await findSubmission(userId);
+  if (
+    !saved ||
+    saved.predCasa !== predCasa ||
+    saved.predVisitante !== predVisitante
+  ) {
+    return { ok: false, error: "Não foi possível confirmar o palpite salvo." };
+  }
 
   const status = await getBrasilEgitoPlacarPromoStatusForUser(userId);
   return { ok: true, status };

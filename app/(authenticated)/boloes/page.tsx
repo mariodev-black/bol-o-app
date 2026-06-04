@@ -298,7 +298,12 @@ function buildRankingMap(
 async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
   const configuredExtraIds = parseExtraBolaoChampionshipIds();
   const mainComp = getFootballMainCompetitionId();
+  const preloadCompIds = [...new Set([mainComp, ...configuredExtraIds])];
+  const matchesPromise = fetchMatchesMap({ ensureCompetitionIds: preloadCompIds }).catch(
+    () => new Map(),
+  );
   const [
+    matches,
     tickets,
     userPredictions,
     allPredictions,
@@ -307,7 +312,8 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
     participantsByBolao,
     extraRounds,
   ] = await Promise.all([
-    listPaidTicketsForUser(userId),
+    matchesPromise,
+    matchesPromise.then((m) => listPaidTicketsForUser(userId, { matchMap: m })),
     listPredictions({ userId }).catch(() => []),
     listPredictionsForGlobalRanking().catch(() => []),
     listDistinctExtraPredictionTicketIds().catch(() => [] as string[]),
@@ -318,9 +324,6 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
     ),
   ]);
 
-  const ensureCompIds = competitionIdsEnsureFromPaidTickets(tickets);
-  const matches = await fetchMatchesMap({ ensureCompetitionIds: ensureCompIds }).catch(() => new Map());
-
   const effectiveExtraRoundByTicketId = new Map<string, number>();
   const extraRoundResolutions = await Promise.all(
     tickets
@@ -328,7 +331,7 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
       .map(async (ticket) => {
         const resolved = await resolveEffectiveRoundForExtraTicket(ticket, {
           userId,
-          persistAdvance: true,
+          persistAdvance: false,
         });
         const round = effectiveRoundNumberFromResolution(resolved, ticket);
         return { ticketId: ticket.id, resolved, round };
@@ -353,7 +356,7 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
     matchesCount: matches.size,
     userPredictionsCount: userPredictions.length,
     allPredictionsCount: allPredictions.length,
-    ensureCompetitionIdsFromTickets: ensureCompIds,
+    ensureCompetitionIdsFromTickets: competitionIdsEnsureFromPaidTickets(tickets),
     envSyncedCompetitionIds: [...new Set([mainComp, ...configuredExtraIds])],
   });
   debugBoloes(

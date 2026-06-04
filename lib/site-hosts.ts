@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { canonicalHostname } from "@/lib/auth/request-host";
-import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 import { isAppHostname, isMarketingHostname } from "@/lib/site-domain";
 import { getAppOrigin, getMarketingOrigin } from "@/lib/seo/config";
 
@@ -25,20 +24,9 @@ function isAppProductPath(pathname: string): boolean {
   return true;
 }
 
-async function hasValidSession(request: NextRequest): Promise<boolean> {
-  const token = request.cookies.get(sessionCookieName())?.value;
-  if (!token) return false;
-  try {
-    const userId = await verifySessionToken(token);
-    return Boolean(userId);
-  } catch {
-    return false;
-  }
-}
-
 /**
  * Redireciona conforme host:
- * - `app.{domínio}` → produto (`/` = home logada; visitante → cadastro)
+ * - `app.{domínio}` → produto (`/` = home do app; visitante e logado ficam na home)
  * - `{domínio}` / `www.{domínio}` → LP; rotas de produto vão para `APP_URL`
  */
 export async function resolveHostRouting(
@@ -55,23 +43,11 @@ export async function resolveHostRouting(
     return null;
   }
 
-  const onApp = isAppHostname(hostname);
   const onMarketing = isMarketingHostname(hostname);
 
-  if (!onApp && !onMarketing) return null;
+  if (!onMarketing) return null;
 
-  if (onApp) {
-    if (pathname !== "/") return null;
-
-    const loggedIn = await hasValidSession(request);
-    if (loggedIn) return null;
-
-    const url = request.nextUrl.clone();
-    url.pathname = "/cadastrar";
-    return NextResponse.redirect(url);
-  }
-
-  if (onMarketing && isAppProductPath(pathname)) {
+  if (isAppProductPath(pathname)) {
     const appOrigin = getAppOrigin();
     const dest = new URL(
       `${pathname}${request.nextUrl.search}`,

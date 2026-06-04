@@ -16,6 +16,7 @@ import {
   Target,
   Ticket,
   Trophy,
+  Zap,
 } from "lucide-react";
 import iconBrasileirao from "@/app/assets/icon-brasileirao.png";
 import iconPremierLeague from "@/app/assets/icon-premier-league.png";
@@ -35,10 +36,24 @@ import {
   SHOWCASE_PRIZES,
 } from "@/lib/boloes-prize-copy";
 import { extraBolaoIconSrc, isExtraBolaoBrandedIcon } from "@/app/shared/extra-bolao-icons";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RankingPalpitesStepsModal } from "@/app/(authenticated)/ranking/_components/RankingPalpitesStepsModal";
 import { useMainBolaoPromoModal } from "@/app/shared/MainBolaoPromoContext";
 import { ScoringExplainerModal } from "@/app/shared/ScoringExplainerModal";
+import {
+  ActiveBolaoCarouselCard,
+  BoloesCarouselShell,
+  BoloesPageEyebrow,
+  BoloesSectionHeader,
+  FinishedBolaoChip,
+  MilhaoUpsellBanner,
+  PrincipalHeroCard,
+  PrincipalHeroPurchaseCard,
+} from "@/app/(authenticated)/boloes/_components/BoloesVitrineCards";
+import { BoloesBottomSheet } from "@/app/(authenticated)/boloes/_components/BoloesBottomSheet";
+import { buildBoloesSheetCatalog } from "@/app/(authenticated)/boloes/_components/boloes-sheet-items";
+import { OutrosBoloesGrid } from "@/app/(authenticated)/boloes/_components/OutrosBoloesGrid";
+import { getOutrosBoloesGridItems } from "@/lib/boloes-outros-grid";
 
 export type ActivePrincipalBolao = {
   id: string;
@@ -1647,9 +1662,6 @@ export function BoloesClient({
   ticketsHideDaily?: boolean;
 }) {
   const now = useNow();
-  const [showAllActive, setShowAllActive] = useState(false);
-  const [showAllPrincipal, setShowAllPrincipal] = useState(false);
-  const [showAllDiario, setShowAllDiario] = useState(false);
   const hasTickets = (data?.active.all.length ?? 0) > 0;
 
   const summary = data?.summary ?? {
@@ -1659,221 +1671,159 @@ export function BoloesClient({
   };
   const bestPosition =
     summary.bestPosition == null ? "--" : `#${summary.bestPosition}`;
-  const principalItems = (data?.active.all ?? []).filter(
-    (item) => item.type === "principal",
+  const allItems = data?.active.all ?? [];
+  const finishedItems = useMemo(
+    () => allItems.filter((item) => item.displayPhase === "finalizado"),
+    [allItems],
   );
-  const diarioItems = (data?.active.all ?? []).filter(
-    (item) => item.type === "diario",
+  const activeItems = useMemo(
+    () => allItems.filter((item) => item.displayPhase !== "finalizado"),
+    [allItems],
   );
-  const extraItems = (data?.active.all ?? []).filter(
-    (item) => item.type === "extra",
+  const principalActive = useMemo(
+    () =>
+      ticketsExtraOnly
+        ? []
+        : activeItems.filter((item) => item.type === "principal"),
+    [activeItems, ticketsExtraOnly],
   );
-  const diarioShowcaseItems = useMemo(
-    () => sortBoloesByAvailabilityForShowcase(diarioItems),
-    [diarioItems],
-  );
-  const extraShowcaseItems = useMemo(
-    () => sortBoloesByAvailabilityForShowcase(extraItems),
-    [extraItems],
-  );
-  /** Um bloco por campeonato extra em que o usuário tem cota ativa. */
-  const extraChampionshipIdsOrdered = useMemo(() => {
-    const ordered: number[] = [];
-    const seen = new Set<number>();
-    for (const item of extraItems) {
-      const id = item.championshipId;
-      if (id != null && id > 0 && !seen.has(id)) {
-        seen.add(id);
-        ordered.push(id);
-      }
+  const activeNonPrincipal = useMemo(() => {
+    let items = activeItems.filter((item) => item.type !== "principal");
+    if (ticketsHideDaily) {
+      items = items.filter((item) => item.type !== "diario");
     }
-    return ordered;
-  }, [extraItems]);
-  if (!hasTickets) {
-    return (
-      <NoTicketsState
-        upcoming={data?.upcoming ?? EMPTY_UPCOMING}
-        ticketsExtraOnly={ticketsExtraOnly}
-        ticketsHideDaily={ticketsHideDaily}
-      />
-    );
-  }
+    return sortBoloesByAvailabilityForShowcase(items);
+  }, [activeItems, ticketsHideDaily]);
+  const ticketsHref =
+    data?.upcoming.principal.href ??
+    (ticketsExtraOnly ? "/tickets?bolao=extra" : "/tickets");
+  const principalPriceLabel =
+    data?.upcoming.principal.priceLabel ?? "—";
+  const principalParticipants =
+    data?.participantsByBolao.principal ?? 0;
+  const showPrincipalHero = !ticketsExtraOnly;
+  const hasPrincipalCota = principalActive.length > 0;
+  const [boloesSheetOpen, setBoloesSheetOpen] = useState(false);
 
-  if (showAllActive) {
-    return (
-      <div className="min-h-screen bg-black px-[18px] pb-8 pt-[24px] text-white">
-        <div className="mx-auto w-full max-w-[390px]">
-          <header className="text-center">
-            <p
-              className="text-[12px] font-black uppercase leading-none tracking-[0.25em]"
-              style={{ color: GREEN }}
-            >
-              Copa 2026
-            </p>
-            <h1 className="mt-2 text-[25px] font-black uppercase leading-none tracking-[-0.055em] text-white">
-              Todos os <span style={{ color: GREEN }}>Bolões</span>
-            </h1>
-            <p className="mx-auto mt-3 max-w-[282px] text-[12px] font-medium leading-[1.45] text-white/58">
-              Escolha uma cota para ver detalhes, palpitar ou acompanhar sua
-              posição.
-            </p>
-          </header>
+  const boloesSheetCatalog = useMemo(
+    () =>
+      buildBoloesSheetCatalog(data, {
+        ticketsExtraOnly,
+        ticketsHideDaily,
+      }),
+    [data, ticketsExtraOnly, ticketsHideDaily],
+  );
 
-          <section className="mt-[34px]">
-            <div className="mb-[20px] flex items-center justify-between">
-              <h2 className="text-[17px] font-black leading-none tracking-[-0.03em] text-white">
-                Lista de cotas
-              </h2>
-              <button
-                type="button"
-                onClick={() => setShowAllActive(false)}
-                className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-1 text-[12px] font-bold leading-none transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-95"
-                style={{ color: GREEN }}
-              >
-                Voltar{" "}
-                <ChevronRight className="size-3 rotate-180" strokeWidth={2.6} />
-              </button>
-            </div>
-            <ActiveBoloesList items={data?.active.all ?? []} now={now} />
-          </section>
-        </div>
-      </div>
-    );
-  }
+  const outrosBoloesGridItems = useMemo(
+    () => getOutrosBoloesGridItems(),
+    [],
+  );
+
+  const openBoloesSheet = useCallback(() => setBoloesSheetOpen(true), []);
+  const closeBoloesSheet = useCallback(() => setBoloesSheetOpen(false), []);
 
   return (
-    <div className="min-h-screen overflow-hidden bg-black pb-8 text-white">
+    <div className="min-h-screen overflow-x-hidden bg-black pb-10 text-white">
+      <div className="mx-auto w-full max-w-[430px] px-4">
+        <BoloesPageEyebrow />
 
-      <div className="mx-auto w-full px-4">
-        <header className="mt-2 w-full text-center">
-          <div className="flex w-full items-start justify-center gap-3 sm:gap-3.5">
-            <div className="flex min-w-0 flex-col gap-1 text-center">
-              <div className="flex flex-wrap items-center justify-center">
-                <h2 className="text-[24px] font-black uppercase leading-none tracking-[-0.02em] text-white min-[380px]:text-[24px] text-center">
-                  Selecione seu bolão
-                </h2>
-              </div>
-              <p className="text-[16px] font-semibold leading-snug text-[#c1bebe]">
-                Escolha abaixo onde deseja palpitar, <span className="text-primary">{summary.activeCount} </span>cotas disponíveis.
-              </p>
-            </div>
-          </div>
-        </header>
-
-        {principalItems.length > 0 ? (
-          <section className="mt-6">
-            {showAllPrincipal ? (
-              <div className="space-y-3">
-                {principalItems.map((item) => (
-                  <ActiveShowcaseCard
-                    key={item.id}
-                    item={item}
-                    now={now}
-                    kind="principal"
-                    fullWidth
-                  />
-                ))}
-              </div>
-            ) : principalItems.length === 1 ? (
-              <ActiveShowcaseCard
-                key={principalItems[0].id}
-                item={principalItems[0]}
-                now={now}
-                kind="principal"
-                fullWidth
-              />
-            ) : (
-              <CarouselShell itemCount={principalItems.length}>
-                {principalItems.map((item) => (
-                  <ActiveShowcaseCard
-                    key={item.id}
-                    item={item}
-                    now={now}
-                    kind="principal"
-                  />
-                ))}
-              </CarouselShell>
-            )}
-          </section>
-        ) : null}
-
-        {diarioItems.length > 0 ? (
-          <section className="mt-4 mb-6">
-            {showAllDiario ? (
-              <div className="space-y-3">
-                {diarioShowcaseItems.map((item) => (
-                  <ActiveShowcaseCard
-                    key={item.id}
-                    item={item}
-                    now={now}
-                    kind="diario"
-                    fullWidth
-                  />
-                ))}
-              </div>
-            ) : diarioShowcaseItems.length === 1 ? (
-              <ActiveShowcaseCard
-                key={diarioShowcaseItems[0].id}
-                item={diarioShowcaseItems[0]}
-                now={now}
-                kind="diario"
-                fullWidth
-              />
-            ) : (
-              <CarouselShell
-                tone={GREEN}
-                itemCount={diarioShowcaseItems.length}
-              >
-                {diarioShowcaseItems.map((item) => (
-                  <ActiveShowcaseCard
-                    key={item.id}
-                    item={item}
-                    now={now}
-                    kind="diario"
-                  />
-                ))}
-              </CarouselShell>
-            )}
-          </section>
-        ) : null}
-
-        {extraChampionshipIdsOrdered.map((championshipId) => {
-          const activeForComp = extraShowcaseItems.filter(
-            (item) => item.championshipId === championshipId,
-          );
-          if (activeForComp.length === 0) return null;
-
-          return (
-            <section
-              key={championshipId}
-              className={ticketsExtraOnly ? "mt-6 mb-6" : "mt-4 mb-6"}
-            >
-              {activeForComp.length === 1 ? (
-                <ActiveShowcaseCard
-                  key={activeForComp[0]!.id}
-                  item={activeForComp[0]!}
-                  now={now}
-                  kind="extra"
-                  fullWidth
-                />
+        {showPrincipalHero ? (
+          <section className="mt-5" aria-label="Bolão principal">
+            {hasPrincipalCota ? (
+              principalActive.length === 1 ? (
+                <PrincipalHeroCard item={principalActive[0]!} now={now} />
               ) : (
-                <CarouselShell tone={GREEN} itemCount={activeForComp.length}>
-                  {activeForComp.map((item) => (
-                    <ActiveShowcaseCard
+                <BoloesCarouselShell itemCount={principalActive.length}>
+                  {principalActive.map((item) => (
+                    <PrincipalHeroCard
                       key={item.id}
                       item={item}
                       now={now}
-                      kind="extra"
+                      carouselItem
                     />
                   ))}
-                </CarouselShell>
-              )}
-            </section>
-          );
-        })}
+                </BoloesCarouselShell>
+              )
+            ) : (
+              <PrincipalHeroPurchaseCard
+                href={ticketsHref}
+                priceLabel={principalPriceLabel}
+                participantCount={principalParticipants}
+              />
+            )}
+          </section>
+        ) : null}
+
+        {activeNonPrincipal.length > 0 ? (
+          <section className="mt-8" aria-labelledby="boloes-ativos-heading">
+            <BoloesSectionHeader
+              title="Bolões ativos"
+              onVerTodos={openBoloesSheet}
+              icon={
+                <Zap
+                  className="size-4 shrink-0 text-white"
+                  strokeWidth={2.35}
+                  aria-hidden
+                />
+              }
+            />
+            {activeNonPrincipal.length === 1 ? (
+              <ActiveBolaoCarouselCard
+                item={activeNonPrincipal[0]!}
+                now={now}
+                fullWidth
+              />
+            ) : (
+              <BoloesCarouselShell itemCount={activeNonPrincipal.length}>
+                {activeNonPrincipal.map((item) => (
+                  <ActiveBolaoCarouselCard key={item.id} item={item} now={now} />
+                ))}
+              </BoloesCarouselShell>
+            )}
+          </section>
+        ) : null}
+
+        {!ticketsExtraOnly ? (
+          <OutrosBoloesGrid
+            items={outrosBoloesGridItems}
+            className="mt-8"
+            onVerTodos={openBoloesSheet}
+          />
+        ) : null}
+
+        {finishedItems.length > 0 ? (
+          <section className="mt-8" aria-labelledby="boloes-finalizados-heading">
+            <BoloesSectionHeader
+              title="Bolões finalizados"
+              icon={
+                <Trophy
+                  className="size-4 shrink-0 text-[#fff]"
+                  strokeWidth={2.35}
+                  aria-hidden
+                />
+              }
+            />
+            <div className="flex snap-x snap-mandatory gap-2.5 overflow-x-auto overscroll-x-contain px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {finishedItems.map((item) => (
+                <FinishedBolaoChip key={item.id} item={item} />
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        {!ticketsExtraOnly && hasPrincipalCota ? (
+          <MilhaoUpsellBanner href={ticketsHref} />
+        ) : null}
 
         <BoloesAjudaSection />
       </div>
+
+      <BoloesBottomSheet
+        open={boloesSheetOpen}
+        onClose={closeBoloesSheet}
+        items={boloesSheetCatalog.items}
+        championships={boloesSheetCatalog.championships}
+      />
     </div>
   );
 }

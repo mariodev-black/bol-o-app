@@ -39,11 +39,12 @@ import { HomeFaqSection } from "@/app/components/HomeFaqSection";
 import { HomeFromRedirectWhenLoggedIn } from "@/app/shared/HomeFromRedirectWhenLoggedIn";
 import { TicketPurchaseLink } from "@/app/shared/TicketPurchaseLink";
 import { AppScreenLoading } from "@/app/shared/AppScreenLoading";
+import { HomeBrasilEgitoPromoFlow } from "@/app/components/HomeBrasilEgitoPromoFlow";
 import { Suspense, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/shared/AuthContext";
 import { useAppServerConfig } from "@/app/shared/AppServerConfigContext";
 import { useProductHref } from "@/app/shared/useProductHref";
+import { BRASIL_EGITO_PLACAR_FRIENDS_GOAL } from "@/lib/promotions/brasil-egito-guest-flow";
 import { OutrosBoloesGrid } from "@/app/(authenticated)/boloes/_components/OutrosBoloesGrid";
 import { QuemEstaNoBolaoSection } from "@/app/components/QuemEstaNoBolaoSection";
 import { PalpitesAbertosGrid } from "@/app/components/PalpitesAbertosGrid";
@@ -291,7 +292,7 @@ function LoggedInHome({
       </Suspense>
       <Header />
       <main className="min-h-screen bg-black pb-32 text-white">
-        <section className="w-full pt-1">
+        <section className="w-full pt-2">
           <div className="mx-auto w-full max-w-[430px] px-3.5">
             <Link
               href="/boloes"
@@ -347,66 +348,65 @@ export function HomePageClient({
   hint,
   outrosBoloes = [],
   palpitesAbertos = [],
+  brasilEgitoPlacarPromoEnabled = false,
 }: {
   hint: HomePageServerHint;
   outrosBoloes?: OutrosBolaoGridItem[];
   palpitesAbertos?: PalpiteAbertoMatch[];
+  brasilEgitoPlacarPromoEnabled?: boolean;
 }) {
-  const router = useRouter();
   const { ready, isLoggedIn } = useAuth();
   const { subdomainRoutingEnabled, appOrigin } = useAppServerConfig();
-  const onAppHost = hint.onApp;
   const onMarketing = hint.onMarketing;
   /** Até o `/me` no client: confia no cookie validado no servidor (sem flash da LP). */
   const loggedIn = ready ? isLoggedIn : hint.initialLoggedIn;
 
   useEffect(() => {
-    if (!onAppHost || !ready || isLoggedIn) return;
-    router.replace("/cadastrar");
-  }, [onAppHost, ready, isLoggedIn, router]);
-
-  useEffect(() => {
-    if (!ready || !isLoggedIn || onAppHost) return;
-    if (subdomainRoutingEnabled && onMarketing) {
+    if (!ready || !isLoggedIn || !onMarketing) return;
+    if (subdomainRoutingEnabled) {
       window.location.assign(`${appOrigin.replace(/\/+$/, "")}/`);
     }
-  }, [
-    ready,
-    isLoggedIn,
-    onAppHost,
-    onMarketing,
-    subdomainRoutingEnabled,
-    appOrigin,
-  ]);
+  }, [ready, isLoggedIn, onMarketing, subdomainRoutingEnabled, appOrigin]);
 
-  /** App: home logada em `/`; visitante → cadastro (nunca LP). */
-  if (onAppHost) {
-    if (!loggedIn) {
-      if (!ready) return <AppScreenLoading message="Carregando..." />;
-      return null;
-    }
-    return (
+  const productHome = (
+    <>
       <LoggedInHome
         outrosBoloes={outrosBoloes}
         palpitesAbertos={palpitesAbertos}
       />
-    );
-  }
+      {brasilEgitoPlacarPromoEnabled ? (
+        <Suspense fallback={null}>
+          <HomeBrasilEgitoPromoFlow
+            friendsGoal={BRASIL_EGITO_PLACAR_FRIENDS_GOAL}
+            promoEnabled
+          />
+        </Suspense>
+      ) : null}
+    </>
+  );
 
-  /** www: logado vai para o app; visitante vê LP. */
-  if (loggedIn) {
-    if (subdomainRoutingEnabled && onMarketing) {
-      return <AppScreenLoading message="Abrindo o app..." />;
-    }
+  /** www + visitante: LP de vendas + promo guest. */
+  if (onMarketing && !loggedIn) {
     return (
-      <LoggedInHome
-        outrosBoloes={outrosBoloes}
-        palpitesAbertos={palpitesAbertos}
-      />
+      <>
+        <PublicHome />
+        <Suspense fallback={null}>
+          <HomeBrasilEgitoPromoFlow
+            friendsGoal={BRASIL_EGITO_PLACAR_FRIENDS_GOAL}
+            promoEnabled={brasilEgitoPlacarPromoEnabled}
+          />
+        </Suspense>
+      </>
     );
   }
 
-  return <PublicHome />;
+  /** www + logado: redireciona para o app quando há roteamento por subdomínio. */
+  if (onMarketing && loggedIn && subdomainRoutingEnabled) {
+    return <AppScreenLoading message="Abrindo o app..." />;
+  }
+
+  /** App / localhost / logado: home do produto (mesma tela para visitante e logado). */
+  return productHome;
 }
 
 function PublicHome() {

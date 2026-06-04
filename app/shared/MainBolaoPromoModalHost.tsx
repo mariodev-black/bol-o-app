@@ -12,7 +12,7 @@ import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowRight, Crown, Ticket, Timer, X } from "lucide-react";
+import { ArrowRight, Crown, Ticket, Timer } from "lucide-react";
 import { useIsAdminAppRoute } from "@/app/shared/app-route-guards";
 import { useAuth } from "@/app/shared/AuthContext";
 import {
@@ -65,7 +65,7 @@ function MainBolaoPromoModal({
         className="-z-20 object-cover object-center"
         sizes="(max-width: 380px) 100vw, 380px"
       />
-      <header className="absolute inset-x-0 top-0 z-20 flex items-start justify-between px-3 pt-3">
+      <header className="absolute inset-x-0 top-0 z-20 flex items-start px-3 pt-3">
         <Image
           src={logo}
           alt="Bolão do Milhão"
@@ -74,14 +74,6 @@ function MainBolaoPromoModal({
           className="h-9 w-auto shrink-0 drop-shadow-[0_2px_10px_rgba(0,0,0,0.65)] min-[380px]:h-10"
           priority
         />
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Fechar"
-          className="flex size-8 shrink-0 items-center justify-center rounded-full border border-white/25 bg-black/50 text-white backdrop-blur-sm transition-colors hover:bg-black/70"
-        >
-          <X className="size-4" strokeWidth={2.5} aria-hidden />
-        </button>
       </header>
 
       <div className="absolute inset-x-0 bottom-0 z-10">
@@ -133,7 +125,7 @@ function MainBolaoPromoModal({
           <Link
             href="/tickets?bolao=general"
             onClick={onClose}
-            className="mt-5 flex min-h-[56px] w-full items-center justify-center gap-2 rounded-full bg-primary px-4 text-[17px] font-black italic uppercase tracking-wide text-[#0a0a0a] shadow-[0_4px_24px_rgba(182,246,0,0.35)] transition-transform active:scale-[0.98] min-[380px]:text-[18px]"
+            className="mt-5 flex min-h-[56px] w-full items-center justify-center gap-1 rounded-full bg-primary px-4 text-[14px] font-black italic uppercase tracking-wide text-[#0a0a0a] shadow-[0_4px_24px_rgba(182,246,0,0.35)] transition-transform active:scale-[0.98] min-[380px]:text-[14px]"
           >
             Garantir Minha Participação
             <ArrowRight className="size-5 shrink-0 min-[380px]:size-6" strokeWidth={2.8} aria-hidden />
@@ -292,9 +284,6 @@ export function MainBolaoPromoModalHost({ children }: { children: React.ReactNod
         role="dialog"
         aria-modal="true"
         aria-labelledby="main-bolao-promo-title"
-        onClick={(e) => {
-          if (e.target === e.currentTarget) handleClose();
-        }}
       >
         <div
           className={[
