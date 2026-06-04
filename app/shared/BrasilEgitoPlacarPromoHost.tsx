@@ -33,6 +33,7 @@ import {
 import { useIsAdminAppRoute } from "@/app/shared/app-route-guards";
 import { useAuth } from "@/app/shared/AuthContext";
 import { useBolaoToast } from "@/app/components/BolaoToast";
+import { useRegisterPromotionHub, usePromotionsHub } from "@/app/shared/PromotionsHubContext";
 import type { BrasilEgitoPlacarPromoStatus } from "@/lib/promotions/brasil-egito-placar-promo";
 import { resolveNationalTeamShieldUrl } from "@/lib/football/national-team-shields";
 import brasilLogo from "@/app/assets/brasil-selecao-logo.png";
@@ -237,6 +238,63 @@ function PlacarExatoPicker({
   );
 }
 
+function PlacarExatoSummary({
+  predCasa,
+  predVisitante,
+}: {
+  predCasa: number;
+  predVisitante: number;
+}) {
+  return (
+    <div className="mt-4 rounded-2xl border border-white/10 bg-[#1a1a1a] px-3 py-3.5">
+      <p className="text-center text-[10px] font-black uppercase tracking-[0.14em] text-white/55">
+        Seu palpite
+      </p>
+
+      <div className="mt-3 flex items-center justify-between gap-1">
+        <TeamLogo src={brasilLogo} alt="Brasil" />
+
+        <div className="flex flex-col items-center">
+          <span
+            className="min-w-[42px] text-center text-[42px] font-black tabular-nums leading-none text-white/90"
+            aria-label={`${predCasa} gols do Brasil`}
+          >
+            {predCasa}
+          </span>
+          <span className="mt-1 text-[10px] font-bold uppercase text-white/45">
+            Brasil
+          </span>
+        </div>
+
+        <span
+          className="shrink-0 px-1 text-[18px] font-bold text-white/45"
+          aria-hidden
+        >
+          x
+        </span>
+
+        <div className="flex flex-col items-center">
+          <span
+            className="min-w-[42px] text-center text-[42px] font-black tabular-nums leading-none text-white/90"
+            aria-label={`${predVisitante} gols do Egito`}
+          >
+            {predVisitante}
+          </span>
+          <span className="mt-1 text-[10px] font-bold uppercase text-white/45">
+            Egito
+          </span>
+        </div>
+
+        <TeamLogoRemote
+          src={EGITO_SHIELD_URL}
+          alt="Egito"
+          className="size-16 shrink-0 object-contain"
+        />
+      </div>
+    </div>
+  );
+}
+
 function OfferStep({
   predCasa,
   predVisitante,
@@ -356,11 +414,15 @@ function OfferStep({
 }
 
 function SuccessStep({
+  predCasa,
+  predVisitante,
   signupLink,
   friendsInvited,
   friendsGoal,
   onClose,
 }: {
+  predCasa: number;
+  predVisitante: number;
   signupLink: string;
   friendsInvited: number;
   friendsGoal: number;
@@ -414,7 +476,10 @@ function SuccessStep({
         >
           registrado!
         </p>
-        <p className="mt-2 text-[13px] font-medium leading-snug text-white/80">
+
+        <PlacarExatoSummary predCasa={predCasa} predVisitante={predVisitante} />
+
+        <p className="mt-3 text-[13px] font-medium leading-snug text-white/80">
           Agora é só chamar a galera e garantir sua{" "}
           <strong className="font-bold text-white">camisa oficial</strong>!
         </p>
@@ -526,6 +591,7 @@ export function BrasilEgitoPlacarPromoHost({
 }) {
   const { ready, isLoggedIn, user } = useAuth();
   const toast = useBolaoToast();
+  const { getPromotionPrefetch, setPromotionPrefetch } = usePromotionsHub();
   const isAdminRoute = useIsAdminAppRoute();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<Step>("offer");
@@ -552,8 +618,52 @@ export function BrasilEgitoPlacarPromoHost({
         cache: "no-store",
       });
       if (!r.ok) return null;
-      return (await r.json()) as BrasilEgitoPlacarPromoStatus;
-    }, []);
+      const data = (await r.json()) as BrasilEgitoPlacarPromoStatus;
+      setPromotionPrefetch("brasil_egito_placar", data);
+      return data;
+    }, [setPromotionPrefetch]);
+
+  const applyHubOpen = useCallback((data: BrasilEgitoPlacarPromoStatus) => {
+    setStatus(data);
+    if (data.showOfferModal) {
+      setStep("offer");
+      setPredCasa(0);
+      setPredVisitante(0);
+      setOpen(true);
+      return;
+    }
+    if (data.alreadySubmitted) {
+      if (data.predCasa != null) setPredCasa(data.predCasa);
+      if (data.predVisitante != null) setPredVisitante(data.predVisitante);
+      setStep("success");
+      setOpen(true);
+    }
+  }, []);
+
+  const openFromPromotionsHub = useCallback(() => {
+    const cached =
+      status ??
+      (getPromotionPrefetch("brasil_egito_placar") as
+        | BrasilEgitoPlacarPromoStatus
+        | undefined);
+    if (cached?.enabled) {
+      applyHubOpen(cached);
+    }
+    void refreshStatus().then((fresh) => {
+      if (!fresh?.enabled) return;
+      if (!cached?.enabled) {
+        applyHubOpen(fresh);
+        return;
+      }
+      setStatus(fresh);
+      if (fresh.alreadySubmitted) {
+        if (fresh.predCasa != null) setPredCasa(fresh.predCasa);
+        if (fresh.predVisitante != null) setPredVisitante(fresh.predVisitante);
+      }
+    });
+  }, [status, getPromotionPrefetch, applyHubOpen, refreshStatus]);
+
+  useRegisterPromotionHub("brasil_egito_placar", openFromPromotionsHub);
 
   useEffect(() => {
     let cancelled = false;
@@ -636,6 +746,8 @@ export function BrasilEgitoPlacarPromoHost({
         return;
       }
       setStatus(data);
+      if (data.predCasa != null) setPredCasa(data.predCasa);
+      if (data.predVisitante != null) setPredVisitante(data.predVisitante);
       setStep("success");
     } catch {
       toast.error("Erro de rede. Tente novamente.");
@@ -684,6 +796,8 @@ export function BrasilEgitoPlacarPromoHost({
             />
           ) : (
             <SuccessStep
+              predCasa={status.predCasa ?? predCasa}
+              predVisitante={status.predVisitante ?? predVisitante}
               signupLink={status.signupLink}
               friendsInvited={status.friendsInvited}
               friendsGoal={status.friendsGoal}

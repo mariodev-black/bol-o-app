@@ -19,6 +19,7 @@ import { useIsAdminAppRoute } from "@/app/shared/app-route-guards";
 import { useAuth } from "@/app/shared/AuthContext";
 import { useBolaoToast } from "@/app/components/BolaoToast";
 import { extraBolaoIconSrc } from "@/app/shared/extra-bolao-icons";
+import { useRegisterPromotionHub, usePromotionsHub } from "@/app/shared/PromotionsHubContext";
 import type { ExtraGiftLeagueKind } from "@/lib/promotions/extra-gift-shared";
 import { formatShortTicketId } from "@/lib/tickets/short-ticket-id";
 import logoAmistoso from "@/app/assets/logo-amistoso.png";
@@ -290,6 +291,7 @@ export function ExtraGiftPromoHost({ children }: { children: React.ReactNode }) 
   const isAdminRoute = useIsAdminAppRoute();
   const router = useRouter();
   const toast = useBolaoToast();
+  const { getPromotionPrefetch, setPromotionPrefetch } = usePromotionsHub();
 
   const [status, setStatus] = useState<ExtraGiftStatus | null>(null);
   const [open, setOpen] = useState(false);
@@ -356,6 +358,10 @@ export function ExtraGiftPromoHost({ children }: { children: React.ReactNode }) 
 
   const profileBlocksPromo = Boolean(user && user.profileComplete === false);
 
+  useEffect(() => {
+    router.prefetch("/boloes?fromExtraGift=1");
+  }, [router]);
+
   const refreshStatus = useCallback(async (): Promise<ExtraGiftStatus | null> => {
     const r = await fetch("/api/promotions/extra-gift", {
       method: "GET",
@@ -363,8 +369,44 @@ export function ExtraGiftPromoHost({ children }: { children: React.ReactNode }) 
       cache: "no-store",
     });
     if (!r.ok) return null;
-    return (await r.json()) as ExtraGiftStatus;
-  }, []);
+    const data = (await r.json()) as ExtraGiftStatus;
+    setPromotionPrefetch("extra_gift", data);
+    return data;
+  }, [setPromotionPrefetch]);
+
+  const applyHubOpen = useCallback(
+    (data: ExtraGiftStatus) => {
+      setStatus(data);
+      if (data.showOfferModal && data.canClaim) {
+        setStep("offer");
+        setOpen(true);
+        return;
+      }
+      if (data.alreadyClaimed || data.allClaimed) {
+        router.push("/boloes?fromExtraGift=1");
+      }
+    },
+    [router],
+  );
+
+  const openFromPromotionsHub = useCallback(() => {
+    const cached =
+      status ??
+      (getPromotionPrefetch("extra_gift") as ExtraGiftStatus | undefined);
+    if (cached?.enabled) {
+      applyHubOpen(cached);
+    }
+    void refreshStatus().then((fresh) => {
+      if (!fresh?.enabled) return;
+      if (!cached?.enabled) {
+        applyHubOpen(fresh);
+        return;
+      }
+      setStatus(fresh);
+    });
+  }, [status, getPromotionPrefetch, applyHubOpen, refreshStatus]);
+
+  useRegisterPromotionHub("extra_gift", openFromPromotionsHub);
 
   useEffect(() => {
     let cancelled = false;

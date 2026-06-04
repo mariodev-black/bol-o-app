@@ -870,6 +870,113 @@ button, [role="button"] {
   animation: perfil-avatar-sheet-in 0.42s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
+/* ── Header: ícone promoções (borda fixa + highlight fino) ─────── */
+@property --promo-gift-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes promo-gift-rotate-highlight {
+  to {
+    --promo-gift-angle: 360deg;
+  }
+}
+
+.promo-gift-trigger-wrap {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 2.375rem;
+  height: 2.375rem;
+}
+
+.promo-gift-trigger-wrap--live {
+  border-radius: 10px;
+}
+
+/* Anel verde fixo (sempre visível) */
+.promo-gift-trigger-wrap--live::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  padding: 2px;
+  pointer-events: none;
+  background: #7fb300;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+
+/* Highlight duplo girando só no anel (2 feixes brancos) */
+.promo-gift-trigger-wrap--live::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  padding: 2px;
+  pointer-events: none;
+  background: conic-gradient(
+    from var(--promo-gift-angle),
+    transparent 0deg 16deg,
+    rgba(255, 255, 255, 0.35) 22deg,
+    rgba(255, 255, 255, 0.85) 28deg,
+    #ffffff 34deg,
+    #ffffff 42deg,
+    rgba(255, 255, 255, 0.85) 48deg,
+    rgba(255, 255, 255, 0.35) 54deg,
+    transparent 62deg 168deg,
+    rgba(255, 255, 255, 0.35) 174deg,
+    rgba(255, 255, 255, 0.85) 180deg,
+    #ffffff 186deg,
+    #ffffff 194deg,
+    rgba(255, 255, 255, 0.85) 200deg,
+    rgba(255, 255, 255, 0.35) 206deg,
+    transparent 214deg 360deg
+  );
+  animation: promo-gift-rotate-highlight 2s ease-in-out infinite;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+
+.promo-gift-trigger-btn {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  height: 2.125rem;
+  width: 2.125rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  background: #000;
+  transition: color 0.2s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .promo-gift-trigger-wrap--live::before {
+    animation: none;
+    opacity: 0;
+  }
+}
+
 /* ── Home: próximos jogos ─────────────────────────────────────── */
 .home-match-card {
   display: grid;

@@ -5,6 +5,7 @@ import { BolaoToastProvider } from "@/app/components/BolaoToast";
 import { AuthProvider } from "@/app/shared/AuthContext";
 import { AppServerConfigProvider } from "@/app/shared/AppServerConfigContext";
 import { BrasilEgitoPlacarPromoHost } from "@/app/shared/BrasilEgitoPlacarPromoHost";
+import { PromotionsHubProvider } from "@/app/shared/PromotionsHubContext";
 import { ChampionsPlacarPromoHost } from "@/app/shared/ChampionsPlacarPromoHost";
 import { ExtraGiftPromoHost } from "@/app/shared/ExtraGiftPromoHost";
 import { MainBolaoPromoModalHost } from "@/app/shared/MainBolaoPromoModalHost";
@@ -30,6 +31,7 @@ export function Providers({
       <AuthProvider initialUser={initialAuthUser}>
         <PwaManager />
         <ProfileCompletionHost>
+          <PromotionsHubProvider>
           <BrasilEgitoPlacarPromoHost>
             <ChampionsPlacarPromoHost>
               <ExtraGiftPromoHost>
@@ -42,6 +44,7 @@ export function Providers({
               </ExtraGiftPromoHost>
             </ChampionsPlacarPromoHost>
           </BrasilEgitoPlacarPromoHost>
+          </PromotionsHubProvider>
         </ProfileCompletionHost>
       </AuthProvider>
       </AppServerConfigProvider>

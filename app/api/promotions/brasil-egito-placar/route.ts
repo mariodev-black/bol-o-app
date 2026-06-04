@@ -11,6 +11,7 @@ import {
   getBrasilEgitoPlacarPromoStatusForUser,
   submitBrasilEgitoPlacarPromoForUser,
 } from "@/lib/promotions/brasil-egito-placar-promo";
+import { invalidatePromoHubCache } from "@/lib/promotions/hub";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -49,5 +50,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: result.error }, { status: 409 });
   }
 
+  invalidatePromoHubCache(user.id);
   return NextResponse.json(result.status);
 }

@@ -14,6 +14,7 @@ import {
   claimExtraGiftForUser,
   getExtraGiftStatusForUser,
 } from "@/lib/promotions/extra-gift";
+import { invalidatePromoHubCache } from "@/lib/promotions/hub";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,5 +37,6 @@ export async function POST() {
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: 409 });
   }
+  invalidatePromoHubCache(user.id);
   return NextResponse.json(result);
 }

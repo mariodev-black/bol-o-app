@@ -8,6 +8,7 @@ import { useProductHref } from "@/app/shared/useProductHref";
 import logo from "@/app/assets/logo.svg";
 import { Menu as MenuIcon } from "lucide-react";
 import { NotificationsBell } from "@/app/shared/NotificationsBell";
+import { PromotionsGiftButton } from "@/app/shared/PromotionsGiftButton";
 import { useAuth } from "@/app/shared/AuthContext";
 import { useSidenav } from "@/app/shared/SidenavContext";
 import { InstallAppBanner } from "@/app/shared/InstallAppBanner";
@@ -147,7 +148,10 @@ export function Header() {
             />
           </Link>
 
-          <NotificationsBell variant="mobile" />
+          <div className="flex items-center justify-end gap-0.5">
+            <PromotionsGiftButton variant="mobile" />
+            <NotificationsBell variant="mobile" />
+          </div>
         </div>
 
         <div className="mx-auto hidden h-[80px] w-full max-w-[1500px] items-center justify-between px-8 lg:flex">
@@ -190,7 +194,10 @@ export function Header() {
               })}
             </nav>
 
-            <NotificationsBell variant="desktop" />
+            <div className="flex items-center gap-1">
+              <PromotionsGiftButton variant="desktop" />
+              <NotificationsBell variant="desktop" />
+            </div>
 
             <Link
               href="/tickets"
