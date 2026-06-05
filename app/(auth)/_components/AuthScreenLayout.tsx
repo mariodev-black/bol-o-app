@@ -104,7 +104,9 @@ export function AuthScreenLayout({
     <div
       className={[
         "flex w-full flex-col bg-black text-white",
-        isModal ? "max-h-[min(92dvh,820px)] overflow-hidden rounded-t-[1.35rem] sm:rounded-[1.35rem]" : "min-h-dvh",
+        isModal
+          ? "flex min-h-0 flex-1 flex-col overflow-hidden rounded-t-[1.35rem] sm:rounded-[1.35rem]"
+          : "min-h-dvh",
       ].join(" ")}
     >
       {!isModal ? (
@@ -123,7 +125,7 @@ export function AuthScreenLayout({
         </header>
       ) : null}
 
-      <div className={["relative w-full shrink-0", isModal ? "" : ""].join(" ")}>
+      <div className="relative w-full shrink-0">
         <div
           className={[
             "relative mx-auto w-full overflow-hidden",
@@ -144,20 +146,22 @@ export function AuthScreenLayout({
       <div
         className={[
           "relative z-10 flex min-h-0 flex-1 flex-col",
-          isModal ? "-mt-2 overflow-y-auto pb-4" : "-mt-2 flex-1 pb-8 sm:px-4 lg:mx-auto lg:w-full lg:max-w-lg",
+          isModal
+            ? "-mt-2 overflow-y-auto overscroll-contain touch-pan-y"
+            : "-mt-2 flex-1 pb-8 sm:px-4 lg:mx-auto lg:w-full lg:max-w-lg",
         ].join(" ")}
       >
         <div
           className={[
-            "flex min-h-0 flex-1 flex-col overflow-hidden bg-[#000000]",
+            "flex flex-col bg-[#000000]",
             isModal
-              ? "shadow-none"
-              : "shadow-[0_-8px_40px_rgba(0,0,0,0.45)] rounded-t-[1.35rem]",
+              ? "min-h-0 shadow-none"
+              : "min-h-0 flex-1 flex-col overflow-hidden shadow-[0_-8px_40px_rgba(0,0,0,0.45)] rounded-t-[1.35rem]",
           ].join(" ")}
         >
           {showTabs ? (
             <div
-              className="grid grid-cols-2 gap-0 px-3"
+              className="sticky top-0 z-10 grid shrink-0 grid-cols-2 gap-0 bg-[#000000] px-3"
               role="tablist"
               aria-label="Cadastro ou login"
             >
@@ -208,7 +212,7 @@ export function AuthScreenLayout({
           <div
             key={showTabs ? activeTab : pathname}
             className={[
-              "flex flex-1 flex-col px-4 pb-6 pt-4 sm:px-5 sm:pb-7 sm:pt-5",
+              "flex flex-col px-4 pb-6 pt-4 sm:px-5 sm:pb-7 sm:pt-5",
               showTabs ? panelAnimationClass : "animate-auth-tab-panel-fade",
             ].join(" ")}
           >

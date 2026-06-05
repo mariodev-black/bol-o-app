@@ -12,7 +12,6 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
-import type { StaticImageData } from "next/image";
 import {
   ArrowRight,
   Check,
@@ -40,7 +39,6 @@ import {
 } from "@/lib/promotions/brasil-egito-guest-flow";
 import { resolveNationalTeamShieldUrl } from "@/lib/football/national-team-shields";
 import brasilLogo from "@/app/assets/brasil-selecao-logo.png";
-import bgPromoBrasilEgito from "@/app/assets/banner-promo-brasil-egito.png";
 
 const EGITO_SHIELD_URL =
   resolveNationalTeamShieldUrl("Egito") ??
@@ -55,38 +53,20 @@ const API_PATH = "/api/promotions/brasil-egito-placar";
 
 type Step = "offer" | "success";
 
-const PROMO_HERO_PT_STEP1 = "pt-[220px]";
 
 function PromoHeroShell({
-  heroImage,
-  topPaddingClass,
   onClose,
   children,
 }: {
-  heroImage: StaticImageData;
-  topPaddingClass: string;
   onClose: () => void;
   children: ReactNode;
 }) {
   return (
     <div
-      className={`relative w-full max-w-[390px] ${topPaddingClass}`}
+      className="relative w-full max-w-[390px]"
       style={{ fontFamily: PROMO_FONT }}
       onClick={(e) => e.stopPropagation()}
     >
-      <div
-        className="pointer-events-none absolute inset-x-0 top-0 z-0 flex w-full justify-center"
-        aria-hidden
-      >
-        <Image
-          src={heroImage}
-          alt=""
-          priority
-          draggable={false}
-          className="h-auto w-full select-none rounded-t-3xl drop-shadow-[0_14px_24px_rgba(0,0,0,0.55)]"
-        />
-      </div>
-
       <button
         type="button"
         onClick={onClose}
@@ -350,11 +330,7 @@ export function OfferStep({
   friendsGoal: number;
 }) {
   return (
-    <PromoHeroShell
-      heroImage={bgPromoBrasilEgito}
-      topPaddingClass={PROMO_HERO_PT_STEP1}
-      onClose={onClose}
-    >
+    <PromoHeroShell onClose={onClose}>
       <div id="brasil-egito-placar-promo-title" className="text-center">
         <p className="text-[15px] font-black uppercase leading-none tracking-wide text-white">
           Acerte o

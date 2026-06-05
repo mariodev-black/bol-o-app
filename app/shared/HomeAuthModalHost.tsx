@@ -38,7 +38,7 @@ function HomeAuthModalInner() {
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[160] flex max-h-dvh items-end justify-center overflow-y-auto bg-black/85 p-0 backdrop-blur-[2px] sm:items-center sm:p-4"
+      className="fixed inset-0 z-[160] flex items-end justify-center overflow-hidden bg-black/85 p-0 backdrop-blur-[2px] sm:items-center sm:p-4"
       style={{ zIndex: AUTH_MODAL_Z }}
       role="dialog"
       aria-modal="true"
@@ -46,7 +46,7 @@ function HomeAuthModalInner() {
       onClick={close}
     >
       <div
-        className="relative my-auto flex w-full max-w-lg flex-col"
+        className="relative flex w-full max-w-lg max-h-[min(92dvh,820px)] flex-col overflow-hidden sm:my-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <button

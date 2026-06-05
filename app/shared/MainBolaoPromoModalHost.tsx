@@ -53,7 +53,7 @@ function MainBolaoPromoModal({
 }) {
   return (
     <div
-      className="relative isolate w-full max-w-[380px] min-h-[min(640px,90dvh)] overflow-hidden rounded-[20px] border border-white/15 shadow-[0_0_40px_rgba(0,0,0,0.45)]"
+      className="relative isolate flex w-full max-w-[380px] max-h-[min(640px,90dvh)] min-h-[min(640px,90dvh)] flex-col overflow-y-auto overscroll-contain rounded-[20px] border border-white/15 shadow-[0_0_40px_rgba(0,0,0,0.45)]"
       style={{ fontFamily: PROMO_FONT }}
       onClick={(e) => e.stopPropagation()}
     >
@@ -65,7 +65,7 @@ function MainBolaoPromoModal({
         className="-z-20 object-cover object-center"
         sizes="(max-width: 380px) 100vw, 380px"
       />
-      <header className="absolute inset-x-0 top-0 z-20 flex items-start px-3 pt-3">
+      <header className="sticky top-0 z-20 flex shrink-0 items-start bg-gradient-to-b from-black/80 to-transparent px-3 pb-8 pt-3">
         <Image
           src={logo}
           alt="Bolão do Milhão"
@@ -76,7 +76,7 @@ function MainBolaoPromoModal({
         />
       </header>
 
-      <div className="absolute inset-x-0 bottom-0 z-10">
+      <div className="relative z-10 mt-auto shrink-0">
         <div
           className="pointer-events-none absolute inset-x-0 bottom-0 h-[min(360px,46dvh)]"
           style={{
@@ -272,7 +272,7 @@ export function MainBolaoPromoModalHost({ children }: { children: React.ReactNod
     visible && portalReady ? (
       <div
         className={[
-          "fixed inset-0 flex items-center justify-center p-3 sm:p-4",
+          "fixed inset-0 flex items-center justify-center overflow-y-auto overscroll-contain p-3 sm:p-4",
           "bg-black/75 backdrop-blur-[2px]",
           "transition-opacity ease-out pointer-events-auto",
           active ? "opacity-100" : "opacity-0",
