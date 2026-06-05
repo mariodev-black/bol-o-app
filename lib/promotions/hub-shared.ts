@@ -11,7 +11,10 @@ export type PromoHubCategory = "brindes" | "palpite";
 export type PromoHubLeagueRow = {
   displayName: string;
   rodadaNome: string;
+  /** Palpite promo registrado */
   alreadyClaimed: boolean;
+  /** Não elegível (ex.: já palpitou no bolão principal) */
+  unavailable?: boolean;
 };
 
 export type PromoHubItem = {

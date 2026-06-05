@@ -9,6 +9,9 @@ import { BRASIL_EGITO_PLACAR_FRIENDS_GOAL } from "@/lib/promotions/brasil-egito-
 
 export { BRASIL_EGITO_PLACAR_FRIENDS_GOAL };
 
+/** Partida alvo da promo — Amistoso Brasil x Egito (06/06, 19:00). */
+export const BRASIL_EGITO_PLACAR_MATCH_ID = 90606004;
+
 function env(name: string): string {
   const raw = process.env[name];
   return raw == null ? "" : String(raw).trim();
@@ -63,18 +66,47 @@ export type BrasilEgitoPlacarPromoStatus = {
   predVisitante: number | null;
 };
 
-async function countUserBolaoPredictions(userId: string): Promise<number> {
+async function countUserBrasilEgitoMatchPredictions(userId: string): Promise<number> {
   const pool = getPool();
   const { rows } = await pool.query<{ n: number }>(
     `SELECT COUNT(*)::int AS n
      FROM predictions p
      INNER JOIN tickets t ON t.id::text = p.ticket_id
-     WHERE t.user_id = $1::uuid
+     WHERE p.user_id = $1::uuid
+       AND p.match_id = $2
        AND t.status IN ('paid', 'approved')
        AND NOT COALESCE(t.is_promo_bonus, false)`,
-    [userId],
+    [userId, BRASIL_EGITO_PLACAR_MATCH_ID],
   );
   return Number(rows[0]?.n) || 0;
+}
+
+async function findBrasilEgitoMatchPrediction(userId: string): Promise<{
+  predCasa: number;
+  predVisitante: number;
+} | null> {
+  const pool = getPool();
+  const { rows } = await pool.query<{
+    score_casa: number;
+    score_visitante: number;
+  }>(
+    `SELECT p.score_casa, p.score_visitante
+     FROM predictions p
+     INNER JOIN tickets t ON t.id::text = p.ticket_id
+     WHERE p.user_id = $1::uuid
+       AND p.match_id = $2
+       AND t.status IN ('paid', 'approved')
+       AND NOT COALESCE(t.is_promo_bonus, false)
+     ORDER BY p.updated_at DESC NULLS LAST, p.submitted_at DESC
+     LIMIT 1`,
+    [userId, BRASIL_EGITO_PLACAR_MATCH_ID],
+  );
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    predCasa: Number(row.score_casa),
+    predVisitante: Number(row.score_visitante),
+  };
 }
 
 async function countUserReferralSignups(userId: string): Promise<number> {
@@ -165,14 +197,16 @@ export async function getBrasilEgitoPlacarPromoStatusForUser(
     return EMPTY_STATUS();
   }
 
-  const [predictionsCount, submission, friendsInvited, referralCode] = await Promise.all([
-    countUserBolaoPredictions(userId),
-    findSubmission(userId),
-    countUserReferralSignups(userId),
-    getUserReferralCode(userId),
-  ]);
+  const [matchPredictionsCount, submission, matchPrediction, friendsInvited, referralCode] =
+    await Promise.all([
+      countUserBrasilEgitoMatchPredictions(userId),
+      findSubmission(userId),
+      findBrasilEgitoMatchPrediction(userId),
+      countUserReferralSignups(userId),
+      getUserReferralCode(userId),
+    ]);
 
-  const hasBet = predictionsCount > 0;
+  const hasBet = matchPredictionsCount > 0;
   const alreadySubmitted = submission != null;
   const signupLink = buildSignupLink(referralCode);
 
@@ -185,8 +219,9 @@ export async function getBrasilEgitoPlacarPromoStatusForUser(
     signupLink,
     friendsInvited,
     friendsGoal: BRASIL_EGITO_PLACAR_FRIENDS_GOAL,
-    predCasa: submission?.predCasa ?? null,
-    predVisitante: submission?.predVisitante ?? null,
+    predCasa: submission?.predCasa ?? matchPrediction?.predCasa ?? null,
+    predVisitante:
+      submission?.predVisitante ?? matchPrediction?.predVisitante ?? null,
   };
 }
 
@@ -214,9 +249,17 @@ export async function submitBrasilEgitoPlacarPromoForUser(
     return { ok: false, error: "Placar inválido." };
   }
 
-  const predictionsCount = await countUserBolaoPredictions(userId);
-  if (predictionsCount > 0) {
-    return { ok: false, error: "Você já enviou palpites no bolão." };
+  const existingSubmission = await findSubmission(userId);
+  if (existingSubmission) {
+    return { ok: false, error: "Você já enviou seu palpite nesta promoção." };
+  }
+
+  const matchPredictionsCount = await countUserBrasilEgitoMatchPredictions(userId);
+  if (matchPredictionsCount > 0) {
+    return {
+      ok: false,
+      error: "Você já palpitou neste jogo no bolão.",
+    };
   }
 
   await ensureBrasilEgitoPlacarPromoTable();

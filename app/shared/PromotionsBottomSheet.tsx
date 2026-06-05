@@ -40,6 +40,10 @@ function PromoHubLeagueList({ leagues }: { leagues: PromoHubLeagueRow[] }) {
               <Check className="size-3.5" strokeWidth={2.5} aria-hidden />
               Resgatada
             </span>
+          ) : league.unavailable ? (
+            <span className="shrink-0 rounded-full bg-white/8 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white/45">
+              Indisponível
+            </span>
           ) : (
             <span className="shrink-0 rounded-full bg-primary/12 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
               Disponível

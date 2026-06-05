@@ -4,6 +4,7 @@ import { getPool } from "@/lib/db";
 import {
   isBrasilEgitoPlacarPromoEnabled,
   isBrasilEgitoPlacarPromoSubmissionOpen,
+  BRASIL_EGITO_PLACAR_MATCH_ID,
 } from "@/lib/promotions/brasil-egito-placar-promo";
 import type {
   PromoHubItem,
@@ -43,6 +44,7 @@ async function fetchEgitoHubDb(userId: string): Promise<EgitoHubDb | null> {
           FROM predictions p
           INNER JOIN tickets t ON t.id::text = p.ticket_id
           WHERE t.user_id = $1::uuid
+            AND p.match_id = $2
             AND t.status IN ('paid', 'approved')
             AND NOT COALESCE(t.is_promo_bonus, false)
         )) AS egito_has_bet,
@@ -51,7 +53,7 @@ async function fetchEgitoHubDb(userId: string): Promise<EgitoHubDb | null> {
           FROM brasil_egito_placar_promo_submissions s
           WHERE s.user_id = $1::uuid
         )) AS egito_submitted`,
-    [userId],
+    [userId, BRASIL_EGITO_PLACAR_MATCH_ID],
   );
 
   const row = rows[0];
@@ -79,11 +81,13 @@ async function buildPromoHubForUser(userId: string): Promise<PromoHubResponse> {
 
   const pendingOffer = !egito.hasBet && !egito.alreadySubmitted;
   const submitted = egito.alreadySubmitted;
+  const blockedByMainBolao = egito.hasBet && !egito.alreadySubmitted;
   const leagues: PromoHubLeagueRow[] = [
     {
       displayName: "Brasil x Egito",
       rodadaNome: "Amistoso · 06/06 · 19:00",
       alreadyClaimed: submitted,
+      unavailable: blockedByMainBolao,
     },
   ];
 
@@ -94,7 +98,7 @@ async function buildPromoHubForUser(userId: string): Promise<PromoHubResponse> {
       ? "Acerte o placar e ganhe cota grátis + chance de camisa oficial."
       : submitted
         ? "Palpite registrado. Convide amigos para liberar a camisa."
-        : "Promoção encerrada para novos palpites.",
+        : "Exclusiva para quem ainda não palpitou neste jogo no bolão.",
     ctaLabel: pendingOffer
       ? "Fazer palpite"
       : submitted
@@ -104,7 +108,7 @@ async function buildPromoHubForUser(userId: string): Promise<PromoHubResponse> {
     category: "palpite",
     tag: "AMISTOSO",
     leagues,
-    actionable: pendingOffer || submitted,
+    actionable: pendingOffer || submitted || blockedByMainBolao,
     highlight: pendingOffer,
   });
 

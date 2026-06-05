@@ -51,7 +51,7 @@ const PROMO_Z = 156;
 const OPEN_DELAY_MS = 0;
 const API_PATH = "/api/promotions/brasil-egito-placar";
 
-type Step = "offer" | "success";
+type Step = "offer" | "success" | "unavailable";
 
 
 function PromoHeroShell({
@@ -424,6 +424,85 @@ export function OfferStep({
   );
 }
 
+export function UnavailableStep({
+  onClose,
+  friendsGoal,
+}: {
+  onClose: () => void;
+  friendsGoal: number;
+}) {
+  return (
+    <PromoHeroShell onClose={onClose}>
+      <div id="brasil-egito-placar-unavailable-title" className="text-center">
+        <p className="text-[15px] font-black uppercase leading-none tracking-wide text-white">
+          Acerte o
+        </p>
+        <p
+          className="mt-1 text-[32px] font-black italic uppercase leading-[0.92] tracking-tight"
+          style={{ color: GREEN }}
+        >
+          Placar exato
+        </p>
+        <p className="mt-1.5 text-[14px] font-black uppercase leading-none tracking-wide text-white">
+          do amistoso
+        </p>
+        <p
+          className="mt-0.5 text-[22px] font-black uppercase leading-none tracking-tight"
+          style={{ color: GREEN }}
+        >
+          Brasil x Egito
+        </p>
+      </div>
+
+      <div className="mt-5 w-full overflow-hidden rounded-xl border border-white/10 bg-[#1a1a1a]">
+        <div className="grid grid-cols-2 divide-x divide-white/10">
+          <div className="flex items-start gap-2 px-2.5 py-3">
+            <Ticket
+              className="mt-0.5 size-5 shrink-0 text-primary"
+              strokeWidth={2}
+            />
+            <p className="text-[10px] font-bold uppercase leading-[1.35] text-white">
+              Ganhe <span className="text-primary">1 cota grátis</span>
+              <br />
+              <span className="text-white/90">no Bolão do Milhão</span>
+            </p>
+          </div>
+          <div className="flex items-start gap-2 px-2.5 py-3">
+            <Shirt
+              className="mt-0.5 size-5 shrink-0 text-primary"
+              strokeWidth={2}
+            />
+            <p className="text-[10px] font-bold uppercase leading-[1.35] text-white">
+              Ganhe <span className="text-primary">1 camisa oficial</span>
+              <br />
+              <span className="text-white/90">da seleção brasileira</span>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-5 rounded-2xl border border-white/10 bg-[#1a1a1a] px-4 py-4 text-center">
+        <p className="text-[13px] font-bold leading-snug text-white/90">
+          Você já palpitou neste jogo no bolão.
+        </p>
+        <p className="mt-2 text-[12px] font-medium leading-snug text-white/55">
+          Esta promoção é exclusiva para quem ainda não fez palpite no amistoso
+          Brasil x Egito. Convide {friendsGoal} amigos em outras promoções para
+          concorrer a prêmios.
+        </p>
+      </div>
+
+      <button
+        type="button"
+        onClick={onClose}
+        className="mt-5 flex min-h-[52px] w-full items-center justify-center rounded-full bg-primary px-5 text-[14px] font-black uppercase italic tracking-wide text-[#0E141B] transition active:scale-[0.98]"
+      >
+        Entendi
+      </button>
+    </PromoHeroShell>
+  );
+}
+
 export function SuccessStep({
   predCasa,
   predVisitante,
@@ -660,6 +739,11 @@ export function BrasilEgitoPlacarPromoHost({
         if (data.predVisitante != null) setPredVisitante(data.predVisitante);
         setStep("success");
         setOpen(true);
+        return;
+      }
+      if (data.hasBet && options?.manual) {
+        setStep("unavailable");
+        setOpen(true);
       }
     },
     [user?.id],
@@ -684,6 +768,13 @@ export function BrasilEgitoPlacarPromoHost({
       if (fresh.alreadySubmitted) {
         if (fresh.predCasa != null) setPredCasa(fresh.predCasa);
         if (fresh.predVisitante != null) setPredVisitante(fresh.predVisitante);
+        setStep("success");
+        setOpen(true);
+        return;
+      }
+      if (fresh.hasBet) {
+        setStep("unavailable");
+        setOpen(true);
       }
     });
   }, [status, getPromotionPrefetch, applyHubOpen, refreshStatus]);
@@ -823,7 +914,9 @@ export function BrasilEgitoPlacarPromoHost({
         aria-labelledby={
           step === "offer"
             ? "brasil-egito-placar-promo-title"
-            : "brasil-egito-placar-success-title"
+            : step === "unavailable"
+              ? "brasil-egito-placar-unavailable-title"
+              : "brasil-egito-placar-success-title"
         }
         onClick={handleClose}
       >
@@ -836,6 +929,11 @@ export function BrasilEgitoPlacarPromoHost({
               onPredVisitanteChange={setPredVisitante}
               loading={loading}
               onSubmit={() => void handleSubmit()}
+              onClose={handleClose}
+              friendsGoal={status.friendsGoal}
+            />
+          ) : step === "unavailable" ? (
+            <UnavailableStep
               onClose={handleClose}
               friendsGoal={status.friendsGoal}
             />

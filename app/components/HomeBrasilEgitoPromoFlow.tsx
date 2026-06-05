@@ -79,7 +79,20 @@ function statusMatchesPalpite(
 
 function isAlreadySubmittedPromoError(error?: string): boolean {
   const msg = String(error ?? "").toLowerCase();
-  return msg.includes("já enviou") || msg.includes("ja enviou");
+  return (
+    msg.includes("já enviou") ||
+    msg.includes("ja enviou") ||
+    msg.includes("já palpitou") ||
+    msg.includes("ja palpitou")
+  );
+}
+
+/** Palpite promo já salvo ou palpite pago neste jogo no bolão. */
+function hasPromoPalpiteDone(
+  status: BrasilEgitoPlacarPromoStatus | null | undefined,
+): status is BrasilEgitoPlacarPromoStatus {
+  if (!status) return false;
+  return status.alreadySubmitted || status.hasBet;
 }
 
 export function HomeBrasilEgitoPromoFlow({
@@ -91,7 +104,7 @@ export function HomeBrasilEgitoPromoFlow({
   const toast = useBolaoToast();
   const { openCadastro } = useHomeAuthModal();
   const { requestModal } = useMainBolaoPromoModal();
-  const { ready, isLoggedIn, refresh, user } = useAuth();
+  const { ready, isLoggedIn, user } = useAuth();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<FlowStep>("offer");
   const [status, setStatus] = useState<BrasilEgitoPlacarPromoStatus | null>(
@@ -173,7 +186,7 @@ export function HomeBrasilEgitoPromoFlow({
       if (!r.ok) {
         if (r.status === 409 && isAlreadySubmittedPromoError(data.error)) {
           const existing = await fetchPromoStatus();
-          if (existing?.alreadySubmitted) return existing;
+          if (hasPromoPalpiteDone(existing)) return existing;
         }
         if (!options?.silent) {
           toast.error(data.error ?? "Não foi possível salvar o palpite.");
@@ -192,6 +205,16 @@ export function HomeBrasilEgitoPromoFlow({
     },
     [toast, fetchPromoStatus],
   );
+
+  /** Limpa storage/URL — sem modal, sem toast, sem POST. */
+  const silentDismissPromoFlow = useCallback(() => {
+    markBrasilEgitoPalpiteFinalized(user?.id);
+    clearPendingBrasilEgitoPalpite();
+    clearBrasilEgitoGuestFlowActive();
+    stripPalpiteQueryFromUrl();
+    setTransitionLoading(false);
+    setOpen(false);
+  }, [stripPalpiteQueryFromUrl, user?.id]);
 
   const openOffer = useCallback(
     (scores?: { predCasa: number; predVisitante: number }) => {
@@ -239,109 +262,64 @@ export function HomeBrasilEgitoPromoFlow({
     [stripPalpiteQueryFromUrl, continueAfterReferral, user?.id],
   );
 
-  const absorbAlreadySubmitted = useCallback(
-    async (
-      data: BrasilEgitoPlacarPromoStatus,
-      options?: { allowSuccessModal?: boolean },
-    ) => {
-      markBrasilEgitoPalpiteFinalized(user?.id);
-      clearPendingBrasilEgitoPalpite();
-      clearBrasilEgitoGuestFlowActive();
-      stripPalpiteQueryFromUrl();
-      setTransitionLoading(false);
-      setOpen(false);
-
-      if (
-        readBrasilEgitoReferralModalDismissed(user?.id) &&
-        readMainBolaoPromoModalDismissed(user?.id)
-      ) {
-        return;
-      }
-
-      if (readBrasilEgitoReferralModalDismissed(user?.id)) {
-        continueAfterReferral();
-        return;
-      }
-
-      if (options?.allowSuccessModal === false) return;
-
-      openSuccess(data, {
-        predCasa: data.predCasa ?? 0,
-        predVisitante: data.predVisitante ?? 0,
-      });
-    },
-    [stripPalpiteQueryFromUrl, continueAfterReferral, openSuccess, user?.id],
-  );
-
-  const finalizePendingAfterAuth = useCallback(
+  /** Após cadastro: GET → se já fez, dismiss; senão POST uma vez e success. */
+  const savePendingPalpiteAfterAuth = useCallback(
     async (pending: { predCasa: number; predVisitante: number }) => {
-      if (finalizeInFlightRef.current || isBrasilEgitoPalpiteFinalized(user?.id)) {
-        return;
-      }
+      if (finalizeInFlightRef.current) return;
       finalizeInFlightRef.current = true;
 
       try {
         const existing = await fetchPromoStatus();
-        if (existing?.alreadySubmitted) {
-          await absorbAlreadySubmitted(existing, { allowSuccessModal: true });
+        if (hasPromoPalpiteDone(existing)) {
+          silentDismissPromoFlow();
           return;
         }
 
-        stripPalpiteQueryFromUrl();
         setTransitionMessage("Registrando seu palpite...");
         setTransitionLoading(true);
-        setOpen(true);
         setPredCasa(pending.predCasa);
         setPredVisitante(pending.predVisitante);
 
-        let data: BrasilEgitoPlacarPromoStatus | null = null;
-        for (let attempt = 0; attempt < 5; attempt += 1) {
-          if (attempt > 0) {
-            await refresh();
-            await new Promise((r) => setTimeout(r, 350));
-          }
-          data = await submitPalpite(
-            pending.predCasa,
-            pending.predVisitante,
-            { silent: true },
-          );
-          if (data) break;
-        }
+        const data = await submitPalpite(
+          pending.predCasa,
+          pending.predVisitante,
+          { silent: true },
+        );
 
         if (!data) {
           const fallback = await fetchPromoStatus();
-          if (fallback?.alreadySubmitted) {
-            await absorbAlreadySubmitted(fallback, { allowSuccessModal: true });
+          if (hasPromoPalpiteDone(fallback)) {
+            silentDismissPromoFlow();
             return;
           }
           toast.error(
             "Não foi possível registrar seu palpite. Tente salvar novamente.",
           );
           authFinalizeAttemptedRef.current = false;
-          setOpen(false);
-          setTransitionLoading(false);
           return;
         }
+
+        if (data.hasBet && !data.alreadySubmitted) {
+          silentDismissPromoFlow();
+          return;
+        }
+
+        setTransitionLoading(false);
         openSuccess(data, pending);
       } catch {
         toast.error("Erro de rede. Tente novamente.");
         authFinalizeAttemptedRef.current = false;
-        setOpen(false);
-        setTransitionLoading(false);
       } finally {
         finalizeInFlightRef.current = false;
         setTransitionLoading(false);
       }
     },
     [
-      refresh,
       submitPalpite,
       openSuccess,
-      stripPalpiteQueryFromUrl,
-      absorbAlreadySubmitted,
+      silentDismissPromoFlow,
       fetchPromoStatus,
       toast,
-      user?.id,
     ],
   );
 
@@ -362,27 +340,18 @@ export function HomeBrasilEgitoPromoFlow({
 
     void (async () => {
       const serverStatus = await fetchPromoStatus();
-      if (serverStatus?.alreadySubmitted) {
-        await absorbAlreadySubmitted(serverStatus, { allowSuccessModal: false });
+
+      if (hasPromoPalpiteDone(serverStatus)) {
+        silentDismissPromoFlow();
         return;
       }
-
-      if (
-        isBrasilEgitoPalpiteFinalized(user.id) &&
-        readBrasilEgitoReferralModalDismissed(user.id) &&
-        readMainBolaoPromoModalDismissed(user.id)
-      ) {
-        clearPendingBrasilEgitoPalpite();
-        return;
-      }
-
-      if (authFinalizeAttemptedRef.current || finalizeInFlightRef.current) return;
 
       const pending = resolvePendingBrasilEgitoPalpite(searchParams, user.id);
       if (!pending) return;
 
+      if (authFinalizeAttemptedRef.current || finalizeInFlightRef.current) return;
       authFinalizeAttemptedRef.current = true;
-      await finalizePendingAfterAuth(pending);
+      await savePendingPalpiteAfterAuth(pending);
     })();
   }, [
     promoEnabled,
@@ -390,8 +359,8 @@ export function HomeBrasilEgitoPromoFlow({
     isLoggedIn,
     user?.id,
     searchParams,
-    finalizePendingAfterAuth,
-    absorbAlreadySubmitted,
+    savePendingPalpiteAfterAuth,
+    silentDismissPromoFlow,
     fetchPromoStatus,
   ]);
 
@@ -445,10 +414,8 @@ export function HomeBrasilEgitoPromoFlow({
     isLoggedIn &&
     !open &&
     !transitionLoading &&
-    !resolvePendingBrasilEgitoPalpite(searchParams, user?.id) &&
-    isBrasilEgitoPalpiteFinalized(user?.id) &&
-    readBrasilEgitoReferralModalDismissed(user?.id) &&
-    readMainBolaoPromoModalDismissed(user?.id)
+    (isBrasilEgitoPalpiteFinalized(user?.id) ||
+      !resolvePendingBrasilEgitoPalpite(searchParams, user?.id))
   ) {
     return null;
   }
