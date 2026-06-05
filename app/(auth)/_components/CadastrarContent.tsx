@@ -320,22 +320,6 @@ export function CadastrarContent({
             }
           />
 
-          <p className="text-[12px] leading-relaxed text-white/55">
-            Ao finalizar o cadastro, certifico que eu sou maior de 18 anos de idade, li e aceito os{" "}
-            <a href="/privacidade" className="font-semibold text-[#B1EB0B] hover:underline">
-              Termos e Condições Gerais
-            </a>
-            , a{" "}
-            <a href="/privacidade" className="font-semibold text-[#B1EB0B] hover:underline">
-              Política de Segurança e Privacidade
-            </a>{" "}
-            e a declaração de{" "}
-            <a href="/privacidade" className="font-semibold text-[#B1EB0B] hover:underline">
-              Pessoa Exposta Politicamente (PEP)
-            </a>
-            .
-          </p>
-
           <button
             type="button"
             onClick={() => setMarketingOptIn((v) => !v)}
