@@ -759,7 +759,7 @@ export function BrasilEgitoPlacarPromoHost({
   const dismissReferralModal = useCallback(() => {
     persistBrasilEgitoReferralModalDismissed(user?.id);
     setOpen(false);
-    requestModal();
+    requestModal({ once: true });
   }, [requestModal, user?.id]);
 
   const handleClose = useCallback(() => {

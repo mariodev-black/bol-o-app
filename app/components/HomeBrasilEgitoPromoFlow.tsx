@@ -27,6 +27,7 @@ import {
   stripBrasilEgitoPalpiteSearchParams,
   writePendingBrasilEgitoPalpite,
 } from "@/lib/promotions/brasil-egito-guest-flow";
+import { readMainBolaoPromoModalDismissed } from "@/lib/promotions/main-bolao-promo";
 
 const PROMO_Z = 157;
 const LOADING_Z = 158;
@@ -201,7 +202,8 @@ export function HomeBrasilEgitoPromoFlow({
     setOpen(false);
     setTransitionLoading(false);
     clearBrasilEgitoGuestFlowActive();
-    requestModal();
+    if (readMainBolaoPromoModalDismissed(user?.id)) return;
+    requestModal({ once: true });
   }, [requestModal, user?.id]);
 
   const openSuccess = useCallback(
@@ -228,6 +230,12 @@ export function HomeBrasilEgitoPromoFlow({
 
   const resumeFromServerSubmission = useCallback(
     async (): Promise<boolean> => {
+      if (
+        readBrasilEgitoReferralModalDismissed(user?.id) &&
+        readMainBolaoPromoModalDismissed(user?.id)
+      ) {
+        return false;
+      }
       const data = await fetchPromoStatus();
       if (!data?.alreadySubmitted) return false;
       openSuccess(data, {
@@ -236,7 +244,7 @@ export function HomeBrasilEgitoPromoFlow({
       });
       return true;
     },
-    [fetchPromoStatus, openSuccess],
+    [fetchPromoStatus, openSuccess, user?.id],
   );
 
   const finalizePendingAfterAuth = useCallback(
@@ -322,6 +330,14 @@ export function HomeBrasilEgitoPromoFlow({
     loggedInFlowStartedRef.current = true;
 
     void (async () => {
+      if (
+        isBrasilEgitoPalpiteFinalized(user.id) &&
+        readBrasilEgitoReferralModalDismissed(user.id) &&
+        readMainBolaoPromoModalDismissed(user.id)
+      ) {
+        return;
+      }
+
       if (isBrasilEgitoPalpiteFinalized(user.id)) {
         if (await resumeFromServerSubmission()) return;
       }
@@ -329,10 +345,7 @@ export function HomeBrasilEgitoPromoFlow({
       if (authFinalizeAttemptedRef.current || finalizeInFlightRef.current) return;
 
       const pending = resolvePendingBrasilEgitoPalpite(searchParams, user.id);
-      if (!pending) {
-        if (await resumeFromServerSubmission()) return;
-        return;
-      }
+      if (!pending) return;
 
       authFinalizeAttemptedRef.current = true;
       await finalizePendingAfterAuth(pending);
@@ -398,7 +411,9 @@ export function HomeBrasilEgitoPromoFlow({
     !open &&
     !transitionLoading &&
     !resolvePendingBrasilEgitoPalpite(searchParams, user?.id) &&
-    (isBrasilEgitoPalpiteFinalized(user?.id) || continuationAfterReferralRef.current)
+    isBrasilEgitoPalpiteFinalized(user?.id) &&
+    readBrasilEgitoReferralModalDismissed(user?.id) &&
+    readMainBolaoPromoModalDismissed(user?.id)
   ) {
     return null;
   }

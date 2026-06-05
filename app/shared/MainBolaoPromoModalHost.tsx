@@ -19,7 +19,11 @@ import {
   MainBolaoPromoProvider,
   type MainBolaoPromoRequestOptions,
 } from "@/app/shared/MainBolaoPromoContext";
-import { isMainBolaoPromoModalEnabled } from "@/lib/promotions/main-bolao-promo";
+import {
+  isMainBolaoPromoModalEnabled,
+  persistMainBolaoPromoModalDismissed,
+  readMainBolaoPromoModalDismissed,
+} from "@/lib/promotions/main-bolao-promo";
 import {
   isMainPromoDebug,
   promoDebugLog,
@@ -154,6 +158,7 @@ export function MainBolaoPromoModalHost({ children }: { children: React.ReactNod
   const openDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const exitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const closingRef = useRef(false);
+  const onceRequestRef = useRef(false);
 
   const enabled = isMainBolaoPromoModalEnabled();
   const profileBlocks = Boolean(user && user.profileComplete === false);
@@ -196,13 +201,16 @@ export function MainBolaoPromoModalHost({ children }: { children: React.ReactNod
   }, [setDebug]);
 
   const playEnter = useCallback(() => {
+    if (onceRequestRef.current) {
+      persistMainBolaoPromoModalDismissed(user?.id);
+    }
     setDebug("showing");
     setVisible(true);
     setActive(false);
     requestAnimationFrame(() => {
       requestAnimationFrame(() => setActive(true));
     });
-  }, [setDebug]);
+  }, [setDebug, user?.id]);
 
   const scheduleOpenAfterDelay = useCallback(() => {
     const block = getBlockReason();
@@ -230,6 +238,7 @@ export function MainBolaoPromoModalHost({ children }: { children: React.ReactNod
     setActive(false);
     exitTimerRef.current = setTimeout(() => {
       setVisible(false);
+      onceRequestRef.current = false;
       finishClose();
     }, EXIT_MS);
   }, [clearTimers, finishClose]);
@@ -237,7 +246,13 @@ export function MainBolaoPromoModalHost({ children }: { children: React.ReactNod
   const requestModal = useCallback(
     (options?: MainBolaoPromoRequestOptions) => {
       const willNavigate = Boolean(options?.navigate);
-      setDebug("request", { willNavigate, pathname });
+      const once = Boolean(options?.once);
+      setDebug("request", { willNavigate, once, pathname });
+
+      if (once && readMainBolaoPromoModalDismissed(user?.id)) {
+        setDebug("skipped:once_dismissed");
+        return;
+      }
 
       try {
         options?.navigate?.();
@@ -249,6 +264,8 @@ export function MainBolaoPromoModalHost({ children }: { children: React.ReactNod
 
       if (!canOfferModal()) return;
 
+      onceRequestRef.current = once;
+
       if (willNavigate) {
         pendingOpenAfterNav = true;
         return;
@@ -256,7 +273,7 @@ export function MainBolaoPromoModalHost({ children }: { children: React.ReactNod
 
       scheduleOpenAfterDelay();
     },
-    [canOfferModal, pathname, scheduleOpenAfterDelay, setDebug],
+    [canOfferModal, pathname, scheduleOpenAfterDelay, setDebug, user?.id],
   );
 
   useEffect(() => {

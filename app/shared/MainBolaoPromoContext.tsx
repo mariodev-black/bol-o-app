@@ -5,6 +5,8 @@ import { createContext, useContext } from "react";
 export type MainBolaoPromoRequestOptions = {
   /** Navegação imediata; o modal abre ~1s depois na página de destino. */
   navigate?: () => void;
+  /** Persiste dismiss por usuário — não reabre após fechar (fluxo promo). */
+  once?: boolean;
 };
 
 export type MainBolaoPromoContextValue = {
