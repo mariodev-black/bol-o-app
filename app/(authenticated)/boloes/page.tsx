@@ -19,7 +19,10 @@ import { BoloesClient, type BoloesScreenData } from "@/app/(authenticated)/boloe
 import { BoloesPurchaseSync } from "@/app/(authenticated)/boloes/_components/BoloesPurchaseSync";
 import { getFootballMainCompetitionId, getSoleConfiguredExtraChampionshipId, parseExtraBolaoChampionshipIds } from "@/lib/boloes-extra-config";
 import { resolveExtraBolaoDisplayName } from "@/lib/boloes-extra-competition-branding";
-import { extraBolaoTitleForPaidTicket } from "@/lib/ticket-shop-extra-display";
+import {
+  effectiveExtraRoundForPaidTicket,
+  extraBolaoTitleForPaidTicket,
+} from "@/lib/ticket-shop-extra-display";
 import { warmCompetitionMetadataCache } from "@/lib/competition-metadata-cache";
 import {
   fetchExtraChampionshipIdByTicketIds,
@@ -31,10 +34,6 @@ import {
   bolaoDisplayStatusMeta,
   computeBolaoDisplayPhase,
 } from "@/lib/boloes/display-status";
-import {
-  resolveEffectiveRoundForExtraTicket,
-  effectiveRoundNumberFromResolution,
-} from "@/lib/boloes/extra-ticket-effective-round";
 import {
   bolaoPhaseScopeForPaidTicket,
   bolaoPhaseScopeFromPredictions,
@@ -324,30 +323,16 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
     ),
   ]);
 
+  /** Cada cota mantém `tickets.round_number` — não avança rodada na vitrine. */
   const effectiveExtraRoundByTicketId = new Map<string, number>();
-  const extraRoundResolutions = await Promise.all(
-    tickets
-      .filter((t) => t.ticketType === "extra")
-      .map(async (ticket) => {
-        const resolved = await resolveEffectiveRoundForExtraTicket(ticket, {
-          userId,
-          persistAdvance: false,
-        });
-        const round = effectiveRoundNumberFromResolution(resolved, ticket);
-        return { ticketId: ticket.id, resolved, round };
-      }),
-  );
-  for (const { ticketId, resolved, round } of extraRoundResolutions) {
-    if (round != null) effectiveExtraRoundByTicketId.set(ticketId, round);
-    if (resolved && parseEnvBool(process.env.DEBUG_BOLAOES)) {
-      debugBoloes("extra-effective-round", {
-        ticketId,
-        competitionId: resolved.competitionId,
-        rodada: resolved.rodada,
-        rodadaStatus: resolved.rodadaStatus,
-        rodadaNome: resolved.rodadaNome,
-      });
-    }
+  for (const ticket of tickets.filter((t) => t.ticketType === "extra")) {
+    const comp = Number(ticket.extraChampionshipId);
+    if (!Number.isFinite(comp) || comp <= 0) continue;
+    const round = effectiveExtraRoundForPaidTicket({
+      championshipId: comp,
+      roundNumberFromDb: ticket.extraRoundNumber,
+    });
+    if (round != null) effectiveExtraRoundByTicketId.set(ticket.id, round);
   }
 
   debugBoloes("load:start", {
@@ -556,7 +541,6 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
     if (ticket.ticketType === "extra") {
       const compId = Number(ticket.extraChampionshipId);
       const safeComp = Number.isFinite(compId) && compId > 0 ? compId : 0;
-      const effectiveRound = effectiveExtraRoundByTicketId.get(ticket.id) ?? null;
       const baseName =
         safeComp > 0
           ? resolveExtraBolaoDisplayName(safeComp, competitionLabels[safeComp])
@@ -566,7 +550,7 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
           ? extraBolaoTitleForPaidTicket(
               safeComp,
               baseName,
-              effectiveRound ?? ticket.extraRoundNumber,
+              ticket.extraRoundNumber,
               extraRounds,
             )
           : baseName;
@@ -604,7 +588,9 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
         status: legacyStatus as ActiveDailyStatus,
         displayPhase,
         statusLabel,
-        gamesCount: scopeMatches.length,
+        sent: metrics.sent,
+        total: metrics.total,
+        gamesCount: metrics.available,
         countdownLabel:
           displayPhase === "finalizado"
             ? "Encerrado"
@@ -649,7 +635,9 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
       status: legacyStatus as ActiveDailyStatus,
       displayPhase,
       statusLabel,
-      gamesCount: dateMatches.length,
+      sent: metrics.sent,
+      total: metrics.total,
+      gamesCount: metrics.available,
       countdownLabel:
         displayPhase === "finalizado"
           ? "Encerrado"

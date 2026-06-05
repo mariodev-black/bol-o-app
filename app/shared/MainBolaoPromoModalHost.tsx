@@ -12,7 +12,7 @@ import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowRight, Crown, Ticket, Timer } from "lucide-react";
+import { ArrowRight, Crown, Ticket, Timer, X } from "lucide-react";
 import { useIsAdminAppRoute } from "@/app/shared/app-route-guards";
 import { useAuth } from "@/app/shared/AuthContext";
 import {
@@ -50,10 +50,19 @@ const PROMO_HERO_PRIMARY =
 const PROMO_SUBLINE_WHITE =
   "[paint-order:stroke_fill] [-webkit-text-stroke:0.4px_rgba(255,255,255,0.4)] [text-shadow:0_2px_6px_rgba(0,0,0,0.9),0_4px_14px_rgba(0,0,0,0.75)]";
 
+/** Só na home o fluxo promo não pode ser dispensado. */
+function isHomePromoPath(pathname: string): boolean {
+  const path = pathname.trim();
+  return path === "" || path === "/";
+}
+
 function MainBolaoPromoModal({
   onClose,
+  showCloseButton,
 }: {
   onClose: () => void;
+  /** Na home (`/`) o fluxo promo não permite dispensar — demais telas exibem o X. */
+  showCloseButton: boolean;
 }) {
   return (
     <div
@@ -69,6 +78,16 @@ function MainBolaoPromoModal({
         className="-z-20 object-cover object-center"
         sizes="(max-width: 380px) 100vw, 380px"
       />
+      {showCloseButton ? (
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Fechar promoção"
+          className="absolute right-2 top-2 z-30 flex size-10 items-center justify-center rounded-full bg-black/75 text-white ring-1 ring-white/20 backdrop-blur-sm transition-colors hover:bg-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        >
+          <X className="size-5" strokeWidth={2.5} aria-hidden />
+        </button>
+      ) : null}
       <header className="sticky top-0 z-20 flex shrink-0 items-start bg-gradient-to-b from-black/80 to-transparent px-3 pb-8 pt-3">
         <Image
           src={logo}
@@ -284,6 +303,7 @@ export function MainBolaoPromoModalHost({ children }: { children: React.ReactNod
   }, [pathname, scheduleOpenAfterDelay, setDebug]);
 
   const contextValue = useMemo(() => ({ requestModal }), [requestModal]);
+  const showCloseButton = !isHomePromoPath(pathname);
 
   const overlay =
     visible && portalReady ? (
@@ -301,6 +321,7 @@ export function MainBolaoPromoModalHost({ children }: { children: React.ReactNod
         role="dialog"
         aria-modal="true"
         aria-labelledby="main-bolao-promo-title"
+        onClick={showCloseButton ? handleClose : undefined}
       >
         <div
           className={[
@@ -315,8 +336,12 @@ export function MainBolaoPromoModalHost({ children }: { children: React.ReactNod
               ? "cubic-bezier(0.22, 1, 0.36, 1)"
               : "cubic-bezier(0.4, 0, 0.6, 1)",
           }}
+          onClick={(e) => e.stopPropagation()}
         >
-          <MainBolaoPromoModal onClose={handleClose} />
+          <MainBolaoPromoModal
+            onClose={handleClose}
+            showCloseButton={showCloseButton}
+          />
         </div>
       </div>
     ) : null;

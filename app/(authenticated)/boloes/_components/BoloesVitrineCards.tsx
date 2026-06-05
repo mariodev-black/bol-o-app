@@ -380,6 +380,7 @@ function cotaBadge(label: string | undefined): string {
 }
 
 function remainingGames(item: ActiveBolaoListItem): number {
+  if (item.displayPhase === "finalizado") return 0;
   if (item.type === "principal") {
     return Math.max(0, (item.total ?? 0) - (item.sent ?? 0));
   }

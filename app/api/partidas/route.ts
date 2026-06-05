@@ -5,6 +5,8 @@ import {
 } from "@/lib/boloes-extra-config";
 import { readMatchesCache } from "@/lib/matches-cache";
 import { buildPartidasFasesFromRows } from "@/lib/partidas-cache-payload";
+import { isAmistososFriendliesCompetition } from "@/lib/football/amistosos-friendlies";
+import { ensureAmistososFriendliesMatchesSeeded } from "@/lib/football/amistosos-friendlies-persistence";
 import { syncAllConfiguredIfStale } from "@/lib/football/sync-orchestrator";
 
 export const runtime = "nodejs";
@@ -35,6 +37,15 @@ export async function GET(request: NextRequest) {
 
     let rows = (await readMatchesCache()).filter((r) => idSet.has(Number(r.competition_id)));
     let partidas = buildPartidasFasesFromRows(rows);
+    if (
+      partidasPayloadEmpty(partidas as Record<string, unknown>) &&
+      !allSynced &&
+      isAmistososFriendliesCompetition(comp)
+    ) {
+      await ensureAmistososFriendliesMatchesSeeded().catch(() => {});
+      rows = (await readMatchesCache()).filter((r) => idSet.has(Number(r.competition_id)));
+      partidas = buildPartidasFasesFromRows(rows);
+    }
     if (partidasPayloadEmpty(partidas as Record<string, unknown>)) {
       try {
         await syncAllConfiguredIfStale();

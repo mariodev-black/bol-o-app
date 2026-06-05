@@ -12,8 +12,10 @@ import { getPool } from "@/lib/db";
 import { parseKickoffFromPartidaPayload, pickScoreFromPartidaPayload } from "@/lib/partida-placar";
 import { hasOfficialMatchResult } from "@/lib/palpites-match-open";
 import { pickTabelaGruposForPalpites } from "@/lib/tabela-palpites-normalize";
-import { resolveEffectiveRoundForExtraTicket } from "@/lib/boloes/extra-ticket-effective-round";
+import { effectiveExtraRoundForPaidTicket } from "@/lib/ticket-shop-extra-display";
 import { syncExtra } from "@/lib/football/sync-orchestrator";
+import { isAmistososFriendliesCompetition } from "@/lib/football/amistosos-friendlies";
+import { ensureAmistososFriendliesMatchesSeeded } from "@/lib/football/amistosos-friendlies-persistence";
 import { readFootballApiCacheJson, standingsCacheKey } from "@/lib/football-api-cache-store";
 
 const MESES = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
@@ -292,30 +294,15 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
       Number.isFinite(extraChampionshipId) &&
       extraChampionshipId > 0
     ) {
-      try {
-        const resolved = await resolveEffectiveRoundForExtraTicket(
-          {
-            id: tid,
-            ticketType: "extra",
-            extraChampionshipId,
-            extraRoundNumber: ticketRoundFromDb,
-          },
-          { userId: userId ?? undefined, persistAdvance: false },
-        );
-        if (resolved?.rodada != null && Number.isFinite(resolved.rodada) && resolved.rodada > 0) {
-          extraRoundNumber = resolved.rodada;
-          extraRoundName =
-            resolved.rodadaNome?.trim() || `${resolved.rodada}ª Rodada`;
-        }
-      } catch {
-        // sem rodada atual no cache → cliente decide (mostra todas as rodadas)
-      }
-      if (
-        extraRoundNumber != null &&
-        extraRoundNumber > 0 &&
-        !extraRoundName
-      ) {
-        extraRoundName = `${extraRoundNumber}ª Rodada`;
+      const pinnedRound = effectiveExtraRoundForPaidTicket({
+        championshipId: extraChampionshipId,
+        roundNumberFromDb: ticketRoundFromDb,
+      });
+      if (pinnedRound != null && pinnedRound > 0) {
+        extraRoundNumber = pinnedRound;
+        extraRoundName = isAmistososFriendliesCompetition(extraChampionshipId)
+          ? "1ª Rodada"
+          : `${pinnedRound}ª Rodada`;
       }
     }
   }
@@ -326,6 +313,14 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
       ? extraChampionshipId
       : mainComp;
   const tabelaCompId = partidasCompId;
+  const isAmistososExtra =
+    bolaoType === "extra" &&
+    extraChampionshipId != null &&
+    isAmistososFriendliesCompetition(extraChampionshipId);
+
+  if (isAmistososExtra) {
+    await ensureAmistososFriendliesMatchesSeeded().catch(() => {});
+  }
 
   const [tabelaPayload, fasesResult, predictionsBundle] = await Promise.all([
     readFootballApiCacheJson(standingsCacheKey(tabelaCompId)).catch(() => null),
@@ -422,16 +417,27 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
     bolaoType === "extra" &&
     extraChampionshipId != null &&
     extraRoundNumber != null &&
-    extraRoundNumber > 0
+    extraRoundNumber > 0 &&
+    !isAmistososExtra
   ) {
     void syncExtra(extraChampionshipId, { extraRodadas: [extraRoundNumber] }).catch(() => {});
   }
 
   const partidasOk = fasesResult != null;
   const parsedPartidas = parseAllPartidas((fasesResult ?? {}) as Record<string, any>);
-  const jogos = parsedPartidas.jogos;
-  const grupos = parsedPartidas.grupos;
-  const tabelaOk = tabelaPayload != null;
+  let jogos = parsedPartidas.jogos;
+  let grupos = parsedPartidas.grupos;
+  if (
+    isAmistososExtra &&
+    extraRoundNumber != null &&
+    extraRoundNumber > 0
+  ) {
+    jogos = jogos.filter((j) => j.rodada === extraRoundNumber);
+  }
+  const tabelaGrupos =
+    pickTabelaGruposForPalpites(tabelaPayload) ??
+    (bolaoType === "extra" ? ({ "grupo-geral": [] } as TabelaGrupos) : null);
+  const tabelaOk = bolaoType !== "extra" ? tabelaPayload != null : true;
 
   return {
     ticketId,
@@ -441,7 +447,7 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
     extraRoundNumber,
     extraRoundName,
     bolaoHeading: palpitesBolaoHeading(bolaoType, extraChampionshipId),
-    tabela: pickTabelaGruposForPalpites(tabelaPayload) as TabelaGrupos,
+    tabela: (tabelaGrupos ?? { "grupo-geral": [] }) as TabelaGrupos,
     jogos,
     grupos,
     grupo: grupos[0] ?? "GERAL",
