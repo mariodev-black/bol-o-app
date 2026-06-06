@@ -18,6 +18,7 @@ import {
   HOME_PROMO_FLOW_PATH,
   clearBrasilEgitoGuestFlowActive,
   clearPendingBrasilEgitoPalpite,
+  isBrasilEgitoGuestFlowActive,
   isBrasilEgitoPalpiteFinalized,
   markBrasilEgitoGuestFlowActive,
   markBrasilEgitoPalpiteFinalized,
@@ -326,9 +327,13 @@ export function HomeBrasilEgitoPromoFlow({
   useEffect(() => {
     if (!promoEnabled || !ready || isLoggedIn) return;
 
+    const pending = resolvePendingBrasilEgitoPalpite(searchParams);
+    const guestFlowIntent =
+      pending != null || isBrasilEgitoGuestFlowActive();
+    if (!guestFlowIntent) return;
+
     if (guestAutoOpenedRef.current) return;
     guestAutoOpenedRef.current = true;
-    const pending = resolvePendingBrasilEgitoPalpite(searchParams);
     setStep("offer");
     openOffer(pending ?? undefined);
   }, [promoEnabled, ready, isLoggedIn, searchParams, openOffer]);

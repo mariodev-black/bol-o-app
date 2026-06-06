@@ -898,6 +898,50 @@ button, [role="button"] {
   border-radius: 10px;
 }
 
+/* 404 — anel rotativo no CTA “Voltar para a home” */
+@property --not-found-cta-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes not-found-cta-rotate {
+  to {
+    --not-found-cta-angle: 360deg;
+  }
+}
+
+.not-found-cta-orbit {
+  position: relative;
+  display: inline-flex;
+  border-radius: 9999px;
+  padding: 2px;
+  background: conic-gradient(
+    from var(--not-found-cta-angle),
+    #b1eb0b 0deg,
+    #7fb300 90deg,
+    rgba(177, 235, 11, 0.15) 180deg,
+    transparent 240deg,
+    #b1eb0b 360deg
+  );
+  animation: not-found-cta-rotate 2.8s linear infinite;
+  box-shadow: 0 0 28px rgba(177, 235, 11, 0.22);
+}
+
+.not-found-cta-inner {
+  position: relative;
+  z-index: 1;
+  border-radius: 9999px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .not-found-cta-orbit {
+    animation: none;
+    background: #b1eb0b;
+    box-shadow: 0 0 20px rgba(177, 235, 11, 0.25);
+  }
+}
+
 /* Anel verde fixo (sempre visível) */
 .promo-gift-trigger-wrap--live::after {
   content: "";

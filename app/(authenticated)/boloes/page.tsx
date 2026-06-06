@@ -814,7 +814,12 @@ export default async function BoloesPage() {
   const token = (await cookies()).get(sessionCookieName())?.value;
   const userId = token ? await verifySessionToken(token).catch(() => null) : null;
   debugBoloes("request", { hasToken: Boolean(token), userId });
-  const data = userId ? await loadBoloesData(userId) : null;
+  const data = userId
+    ? await loadBoloesData(userId).catch((err) => {
+        console.error("[boloes] failed to load screen data", err);
+        return null;
+      })
+    : null;
   const { ticketsExtraOnly, ticketsHideDaily } = getTicketShopFlags();
   if (!userId) debugBoloes("no authenticated user", {});
   return (

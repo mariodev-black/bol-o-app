@@ -218,13 +218,22 @@ export function PromotionsHubProvider({ children }: { children: ReactNode }) {
 
     let cancelled = false;
     const prefetchPromotions = async () => {
-      const egitoRes = await fetch("/api/promotions/brasil-egito-placar", {
-        credentials: "include",
-        cache: "no-store",
-      });
+      const [egitoRes, extraRes] = await Promise.all([
+        fetch("/api/promotions/brasil-egito-placar", {
+          credentials: "include",
+          cache: "no-store",
+        }),
+        fetch("/api/promotions/extra-gift", {
+          credentials: "include",
+          cache: "no-store",
+        }),
+      ]);
       if (cancelled) return;
       if (egitoRes.ok) {
         setPromotionPrefetch("brasil_egito_placar", await egitoRes.json());
+      }
+      if (extraRes.ok) {
+        setPromotionPrefetch("extra_gift", await extraRes.json());
       }
     };
     void prefetchPromotions();

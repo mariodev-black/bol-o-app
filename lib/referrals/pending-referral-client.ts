@@ -67,3 +67,10 @@ export function clearPendingReferral(): void {
   }
   document.cookie = `${COOKIE_NAME}=; Path=/; Max-Age=0; SameSite=Lax`;
 }
+
+/** Caminho de landing com código de indicação (`/?ref=CODE`). */
+export function buildReferralLandingPath(code: string | null | undefined): string {
+  const norm = normalizePendingReferralInput(code);
+  if (!norm) return "/";
+  return `/?ref=${encodeURIComponent(norm)}`;
+}

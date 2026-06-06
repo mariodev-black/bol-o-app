@@ -2,7 +2,7 @@
  * Tipos do hub de promoções — seguros para Client Components.
  */
 
-export type PromoHubItemId = "brasil_egito_placar";
+export type PromoHubItemId = "extra_gift" | "brasil_egito_placar";
 
 export type PromoHubItemState = "active" | "done" | "unavailable";
 

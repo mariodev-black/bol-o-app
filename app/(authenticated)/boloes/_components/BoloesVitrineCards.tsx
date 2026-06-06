@@ -94,7 +94,7 @@ function MilhaoPrincipalHeader({
         />
         <p className="text-[14px] font-bold uppercase tracking-[0.05em] text-white/88">
           Primeiro lugar ganha{" "}
-          <span className="font-black text-primary">500 MIL</span>
+          <span className="font-black text-primary">180 MIL</span>
         </p>
       </div>
     </div>

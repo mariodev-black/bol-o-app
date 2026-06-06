@@ -10,7 +10,6 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { usePathname } from "next/navigation";
 import Image from "next/image";
 import {
   ArrowRight,
@@ -33,9 +32,6 @@ import type { BrasilEgitoPlacarPromoStatus } from "@/lib/promotions/brasil-egito
 import {
   persistBrasilEgitoReferralModalDismissed,
   readBrasilEgitoReferralModalDismissed,
-  isBrasilEgitoGuestFlowActive,
-  isBrasilEgitoPalpiteFinalized,
-  readPendingBrasilEgitoPalpite,
 } from "@/lib/promotions/brasil-egito-guest-flow";
 import { resolveNationalTeamShieldUrl } from "@/lib/football/national-team-shields";
 import brasilLogo from "@/app/assets/brasil-selecao-logo.png";
@@ -680,7 +676,6 @@ export function BrasilEgitoPlacarPromoHost({
   children: React.ReactNode;
 }) {
   const { ready, isLoggedIn, user } = useAuth();
-  const pathname = usePathname();
   const toast = useBolaoToast();
   const { requestModal } = useMainBolaoPromoModal();
   const { getPromotionPrefetch, setPromotionPrefetch } = usePromotionsHub();
@@ -799,26 +794,10 @@ export function BrasilEgitoPlacarPromoHost({
 
     const run = async () => {
       try {
-        if (
-          pathname === "/" ||
-          isBrasilEgitoGuestFlowActive() ||
-          readPendingBrasilEgitoPalpite() ||
-          isBrasilEgitoPalpiteFinalized(user?.id)
-        ) {
-          setOpen(false);
-          return;
-        }
         const data = await refreshStatus();
         if (cancelled) return;
         setStatus(data);
-        if (!data?.enabled || !data.showOfferModal || data.alreadySubmitted) {
-          setOpen(false);
-          return;
-        }
-        setStep("offer");
-        setPredCasa(0);
-        setPredVisitante(0);
-        setOpen(true);
+        setOpen(false);
       } catch {
         if (!cancelled) {
           setStatus(null);
@@ -843,7 +822,6 @@ export function BrasilEgitoPlacarPromoHost({
     isLoggedIn,
     profileBlocksPromo,
     user?.id,
-    pathname,
     refreshStatus,
   ]);
 

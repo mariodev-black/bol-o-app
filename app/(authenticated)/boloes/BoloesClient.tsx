@@ -1662,7 +1662,8 @@ export function BoloesClient({
   ticketsHideDaily?: boolean;
 }) {
   const now = useNow();
-  const hasTickets = (data?.active.all.length ?? 0) > 0;
+  const upcoming = data?.upcoming ?? EMPTY_UPCOMING;
+  const hasTickets = (data?.active?.all.length ?? 0) > 0;
 
   const summary = data?.summary ?? {
     activeCount: 0,
@@ -1671,7 +1672,7 @@ export function BoloesClient({
   };
   const bestPosition =
     summary.bestPosition == null ? "--" : `#${summary.bestPosition}`;
-  const allItems = data?.active.all ?? [];
+  const allItems = data?.active?.all ?? [];
   const finishedItems = useMemo(
     () => allItems.filter((item) => item.displayPhase === "finalizado"),
     [allItems],
@@ -1695,12 +1696,10 @@ export function BoloesClient({
     return sortBoloesByAvailabilityForShowcase(items);
   }, [activeItems, ticketsHideDaily]);
   const ticketsHref =
-    data?.upcoming.principal.href ??
+    upcoming.principal.href ??
     (ticketsExtraOnly ? "/tickets?bolao=extra" : "/tickets");
-  const principalPriceLabel =
-    data?.upcoming.principal.priceLabel ?? "—";
-  const principalParticipants =
-    data?.participantsByBolao.principal ?? 0;
+  const principalPriceLabel = upcoming.principal.priceLabel ?? "—";
+  const principalParticipants = data?.participantsByBolao?.principal ?? 0;
   const showPrincipalHero = !ticketsExtraOnly;
   const hasPrincipalCota = principalActive.length > 0;
   const [boloesSheetOpen, setBoloesSheetOpen] = useState(false);

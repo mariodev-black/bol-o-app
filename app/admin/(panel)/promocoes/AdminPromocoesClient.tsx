@@ -6,6 +6,7 @@ import { formatAdminDate } from "@/lib/admin/format";
 import type { AdminBrasilEgitoPromoDashboard } from "@/lib/admin/brasil-egito-placar-promo";
 import type { AdminBrasilPanamaPromoDashboard } from "@/lib/admin/brasil-panama-placar-promo";
 import Link from "next/link";
+import { AdminPromoHubLinks } from "./AdminPromoHubLinks";
 
 function HitBadge({ hit }: { hit: boolean | null }) {
   if (hit == null) {
@@ -206,12 +207,15 @@ function PlacarPromoSection({
 export function AdminPromocoesClient({
   brasilEgito,
   brasilPanama,
+  hubUrl,
 }: {
   brasilEgito: AdminBrasilEgitoPromoDashboard;
   brasilPanama: AdminBrasilPanamaPromoDashboard;
+  hubUrl: string;
 }) {
   return (
     <div className="space-y-12">
+      <AdminPromoHubLinks hubUrl={hubUrl} />
       <PlacarPromoSection
         title="Brasil x Egito — Placar exato"
         resultEnvPrefix="BRASIL_EGITO_PLACAR"

@@ -5,6 +5,7 @@ import { BolaoToastProvider } from "@/app/components/BolaoToast";
 import { AuthProvider } from "@/app/shared/AuthContext";
 import { AppServerConfigProvider } from "@/app/shared/AppServerConfigContext";
 import { BrasilEgitoPlacarPromoHost } from "@/app/shared/BrasilEgitoPlacarPromoHost";
+import { ExtraGiftPromoHost } from "@/app/shared/ExtraGiftPromoHost";
 import { PromotionsHubProvider } from "@/app/shared/PromotionsHubContext";
 import { HomeAuthModalProvider } from "@/app/shared/HomeAuthModalContext";
 import { HomeAuthModalHost } from "@/app/shared/HomeAuthModalHost";
@@ -13,6 +14,7 @@ import { MainBolaoPromoModalHost } from "@/app/shared/MainBolaoPromoModalHost";
 import { ProfileCompletionHost } from "@/app/shared/ProfileCompletionHost";
 import { PwaManager } from "@/app/shared/PwaManager";
 import { ReferralCapture } from "@/app/shared/ReferralCapture";
+import { PromotionsHubDeepLink } from "@/app/shared/PromotionsHubDeepLink";
 import { SidenavProvider } from "@/app/shared/SidenavContext";
 import type { AuthUser } from "@/lib/auth/auth-user";
 import type { AppServerConfig } from "@/lib/app-server-config";
@@ -35,15 +37,18 @@ export function Providers({
           <PromotionsHubProvider>
           <HomeAuthModalProvider>
           <MainBolaoPromoModalHost>
+          <ExtraGiftPromoHost>
           <BrasilEgitoPlacarPromoHost>
             <ChampionsPlacarPromoHost>
                   <HomeAuthModalHost />
                   <Suspense fallback={null}>
                     <ReferralCapture />
+                    <PromotionsHubDeepLink />
                   </Suspense>
                   <SidenavProvider>{children}</SidenavProvider>
             </ChampionsPlacarPromoHost>
           </BrasilEgitoPlacarPromoHost>
+          </ExtraGiftPromoHost>
           </MainBolaoPromoModalHost>
           </HomeAuthModalProvider>
           </PromotionsHubProvider>
