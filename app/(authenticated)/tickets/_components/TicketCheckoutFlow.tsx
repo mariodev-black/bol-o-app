@@ -29,7 +29,10 @@ import {
   resolveExtraBolaoDisplayName,
 } from "@/lib/boloes-extra-competition-branding";
 import { getExtraBolaoFirstPlaceLine } from "@/lib/boloes-prize-copy";
-import { extraBolaoIconSrc, isExtraBolaoBrandedIcon } from "@/app/shared/extra-bolao-icons";
+import {
+  extraBolaoIconSrc,
+  isExtraBolaoBrandedIcon,
+} from "@/app/shared/extra-bolao-icons";
 import {
   getTicketShopExtraPresentation,
   applyTicketShopExtraCatalogItem,
@@ -54,8 +57,12 @@ const DEFAULT_EXTRA_CENTS = 1000;
 /** Mesmo espírito de `BOLOES_EXTRA_*` — permite cards no primeiro paint antes do GET (opcional). */
 function parseNextPublicExtraChampionshipIds(): number[] {
   const raw =
-    (typeof process !== "undefined" ? process.env.NEXT_PUBLIC_BOLOES_EXTRA_CHAMPIONSHIP_IDS : "") ||
-    (typeof process !== "undefined" ? process.env.NEXT_PUBLIC_BOLOES_EXTRA : "") ||
+    (typeof process !== "undefined"
+      ? process.env.NEXT_PUBLIC_BOLOES_EXTRA_CHAMPIONSHIP_IDS
+      : "") ||
+    (typeof process !== "undefined"
+      ? process.env.NEXT_PUBLIC_BOLOES_EXTRA
+      : "") ||
     "";
   if (!String(raw).trim()) return [];
   const parsed = String(raw)
@@ -83,7 +90,9 @@ function formatBRL(cents: number) {
 
 function isPaidStatus(s: string): boolean {
   const v = (s || "").toLowerCase().trim();
-  return v === "paid" || v === "approved" || v === "completed" || v === "confirmed";
+  return (
+    v === "paid" || v === "approved" || v === "completed" || v === "confirmed"
+  );
 }
 
 function progressiveDiscountPercent(quantity: number): number {
@@ -93,10 +102,15 @@ function progressiveDiscountPercent(quantity: number): number {
   return 0;
 }
 
-function progressiveDiscountTotalCents(unitCents: number, quantity: number): number {
+function progressiveDiscountTotalCents(
+  unitCents: number,
+  quantity: number,
+): number {
   if (quantity <= 0) return 0;
   const subtotal = unitCents * quantity;
-  return Math.round((subtotal * (100 - progressiveDiscountPercent(quantity))) / 100);
+  return Math.round(
+    (subtotal * (100 - progressiveDiscountPercent(quantity))) / 100,
+  );
 }
 
 type FlowStep = "shop" | "generating" | "pix";
@@ -149,7 +163,9 @@ export function TicketCheckoutFlow({
   const [principalQty, setPrincipalQty] = useState(() => {
     if (ticketsExtraOnly) return 0;
     if (ticketsPrincipalOnly) return 1;
-    return initialTicketKind === "daily" || initialTicketKind === "extra" ? 0 : 1;
+    return initialTicketKind === "daily" || initialTicketKind === "extra"
+      ? 0
+      : 1;
   });
   const [dailyQty, setDailyQty] = useState(() => {
     if (ticketsExtraOnly || ticketsHideDaily || ticketsPrincipalOnly) return 0;
@@ -158,10 +174,14 @@ export function TicketCheckoutFlow({
   const [extraBoloes, setExtraBoloes] = useState<ExtraBolaoOption[]>(() => {
     if (ticketsPrincipalOnly) return [];
     const fromServer = filterTicketShopExtraChampionshipIds(
-      (serverExtraChampionshipIds ?? []).filter((n) => Number.isFinite(n) && n > 0),
+      (serverExtraChampionshipIds ?? []).filter(
+        (n) => Number.isFinite(n) && n > 0,
+      ),
     );
     const fromPublic = parseNextPublicExtraChampionshipIds();
-    const ids = filterTicketShopExtraChampionshipIds([...new Set([...fromServer, ...fromPublic])]);
+    const ids = filterTicketShopExtraChampionshipIds([
+      ...new Set([...fromServer, ...fromPublic]),
+    ]);
     return ids.map((championshipId) =>
       applyTicketShopExtraCatalogItem({
         championshipId,
@@ -169,18 +189,18 @@ export function TicketCheckoutFlow({
       }),
     );
   });
-  const [extraQtyByChampionship, setExtraQtyByChampionship] = useState<Record<number, number>>(
-    () => {
-      if (ticketsPrincipalOnly) return {};
-      if (
-        _initialExtraChampionshipId != null &&
-        (ticketsExtraOnly || initialTicketKind === "extra")
-      ) {
-        return { [_initialExtraChampionshipId]: 1 };
-      }
-      return {};
-    },
-  );
+  const [extraQtyByChampionship, setExtraQtyByChampionship] = useState<
+    Record<number, number>
+  >(() => {
+    if (ticketsPrincipalOnly) return {};
+    if (
+      _initialExtraChampionshipId != null &&
+      (ticketsExtraOnly || initialTicketKind === "extra")
+    ) {
+      return { [_initialExtraChampionshipId]: 1 };
+    }
+    return {};
+  });
   const [prices, setPrices] = useState({
     general: DEFAULT_PRINCIPAL_CENTS,
     daily: DEFAULT_DIARIO_CENTS,
@@ -266,7 +286,10 @@ export function TicketCheckoutFlow({
           principal: String(purchasePrincipalRef.current),
           diario: String(purchaseDiarioRef.current),
         });
-        const extraTotal = Object.values(purchaseExtraRef.current).reduce((s, n) => s + n, 0);
+        const extraTotal = Object.values(purchaseExtraRef.current).reduce(
+          (s, n) => s + n,
+          0,
+        );
         if (extraTotal > 0) q.set("extra", String(extraTotal));
         // Pequeno delay para o usuário ver o feedback "Pagamento confirmado!"
         window.setTimeout(() => {
@@ -321,7 +344,9 @@ export function TicketCheckoutFlow({
           !ticketsPrincipalOnly
         ) {
           setExtraBoloes(
-            filterTicketShopExtraBoloes(d.extraBoloes.map((row) => applyTicketShopExtraCatalogItem(row))),
+            filterTicketShopExtraBoloes(
+              d.extraBoloes.map((row) => applyTicketShopExtraCatalogItem(row)),
+            ),
           );
         }
       } catch {
@@ -471,7 +496,8 @@ export function TicketCheckoutFlow({
           if (qty <= 0) return null;
           const lineCents = progressiveDiscountTotalCents(prices.extra, qty);
           const label =
-            resolveExtraBolaoDisplayName(b.championshipId, b.displayName) || "Bolão extra";
+            resolveExtraBolaoDisplayName(b.championshipId, b.displayName) ||
+            "Bolão extra";
           return {
             championshipId: b.championshipId,
             qty,
@@ -489,7 +515,9 @@ export function TicketCheckoutFlow({
   const geralDiscountPct = progressiveDiscountPercent(principalQty);
   const diarioDiscountPct = progressiveDiscountPercent(dailyQty);
   const principalUnitPriceCents =
-    principalQty > 0 ? Math.round(principalLineCents / principalQty) : prices.general;
+    principalQty > 0
+      ? Math.round(principalLineCents / principalQty)
+      : prices.general;
   const dailyUnitPriceCents =
     dailyQty > 0 ? Math.round(diarioLineCents / dailyQty) : prices.daily;
   const secondsLeft =
@@ -518,7 +546,13 @@ export function TicketCheckoutFlow({
             dailyQuantity: dailyQty,
             extraByChampionship: Object.fromEntries(
               extraBoloes
-                .map((b) => [String(b.championshipId), extraQty(b.championshipId)] as const)
+                .map(
+                  (b) =>
+                    [
+                      String(b.championshipId),
+                      extraQty(b.championshipId),
+                    ] as const,
+                )
                 .filter(([, q]) => q > 0),
             ),
           }),
@@ -577,7 +611,10 @@ export function TicketCheckoutFlow({
         transaction?: DepositTransaction;
       };
       if (r.ok && data.transaction) {
-        console.log("[PIX] verificação manual status:", data.transaction.status);
+        console.log(
+          "[PIX] verificação manual status:",
+          data.transaction.status,
+        );
         handleTransactionUpdate(
           {
             status: data.transaction.status,
@@ -586,7 +623,9 @@ export function TicketCheckoutFlow({
           "manual",
         );
         if (!isPaidStatus(data.transaction.status)) {
-          setError("Pagamento ainda não confirmado. Aguarde ou tente novamente.");
+          setError(
+            "Pagamento ainda não confirmado. Aguarde ou tente novamente.",
+          );
           window.setTimeout(() => setError(null), 4000);
         }
       }
@@ -608,359 +647,169 @@ export function TicketCheckoutFlow({
             className="w-full flex-1"
           />
         ) : (
-        <div className="min-h-screen w-full bg-black pb-10">
-          <div className="relative w-full overflow-hidden rounded-b-[22px]">
-            <Image
-              src={bannerCheckout}
-              alt="Checkout — Bolão do Milhão"
-              className="h-auto w-full object-cover object-center"
-              priority
-              sizes="100vw"
-            />
-            <div
-              className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black to-transparent"
-              aria-hidden
-            />
-          </div>
+          <div className="min-h-screen w-full bg-black pb-10">
+            <div className="relative w-full overflow-hidden rounded-b-[22px]">
+              <Image
+                src={bannerCheckout}
+                alt="Checkout — Bolão do Milhão"
+                className="h-auto w-full object-cover object-center"
+                priority
+                sizes="100vw"
+              />
+              <div
+                className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black to-transparent"
+                aria-hidden
+              />
+            </div>
 
-          <div className="mx-auto w-full max-w-[430px] space-y-5 px-4 pt-5">
-            {/* Faixa promocional — layout alinhado ao print (fundo preto, borda neon, divisor, coluna ATÉ/25%) */}
-            <div
-              className="flex items-stretch rounded-[14px] border border-primary bg-[#121212] px-3.5 py-3.5 sm:px-4 sm:py-4"
-              style={{
-                boxShadow:
-                  "0 0 0 1px rgba(177,235,11,0.35), 0 0 28px rgba(177,235,11,0.22), inset 0 0 32px rgba(177,235,11,0.04)",
-              }}
-            >
-              {/* Esquerda: ícone + textos (como no print) */}
-              <div className="flex min-w-0 flex-1 items-center gap-3 border-r border-primary/30 pr-3 sm:gap-3.5 sm:pr-4">
-                <div className="relative size-11 shrink-0 sm:size-12">
-                  <Tags
-                    className="size-11 text-primary sm:size-12"
-                    strokeWidth={2}
-                    style={{
-                      filter:
-                        "drop-shadow(0 0 10px rgba(177,235,11,0.65)) drop-shadow(0 0 20px rgba(177,235,11,0.35))",
-                    }}
-                    aria-hidden
-                  />
-                  <Percent
-                    className="pointer-events-none absolute left-[55%] top-1/2 size-[13px] -translate-x-1/2 -translate-y-1/2 text-primary sm:size-[14px]"
-                    strokeWidth={3}
-                    aria-hidden
-                  />
-                </div>
-                <div className="min-w-0 flex-1 py-0.5">
-                  <p className="text-[16px] font-black uppercase leading-tight tracking-wide text-white sm:text-[11px]">
-                    ACIMA DE 2 TICKETS
-                  </p>
-                  <p
-                    className="mt-1 text-[15px] font-black uppercase leading-[1.1] tracking-wide text-primary sm:text-[16px]"
-                    style={{ textShadow: "0 0 18px rgba(177,235,11,0.45)" }}
-                  >
-                    DESCONTO PROGRESSIVO!
-                  </p>
-                  <p className="mt-1.5 text-[12px] font-normal leading-snug text-white sm:text-[11px]">
-                    Quanto mais tickets, maior a sua chance de ganhar!
-                </p>
-              </div>
-              </div>
-
-              {/* Direita: ATÉ / 25% / badge */}
-              <div className="flex w-[80px] shrink-0 flex-col items-center justify-center self-center pl-3 text-center sm:w-[84px]">
-                <p className="text-[12px] font-black uppercase tracking-wide text-white sm:text-[11px]">ATÉ</p>
-                <p
-                  className="mt-0.5 text-[34px] font-black leading-none tracking-tight text-primary sm:text-[38px]"
-                  style={{ textShadow: "0 0 22px rgba(177,235,11,0.5)" }}
-                >
-                  15%
-                </p>
-                <span
-                  className="mt-2 w-full min-w-full bg-primary px-2 py-1 text-[8px] font-black uppercase flex justify-center items-center leading-tight tracking-wide text-black sm:text-[9px] text-center whitespace-nowrap"
+            <div className="mx-auto w-full max-w-[430px] space-y-5 px-4 pt-5">
+              {/* Faixa promocional — layout alinhado ao print (fundo preto, borda neon, divisor, coluna ATÉ/25%) */}
+              <div
+                className="flex items-stretch rounded-[14px] border border-primary bg-[#121212] px-3.5 py-3.5 sm:px-4 sm:py-4"
                 style={{
-                    clipPath: "polygon(3% 0, 97% 0, 100% 18%, 100% 82%, 97% 100%, 3% 100%, 0 82%, 0 18%)",
+                  boxShadow:
+                    "0 0 0 1px rgba(177,235,11,0.35), 0 0 28px rgba(177,235,11,0.22), inset 0 0 32px rgba(177,235,11,0.04)",
                 }}
               >
-                  DE DESCONTO
-                  </span>
-              </div>
-                </div>
-
-            <div className="space-y-3">
-              {!ticketsExtraOnly && (
-              <div className="overflow-hidden rounded-[16px] border border-white/10 bg-[#121212] shadow-[0_8px_26px_rgba(0,0,0,0.35)]">
-                <div className="grid grid-cols-[74px_minmax(0,1fr)] items-center gap-3 p-3 sm:grid-cols-[86px_minmax(0,1fr)] sm:p-3.5">
-                  <div className="flex flex-col items-center justify-center">
-                    <img
-                      src={iconCopaMundo.src}
-                      alt=""
-                      className="h-[82px] w-[62px] shrink-0 object-contain sm:h-[86px] sm:w-[62px]"
+                {/* Esquerda: ícone + textos (como no print) */}
+                <div className="flex min-w-0 flex-1 items-center gap-3 border-r border-primary/30 pr-3 sm:gap-3.5 sm:pr-4">
+                  <div className="relative size-11 shrink-0 sm:size-12">
+                    <Tags
+                      className="size-11 text-primary sm:size-12"
+                      strokeWidth={2}
+                      style={{
+                        filter:
+                          "drop-shadow(0 0 10px rgba(177,235,11,0.65)) drop-shadow(0 0 20px rgba(177,235,11,0.35))",
+                      }}
+                      aria-hidden
                     />
-                    
-                  </div>
-
-                  <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_88px] items-center gap-3 sm:grid-cols-[minmax(0,1fr)_96px]">
-                    <div className="min-w-0">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <h3 className="whitespace-nowrap text-[14px] font-black uppercase leading-tight text-white sm:text-[15px]">
-                            Bolão do Milhão
-                          </h3>
-                          <span className="w-fit shrink-0 rounded-md bg-primary/20 px-1.5 py-0.5 text-[7px] font-black uppercase tracking-wide text-primary sm:text-[8px]">
-                            Mais popular
-                          </span>
-                        </div>
-                        <p className="mt-1 text-[12px] font-medium leading-snug text-white/80 sm:text-[11px]">
-                          Acesso a todas as rodadas da Copa do Mundo 2026
-                        </p>
-                      </div>
-
-                    <div className="mt-3 flex w-fit items-center gap-1 rounded-[10px] border border-white/10 bg-[#0f0f0f] p-1">
-                      <button
-                        type="button"
-                        aria-label="Diminuir Bolão Geral"
-                        disabled={principalQty <= 0}
-                        onClick={() => {
-                          setError(null);
-                          setCouponHint(null);
-                          setPrincipalQty((q) => Math.max(0, q - 1));
-                        }}
-                        className="flex h-8 w-8 items-center justify-center rounded-[8px] border border-primary/20 bg-black/40 text-primary transition-colors hover:bg-white/10 disabled:opacity-30"
-                      >
-                        <span className="text-[18px] font-black leading-none">-</span>
-                      </button>
-                      <span className="w-8 text-center text-[18px] font-black tabular-nums text-white sm:text-[20px]">
-                        {principalQty}
-                      </span>
-                      <button
-                        type="button"
-                        aria-label="Aumentar Bolão Geral"
-                        disabled={principalQty >= MAX_QTY}
-                        onClick={() => {
-                          setError(null);
-                          setCouponHint(null);
-                          setPrincipalQty((q) => Math.min(MAX_QTY, q + 1));
-                        }}
-                        className="flex h-8 w-8 items-center justify-center rounded-[8px] border border-primary/30 bg-black/40 text-primary transition-colors hover:bg-white/10 disabled:opacity-30"
-                      >
-                        <span className="text-[18px] font-black leading-none">+</span>
-                      </button>
-                    </div>
-                  </div>
-
-                    <div className="self-center text-right">
-                      <p className="text-[12px] font-semibold text-white/40">
-                        Preço unitário
-                      </p>
-                      <p className="mt-1 text-[14px] font-black tabular-nums text-white sm:text-[15px]">
-                        {formatBRL(principalUnitPriceCents)}
-                      </p>
-                      <p className="mt-1 text-[12px] font-semibold tabular-nums text-white/80 line-through">
-                        {geralDiscountPct > 0 ? formatBRL(prices.general) : ""}
-                      </p>
-                      <p className="text-[12px] font-bold text-primary">
-                        {geralDiscountPct}% OFF
-                      </p>
-                      <p className="mt-1 text-[9px] leading-tight text-white/40">
-                        a partir de 2 tickets
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between gap-2 border-t border-white/6 bg-black/25 px-3.5 py-2.5 text-[12px] text-white/50 sm:px-4">
-                      <span>
-                    Desconto aplicado:{" "}
-                    <span className="font-bold text-primary">
-                      {geralDiscountPct}%
-                    </span>{" "}
-                    OFF
-                      </span>
-                  <span className="inline-flex items-center gap-1 text-right font-medium">
-                    Escolha a quantidade
-                    <ChevronRight className="size-3.5 text-white/80" strokeWidth={2.4} />
-                      </span>
-                    </div>
-              </div>
-              )}
-
-              {!ticketsExtraOnly && !ticketsHideDaily && (
-              <div className="overflow-hidden rounded-[16px] border border-white/10 bg-[#121212] shadow-[0_8px_26px_rgba(0,0,0,0.35)]">
-                <div className="grid grid-cols-[74px_minmax(0,1fr)] items-center gap-3 p-3 sm:grid-cols-[86px_minmax(0,1fr)] sm:p-3.5">
-                  <div className="flex flex-col items-center justify-center">
-                    <img
-                      src={iconCopaMundo.src}
-                      alt=""
-                      className="h-[82px] w-[62px] shrink-0 object-contain sm:h-[86px] sm:w-[62px]"
+                    <Percent
+                      className="pointer-events-none absolute left-[55%] top-1/2 size-[13px] -translate-x-1/2 -translate-y-1/2 text-primary sm:size-[14px]"
+                      strokeWidth={3}
+                      aria-hidden
                     />
-                   
                   </div>
-
-                  <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_88px] items-center gap-3 sm:grid-cols-[minmax(0,1fr)_96px]">
-                    <div className="min-w-0">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <h3 className="whitespace-nowrap text-[14px] font-black uppercase leading-tight text-white sm:text-[15px]">
-                            Bolão do Dia
-                          </h3>
-                          <span className="w-fit shrink-0 rounded-md bg-primary/20 px-1.5 py-0.5 text-[7px] font-black uppercase tracking-wide text-primary sm:text-[8px]">
-                            Exclusivo
-                          </span>
-                        </div>
-                        <p className="mt-1 text-[12px] font-medium leading-snug text-white/80 sm:text-[11px]">
-                          Acesso exclusivo ao bolão do dia
-                        </p>
-                      </div>
-
-                    <div className="mt-3 flex w-fit items-center gap-1 rounded-[10px] border border-white/10 bg-[#0f0f0f] p-1">
-                      <button
-                        type="button"
-                        aria-label="Diminuir Bolão do Dia"
-                        disabled={dailyQty <= 0}
-                        onClick={() => {
-                          setError(null);
-                          setCouponHint(null);
-                          setDailyQty((q) => Math.max(0, q - 1));
-                        }}
-                        className="flex h-8 w-8 items-center justify-center rounded-[8px] border border-primary/20 bg-black/40 text-primary transition-colors hover:bg-white/10 disabled:opacity-30"
-                      >
-                        <span className="text-[18px] font-black leading-none">-</span>
-                      </button>
-                      <span className="w-8 text-center text-[18px] font-black tabular-nums text-white sm:text-[20px]">
-                        {dailyQty}
-                      </span>
-                      <button
-                        type="button"
-                        aria-label="Aumentar Bolão do Dia"
-                        disabled={dailyQty >= MAX_QTY}
-                        onClick={() => {
-                          setError(null);
-                          setCouponHint(null);
-                          setDailyQty((q) => Math.min(MAX_QTY, q + 1));
-                        }}
-                        className="flex h-8 w-8 items-center justify-center rounded-[8px] border border-primary/30 bg-black/40 text-primary transition-colors hover:bg-white/10 disabled:opacity-30"
-                      >
-                        <span className="text-[18px] font-black leading-none">+</span>
-                      </button>
-                    </div>
-                  </div>
-
-                    <div className="self-center text-right">
-                      <p className="text-[12px] font-semibold text-white/40">
-                        Preço unitário
-                      </p>
-                      <p className="mt-1 text-[14px] font-black tabular-nums text-white sm:text-[15px]">
-                        {formatBRL(dailyUnitPriceCents)}
-                      </p>
-                      <p className="mt-1 text-[12px] font-semibold tabular-nums text-white/80 line-through">
-                        {diarioDiscountPct > 0 ? formatBRL(prices.daily) : ""}
-                      </p>
-                      <p className="text-[12px] font-bold text-primary">
-                        {diarioDiscountPct}% OFF
-                      </p>
-                      <p className="mt-1 text-[9px] leading-tight text-white/40">
-                        a partir de 2 tickets
-                      </p>
-                    </div>
+                  <div className="min-w-0 flex-1 py-0.5">
+                    <p className="text-[16px] font-black uppercase leading-tight tracking-wide text-white sm:text-[11px]">
+                      ACIMA DE 2 TICKETS
+                    </p>
+                    <p
+                      className="mt-1 text-[15px] font-black uppercase leading-[1.1] tracking-wide text-primary sm:text-[16px]"
+                      style={{ textShadow: "0 0 18px rgba(177,235,11,0.45)" }}
+                    >
+                      DESCONTO PROGRESSIVO!
+                    </p>
+                    <p className="mt-1.5 text-[12px] font-normal leading-snug text-white sm:text-[11px]">
+                      Quanto mais tickets, maior a sua chance de ganhar!
+                    </p>
                   </div>
                 </div>
-                <div className="flex items-center justify-between gap-2 border-t border-white/6 bg-black/25 px-3.5 py-2.5 text-[12px] text-white/50 sm:px-4">
-                      <span>
-                    Desconto aplicado:{" "}
-                    <span className="font-bold text-primary">
-                      {diarioDiscountPct}%
-                    </span>{" "}
-                    OFF
-                      </span>
-                  <span className="inline-flex items-center gap-1 text-right font-medium">
-                    Escolha a quantidade
-                    <ChevronRight className="size-3.5 text-white/80" strokeWidth={2.4} />
-                      </span>
-                    </div>
-              </div>
-              )}
 
-              {!ticketsPrincipalOnly &&
-              extraBoloes.map((b) => {
-                const qty = extraQty(b.championshipId);
-                const variant = getExtraBolaoHeroSideVariant(b.championshipId, b.displayName);
-                const iconSrc = extraBolaoIconSrc(variant).src;
-                const branded = isExtraBolaoBrandedIcon(variant);
-                const headline = extraBolaoHeadline(b);
-                const lineCents = progressiveDiscountTotalCents(prices.extra, qty);
-                const discountPct = progressiveDiscountPercent(qty);
-                const unitCents = qty > 0 ? Math.round(lineCents / qty) : prices.extra;
-
-                return (
-                  <div
-                    key={b.championshipId}
-                    className="overflow-hidden rounded-[16px] border border-white/10 bg-[#121212] shadow-[0_8px_26px_rgba(0,0,0,0.35)]"
+                {/* Direita: ATÉ / 25% / badge */}
+                <div className="flex w-[80px] shrink-0 flex-col items-center justify-center self-center pl-3 text-center sm:w-[84px]">
+                  <p className="text-[12px] font-black uppercase tracking-wide text-white sm:text-[11px]">
+                    ATÉ
+                  </p>
+                  <p
+                    className="mt-0.5 text-[34px] font-black leading-none tracking-tight text-primary sm:text-[38px]"
+                    style={{ textShadow: "0 0 22px rgba(177,235,11,0.5)" }}
                   >
-                    <div className="min-w-0 overflow-x-auto border-b border-white/6 px-3 pb-2.5 pt-3 [-ms-overflow-style:none] [scrollbar-width:none] sm:px-3.5 sm:pb-3 sm:pt-3.5 [&::-webkit-scrollbar]:hidden">
-                      <h3 className="inline-block w-max max-w-none whitespace-nowrap text-[14px] font-black uppercase leading-none tracking-[-0.03em] text-white min-[380px]:text-[15px] sm:text-[15px]">
-                        {headline}
-                      </h3>
-                    </div>
-                    <div className="grid grid-cols-[74px_minmax(0,1fr)] items-start gap-3 p-3 sm:grid-cols-[86px_minmax(0,1fr)] sm:p-3.5">
-                      <div className="flex flex-col items-center justify-center pt-0.5">
+                    15%
+                  </p>
+                  <span
+                    className="mt-2 w-full min-w-full bg-primary px-2 py-1 text-[8px] font-black uppercase flex justify-center items-center leading-tight tracking-wide text-black sm:text-[9px] text-center whitespace-nowrap"
+                    style={{
+                      clipPath:
+                        "polygon(3% 0, 97% 0, 100% 18%, 100% 82%, 97% 100%, 3% 100%, 0 82%, 0 18%)",
+                    }}
+                  >
+                    DE DESCONTO
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {!ticketsExtraOnly && (
+                  <div className="overflow-hidden rounded-[16px] border border-white/10 bg-[#121212] shadow-[0_8px_26px_rgba(0,0,0,0.35)]">
+                    <div className="grid grid-cols-[74px_minmax(0,1fr)] items-center gap-3 p-3 sm:grid-cols-[86px_minmax(0,1fr)] sm:p-3.5">
+                      <div className="flex flex-col items-center justify-center">
                         <img
-                          src={iconSrc}
+                          src={iconCopaMundo.src}
                           alt=""
-                          className={
-                            branded
-                              ? "h-[68px] w-[68px] shrink-0 object-contain sm:h-[78px] sm:w-[78px]"
-                              : "h-[82px] w-[62px] shrink-0 object-contain sm:h-[86px] sm:w-[62px]"
-                          }
+                          className="h-[82px] w-[62px] shrink-0 object-contain sm:h-[86px] sm:w-[62px]"
                         />
                       </div>
+
                       <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_88px] items-center gap-3 sm:grid-cols-[minmax(0,1fr)_96px]">
                         <div className="min-w-0">
-                          <p className="text-[12px] font-medium leading-snug text-white/80 sm:text-[11px]">
-                            Cota extra na rodada atual deste campeonato.
-                          </p>
-                          <p className="mt-1.5 text-[11px] font-bold leading-snug text-primary/90 sm:text-[12px]">
-                            {getExtraBolaoFirstPlaceLine(b.championshipId, b.displayName)}
-                          </p>
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <h3 className="whitespace-nowrap text-[14px] font-black uppercase leading-tight text-white sm:text-[15px]">
+                                Bolão do Milhão
+                              </h3>
+                              <span className="w-fit shrink-0 rounded-md bg-primary/20 px-1.5 py-0.5 text-[7px] font-black uppercase tracking-wide text-primary sm:text-[8px]">
+                                Mais popular
+                              </span>
+                            </div>
+                            <p className="mt-1 text-[12px] font-medium leading-snug text-white/80 sm:text-[11px]">
+                              Acesso a todas as rodadas da Copa do Mundo 2026
+                            </p>
+                          </div>
+
                           <div className="mt-3 flex w-fit items-center gap-1 rounded-[10px] border border-white/10 bg-[#0f0f0f] p-1">
                             <button
                               type="button"
-                              aria-label={`Diminuir ${headline}`}
-                              disabled={qty <= 0}
+                              aria-label="Diminuir Bolão Geral"
+                              disabled={principalQty <= 0}
                               onClick={() => {
                                 setError(null);
                                 setCouponHint(null);
-                                setExtraQty(b.championshipId, qty - 1);
+                                setPrincipalQty((q) => Math.max(0, q - 1));
                               }}
                               className="flex h-8 w-8 items-center justify-center rounded-[8px] border border-primary/20 bg-black/40 text-primary transition-colors hover:bg-white/10 disabled:opacity-30"
                             >
-                              <span className="text-[18px] font-black leading-none">-</span>
+                              <span className="text-[18px] font-black leading-none">
+                                -
+                              </span>
                             </button>
                             <span className="w-8 text-center text-[18px] font-black tabular-nums text-white sm:text-[20px]">
-                              {qty}
+                              {principalQty}
                             </span>
                             <button
                               type="button"
-                              aria-label={`Aumentar ${headline}`}
-                              disabled={qty >= MAX_QTY}
+                              aria-label="Aumentar Bolão Geral"
+                              disabled={principalQty >= MAX_QTY}
                               onClick={() => {
                                 setError(null);
                                 setCouponHint(null);
-                                setExtraQty(b.championshipId, qty + 1);
+                                setPrincipalQty((q) =>
+                                  Math.min(MAX_QTY, q + 1),
+                                );
                               }}
                               className="flex h-8 w-8 items-center justify-center rounded-[8px] border border-primary/30 bg-black/40 text-primary transition-colors hover:bg-white/10 disabled:opacity-30"
                             >
-                              <span className="text-[18px] font-black leading-none">+</span>
+                              <span className="text-[18px] font-black leading-none">
+                                +
+                              </span>
                             </button>
                           </div>
                         </div>
+
                         <div className="self-center text-right">
-                          <p className="text-[12px] font-semibold text-white/40">Preço unitário</p>
+                          <p className="text-[12px] font-semibold text-white/40">
+                            Preço unitário
+                          </p>
                           <p className="mt-1 text-[14px] font-black tabular-nums text-white sm:text-[15px]">
-                            {formatBRL(unitCents)}
+                            {formatBRL(principalUnitPriceCents)}
                           </p>
                           <p className="mt-1 text-[12px] font-semibold tabular-nums text-white/80 line-through">
-                            {discountPct > 0 ? formatBRL(prices.extra) : ""}
+                            {geralDiscountPct > 0
+                              ? formatBRL(prices.general)
+                              : ""}
                           </p>
-                          <p className="text-[12px] font-bold text-primary">{discountPct}% OFF</p>
+                          <p className="text-[12px] font-bold text-primary">
+                            {geralDiscountPct}% OFF
+                          </p>
                           <p className="mt-1 text-[9px] leading-tight text-white/40">
                             a partir de 2 tickets
                           </p>
@@ -970,198 +819,441 @@ export function TicketCheckoutFlow({
                     <div className="flex items-center justify-between gap-2 border-t border-white/6 bg-black/25 px-3.5 py-2.5 text-[12px] text-white/50 sm:px-4">
                       <span>
                         Desconto aplicado:{" "}
-                        <span className="font-bold text-primary">{discountPct}%</span> OFF
+                        <span className="font-bold text-primary">
+                          {geralDiscountPct}%
+                        </span>{" "}
+                        OFF
                       </span>
                       <span className="inline-flex items-center gap-1 text-right font-medium">
                         Escolha a quantidade
-                        <ChevronRight className="size-3.5 text-white/80" strokeWidth={2.4} />
+                        <ChevronRight
+                          className="size-3.5 text-white/80"
+                          strokeWidth={2.4}
+                        />
                       </span>
                     </div>
                   </div>
-                );
-              })}
-            </div>
+                )}
 
-            {/* ── Resumo da compra ─────────────────────────────── */}
-            <div className="rounded-[16px] border border-white/8 bg-[#171717] p-4">
-              <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
-                <div className="flex min-w-0 items-center gap-2">
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-[10px] border border-white/10 bg-black/40">
-                    <ShoppingCart
-                      className="size-[18px] text-primary"
-                      strokeWidth={2.2}
-                    />
+                {!ticketsExtraOnly && !ticketsHideDaily && (
+                  <div className="overflow-hidden rounded-[16px] border border-white/10 bg-[#121212] shadow-[0_8px_26px_rgba(0,0,0,0.35)]">
+                    <div className="grid grid-cols-[74px_minmax(0,1fr)] items-center gap-3 p-3 sm:grid-cols-[86px_minmax(0,1fr)] sm:p-3.5">
+                      <div className="flex flex-col items-center justify-center">
+                        <img
+                          src={iconCopaMundo.src}
+                          alt=""
+                          className="h-[82px] w-[62px] shrink-0 object-contain sm:h-[86px] sm:w-[62px]"
+                        />
+                      </div>
+
+                      <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_88px] items-center gap-3 sm:grid-cols-[minmax(0,1fr)_96px]">
+                        <div className="min-w-0">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <h3 className="whitespace-nowrap text-[14px] font-black uppercase leading-tight text-white sm:text-[15px]">
+                                Bolão do Dia
+                              </h3>
+                              <span className="w-fit shrink-0 rounded-md bg-primary/20 px-1.5 py-0.5 text-[7px] font-black uppercase tracking-wide text-primary sm:text-[8px]">
+                                Exclusivo
+                              </span>
+                            </div>
+                            <p className="mt-1 text-[12px] font-medium leading-snug text-white/80 sm:text-[11px]">
+                              Acesso exclusivo ao bolão do dia
+                            </p>
+                          </div>
+
+                          <div className="mt-3 flex w-fit items-center gap-1 rounded-[10px] border border-white/10 bg-[#0f0f0f] p-1">
+                            <button
+                              type="button"
+                              aria-label="Diminuir Bolão do Dia"
+                              disabled={dailyQty <= 0}
+                              onClick={() => {
+                                setError(null);
+                                setCouponHint(null);
+                                setDailyQty((q) => Math.max(0, q - 1));
+                              }}
+                              className="flex h-8 w-8 items-center justify-center rounded-[8px] border border-primary/20 bg-black/40 text-primary transition-colors hover:bg-white/10 disabled:opacity-30"
+                            >
+                              <span className="text-[18px] font-black leading-none">
+                                -
+                              </span>
+                            </button>
+                            <span className="w-8 text-center text-[18px] font-black tabular-nums text-white sm:text-[20px]">
+                              {dailyQty}
+                            </span>
+                            <button
+                              type="button"
+                              aria-label="Aumentar Bolão do Dia"
+                              disabled={dailyQty >= MAX_QTY}
+                              onClick={() => {
+                                setError(null);
+                                setCouponHint(null);
+                                setDailyQty((q) => Math.min(MAX_QTY, q + 1));
+                              }}
+                              className="flex h-8 w-8 items-center justify-center rounded-[8px] border border-primary/30 bg-black/40 text-primary transition-colors hover:bg-white/10 disabled:opacity-30"
+                            >
+                              <span className="text-[18px] font-black leading-none">
+                                +
+                              </span>
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="self-center text-right">
+                          <p className="text-[12px] font-semibold text-white/40">
+                            Preço unitário
+                          </p>
+                          <p className="mt-1 text-[14px] font-black tabular-nums text-white sm:text-[15px]">
+                            {formatBRL(dailyUnitPriceCents)}
+                          </p>
+                          <p className="mt-1 text-[12px] font-semibold tabular-nums text-white/80 line-through">
+                            {diarioDiscountPct > 0
+                              ? formatBRL(prices.daily)
+                              : ""}
+                          </p>
+                          <p className="text-[12px] font-bold text-primary">
+                            {diarioDiscountPct}% OFF
+                          </p>
+                          <p className="mt-1 text-[9px] leading-tight text-white/40">
+                            a partir de 2 tickets
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 border-t border-white/6 bg-black/25 px-3.5 py-2.5 text-[12px] text-white/50 sm:px-4">
+                      <span>
+                        Desconto aplicado:{" "}
+                        <span className="font-bold text-primary">
+                          {diarioDiscountPct}%
+                        </span>{" "}
+                        OFF
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-right font-medium">
+                        Escolha a quantidade
+                        <ChevronRight
+                          className="size-3.5 text-white/80"
+                          strokeWidth={2.4}
+                        />
+                      </span>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-[15px] font-black tracking-tight text-white">
-                      Resumo da compra
-                    </h3>
-                    <p className="text-[11px] font-medium text-white/40">
-                      Revise antes de gerar o PIX
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCouponOpen((o) => !o);
-                    setCouponHint(null);
-                  }}
-                  className="inline-flex shrink-0 items-center gap-1.5 text-left text-[11px] font-bold leading-snug text-primary hover:underline sm:text-[12px]"
-                >
-                  <Ticket className="size-3.5 shrink-0" strokeWidth={2.2} />
-                  Possui cupom? Clique para inserir
-                </button>
+                )}
+
+                {!ticketsPrincipalOnly &&
+                  extraBoloes.map((b) => {
+                    const qty = extraQty(b.championshipId);
+                    const variant = getExtraBolaoHeroSideVariant(
+                      b.championshipId,
+                      b.displayName,
+                    );
+                    const iconSrc = extraBolaoIconSrc(variant).src;
+                    const branded = isExtraBolaoBrandedIcon(variant);
+                    const headline = extraBolaoHeadline(b);
+                    const lineCents = progressiveDiscountTotalCents(
+                      prices.extra,
+                      qty,
+                    );
+                    const discountPct = progressiveDiscountPercent(qty);
+                    const unitCents =
+                      qty > 0 ? Math.round(lineCents / qty) : prices.extra;
+
+                    return (
+                      <div
+                        key={b.championshipId}
+                        className="overflow-hidden rounded-[16px] border border-white/10 bg-[#121212] shadow-[0_8px_26px_rgba(0,0,0,0.35)]"
+                      >
+                        <div className="min-w-0 overflow-x-auto border-b border-white/6 px-3 pb-2.5 pt-3 [-ms-overflow-style:none] [scrollbar-width:none] sm:px-3.5 sm:pb-3 sm:pt-3.5 [&::-webkit-scrollbar]:hidden">
+                          <h3 className="inline-block w-max max-w-none whitespace-nowrap text-[14px] font-black uppercase leading-none tracking-[-0.03em] text-white min-[380px]:text-[15px] sm:text-[15px]">
+                            {headline}
+                          </h3>
+                        </div>
+                        <div className="grid grid-cols-[74px_minmax(0,1fr)] items-start gap-3 p-3 sm:grid-cols-[86px_minmax(0,1fr)] sm:p-3.5">
+                          <div className="flex flex-col items-center justify-center pt-0.5">
+                            <img
+                              src={iconSrc}
+                              alt=""
+                              className={
+                                branded
+                                  ? "h-[68px] w-[68px] shrink-0 object-contain sm:h-[78px] sm:w-[78px]"
+                                  : "h-[82px] w-[62px] shrink-0 object-contain sm:h-[86px] sm:w-[62px]"
+                              }
+                            />
+                          </div>
+                          <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_88px] items-center gap-3 sm:grid-cols-[minmax(0,1fr)_96px]">
+                            <div className="min-w-0">
+                              <p className="text-[12px] font-medium leading-snug text-white/80 sm:text-[11px]">
+                                Cota extra na rodada atual deste campeonato.
+                              </p>
+                              <p className="mt-1.5 text-[11px] font-bold leading-snug text-primary/90 sm:text-[12px]">
+                                {getExtraBolaoFirstPlaceLine(
+                                  b.championshipId,
+                                  b.displayName,
+                                )}
+                              </p>
+                              <div className="mt-3 flex w-fit items-center gap-1 rounded-[10px] border border-white/10 bg-[#0f0f0f] p-1">
+                                <button
+                                  type="button"
+                                  aria-label={`Diminuir ${headline}`}
+                                  disabled={qty <= 0}
+                                  onClick={() => {
+                                    setError(null);
+                                    setCouponHint(null);
+                                    setExtraQty(b.championshipId, qty - 1);
+                                  }}
+                                  className="flex h-8 w-8 items-center justify-center rounded-[8px] border border-primary/20 bg-black/40 text-primary transition-colors hover:bg-white/10 disabled:opacity-30"
+                                >
+                                  <span className="text-[18px] font-black leading-none">
+                                    -
+                                  </span>
+                                </button>
+                                <span className="w-8 text-center text-[18px] font-black tabular-nums text-white sm:text-[20px]">
+                                  {qty}
+                                </span>
+                                <button
+                                  type="button"
+                                  aria-label={`Aumentar ${headline}`}
+                                  disabled={qty >= MAX_QTY}
+                                  onClick={() => {
+                                    setError(null);
+                                    setCouponHint(null);
+                                    setExtraQty(b.championshipId, qty + 1);
+                                  }}
+                                  className="flex h-8 w-8 items-center justify-center rounded-[8px] border border-primary/30 bg-black/40 text-primary transition-colors hover:bg-white/10 disabled:opacity-30"
+                                >
+                                  <span className="text-[18px] font-black leading-none">
+                                    +
+                                  </span>
+                                </button>
+                              </div>
+                            </div>
+                            <div className="self-center text-right">
+                              <p className="text-[12px] font-semibold text-white/40">
+                                Preço unitário
+                              </p>
+                              <p className="mt-1 text-[14px] font-black tabular-nums text-white sm:text-[15px]">
+                                {formatBRL(unitCents)}
+                              </p>
+                              <p className="mt-1 text-[12px] font-semibold tabular-nums text-white/80 line-through">
+                                {discountPct > 0 ? formatBRL(prices.extra) : ""}
+                              </p>
+                              <p className="text-[12px] font-bold text-primary">
+                                {discountPct}% OFF
+                              </p>
+                              <p className="mt-1 text-[9px] leading-tight text-white/40">
+                                a partir de 2 tickets
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between gap-2 border-t border-white/6 bg-black/25 px-3.5 py-2.5 text-[12px] text-white/50 sm:px-4">
+                          <span>
+                            Desconto aplicado:{" "}
+                            <span className="font-bold text-primary">
+                              {discountPct}%
+                            </span>{" "}
+                            OFF
+                          </span>
+                          <span className="inline-flex items-center gap-1 text-right font-medium">
+                            Escolha a quantidade
+                            <ChevronRight
+                              className="size-3.5 text-white/80"
+                              strokeWidth={2.4}
+                            />
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
               </div>
 
-              {couponOpen && (
-                <div className="mb-4 flex flex-col gap-2 rounded-[12px] border border-white/10 bg-[#121212] p-3">
-                  <input
-                    value={couponCode}
-                    onChange={(e) => setCouponCode(e.target.value)}
-                    placeholder="Código do cupom"
-                    className="h-10 w-full rounded-[9px] border border-white/10 bg-black/60 px-3 text-[13px] text-white outline-none placeholder:text-white/30 focus:border-primary/50"
-                  />
+              {/* ── Resumo da compra ─────────────────────────────── */}
+              <div className="rounded-[16px] border border-white/8 bg-[#171717] p-4">
+                <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <div className="flex size-9 shrink-0 items-center justify-center rounded-[10px] border border-white/10 bg-black/40">
+                      <ShoppingCart
+                        className="size-[18px] text-primary"
+                        strokeWidth={2.2}
+                      />
+                    </div>
+                    <div>
+                      <h3 className="text-[15px] font-black tracking-tight text-white">
+                        Resumo da compra
+                      </h3>
+                      <p className="text-[11px] font-medium text-white/40">
+                        Revise antes de gerar o PIX
+                      </p>
+                    </div>
+                  </div>
                   <button
                     type="button"
                     onClick={() => {
-                      const t = couponCode.trim();
-                      if (!t) {
-                        setCouponHint("Digite um código.");
-                        return;
-                      }
-                      setCouponHint(
-                        "Cupons em breve — fique de olho nas promoções.",
-                      );
-                      setCouponCode("");
+                      setCouponOpen((o) => !o);
+                      setCouponHint(null);
                     }}
-                    className="h-9 rounded-[9px] bg-white/10 text-[12px] font-bold text-white transition-colors hover:bg-white/15"
+                    className="inline-flex shrink-0 items-center gap-1.5 text-left text-[11px] font-bold leading-snug text-primary hover:underline sm:text-[12px]"
                   >
-                    Aplicar
+                    <Ticket className="size-3.5 shrink-0" strokeWidth={2.2} />
+                    Possui cupom? Clique para inserir
                   </button>
-                  {couponHint && (
-                    <p className="text-[11px] font-medium text-primary/90">
-                      {couponHint}
-                    </p>
-                  )}
                 </div>
-              )}
 
-              <div className="space-y-2.5 border-b border-white/10 pb-3">
-                <div className="flex items-center justify-between gap-2 text-[13px]">
-                  <span className="font-semibold text-white/70">
-                    Bolão Geral · {principalQty}{" "}
-                    {principalQty === 1 ? "ticket" : "tickets"}
-                  </span>
-                  <span className="shrink-0 font-black tabular-nums text-white">
-                    {formatBRL(principalLineCents)}
-                  </span>
-                </div>
-                {!ticketsHideDaily && dailyQty > 0 && (
-                <div className="flex items-center justify-between gap-2 text-[13px]">
-                  <span className="font-semibold text-white/70">
-                    Bolão do Dia · {dailyQty}{" "}
-                    {dailyQty === 1 ? "ticket" : "tickets"}
-                  </span>
-                  <span className="shrink-0 font-black tabular-nums text-white">
-                    {formatBRL(diarioLineCents)}
-                  </span>
-                </div>
-                )}
-                {!ticketsPrincipalOnly &&
-                extraBoloes.map((b) => {
-                  const qty = extraQty(b.championshipId);
-                  if (qty <= 0) return null;
-                  const lineCents = progressiveDiscountTotalCents(prices.extra, qty);
-                  const label =
-                    resolveExtraBolaoDisplayName(b.championshipId, b.displayName) ||
-                    "Bolão extra";
-                  return (
-                    <div
-                      key={b.championshipId}
-                      className="flex items-center justify-between gap-2 text-[13px]"
+                {couponOpen && (
+                  <div className="mb-4 flex flex-col gap-2 rounded-[12px] border border-white/10 bg-[#121212] p-3">
+                    <input
+                      value={couponCode}
+                      onChange={(e) => setCouponCode(e.target.value)}
+                      placeholder="Código do cupom"
+                      className="h-10 w-full rounded-[9px] border border-white/10 bg-black/60 px-3 text-[13px] text-white outline-none placeholder:text-white/30 focus:border-primary/50"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const t = couponCode.trim();
+                        if (!t) {
+                          setCouponHint("Digite um código.");
+                          return;
+                        }
+                        setCouponHint(
+                          "Cupons em breve — fique de olho nas promoções.",
+                        );
+                        setCouponCode("");
+                      }}
+                      className="h-9 rounded-[9px] bg-white/10 text-[12px] font-bold text-white transition-colors hover:bg-white/15"
                     >
+                      Aplicar
+                    </button>
+                    {couponHint && (
+                      <p className="text-[11px] font-medium text-primary/90">
+                        {couponHint}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                <div className="space-y-2.5 border-b border-white/10 pb-3">
+                  <div className="flex items-center justify-between gap-2 text-[13px]">
+                    <span className="font-semibold text-white/70">
+                      Bolão Geral · {principalQty}{" "}
+                      {principalQty === 1 ? "ticket" : "tickets"}
+                    </span>
+                    <span className="shrink-0 font-black tabular-nums text-white">
+                      {formatBRL(principalLineCents)}
+                    </span>
+                  </div>
+                  {!ticketsHideDaily && dailyQty > 0 && (
+                    <div className="flex items-center justify-between gap-2 text-[13px]">
                       <span className="font-semibold text-white/70">
-                        {label} · {qty} {qty === 1 ? "ticket" : "tickets"}
+                        Bolão do Dia · {dailyQty}{" "}
+                        {dailyQty === 1 ? "ticket" : "tickets"}
                       </span>
                       <span className="shrink-0 font-black tabular-nums text-white">
-                        {formatBRL(lineCents)}
+                        {formatBRL(diarioLineCents)}
                       </span>
                     </div>
-                  );
-                })}
-              </div>
-              <div className="mt-3 flex items-center justify-between gap-2">
-                <span className="text-[16px] font-black uppercase tracking-wide text-white/50">
-                  Total
-                </span>
-                <span className="text-[18px] font-black tabular-nums text-primary">
-                  {formatBRL(totalCents)}
-                </span>
+                  )}
+                  {!ticketsPrincipalOnly &&
+                    extraBoloes.map((b) => {
+                      const qty = extraQty(b.championshipId);
+                      if (qty <= 0) return null;
+                      const lineCents = progressiveDiscountTotalCents(
+                        prices.extra,
+                        qty,
+                      );
+                      const label =
+                        resolveExtraBolaoDisplayName(
+                          b.championshipId,
+                          b.displayName,
+                        ) || "Bolão extra";
+                      return (
+                        <div
+                          key={b.championshipId}
+                          className="flex items-center justify-between gap-2 text-[13px]"
+                        >
+                          <span className="font-semibold text-white/70">
+                            {label} · {qty} {qty === 1 ? "ticket" : "tickets"}
+                          </span>
+                          <span className="shrink-0 font-black tabular-nums text-white">
+                            {formatBRL(lineCents)}
+                          </span>
+                        </div>
+                      );
+                    })}
+                </div>
+                <div className="mt-3 flex items-center justify-between gap-2">
+                  <span className="text-[16px] font-black uppercase tracking-wide text-white/50">
+                    Total
+                  </span>
+                  <span className="text-[18px] font-black tabular-nums text-primary">
+                    {formatBRL(totalCents)}
+                  </span>
                 </div>
 
                 <button
                   type="button"
                   disabled={!hasSelection}
                   onClick={goGenerate}
-                className="mt-4 flex h-[56px] w-full items-center justify-center gap-3 rounded-[14px] bg-primary px-5 text-[16px] font-black uppercase tracking-[0.04em] text-[#0E141B] shadow-[0_4px_32px_rgba(177,235,11,0.55)] transition-[transform,filter] hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 sm:text-[14px]"
-              >
-                <Wallet className="size-5 shrink-0" strokeWidth={2.2} />
-                <span>Finalizar compra · {formatBRL(totalCents)}</span>
-                <ArrowRight className="size-5 shrink-0" strokeWidth={2.8} />
+                  className="mt-4 flex h-[56px] w-full items-center justify-center gap-3 rounded-[14px] bg-primary px-5 text-[16px] font-black uppercase tracking-[0.04em] text-[#0E141B] shadow-[0_4px_32px_rgba(177,235,11,0.55)] transition-[transform,filter] hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 sm:text-[14px]"
+                >
+                  <Wallet className="size-5 shrink-0" strokeWidth={2.2} />
+                  <span>Finalizar compra · {formatBRL(totalCents)}</span>
+                  <ArrowRight className="size-5 shrink-0" strokeWidth={2.8} />
                 </button>
-            </div>
-
-            {/* ── Confiança ───────────────────────────────────── */}
-            <div className="grid grid-cols-3 gap-2 sm:gap-3">
-              <div className="rounded-[12px] border border-white/8 bg-[#171717] px-2 py-3 text-center sm:px-3">
-                <Shield
-                  className="mx-auto size-5 text-primary"
-                  strokeWidth={2}
-                />
-                <p className="mt-2 text-[12px] font-black uppercase tracking-wide text-white">
-                  100% Seguro
-                </p>
-                <p className="mt-1 text-[9px] leading-snug text-white/40">
-                  Seus dados protegidos com criptografia.
-                </p>
               </div>
-              <div className="rounded-[12px] border border-white/8 bg-[#171717] px-2 py-3 text-center sm:px-3">
-                <Zap className="mx-auto size-5 text-primary" strokeWidth={2} />
-                <p className="mt-2 text-[12px] font-black uppercase tracking-wide text-white">
-                  Instantâneo
-                </p>
-                <p className="mt-1 text-[9px] leading-snug text-white/40">
-                  Acesso liberado na hora.
-                </p>
-              </div>
-              <div className="rounded-[12px] border border-white/8 bg-[#171717] px-2 py-3 text-center sm:px-3">
-                <Check
-                  className="mx-auto size-5 text-primary"
-                  strokeWidth={2.5}
-                />
-                <p className="mt-2 text-[12px] font-black uppercase tracking-wide text-white">
-                  Sem taxas
-                </p>
-                <p className="mt-1 text-[9px] leading-snug text-white/40">
-                  Você paga apenas pelo ticket.
-                </p>
-              </div>
-            </div>
 
-            {/* ── Botão depositar ──────────────────────────────── */}
-
-                {error && (
-              <p className="text-center text-[12px] font-semibold text-red-300">
-                    {error}
+              {/* ── Confiança ───────────────────────────────────── */}
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                <div className="rounded-[12px] border border-white/8 bg-[#171717] px-2 py-3 text-center sm:px-3">
+                  <Shield
+                    className="mx-auto size-5 text-primary"
+                    strokeWidth={2}
+                  />
+                  <p className="mt-2 text-[12px] font-black uppercase tracking-wide text-white">
+                    100% Seguro
                   </p>
-                )}
-            <p className="flex items-center justify-center gap-2 text-center text-[11px] font-medium text-white/25">
-              <Lock className="size-3 shrink-0" strokeWidth={2} />
-              Transação protegida por criptografia SSL 256-bit
-            </p>
+                  <p className="mt-1 text-[9px] leading-snug text-white/40">
+                    Seus dados protegidos com criptografia.
+                  </p>
+                </div>
+                <div className="rounded-[12px] border border-white/8 bg-[#171717] px-2 py-3 text-center sm:px-3">
+                  <Zap
+                    className="mx-auto size-5 text-primary"
+                    strokeWidth={2}
+                  />
+                  <p className="mt-2 text-[12px] font-black uppercase tracking-wide text-white">
+                    Instantâneo
+                  </p>
+                  <p className="mt-1 text-[9px] leading-snug text-white/40">
+                    Acesso liberado na hora.
+                  </p>
+                </div>
+                <div className="rounded-[12px] border border-white/8 bg-[#171717] px-2 py-3 text-center sm:px-3">
+                  <Check
+                    className="mx-auto size-5 text-primary"
+                    strokeWidth={2.5}
+                  />
+                  <p className="mt-2 text-[12px] font-black uppercase tracking-wide text-white">
+                    Sem taxas
+                  </p>
+                  <p className="mt-1 text-[9px] leading-snug text-white/40">
+                    Você paga apenas pelo ticket.
+                  </p>
+                </div>
               </div>
+
+              {/* ── Botão depositar ──────────────────────────────── */}
+
+              {error && (
+                <p className="text-center text-[12px] font-semibold text-red-300">
+                  {error}
+                </p>
+              )}
+              <p className="flex items-center justify-center gap-2 text-center text-[11px] font-medium text-white/25">
+                <Lock className="size-3 shrink-0" strokeWidth={2} />
+                Transação protegida por criptografia SSL 256-bit
+              </p>
             </div>
+          </div>
         )
       ) : (
         <div className="min-h-screen w-full bg-black">
