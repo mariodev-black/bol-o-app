@@ -11,18 +11,22 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
+import Link from "next/link";
 import {
   ArrowRight,
   Check,
   ChevronDown,
   ChevronUp,
-  Copy,
   Link2,
   ShieldCheck,
   Shirt,
+  ShoppingCart,
   Ticket,
+  User,
   X,
 } from "lucide-react";
+import { getTicketPriceCents } from "@/lib/payments/ticket-config";
+import camisaBraImg from "@/app/assets/camisa-bra.png";
 import { useIsAdminAppRoute } from "@/app/shared/app-route-guards";
 import { useAuth } from "@/app/shared/AuthContext";
 import { useBolaoToast } from "@/app/components/BolaoToast";
@@ -43,7 +47,18 @@ const EGITO_SHIELD_URL =
 const PROMO_FONT =
   "var(--font-montserrat), ui-sans-serif, system-ui, sans-serif";
 const GREEN = "#B1EB0B";
+const PROMO_SURFACE = "#141414";
+const PROMO_CARD = "#121212";
+const PROMO_CARD_ALT = "#1a1a1a";
+const PROMO_BORDER = "rgba(255,255,255,0.12)";
 const PROMO_Z = 156;
+
+function formatPromoPriceBRL(cents: number): string {
+  return (cents / 100).toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+}
 const OPEN_DELAY_MS = 0;
 const API_PATH = "/api/promotions/brasil-egito-placar";
 
@@ -225,28 +240,28 @@ function PlacarExatoSummary({
   predVisitante: number;
 }) {
   return (
-    <div className="mt-4 rounded-2xl border border-white/10 bg-[#1a1a1a] px-3 py-3.5">
-      <p className="text-center text-[10px] font-black uppercase tracking-[0.14em] text-white/55">
+    <div className="mt-2 rounded-2xl bg-[#1a1a1a] px-2 py-2">
+      <p className="text-center text-[11px] font-black uppercase tracking-[0.14em] text-white/55 sm:text-[12px]">
         Seu palpite
       </p>
 
-      <div className="mt-3 flex items-center justify-between gap-1">
+      <div className="mt-0 flex items-center justify-between gap-1">
         <TeamLogo src={brasilLogo} alt="Brasil" />
 
         <div className="flex flex-col items-center">
           <span
-            className="min-w-[42px] text-center text-[42px] font-black tabular-nums leading-none text-white/90"
+            className="min-w-[42px] text-center text-[44px] font-black tabular-nums leading-none text-white/90 sm:text-[48px]"
             aria-label={`${predCasa} gols do Brasil`}
           >
             {predCasa}
           </span>
-          <span className="mt-1 text-[10px] font-bold uppercase text-white/45">
-            Brasil
+          <span className="mt-1 text-[11px] font-bold uppercase text-white/45 sm:text-[12px]">
+            BRASIL
           </span>
         </div>
 
         <span
-          className="shrink-0 px-1 text-[18px] font-bold text-white/45"
+          className="shrink-0 px-1 text-[20px] font-bold text-white/45"
           aria-hidden
         >
           x
@@ -254,13 +269,13 @@ function PlacarExatoSummary({
 
         <div className="flex flex-col items-center">
           <span
-            className="min-w-[42px] text-center text-[42px] font-black tabular-nums leading-none text-white/90"
+            className="min-w-[42px] text-center text-[44px] font-black tabular-nums leading-none text-white/90 sm:text-[48px]"
             aria-label={`${predVisitante} gols do Egito`}
           >
             {predVisitante}
           </span>
-          <span className="mt-1 text-[10px] font-bold uppercase text-white/45">
-            Egito
+          <span className="mt-1 text-[11px] font-bold uppercase text-white/45 sm:text-[12px]">
+            EGITO
           </span>
         </div>
 
@@ -516,7 +531,8 @@ export function SuccessStep({
 }) {
   const toast = useBolaoToast();
   const [copied, setCopied] = useState(false);
-  const displayLink = signupLink.replace(/^https?:\/\//, "");
+  const ticketPriceLabel = formatPromoPriceBRL(2990);
+  const filled = Math.min(friendsGoal, Math.max(0, friendsInvited));
 
   const handleCopy = useCallback(async () => {
     try {
@@ -529,12 +545,14 @@ export function SuccessStep({
     }
   }, [signupLink, toast]);
 
-  const filled = Math.min(friendsGoal, Math.max(0, friendsInvited));
-
   return (
     <div
-      className="relative w-full max-w-[350px] rounded-4xl border border-white/8 bg-[#141414] px-5 pb-6 pt-10 shadow-[0_24px_48px_rgba(0,0,0,0.65)]"
-      style={{ fontFamily: PROMO_FONT }}
+      className="relative w-full max-w-[520px] rounded-4xl border px-4 pb-4 pt-4 shadow-[0_24px_48px_rgba(0,0,0,0.65)] sm:px-6"
+      style={{
+        fontFamily: PROMO_FONT,
+        background: PROMO_SURFACE,
+        borderColor: PROMO_BORDER,
+      }}
       onClick={(e) => e.stopPropagation()}
     >
       <button
@@ -548,123 +566,176 @@ export function SuccessStep({
 
       <div className="text-center" id="brasil-egito-placar-success-title">
         <div
-          className="mx-auto mb-3 flex size-11 items-center justify-center rounded-full border-2"
-          style={{ background: `${GREEN}18`, borderColor: `${GREEN}66` }}
+          className="mx-auto mb-1 flex size-11 items-center justify-center rounded-full"
         >
           <Check className="size-6 text-primary" strokeWidth={2.5} />
         </div>
-        <p className="text-[28px] font-black italic uppercase leading-none text-white">
-          Palpite
-        </p>
-        <p
-          className="text-[28px] font-black italic uppercase leading-none"
-          style={{ color: GREEN }}
-        >
-          registrado!
+        <p className="text-[22px] font-black italic uppercase leading-tight text-white sm:text-[26px]">
+          Palpite{" "}
+          <span style={{ color: GREEN }}>registrado!</span>
         </p>
 
         <PlacarExatoSummary predCasa={predCasa} predVisitante={predVisitante} />
-
-        <p className="mt-3 text-[13px] font-medium leading-snug text-white/80">
-          Agora é só chamar a galera e garantir sua{" "}
-          <strong className="font-bold text-white">camisa oficial</strong>!
-        </p>
       </div>
 
-      <div className="mt-6 border-t border-white/8 pt-5">
-        <p className="text-center text-[11px] font-black uppercase tracking-[0.12em] text-white/70">
-          Convide {friendsGoal} amigos e garanta
-        </p>
-        <p
-          className="mt-1 text-center text-[15px] font-black italic uppercase leading-tight tracking-wide"
-          style={{ color: GREEN }}
-        >
-          /// sua camisa oficial da seleção! ///
-        </p>
-
-        <div className="mt-4 flex justify-center gap-1.5">
-          {Array.from({ length: friendsGoal }, (_, i) => {
-            const active = i < filled;
-            return (
-              <span
-                key={i}
-                className="flex size-7 items-center justify-center rounded-full border text-[10px] font-bold"
-                style={
-                  active
-                    ? {
-                        borderColor: `${GREEN}88`,
-                        background: `${GREEN}22`,
-                        color: GREEN,
-                      }
-                    : {
-                        borderColor: "rgba(255,255,255,0.12)",
-                        background: "rgba(255,255,255,0.06)",
-                        color: "rgba(255,255,255,0.35)",
-                      }
-                }
-              >
-                {i === 0 && active ? "👤" : ""}
-              </span>
-            );
-          })}
+      <div
+        className="mt-0 flex items-center gap-4 sm:gap-5"
+      >
+        <div className="relative h-[128px] w-[88px] shrink-0 sm:h-[140px] sm:w-[96px]">
+          <Image
+            src={camisaBraImg}
+            alt="Camisa oficial da Seleção Brasileira modelo 2026"
+            fill
+            className="object-contain object-left"
+            sizes="96px"
+            draggable={false}
+            priority
+          />
         </div>
-
-        <p className="mt-2 text-center">
-          <span
-            className="text-[24px] font-black tabular-nums"
+        <div className="min-w-0 flex-1 text-left">
+          <p className="text-[12px] font-black uppercase leading-tight tracking-wide text-white/85 sm:text-[13px]">
+            Concorra à
+          </p>
+          <p
+            className="text-[19px] font-black uppercase leading-tight tracking-wide sm:text-[22px]"
             style={{ color: GREEN }}
           >
-            {friendsInvited}
-          </span>
-          <span className="text-[15px] font-bold text-white/55">
-            {" "}
-            / {friendsGoal}
-          </span>
-        </p>
-        <p className="text-center text-[11px] font-medium text-white/55">
-          amigos convidados
-        </p>
+            Camisa oficial
+          </p>
+          <p className="text-[12px] font-black uppercase leading-tight tracking-wide text-white/85 sm:text-[13px]">
+            da Seleção Brasileira
+          </p>
+          <p
+            className="mt-0.5 text-[13px] font-black uppercase tracking-wide sm:text-[14px]"
+            style={{ color: GREEN }}
+          >
+            Modelo 2026
+          </p>
+        </div>
+      </div>
 
-        <p className="mt-5 text-center text-[10px] font-black uppercase tracking-[0.14em] text-white/55">
-          Seu link exclusivo
-        </p>
-        <div className="mt-2 flex items-center gap-2 rounded-xl border border-white/10 bg-[#1a1a1a] px-3 py-3">
-          <Link2 className="size-5 shrink-0 text-primary" strokeWidth={2.2} />
-          <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-white/90">
-            {displayLink}
-          </span>
+      <div className="relative mt-2 mb-1">
+        <div className="border-t" style={{ borderColor: PROMO_BORDER }} aria-hidden />
+        <span
+          className="absolute left-1/2 top-0 whitespace-nowrap -translate-x-1/2 -translate-y-1/2 px-3 text-[11px] font-black uppercase tracking-[0.14em] text-white/50 sm:text-[12px]"
+          style={{ background: PROMO_SURFACE }}
+        >
+          Escolha como participar
+        </span>
+      </div>
+
+      <div className="relative mt-2 grid grid-cols-2 items-stretch gap-3">
+        <span
+          className="pointer-events-none absolute left-1/2 top-[44%] z-10 flex size-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 text-[10px] font-black uppercase text-white/60"
+          style={{ background: PROMO_SURFACE, borderColor: PROMO_BORDER }}
+          aria-hidden
+        >
+          ou
+        </span>
+
+        {/* Opção 1 — comprar cota (borda verde) */}
+        <div
+          className="flex flex-col rounded-2xl border-2 p-2"
+          style={{ background: PROMO_CARD, borderColor: `${GREEN}99` }}
+        >
+          <div className="flex flex-1 flex-col">
+            <span
+              className="mx-auto rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-wide text-[#0E141B]"
+              style={{ background: GREEN }}
+            >
+              Opção 1
+            </span>
+            <p className="mt-3 text-center text-[14px] font-black uppercase leading-tight text-white">
+              Garantir agora
+            </p>
+            <p
+              className="mt-2.5 text-center text-[13px] font-black uppercase leading-snug tracking-tight"
+              style={{ color: GREEN }}
+            >
+              + de R$ 1 milhão em premiações
+            </p>
+            <p className="mt-3 text-center text-[12px] font-semibold leading-snug text-white/75 sm:text-[13px]">
+              Por apenas{" "}
+              <span className="font-black" style={{ color: GREEN }}>
+                {ticketPriceLabel}
+              </span>
+            </p>
+            <ul className="mt-3 space-y-2 text-[11px] font-semibold leading-snug text-white/70 sm:text-[12px]">
+              <li className="flex items-start justify-center gap-1.5 text-center">
+                <Check className="mt-0.5 size-3.5 shrink-0 text-primary" strokeWidth={3} />
+                Copa inteira
+              </li>
+            </ul>
+          </div>
+          <Link
+            href="/tickets"
+            onClick={onClose}
+            className="mt-4 flex min-h-[52px] w-full shrink-0 items-center justify-center gap-1 rounded-full bg-primary px-2 py-2 text-[#0E141B] transition active:scale-[0.98]"
+          >
+            <ShoppingCart
+              className="size-3.5 shrink-0 self-center"
+              strokeWidth={2.4}
+            />
+            <span className="text-center text-[10px] font-black uppercase italic leading-[1.15] tracking-tight">
+              Garantir
+              <span className="block">minha cota</span>
+            </span>
+          </Link>
+        </div>
+
+        {/* Opção 2 — indicar amigos (card dark, sem amarelo) */}
+        <div
+          className="flex flex-col rounded-2xl border-2 p-2"
+          style={{ background: PROMO_CARD, borderColor: PROMO_BORDER }}
+        >
+          <div className="flex flex-1 flex-col">
+            <span
+              className="mx-auto rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-wide text-white/75"
+              style={{ background: PROMO_CARD_ALT }}
+            >
+              Opção 2
+            </span>
+            <p className="mt-3 text-center text-[14px] font-black uppercase leading-tight text-white">
+              Participar grátis
+            </p>
+            <p className="mt-2.5 text-center text-[13px] font-bold leading-snug text-white/85">
+              Convide{" "}
+              <span style={{ color: GREEN }}>{friendsGoal}</span> amigos
+            </p>
+           
+
+            <div className="mt-4 flex justify-center gap-2">
+              {Array.from({ length: friendsGoal }, (_, i) => {
+                const active = i < filled;
+                return (
+                  <span
+                    key={i}
+                    className="flex size-9 items-center justify-center rounded-full border sm:size-10"
+                    style={{
+                      borderColor: active ? `${GREEN}55` : PROMO_BORDER,
+                      background: active ? `${GREEN}14` : PROMO_CARD_ALT,
+                      color: active ? GREEN : "rgba(255,255,255,0.32)",
+                    }}
+                  >
+                    <User className="size-4 sm:size-[18px]" strokeWidth={2} />
+                  </span>
+                );
+              })}
+            </div>
+            <p className="mt-2.5 text-center text-[12px] font-semibold text-white/45 sm:text-[13px]">
+              {friendsInvited}/{friendsGoal} amigos convidados
+            </p>
+          </div>
+
           <button
             type="button"
             onClick={() => void handleCopy()}
-            className="shrink-0 text-primary transition hover:opacity-80"
-            aria-label="Copiar link"
+            className="mt-4 flex min-h-[52px] w-full shrink-0 items-center justify-center gap-1.5 rounded-full bg-white px-3 py-2 text-[11px] font-black uppercase italic leading-none tracking-tight text-[#0E141B] transition active:scale-[0.98]"
           >
-            <Copy className="size-4" strokeWidth={2.2} />
+            <Link2 className="size-3.5 shrink-0" strokeWidth={2.4} />
+            {copied ? "Copiado!" : "Copiar link"}
           </button>
         </div>
-
-        <button
-          type="button"
-          onClick={() => void handleCopy()}
-          className="mt-3 flex min-h-[50px] w-full items-center justify-center gap-2 rounded-full bg-primary text-[14px] font-black uppercase italic tracking-wide text-[#0E141B] transition active:scale-[0.98]"
-        >
-          <Link2 className="size-4" strokeWidth={2.2} />
-          {copied ? "Copiado!" : "Copiar link"}
-        </button>
-
-        <p className="mt-4 flex items-start gap-2 text-[11px] font-medium leading-snug text-white/75">
-          <ShieldCheck
-            className="mt-0.5 size-3.5 shrink-0 text-primary"
-            strokeWidth={2.2}
-          />
-          <span>
-            Ao completar {friendsGoal} indicações válidas, sua camisa será{" "}
-            <strong className="font-bold" style={{ color: GREEN }}>
-              liberada automaticamente
-            </strong>
-            .
-          </span>
-        </p>
       </div>
     </div>
   );
