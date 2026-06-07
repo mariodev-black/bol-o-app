@@ -3,6 +3,7 @@ import "server-only";
 import { getPool } from "@/lib/db";
 import {
   BRASIL_EGITO_PLACAR_FRIENDS_GOAL,
+  BRASIL_EGITO_PLACAR_MATCH_ID,
   getBrasilEgitoPlacarPromoClosesAtMs,
   isBrasilEgitoPlacarPromoEnabled,
   isBrasilEgitoPlacarPromoSubmissionOpen,
@@ -13,15 +14,25 @@ function env(name: string): string {
   return raw == null ? "" : String(raw).trim();
 }
 
+/** Placar confirmado — Brasil 2 x 1 Egito (06/06/2026). */
+const BRASIL_EGITO_CONFIRMED_RESULT = { casa: 2, visitante: 1 } as const;
+
+export type BrasilEgitoPlacarOfficialResultSource =
+  | "env"
+  | "match_cache"
+  | "confirmed";
+
 export type BrasilEgitoPlacarOfficialResult = {
   casa: number;
   visitante: number;
   configured: boolean;
+  source: BrasilEgitoPlacarOfficialResultSource;
 };
 
-export function getBrasilEgitoPlacarOfficialResult(): BrasilEgitoPlacarOfficialResult | null {
-  const rawCasa = env("BRASIL_EGITO_PLACAR_RESULT_CASA");
-  const rawVisitante = env("BRASIL_EGITO_PLACAR_RESULT_VISITANTE");
+function parseOfficialScores(
+  rawCasa: string,
+  rawVisitante: string,
+): { casa: number; visitante: number } | null {
   if (!rawCasa || !rawVisitante) return null;
   const casa = Number(rawCasa);
   const visitante = Number(rawVisitante);
@@ -33,7 +44,62 @@ export function getBrasilEgitoPlacarOfficialResult(): BrasilEgitoPlacarOfficialR
   ) {
     return null;
   }
-  return { casa, visitante, configured: true };
+  return { casa, visitante };
+}
+
+function getBrasilEgitoPlacarOfficialResultFromEnv(): BrasilEgitoPlacarOfficialResult | null {
+  const parsed = parseOfficialScores(
+    env("BRASIL_EGITO_PLACAR_RESULT_CASA"),
+    env("BRASIL_EGITO_PLACAR_RESULT_VISITANTE"),
+  );
+  if (!parsed) return null;
+  return { ...parsed, configured: true, source: "env" };
+}
+
+async function getBrasilEgitoPlacarOfficialResultFromMatchCache(): Promise<BrasilEgitoPlacarOfficialResult | null> {
+  const pool = getPool();
+  const { rows } = await pool.query<{
+    result_casa: number | null;
+    result_visitante: number | null;
+  }>(
+    `SELECT result_casa, result_visitante
+     FROM matches_cache
+     WHERE match_id = $1
+     LIMIT 1`,
+    [BRASIL_EGITO_PLACAR_MATCH_ID],
+  );
+  const row = rows[0];
+  if (row?.result_casa == null || row?.result_visitante == null) return null;
+  const casa = Number(row.result_casa);
+  const visitante = Number(row.result_visitante);
+  if (
+    !Number.isFinite(casa) ||
+    !Number.isFinite(visitante) ||
+    casa < 0 ||
+    visitante < 0
+  ) {
+    return null;
+  }
+  return { casa, visitante, configured: true, source: "match_cache" };
+}
+
+export async function resolveBrasilEgitoPlacarOfficialResult(): Promise<BrasilEgitoPlacarOfficialResult | null> {
+  const fromEnv = getBrasilEgitoPlacarOfficialResultFromEnv();
+  if (fromEnv) return fromEnv;
+
+  const fromCache = await getBrasilEgitoPlacarOfficialResultFromMatchCache();
+  if (fromCache) return fromCache;
+
+  return {
+    ...BRASIL_EGITO_CONFIRMED_RESULT,
+    configured: true,
+    source: "confirmed",
+  };
+}
+
+/** @deprecated Prefer `resolveBrasilEgitoPlacarOfficialResult()`. */
+export function getBrasilEgitoPlacarOfficialResult(): BrasilEgitoPlacarOfficialResult | null {
+  return getBrasilEgitoPlacarOfficialResultFromEnv();
 }
 
 export type AdminBrasilEgitoPlacarRow = {
@@ -59,6 +125,7 @@ export type AdminBrasilEgitoPromoDashboard = {
   stats: {
     submissionsCount: number;
     exactHitsCount: number;
+    freeTicketEligibleCount: number;
     shirtEligibleCount: number;
   };
   rows: AdminBrasilEgitoPlacarRow[];
@@ -66,7 +133,7 @@ export type AdminBrasilEgitoPromoDashboard = {
 
 export async function getAdminBrasilEgitoPromoDashboard(): Promise<AdminBrasilEgitoPromoDashboard> {
   const pool = getPool();
-  const officialResult = getBrasilEgitoPlacarOfficialResult();
+  const officialResult = await resolveBrasilEgitoPlacarOfficialResult();
   const friendsGoal = BRASIL_EGITO_PLACAR_FRIENDS_GOAL;
 
   const { rows } = await pool.query<{
@@ -139,6 +206,8 @@ export async function getAdminBrasilEgitoPromoDashboard(): Promise<AdminBrasilEg
     stats: {
       submissionsCount: mapped.length,
       exactHitsCount: mapped.filter((r) => r.scoreExactHit === true).length,
+      freeTicketEligibleCount: mapped.filter((r) => r.freeTicketPrizeEligible)
+        .length,
       shirtEligibleCount: mapped.filter((r) => r.shirtPrizeEligible).length,
     },
     rows: mapped,
