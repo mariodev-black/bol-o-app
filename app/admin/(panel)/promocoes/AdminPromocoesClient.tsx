@@ -1,6 +1,7 @@
 "use client";
 
-import { adminStatGridClass } from "@/app/admin/_components/admin-layout";
+import { AdminTabBar } from "@/app/admin/_components/AdminTabBar";
+import { adminStatGridClass, adminTabButtonClass } from "@/app/admin/_components/admin-layout";
 import { AdminTableScroll } from "@/app/admin/_components/AdminTableScroll";
 import { formatAdminDate } from "@/lib/admin/format";
 import type { AdminBrasilEgitoPromoDashboard } from "@/lib/admin/brasil-egito-placar-promo";
@@ -8,7 +9,10 @@ import type { AdminBrasilPanamaPromoDashboard } from "@/lib/admin/brasil-panama-
 import { Download, Loader2, Trophy } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { AdminPromoEmailDispatch } from "./AdminPromoEmailDispatch";
 import { AdminPromoHubLinks } from "./AdminPromoHubLinks";
+
+type PromocoesTab = "palpites" | "email";
 
 type PrizeFilter = "all" | "exact_hit" | "missed" | "free_ticket" | "shirt";
 
@@ -512,21 +516,53 @@ export function AdminPromocoesClient({
   brasilPanama: AdminBrasilPanamaPromoDashboard;
   hubUrl: string;
 }) {
+  const [tab, setTab] = useState<PromocoesTab>("palpites");
+
   return (
-    <div className="space-y-12">
-      <AdminPromoHubLinks hubUrl={hubUrl} />
-      <PlacarPromoSection
-        title="Brasil x Egito — Placar exato"
-        data={brasilEgito}
-        exportSlug="brasil-egito"
-        showWinners
-      />
-      {brasilPanama.stats.submissionsCount > 0 || brasilPanama.promoEnabled ? (
-        <PlacarPromoSection
-          title="Brasil x Panamá — Placar exato (legado)"
-          data={brasilPanama}
-        />
-      ) : null}
+    <div className="space-y-8">
+      <AdminTabBar>
+        {(
+          [
+            { id: "palpites" as const, label: "Palpites e ganhadores" },
+            { id: "email" as const, label: "Disparo" },
+          ] as const
+        ).map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            className={[
+              adminTabButtonClass,
+              tab === item.id
+                ? "bg-primary text-black"
+                : "border border-white/10 bg-white/5 text-white/48 hover:text-white",
+            ].join(" ")}
+            onClick={() => setTab(item.id)}
+          >
+            {item.label}
+          </button>
+        ))}
+      </AdminTabBar>
+
+      {tab === "email" ? (
+        <AdminPromoEmailDispatch data={brasilEgito} />
+      ) : (
+        <div className="space-y-12">
+          <AdminPromoHubLinks hubUrl={hubUrl} />
+          <PlacarPromoSection
+            title="Brasil x Egito — Placar exato"
+            data={brasilEgito}
+            exportSlug="brasil-egito"
+            showWinners
+          />
+          {brasilPanama.stats.submissionsCount > 0 ||
+          brasilPanama.promoEnabled ? (
+            <PlacarPromoSection
+              title="Brasil x Panamá — Placar exato (legado)"
+              data={brasilPanama}
+            />
+          ) : null}
+        </div>
+      )}
     </div>
   );
 }

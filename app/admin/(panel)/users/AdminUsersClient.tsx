@@ -43,6 +43,40 @@ function maskCpf(cpf: string | null) {
   return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
 }
 
+function isCpfLikeQuery(query: string): boolean {
+  const trimmed = query.trim();
+  if (!trimmed || trimmed.includes("@")) return false;
+  const digits = onlyDigits(trimmed);
+  return digits.length >= 2 && /^[\d.\-\s]+$/.test(trimmed);
+}
+
+function userMatchesQuery(user: AdminUserListItem, query: string): boolean {
+  const trimmed = query.trim();
+  if (!trimmed) return true;
+
+  const textQuery = normalize(trimmed);
+  const digitsQuery = onlyDigits(trimmed);
+
+  if (trimmed.includes("@")) {
+    return normalize(user.email).includes(textQuery);
+  }
+
+  if (isCpfLikeQuery(trimmed)) {
+    return onlyDigits(user.cpf ?? "").includes(digitsQuery);
+  }
+
+  const haystack = [
+    normalize(user.name),
+    normalize(user.email),
+    normalize(user.phone),
+    normalize(user.cpf),
+    onlyDigits(user.cpf ?? ""),
+    onlyDigits(user.phone ?? ""),
+  ].join(" ");
+
+  return haystack.includes(textQuery);
+}
+
 function roleLabel(role: AdminUserListItem["role"]) {
   if (role === "super_admin") return "Super admin";
   if (role === "admin") return "Admin";
@@ -89,20 +123,7 @@ export function AdminUsersClient({ users }: { users: AdminUserListItem[] }) {
   }
 
   const filteredUsers = useMemo(() => {
-    const digitsQuery = onlyDigits(query);
-    const textQuery = normalize(query);
-    const result = users.filter((user) => {
-      if (!textQuery && !digitsQuery) return true;
-      const cpfDigits = onlyDigits(user.cpf ?? "");
-      const haystack = [
-        normalize(user.name),
-        normalize(user.email),
-        normalize(user.cpf),
-        cpfDigits,
-      ].join(" ");
-      if (digitsQuery.length >= 2) return cpfDigits.includes(digitsQuery) || haystack.includes(textQuery);
-      return haystack.includes(textQuery);
-    });
+    const result = users.filter((user) => userMatchesQuery(user, query));
 
     return [...result].sort((a, b) => {
       if (sortBy === "oldest") return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
