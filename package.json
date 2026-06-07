@@ -27,7 +27,9 @@
     "test:e2e": "tsx --tsconfig tsconfig.scripts.json scripts/test-e2e-completo.ts",
     "test:live": "tsx --tsconfig tsconfig.scripts.json scripts/test-pontuacao-ao-vivo.ts",
     "test:prod": "tsx --tsconfig tsconfig.scripts.json scripts/test-producao-full.ts",
-    "backfill:prediction-scores": "tsx --tsconfig tsconfig.scripts.json scripts/backfill-prediction-scores.ts"
+    "backfill:prediction-scores": "tsx --tsconfig tsconfig.scripts.json scripts/backfill-prediction-scores.ts",
+    "amistosos:finalize": "tsx --tsconfig tsconfig.scripts.json scripts/finalize-amistosos-dia6-scores.ts",
+    "amistosos:prizes": "tsx --tsconfig tsconfig.scripts.json scripts/dispatch-amistosos-prizes.ts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",

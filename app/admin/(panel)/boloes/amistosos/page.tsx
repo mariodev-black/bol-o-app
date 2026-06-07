@@ -3,9 +3,13 @@ import { AdminPageTitle } from "@/app/admin/_components/AdminShell";
 import { listAmistososAdminMatches } from "@/lib/football/amistosos-friendlies-persistence";
 import { AMISTOSOS_FRIENDLIES_DISPLAY_NAME } from "@/lib/football/amistosos-friendlies";
 import { AdminAmistososPlacarClient } from "./AdminAmistososPlacarClient";
+import { AdminAmistososPrizeDispatch } from "./AdminAmistososPrizeDispatch";
 
 export default async function AdminAmistososBolaoPage() {
   const matches = await listAmistososAdminMatches();
+  const allMatchesFinalized = matches.every(
+    (m) => m.resultCasa != null && m.resultVisitante != null,
+  );
 
   return (
     <>
@@ -21,7 +25,10 @@ export default async function AdminAmistososBolaoPage() {
         title={`${AMISTOSOS_FRIENDLIES_DISPLAY_NAME} — Placares`}
         subtitle="Marque o placar oficial de cada jogo. A pontuação dos usuários é atualizada na hora (sem ao vivo)."
       />
-      <AdminAmistososPlacarClient initialMatches={matches} />
+      <div className="space-y-8">
+        <AdminAmistososPlacarClient initialMatches={matches} />
+        <AdminAmistososPrizeDispatch allMatchesFinalized={allMatchesFinalized} />
+      </div>
     </>
   );
 }
