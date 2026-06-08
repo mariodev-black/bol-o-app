@@ -15,6 +15,8 @@ import {
 } from "@/lib/payments/ticket-config";
 import { postPaymentApprovedWebhookIfConfigured } from "@/lib/payments/payment-approved-webhook";
 import { publishTransactionEvent } from "@/lib/payments/transaction-events";
+import { validateBrasilMarrocosPlacarPromoSubmission } from "@/lib/promotions/brasil-marrocos-placar-promo";
+import { invalidatePromoHubCache } from "@/lib/promotions/hub";
 import { recordReferralCommissionIfApplicable } from "@/lib/referrals/commissions";
 import { isSkaleBolaoCompetition } from "@/lib/boloes/skale-config";
 import { getTicketShopExtraRoundNumber } from "@/lib/ticket-shop-extra-display";
@@ -435,6 +437,20 @@ export async function updateTransactionStatusByProviderId(input: {
       });
     } catch (e) {
       console.error("[referral] commission on paid transaction", e);
+    }
+    try {
+      const { rows: generalTicketRows } = await pool.query<{ id: string }>(
+        `SELECT id FROM tickets
+         WHERE transaction_id = $1 AND ticket_type = 'general'
+         LIMIT 1`,
+        [row.id],
+      );
+      if (generalTicketRows.length > 0) {
+        await validateBrasilMarrocosPlacarPromoSubmission(row.user_id);
+        invalidatePromoHubCache(row.user_id);
+      }
+    } catch (e) {
+      console.error("[promo] validate brasil-marrocos on paid transaction", e);
     }
     try {
       await postPaymentApprovedWebhookIfConfigured({

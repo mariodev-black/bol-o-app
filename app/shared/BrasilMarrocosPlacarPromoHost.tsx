@@ -2,16 +2,15 @@
 
 /**
  * Promo "Acerte o placar exato — Amistoso Brasil x Marrocos".
- * Step 1: palpite Brasil x Marrocos
- * Step 2: indicação para camisa
- *
- * Estrutura independente de ChampionsPlacarPromoHost.
+ * Step 1: palpite no modal
+ * Step 2: ativação em /promo-camisa-brasil (compra da cota)
  */
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import {
   ArrowRight,
   Check,
@@ -32,12 +31,12 @@ import { useIsAdminAppRoute } from "@/app/shared/app-route-guards";
 import { useAuth } from "@/app/shared/AuthContext";
 import { useBolaoToast } from "@/app/components/BolaoToast";
 import { useRegisterPromotionHub, usePromotionsHub } from "@/app/shared/PromotionsHubContext";
-import { useMainBolaoPromoModal } from "@/app/shared/MainBolaoPromoContext";
-import type { BrasilMarrocosPlacarPromoStatus } from "@/lib/promotions/brasil-marrocos-placar-promo";
 import {
-  persistBrasilMarrocosReferralModalDismissed,
-  readBrasilMarrocosReferralModalDismissed,
-} from "@/lib/promotions/brasil-marrocos-guest-flow";
+  isMeaningfulBrasilMarrocosPlacarSubmission,
+  isPromoCheckoutPath,
+  PROMO_ACTIVATION_PATH,
+  type BrasilMarrocosPlacarPromoStatus,
+} from "@/lib/promotions/brasil-marrocos-placar-promo-shared";
 import { resolveNationalTeamShieldUrl } from "@/lib/football/national-team-shields";
 import brasilLogo from "@/app/assets/brasil-selecao-logo.png";
 
@@ -63,7 +62,7 @@ function formatPromoPriceBRL(cents: number): string {
 const OPEN_DELAY_MS = 0;
 const API_PATH = "/api/promotions/brasil-marrocos-placar";
 
-type Step = "offer" | "success" | "unavailable";
+type Step = "offer" | "unavailable";
 
 
 function PromoHeroShell({
@@ -384,6 +383,11 @@ export function OfferStep({
   onClose: () => void;
   friendsGoal: number;
 }) {
+  const canSubmit = isMeaningfulBrasilMarrocosPlacarSubmission(
+    predCasa,
+    predVisitante,
+  );
+
   return (
     <PromoHeroShell onClose={onClose}>
       {/* Header */}
@@ -530,7 +534,7 @@ export function OfferStep({
       {/* CTA */}
       <button
         type="button"
-        disabled={loading}
+        disabled={loading || !canSubmit}
         onClick={onSubmit}
         className="mt-5 flex min-h-[52px] w-full items-center justify-between rounded-full bg-primary px-5 text-[14px] font-black uppercase italic tracking-wide text-[#0E141B] transition active:scale-[0.98] disabled:opacity-60"
       >
@@ -878,10 +882,12 @@ export function BrasilMarrocosPlacarPromoHost({
 }: {
   children: React.ReactNode;
 }) {
+  const router = useRouter();
+  const pathname = usePathname();
   const { ready, isLoggedIn, user } = useAuth();
   const toast = useBolaoToast();
-  const { requestModal } = useMainBolaoPromoModal();
-  const { getPromotionPrefetch, setPromotionPrefetch } = usePromotionsHub();
+  const { getPromotionPrefetch, setPromotionPrefetch, invalidatePromotionsHub } =
+    usePromotionsHub();
   const isAdminRoute = useIsAdminAppRoute();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<Step>("offer");
@@ -900,6 +906,14 @@ export function BrasilMarrocosPlacarPromoHost({
   }, []);
 
   const profileBlocksPromo = Boolean(user && user.profileComplete === false);
+
+  const goToPromoActivation = useCallback(() => {
+    if (isPromoCheckoutPath(pathname)) return;
+    setOpen(false);
+    if (pathname !== PROMO_ACTIVATION_PATH) {
+      router.push(PROMO_ACTIVATION_PATH);
+    }
+  }, [pathname, router]);
 
   const refreshStatus =
     useCallback(async (): Promise<BrasilMarrocosPlacarPromoStatus | null> => {
@@ -921,6 +935,12 @@ export function BrasilMarrocosPlacarPromoHost({
     ) => {
       setStatus(data);
       if (data.showOfferModal) {
+        if (
+          !options?.manual &&
+          (pathname === "/" || pathname === "/homepage")
+        ) {
+          return;
+        }
         setStep("offer");
         setPredCasa(0);
         setPredVisitante(0);
@@ -928,17 +948,11 @@ export function BrasilMarrocosPlacarPromoHost({
         setOpen(true);
         return;
       }
-      if (data.alreadySubmitted) {
-        if (
-          !options?.manual &&
-          readBrasilMarrocosReferralModalDismissed(user?.id)
-        ) {
-          return;
-        }
-        if (data.predCasa != null) setPredCasa(data.predCasa);
-        if (data.predVisitante != null) setPredVisitante(data.predVisitante);
-        setStep("success");
-        setOpen(true);
+      if (data.needsQuotaPurchase) {
+        // Não redirecionar automaticamente — só após salvar palpite ou clique explícito (card/hub).
+        return;
+      }
+      if (data.promoActivated || data.alreadySubmitted) {
         return;
       }
       if (data.hasBet && options?.manual) {
@@ -946,7 +960,7 @@ export function BrasilMarrocosPlacarPromoHost({
         setOpen(true);
       }
     },
-    [user?.id],
+    [pathname],
   );
 
   const openFromPromotionsHub = useCallback(() => {
@@ -965,11 +979,14 @@ export function BrasilMarrocosPlacarPromoHost({
         return;
       }
       setStatus(fresh);
-      if (fresh.alreadySubmitted) {
-        if (fresh.predCasa != null) setPredCasa(fresh.predCasa);
-        if (fresh.predVisitante != null) setPredVisitante(fresh.predVisitante);
-        setStep("success");
-        setOpen(true);
+      if (fresh.needsQuotaPurchase) {
+        if (isPromoCheckoutPath(pathname) || pathname === PROMO_ACTIVATION_PATH) {
+          return;
+        }
+        goToPromoActivation();
+        return;
+      }
+      if (fresh.promoActivated) {
         return;
       }
       if (fresh.hasBet) {
@@ -977,7 +994,7 @@ export function BrasilMarrocosPlacarPromoHost({
         setOpen(true);
       }
     });
-  }, [status, getPromotionPrefetch, applyHubOpen, refreshStatus]);
+  }, [status, getPromotionPrefetch, applyHubOpen, refreshStatus, goToPromoActivation, pathname]);
 
   useRegisterPromotionHub("brasil_marrocos_placar", openFromPromotionsHub);
 
@@ -1001,8 +1018,12 @@ export function BrasilMarrocosPlacarPromoHost({
       try {
         const data = await refreshStatus();
         if (cancelled) return;
-        setStatus(data);
-        setOpen(false);
+        if (!data?.enabled) {
+          setStatus(data);
+          setOpen(false);
+          return;
+        }
+        applyHubOpen(data);
       } catch {
         if (!cancelled) {
           setStatus(null);
@@ -1027,25 +1048,21 @@ export function BrasilMarrocosPlacarPromoHost({
     isLoggedIn,
     profileBlocksPromo,
     user?.id,
+    pathname,
     refreshStatus,
+    applyHubOpen,
   ]);
 
-  const dismissReferralModal = useCallback(() => {
-    persistBrasilMarrocosReferralModalDismissed(user?.id);
-    setOpen(false);
-    requestModal({ once: true });
-  }, [requestModal, user?.id]);
-
   const handleClose = useCallback(() => {
-    if (step === "success") {
-      dismissReferralModal();
-      return;
-    }
     setOpen(false);
-  }, [dismissReferralModal, step]);
+  }, []);
 
   const handleSubmit = useCallback(async () => {
     if (submittingRef.current) return;
+    if (!isMeaningfulBrasilMarrocosPlacarSubmission(predCasa, predVisitante)) {
+      toast.error("Informe o placar exato antes de registrar.");
+      return;
+    }
     submittingRef.current = true;
     setLoading(true);
     try {
@@ -1065,16 +1082,15 @@ export function BrasilMarrocosPlacarPromoHost({
         return;
       }
       setStatus(data);
-      if (data.predCasa != null) setPredCasa(data.predCasa);
-      if (data.predVisitante != null) setPredVisitante(data.predVisitante);
-      setStep("success");
+      invalidatePromotionsHub();
+      goToPromoActivation();
     } catch {
       toast.error("Erro de rede. Tente novamente.");
     } finally {
       submittingRef.current = false;
       setLoading(false);
     }
-  }, [predCasa, predVisitante, toast]);
+  }, [predCasa, predVisitante, predEscanteios, toast, invalidatePromotionsHub, goToPromoActivation]);
 
   useEffect(() => {
     if (!open) return;
@@ -1097,9 +1113,7 @@ export function BrasilMarrocosPlacarPromoHost({
         aria-labelledby={
           step === "offer"
             ? "brasil-marrocos-placar-promo-title"
-            : step === "unavailable"
-              ? "brasil-marrocos-placar-unavailable-title"
-              : "brasil-marrocos-placar-success-title"
+            : "brasil-marrocos-placar-unavailable-title"
         }
         onClick={handleClose}
       >
@@ -1117,19 +1131,10 @@ export function BrasilMarrocosPlacarPromoHost({
               onClose={handleClose}
               friendsGoal={status.friendsGoal}
             />
-          ) : step === "unavailable" ? (
+          ) : (
             <UnavailableStep
               onClose={handleClose}
               friendsGoal={status.friendsGoal}
-            />
-          ) : (
-            <SuccessStep
-              predCasa={status.predCasa ?? predCasa}
-              predVisitante={status.predVisitante ?? predVisitante}
-              signupLink={status.signupLink}
-              friendsInvited={status.friendsInvited}
-              friendsGoal={status.friendsGoal}
-              onClose={handleClose}
             />
           )}
         </div>

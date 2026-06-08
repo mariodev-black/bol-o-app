@@ -11,9 +11,11 @@ import { useMainBolaoPromoModal } from "@/app/shared/MainBolaoPromoContext";
 import {
   OfferStep,
   SignupPromptModal,
-  SuccessStep,
 } from "@/app/shared/BrasilMarrocosPlacarPromoHost";
-import type { BrasilMarrocosPlacarPromoStatus } from "@/lib/promotions/brasil-marrocos-placar-promo";
+import {
+  isMeaningfulBrasilMarrocosPlacarSubmission,
+  type BrasilMarrocosPlacarPromoStatus,
+} from "@/lib/promotions/brasil-marrocos-placar-promo-shared";
 import {
   HOME_PROMO_FLOW_PATH,
   clearBrasilMarrocosGuestFlowActive,
@@ -152,6 +154,8 @@ export function HomeBrasilMarrocosPromoFlow({
       showOfferModal: true,
       hasBet: false,
       alreadySubmitted: false,
+      promoActivated: false,
+      needsQuotaPurchase: false,
       referralCode: "",
       signupLink: "",
       friendsInvited: 0,
@@ -351,6 +355,15 @@ export function HomeBrasilMarrocosPromoFlow({
 
       const pending = resolvePendingBrasilMarrocosPalpite(searchParams, user.id);
       if (!pending) return;
+      if (
+        !isMeaningfulBrasilMarrocosPlacarSubmission(
+          pending.predCasa,
+          pending.predVisitante,
+        )
+      ) {
+        clearPendingBrasilMarrocosPalpite();
+        return;
+      }
 
       if (authFinalizeAttemptedRef.current || finalizeInFlightRef.current) return;
       authFinalizeAttemptedRef.current = true;
@@ -428,7 +441,8 @@ export function HomeBrasilMarrocosPromoFlow({
     status != null &&
     portalReady &&
     !transitionLoading &&
-    (!isLoggedIn || step === "success");
+    !isLoggedIn &&
+    (step === "offer" || step === "signup");
   const showTransitionModal = transitionLoading && portalReady;
 
   const portals = (
@@ -449,9 +463,7 @@ export function HomeBrasilMarrocosPromoFlow({
               aria-labelledby={
                 step === "signup"
                   ? "brasil-marrocos-signup-prompt-title"
-                  : step === "offer"
-                    ? "brasil-marrocos-placar-promo-title"
-                    : "brasil-marrocos-placar-success-title"
+                  : "brasil-marrocos-placar-promo-title"
               }
               onClick={step === "signup" ? undefined : handleClose}
             >
@@ -469,19 +481,8 @@ export function HomeBrasilMarrocosPromoFlow({
                     onClose={handleClose}
                     friendsGoal={status.friendsGoal}
                   />
-                ) : step === "signup" ? (
-                  <SignupPromptModal
-                    onCreateAccount={handleCreateAccount}
-                  />
                 ) : (
-                  <SuccessStep
-                    predCasa={status.predCasa ?? predCasa}
-                    predVisitante={status.predVisitante ?? predVisitante}
-                    signupLink={status.signupLink}
-                    friendsInvited={status.friendsInvited}
-                    friendsGoal={status.friendsGoal}
-                    onClose={handleClose}
-                  />
+                  <SignupPromptModal onCreateAccount={handleCreateAccount} />
                 )}
               </div>
             </div>,

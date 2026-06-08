@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   Check,
@@ -14,7 +15,7 @@ import {
 import camisaBraImg from "@/app/assets/camisa-nova-bra.png";
 import dinheiroImg from "@/app/assets/pix-banco-central.svg";
 import brasilLogo from "@/app/assets/brasil-selecao-logo.png";
-import type { BrasilMarrocosPlacarPromoStatus } from "@/lib/promotions/brasil-marrocos-placar-promo";
+import type { BrasilMarrocosPlacarPromoStatus } from "@/lib/promotions/brasil-marrocos-placar-promo-shared";
 
 const CHECKOUT_URL = "/comprar-cotas";
 const GREEN = "#B1EB0B";
@@ -57,7 +58,41 @@ function usePalpiteData(): PalpiteData {
 }
 
 export default function PromoCamisaBrasilPage() {
+  const router = useRouter();
   const { predCasa, predVisitante, escanteiosBrasil } = usePalpiteData();
+  const [gateReady, setGateReady] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/promotions/brasil-marrocos-placar", {
+      method: "GET",
+      credentials: "include",
+      cache: "no-store",
+    })
+      .then((r) => r.json())
+      .then((d: BrasilMarrocosPlacarPromoStatus) => {
+        if (cancelled) return;
+        if (d.promoActivated) {
+          router.replace("/boloes");
+          return;
+        }
+        if (!d.alreadySubmitted) {
+          router.replace("/homepage");
+          return;
+        }
+        setGateReady(true);
+      })
+      .catch(() => {
+        if (!cancelled) router.replace("/homepage");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
+
+  if (!gateReady) {
+    return <div className="min-h-screen w-full bg-[#0a0a0a]" />;
+  }
 
   return (
     <div

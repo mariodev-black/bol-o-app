@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 import { createDepositTransaction, parseTicketTypeOrThrow } from "@/lib/payments/transactions";
+import { getBrasilMarrocosPlacarPromoStatusForUser } from "@/lib/promotions/brasil-marrocos-placar-promo";
 import { getExtraBolaoUnitCents, getTicketPriceCents } from "@/lib/payments/ticket-config";
 import { resolveExtraBolaoDisplayName } from "@/lib/boloes-extra-competition-branding";
 import { parseExtraBolaoChampionshipIds } from "@/lib/boloes-extra-config";
@@ -146,6 +147,19 @@ export async function POST(request: NextRequest) {
           return NextResponse.json(
             { error: "Promo comprar-cotas aceita apenas cotas do bolao principal" },
             { status: 400 },
+          );
+        }
+        const promoStatus = await getBrasilMarrocosPlacarPromoStatusForUser(userId);
+        if (!promoStatus.alreadySubmitted) {
+          return NextResponse.json(
+            { error: "Registre seu palpite antes de comprar a cota promocional." },
+            { status: 403 },
+          );
+        }
+        if (promoStatus.promoActivated) {
+          return NextResponse.json(
+            { error: "Sua participação na promoção já está ativa." },
+            { status: 409 },
           );
         }
       }

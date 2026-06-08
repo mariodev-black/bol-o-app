@@ -6,8 +6,14 @@
 import { getPool } from "@/lib/db";
 import { getAppOrigin } from "@/lib/seo/config";
 import { BRASIL_MARROCOS_PLACAR_FRIENDS_GOAL } from "@/lib/promotions/brasil-marrocos-guest-flow";
+import {
+  isMeaningfulBrasilMarrocosPlacarSubmission,
+  type BrasilMarrocosPlacarPromoStatus,
+} from "@/lib/promotions/brasil-marrocos-placar-promo-shared";
 
 export { BRASIL_MARROCOS_PLACAR_FRIENDS_GOAL };
+export type { BrasilMarrocosPlacarPromoStatus };
+export { isMeaningfulBrasilMarrocosPlacarSubmission };
 
 /** Partida alvo da promo — Amistoso Brasil x Marrocos. TODO: atualizar com o match_id correto. */
 export const BRASIL_MARROCOS_PLACAR_MATCH_ID = 90606004;
@@ -52,20 +58,6 @@ export function isBrasilMarrocosPlacarPromoSubmissionOpen(
   if (closesAt == null) return true;
   return nowMs < closesAt;
 }
-
-export type BrasilMarrocosPlacarPromoStatus = {
-  enabled: boolean;
-  showOfferModal: boolean;
-  hasBet: boolean;
-  alreadySubmitted: boolean;
-  referralCode: string;
-  signupLink: string;
-  friendsInvited: number;
-  friendsGoal: number;
-  predCasa: number | null;
-  predVisitante: number | null;
-  escanteiosBrasil: number | null;
-};
 
 async function countUserBrasilMarrocosMatchPredictions(userId: string): Promise<number> {
   const pool = getPool();
@@ -125,11 +117,17 @@ async function findSubmission(userId: string): Promise<{
   predCasa: number;
   predVisitante: number;
   escanteiosBrasil: number;
+  validatedAt: Date | null;
 } | null> {
   await ensureBrasilMarrocosPlacarPromoTable();
   const pool = getPool();
-  const { rows } = await pool.query<{ pred_casa: number; pred_visitante: number; escanteios_brasil: number }>(
-    `SELECT pred_casa, pred_visitante, escanteios_brasil
+  const { rows } = await pool.query<{
+    pred_casa: number;
+    pred_visitante: number;
+    escanteios_brasil: number;
+    validated_at: Date | null;
+  }>(
+    `SELECT pred_casa, pred_visitante, escanteios_brasil, validated_at
      FROM brasil_marrocos_placar_promo_submissions
      WHERE user_id = $1::uuid
      LIMIT 1`,
@@ -141,6 +139,7 @@ async function findSubmission(userId: string): Promise<{
     predCasa: Number(row.pred_casa),
     predVisitante: Number(row.pred_visitante),
     escanteiosBrasil: Number(row.escanteios_brasil),
+    validatedAt: row.validated_at,
   };
 }
 
@@ -191,6 +190,8 @@ const EMPTY_STATUS = (): BrasilMarrocosPlacarPromoStatus => ({
   showOfferModal: false,
   hasBet: false,
   alreadySubmitted: false,
+  promoActivated: false,
+  needsQuotaPurchase: false,
   referralCode: "",
   signupLink: buildSignupLink(""),
   friendsInvited: 0,
@@ -203,9 +204,11 @@ const EMPTY_STATUS = (): BrasilMarrocosPlacarPromoStatus => ({
 export async function getBrasilMarrocosPlacarPromoStatusForUser(
   userId: string,
 ): Promise<BrasilMarrocosPlacarPromoStatus> {
-  if (!isBrasilMarrocosPlacarPromoSubmissionOpen()) {
+  if (!isBrasilMarrocosPlacarPromoEnabled()) {
     return EMPTY_STATUS();
   }
+
+  const submissionOpen = isBrasilMarrocosPlacarPromoSubmissionOpen();
 
   const [matchPredictionsCount, submission, matchPrediction, friendsInvited, referralCode] =
     await Promise.all([
@@ -217,22 +220,37 @@ export async function getBrasilMarrocosPlacarPromoStatusForUser(
     ]);
 
   const hasBet = matchPredictionsCount > 0;
-  const alreadySubmitted = submission != null;
+  const meaningfulSubmission =
+    submission != null &&
+    isMeaningfulBrasilMarrocosPlacarSubmission(
+      submission.predCasa,
+      submission.predVisitante,
+    )
+      ? submission
+      : null;
+  const alreadySubmitted = meaningfulSubmission != null;
+  const promoActivated = Boolean(meaningfulSubmission?.validatedAt);
+  const needsQuotaPurchase = alreadySubmitted && !promoActivated;
   const signupLink = buildSignupLink(referralCode);
 
   return {
     enabled: true,
-    showOfferModal: !hasBet && !alreadySubmitted,
+    showOfferModal: submissionOpen && !hasBet && !alreadySubmitted,
     hasBet,
     alreadySubmitted,
+    promoActivated,
+    needsQuotaPurchase,
     referralCode,
     signupLink,
     friendsInvited,
     friendsGoal: BRASIL_MARROCOS_PLACAR_FRIENDS_GOAL,
-    predCasa: submission?.predCasa ?? matchPrediction?.predCasa ?? null,
+    predCasa:
+      meaningfulSubmission?.predCasa ?? matchPrediction?.predCasa ?? null,
     predVisitante:
-      submission?.predVisitante ?? matchPrediction?.predVisitante ?? null,
-    escanteiosBrasil: submission?.escanteiosBrasil ?? null,
+      meaningfulSubmission?.predVisitante ??
+      matchPrediction?.predVisitante ??
+      null,
+    escanteiosBrasil: meaningfulSubmission?.escanteiosBrasil ?? null,
   };
 }
 
@@ -269,8 +287,21 @@ export async function submitBrasilMarrocosPlacarPromoForUser(
     return { ok: false, error: "Número de escanteios inválido." };
   }
 
+  if (!isMeaningfulBrasilMarrocosPlacarSubmission(predCasa, predVisitante)) {
+    return {
+      ok: false,
+      error: "Informe o placar exato antes de registrar.",
+    };
+  }
+
   const existingSubmission = await findSubmission(userId);
-  if (existingSubmission) {
+  if (
+    existingSubmission &&
+    isMeaningfulBrasilMarrocosPlacarSubmission(
+      existingSubmission.predCasa,
+      existingSubmission.predVisitante,
+    )
+  ) {
     return { ok: false, error: "Você já enviou seu palpite nesta promoção." };
   }
 

@@ -18,6 +18,11 @@ import {
   getComprarCotasPromoUnitCents,
   getTicketPriceCents,
 } from "@/lib/payments/ticket-config";
+import {
+  PROMO_ACTIVATION_PATH,
+  mustCompletePromoQuotaPurchase,
+  type BrasilMarrocosPlacarPromoStatus,
+} from "@/lib/promotions/brasil-marrocos-placar-promo-shared";
 
 const GREEN = "#B1EB0B";
 const GOLD = "#FFD700";
@@ -348,6 +353,7 @@ function ShopScreen({
 
 export default function ComprarCotasPage() {
   const router = useRouter();
+  const [gateReady, setGateReady] = useState(false);
   const [step, setStep] = useState<FlowStep>("shop");
   const [selected, setSelected] = useState<OptionId>(2);
 
@@ -363,6 +369,37 @@ export default function ComprarCotasPage() {
   const purchasedQtyRef = useRef(1);
 
   const selectedOption = OPTIONS.find((o) => o.id === selected)!;
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/promotions/brasil-marrocos-placar", {
+      method: "GET",
+      credentials: "include",
+      cache: "no-store",
+    })
+      .then(async (r) => {
+        if (!r.ok) throw new Error("status fetch failed");
+        return (await r.json()) as BrasilMarrocosPlacarPromoStatus;
+      })
+      .then((d) => {
+        if (cancelled) return;
+        if (d.promoActivated) {
+          router.replace("/boloes");
+          return;
+        }
+        if (!mustCompletePromoQuotaPurchase(d)) {
+          router.replace(PROMO_ACTIVATION_PATH);
+          return;
+        }
+        setGateReady(true);
+      })
+      .catch(() => {
+        if (!cancelled) router.replace(PROMO_ACTIVATION_PATH);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
   useEffect(() => {
     if (step !== "shop") {
@@ -537,6 +574,10 @@ export default function ComprarCotasPage() {
       setCheckingManually(false);
     }
   }, [transactionId, checkingManually, handleTransactionUpdate]);
+
+  if (!gateReady) {
+    return <div className="min-h-screen w-full bg-black" />;
+  }
 
   if (step === "generating") {
     return (

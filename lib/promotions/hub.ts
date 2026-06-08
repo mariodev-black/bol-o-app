@@ -133,6 +133,7 @@ async function fetchHubDbSnapshot(
           SELECT 1
           FROM brasil_marrocos_placar_promo_submissions s
           WHERE s.user_id = $1::uuid
+            AND NOT (s.pred_casa = 0 AND s.pred_visitante = 0)
         )) AS marrocos_submitted`;
   }
 
@@ -231,12 +232,12 @@ async function buildPromoHubForUser(userId: string): Promise<PromoHubResponse> {
       description: pendingOffer
         ? "Acerte o placar e ganhe cota grátis + chance de camisa oficial."
         : submitted
-          ? "Palpite registrado. Convide amigos para liberar a camisa."
+          ? "Palpite salvo. Ative sua cota para participar da promoção."
           : "Exclusiva para quem ainda não palpitou neste jogo no bolão.",
       ctaLabel: pendingOffer
         ? "Fazer palpite"
         : submitted
-          ? "Ver indicações"
+          ? "Ativar participação"
           : "Ver promoção",
       state: pendingOffer ? "active" : submitted ? "done" : "unavailable",
       category: "palpite",
