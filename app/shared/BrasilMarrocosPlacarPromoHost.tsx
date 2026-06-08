@@ -20,7 +20,9 @@ import {
   ChevronRight,
   ChevronUp,
   Link2,
+  Shirt,
   ShoppingCart,
+  Ticket,
   User,
   X,
 } from "lucide-react";
