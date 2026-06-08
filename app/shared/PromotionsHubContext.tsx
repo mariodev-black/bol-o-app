@@ -1,6 +1,4 @@
-"use client";
-
-import {
+import { seedBrasilMarrocosPlacarPromoStatus } from "@/app/shared/useBrasilMarrocosPlacarPromoStatus";
   createContext,
   useCallback,
   useContext,

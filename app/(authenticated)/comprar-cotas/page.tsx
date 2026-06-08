@@ -21,8 +21,8 @@ import {
 import {
   PROMO_ACTIVATION_PATH,
   mustCompletePromoQuotaPurchase,
-  type BrasilMarrocosPlacarPromoStatus,
 } from "@/lib/promotions/brasil-marrocos-placar-promo-shared";
+import { useBrasilMarrocosPlacarPromoStatus } from "@/app/shared/useBrasilMarrocosPlacarPromoStatus";
 
 const GREEN = "#B1EB0B";
 const GOLD = "#FFD700";
@@ -353,7 +353,7 @@ function ShopScreen({
 
 export default function ComprarCotasPage() {
   const router = useRouter();
-  const [gateReady, setGateReady] = useState(false);
+  const { status, loading } = useBrasilMarrocosPlacarPromoStatus();
   const [step, setStep] = useState<FlowStep>("shop");
   const [selected, setSelected] = useState<OptionId>(2);
 
@@ -370,36 +370,19 @@ export default function ComprarCotasPage() {
 
   const selectedOption = OPTIONS.find((o) => o.id === selected)!;
 
+  const canShowCheckout =
+    status != null && mustCompletePromoQuotaPurchase(status);
+
   useEffect(() => {
-    let cancelled = false;
-    void fetch("/api/promotions/brasil-marrocos-placar", {
-      method: "GET",
-      credentials: "include",
-      cache: "no-store",
-    })
-      .then(async (r) => {
-        if (!r.ok) throw new Error("status fetch failed");
-        return (await r.json()) as BrasilMarrocosPlacarPromoStatus;
-      })
-      .then((d) => {
-        if (cancelled) return;
-        if (d.promoActivated) {
-          router.replace("/boloes");
-          return;
-        }
-        if (!mustCompletePromoQuotaPurchase(d)) {
-          router.replace(PROMO_ACTIVATION_PATH);
-          return;
-        }
-        setGateReady(true);
-      })
-      .catch(() => {
-        if (!cancelled) router.replace(PROMO_ACTIVATION_PATH);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [router]);
+    if (loading || !status) return;
+    if (status.promoActivated) {
+      router.replace("/boloes");
+      return;
+    }
+    if (!mustCompletePromoQuotaPurchase(status)) {
+      router.replace(PROMO_ACTIVATION_PATH);
+    }
+  }, [loading, status, router]);
 
   useEffect(() => {
     if (step !== "shop") {
@@ -575,8 +558,19 @@ export default function ComprarCotasPage() {
     }
   }, [transactionId, checkingManually, handleTransactionUpdate]);
 
-  if (!gateReady) {
-    return <div className="min-h-screen w-full bg-black" />;
+  if (!canShowCheckout && step === "shop") {
+    if (loading) {
+      return (
+        <div className="min-h-screen w-full animate-pulse bg-black px-4 py-6">
+          <div className="mx-auto max-w-[390px] space-y-3">
+            <div className="h-10 rounded-lg bg-white/10" />
+            <div className="h-32 rounded-2xl bg-white/5" />
+            <div className="h-32 rounded-2xl bg-white/5" />
+          </div>
+        </div>
+      );
+    }
+    return null;
   }
 
   if (step === "generating") {

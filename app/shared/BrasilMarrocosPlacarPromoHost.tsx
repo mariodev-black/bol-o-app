@@ -30,7 +30,12 @@ import dinheiroImg from "@/app/assets/pix-banco-central.svg";
 import { useIsAdminAppRoute } from "@/app/shared/app-route-guards";
 import { useAuth } from "@/app/shared/AuthContext";
 import { useBolaoToast } from "@/app/components/BolaoToast";
-import { useRegisterPromotionHub, usePromotionsHub } from "@/app/shared/PromotionsHubContext";
+import {
+  fetchBrasilMarrocosPlacarPromoStatus,
+  invalidateBrasilMarrocosPlacarPromoStatusCache,
+  peekBrasilMarrocosPlacarPromoStatus,
+  seedBrasilMarrocosPlacarPromoStatus,
+} from "@/app/shared/useBrasilMarrocosPlacarPromoStatus";
 import {
   isMeaningfulBrasilMarrocosPlacarSubmission,
   isPromoCheckoutPath,
@@ -892,7 +897,7 @@ export function BrasilMarrocosPlacarPromoHost({
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<Step>("offer");
   const [status, setStatus] = useState<BrasilMarrocosPlacarPromoStatus | null>(
-    null,
+    () => peekBrasilMarrocosPlacarPromoStatus(),
   );
   const [predCasa, setPredCasa] = useState(0);
   const [predVisitante, setPredVisitante] = useState(0);
@@ -917,14 +922,11 @@ export function BrasilMarrocosPlacarPromoHost({
 
   const refreshStatus =
     useCallback(async (): Promise<BrasilMarrocosPlacarPromoStatus | null> => {
-      const r = await fetch(API_PATH, {
-        method: "GET",
-        credentials: "include",
-        cache: "no-store",
-      });
-      if (!r.ok) return null;
-      const data = (await r.json()) as BrasilMarrocosPlacarPromoStatus;
-      setPromotionPrefetch("brasil_marrocos_placar", data);
+      const data = await fetchBrasilMarrocosPlacarPromoStatus();
+      if (data) {
+        setPromotionPrefetch("brasil_marrocos_placar", data);
+        setStatus(data);
+      }
       return data;
     }, [setPromotionPrefetch]);
 
@@ -1002,6 +1004,9 @@ export function BrasilMarrocosPlacarPromoHost({
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
 
+    const onPromoFlowRoute =
+      isPromoCheckoutPath(pathname) || pathname === PROMO_ACTIVATION_PATH;
+
     if (
       isAdminRoute ||
       !ready ||
@@ -1010,7 +1015,17 @@ export function BrasilMarrocosPlacarPromoHost({
       !user?.id
     ) {
       setOpen(false);
-      setStatus(null);
+      if (!onPromoFlowRoute) setStatus(null);
+      return;
+    }
+
+    if (onPromoFlowRoute) {
+      const cached =
+        peekBrasilMarrocosPlacarPromoStatus() ??
+        (getPromotionPrefetch("brasil_marrocos_placar") as
+          | BrasilMarrocosPlacarPromoStatus
+          | undefined);
+      if (cached) setStatus(cached);
       return;
     }
 
@@ -1049,6 +1064,7 @@ export function BrasilMarrocosPlacarPromoHost({
     profileBlocksPromo,
     user?.id,
     pathname,
+    getPromotionPrefetch,
     refreshStatus,
     applyHubOpen,
   ]);
@@ -1082,6 +1098,8 @@ export function BrasilMarrocosPlacarPromoHost({
         return;
       }
       setStatus(data);
+      seedBrasilMarrocosPlacarPromoStatus(data);
+      setPromotionPrefetch("brasil_marrocos_placar", data);
       invalidatePromotionsHub();
       goToPromoActivation();
     } catch {
