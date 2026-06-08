@@ -12,6 +12,10 @@ import { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { usePromotionsHub } from "@/app/shared/PromotionsHubContext";
 import {
+  fetchBrasilMarrocosPlacarPromoStatus,
+  peekBrasilMarrocosPlacarPromoStatus,
+} from "@/app/shared/useBrasilMarrocosPlacarPromoStatus";
+import {
   mustCompletePromoQuotaPurchase,
   type BrasilMarrocosPlacarPromoStatus,
 } from "@/lib/promotions/brasil-marrocos-placar-promo-shared";
@@ -47,22 +51,14 @@ function PromoBrasilMarrocosHomeCard() {
     (e: React.MouseEvent<HTMLAnchorElement>) => {
       e.preventDefault();
       void (async () => {
-        let status = getPromotionPrefetch("brasil_marrocos_placar") as
-          | BrasilMarrocosPlacarPromoStatus
-          | undefined;
+        let status: BrasilMarrocosPlacarPromoStatus | null =
+          (getPromotionPrefetch("brasil_marrocos_placar") as
+            | BrasilMarrocosPlacarPromoStatus
+            | undefined) ??
+          peekBrasilMarrocosPlacarPromoStatus();
+
         if (!status?.enabled) {
-          try {
-            const r = await fetch("/api/promotions/brasil-marrocos-placar", {
-              method: "GET",
-              credentials: "include",
-              cache: "no-store",
-            });
-            if (r.ok) {
-              status = (await r.json()) as BrasilMarrocosPlacarPromoStatus;
-            }
-          } catch {
-            // fallback abaixo
-          }
+          status = await fetchBrasilMarrocosPlacarPromoStatus();
         }
         if (status && mustCompletePromoQuotaPurchase(status)) {
           router.push("/promo-camisa-brasil");

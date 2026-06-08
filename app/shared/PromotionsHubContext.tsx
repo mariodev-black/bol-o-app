@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import { seedBrasilMarrocosPlacarPromoStatus } from "@/app/shared/useBrasilMarrocosPlacarPromoStatus";
+import type { BrasilMarrocosPlacarPromoStatus } from "@/lib/promotions/brasil-marrocos-placar-promo-shared";
 import { useBolaoToast } from "@/app/components/BolaoToast";
 import { PromotionsBottomSheet } from "@/app/shared/PromotionsBottomSheet";
 import { useAuth } from "@/app/shared/AuthContext";
@@ -231,7 +232,9 @@ export function PromotionsHubProvider({ children }: { children: ReactNode }) {
       ]);
       if (cancelled) return;
       if (marrocosRes.ok) {
-        setPromotionPrefetch("brasil_marrocos_placar", await marrocosRes.json());
+        const json = (await marrocosRes.json()) as BrasilMarrocosPlacarPromoStatus;
+        seedBrasilMarrocosPlacarPromoStatus(json);
+        setPromotionPrefetch("brasil_marrocos_placar", json);
       }
       if (extraRes.ok) {
         setPromotionPrefetch("extra_gift", await extraRes.json());

@@ -32,10 +32,10 @@ import { useAuth } from "@/app/shared/AuthContext";
 import { useBolaoToast } from "@/app/components/BolaoToast";
 import {
   fetchBrasilMarrocosPlacarPromoStatus,
-  invalidateBrasilMarrocosPlacarPromoStatusCache,
   peekBrasilMarrocosPlacarPromoStatus,
   seedBrasilMarrocosPlacarPromoStatus,
 } from "@/app/shared/useBrasilMarrocosPlacarPromoStatus";
+import { useRegisterPromotionHub, usePromotionsHub } from "@/app/shared/PromotionsHubContext";
 import {
   isMeaningfulBrasilMarrocosPlacarSubmission,
   isPromoCheckoutPath,
