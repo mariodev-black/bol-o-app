@@ -1143,6 +1143,60 @@ async function buildLeaderboardExtraForCompRoundUncached(
   return finalizeLeaderboardDisplay(rows, meta);
 }
 
+export type TicketRankingSnapshot = {
+  position: number | null;
+  points: number;
+};
+
+/**
+ * Posição no ranking do pool de cada cota (mesma regra de `/api/ranking/board`).
+ * Não mistura bolões diferentes num ranking global.
+ */
+export async function resolvePaidTicketRankingPositions(
+  tickets: Array<{ id: string; ticketType: "general" | "daily" | "extra" }>,
+  userId: string,
+): Promise<Map<string, TicketRankingSnapshot>> {
+  const out = new Map<string, TicketRankingSnapshot>();
+  const boardCache = new Map<string, LeaderboardRow[]>();
+
+  const loadBoard = async (
+    cacheKey: string,
+    loader: () => Promise<{ rows: LeaderboardRow[] }>,
+  ): Promise<LeaderboardRow[]> => {
+    const cached = boardCache.get(cacheKey);
+    if (cached) return cached;
+    const { rows } = await loader();
+    boardCache.set(cacheKey, rows);
+    return rows;
+  };
+
+  for (const ticket of tickets) {
+    let rows: LeaderboardRow[];
+    if (ticket.ticketType === "general") {
+      rows = await loadBoard("principal", buildLeaderboardPrincipal);
+    } else if (ticket.ticketType === "daily") {
+      rows = await loadBoard(`diario:${ticket.id}`, () =>
+        buildLeaderboardDiarioForTicket(ticket.id),
+      );
+    } else {
+      rows = await loadBoard(`extra:${ticket.id}`, () =>
+        buildLeaderboardExtraForTicket(ticket.id),
+      );
+    }
+
+    const row =
+      rows.find((r) => r.ticketId === ticket.id) ??
+      rows.find((r) => r.userId === userId && !r.isFiller);
+
+    out.set(ticket.id, {
+      position: row?.pos ?? null,
+      points: row?.totalPoints ?? 0,
+    });
+  }
+
+  return out;
+}
+
 /** Ranking completo de um bolão extra fixo (campeonato + rodada) — scripts/admin. */
 export async function buildLeaderboardExtraForCompAndRound(
   extraComp: number,
