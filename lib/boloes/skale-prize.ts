@@ -60,4 +60,4 @@ export const SKALE_PRIZE_RULES_COPY =
   "1º lugar 60% · 2º lugar 30% · 3º lugar 10% do valor arrecadado. Premiação liberada ao final da Copa.";
 
 export const SKALE_PRIZE_FIRST_PLACE_LINE =
-  "Bolão da Skale: 1º 60% · 2º 30% · 3º 10% do total arrecadado — pagamento ao final da Copa.";
+  "Bolão Skale: 1º 60% · 2º 30% · 3º 10% do total arrecadado — pagamento ao final da Copa.";

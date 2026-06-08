@@ -5,10 +5,13 @@ import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 import { listPaidTicketsForUser, type PaidTicketRow } from "@/lib/payments/user-tickets";
 import { getExtraBolaoUnitCents, getTicketPriceCents } from "@/lib/payments/ticket-config";
 import {
+  calcPredictionPoints,
   countParticipantsByBolaoType,
   listDistinctExtraPredictionTicketIds,
   listPredictions,
+  listPredictionsForGlobalRanking,
   palpiteLockBeforeKickoffMs,
+  type PredictionRankingRow,
   type PredictionRow,
 } from "@/lib/predictions";
 import { fetchMatchesMap, getMatchFromMap, type MatchMapEntry } from "@/lib/football-api";
@@ -216,6 +219,94 @@ function bolaoStatusFromMetrics(
   };
 }
 
+function buildRankingMap(
+  predictions: PredictionRankingRow[],
+  matches: MatchMap,
+  extraChampionshipByTicketId: Map<string, number>,
+): Map<string, { pos: number; points: number }> {
+  const mainComp = getFootballMainCompetitionId();
+  const byTicket = new Map<
+    string,
+    {
+      ticketId: string;
+      totalPoints: number;
+      exactCount: number;
+      outcomeCount: number;
+      goalsCount: number;
+      bestStreak: number;
+      firstSubmitAt: number;
+      hitSequence: Array<{ order: number; hit: boolean }>;
+    }
+  >();
+
+  for (const prediction of predictions) {
+    const matchId = Number(prediction.match_id);
+    if (!Number.isFinite(matchId)) continue;
+    const comp = matchCompetitionForRankingPrediction(
+      prediction,
+      extraChampionshipByTicketId,
+      mainComp,
+    );
+    if (comp == null || !Number.isFinite(comp) || comp <= 0) continue;
+    const match = getMatchFromMap(matches, comp, matchId);
+    if (!match || match.resultCasa == null || match.resultVisitante == null) continue;
+
+    const current = byTicket.get(prediction.ticket_id) ?? {
+      ticketId: prediction.ticket_id,
+      totalPoints: 0,
+      exactCount: 0,
+      outcomeCount: 0,
+      goalsCount: 0,
+      bestStreak: 0,
+      firstSubmitAt: new Date(prediction.submitted_at).getTime(),
+      hitSequence: [],
+    };
+    const calc = calcPredictionPoints(
+      prediction.score_casa,
+      prediction.score_visitante,
+      match.resultCasa,
+      match.resultVisitante,
+    );
+    current.totalPoints += calc.points;
+    current.exactCount += calc.exact ? 1 : 0;
+    current.outcomeCount += calc.outcomeHit ? 1 : 0;
+    current.goalsCount += calc.goalsHitCount;
+    current.hitSequence.push({
+      order: match.kickoffAt ? new Date(match.kickoffAt).getTime() : matchId,
+      hit: calc.points > 0,
+    });
+    current.firstSubmitAt = Math.min(
+      current.firstSubmitAt,
+      new Date(prediction.submitted_at).getTime(),
+    );
+    byTicket.set(prediction.ticket_id, current);
+  }
+
+  const rows = Array.from(byTicket.values())
+    .map((row) => {
+      let current = 0;
+      for (const item of row.hitSequence.sort((a, b) => a.order - b.order)) {
+        if (item.hit) {
+          current += 1;
+          row.bestStreak = Math.max(row.bestStreak, current);
+        } else {
+          current = 0;
+        }
+      }
+      return row;
+    })
+    .sort((a, b) => {
+      if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
+      if (b.exactCount !== a.exactCount) return b.exactCount - a.exactCount;
+      if (b.outcomeCount !== a.outcomeCount) return b.outcomeCount - a.outcomeCount;
+      if (b.goalsCount !== a.goalsCount) return b.goalsCount - a.goalsCount;
+      if (b.bestStreak !== a.bestStreak) return b.bestStreak - a.bestStreak;
+      return a.firstSubmitAt - b.firstSubmitAt;
+    });
+
+  return new Map(rows.map((row, index) => [row.ticketId, { pos: index + 1, points: row.totalPoints }]));
+}
+
 async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
   const configuredExtraIds = parseExtraBolaoChampionshipIds();
   const mainComp = getFootballMainCompetitionId();
@@ -227,6 +318,7 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
     matches,
     tickets,
     userPredictions,
+    allPredictions,
     extraTicketIdsFromPreds,
     competitionLabels,
     participantsByBolao,
@@ -283,13 +375,26 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
   const extraTicketIds = [...new Set(extraTicketIdsFromPreds)];
   const extraChampionshipByTicketId = await fetchExtraChampionshipIdByTicketIds(extraTicketIds);
   mergeExtraChampionshipFromPaidTickets(extraChampionshipByTicketId, tickets);
-  const ranking = await resolvePaidTicketRankingPositions(
-    tickets.map((ticket) => ({
-      id: ticket.id,
-      ticketType: ticket.ticketType,
-    })),
-    userId,
-  );
+  const ranking = buildRankingMap(allPredictions, matches, extraChampionshipByTicketId);
+
+  // Posição por pool do bolão (igual /ranking), sem alterar o restante do carregamento.
+  try {
+    const scoped = await resolvePaidTicketRankingPositions(
+      tickets.map((ticket) => ({ id: ticket.id, ticketType: ticket.ticketType })),
+      userId,
+    );
+    for (const ticket of tickets) {
+      const scopedRow = scoped.get(ticket.id);
+      if (scopedRow?.position == null) continue;
+      const current = ranking.get(ticket.id);
+      ranking.set(ticket.id, {
+        pos: scopedRow.position,
+        points: scopedRow.points ?? current?.points ?? 0,
+      });
+    }
+  } catch (error) {
+    console.error("[boloes] scoped ranking position fallback to global map", error);
+  }
 
   const extraTicketIdSet = new Set(tickets.filter((t) => t.ticketType === "extra").map((t) => String(t.id).trim()));
   const byCompetitionRowCount: Record<string, number> = {};
@@ -389,7 +494,7 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
       total,
       available,
       progress: total > 0 ? Math.min(100, Math.round((sent / total) * 100)) : 0,
-      position: ranked?.position ?? null,
+      position: ranked?.pos ?? null,
       points: ranked?.points ?? 0,
     });
   }

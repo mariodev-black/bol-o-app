@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = buildPageMetadata({
   title: `${SKALE_BOLAO_DISPLAY_NAME} — Bolão do Milhão`,
   description:
-    "Garanta sua cota no Bolão da Skale. Pool exclusivo da Copa do Mundo 2026 com palpites em todos os jogos e ranking dedicado.",
+    "Garanta sua cota no Bolão Skale. Pool exclusivo da Copa do Mundo 2026 com palpites em todos os jogos e ranking dedicado.",
   path: "/skale",
 });
 

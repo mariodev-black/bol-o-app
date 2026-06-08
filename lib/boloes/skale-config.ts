@@ -29,7 +29,7 @@ export function getSkaleBolaoUnitCents(): number {
   return envInt("SKALE_BOLAO_UNIT_CENTS", 50_000);
 }
 
-export const SKALE_BOLAO_DISPLAY_NAME = "Bolão da Skale";
+export const SKALE_BOLAO_DISPLAY_NAME = "Bolão Skale";
 
 export const SKALE_BOLAO_SUBTITLE =
   "Copa do Mundo 2026 — pool exclusivo Skale";
