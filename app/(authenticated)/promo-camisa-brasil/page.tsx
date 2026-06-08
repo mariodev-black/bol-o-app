@@ -50,20 +50,12 @@ function usePalpiteData(): PalpiteData {
 export default function PromoCamisaBrasilPage() {
   const { predCasa, predVisitante, escanteiosBrasil } = usePalpiteData();
 
-  useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, []);
-
   return (
     <div
-      className="flex flex-1 flex-col items-center bg-[#0a0a0a] px-4 py-2"
+      className="flex w-full flex-col items-center bg-[#0a0a0a] px-4 py-2 pb-6"
       style={{ fontFamily: PROMO_FONT }}
     >
-      <div className="flex w-full max-w-[390px] flex-1 flex-col justify-between">
+      <div className="flex w-full max-w-[390px] flex-col">
 
         {/* ── HEADER ── */}
         <div className="flex items-center gap-2.5 text-left flex-col mb-2">

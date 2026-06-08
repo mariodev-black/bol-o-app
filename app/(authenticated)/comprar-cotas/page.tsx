@@ -5,16 +5,14 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Lock, Trophy, Calendar, Users, ArrowRight, Check } from "lucide-react";
 import iconCopaMundo2 from "@/app/assets/icon-copa-mundo2.png";
-import {
-  TicketPixGeneratedScreen,
-} from "@/app/(authenticated)/tickets/_components/pix/TicketPixGeneratedScreen";
+import { TicketPixGeneratedScreen } from "@/app/(authenticated)/tickets/_components/pix/TicketPixGeneratedScreen";
 import { TicketPixGeneratingPanel } from "@/app/(authenticated)/tickets/_components/pix/TicketPixGeneratingPanel";
 import {
   PIX_CHECKOUT_TOTAL_SEC,
   PIX_CHECKOUT_WINDOW_MS,
 } from "@/app/(authenticated)/tickets/_components/pix/ticket-pix-ui-constants";
 import { appendTicketsFromPurchase } from "@/app/(authenticated)/tickets/lib/ownedTicketsStorage";
-import BolaoLogo from "@/app/assets/logo.png"
+import BolaoLogo from "@/app/assets/logo.png";
 
 const GREEN = "#B1EB0B";
 const GOLD = "#FFD700";
@@ -70,18 +68,35 @@ const OPTIONS = [
 ] as const;
 
 function fmt(cents: number): string {
-  return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  return (cents / 100).toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
 }
 
 function isPaidStatus(s: string): boolean {
   const v = (s || "").toLowerCase().trim();
-  return v === "paid" || v === "approved" || v === "completed" || v === "confirmed";
+  return (
+    v === "paid" || v === "approved" || v === "completed" || v === "confirmed"
+  );
 }
 
 const STATS = [
-  { icon: <Trophy className="size-4 shrink-0" strokeWidth={2} />, main: "+ DE R$ 1 MILHÃO", sub: "EM PRÊMIOS" },
-  { icon: <Calendar className="size-4 shrink-0" strokeWidth={2} />, main: "TODOS OS 104", sub: "JOGOS" },
-  { icon: <Users className="size-4 shrink-0" strokeWidth={2} />, main: "OS 10% MELHORES", sub: "GANHAM" },
+  {
+    icon: <Trophy className="size-4 shrink-0" strokeWidth={2} />,
+    main: "+ DE R$ 1 MILHÃO",
+    sub: "EM PRÊMIOS",
+  },
+  {
+    icon: <Calendar className="size-4 shrink-0" strokeWidth={2} />,
+    main: "TODOS OS 104",
+    sub: "JOGOS",
+  },
+  {
+    icon: <Users className="size-4 shrink-0" strokeWidth={2} />,
+    main: "OS 10% MELHORES",
+    sub: "GANHAM",
+  },
 ];
 
 function ShopScreen({
@@ -98,18 +113,19 @@ function ShopScreen({
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prev; };
+    return () => {
+      document.body.style.overflow = prev;
+    };
   }, []);
 
   const selectedOption = OPTIONS.find((o) => o.id === selected)!;
 
   return (
     <div
-      className="flex flex-1 flex-col items-center bg-[#0a0a0a] px-4 py-2"
+      className="flex flex-1 flex-col items-center bg-[#0a0a0a] px-4 py-2 h-full"
       style={{ fontFamily: FONT }}
     >
       <div className="flex w-full max-w-[390px] flex-1 flex-col">
-
         {/* ── HEADER ── */}
         <div className=" flex items-center justify-between">
           <Image
@@ -185,10 +201,15 @@ function ShopScreen({
                   {/* Radio */}
                   <div
                     className="flex size-[20px] shrink-0 items-center justify-center rounded-full border-2 transition-all"
-                    style={{ borderColor: active ? GREEN : "rgba(255,255,255,0.25)" }}
+                    style={{
+                      borderColor: active ? GREEN : "rgba(255,255,255,0.25)",
+                    }}
                   >
                     {active && (
-                      <div className="size-[9px] rounded-full" style={{ background: GREEN }} />
+                      <div
+                        className="size-[9px] rounded-full"
+                        style={{ background: GREEN }}
+                      />
                     )}
                   </div>
 
@@ -202,7 +223,9 @@ function ShopScreen({
                     </span>
                     <span
                       className="text-[9px] font-black uppercase leading-none tracking-wider"
-                      style={{ color: active ? `${GREEN}cc` : "rgba(255,255,255,0.45)" }}
+                      style={{
+                        color: active ? `${GREEN}cc` : "rgba(255,255,255,0.45)",
+                      }}
                     >
                       {opt.label}
                     </span>
@@ -241,22 +264,38 @@ function ShopScreen({
         {/* ── CUPOM ── */}
         <div
           className="mb-2 flex items-center justify-between gap-3 rounded-xl border px-4 py-2.5"
-          style={{ borderColor: `${GREEN}40`, background: `${GREEN}0d`, borderStyle: "dashed" }}
+          style={{
+            borderColor: `${GREEN}40`,
+            background: `${GREEN}0d`,
+            borderStyle: "dashed",
+          }}
         >
           <div>
             <p className="text-[9px] font-black uppercase tracking-[0.18em] text-white/40">
               Cupom aplicado
             </p>
-            <p className="text-[13px] font-black leading-tight" style={{ color: GREEN }}>
+            <p
+              className="text-[13px] font-black leading-tight"
+              style={{ color: GREEN }}
+            >
               −R$ 10,00{" "}
-              <span className="text-[11px] font-semibold text-white/55">por cota</span>
+              <span className="text-[11px] font-semibold text-white/55">
+                por cota
+              </span>
             </p>
           </div>
           <div
             className="flex size-[26px] shrink-0 items-center justify-center rounded-full"
-            style={{ background: `${GREEN}22`, border: `1.5px solid ${GREEN}66` }}
+            style={{
+              background: `${GREEN}22`,
+              border: `1.5px solid ${GREEN}66`,
+            }}
           >
-            <Check className="size-3.5" strokeWidth={3} style={{ color: GREEN }} />
+            <Check
+              className="size-3.5"
+              strokeWidth={3}
+              style={{ color: GREEN }}
+            />
           </div>
         </div>
 
@@ -267,8 +306,8 @@ function ShopScreen({
           </p>
           <div className="flex items-center justify-between gap-2">
             <p className="text-[13px] font-semibold leading-snug text-white/65">
-              {selectedOption.qty}{" "}
-              {selectedOption.label.toLowerCase()} — Bolão do Milhão
+              {selectedOption.qty} {selectedOption.label.toLowerCase()} — Bolão
+              do Milhão
             </p>
             <p className="shrink-0 text-[14px] font-black text-white">
               {fmt(selectedOption.priceCents)}
@@ -281,7 +320,10 @@ function ShopScreen({
             <p className="text-[14px] font-black uppercase tracking-wide text-white">
               Total
             </p>
-            <p className="text-[22px] font-black leading-none" style={{ color: GREEN }}>
+            <p
+              className="text-[22px] font-black leading-none"
+              style={{ color: GREEN }}
+            >
               {fmt(selectedOption.priceCents)}
             </p>
           </div>
@@ -300,13 +342,14 @@ function ShopScreen({
         </button>
 
         {error && (
-          <p className="mt-2 text-center text-[11px] font-semibold text-red-300">{error}</p>
+          <p className="mt-2 text-center text-[11px] font-semibold text-red-300">
+            {error}
+          </p>
         )}
 
         <p className="mt-2 text-center text-[10px] font-medium text-white/25">
           Ambiente 100% seguro.
         </p>
-
       </div>
     </div>
   );
@@ -380,10 +423,14 @@ export default function ComprarCotasPage() {
   // SSE listener
   useEffect(() => {
     if (step !== "pix" || !transactionId) return;
-    const es = new EventSource(`/api/deposits/transactions/${transactionId}/events`);
+    const es = new EventSource(
+      `/api/deposits/transactions/${transactionId}/events`,
+    );
     es.addEventListener("transaction", (evt) => {
       try {
-        const payload = JSON.parse((evt as MessageEvent).data) as TransactionUpdatePayload;
+        const payload = JSON.parse(
+          (evt as MessageEvent).data,
+        ) as TransactionUpdatePayload;
         handleTransactionUpdate(payload);
       } catch {
         // ignore
@@ -406,7 +453,10 @@ export default function ComprarCotasPage() {
         });
         const data = (await r.json()) as { transaction?: DepositTransaction };
         if (cancelled || !r.ok || !data.transaction) return;
-        handleTransactionUpdate({ status: data.transaction.status, pixQrcode: data.transaction.pixQrcode });
+        handleTransactionUpdate({
+          status: data.transaction.status,
+          pixQrcode: data.transaction.pixQrcode,
+        });
       } catch {
         // ignore
       }
@@ -437,7 +487,10 @@ export default function ComprarCotasPage() {
             extraByChampionship: {},
           }),
         });
-        const d = (await r.json()) as { error?: string; transaction?: DepositTransaction };
+        const d = (await r.json()) as {
+          error?: string;
+          transaction?: DepositTransaction;
+        };
         if (!r.ok || !d.transaction?.pixQrcode) {
           setError(d.error ?? "Não foi possível gerar o PIX.");
           setStep("shop");
@@ -474,9 +527,14 @@ export default function ComprarCotasPage() {
       });
       const data = (await r.json()) as { transaction?: DepositTransaction };
       if (r.ok && data.transaction) {
-        handleTransactionUpdate({ status: data.transaction.status, pixQrcode: data.transaction.pixQrcode });
+        handleTransactionUpdate({
+          status: data.transaction.status,
+          pixQrcode: data.transaction.pixQrcode,
+        });
         if (!isPaidStatus(data.transaction.status)) {
-          setError("Pagamento ainda não confirmado. Aguarde ou tente novamente.");
+          setError(
+            "Pagamento ainda não confirmado. Aguarde ou tente novamente.",
+          );
           window.setTimeout(() => setError(null), 4000);
         }
       }
@@ -513,8 +571,13 @@ export default function ComprarCotasPage() {
           principalQty={selectedOption.qty}
           dailyQty={0}
           extraPixLines={[]}
-          prices={{ general: Math.round(selectedOption.priceCents / selectedOption.qty), daily: 0 }}
-          principalUnitPriceCents={Math.round(selectedOption.priceCents / selectedOption.qty)}
+          prices={{
+            general: Math.round(selectedOption.priceCents / selectedOption.qty),
+            daily: 0,
+          }}
+          principalUnitPriceCents={Math.round(
+            selectedOption.priceCents / selectedOption.qty,
+          )}
           dailyUnitPriceCents={0}
           totalCents={selectedOption.priceCents}
         />
@@ -523,11 +586,13 @@ export default function ComprarCotasPage() {
   }
 
   return (
-    <ShopScreen
-      selected={selected}
-      onSelect={setSelected}
-      onContinue={goGenerate}
-      error={error}
-    />
+    <div className="h-screen w-full">
+      <ShopScreen
+        selected={selected}
+        onSelect={setSelected}
+        onContinue={goGenerate}
+        error={error}
+      />
+    </div>
   );
 }
