@@ -7,6 +7,7 @@ import {
 } from "@/lib/payments/gateway";
 import { createSkalePixTransaction } from "@/lib/payments/skalepayments";
 import {
+  buildComprarCotasPromoTicketLines,
   buildPurchaseTicketLines,
   parseTicketType,
   type PurchaseExtraInput,
@@ -88,6 +89,8 @@ export type CreateDepositTransactionInput =
       extraQuantity?: number;
       /** Legado: quantidades por campeonato (filtrado pelo servidor). */
       extraByChampionship?: Record<number, number>;
+      /** Checkout promocional `/comprar-cotas` — preço fixo por cota, calculado no servidor. */
+      checkoutPromo?: "comprar-cotas";
     };
 
 function normalizeExtraByChampionship(map: Record<number, number> | undefined): Record<number, number> {
@@ -154,7 +157,10 @@ export async function createDepositTransaction(input: CreateDepositTransactionIn
   }
 
   const { generalQty, dailyQty, extraPurchase } = resolvePurchaseQuantities(input);
-  const lines = buildPurchaseTicketLines(generalQty, dailyQty, extraPurchase);
+  const lines =
+    "checkoutPromo" in input && input.checkoutPromo === "comprar-cotas"
+      ? buildComprarCotasPromoTicketLines(generalQty)
+      : buildPurchaseTicketLines(generalQty, dailyQty, extraPurchase);
   if (lines.length === 0) {
     throw new Error("Selecione pelo menos um ticket");
   }

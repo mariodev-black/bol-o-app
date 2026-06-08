@@ -13,6 +13,11 @@ import {
 } from "@/app/(authenticated)/tickets/_components/pix/ticket-pix-ui-constants";
 import { appendTicketsFromPurchase } from "@/app/(authenticated)/tickets/lib/ownedTicketsStorage";
 import BolaoLogo from "@/app/assets/logo.png";
+import {
+  getComprarCotasBundleOptions,
+  getComprarCotasPromoUnitCents,
+  getTicketPriceCents,
+} from "@/lib/payments/ticket-config";
 
 const GREEN = "#B1EB0B";
 const GOLD = "#FFD700";
@@ -34,35 +39,26 @@ type TransactionUpdatePayload = {
   providerTransactionId?: string | null;
 };
 
+const PROMO_DISCOUNT_PER_UNIT_CENTS =
+  getTicketPriceCents("general") - getComprarCotasPromoUnitCents();
+
 const OPTIONS = [
   {
-    id: 1 as OptionId,
-    qty: 1,
+    ...getComprarCotasBundleOptions()[0]!,
     label: "COTA",
     description: "Sua entrada oficial",
-    priceCents: 2990,
-    originalCents: 3990 as number | null,
-    savingsCents: 1000 as number | null,
     badge: null as string | null,
   },
   {
-    id: 2 as OptionId,
-    qty: 2,
+    ...getComprarCotasBundleOptions()[1]!,
     label: "COTAS",
     description: "Mais chances do milhão",
-    priceCents: 6390,
-    originalCents: 8390,
-    savingsCents: 2000,
     badge: "MAIS VENDIDO",
   },
   {
-    id: 3 as OptionId,
-    qty: 3,
+    ...getComprarCotasBundleOptions()[2]!,
     label: "COTAS",
     description: "Máxima chance de premiação",
-    priceCents: 8790,
-    originalCents: 11790,
-    savingsCents: 3000,
     badge: null,
   },
 ] as const;
@@ -110,22 +106,14 @@ function ShopScreen({
   onContinue: () => void;
   error: string | null;
 }) {
-  useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, []);
-
   const selectedOption = OPTIONS.find((o) => o.id === selected)!;
 
   return (
     <div
-      className="flex flex-1 flex-col items-center bg-[#0a0a0a] px-4 py-2 h-full"
+      className="flex w-full flex-col items-center bg-[#0a0a0a] px-4 py-2 pb-6"
       style={{ fontFamily: FONT }}
     >
-      <div className="flex w-full max-w-[390px] flex-1 flex-col">
+      <div className="flex w-full max-w-[390px] flex-col">
         {/* ── HEADER ── */}
         <div className=" flex items-center justify-between">
           <Image
@@ -172,7 +160,7 @@ function ShopScreen({
         </p>
 
         {/* ── OPTIONS ── */}
-        <div className="mb-2 flex flex-1 flex-col gap-2">
+        <div className="mb-2 flex flex-col gap-2">
           {OPTIONS.map((opt) => {
             const active = selected === opt.id;
             return (
@@ -180,7 +168,7 @@ function ShopScreen({
                 key={opt.id}
                 type="button"
                 onClick={() => onSelect(opt.id)}
-                className="relative flex w-full flex-1 flex-col overflow-hidden rounded-2xl text-left transition-all"
+                className="relative flex w-full flex-col overflow-hidden rounded-2xl text-left transition-all"
                 style={{
                   background: "#111",
                   border: active
@@ -197,7 +185,7 @@ function ShopScreen({
                   </span>
                 ) : null}
 
-                <div className="flex flex-1 items-center gap-3 px-4 py-3">
+                <div className="flex items-center gap-3 px-4 py-3">
                   {/* Radio */}
                   <div
                     className="flex size-[20px] shrink-0 items-center justify-center rounded-full border-2 transition-all"
@@ -278,7 +266,10 @@ function ShopScreen({
               className="text-[13px] font-black leading-tight"
               style={{ color: GREEN }}
             >
-              −R$ 10,00{" "}
+              −R$ {(PROMO_DISCOUNT_PER_UNIT_CENTS / 100).toLocaleString("pt-BR", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}{" "}
               <span className="text-[11px] font-semibold text-white/55">
                 por cota
               </span>
@@ -485,6 +476,7 @@ export default function ComprarCotasPage() {
             generalQuantity: selectedOption.qty,
             dailyQuantity: 0,
             extraByChampionship: {},
+            checkoutPromo: "comprar-cotas",
           }),
         });
         const d = (await r.json()) as {
@@ -586,13 +578,11 @@ export default function ComprarCotasPage() {
   }
 
   return (
-    <div className="h-screen w-full">
-      <ShopScreen
-        selected={selected}
-        onSelect={setSelected}
-        onContinue={goGenerate}
-        error={error}
-      />
-    </div>
+    <ShopScreen
+      selected={selected}
+      onSelect={setSelected}
+      onContinue={goGenerate}
+      error={error}
+    />
   );
 }

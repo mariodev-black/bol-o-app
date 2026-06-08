@@ -43,6 +43,8 @@ const createCartSchema = z
     extraQuantity: z.number().int().min(0).max(20).optional(),
     /** Legado — ignorado se `extraQuantity` > 0. */
     extraByChampionship: extraByChampionshipSchema,
+    /** Checkout `/comprar-cotas` — preço promocional fixo (1–3 cotas gerais). */
+    checkoutPromo: z.enum(["comprar-cotas"]).optional(),
   })
   .strict();
 
@@ -125,18 +127,34 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
-      const { generalQuantity, dailyQuantity, extraQuantity, extraByChampionship } = parsed.data;
+      const { generalQuantity, dailyQuantity, extraQuantity, extraByChampionship, checkoutPromo } =
+        parsed.data;
       const extra = extraByChampionship ?? {};
       const exQ = Math.max(0, Math.min(20, extraQuantity ?? 0));
       const extraTotalLegacy = Object.values(extra).reduce((a, b) => a + b, 0);
       if (generalQuantity + dailyQuantity + (exQ > 0 ? exQ : extraTotalLegacy) < 1) {
         return NextResponse.json({ error: "Selecione pelo menos um ticket" }, { status: 400 });
       }
+      if (checkoutPromo === "comprar-cotas") {
+        if (generalQuantity < 1 || generalQuantity > 3) {
+          return NextResponse.json(
+            { error: "Promo comprar-cotas aceita entre 1 e 3 cotas gerais" },
+            { status: 400 },
+          );
+        }
+        if (dailyQuantity > 0 || exQ > 0 || extraTotalLegacy > 0) {
+          return NextResponse.json(
+            { error: "Promo comprar-cotas aceita apenas cotas do bolao principal" },
+            { status: 400 },
+          );
+        }
+      }
       const transaction = await createDepositTransaction({
         userId,
         generalQty: generalQuantity,
         dailyQty: dailyQuantity,
         ...(exQ > 0 ? { extraQuantity: exQ } : { extraByChampionship: extra }),
+        ...(checkoutPromo ? { checkoutPromo } : {}),
       });
       return NextResponse.json({ transaction }, { status: 201 });
     }

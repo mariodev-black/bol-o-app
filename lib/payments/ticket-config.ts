@@ -59,6 +59,42 @@ export function getProgressiveDiscountPercent(quantity: number): number {
   return 0;
 }
 
+/** Preço promocional por cota em `/comprar-cotas` (R$ 29,90). */
+export function getComprarCotasPromoUnitCents(): number {
+  return parsePositiveInt(env("TICKET_COMPRAR_COTAS_PROMO_UNIT_CENTS"), 2990);
+}
+
+export function buildComprarCotasPromoTicketLines(quantity: number): PurchaseTicketLine[] {
+  const q = Math.max(1, Math.min(3, Math.trunc(quantity)));
+  const unit = getComprarCotasPromoUnitCents();
+  return Array.from({ length: q }, () => ({
+    ticketType: "general" as const,
+    unitCents: unit,
+  }));
+}
+
+export type ComprarCotasBundleOption = {
+  id: 1 | 2 | 3;
+  qty: number;
+  priceCents: number;
+  originalCents: number;
+  savingsCents: number;
+};
+
+/** Totais exibidos no checkout `/comprar-cotas` (lista R$ 39,90/cota → promo R$ 29,90/cota). */
+export function getComprarCotasBundleOptions(): ComprarCotasBundleOption[] {
+  const listUnit = getTicketPriceCents("general");
+  const promoUnit = getComprarCotasPromoUnitCents();
+  const discountPerUnit = listUnit - promoUnit;
+  return ([1, 2, 3] as const).map((qty, index) => ({
+    id: (index + 1) as 1 | 2 | 3,
+    qty,
+    priceCents: promoUnit * qty,
+    originalCents: listUnit * qty,
+    savingsCents: discountPerUnit * qty,
+  }));
+}
+
 export function calculateProgressiveDiscountTotalCents(unitCents: number, quantity: number): number {
   const q = Math.max(0, Math.trunc(quantity));
   if (q <= 0) return 0;
