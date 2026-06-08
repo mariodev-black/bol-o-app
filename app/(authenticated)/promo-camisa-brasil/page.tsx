@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -15,7 +15,7 @@ import {
 import camisaBraImg from "@/app/assets/camisa-nova-bra.png";
 import dinheiroImg from "@/app/assets/pix-banco-central.svg";
 import brasilLogo from "@/app/assets/brasil-selecao-logo.png";
-import type { BrasilMarrocosPlacarPromoStatus } from "@/lib/promotions/brasil-marrocos-placar-promo-shared";
+import { useBrasilMarrocosPlacarPromoStatus } from "@/app/shared/useBrasilMarrocosPlacarPromoStatus";
 
 const CHECKOUT_URL = "/comprar-cotas";
 const GREEN = "#B1EB0B";
@@ -24,74 +24,43 @@ const PROMO_FONT =
 const MARROCOS_SHIELD_URL =
   "https://cdn.api-futebol.com.br/times/escudos/677fca6889a75.svg";
 
-type PalpiteData = {
-  predCasa: number | null;
-  predVisitante: number | null;
-  escanteiosBrasil: number | null;
-};
-
-function usePalpiteData(): PalpiteData {
-  const [data, setData] = useState<PalpiteData>({
-    predCasa: null,
-    predVisitante: null,
-    escanteiosBrasil: null,
-  });
-
-  useEffect(() => {
-    void fetch("/api/promotions/brasil-marrocos-placar", {
-      method: "GET",
-      credentials: "include",
-      cache: "no-store",
-    })
-      .then((r) => r.json())
-      .then((d: BrasilMarrocosPlacarPromoStatus) => {
-        setData({
-          predCasa: d.predCasa,
-          predVisitante: d.predVisitante,
-          escanteiosBrasil: d.escanteiosBrasil,
-        });
-      })
-      .catch(() => null);
-  }, []);
-
-  return data;
+function PromoActivationSkeleton() {
+  return (
+    <div className="flex w-full animate-pulse flex-col items-center bg-[#0a0a0a] px-4 py-6">
+      <div className="w-full max-w-[390px] space-y-3">
+        <div className="h-8 w-3/4 rounded-lg bg-white/10" />
+        <div className="h-24 rounded-2xl bg-white/5" />
+        <div className="h-40 rounded-2xl bg-white/5" />
+        <div className="h-12 rounded-full bg-white/10" />
+      </div>
+    </div>
+  );
 }
 
 export default function PromoCamisaBrasilPage() {
   const router = useRouter();
-  const { predCasa, predVisitante, escanteiosBrasil } = usePalpiteData();
-  const [gateReady, setGateReady] = useState(false);
+  const { status, loading } = useBrasilMarrocosPlacarPromoStatus();
+
+  const predCasa = status?.predCasa ?? null;
+  const predVisitante = status?.predVisitante ?? null;
+  const escanteiosBrasil = status?.escanteiosBrasil ?? null;
+
+  const canShow =
+    Boolean(status?.alreadySubmitted) && !status?.promoActivated;
 
   useEffect(() => {
-    let cancelled = false;
-    void fetch("/api/promotions/brasil-marrocos-placar", {
-      method: "GET",
-      credentials: "include",
-      cache: "no-store",
-    })
-      .then((r) => r.json())
-      .then((d: BrasilMarrocosPlacarPromoStatus) => {
-        if (cancelled) return;
-        if (d.promoActivated) {
-          router.replace("/boloes");
-          return;
-        }
-        if (!d.alreadySubmitted) {
-          router.replace("/homepage");
-          return;
-        }
-        setGateReady(true);
-      })
-      .catch(() => {
-        if (!cancelled) router.replace("/homepage");
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [router]);
+    if (loading || !status) return;
+    if (status.promoActivated) {
+      router.replace("/boloes");
+      return;
+    }
+    if (!status.alreadySubmitted) {
+      router.replace("/");
+    }
+  }, [loading, status, router]);
 
-  if (!gateReady) {
-    return <div className="min-h-screen w-full bg-[#0a0a0a]" />;
+  if (!canShow) {
+    return loading ? <PromoActivationSkeleton /> : null;
   }
 
   return (
