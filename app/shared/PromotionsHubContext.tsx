@@ -1,4 +1,6 @@
-import { seedBrasilMarrocosPlacarPromoStatus } from "@/app/shared/useBrasilMarrocosPlacarPromoStatus";
+"use client";
+
+import {
   createContext,
   useCallback,
   useContext,
@@ -8,6 +10,7 @@ import { seedBrasilMarrocosPlacarPromoStatus } from "@/app/shared/useBrasilMarro
   useState,
   type ReactNode,
 } from "react";
+import { seedBrasilMarrocosPlacarPromoStatus } from "@/app/shared/useBrasilMarrocosPlacarPromoStatus";
 import { useBolaoToast } from "@/app/components/BolaoToast";
 import { PromotionsBottomSheet } from "@/app/shared/PromotionsBottomSheet";
 import { useAuth } from "@/app/shared/AuthContext";
