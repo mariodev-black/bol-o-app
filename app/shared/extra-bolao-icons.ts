@@ -4,7 +4,7 @@ import iconPremierLeague from "@/app/assets/icon-premier-league.png";
 import iconLibertadores from "@/app/assets/icone-libertadores.png";
 import iconCopaBrasil from "@/app/assets/icon-copa-brasil.png";
 import logoAmistoso from "@/app/assets/logo-amistoso.png";
-import logoSkale from "@/app/assets/skale.jpeg";
+import logoSkale from "@/app/assets/skale.png";
 import logoSerieB from "@/app/assets/logo-serie-b.png";
 import ticketBlue from "@/app/assets/Ticket-Blue.png";
 import type {

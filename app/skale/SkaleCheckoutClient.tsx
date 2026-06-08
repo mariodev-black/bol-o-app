@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight } from "lucide-react";
-import logoSkale from "@/app/assets/skale.jpeg";
+import logoSkale from "@/app/assets/skale.png";
 import { TicketPixGeneratedScreen } from "@/app/(authenticated)/tickets/_components/pix/TicketPixGeneratedScreen";
 import { TicketPixGeneratingPanel } from "@/app/(authenticated)/tickets/_components/pix/TicketPixGeneratingPanel";
 import {
