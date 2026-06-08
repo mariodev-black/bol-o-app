@@ -47,8 +47,8 @@ export function buildPromoHubCopyTemplates(
     },
     {
       id: "palpite",
-      label: "Promo palpite Brasil x Egito",
-      text: `Acerte o placar do amistoso Brasil x Egito e concorra a cota grátis + camisa oficial 👉 ${hubUrl}`,
+      label: "Promo palpite Brasil x Marrocos",
+      text: `Acerte o placar do amistoso Brasil x Marrocos e concorra a cota grátis + camisa oficial 👉 ${hubUrl}`,
     },
   ];
 }

@@ -60,9 +60,9 @@ export const AMISTOSOS_FRIENDLY_MATCHES: readonly AmistososFriendlyMatchDef[] = 
     matchId: 90606004,
     hourBr: "19:00",
     homeName: "Brasil",
-    awayName: "Egito",
+    awayName: "Marrocos",
     homeSigla: "BRA",
-    awaySigla: "EGI",
+    awaySigla: "MAR",
   },
   {
     matchId: 90606005,

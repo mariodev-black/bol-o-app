@@ -1,12 +1,12 @@
 import { AdminPageTitle } from "@/app/admin/_components/AdminShell";
-import { getAdminBrasilEgitoPromoDashboard } from "@/lib/admin/brasil-egito-placar-promo";
+import { getAdminBrasilMarrocosPromoDashboard } from "@/lib/admin/brasil-marrocos-placar-promo";
 import { getAdminBrasilPanamaPromoDashboard } from "@/lib/admin/brasil-panama-placar-promo";
 import { buildPromotionsHubUrl } from "@/lib/promotions/hub-public-links";
 import { AdminPromocoesClient } from "./AdminPromocoesClient";
 
 export default async function AdminPromocoesPage() {
-  const [brasilEgito, brasilPanama] = await Promise.all([
-    getAdminBrasilEgitoPromoDashboard(),
+  const [brasilMarrocos, brasilPanama] = await Promise.all([
+    getAdminBrasilMarrocosPromoDashboard(),
     getAdminBrasilPanamaPromoDashboard(),
   ]);
 
@@ -19,7 +19,7 @@ export default async function AdminPromocoesPage() {
         subtitle="Palpites promocionais, acertos de placar, link de resgate e elegibilidade de prêmios."
       />
       <AdminPromocoesClient
-        brasilEgito={brasilEgito}
+        brasilMarrocos={brasilMarrocos}
         brasilPanama={brasilPanama}
         hubUrl={hubUrl}
       />

@@ -14,10 +14,10 @@ import {
   resolveExtraGiftLeagueDisplayName,
 } from "@/lib/promotions/extra-gift";
 import {
-  isBrasilEgitoPlacarPromoEnabled,
-  isBrasilEgitoPlacarPromoSubmissionOpen,
-  BRASIL_EGITO_PLACAR_MATCH_ID,
-} from "@/lib/promotions/brasil-egito-placar-promo";
+  isBrasilMarrocosPlacarPromoEnabled,
+  isBrasilMarrocosPlacarPromoSubmissionOpen,
+  BRASIL_MARROCOS_PLACAR_MATCH_ID,
+} from "@/lib/promotions/brasil-marrocos-placar-promo";
 import type {
   PromoHubItem,
   PromoHubLeagueRow,
@@ -71,7 +71,7 @@ type ExtraGiftHubDb = {
   claimedKeys: Set<string>;
 };
 
-type EgitoHubDb = {
+type MarrocosHubDb = {
   hasBet: boolean;
   alreadySubmitted: boolean;
 };
@@ -82,11 +82,11 @@ async function fetchHubDbSnapshot(
     extraGift: boolean;
     championshipIds: number[];
     rodadas: number[];
-    egito: boolean;
+    marrocos: boolean;
   },
-): Promise<{ extra: ExtraGiftHubDb | null; egito: EgitoHubDb | null }> {
-  if (!opts.extraGift && !opts.egito) {
-    return { extra: null, egito: null };
+): Promise<{ extra: ExtraGiftHubDb | null; marrocos: MarrocosHubDb | null }> {
+  if (!opts.extraGift && !opts.marrocos) {
+    return { extra: null, marrocos: null };
   }
 
   const pool = getPool();
@@ -116,11 +116,11 @@ async function fetchHubDbSnapshot(
           AND t.status IN ('paid', 'approved')) AS gift_claimed_json`;
   }
 
-  let egitoSelect = "NULL::boolean AS egito_has_bet, NULL::boolean AS egito_submitted";
-  if (opts.egito) {
-    params.push(BRASIL_EGITO_PLACAR_MATCH_ID);
+  let marrocosSelect = "NULL::boolean AS marrocos_has_bet, NULL::boolean AS marrocos_submitted";
+  if (opts.marrocos) {
+    params.push(BRASIL_MARROCOS_PLACAR_MATCH_ID);
     const matchIdx = params.length;
-    egitoSelect = `(SELECT EXISTS(
+    marrocosSelect = `(SELECT EXISTS(
           SELECT 1
           FROM predictions p
           INNER JOIN tickets t ON t.id::text = p.ticket_id
@@ -128,19 +128,19 @@ async function fetchHubDbSnapshot(
             AND p.match_id = $${matchIdx}
             AND t.status IN ('paid', 'approved')
             AND NOT COALESCE(t.is_promo_bonus, false)
-        )) AS egito_has_bet,
+        )) AS marrocos_has_bet,
         (SELECT EXISTS(
           SELECT 1
-          FROM brasil_egito_placar_promo_submissions s
+          FROM brasil_marrocos_placar_promo_submissions s
           WHERE s.user_id = $1::uuid
-        )) AS egito_submitted`;
+        )) AS marrocos_submitted`;
   }
 
   const { rows } = await pool.query<{
     gift_claimed_json: Array<{ championship_id: number; rodada: number }> | null;
-    egito_has_bet: boolean | null;
-    egito_submitted: boolean | null;
-  }>(`SELECT ${extraSelect}, ${egitoSelect}`, params);
+    marrocos_has_bet: boolean | null;
+    marrocos_submitted: boolean | null;
+  }>(`SELECT ${extraSelect}, ${marrocosSelect}`, params);
 
   const row = rows[0];
   const claimedKeys = new Set<string>();
@@ -155,10 +155,10 @@ async function fetchHubDbSnapshot(
 
   return {
     extra: opts.extraGift ? { claimedKeys } : null,
-    egito: opts.egito
+    marrocos: opts.marrocos
       ? {
-          hasBet: row?.egito_has_bet === true,
-          alreadySubmitted: row?.egito_submitted === true,
+          hasBet: row?.marrocos_has_bet === true,
+          alreadySubmitted: row?.marrocos_submitted === true,
         }
       : null,
   };
@@ -169,10 +169,10 @@ async function buildPromoHubForUser(userId: string): Promise<PromoHubResponse> {
 
   const extraTargets = isExtraGiftPromoEnabled() ? hubExtraGiftTargets() : [];
   const extraGiftEnabled = extraTargets.length > 0;
-  const egitoEnabled =
-    isBrasilEgitoPlacarPromoEnabled() && isBrasilEgitoPlacarPromoSubmissionOpen();
+  const marrocosEnabled =
+    isBrasilMarrocosPlacarPromoEnabled() && isBrasilMarrocosPlacarPromoSubmissionOpen();
 
-  if (!extraGiftEnabled && !egitoEnabled) {
+  if (!extraGiftEnabled && !marrocosEnabled) {
     return { items: [], highlightCount: 0 };
   }
 
@@ -183,7 +183,7 @@ async function buildPromoHubForUser(userId: string): Promise<PromoHubResponse> {
     extraGift: extraGiftEnabled,
     championshipIds,
     rodadas,
-    egito: egitoEnabled,
+    marrocos: marrocosEnabled,
   });
 
   if (extraGiftEnabled && db.extra) {
@@ -212,13 +212,13 @@ async function buildPromoHubForUser(userId: string): Promise<PromoHubResponse> {
     });
   }
 
-  if (egitoEnabled && db.egito) {
-    const pendingOffer = !db.egito.hasBet && !db.egito.alreadySubmitted;
-    const submitted = db.egito.alreadySubmitted;
-    const blockedByMainBolao = db.egito.hasBet && !db.egito.alreadySubmitted;
+  if (marrocosEnabled && db.marrocos) {
+    const pendingOffer = !db.marrocos.hasBet && !db.marrocos.alreadySubmitted;
+    const submitted = db.marrocos.alreadySubmitted;
+    const blockedByMainBolao = db.marrocos.hasBet && !db.marrocos.alreadySubmitted;
     const leagues: PromoHubLeagueRow[] = [
       {
-        displayName: "Brasil x Egito",
+        displayName: "Brasil x Marrocos",
         rodadaNome: "Amistoso · 06/06 · 19:00",
         alreadyClaimed: submitted,
         unavailable: blockedByMainBolao,
@@ -226,8 +226,8 @@ async function buildPromoHubForUser(userId: string): Promise<PromoHubResponse> {
     ];
 
     items.push({
-      id: "brasil_egito_placar",
-      title: "Placar exato — Brasil x Egito",
+      id: "brasil_marrocos_placar",
+      title: "Placar exato — Brasil x Marrocos",
       description: pendingOffer
         ? "Acerte o placar e ganhe cota grátis + chance de camisa oficial."
         : submitted

@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       {
-        source: "/promo/brasil-egito",
+        source: "/promo/brasil-marrocos",
         destination: "/",
         permanent: true,
       },

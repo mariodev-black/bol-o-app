@@ -1,8 +1,8 @@
 "use client";
 
 /**
- * Promo "Acerte o placar exato — Amistoso Brasil x Egito".
- * Step 1: palpite Brasil x Egito
+ * Promo "Acerte o placar exato — Amistoso Brasil x Marrocos".
+ * Step 1: palpite Brasil x Marrocos
  * Step 2: indicação para camisa
  *
  * Estrutura independente de ChampionsPlacarPromoHost.
@@ -16,33 +16,32 @@ import {
   ArrowRight,
   Check,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   ChevronUp,
   Link2,
-  ShieldCheck,
-  Shirt,
   ShoppingCart,
-  Ticket,
   User,
   X,
 } from "lucide-react";
-import { getTicketPriceCents } from "@/lib/payments/ticket-config";
-import camisaBraImg from "@/app/assets/camisa-bra.png";
+import camisaBraImg from "@/app/assets/camisa-nova-bra.png";
+import dinheiroImg from "@/app/assets/pix-banco-central.svg";
 import { useIsAdminAppRoute } from "@/app/shared/app-route-guards";
 import { useAuth } from "@/app/shared/AuthContext";
 import { useBolaoToast } from "@/app/components/BolaoToast";
 import { useRegisterPromotionHub, usePromotionsHub } from "@/app/shared/PromotionsHubContext";
 import { useMainBolaoPromoModal } from "@/app/shared/MainBolaoPromoContext";
-import type { BrasilEgitoPlacarPromoStatus } from "@/lib/promotions/brasil-egito-placar-promo";
+import type { BrasilMarrocosPlacarPromoStatus } from "@/lib/promotions/brasil-marrocos-placar-promo";
 import {
-  persistBrasilEgitoReferralModalDismissed,
-  readBrasilEgitoReferralModalDismissed,
-} from "@/lib/promotions/brasil-egito-guest-flow";
+  persistBrasilMarrocosReferralModalDismissed,
+  readBrasilMarrocosReferralModalDismissed,
+} from "@/lib/promotions/brasil-marrocos-guest-flow";
 import { resolveNationalTeamShieldUrl } from "@/lib/football/national-team-shields";
 import brasilLogo from "@/app/assets/brasil-selecao-logo.png";
 
-const EGITO_SHIELD_URL =
-  resolveNationalTeamShieldUrl("Egito") ??
-  "https://cdn.api-futebol.com.br/escudos/68b23f0dd2450.svg";
+const MARROCOS_SHIELD_URL =
+  resolveNationalTeamShieldUrl("Marrocos") ??
+  "https://cdn.api-futebol.com.br/times/escudos/677fca6889a75.svg";
 
 const PROMO_FONT =
   "var(--font-montserrat), ui-sans-serif, system-ui, sans-serif";
@@ -60,7 +59,7 @@ function formatPromoPriceBRL(cents: number): string {
   });
 }
 const OPEN_DELAY_MS = 0;
-const API_PATH = "/api/promotions/brasil-egito-placar";
+const API_PATH = "/api/promotions/brasil-marrocos-placar";
 
 type Step = "offer" | "success" | "unavailable";
 
@@ -219,12 +218,12 @@ function PlacarExatoPicker({
         <ScoreStepperColumn
           value={predVisitante}
           onChange={onPredVisitanteChange}
-          label="gols do Egito"
+          label="gols do Marrocos"
         />
 
         <TeamLogoRemote
-          src={EGITO_SHIELD_URL}
-          alt="Egito"
+          src={MARROCOS_SHIELD_URL}
+          alt="Marrocos"
           className="size-16 shrink-0 object-contain"
         />
       </div>
@@ -270,20 +269,64 @@ function PlacarExatoSummary({
         <div className="flex flex-col items-center">
           <span
             className="min-w-[42px] text-center text-[44px] font-black tabular-nums leading-none text-white/90 sm:text-[48px]"
-            aria-label={`${predVisitante} gols do Egito`}
+            aria-label={`${predVisitante} gols do Marrocos`}
           >
             {predVisitante}
           </span>
           <span className="mt-1 text-[11px] font-bold uppercase text-white/45 sm:text-[12px]">
-            EGITO
+            MARROCOS
           </span>
         </div>
 
         <TeamLogoRemote
-          src={EGITO_SHIELD_URL}
-          alt="Egito"
+          src={MARROCOS_SHIELD_URL}
+          alt="Marrocos"
           className="size-16 shrink-0 object-contain"
         />
+      </div>
+    </div>
+  );
+}
+
+function EscanteiosPicker({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (n: number) => void;
+}) {
+  return (
+    <div className="mt-3 rounded-2xl border border-white/10 bg-[#1a1a1a] px-3 py-3">
+      <p className="text-center text-[12px] font-bold leading-snug text-white">
+        Quantos escanteios o Brasil terá na partida?
+      </p>
+      <div className="mt-2 flex items-center justify-center gap-3">
+        <TeamLogo
+          src={brasilLogo}
+          alt="Brasil"
+          className="size-8 shrink-0 object-contain"
+        />
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onChange(Math.max(0, value - 1))}
+            className="flex size-7 items-center justify-center rounded-md bg-[#2a2a2a] ring-1 ring-white/8 transition hover:bg-[#333] active:scale-95"
+            aria-label="Diminuir escanteios"
+          >
+            <ChevronLeft className="size-4" strokeWidth={2.5} style={{ color: GREEN }} />
+          </button>
+          <span className="min-w-[28px] text-center text-[26px] font-black tabular-nums leading-none text-white/90">
+            {value}
+          </span>
+          <button
+            type="button"
+            onClick={() => onChange(Math.min(99, value + 1))}
+            className="flex size-7 items-center justify-center rounded-md bg-[#2a2a2a] ring-1 ring-white/8 transition hover:bg-[#333] active:scale-95"
+            aria-label="Aumentar escanteios"
+          >
+            <ChevronRight className="size-4" strokeWidth={2.5} style={{ color: GREEN }} />
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -300,13 +343,9 @@ export function SignupPromptModal({
       style={{ fontFamily: PROMO_FONT }}
       onClick={(e) => e.stopPropagation()}
     >
-
-      <div className="text-center" id="brasil-egito-signup-prompt-title">
+      <div className="text-center" id="brasil-marrocos-signup-prompt-title">
         <p className="text-[20px] font-black leading-snug text-white">
-          Falta 1 passo para registrar seu palpite!
-        </p>
-        <p className="mt-3 text-[14px] font-medium leading-snug text-white/80">
-          Crie sua conta gratuitamente — leva menos de 30 segundos!
+          Falta apenas 1 passo para validar sua participação na promoção.
         </p>
       </div>
 
@@ -315,7 +354,7 @@ export function SignupPromptModal({
         onClick={onCreateAccount}
         className="mt-6 flex min-h-[52px] w-full items-center justify-center rounded-full bg-primary px-5 text-[14px] font-black uppercase italic tracking-wide text-[#0E141B] transition active:scale-[0.98]"
       >
-        Criar conta agora
+        Continuar Cadastro
       </button>
     </div>
   );
@@ -324,17 +363,20 @@ export function SignupPromptModal({
 export function OfferStep({
   predCasa,
   predVisitante,
+  predEscanteios,
   onPredCasaChange,
   onPredVisitanteChange,
+  onPredEscanteiosChange,
   loading,
   onSubmit,
   onClose,
-  friendsGoal,
 }: {
   predCasa: number;
   predVisitante: number;
+  predEscanteios: number;
   onPredCasaChange: (n: number) => void;
   onPredVisitanteChange: (n: number) => void;
+  onPredEscanteiosChange: (n: number) => void;
   loading: boolean;
   onSubmit: () => void;
   onClose: () => void;
@@ -342,94 +384,182 @@ export function OfferStep({
 }) {
   return (
     <PromoHeroShell onClose={onClose}>
-      <div id="brasil-egito-placar-promo-title" className="text-center">
-        <p className="text-[15px] font-black uppercase leading-none tracking-wide text-white">
+      {/* Header */}
+      <div id="brasil-marrocos-placar-promo-title" className="text-center">
+        <p className="text-[16px] font-black uppercase leading-none tracking-wide text-white">
           Acerte o
         </p>
         <p
-          className="mt-1 text-[32px] font-black italic uppercase leading-[0.92] tracking-tight"
+          className="mt-0.5 text-[38px] font-black italic uppercase leading-[0.88] tracking-tight"
           style={{ color: GREEN }}
         >
           Placar exato
         </p>
-        <p className="mt-1.5 text-[14px] font-black uppercase leading-none tracking-wide text-white">
-          do amistoso
-        </p>
-        <p
-          className="mt-0.5 text-[22px] font-black uppercase leading-none tracking-tight"
-          style={{ color: GREEN }}
-        >
-          Brasil x Egito
+        <p className="mt-1.5 text-[18px] font-black uppercase leading-none tracking-wide text-white">
+          Brasil{" "}
+          <span style={{ color: GREEN }}>x</span>
+          {" "}Marrocos
         </p>
       </div>
 
-      <div className="mt-5 w-full overflow-hidden rounded-xl border border-white/10 bg-[#1a1a1a]">
-        <div className="grid grid-cols-2 divide-x divide-white/10">
-          <div className="flex items-start gap-2 px-2.5 py-3">
-            <Ticket
-              className="mt-0.5 size-5 shrink-0 text-primary"
-              strokeWidth={2}
+      {/* Prize box */}
+      <div className="mt-4 overflow-hidden rounded-xl border border-white/10 bg-[#1a1a1a]">
+        <div className="flex items-start gap-2 px-3 pb-1 pt-2.5">
+          <span className="text-[16px] leading-none" aria-hidden>🏆</span>
+          <p className="text-[11px] font-semibold leading-snug text-white">
+            Acerte o{" "}
+            <span className="font-bold" style={{ color: GREEN }}>placar exato</span>
+            {" "}+ os{" "}
+            <span className="font-bold" style={{ color: GREEN }}>escanteios do Brasil</span>
+            {" "}e ganhe:
+          </p>
+        </div>
+        <div className="grid grid-cols-2 divide-x divide-white/10 px-2 pb-3">
+          <div className="flex flex-col items-center gap-0.5 pr-2 pt-1">
+            <Image
+              src={camisaBraImg}
+              alt="Camisa oficial da Seleção Brasileira"
+              width={90}
+              height={80}
+              className="object-contain"
+              draggable={false}
             />
-            <p className="text-[10px] font-bold uppercase leading-[1.35] text-white">
-              Ganhe <span className="text-primary">1 cota grátis</span>
-              <br />
-              <span className="text-white/90">no Bolão do Milhão</span>
+            <p className="text-[12px] font-black uppercase italic leading-tight" style={{ color: GREEN }}>
+              Camisa Oficial
+            </p>
+            <p className="text-[9px] font-bold uppercase tracking-wide text-white">
+              da Seleção Brasileira
             </p>
           </div>
-          <div className="flex items-start gap-2 px-2.5 py-3">
-            <Shirt
-              className="mt-0.5 size-5 shrink-0 text-primary"
-              strokeWidth={2}
+          <div className="flex flex-col items-center justify-center gap-0.5 pl-2 pt-1">
+            <Image
+              src={dinheiroImg}
+              alt="R$ 1.000 no PIX"
+              width={120}
+              height={120}
+              className="object-contain"
+              draggable={false}
             />
-            <p className="text-[10px] font-bold uppercase leading-[1.35] text-white">
-              Ganhe <span className="text-primary">1 camisa oficial</span>
-              <br />
-              <span className="text-white/90">da seleção brasileira</span>
+            <p className="text-[20px] font-black uppercase italic leading-tight" style={{ color: GREEN }}>
+              R$ 1.000
+            </p>
+            <p className="text-[9px] font-bold uppercase tracking-wide text-white">
+              no PIX
             </p>
           </div>
         </div>
       </div>
 
-      <PlacarExatoPicker
-        predCasa={predCasa}
-        predVisitante={predVisitante}
-        onPredCasaChange={onPredCasaChange}
-        onPredVisitanteChange={onPredVisitanteChange}
-      />
+      {/* Score picker */}
+      <div className="mt-3 rounded-2xl border border-white/10 bg-[#1a1a1a] px-3 py-3">
+        <p className="text-center text-[12px] font-bold uppercase tracking-wide text-white">
+          Qual é o placar exato do jogo?
+        </p>
+        <div className="mt-3 flex items-center justify-between gap-1">
+          <div className="flex flex-col items-center gap-0.5">
+            <Image
+              src={brasilLogo}
+              alt="Brasil"
+              width={44}
+              height={44}
+              className="size-11 object-contain"
+              draggable={false}
+            />
+            <span className="text-[9px] font-black uppercase tracking-wide text-white/70">Brasil</span>
+          </div>
 
+          <ScoreStepperColumn value={predCasa} onChange={onPredCasaChange} label="gols do Brasil" />
+
+          <span className="shrink-0 px-1 text-[20px] font-bold text-white/45" aria-hidden>x</span>
+
+          <ScoreStepperColumn value={predVisitante} onChange={onPredVisitanteChange} label="gols do Marrocos" />
+
+          <div className="flex flex-col items-center gap-0.5">
+            <Image
+              src={MARROCOS_SHIELD_URL}
+              alt="Marrocos"
+              width={44}
+              height={44}
+              unoptimized
+              className="size-11 object-contain"
+              draggable={false}
+            />
+            <span className="text-[9px] font-black uppercase tracking-wide text-white/70">Marrocos</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Escanteios picker */}
+      <div className="mt-3 rounded-2xl border border-white/10 bg-[#1a1a1a] px-3 py-3">
+        <p className="text-center text-[12px] font-bold uppercase tracking-wide text-white">
+          Quantos escanteios o Brasil terá na partida?
+        </p>
+        <div className="mt-2 flex items-center justify-center gap-3">
+          <Image
+            src={brasilLogo}
+            alt="Brasil"
+            width={28}
+            height={28}
+            className="size-7 object-contain"
+            draggable={false}
+          />
+          <button
+            type="button"
+            onClick={() => onPredEscanteiosChange(Math.max(0, predEscanteios - 1))}
+            className="flex size-9 items-center justify-center rounded-lg bg-[#2a2a2a] text-[22px] font-bold leading-none text-white/80 ring-1 ring-white/8 transition hover:bg-[#333] active:scale-95"
+            aria-label="Diminuir escanteios"
+          >
+            −
+          </button>
+          <span className="min-w-[32px] text-center text-[28px] font-black tabular-nums leading-none text-white">
+            {predEscanteios}
+          </span>
+          <button
+            type="button"
+            onClick={() => onPredEscanteiosChange(Math.min(99, predEscanteios + 1))}
+            className="flex size-9 items-center justify-center rounded-lg bg-[#2a2a2a] text-[22px] font-bold leading-none text-white/80 ring-1 ring-white/8 transition hover:bg-[#333] active:scale-95"
+            aria-label="Aumentar escanteios"
+          >
+            +
+          </button>
+        </div>
+      </div>
+
+      {/* CTA */}
       <button
         type="button"
         disabled={loading}
         onClick={onSubmit}
         className="mt-5 flex min-h-[52px] w-full items-center justify-between rounded-full bg-primary px-5 text-[14px] font-black uppercase italic tracking-wide text-[#0E141B] transition active:scale-[0.98] disabled:opacity-60"
       >
+        <Check className="size-5 shrink-0" strokeWidth={2.5} aria-hidden />
         <span className="flex-1 text-center">
-          {loading ? "Salvando..." : "Salvar palpite"}
+          {loading ? "Salvando..." : "Registrar Palpite"}
         </span>
-        {!loading ? (
-          <ArrowRight className="size-5 shrink-0" strokeWidth={2.5} aria-hidden />
-        ) : (
-          <span className="size-5 shrink-0" aria-hidden />
-        )}
+        <ArrowRight className="size-5 shrink-0" strokeWidth={2.5} aria-hidden />
       </button>
 
-      <div className="mt-4 flex items-start gap-2">
-        <ShieldCheck
-          className="mt-0.5 size-4 shrink-0 text-primary"
-          strokeWidth={2.2}
-          aria-hidden
-        />
-        <p className="text-left text-[11px] font-medium leading-[1.45] text-white/75">
-          Ao acertar o placar, você ganha{" "}
-          <strong className="font-bold" style={{ color: GREEN }}>
-            1 cota grátis
-          </strong>
-          . A camisa oficial será liberada ao convidar{" "}
-          <strong className="font-bold" style={{ color: GREEN }}>
-            {friendsGoal} amigos
-          </strong>
-          .
-        </p>
+      {/* Footer */}
+      <div className="mt-4 space-y-1.5">
+        <div className="flex items-center justify-center gap-1.5">
+          <svg className="size-3 shrink-0 text-white/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+            <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+          </svg>
+          <p className="text-[10px] font-medium text-white/45">
+            Os palpites encerram antes do início da partida.
+          </p>
+        </div>
+        <div className="flex items-center justify-center gap-1.5">
+          <svg className="size-3 shrink-0 text-white/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+          </svg>
+          <p className="text-center text-[10px] font-medium text-white/45">
+            Promoção exclusiva para participantes do{" "}
+            <span className="font-bold text-white/70">Bolão do Milhão</span>{" "}
+            com{" "}
+            <span className="font-bold" style={{ color: GREEN }}>cota ativa</span>.
+          </p>
+        </div>
       </div>
     </PromoHeroShell>
   );
@@ -444,7 +574,7 @@ export function UnavailableStep({
 }) {
   return (
     <PromoHeroShell onClose={onClose}>
-      <div id="brasil-egito-placar-unavailable-title" className="text-center">
+      <div id="brasil-marrocos-placar-unavailable-title" className="text-center">
         <p className="text-[15px] font-black uppercase leading-none tracking-wide text-white">
           Acerte o
         </p>
@@ -461,7 +591,7 @@ export function UnavailableStep({
           className="mt-0.5 text-[22px] font-black uppercase leading-none tracking-tight"
           style={{ color: GREEN }}
         >
-          Brasil x Egito
+          Brasil x Marrocos
         </p>
       </div>
 
@@ -498,7 +628,7 @@ export function UnavailableStep({
         </p>
         <p className="mt-2 text-[12px] font-medium leading-snug text-white/55">
           Esta promoção é exclusiva para quem ainda não fez palpite no amistoso
-          Brasil x Egito. Convide {friendsGoal} amigos em outras promoções para
+          Brasil x Marrocos. Convide {friendsGoal} amigos em outras promoções para
           concorrer a prêmios.
         </p>
       </div>
@@ -564,7 +694,7 @@ export function SuccessStep({
         <X className="size-4" strokeWidth={2.5} aria-hidden />
       </button>
 
-      <div className="text-center" id="brasil-egito-placar-success-title">
+      <div className="text-center" id="brasil-marrocos-placar-success-title">
         <div
           className="mx-auto mb-1 flex size-11 items-center justify-center rounded-full"
         >
@@ -702,7 +832,7 @@ export function SuccessStep({
               Convide{" "}
               <span style={{ color: GREEN }}>{friendsGoal}</span> amigos
             </p>
-           
+
 
             <div className="mt-4 flex justify-center gap-2">
               {Array.from({ length: friendsGoal }, (_, i) => {
@@ -741,7 +871,7 @@ export function SuccessStep({
   );
 }
 
-export function BrasilEgitoPlacarPromoHost({
+export function BrasilMarrocosPlacarPromoHost({
   children,
 }: {
   children: React.ReactNode;
@@ -753,11 +883,12 @@ export function BrasilEgitoPlacarPromoHost({
   const isAdminRoute = useIsAdminAppRoute();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<Step>("offer");
-  const [status, setStatus] = useState<BrasilEgitoPlacarPromoStatus | null>(
+  const [status, setStatus] = useState<BrasilMarrocosPlacarPromoStatus | null>(
     null,
   );
   const [predCasa, setPredCasa] = useState(0);
   const [predVisitante, setPredVisitante] = useState(0);
+  const [predEscanteios, setPredEscanteios] = useState(0);
   const [loading, setLoading] = useState(false);
   const submittingRef = useRef(false);
   const [portalReady, setPortalReady] = useState(false);
@@ -769,21 +900,21 @@ export function BrasilEgitoPlacarPromoHost({
   const profileBlocksPromo = Boolean(user && user.profileComplete === false);
 
   const refreshStatus =
-    useCallback(async (): Promise<BrasilEgitoPlacarPromoStatus | null> => {
+    useCallback(async (): Promise<BrasilMarrocosPlacarPromoStatus | null> => {
       const r = await fetch(API_PATH, {
         method: "GET",
         credentials: "include",
         cache: "no-store",
       });
       if (!r.ok) return null;
-      const data = (await r.json()) as BrasilEgitoPlacarPromoStatus;
-      setPromotionPrefetch("brasil_egito_placar", data);
+      const data = (await r.json()) as BrasilMarrocosPlacarPromoStatus;
+      setPromotionPrefetch("brasil_marrocos_placar", data);
       return data;
     }, [setPromotionPrefetch]);
 
   const applyHubOpen = useCallback(
     (
-      data: BrasilEgitoPlacarPromoStatus,
+      data: BrasilMarrocosPlacarPromoStatus,
       options?: { manual?: boolean },
     ) => {
       setStatus(data);
@@ -791,13 +922,14 @@ export function BrasilEgitoPlacarPromoHost({
         setStep("offer");
         setPredCasa(0);
         setPredVisitante(0);
+        setPredEscanteios(0);
         setOpen(true);
         return;
       }
       if (data.alreadySubmitted) {
         if (
           !options?.manual &&
-          readBrasilEgitoReferralModalDismissed(user?.id)
+          readBrasilMarrocosReferralModalDismissed(user?.id)
         ) {
           return;
         }
@@ -818,8 +950,8 @@ export function BrasilEgitoPlacarPromoHost({
   const openFromPromotionsHub = useCallback(() => {
     const cached =
       status ??
-      (getPromotionPrefetch("brasil_egito_placar") as
-        | BrasilEgitoPlacarPromoStatus
+      (getPromotionPrefetch("brasil_marrocos_placar") as
+        | BrasilMarrocosPlacarPromoStatus
         | undefined);
     if (cached?.enabled) {
       applyHubOpen(cached, { manual: true });
@@ -845,7 +977,7 @@ export function BrasilEgitoPlacarPromoHost({
     });
   }, [status, getPromotionPrefetch, applyHubOpen, refreshStatus]);
 
-  useRegisterPromotionHub("brasil_egito_placar", openFromPromotionsHub);
+  useRegisterPromotionHub("brasil_marrocos_placar", openFromPromotionsHub);
 
   useEffect(() => {
     let cancelled = false;
@@ -897,7 +1029,7 @@ export function BrasilEgitoPlacarPromoHost({
   ]);
 
   const dismissReferralModal = useCallback(() => {
-    persistBrasilEgitoReferralModalDismissed(user?.id);
+    persistBrasilMarrocosReferralModalDismissed(user?.id);
     setOpen(false);
     requestModal({ once: true });
   }, [requestModal, user?.id]);
@@ -919,11 +1051,11 @@ export function BrasilEgitoPlacarPromoHost({
         method: "POST",
         credentials: "include",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ predCasa, predVisitante }),
+        body: JSON.stringify({ predCasa, predVisitante, escanteiosBrasil: predEscanteios }),
       });
       const data = (await r
         .json()
-        .catch(() => ({}))) as BrasilEgitoPlacarPromoStatus & {
+        .catch(() => ({}))) as BrasilMarrocosPlacarPromoStatus & {
         error?: string;
       };
       if (!r.ok) {
@@ -962,10 +1094,10 @@ export function BrasilEgitoPlacarPromoHost({
         aria-modal="true"
         aria-labelledby={
           step === "offer"
-            ? "brasil-egito-placar-promo-title"
+            ? "brasil-marrocos-placar-promo-title"
             : step === "unavailable"
-              ? "brasil-egito-placar-unavailable-title"
-              : "brasil-egito-placar-success-title"
+              ? "brasil-marrocos-placar-unavailable-title"
+              : "brasil-marrocos-placar-success-title"
         }
         onClick={handleClose}
       >
@@ -974,8 +1106,10 @@ export function BrasilEgitoPlacarPromoHost({
             <OfferStep
               predCasa={predCasa}
               predVisitante={predVisitante}
+              predEscanteios={predEscanteios}
               onPredCasaChange={setPredCasa}
               onPredVisitanteChange={setPredVisitante}
+              onPredEscanteiosChange={setPredEscanteios}
               loading={loading}
               onSubmit={() => void handleSubmit()}
               onClose={handleClose}

@@ -9,11 +9,11 @@ import {
   channelIncludesPush,
 } from "@/app/admin/(panel)/notifications/AdminNotificationChannelPicker";
 import { AdminPushUrlField } from "@/app/admin/(panel)/notifications/AdminPushUrlField";
-import type { AdminBrasilEgitoPromoDashboard } from "@/lib/admin/brasil-egito-placar-promo";
+import type { AdminBrasilMarrocosPromoDashboard } from "@/lib/admin/brasil-marrocos-placar-promo";
 import {
-  buildBrasilEgitoPromoEmailPresets,
-  listBrasilEgitoPromoWinnerRows,
-  listBrasilEgitoPromoWinnerUserIds,
+  buildBrasilMarrocosPromoEmailPresets,
+  listBrasilMarrocosPromoWinnerRows,
+  listBrasilMarrocosPromoWinnerUserIds,
   type PromoEmailAudience,
 } from "@/lib/admin/promo-email-presets";
 import type { AdminBroadcastChannel } from "@/lib/notifications/admin-broadcast-shared";
@@ -111,9 +111,9 @@ function submitButtonLabel(channels: AdminBroadcastChannel[]): string {
 export function AdminPromoEmailDispatch({
   data,
 }: {
-  data: AdminBrasilEgitoPromoDashboard;
+  data: AdminBrasilMarrocosPromoDashboard;
 }) {
-  const presets = useMemo(() => buildBrasilEgitoPromoEmailPresets(data), [data]);
+  const presets = useMemo(() => buildBrasilMarrocosPromoEmailPresets(data), [data]);
   const resultLabel =
     data.officialResult != null
       ? `${data.officialResult.casa} x ${data.officialResult.visitante}`
@@ -140,11 +140,11 @@ export function AdminPromoEmailDispatch({
   const [success, setSuccess] = useState<string | null>(null);
 
   const userIds = useMemo(
-    () => listBrasilEgitoPromoWinnerUserIds(data.rows, audience),
+    () => listBrasilMarrocosPromoWinnerUserIds(data.rows, audience),
     [audience, data.rows],
   );
   const winnerRows = useMemo(
-    () => listBrasilEgitoPromoWinnerRows(data.rows, audience),
+    () => listBrasilMarrocosPromoWinnerRows(data.rows, audience),
     [audience, data.rows],
   );
 
@@ -260,7 +260,7 @@ export function AdminPromoEmailDispatch({
               <div className="flex items-center gap-2">
                 <Megaphone className="size-5 text-primary" strokeWidth={2.2} />
                 <h2 className="text-[17px] font-black uppercase tracking-wide text-white">
-                  Disparo — Brasil x Egito
+                  Disparo — Brasil x Marrocos
                 </h2>
               </div>
               <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-white/55">

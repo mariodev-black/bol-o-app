@@ -1,6 +1,6 @@
 import type { StaticImageData } from "next/image";
 import bgModalPromo from "@/app/assets/bg-modal-promo2.png";
-import bannerPromoBrasilEgito from "@/app/assets/banner-promo-brasil-egito.png";
+import bannerPromoBrasilMarrocos from "@/app/assets/banner-promo-brasil-egito.png";
 import type {
   PromoHubCategory,
   PromoHubItemId,
@@ -21,8 +21,8 @@ export function promoHubCardImage(id: PromoHubItemId): StaticImageData {
   switch (id) {
     case "extra_gift":
       return bgModalPromo;
-    case "brasil_egito_placar":
-      return bannerPromoBrasilEgito;
+    case "brasil_marrocos_placar":
+      return bannerPromoBrasilMarrocos;
     default:
       return bgModalPromo;
   }

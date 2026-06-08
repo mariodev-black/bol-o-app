@@ -1,4 +1,4 @@
-import type { AdminBrasilEgitoPromoDashboard } from "@/lib/admin/brasil-egito-placar-promo";
+import type { AdminBrasilMarrocosPromoDashboard } from "@/lib/admin/brasil-marrocos-placar-promo";
 
 export type PromoEmailAudience = "free_ticket" | "shirt";
 
@@ -13,14 +13,14 @@ export type PromoEmailPreset = {
 };
 
 function formatOfficialScore(
-  result: AdminBrasilEgitoPromoDashboard["officialResult"],
+  result: AdminBrasilMarrocosPromoDashboard["officialResult"],
 ): string {
   if (!result) return "2 x 1";
   return `${result.casa} x ${result.visitante}`;
 }
 
-export function buildBrasilEgitoPromoEmailPresets(
-  data: AdminBrasilEgitoPromoDashboard,
+export function buildBrasilMarrocosPromoEmailPresets(
+  data: AdminBrasilMarrocosPromoDashboard,
 ): Record<PromoEmailAudience, PromoEmailPreset> {
   const score = formatOfficialScore(data.officialResult);
   const friendsGoal = data.friendsGoal;
@@ -28,9 +28,9 @@ export function buildBrasilEgitoPromoEmailPresets(
   return {
     free_ticket: {
       audience: "free_ticket",
-      title: "Parabéns! Você acertou o placar Brasil x Egito",
+      title: "Parabéns! Você acertou o placar Brasil x Marrocos",
       preview: "Sua cota grátis no Bolão do Milhão foi liberada.",
-      body: `Você acertou o placar exato do amistoso Brasil ${score} Egito na promoção do Bolão do Milhão! 🎉
+      body: `Você acertou o placar exato do amistoso Brasil ${score} Marrocos na promoção do Bolão do Milhão! 🎉
 
 Em breve nossa equipe entrará em contato para liberar sua cota grátis. Fique de olho no e-mail e no app.`,
       includeEmailButton: true,
@@ -41,7 +41,7 @@ Em breve nossa equipe entrará em contato para liberar sua cota grátis. Fique d
       audience: "shirt",
       title: "Parabéns! Você ganhou a camisa oficial",
       preview: `Placar exato + ${friendsGoal} indicações — camisa da Seleção liberada.`,
-      body: `Você acertou o placar exato do amistoso Brasil ${score} Egito e completou ${friendsGoal} indicações válidas! 🏆
+      body: `Você acertou o placar exato do amistoso Brasil ${score} Marrocos e completou ${friendsGoal} indicações válidas! 🏆
 
 Sua camisa oficial da Seleção Brasileira será enviada em breve. Nossa equipe entrará em contato para confirmar endereço e tamanho.`,
       includeEmailButton: true,
@@ -51,8 +51,8 @@ Sua camisa oficial da Seleção Brasileira será enviada em breve. Nossa equipe 
   };
 }
 
-export function listBrasilEgitoPromoWinnerUserIds(
-  rows: AdminBrasilEgitoPromoDashboard["rows"],
+export function listBrasilMarrocosPromoWinnerUserIds(
+  rows: AdminBrasilMarrocosPromoDashboard["rows"],
   audience: PromoEmailAudience,
 ): string[] {
   const filtered =
@@ -63,8 +63,8 @@ export function listBrasilEgitoPromoWinnerUserIds(
   return filtered.map((row) => row.userId);
 }
 
-export function listBrasilEgitoPromoWinnerRows(
-  rows: AdminBrasilEgitoPromoDashboard["rows"],
+export function listBrasilMarrocosPromoWinnerRows(
+  rows: AdminBrasilMarrocosPromoDashboard["rows"],
   audience: PromoEmailAudience,
 ) {
   return audience === "shirt"

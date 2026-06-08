@@ -1,16 +1,16 @@
 /**
- * Promo "Acerte o placar exato — Amistoso Brasil x Egito".
+ * Promo "Acerte o placar exato — Amistoso Brasil x Marrocos".
  * Estrutura independente da promo Brasil x Panamá.
  */
 
 import { getPool } from "@/lib/db";
 import { getAppOrigin } from "@/lib/seo/config";
-import { BRASIL_EGITO_PLACAR_FRIENDS_GOAL } from "@/lib/promotions/brasil-egito-guest-flow";
+import { BRASIL_MARROCOS_PLACAR_FRIENDS_GOAL } from "@/lib/promotions/brasil-marrocos-guest-flow";
 
-export { BRASIL_EGITO_PLACAR_FRIENDS_GOAL };
+export { BRASIL_MARROCOS_PLACAR_FRIENDS_GOAL };
 
-/** Partida alvo da promo — Amistoso Brasil x Egito (06/06, 19:00). */
-export const BRASIL_EGITO_PLACAR_MATCH_ID = 90606004;
+/** Partida alvo da promo — Amistoso Brasil x Marrocos. TODO: atualizar com o match_id correto. */
+export const BRASIL_MARROCOS_PLACAR_MATCH_ID = 90606004;
 
 function env(name: string): string {
   const raw = process.env[name];
@@ -23,11 +23,11 @@ function envBool(name: string, defaultValue = false): boolean {
   return s === "1" || s === "true" || s === "yes" || s === "on";
 }
 
-/** Palpite fecha 5 min antes do apito (19:00 BRT → 18:55). */
-const DEFAULT_BRASIL_EGITO_PLACAR_CLOSES_AT = "2026-06-06T18:55:00-03:00";
+/** Palpite fecha 5 min antes do apito. TODO: atualizar para a data/hora do amistoso Brasil x Marrocos. */
+const DEFAULT_BRASIL_MARROCOS_PLACAR_CLOSES_AT = "2026-07-06T18:55:00-03:00";
 
-export function isBrasilEgitoPlacarPromoEnabled(): boolean {
-  return envBool("BRASIL_EGITO_PLACAR_PROMO_ENABLED", false);
+export function isBrasilMarrocosPlacarPromoEnabled(): boolean {
+  return envBool("BRASIL_MARROCOS_PLACAR_PROMO_ENABLED", false);
 }
 
 function parseClosesAtMs(raw: string): number | null {
@@ -35,25 +35,25 @@ function parseClosesAtMs(raw: string): number | null {
   return Number.isFinite(ms) ? ms : null;
 }
 
-export function getBrasilEgitoPlacarPromoClosesAtMs(): number | null {
-  const fromEnv = env("BRASIL_EGITO_PLACAR_CLOSES_AT");
+export function getBrasilMarrocosPlacarPromoClosesAtMs(): number | null {
+  const fromEnv = env("BRASIL_MARROCOS_PLACAR_CLOSES_AT");
   if (fromEnv) {
     const ms = parseClosesAtMs(fromEnv);
     if (ms != null) return ms;
   }
-  return parseClosesAtMs(DEFAULT_BRASIL_EGITO_PLACAR_CLOSES_AT);
+  return parseClosesAtMs(DEFAULT_BRASIL_MARROCOS_PLACAR_CLOSES_AT);
 }
 
-export function isBrasilEgitoPlacarPromoSubmissionOpen(
+export function isBrasilMarrocosPlacarPromoSubmissionOpen(
   nowMs = Date.now(),
 ): boolean {
-  if (!isBrasilEgitoPlacarPromoEnabled()) return false;
-  const closesAt = getBrasilEgitoPlacarPromoClosesAtMs();
+  if (!isBrasilMarrocosPlacarPromoEnabled()) return false;
+  const closesAt = getBrasilMarrocosPlacarPromoClosesAtMs();
   if (closesAt == null) return true;
   return nowMs < closesAt;
 }
 
-export type BrasilEgitoPlacarPromoStatus = {
+export type BrasilMarrocosPlacarPromoStatus = {
   enabled: boolean;
   showOfferModal: boolean;
   hasBet: boolean;
@@ -64,9 +64,10 @@ export type BrasilEgitoPlacarPromoStatus = {
   friendsGoal: number;
   predCasa: number | null;
   predVisitante: number | null;
+  escanteiosBrasil: number | null;
 };
 
-async function countUserBrasilEgitoMatchPredictions(userId: string): Promise<number> {
+async function countUserBrasilMarrocosMatchPredictions(userId: string): Promise<number> {
   const pool = getPool();
   const { rows } = await pool.query<{ n: number }>(
     `SELECT COUNT(*)::int AS n
@@ -76,12 +77,12 @@ async function countUserBrasilEgitoMatchPredictions(userId: string): Promise<num
        AND p.match_id = $2
        AND t.status IN ('paid', 'approved')
        AND NOT COALESCE(t.is_promo_bonus, false)`,
-    [userId, BRASIL_EGITO_PLACAR_MATCH_ID],
+    [userId, BRASIL_MARROCOS_PLACAR_MATCH_ID],
   );
   return Number(rows[0]?.n) || 0;
 }
 
-async function findBrasilEgitoMatchPrediction(userId: string): Promise<{
+async function findBrasilMarrocosMatchPrediction(userId: string): Promise<{
   predCasa: number;
   predVisitante: number;
 } | null> {
@@ -99,7 +100,7 @@ async function findBrasilEgitoMatchPrediction(userId: string): Promise<{
        AND NOT COALESCE(t.is_promo_bonus, false)
      ORDER BY p.updated_at DESC NULLS LAST, p.submitted_at DESC
      LIMIT 1`,
-    [userId, BRASIL_EGITO_PLACAR_MATCH_ID],
+    [userId, BRASIL_MARROCOS_PLACAR_MATCH_ID],
   );
   const row = rows[0];
   if (!row) return null;
@@ -123,12 +124,13 @@ async function countUserReferralSignups(userId: string): Promise<number> {
 async function findSubmission(userId: string): Promise<{
   predCasa: number;
   predVisitante: number;
+  escanteiosBrasil: number;
 } | null> {
-  await ensureBrasilEgitoPlacarPromoTable();
+  await ensureBrasilMarrocosPlacarPromoTable();
   const pool = getPool();
-  const { rows } = await pool.query<{ pred_casa: number; pred_visitante: number }>(
-    `SELECT pred_casa, pred_visitante
-     FROM brasil_egito_placar_promo_submissions
+  const { rows } = await pool.query<{ pred_casa: number; pred_visitante: number; escanteios_brasil: number }>(
+    `SELECT pred_casa, pred_visitante, escanteios_brasil
+     FROM brasil_marrocos_placar_promo_submissions
      WHERE user_id = $1::uuid
      LIMIT 1`,
     [userId],
@@ -138,6 +140,7 @@ async function findSubmission(userId: string): Promise<{
   return {
     predCasa: Number(row.pred_casa),
     predVisitante: Number(row.pred_visitante),
+    escanteiosBrasil: Number(row.escanteios_brasil),
   };
 }
 
@@ -158,26 +161,32 @@ function buildSignupLink(referralCode: string): string {
 
 let tableReady: Promise<void> | null = null;
 
-async function ensureBrasilEgitoPlacarPromoTable(): Promise<void> {
+async function ensureBrasilMarrocosPlacarPromoTable(): Promise<void> {
   if (!tableReady) {
     tableReady = (async () => {
       const pool = getPool();
       await pool.query(`
-        CREATE TABLE IF NOT EXISTS brasil_egito_placar_promo_submissions (
+        CREATE TABLE IF NOT EXISTS brasil_marrocos_placar_promo_submissions (
           user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
           pred_casa SMALLINT NOT NULL CHECK (pred_casa >= 0 AND pred_casa <= 99),
           pred_visitante SMALLINT NOT NULL CHECK (pred_visitante >= 0 AND pred_visitante <= 99),
+          escanteios_brasil SMALLINT NOT NULL DEFAULT 0 CHECK (escanteios_brasil >= 0 AND escanteios_brasil <= 99),
+          validated_at TIMESTAMPTZ,
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
-        CREATE INDEX IF NOT EXISTS brasil_egito_placar_promo_submissions_created_at_idx
-          ON brasil_egito_placar_promo_submissions (created_at DESC);
+        ALTER TABLE brasil_marrocos_placar_promo_submissions
+          ADD COLUMN IF NOT EXISTS escanteios_brasil SMALLINT NOT NULL DEFAULT 0 CHECK (escanteios_brasil >= 0 AND escanteios_brasil <= 99);
+        ALTER TABLE brasil_marrocos_placar_promo_submissions
+          ADD COLUMN IF NOT EXISTS validated_at TIMESTAMPTZ;
+        CREATE INDEX IF NOT EXISTS brasil_marrocos_placar_promo_submissions_created_at_idx
+          ON brasil_marrocos_placar_promo_submissions (created_at DESC);
       `);
     })();
   }
   await tableReady;
 }
 
-const EMPTY_STATUS = (): BrasilEgitoPlacarPromoStatus => ({
+const EMPTY_STATUS = (): BrasilMarrocosPlacarPromoStatus => ({
   enabled: false,
   showOfferModal: false,
   hasBet: false,
@@ -185,23 +194,24 @@ const EMPTY_STATUS = (): BrasilEgitoPlacarPromoStatus => ({
   referralCode: "",
   signupLink: buildSignupLink(""),
   friendsInvited: 0,
-  friendsGoal: BRASIL_EGITO_PLACAR_FRIENDS_GOAL,
+  friendsGoal: BRASIL_MARROCOS_PLACAR_FRIENDS_GOAL,
   predCasa: null,
   predVisitante: null,
+  escanteiosBrasil: null,
 });
 
-export async function getBrasilEgitoPlacarPromoStatusForUser(
+export async function getBrasilMarrocosPlacarPromoStatusForUser(
   userId: string,
-): Promise<BrasilEgitoPlacarPromoStatus> {
-  if (!isBrasilEgitoPlacarPromoSubmissionOpen()) {
+): Promise<BrasilMarrocosPlacarPromoStatus> {
+  if (!isBrasilMarrocosPlacarPromoSubmissionOpen()) {
     return EMPTY_STATUS();
   }
 
   const [matchPredictionsCount, submission, matchPrediction, friendsInvited, referralCode] =
     await Promise.all([
-      countUserBrasilEgitoMatchPredictions(userId),
+      countUserBrasilMarrocosMatchPredictions(userId),
       findSubmission(userId),
-      findBrasilEgitoMatchPrediction(userId),
+      findBrasilMarrocosMatchPrediction(userId),
       countUserReferralSignups(userId),
       getUserReferralCode(userId),
     ]);
@@ -218,23 +228,25 @@ export async function getBrasilEgitoPlacarPromoStatusForUser(
     referralCode,
     signupLink,
     friendsInvited,
-    friendsGoal: BRASIL_EGITO_PLACAR_FRIENDS_GOAL,
+    friendsGoal: BRASIL_MARROCOS_PLACAR_FRIENDS_GOAL,
     predCasa: submission?.predCasa ?? matchPrediction?.predCasa ?? null,
     predVisitante:
       submission?.predVisitante ?? matchPrediction?.predVisitante ?? null,
+    escanteiosBrasil: submission?.escanteiosBrasil ?? null,
   };
 }
 
-export type SubmitBrasilEgitoPlacarResult =
-  | { ok: true; status: BrasilEgitoPlacarPromoStatus }
+export type SubmitBrasilMarrocosPlacarResult =
+  | { ok: true; status: BrasilMarrocosPlacarPromoStatus }
   | { ok: false; error: string };
 
-export async function submitBrasilEgitoPlacarPromoForUser(
+export async function submitBrasilMarrocosPlacarPromoForUser(
   userId: string,
   predCasa: number,
   predVisitante: number,
-): Promise<SubmitBrasilEgitoPlacarResult> {
-  if (!isBrasilEgitoPlacarPromoSubmissionOpen()) {
+  escanteiosBrasil: number,
+): Promise<SubmitBrasilMarrocosPlacarResult> {
+  if (!isBrasilMarrocosPlacarPromoSubmissionOpen()) {
     return { ok: false, error: "Palpite encerrado. A partida já começou." };
   }
 
@@ -249,12 +261,20 @@ export async function submitBrasilEgitoPlacarPromoForUser(
     return { ok: false, error: "Placar inválido." };
   }
 
+  if (
+    !Number.isFinite(escanteiosBrasil) ||
+    escanteiosBrasil < 0 ||
+    escanteiosBrasil > 99
+  ) {
+    return { ok: false, error: "Número de escanteios inválido." };
+  }
+
   const existingSubmission = await findSubmission(userId);
   if (existingSubmission) {
     return { ok: false, error: "Você já enviou seu palpite nesta promoção." };
   }
 
-  const matchPredictionsCount = await countUserBrasilEgitoMatchPredictions(userId);
+  const matchPredictionsCount = await countUserBrasilMarrocosMatchPredictions(userId);
   if (matchPredictionsCount > 0) {
     return {
       ok: false,
@@ -262,15 +282,16 @@ export async function submitBrasilEgitoPlacarPromoForUser(
     };
   }
 
-  await ensureBrasilEgitoPlacarPromoTable();
+  await ensureBrasilMarrocosPlacarPromoTable();
   const pool = getPool();
   await pool.query(
-    `INSERT INTO brasil_egito_placar_promo_submissions (user_id, pred_casa, pred_visitante)
-     VALUES ($1::uuid, $2, $3)
+    `INSERT INTO brasil_marrocos_placar_promo_submissions (user_id, pred_casa, pred_visitante, escanteios_brasil)
+     VALUES ($1::uuid, $2, $3, $4)
      ON CONFLICT (user_id) DO UPDATE SET
        pred_casa = EXCLUDED.pred_casa,
-       pred_visitante = EXCLUDED.pred_visitante`,
-    [userId, predCasa, predVisitante],
+       pred_visitante = EXCLUDED.pred_visitante,
+       escanteios_brasil = EXCLUDED.escanteios_brasil`,
+    [userId, predCasa, predVisitante, escanteiosBrasil],
   );
 
   const saved = await findSubmission(userId);
@@ -282,6 +303,20 @@ export async function submitBrasilEgitoPlacarPromoForUser(
     return { ok: false, error: "Não foi possível confirmar o palpite salvo." };
   }
 
-  const status = await getBrasilEgitoPlacarPromoStatusForUser(userId);
+  const status = await getBrasilMarrocosPlacarPromoStatusForUser(userId);
   return { ok: true, status };
+}
+
+/** Marca participação como válida após pagamento aprovado. */
+export async function validateBrasilMarrocosPlacarPromoSubmission(
+  userId: string,
+): Promise<void> {
+  await ensureBrasilMarrocosPlacarPromoTable();
+  const pool = getPool();
+  await pool.query(
+    `UPDATE brasil_marrocos_placar_promo_submissions
+     SET validated_at = NOW()
+     WHERE user_id = $1::uuid AND validated_at IS NULL`,
+    [userId],
+  );
 }

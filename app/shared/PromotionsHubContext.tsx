@@ -218,8 +218,8 @@ export function PromotionsHubProvider({ children }: { children: ReactNode }) {
 
     let cancelled = false;
     const prefetchPromotions = async () => {
-      const [egitoRes, extraRes] = await Promise.all([
-        fetch("/api/promotions/brasil-egito-placar", {
+      const [marrocosRes, extraRes] = await Promise.all([
+        fetch("/api/promotions/brasil-marrocos-placar", {
           credentials: "include",
           cache: "no-store",
         }),
@@ -229,8 +229,8 @@ export function PromotionsHubProvider({ children }: { children: ReactNode }) {
         }),
       ]);
       if (cancelled) return;
-      if (egitoRes.ok) {
-        setPromotionPrefetch("brasil_egito_placar", await egitoRes.json());
+      if (marrocosRes.ok) {
+        setPromotionPrefetch("brasil_marrocos_placar", await marrocosRes.json());
       }
       if (extraRes.ok) {
         setPromotionPrefetch("extra_gift", await extraRes.json());

@@ -2,31 +2,31 @@ import "server-only";
 
 import { getPool } from "@/lib/db";
 import {
-  BRASIL_EGITO_PLACAR_FRIENDS_GOAL,
-  BRASIL_EGITO_PLACAR_MATCH_ID,
-  getBrasilEgitoPlacarPromoClosesAtMs,
-  isBrasilEgitoPlacarPromoEnabled,
-  isBrasilEgitoPlacarPromoSubmissionOpen,
-} from "@/lib/promotions/brasil-egito-placar-promo";
+  BRASIL_MARROCOS_PLACAR_FRIENDS_GOAL,
+  BRASIL_MARROCOS_PLACAR_MATCH_ID,
+  getBrasilMarrocosPlacarPromoClosesAtMs,
+  isBrasilMarrocosPlacarPromoEnabled,
+  isBrasilMarrocosPlacarPromoSubmissionOpen,
+} from "@/lib/promotions/brasil-marrocos-placar-promo";
 
 function env(name: string): string {
   const raw = process.env[name];
   return raw == null ? "" : String(raw).trim();
 }
 
-/** Placar confirmado — Brasil 2 x 1 Egito (06/06/2026). */
-const BRASIL_EGITO_CONFIRMED_RESULT = { casa: 2, visitante: 1 } as const;
+/** Placar confirmado — Brasil 2 x 1 Marrocos (06/06/2026). */
+const BRASIL_MARROCOS_CONFIRMED_RESULT = { casa: 2, visitante: 1 } as const;
 
-export type BrasilEgitoPlacarOfficialResultSource =
+export type BrasilMarrocosPlacarOfficialResultSource =
   | "env"
   | "match_cache"
   | "confirmed";
 
-export type BrasilEgitoPlacarOfficialResult = {
+export type BrasilMarrocosPlacarOfficialResult = {
   casa: number;
   visitante: number;
   configured: boolean;
-  source: BrasilEgitoPlacarOfficialResultSource;
+  source: BrasilMarrocosPlacarOfficialResultSource;
 };
 
 function parseOfficialScores(
@@ -47,16 +47,16 @@ function parseOfficialScores(
   return { casa, visitante };
 }
 
-function getBrasilEgitoPlacarOfficialResultFromEnv(): BrasilEgitoPlacarOfficialResult | null {
+function getBrasilMarrocosPlacarOfficialResultFromEnv(): BrasilMarrocosPlacarOfficialResult | null {
   const parsed = parseOfficialScores(
-    env("BRASIL_EGITO_PLACAR_RESULT_CASA"),
-    env("BRASIL_EGITO_PLACAR_RESULT_VISITANTE"),
+    env("BRASIL_MARROCOS_PLACAR_RESULT_CASA"),
+    env("BRASIL_MARROCOS_PLACAR_RESULT_VISITANTE"),
   );
   if (!parsed) return null;
   return { ...parsed, configured: true, source: "env" };
 }
 
-async function getBrasilEgitoPlacarOfficialResultFromMatchCache(): Promise<BrasilEgitoPlacarOfficialResult | null> {
+async function getBrasilMarrocosPlacarOfficialResultFromMatchCache(): Promise<BrasilMarrocosPlacarOfficialResult | null> {
   const pool = getPool();
   const { rows } = await pool.query<{
     result_casa: number | null;
@@ -66,7 +66,7 @@ async function getBrasilEgitoPlacarOfficialResultFromMatchCache(): Promise<Brasi
      FROM matches_cache
      WHERE match_id = $1
      LIMIT 1`,
-    [BRASIL_EGITO_PLACAR_MATCH_ID],
+    [BRASIL_MARROCOS_PLACAR_MATCH_ID],
   );
   const row = rows[0];
   if (row?.result_casa == null || row?.result_visitante == null) return null;
@@ -83,26 +83,26 @@ async function getBrasilEgitoPlacarOfficialResultFromMatchCache(): Promise<Brasi
   return { casa, visitante, configured: true, source: "match_cache" };
 }
 
-export async function resolveBrasilEgitoPlacarOfficialResult(): Promise<BrasilEgitoPlacarOfficialResult | null> {
-  const fromEnv = getBrasilEgitoPlacarOfficialResultFromEnv();
+export async function resolveBrasilMarrocosPlacarOfficialResult(): Promise<BrasilMarrocosPlacarOfficialResult | null> {
+  const fromEnv = getBrasilMarrocosPlacarOfficialResultFromEnv();
   if (fromEnv) return fromEnv;
 
-  const fromCache = await getBrasilEgitoPlacarOfficialResultFromMatchCache();
+  const fromCache = await getBrasilMarrocosPlacarOfficialResultFromMatchCache();
   if (fromCache) return fromCache;
 
   return {
-    ...BRASIL_EGITO_CONFIRMED_RESULT,
+    ...BRASIL_MARROCOS_CONFIRMED_RESULT,
     configured: true,
     source: "confirmed",
   };
 }
 
-/** @deprecated Prefer `resolveBrasilEgitoPlacarOfficialResult()`. */
-export function getBrasilEgitoPlacarOfficialResult(): BrasilEgitoPlacarOfficialResult | null {
-  return getBrasilEgitoPlacarOfficialResultFromEnv();
+/** @deprecated Prefer `resolveBrasilMarrocosPlacarOfficialResult()`. */
+export function getBrasilMarrocosPlacarOfficialResult(): BrasilMarrocosPlacarOfficialResult | null {
+  return getBrasilMarrocosPlacarOfficialResultFromEnv();
 }
 
-export type AdminBrasilEgitoPlacarRow = {
+export type AdminBrasilMarrocosPlacarRow = {
   userId: string;
   userName: string | null;
   userEmail: string;
@@ -116,11 +116,11 @@ export type AdminBrasilEgitoPlacarRow = {
   freeTicketPrizeEligible: boolean;
 };
 
-export type AdminBrasilEgitoPromoDashboard = {
+export type AdminBrasilMarrocosPromoDashboard = {
   promoEnabled: boolean;
   submissionOpen: boolean;
   closesAtIso: string | null;
-  officialResult: BrasilEgitoPlacarOfficialResult | null;
+  officialResult: BrasilMarrocosPlacarOfficialResult | null;
   friendsGoal: number;
   stats: {
     submissionsCount: number;
@@ -128,13 +128,13 @@ export type AdminBrasilEgitoPromoDashboard = {
     freeTicketEligibleCount: number;
     shirtEligibleCount: number;
   };
-  rows: AdminBrasilEgitoPlacarRow[];
+  rows: AdminBrasilMarrocosPlacarRow[];
 };
 
-export async function getAdminBrasilEgitoPromoDashboard(): Promise<AdminBrasilEgitoPromoDashboard> {
+export async function getAdminBrasilMarrocosPromoDashboard(): Promise<AdminBrasilMarrocosPromoDashboard> {
   const pool = getPool();
-  const officialResult = await resolveBrasilEgitoPlacarOfficialResult();
-  const friendsGoal = BRASIL_EGITO_PLACAR_FRIENDS_GOAL;
+  const officialResult = await resolveBrasilMarrocosPlacarOfficialResult();
+  const friendsGoal = BRASIL_MARROCOS_PLACAR_FRIENDS_GOAL;
 
   const { rows } = await pool.query<{
     user_id: string;
@@ -153,7 +153,7 @@ export async function getAdminBrasilEgitoPromoDashboard(): Promise<AdminBrasilEg
        s.pred_visitante,
        s.created_at,
        COALESCE(ref.n, 0)::int AS friends_invited
-     FROM brasil_egito_placar_promo_submissions s
+     FROM brasil_marrocos_placar_promo_submissions s
      INNER JOIN users u ON u.id = s.user_id
      LEFT JOIN LATERAL (
        SELECT COUNT(*)::int AS n
@@ -163,7 +163,7 @@ export async function getAdminBrasilEgitoPromoDashboard(): Promise<AdminBrasilEg
      ORDER BY s.created_at DESC`,
   );
 
-  const mapped: AdminBrasilEgitoPlacarRow[] = rows.map((row) => {
+  const mapped: AdminBrasilMarrocosPlacarRow[] = rows.map((row) => {
     const predCasa = Number(row.pred_casa);
     const predVisitante = Number(row.pred_visitante);
     const friendsInvited = Number(row.friends_invited) || 0;
@@ -195,10 +195,10 @@ export async function getAdminBrasilEgitoPromoDashboard(): Promise<AdminBrasilEg
   });
 
   return {
-    promoEnabled: isBrasilEgitoPlacarPromoEnabled(),
-    submissionOpen: isBrasilEgitoPlacarPromoSubmissionOpen(),
+    promoEnabled: isBrasilMarrocosPlacarPromoEnabled(),
+    submissionOpen: isBrasilMarrocosPlacarPromoSubmissionOpen(),
     closesAtIso: (() => {
-      const ms = getBrasilEgitoPlacarPromoClosesAtMs();
+      const ms = getBrasilMarrocosPlacarPromoClosesAtMs();
       return ms == null ? null : new Date(ms).toISOString();
     })(),
     officialResult,

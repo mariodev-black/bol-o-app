@@ -3,7 +3,7 @@
  * Ordem fixa (branding): Copa do Mundo 2026 → Brasileirão → Premier League.
  */
 
-import { getCopaChampionshipId } from "@/lib/boloes-extra-config";
+import { getCopaChampionshipId, parseExtraBolaoChampionshipIds } from "@/lib/boloes-extra-config";
 
 export { getCopaChampionshipId } from "@/lib/boloes-extra-config";
 
@@ -69,14 +69,14 @@ function resolveOutrosBolaoParticipants(
 export function getOutrosBoloesGridItems(
   participantsByChampionship: Record<number, number> = {},
 ): OutrosBolaoGridItem[] {
-  return OUTROS_BOLAO_ITEM_DEFS.map((def) => ({
-    championshipId: def.championshipId,
-    label: def.label,
-    participants: resolveOutrosBolaoParticipants(
-      def.championshipId,
-      participantsByChampionship,
-    ),
-  }));
+  const activeExtraIds = new Set(parseExtraBolaoChampionshipIds());
+  return OUTROS_BOLAO_ITEM_DEFS.filter((def) => activeExtraIds.has(def.championshipId)).map(
+    (def) => ({
+      championshipId: def.championshipId,
+      label: def.label,
+      participants: resolveOutrosBolaoParticipants(def.championshipId, participantsByChampionship),
+    }),
+  );
 }
 
 /** IDs na ordem de exibição do grid (Copa primeiro). */
