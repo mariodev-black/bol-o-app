@@ -52,8 +52,8 @@ const OPTIONS = [
     qty: 2,
     label: "COTAS",
     description: "Mais chances do milhão",
-    priceCents: 6390,
-    originalCents: 8390,
+    priceCents: 5980,
+    originalCents: 7980,
     savingsCents: 2000,
     badge: "MAIS VENDIDO",
   },
@@ -62,8 +62,8 @@ const OPTIONS = [
     qty: 3,
     label: "COTAS",
     description: "Máxima chance de premiação",
-    priceCents: 8790,
-    originalCents: 11790,
+    priceCents: 8970,
+    originalCents: 11970,
     savingsCents: 3000,
     badge: null,
   },
@@ -216,11 +216,11 @@ function ShopScreen({
                   {/* Price */}
                   <div className="ml-1 shrink-0 text-right">
                     {opt.originalCents ? (
-                      <p className="text-[10px] font-medium leading-snug text-white/30 line-through">
+                      <p className="text-[11px] font-medium leading-snug text-white/30 line-through">
                         {fmt(opt.originalCents)}
                       </p>
                     ) : null}
-                    <p className="text-[15px] font-black leading-tight text-white">
+                    <p className="text-[19px] font-black leading-tight text-white">
                       {fmt(opt.priceCents)}
                     </p>
                     {opt.savingsCents ? (
