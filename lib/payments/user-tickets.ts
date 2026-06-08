@@ -1,4 +1,5 @@
 import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
+import { isSkaleBolaoCompetition } from "@/lib/boloes/skale-config";
 import { isBolaoScopeRoundComplete } from "@/lib/boloes/display-status";
 import {
   bolaoPhaseScopeForPaidTicket,
@@ -103,10 +104,12 @@ export async function listPaidTicketsForUser(
         compId != null && Number.isFinite(Number(compId)) ? Number(compId) : 0;
       const extraRoundNumber: number | null =
         r.ticket_type === "extra" && compNum > 0
-          ? effectiveExtraRoundForPaidTicket({
-              championshipId: compNum,
-              roundNumberFromDb: r.round_number,
-            })
+          ? isSkaleBolaoCompetition(compNum)
+            ? null
+            : effectiveExtraRoundForPaidTicket({
+                championshipId: compNum,
+                roundNumberFromDb: r.round_number,
+              })
           : null;
       return {
         id: r.id,
@@ -187,6 +190,9 @@ export async function listPaidTicketsForUser(
       const extraRound = paidTicketExtraRoundNumber(t);
 
       const openInTicketScope = (om: OpenMatch): boolean => {
+        if (isSkaleBolaoCompetition(scopeComp)) {
+          return om.competitionId === scopeComp;
+        }
         if (extraRound == null) return om.dateBR === playableDate;
         const m = getMatchFromMap(matchMap, scopeComp, om.matchId);
         return m != null && Number(m.rodada) === extraRound;

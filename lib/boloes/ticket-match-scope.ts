@@ -1,5 +1,6 @@
 import type { BolaoMatchPhaseInput } from "@/lib/boloes/display-status";
 import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
+import { isSkaleBolaoCompetition } from "@/lib/boloes/skale-config";
 import { resolveDiarioPlayableDate } from "@/lib/diario-playable-date";
 import { getMatchFromMap, type MatchMap, type MatchMapEntry } from "@/lib/football-api";
 import type { PaidTicketRow } from "@/lib/payments/user-tickets";
@@ -121,6 +122,10 @@ export function scopeMatchesForPaidTicket(
 
   const comp = Number(ticket.extraChampionshipId);
   if (!Number.isFinite(comp) || comp <= 0) return [];
+
+  if (isSkaleBolaoCompetition(comp)) {
+    return list.filter((m) => (Number(m.competitionId) || comp) === comp);
+  }
 
   const round =
     opts?.extraRoundNumber != null &&

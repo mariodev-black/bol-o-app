@@ -190,6 +190,18 @@ async function runRealtimeTickUnlocked(): Promise<RealtimeTickResult> {
     runCascadingClosures: true,
   });
 
+  const copaId = Number(process.env.FOOTBALL_COMPETITION_ID || "72") || 72;
+  if (updates.some((m) => Number(m.competitionId) === copaId)) {
+    try {
+      const { mirrorSkaleBolaoMatchesFromCopa } = await import(
+        "@/lib/football/skale-bolao-sync"
+      );
+      await mirrorSkaleBolaoMatchesFromCopa();
+    } catch (err) {
+      console.warn("[realtime-worker] mirror Skale bolão:", err);
+    }
+  }
+
   return {
     selected: rows.length,
     fetched: updates.length,

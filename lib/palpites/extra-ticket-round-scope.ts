@@ -1,5 +1,6 @@
 import "server-only";
 
+import { isSkaleBolaoCompetition } from "@/lib/boloes/skale-config";
 import { getPool } from "@/lib/db";
 import { fetchMatchesMap, getMatchFromMap, type MatchMap } from "@/lib/football-api";
 import { resolveDiarioPlayableDate } from "@/lib/diario-playable-date";
@@ -35,6 +36,7 @@ export async function resolveExtraTicketRoundScope(
 
   const competitionId = Number(row.extra_championship_id);
   if (!Number.isFinite(competitionId) || competitionId <= 0) return null;
+  if (isSkaleBolaoCompetition(competitionId)) return null;
 
   const fromDb =
     row.round_number != null &&

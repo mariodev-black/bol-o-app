@@ -4,7 +4,6 @@ import React, { Suspense } from "react";
 import { BolaoToastProvider } from "@/app/components/BolaoToast";
 import { AuthProvider } from "@/app/shared/AuthContext";
 import { AppServerConfigProvider } from "@/app/shared/AppServerConfigContext";
-import { BrasilEgitoPlacarPromoHost } from "@/app/shared/BrasilEgitoPlacarPromoHost";
 import { ExtraGiftPromoHost } from "@/app/shared/ExtraGiftPromoHost";
 import { PromotionsHubProvider } from "@/app/shared/PromotionsHubContext";
 import { HomeAuthModalProvider } from "@/app/shared/HomeAuthModalContext";
@@ -38,16 +37,14 @@ export function Providers({
           <HomeAuthModalProvider>
           <MainBolaoPromoModalHost>
           <ExtraGiftPromoHost>
-          <BrasilEgitoPlacarPromoHost>
             <ChampionsPlacarPromoHost>
-                  <HomeAuthModalHost />
-                  <Suspense fallback={null}>
-                    <ReferralCapture />
-                    <PromotionsHubDeepLink />
-                  </Suspense>
-                  <SidenavProvider>{children}</SidenavProvider>
+              <HomeAuthModalHost />
+              <Suspense fallback={null}>
+                <ReferralCapture />
+                <PromotionsHubDeepLink />
+              </Suspense>
+              <SidenavProvider>{children}</SidenavProvider>
             </ChampionsPlacarPromoHost>
-          </BrasilEgitoPlacarPromoHost>
           </ExtraGiftPromoHost>
           </MainBolaoPromoModalHost>
           </HomeAuthModalProvider>

@@ -5,16 +5,18 @@ import { getDepositTransactionById, updateTransactionStatusByProviderId } from "
 
 export const runtime = "nodejs";
 
-const patchSchema = z.object({
-  providerTransactionId: z.string().min(1).optional(),
-  status: z.string().min(1),
-  pix: z
-    .object({
-      qrcode: z.string().optional().nullable(),
-      end2EndId: z.string().optional().nullable(),
-    })
-    .optional(),
-});
+const patchSchema = z
+  .object({
+    providerTransactionId: z.string().min(1).optional(),
+    status: z.string().min(1),
+    pix: z
+      .object({
+        qrcode: z.string().optional().nullable(),
+        end2EndId: z.string().optional().nullable(),
+      })
+      .optional(),
+  })
+  .strict();
 
 async function authUserId(request: NextRequest): Promise<string | null> {
   const token = request.cookies.get(sessionCookieName())?.value;
@@ -37,10 +39,17 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
 }
 
 /**
- * Rota de atualizacao manual/operacional da transacao.
- * Tambem pode ser usada internamente para simular atualizacoes em desenvolvimento.
+ * Atualizacao manual só em desenvolvimento local.
+ * Em producao o status vem exclusivamente do webhook Skale (`/api/webhooks/skale`).
  */
 export async function PATCH(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json(
+      { error: "Atualizacao manual de transacao desabilitada em producao" },
+      { status: 403 },
+    );
+  }
+
   const userId = await authUserId(request);
   if (!userId) return NextResponse.json({ error: "Nao autenticado" }, { status: 401 });
 

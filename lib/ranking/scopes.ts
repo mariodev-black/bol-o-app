@@ -1,6 +1,7 @@
 import "server-only";
 
 import { resolveExtraBolaoDisplayName } from "@/lib/boloes-extra-competition-branding";
+import { isSkaleBolaoCompetition } from "@/lib/boloes/skale-config";
 import { warmCompetitionMetadataCache } from "@/lib/competition-metadata-cache";
 import {
   extraBolaoCurrentRoundsByChampionship,
@@ -158,8 +159,9 @@ export async function buildRankingScopes(
         Number(t.extraRoundNumber) > 0
           ? Number(t.extraRoundNumber)
           : null;
-      const roundLabel =
-        ticketRound != null
+      const roundLabel = isSkaleBolaoCompetition(compId)
+        ? "Copa inteira"
+        : ticketRound != null
           ? `${ticketRound}ª Rodada`
           : roundInfo?.roundLabel?.trim() || null;
       const selectPrimary = roundLabel

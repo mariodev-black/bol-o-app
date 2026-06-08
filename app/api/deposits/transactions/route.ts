@@ -16,6 +16,7 @@ import {
   type ExtraBolaoRoundInfo,
 } from "@/lib/ticket-shop-extra-rounds";
 import { responseForDbError } from "@/lib/db-errors";
+import { clientPriceFieldError, findClientPriceField } from "@/lib/payments/reject-client-price-fields";
 
 export const runtime = "nodejs";
 
@@ -34,20 +35,24 @@ const extraByChampionshipSchema = z
     return out;
   });
 
-const createCartSchema = z.object({
-  generalQuantity: z.number().int().min(0).max(20),
-  dailyQuantity: z.number().int().min(0).max(20),
-  /** Quantidade total de cotas “Bolão extra” (valor calculado só no servidor). */
-  extraQuantity: z.number().int().min(0).max(20).optional(),
-  /** Legado — ignorado se `extraQuantity` > 0. */
-  extraByChampionship: extraByChampionshipSchema,
-});
+const createCartSchema = z
+  .object({
+    generalQuantity: z.number().int().min(0).max(20),
+    dailyQuantity: z.number().int().min(0).max(20),
+    /** Quantidade total de cotas “Bolão extra” (valor calculado só no servidor). */
+    extraQuantity: z.number().int().min(0).max(20).optional(),
+    /** Legado — ignorado se `extraQuantity` > 0. */
+    extraByChampionship: extraByChampionshipSchema,
+  })
+  .strict();
 
-const createLegacySchema = z.object({
-  ticketType: z.enum(["general", "daily", "extra"]),
-  quantity: z.number().int().min(1).max(20).default(1),
-  extraChampionshipId: z.number().int().positive().optional(),
-});
+const createLegacySchema = z
+  .object({
+    ticketType: z.enum(["general", "daily", "extra"]),
+    quantity: z.number().int().min(1).max(20).default(1),
+    extraChampionshipId: z.number().int().positive().optional(),
+  })
+  .strict();
 
 export async function GET() {
   const ids = parseExtraBolaoChampionshipIds();
@@ -103,6 +108,11 @@ export async function POST(request: NextRequest) {
   }
 
   const raw = json as Record<string, unknown>;
+  const rejectedPriceField = findClientPriceField(raw);
+  if (rejectedPriceField) {
+    return NextResponse.json({ error: clientPriceFieldError(rejectedPriceField) }, { status: 400 });
+  }
+
   const looksLikeCart =
     typeof raw.generalQuantity === "number" && typeof raw.dailyQuantity === "number";
 

@@ -1,3 +1,4 @@
+import { isSkaleBolaoCompetition } from "@/lib/boloes/skale-config";
 import { getMatchFromMap, resolveKickoffAtIso } from "@/lib/football-api";
 import { brToday, resolveDiarioPlayableDate, utcMsForBrDate } from "@/lib/diario-playable-date";
 import {
@@ -84,6 +85,14 @@ export async function validatePalpiteForSave(
       error: palpiteRejectErrorMessage(reason, bolaoType),
       status: 400,
     };
+  }
+
+  const isSkaleFullCopaPool =
+    bolaoType === "extra" &&
+    extraChampionshipId != null &&
+    isSkaleBolaoCompetition(extraChampionshipId);
+  if (isSkaleFullCopaPool) {
+    return null;
   }
 
   if (bolaoType === "extra" && extraRoundNumber != null) {

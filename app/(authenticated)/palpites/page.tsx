@@ -16,6 +16,11 @@ import { effectiveExtraRoundForPaidTicket } from "@/lib/ticket-shop-extra-displa
 import { syncExtra } from "@/lib/football/sync-orchestrator";
 import { isAmistososFriendliesCompetition } from "@/lib/football/amistosos-friendlies";
 import { ensureAmistososFriendliesMatchesSeeded } from "@/lib/football/amistosos-friendlies-persistence";
+import {
+  getSkaleBolaoSourceCopaCompetitionId,
+  isSkaleBolaoCompetition,
+} from "@/lib/boloes/skale-config";
+import { mirrorSkaleBolaoMatchesFromCopa } from "@/lib/football/skale-bolao-sync";
 import { readFootballApiCacheJson, standingsCacheKey } from "@/lib/football-api-cache-store";
 
 const MESES = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
@@ -294,15 +299,20 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
       Number.isFinite(extraChampionshipId) &&
       extraChampionshipId > 0
     ) {
-      const pinnedRound = effectiveExtraRoundForPaidTicket({
-        championshipId: extraChampionshipId,
-        roundNumberFromDb: ticketRoundFromDb,
-      });
-      if (pinnedRound != null && pinnedRound > 0) {
-        extraRoundNumber = pinnedRound;
-        extraRoundName = isAmistososFriendliesCompetition(extraChampionshipId)
-          ? "1ª Rodada"
-          : `${pinnedRound}ª Rodada`;
+      if (isSkaleBolaoCompetition(extraChampionshipId)) {
+        extraRoundNumber = null;
+        extraRoundName = "Copa inteira";
+      } else {
+        const pinnedRound = effectiveExtraRoundForPaidTicket({
+          championshipId: extraChampionshipId,
+          roundNumberFromDb: ticketRoundFromDb,
+        });
+        if (pinnedRound != null && pinnedRound > 0) {
+          extraRoundNumber = pinnedRound;
+          extraRoundName = isAmistososFriendliesCompetition(extraChampionshipId)
+            ? "1ª Rodada"
+            : `${pinnedRound}ª Rodada`;
+        }
       }
     }
   }
@@ -312,7 +322,14 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
     bolaoType === "extra" && extraChampionshipId != null && extraChampionshipId > 0
       ? extraChampionshipId
       : mainComp;
-  const tabelaCompId = partidasCompId;
+  const isSkaleExtra =
+    bolaoType === "extra" &&
+    extraChampionshipId != null &&
+    isSkaleBolaoCompetition(extraChampionshipId);
+
+  const tabelaCompId = isSkaleExtra
+    ? getSkaleBolaoSourceCopaCompetitionId()
+    : partidasCompId;
   const isAmistososExtra =
     bolaoType === "extra" &&
     extraChampionshipId != null &&
@@ -320,6 +337,10 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
 
   if (isAmistososExtra) {
     await ensureAmistososFriendliesMatchesSeeded().catch(() => {});
+  }
+
+  if (isSkaleExtra) {
+    await mirrorSkaleBolaoMatchesFromCopa().catch(() => {});
   }
 
   const [tabelaPayload, fasesResult, predictionsBundle] = await Promise.all([
@@ -418,7 +439,8 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
     extraChampionshipId != null &&
     extraRoundNumber != null &&
     extraRoundNumber > 0 &&
-    !isAmistososExtra
+    !isAmistososExtra &&
+    !isSkaleExtra
   ) {
     void syncExtra(extraChampionshipId, { extraRodadas: [extraRoundNumber] }).catch(() => {});
   }
@@ -437,7 +459,8 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
   const tabelaGrupos =
     pickTabelaGruposForPalpites(tabelaPayload) ??
     (bolaoType === "extra" ? ({ "grupo-geral": [] } as TabelaGrupos) : null);
-  const tabelaOk = bolaoType !== "extra" ? tabelaPayload != null : true;
+  const tabelaOk =
+    bolaoType !== "extra" || isSkaleExtra ? tabelaPayload != null : true;
 
   return {
     ticketId,
@@ -446,6 +469,7 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
     extraChampionshipId,
     extraRoundNumber,
     extraRoundName,
+    isSkaleFullCopaPool: isSkaleExtra,
     bolaoHeading: palpitesBolaoHeading(bolaoType, extraChampionshipId),
     tabela: (tabelaGrupos ?? { "grupo-geral": [] }) as TabelaGrupos,
     jogos,

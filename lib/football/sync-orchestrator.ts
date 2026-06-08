@@ -76,6 +76,15 @@ export async function syncPrincipal(): Promise<SyncCompetitionResult> {
     runCascadingClosures: true,
   });
 
+  try {
+    const { mirrorSkaleBolaoMatchesFromCopa } = await import(
+      "@/lib/football/skale-bolao-sync"
+    );
+    await mirrorSkaleBolaoMatchesFromCopa();
+  } catch (err) {
+    console.warn("[syncPrincipal] mirror Skale bolão:", err);
+  }
+
   return {
     competitionId,
     mode: "principal",

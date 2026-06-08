@@ -10,8 +10,6 @@ import {
 import { countParticipantsByExtraChampionshipIds } from "@/lib/predictions";
 import type { PalpiteAbertoMatch } from "@/lib/home-palpites-abertos";
 import { loadHomePalpitesAbertosFromCache } from "@/lib/home-palpites-abertos.server";
-import { isBrasilEgitoPlacarPromoEnabled } from "@/lib/promotions/brasil-egito-placar-promo";
-
 export const metadata: Metadata = buildPageMetadata({
   title: "Bolão do Milhão — Bolão da Copa 2026 | Mais de R$ 1 milhão em prêmios",
   description:
@@ -38,7 +36,6 @@ export default async function HomePage() {
       <HomePageClient
         outrosBoloes={outrosBoloes}
         palpitesAbertos={palpitesAbertos}
-        brasilEgitoPlacarPromoEnabled={isBrasilEgitoPlacarPromoEnabled()}
       />
     </>
   );

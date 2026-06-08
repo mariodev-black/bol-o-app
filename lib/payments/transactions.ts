@@ -4,9 +4,8 @@ import {
   CASH_IN_INITIAL_STATUS,
   PAYMENT_PROVIDER,
   normalizeGatewayStatus,
-  paymentWebhookUrl,
 } from "@/lib/payments/gateway";
-import { createThreeXPayCashIn } from "@/lib/payments/threexpay";
+import { createSkalePixTransaction } from "@/lib/payments/skalepayments";
 import {
   buildPurchaseTicketLines,
   parseTicketType,
@@ -16,6 +15,7 @@ import {
 import { postPaymentApprovedWebhookIfConfigured } from "@/lib/payments/payment-approved-webhook";
 import { publishTransactionEvent } from "@/lib/payments/transaction-events";
 import { recordReferralCommissionIfApplicable } from "@/lib/referrals/commissions";
+import { isSkaleBolaoCompetition } from "@/lib/boloes/skale-config";
 import { getTicketShopExtraRoundNumber } from "@/lib/ticket-shop-extra-display";
 
 type BillingUser = {
@@ -149,6 +149,9 @@ export async function createDepositTransaction(input: CreateDepositTransactionIn
   if (!billingUser.phone || billingUser.phone.replace(/\D/g, "").length < 10) {
     throw new Error("Telefone do usuario invalido para pagamento");
   }
+  if (!billingUser.email || !billingUser.email.includes("@")) {
+    throw new Error("E-mail do usuario invalido para pagamento");
+  }
 
   const { generalQty, dailyQty, extraPurchase } = resolvePurchaseQuantities(input);
   const lines = buildPurchaseTicketLines(generalQty, dailyQty, extraPurchase);
@@ -157,6 +160,9 @@ export async function createDepositTransaction(input: CreateDepositTransactionIn
   }
 
   const amountCents = lines.reduce((s, l) => s + l.unitCents, 0);
+  if (!Number.isFinite(amountCents) || amountCents <= 0) {
+    throw new Error("Valor do pedido invalido");
+  }
 
   const primaryTicketType = lines[0]!.ticketType;
   const paymentExternalRef = `ticket_${randomUUID()}`;
@@ -175,7 +181,9 @@ export async function createDepositTransaction(input: CreateDepositTransactionIn
     const extraId = line.ticketType === "extra" ? line.extraChampionshipId ?? null : null;
     extraIds.push(extraId);
     roundNumbers.push(
-      extraId != null ? getTicketShopExtraRoundNumber(extraId) : null,
+      extraId != null && !isSkaleBolaoCompetition(extraId)
+        ? getTicketShopExtraRoundNumber(extraId)
+        : null,
     );
     unitPrices.push(line.unitCents);
     totalAmounts.push(line.unitCents);
@@ -214,23 +222,28 @@ export async function createDepositTransaction(input: CreateDepositTransactionIn
   const transactionId = txInsert.rows[0]!.id;
 
   try {
-    const gateway = await createThreeXPayCashIn({
+    const gateway = await createSkalePixTransaction({
       amountCents,
       externalId: paymentExternalRef,
-      callbackUrl: paymentWebhookUrl(),
-      debtor: {
+      customer: {
         name: billingUser.name.trim(),
+        email: billingUser.email.trim(),
+        phone: billingUser.phone,
         document: billingUser.cpf.replace(/\D/g, ""),
       },
-      expirationSeconds: Number(process.env.THREEXPAY_PIX_EXPIRATION_SECONDS) || 86400,
+      itemTitle:
+        lines.length === 1
+          ? `Cota ${lines[0]!.ticketType === "extra" ? "extra" : lines[0]!.ticketType}`
+          : `Cotas Bolao (${lines.length})`,
     });
     const initialStatus = CASH_IN_INITIAL_STATUS;
 
-    console.info("[payment/create] 3xPay cash-in", {
+    console.info("[payment/create] Skale PIX", {
       transactionId,
+      amountCents,
+      lineCount: lines.length,
       providerTransactionId: gateway.providerTransactionId,
       apiStatus: gateway.rawResponse.status,
-      paymentStatus: gateway.rawResponse.payment?.status,
       initialStatus,
     });
 
@@ -375,11 +388,13 @@ export async function updateTransactionStatusByProviderId(input: {
   const ticketStatus =
     safeStatus === "paid" || safeStatus === "approved"
       ? "paid"
-      : safeStatus === "canceled" || safeStatus === "cancelled"
+      : safeStatus === "canceled" || safeStatus === "cancelled" || safeStatus === "refunded"
         ? "cancelled"
         : safeStatus === "expired"
           ? "expired"
-          : "pending_payment";
+          : safeStatus === "failed"
+            ? "failed"
+            : "pending_payment";
   const wasAlreadyPaid = row.previous_status === "paid" || row.previous_status === "approved";
   const incomingIsPaid = ticketStatus === "paid";
 

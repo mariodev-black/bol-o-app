@@ -19,6 +19,7 @@ const PROTECTED_PREFIXES = [
   "/indique",
   "/premiacao",
   "/promocoes",
+  "/skale",
 ] as const;
 
 function isProtectedPath(pathname: string): boolean {

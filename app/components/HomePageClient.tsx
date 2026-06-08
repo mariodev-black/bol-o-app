@@ -7,9 +7,7 @@ import Image from "next/image";
 import Link from "next/link";
 import bannerHomeLoggedIn from "@/app/assets/banner-chekout-v2.png";
 import { HomeFromRedirectWhenLoggedIn } from "@/app/shared/HomeFromRedirectWhenLoggedIn";
-import { HomeBrasilEgitoPromoFlow } from "@/app/components/HomeBrasilEgitoPromoFlow";
 import { Suspense, useEffect, useState } from "react";
-import { BRASIL_EGITO_PLACAR_FRIENDS_GOAL } from "@/lib/promotions/brasil-egito-guest-flow";
 import { OutrosBoloesGrid } from "@/app/(authenticated)/boloes/_components/OutrosBoloesGrid";
 import { QuemEstaNoBolaoSection } from "@/app/components/QuemEstaNoBolaoSection";
 import { PalpitesAbertosGrid } from "@/app/components/PalpitesAbertosGrid";
@@ -153,26 +151,14 @@ function LoggedInHome({
 export function HomePageClient({
   outrosBoloes = [],
   palpitesAbertos = [],
-  brasilEgitoPlacarPromoEnabled = false,
 }: {
   outrosBoloes?: OutrosBolaoGridItem[];
   palpitesAbertos?: PalpiteAbertoMatch[];
-  brasilEgitoPlacarPromoEnabled?: boolean;
 }) {
   return (
-    <>
-      <LoggedInHome
-        outrosBoloes={outrosBoloes}
-        palpitesAbertos={palpitesAbertos}
-      />
-      {brasilEgitoPlacarPromoEnabled ? (
-        <Suspense fallback={null}>
-          <HomeBrasilEgitoPromoFlow
-            friendsGoal={BRASIL_EGITO_PLACAR_FRIENDS_GOAL}
-            promoEnabled
-          />
-        </Suspense>
-      ) : null}
-    </>
+    <LoggedInHome
+      outrosBoloes={outrosBoloes}
+      palpitesAbertos={palpitesAbertos}
+    />
   );
 }

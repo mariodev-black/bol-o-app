@@ -3,6 +3,7 @@ import {
   type MatchMap,
 } from "@/lib/football-api";
 import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
+import { isSkaleBolaoCompetition } from "@/lib/boloes/skale-config";
 import { resolveEffectiveExtraRoundForTicket } from "@/lib/football/extras-rodada";
 import type { PredictionBolaoType } from "@/lib/palpites-kickoff-lock";
 import { resolveOwnedTicketMeta } from "@/lib/palpites/ticket-meta";
@@ -38,7 +39,8 @@ export async function buildPalpiteSaveContext(
     bolaoType === "extra" &&
     extraChampionshipId != null &&
     Number.isFinite(extraChampionshipId) &&
-    extraChampionshipId > 0
+    extraChampionshipId > 0 &&
+    !isSkaleBolaoCompetition(extraChampionshipId)
   ) {
     try {
       const resolved = await resolveEffectiveExtraRoundForTicket(

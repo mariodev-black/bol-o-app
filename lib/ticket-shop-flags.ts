@@ -1,6 +1,7 @@
 /** Flags de vitrine/loja (`TICKETS_*` no .env). */
 
 import { isPremierLeagueExtraChampionship } from "@/lib/boloes-extra-competition-branding";
+import { isSkaleBolaoCompetition } from "@/lib/boloes/skale-config";
 
 export function parseEnvBool(v: string | undefined): boolean {
   const s = (v ?? "").trim().toLowerCase();
@@ -21,13 +22,19 @@ export function getTicketShopFlags(): TicketShopFlags {
   return { ticketsExtraOnly, ticketsHideDaily };
 }
 
-/** Loja `/tickets` — Premier League não é vendida aqui (id 69 por padrão). */
+/** Loja `/tickets` — Premier e Skale têm checkout dedicado. */
 export function filterTicketShopExtraChampionshipIds(ids: number[]): number[] {
-  return ids.filter((id) => !isPremierLeagueExtraChampionship(id));
+  return ids.filter(
+    (id) => !isPremierLeagueExtraChampionship(id) && !isSkaleBolaoCompetition(id),
+  );
 }
 
 export function filterTicketShopExtraBoloes<T extends { championshipId: number }>(
   items: T[],
 ): T[] {
-  return items.filter((b) => !isPremierLeagueExtraChampionship(b.championshipId));
+  return items.filter(
+    (b) =>
+      !isPremierLeagueExtraChampionship(b.championshipId) &&
+      !isSkaleBolaoCompetition(b.championshipId),
+  );
 }

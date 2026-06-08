@@ -9,6 +9,11 @@ import {
   type PredictionAggregateRow,
 } from "@/lib/predictions";
 import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
+import {
+  getSkaleBolaoCompetitionId,
+  isSkaleBolaoCompetition,
+} from "@/lib/boloes/skale-config";
+import { calculateSkalePrizePoolCents } from "@/lib/boloes/skale-prize";
 import { getPool } from "@/lib/db";
 import { resolveDiarioPlayableDate } from "@/lib/diario-playable-date";
 import {
@@ -840,6 +845,93 @@ async function buildLeaderboardDiarioUncached(focusTicketId: string): Promise<{ 
   return finalizeLeaderboardDisplay(rows, meta);
 }
 
+async function buildLeaderboardSkaleUncached(): Promise<{
+  rows: LeaderboardRow[];
+  meta: LeaderboardBoardMeta;
+}> {
+  const skaleComp = getSkaleBolaoCompetitionId();
+  const [matches, paidTickets, preds] = await Promise.all([
+    fetchMatchesMap().catch(() => new Map<string, MatchInfo>()),
+    loadPaidTickets("extra", skaleComp, { includePromoBonus: false }),
+    listPredictionsAggregateByExtraCompetition(skaleComp),
+  ]);
+
+  const allowed = new Set(paidTickets.map((t) => t.id));
+  const agg = aggregatePredictions(preds, matches, allowed, skaleComp);
+
+  const sortedTickets = paidTickets
+    .map((t) => {
+      const a = agg.get(t.id);
+      return {
+        ticketId: t.id,
+        userId: t.user_id,
+        totalPoints: a?.totalPoints ?? 0,
+        exactCount: a?.exactCount ?? 0,
+        outcomeCount: a?.outcomeCount ?? 0,
+        goalsCount: a?.goalsCount ?? 0,
+        bestStreak: a?.bestStreak ?? 0,
+        firstSubmitAt: a?.firstSubmitAt ?? Number.MAX_SAFE_INTEGER,
+      };
+    })
+    .sort((x, y) => {
+      if (y.totalPoints !== x.totalPoints) return y.totalPoints - x.totalPoints;
+      if (y.exactCount !== x.exactCount) return y.exactCount - x.exactCount;
+      if (y.outcomeCount !== x.outcomeCount) return y.outcomeCount - x.outcomeCount;
+      if (y.goalsCount !== x.goalsCount) return y.goalsCount - x.goalsCount;
+      if (y.bestStreak !== x.bestStreak) return y.bestStreak - x.bestStreak;
+      return x.firstSubmitAt - y.firstSubmitAt;
+    });
+
+  const userIds = [...new Set(sortedTickets.map((t) => t.userId))];
+  const usersMap = await loadUsersMap(userIds);
+
+  const rows: LeaderboardRow[] = sortedTickets.map((t, idx) => {
+    const u = usersMap.get(t.userId);
+    return {
+      pos: idx + 1,
+      ticketId: t.ticketId,
+      userId: t.userId,
+      displayName: displayNameFromUser(u),
+      totalPoints: t.totalPoints,
+      exactCount: t.exactCount,
+      outcomeCount: t.outcomeCount,
+      goalsCount: t.goalsCount,
+      bestStreak: t.bestStreak,
+      avatarIndex: avatarIndexFromDb(u?.avatar_index),
+      avatarUploadFilename: safeUploadFilename(u?.avatar_upload_filename),
+    };
+  });
+
+  const revenueCents = paidTickets.reduce((s, t) => s + t.total_amount_cents, 0);
+  const participantCount = paidTickets.length;
+  const poolCentsApprox = calculateSkalePrizePoolCents(revenueCents);
+  const nextPalpiteLockMs = computeNextPalpiteLockMs(
+    matches,
+    (m) => Number(m.competitionId) === skaleComp,
+    palpiteLockBeforeKickoffMs("extra"),
+  );
+  const approxPremiados = Math.min(3, Math.max(participantCount > 0 ? 1 : 0, participantCount));
+  const hasResultedMatchesInPool = poolHasAnyResultedMatch(
+    preds,
+    matches,
+    allowed,
+    skaleComp,
+  );
+  const hasLiveMatchesInPool = poolHasLiveMatch(preds, matches, allowed, skaleComp);
+
+  const meta: LeaderboardBoardMeta = {
+    participantCount,
+    revenueCents,
+    poolCentsApprox,
+    nextPalpiteLockMs,
+    approxPremiados,
+    hasResultedMatchesInPool,
+    hasLiveMatchesInPool,
+  };
+
+  return finalizeLeaderboardDisplay(rows, meta);
+}
+
 export async function buildLeaderboardExtraForTicket(
   focusTicketId: string
 ): Promise<{ rows: LeaderboardRow[]; meta: LeaderboardBoardMeta }> {
@@ -858,6 +950,15 @@ export async function buildLeaderboardExtraForTicket(
     return { rows: [], meta: emptyMetaForExtra() };
   }
   const extraComp = Number(ticketRow.extra_championship_id);
+
+  if (isSkaleBolaoCompetition(extraComp)) {
+    const getCached = unstable_cache(
+      async () => buildLeaderboardSkaleUncached(),
+      ["leaderboard", "skale", String(extraComp), "v1"],
+      { revalidate: RANKING_REVALIDATE_SEC, tags: ["leaderboard"] },
+    );
+    return getCached();
+  }
 
   const [matches, paidExtra, allExtra] = await Promise.all([
     fetchMatchesMap().catch(() => new Map<string, MatchInfo>()),

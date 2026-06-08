@@ -1836,6 +1836,8 @@ export type PalpitesInitialData = {
    * o cliente compõe `${extraRoundNumber}ª Rodada` como fallback.
    */
   extraRoundName?: string | null;
+  /** Bolão da Skale: palpites em todos os jogos da Copa (igual cota principal). */
+  isSkaleFullCopaPool?: boolean;
   /** Título do bolão na página (SSR). */
   bolaoHeading?: string | null;
   tabela: TabelaGrupos | null;
@@ -1923,6 +1925,7 @@ function TicketResumoView({
   ticketId,
   resultMode,
   bolaoType,
+  isSkaleFullCopaPool = false,
   stats,
   rankingPos,
   historico,
@@ -1932,6 +1935,7 @@ function TicketResumoView({
   ticketId: string | null;
   resultMode: boolean;
   bolaoType: "principal" | "diario" | "extra";
+  isSkaleFullCopaPool?: boolean;
   stats: ResumoStats;
   rankingPos: number | null;
   historico: HistoricoRowView[];
@@ -2109,15 +2113,15 @@ function TicketResumoView({
               <li className="flex justify-between gap-3">
                 <span className="text-white/80 shrink-0">Bolão</span>
                 <span className="text-right font-medium text-white/90">
-                  {bolaoType === "principal"
-                    ? "Copa do Mundo 2026 — jogos do dia (Copa inteira)"
+                  {bolaoType === "principal" || isSkaleFullCopaPool
+                    ? "Copa do Mundo 2026 — Copa inteira"
                     : "Copa do Mundo 2026 — jogos do dia"}
                 </span>
               </li>
               <li className="flex justify-between gap-3">
                 <span className="text-white/80 shrink-0">Regra</span>
                 <span className="text-right font-medium text-white/90">
-                  {bolaoType === "principal"
+                  {bolaoType === "principal" || isSkaleFullCopaPool
                     ? "Ticket válido durante toda a Copa: todo dia você palpita em todos os jogos do dia."
                     : "Ticket diário: você palpita apenas nos jogos daquele dia."}
                 </span>
@@ -3081,9 +3085,11 @@ function PalpitesPageContent({
   const [selectedRodada, setSelectedRodada] = useState<number | null>(() => {
     if (!initialData?.jogos?.length) return null;
     const bt = initialData.bolaoType;
+    const skaleFullPool = initialData.isSkaleFullCopaPool === true;
     // Ticket extra "por rodada" → trava na rodada do ticket.
     const ticketRound =
       bt === "extra" &&
+        !skaleFullPool &&
         initialData.extraRoundNumber != null &&
         Number.isFinite(Number(initialData.extraRoundNumber)) &&
         Number(initialData.extraRoundNumber) > 0
@@ -3096,13 +3102,13 @@ function PalpitesPageContent({
       return rodadas.includes(ticketRound) ? ticketRound : (rodadas[0] ?? null);
     }
     const lockIds =
-      bt === "diario" || bt === "extra"
+      bt === "diario" || (bt === "extra" && !skaleFullPool)
         ? Object.keys(initialData.predictionsMap ?? {})
           .map(Number)
           .filter(Number.isFinite)
         : [];
     const extraId =
-      bt === "extra"
+      bt === "extra" || skaleFullPool
         ? (() => {
           const r = initialData.extraChampionshipId;
           if (r != null && Number.isFinite(Number(r)) && Number(r) > 0) return Number(r);
@@ -3138,6 +3144,8 @@ function PalpitesPageContent({
     if (raw != null && Number.isFinite(Number(raw)) && Number(raw) > 0) return Number(raw);
     return getSoleConfiguredExtraChampionshipId();
   }, [bolaoType, initialData?.extraChampionshipId]);
+
+  const isSkaleFullCopaPool = initialData?.isSkaleFullCopaPool === true;
 
   const showPredictionsSkeleton =
     Boolean(ticketId) &&
@@ -3543,7 +3551,8 @@ function PalpitesPageContent({
   );
 
   const today = todayBR();
-  const dailyLike = bolaoType === "diario" || bolaoType === "extra";
+  const dailyLike =
+    bolaoType === "diario" || (bolaoType === "extra" && !isSkaleFullCopaPool);
   const extraPlayCompId = bolaoType === "extra" ? resolvedExtraChampionshipId : null;
   /**
    * Quando o ticket extra é "por rodada" (`tickets.round_number`), o bolão é
@@ -3557,9 +3566,12 @@ function PalpitesPageContent({
       Number(initialData.extraRoundNumber) > 0
       ? Number(initialData.extraRoundNumber)
       : null;
-  const extraRoundMode = bolaoType === "extra" && extraTicketRound != null;
+  const extraRoundMode =
+    bolaoType === "extra" && !isSkaleFullCopaPool && extraTicketRound != null;
   /** "Dia‐jogavel" só faz sentido em diario e em extras legados (sem rodada). */
-  const dayScopedMode = bolaoType === "diario" || (bolaoType === "extra" && !extraRoundMode);
+  const dayScopedMode =
+    bolaoType === "diario" ||
+    (bolaoType === "extra" && !extraRoundMode && !isSkaleFullCopaPool);
 
   const lockIdsForDailyLike = dailyLike
     ? Object.keys(predictionsMap).map(Number).filter(Number.isFinite)
@@ -3576,7 +3588,7 @@ function PalpitesPageContent({
   });
   // Em "extra por rodada", o escopo é toda a rodada (não o dia).
   const jogosOnPlayableDate = jogos.filter((j) => {
-    if (bolaoType === "principal") return true;
+    if (bolaoType === "principal" || isSkaleFullCopaPool) return true;
     if (extraRoundMode) return j.rodada === extraTicketRound;
     if (!dayScopedMode) return true;
     return j.dataBR === diarioPlayableDate;
@@ -3852,10 +3864,10 @@ function PalpitesPageContent({
 
   const showBolaoRoundNav = hasBoloesFlow && showJogos;
   const showRoundNavControls =
-    bolaoType === "principal" && rodadasNoEscopo.length > 1;
+    (bolaoType === "principal" || isSkaleFullCopaPool) && rodadasNoEscopo.length > 1;
 
   const roundNavTitle = (() => {
-    if (bolaoType === "principal") {
+    if (bolaoType === "principal" || isSkaleFullCopaPool) {
       return `Fase de Grupos — ${selectedRodada ?? rodadasNoEscopo[0] ?? 1}`;
     }
     if (extraRoundMode) {
@@ -3921,7 +3933,8 @@ function PalpitesPageContent({
       jogos: jogosDaRodada,
     };
   });
-  const showGroupedByGroup = hasBoloesFlow && bolaoType === "principal";
+  const showGroupedByGroup =
+    hasBoloesFlow && (bolaoType === "principal" || isSkaleFullCopaPool);
   const debugInfo = {
     ticketId,
     bolaoType,
@@ -3946,8 +3959,8 @@ function PalpitesPageContent({
 
   const jogosSubtitle = !hasBoloesFlow
     ? "Fase de Grupos"
-    : bolaoType === "principal"
-      ? "Jogos do dia · Copa inteira"
+    : bolaoType === "principal" || isSkaleFullCopaPool
+      ? "Jogos · Copa inteira"
       : extraRoundMode
         ? (extraRoundLabel ?? "Rodada atual")
         : diarioPlayableDate === today
@@ -4386,6 +4399,7 @@ function PalpitesPageContent({
                 ticketId={ticketId}
                 resultMode={resultMode}
                 bolaoType={bolaoType}
+                isSkaleFullCopaPool={isSkaleFullCopaPool}
                 stats={resumoStats}
                 rankingPos={myRankingPos}
                 historico={historicoRows}
@@ -4421,6 +4435,7 @@ function PalpitesPageContent({
                 ticketId={ticketId}
                 resultMode={resultMode}
                 bolaoType={bolaoType}
+                isSkaleFullCopaPool={isSkaleFullCopaPool}
                 stats={resumoStats}
                 rankingPos={myRankingPos}
                 historico={historicoRows}

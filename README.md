@@ -146,7 +146,7 @@ app/
 │   ├── partidas/       ← calendário a partir do matches_cache
 │   ├── ranking/        ← leaderboard global
 │   ├── tabela/         ← classificação (cache + auto-heal API)
-│   └── webhooks/       ← threexpay (PIX)
+│   └── webhooks/       ← skale (PIX)
 ├── components/         ← componentes compartilhados de tela
 └── shared/             ← contextos, Header, NavBottom
 
@@ -181,7 +181,7 @@ git clone <repo>
 cd bolao-do-milhao
 
 cp .env.example .env   # ou copie o .env do servidor
-# edite DATABASE_*, AUTH_SECRET, FOOTBALL_API_TOKEN, THREEXPAY_API_KEY/SECRET
+# edite DATABASE_*, AUTH_SECRET, FOOTBALL_API_TOKEN, SKALE_API_KEY
 
 npm install
 
@@ -441,7 +441,7 @@ Páginas: `/login`, `/cadastrar`, `/recuperar-senha`. E-mail transacional: ver [
 | GET | `/api/deposits/transactions/:id/events` (SSE) |
 | GET | `/api/tickets/mine` |
 | GET | `/api/tickets/bolao-type?ticketId=…` |
-| POST | `/api/webhooks/threexpay` |
+| POST | `/api/webhooks/skale` |
 
 ### 10.3 Palpites & resultados
 
@@ -563,10 +563,10 @@ Checklist: `npm run check:email-env` · Migration senha: `npm run db:password-re
 
 | Env | Descrição |
 |-----|-----------|
-| `THREEXPAY_API_URL` | `https://gateway.3xpay.co` |
-| `THREEXPAY_API_KEY` / `THREEXPAY_API_SECRET` | Credenciais 3xPay |
-| `THREEXPAY_CALLBACK_URL` | Webhook PIX (default: `{APP_URL}/api/webhooks/threexpay`) |
-| `THREEXPAY_WEBHOOK_SECRET` | Header `x-webhook-secret` opcional |
+| `SKALE_API_URL` | `https://api.skalepayments.com.br` |
+| `SKALE_API_KEY` | Chave de API Skale Payments (header `X-API-Key`) |
+| `SKALE_WEBHOOK_SECRET` | Secret do webhook no painel Skale (header `webhook-secret` / `x-webhook-secret`) |
+| `SKALE_PIX_EXPIRES_IN_DAYS` | Vencimento do QR PIX (padrão `1`) |
 
 Ver `docs/PAYMENTS.md`.
 | `PAYMENT_APPROVED_WEBHOOK_URL` | POST opcional após pagamento aprovado |

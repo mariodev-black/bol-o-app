@@ -1,5 +1,13 @@
 import type { PoolClient } from "pg";
 import { getFootballMainCompetitionId, parseExtraBolaoChampionshipIds } from "@/lib/boloes-extra-config";
+import {
+  calculateSkalePrizeAwards,
+  calculateSkalePrizePoolCents,
+} from "@/lib/boloes/skale-prize";
+import {
+  getSkaleBolaoCompetitionId,
+  isSkaleBolaoCompetition,
+} from "@/lib/boloes/skale-config";
 import { getPool } from "@/lib/db";
 
 /** Log estruturado simples: `[prizes] {"t":"ISO","phase":"...","source":"..."}`. */
@@ -122,7 +130,13 @@ function generalPoolReadyForClosure(matches: MatchRow[], nowMs: number): boolean
   return nowMs >= lastKo + prizeGeneralGraceHoursAfterLastKickoff() * 3600_000;
 }
 
-function closureKey(input: { competitionId: number; type: BolaoPrizeType; dateBR?: string | null }): string {
+function closureKey(input: {
+  competitionId: number;
+  type: BolaoPrizeType;
+  dateBR?: string | null;
+  skaleFinal?: boolean;
+}): string {
+  if (input.skaleFinal) return `${input.competitionId}:skale:final`;
   if (input.type === "general") return `${input.competitionId}:general`;
   if (input.type === "extra") return `${input.competitionId}:extra:${input.dateBR ?? "SEM_DATA"}`;
   return `${input.competitionId}:daily:${input.dateBR ?? "SEM_DATA"}`;
@@ -199,9 +213,15 @@ async function insertClosure(
     totalRevenueCents: number;
     poolCents: number;
     metadata: Record<string, unknown>;
+    skaleFinal?: boolean;
   }
 ): Promise<string | null> {
-  const key = closureKey({ competitionId: input.compId, type: input.type, dateBR: input.dateBR });
+  const key = closureKey({
+    competitionId: input.compId,
+    type: input.type,
+    dateBR: input.dateBR,
+    skaleFinal: input.skaleFinal,
+  });
   const { rows } = await client.query<{ id: string }>(
     `INSERT INTO prize_closures (
        closure_key, competition_id, bolao_type, date_br, status, processado, total_revenue_cents, pool_cents, metadata
@@ -280,6 +300,23 @@ async function listTicketsForClosure(
        AND t.extra_championship_id = $2
      ORDER BY t.paid_at ASC NULLS LAST, t.created_at ASC`,
     [input.dateBR, input.competitionId]
+  );
+  return rows;
+}
+
+async function listSkaleTicketsForClosure(
+  client: PoolClient,
+  skaleCompId: number,
+): Promise<TicketRow[]> {
+  const { rows } = await client.query<TicketRow>(
+    `SELECT id::text AS id, user_id::text AS user_id, total_amount_cents, paid_at, created_at
+     FROM tickets
+     WHERE ticket_type = 'extra'
+       AND extra_championship_id = $1
+       AND NOT COALESCE(is_promo_bonus, false)
+       AND status IN ('paid', 'approved')
+     ORDER BY paid_at ASC NULLS LAST, created_at ASC`,
+    [skaleCompId],
   );
   return rows;
 }
@@ -380,9 +417,11 @@ async function creditAward(
   const description =
     input.type === "general"
       ? `Premiacao Bolao Geral - Ticket ${input.ranking.ticketId} - ${input.rank} lugar`
-      : input.type === "extra"
-        ? `Premiacao Bolao Extra (${input.compId}) ${input.dateBR} - Ticket ${input.ranking.ticketId} - ${input.rank} lugar`
-        : `Premiacao Bolao Diario ${input.dateBR} - Ticket ${input.ranking.ticketId} - ${input.rank} lugar`;
+      : input.type === "extra" && isSkaleBolaoCompetition(input.compId)
+        ? `Premiacao Bolao da Skale - Ticket ${input.ranking.ticketId} - ${input.rank} lugar`
+        : input.type === "extra"
+          ? `Premiacao Bolao Extra (${input.compId}) ${input.dateBR} - Ticket ${input.ranking.ticketId} - ${input.rank} lugar`
+          : `Premiacao Bolao Diario ${input.dateBR} - Ticket ${input.ranking.ticketId} - ${input.rank} lugar`;
   const metadata = {
     description,
     competitionId: input.compId,
@@ -539,6 +578,76 @@ async function processClosure(
   }
 }
 
+async function processSkaleClosure(
+  client: PoolClient,
+  input: {
+    compId: number;
+    matches: MatchRow[];
+    metadataExtra?: Record<string, unknown>;
+  },
+) {
+  const tickets = await listSkaleTicketsForClosure(client, input.compId);
+  const totalRevenueCents = tickets.reduce(
+    (sum, ticket) => sum + Number(ticket.total_amount_cents || 0),
+    0,
+  );
+  const poolCents = calculateSkalePrizePoolCents(totalRevenueCents);
+  if (tickets.length === 0 || poolCents <= 0) return;
+
+  const closureId = await insertClosure(client, {
+    compId: input.compId,
+    type: "extra",
+    dateBR: null,
+    totalRevenueCents,
+    poolCents,
+    skaleFinal: true,
+    metadata: {
+      ticketCount: tickets.length,
+      matchCount: input.matches.length,
+      prizeModel: "skale_top3_percent",
+      sharesBps: { first: 6000, second: 3000, third: 1000 },
+      ...(input.metadataExtra ?? {}),
+    },
+  });
+  if (!closureId) return;
+
+  const predictions = await listPredictionsForTickets(client, tickets.map((ticket) => ticket.id));
+  const ranking = buildRanking({ tickets, predictions, matches: input.matches });
+  const awardAmounts = calculateSkalePrizeAwards(totalRevenueCents);
+
+  for (const award of awardAmounts) {
+    const row = ranking[award.rank - 1];
+    if (!row) continue;
+    await creditAward(client, {
+      closureId,
+      compId: input.compId,
+      type: "extra",
+      dateBR: null,
+      rank: award.rank,
+      amountCents: award.amountCents,
+      ranking: row,
+    });
+  }
+
+  await client.query(
+    `UPDATE prize_closures SET processado = true, updated_at = now() WHERE id = $1 AND processado = false`,
+    [closureId],
+  );
+
+  if (tickets.length > 0) {
+    const ticketIds = tickets.map((t) => t.id);
+    await client.query(
+      `UPDATE tickets
+         SET settled_at = COALESCE(settled_at, now()),
+             settled_closure_id = COALESCE(settled_closure_id, $2::uuid),
+             updated_at = now()
+       WHERE id::text = ANY($1::text[])
+         AND settled_at IS NULL`,
+      [ticketIds, closureId],
+    );
+  }
+}
+
 export async function processPrizeClosuresAfterMatchSync(
   logCtx?: { tickId?: string; source?: string }
 ): Promise<void> {
@@ -618,6 +727,7 @@ export async function processPrizeClosuresAfterMatchSync(
     }
 
     for (const extraComp of parseExtraBolaoChampionshipIds()) {
+      if (isSkaleBolaoCompetition(extraComp)) continue;
       const matchesExtra = await listMatches(client, extraComp);
       if (matchesExtra.length === 0) continue;
       const byDateExtra = new Map<string, MatchRow[]>();
@@ -649,6 +759,30 @@ export async function processPrizeClosuresAfterMatchSync(
         }
       }
     }
+
+    const skaleComp = getSkaleBolaoCompetitionId();
+    if (isSkaleBolaoCompetition(skaleComp)) {
+      const skaleMatches = await listMatches(client, skaleComp);
+      if (skaleMatches.length > 0 && generalPoolReadyForClosure(skaleMatches, nowMs)) {
+        await client.query("BEGIN");
+        try {
+          await processSkaleClosure(client, {
+            compId: skaleComp,
+            matches: skaleMatches,
+            metadataExtra: {
+              prizeGate: "skale_final_copa",
+              lastKickoffMs: lastKickoffMs(skaleMatches),
+              graceHoursAfterLastKickoff: prizeGeneralGraceHoursAfterLastKickoff(),
+            },
+          });
+          await client.query("COMMIT");
+        } catch (error) {
+          await client.query("ROLLBACK");
+          throw error;
+        }
+      }
+    }
+
     plog("complete", {});
   } catch (error) {
     plog("error", { message: error instanceof Error ? error.message : String(error) });

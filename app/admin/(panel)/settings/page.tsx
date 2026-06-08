@@ -1,6 +1,7 @@
 import { AdminPageTitle } from "@/app/admin/_components/AdminShell";
 import { formatAdminBRL } from "@/lib/admin/format";
 import { getAppServerConfig } from "@/lib/app-server-config";
+import { skaleWebhookUrl } from "@/lib/payments/gateway";
 import { getExtraTicketPriceCents, getTicketPriceCents } from "@/lib/payments/ticket-config";
 
 export default function AdminSettingsPage() {
@@ -8,10 +9,8 @@ export default function AdminSettingsPage() {
   const items = [
     { label: "APP_URL", value: process.env.APP_URL ?? "Não configurado" },
     {
-      label: "Webhook 3xPay (PIX)",
-      value:
-        process.env.THREEXPAY_CALLBACK_URL ??
-        `${process.env.APP_URL ?? ""}/api/webhooks/threexpay`,
+      label: "Webhook Skale Payments (PIX)",
+      value: skaleWebhookUrl(),
     },
     { label: "Cota principal", value: formatAdminBRL(getTicketPriceCents("general")) },
     { label: "Cota extra", value: formatAdminBRL(getExtraTicketPriceCents()) },

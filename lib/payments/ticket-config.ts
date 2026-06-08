@@ -1,4 +1,8 @@
 import { getExtraBolaoTicketUnitCents, parseExtraBolaoChampionshipIds } from "@/lib/boloes-extra-config";
+import {
+  getSkaleBolaoUnitCents,
+  isSkaleBolaoCompetition,
+} from "@/lib/boloes/skale-config";
 
 export type TicketType = "general" | "daily" | "extra";
 
@@ -23,6 +27,12 @@ export function getTicketPriceCents(type: "general" | "daily"): number {
 /** Preço unitário dos bolões extra (default R$ 10). */
 export function getExtraBolaoUnitCents(): number {
   return getExtraBolaoTicketUnitCents();
+}
+
+/** Preço unitário por campeonato extra (Skale = R$ 500). */
+export function getExtraBolaoUnitCentsForChampionship(championshipId: number): number {
+  if (isSkaleBolaoCompetition(championshipId)) return getSkaleBolaoUnitCents();
+  return getExtraBolaoUnitCents();
 }
 
 /** Legado: algumas telas ainda leem `extra` como preço único — alinhado ao bolão extra. */
@@ -140,15 +150,17 @@ export function buildPurchaseTicketLines(
     lines.push({ ticketType: "daily", unitCents });
   }
 
-  const extraUnit = getExtraBolaoUnitCents();
   const allowedOrdered = parseExtraBolaoChampionshipIds();
 
   if (extraInput && "extraQuantity" in extraInput) {
     const q = Math.max(0, Math.min(20, Math.trunc(extraInput.extraQuantity)));
     const seq = expandExtraQuantityWithOrder(q, allowedOrdered);
-    const amounts = distributeDiscountedTicketAmounts(extraUnit, seq.length);
-    seq.forEach((cid, i) => {
-      lines.push({ ticketType: "extra", unitCents: amounts[i]!, extraChampionshipId: cid });
+    seq.forEach((cid) => {
+      const unitCents = getExtraBolaoUnitCentsForChampionship(cid);
+      const amounts = isSkaleBolaoCompetition(cid)
+        ? Array.from({ length: 1 }, () => unitCents)
+        : distributeDiscountedTicketAmounts(unitCents, 1);
+      lines.push({ ticketType: "extra", unitCents: amounts[0]!, extraChampionshipId: cid });
     });
   } else if (extraInput && "extraByChampionship" in extraInput) {
     const allowedExtra = new Set(allowedOrdered);
@@ -156,8 +168,12 @@ export function buildPurchaseTicketLines(
     for (const compId of allowedExtra) {
       const raw = extraMap[compId] ?? 0;
       const cq = Math.max(0, Math.min(20, Math.trunc(raw)));
-      for (const unitCents of distributeDiscountedTicketAmounts(extraUnit, cq)) {
-        lines.push({ ticketType: "extra", unitCents, extraChampionshipId: compId });
+      const unitCents = getExtraBolaoUnitCentsForChampionship(compId);
+      const amounts = isSkaleBolaoCompetition(compId)
+        ? Array.from({ length: cq }, () => unitCents)
+        : distributeDiscountedTicketAmounts(unitCents, cq);
+      for (const lineUnit of amounts) {
+        lines.push({ ticketType: "extra", unitCents: lineUnit, extraChampionshipId: compId });
       }
     }
   }
