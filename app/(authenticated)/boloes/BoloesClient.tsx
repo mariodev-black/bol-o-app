@@ -1782,13 +1782,6 @@ export function BoloesClient({
           </section>
         ) : null}
 
-        {!ticketsExtraOnly ? (
-          <OutrosBoloesGrid
-            items={outrosBoloesGridItems}
-            className="mt-8"
-            onVerTodos={openBoloesSheet}
-          />
-        ) : null}
 
         {finishedItems.length > 0 ? (
           <section className="mt-8" aria-labelledby="boloes-finalizados-heading">
