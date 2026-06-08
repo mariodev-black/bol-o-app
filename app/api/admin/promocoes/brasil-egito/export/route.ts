@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminBrasilEgitoPromoDashboard } from "@/lib/admin/brasil-egito-placar-promo";
+import { getAdminBrasilMarrocosPromoDashboard } from "@/lib/admin/brasil-marrocos-placar-promo";
 import {
   buildPlacarPromoExportSpreadsheet,
   placarPromoExportFilename,
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
   if (!auth.ok) return auth.response;
 
   try {
-    const dashboard = await getAdminBrasilEgitoPromoDashboard();
+    const dashboard = await getAdminBrasilMarrocosPromoDashboard();
     const query = normalize(request.nextUrl.searchParams.get("q"));
     const prizeFilter = parsePrizeFilter(
       request.nextUrl.searchParams.get("filter"),
@@ -69,12 +69,12 @@ export async function GET(request: NextRequest) {
       status: 200,
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename="${placarPromoExportFilename("brasil-egito")}"`,
+        "Content-Disposition": `attachment; filename="${placarPromoExportFilename("brasil-marrocos")}"`,
         "Cache-Control": "no-store",
       },
     });
   } catch (e) {
-    console.error("[admin/promocoes/brasil-egito/export]", e);
+    console.error("[admin/promocoes/brasil-marrocos/export]", e);
     return NextResponse.json(
       { error: "Erro ao exportar promoção" },
       { status: 500 },

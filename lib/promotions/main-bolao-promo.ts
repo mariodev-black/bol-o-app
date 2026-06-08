@@ -33,7 +33,7 @@ export function mainBolaoPromoDismissStorageKey(
     : MAIN_BOLAO_PROMO_DISMISSED_PREFIX;
 }
 
-/** Modal já exibido/fechado no fluxo promo (ex.: pós-indicação Brasil x Egito). */
+/** Modal já exibido/fechado no fluxo promo (ex.: pós-indicação Brasil x Marrocos). */
 export function readMainBolaoPromoModalDismissed(
   userId?: string | null,
 ): boolean {

@@ -12,32 +12,31 @@ import {
   OfferStep,
   SignupPromptModal,
   SuccessStep,
-} from "@/app/shared/BrasilEgitoPlacarPromoHost";
-import type { BrasilEgitoPlacarPromoStatus } from "@/lib/promotions/brasil-egito-placar-promo";
+} from "@/app/shared/BrasilMarrocosPlacarPromoHost";
+import type { BrasilMarrocosPlacarPromoStatus } from "@/lib/promotions/brasil-marrocos-placar-promo";
 import {
   HOME_PROMO_FLOW_PATH,
-  clearBrasilEgitoGuestFlowActive,
-  clearPendingBrasilEgitoPalpite,
-  isBrasilEgitoGuestFlowActive,
-  isBrasilEgitoPalpiteFinalized,
-  markBrasilEgitoGuestFlowActive,
-  markBrasilEgitoPalpiteFinalized,
-  persistBrasilEgitoReferralModalDismissed,
-  readBrasilEgitoReferralModalDismissed,
-  resolvePendingBrasilEgitoPalpite,
-  stripBrasilEgitoPalpiteSearchParams,
-  writePendingBrasilEgitoPalpite,
-} from "@/lib/promotions/brasil-egito-guest-flow";
+  clearBrasilMarrocosGuestFlowActive,
+  clearPendingBrasilMarrocosPalpite,
+  isBrasilMarrocosGuestFlowActive,
+  isBrasilMarrocosPalpiteFinalized,
+  markBrasilMarrocosGuestFlowActive,
+  markBrasilMarrocosPalpiteFinalized,
+  persistBrasilMarrocosReferralModalDismissed,
+  resolvePendingBrasilMarrocosPalpite,
+  stripBrasilMarrocosPalpiteSearchParams,
+  writePendingBrasilMarrocosPalpite,
+} from "@/lib/promotions/brasil-marrocos-guest-flow";
 import { readMainBolaoPromoModalDismissed } from "@/lib/promotions/main-bolao-promo";
 
 const PROMO_Z = 157;
 const LOADING_Z = 158;
-const API_PATH = "/api/promotions/brasil-egito-placar";
+const API_PATH = "/api/promotions/brasil-marrocos-placar";
 const SIGNUP_TRANSITION_MS = 2000;
 
 type FlowStep = "offer" | "signup" | "success";
 
-type HomeBrasilEgitoPromoFlowProps = {
+type HomeBrasilMarrocosPromoFlowProps = {
   friendsGoal: number;
   promoEnabled: boolean;
 };
@@ -69,7 +68,7 @@ function PromoTransitionModal({ message }: { message: string }) {
 }
 
 function statusMatchesPalpite(
-  status: BrasilEgitoPlacarPromoStatus,
+  status: BrasilMarrocosPlacarPromoStatus,
   predCasa: number,
   predVisitante: number,
 ): boolean {
@@ -90,16 +89,16 @@ function isAlreadySubmittedPromoError(error?: string): boolean {
 
 /** Palpite promo já salvo ou palpite pago neste jogo no bolão. */
 function hasPromoPalpiteDone(
-  status: BrasilEgitoPlacarPromoStatus | null | undefined,
-): status is BrasilEgitoPlacarPromoStatus {
+  status: BrasilMarrocosPlacarPromoStatus | null | undefined,
+): status is BrasilMarrocosPlacarPromoStatus {
   if (!status) return false;
   return status.alreadySubmitted || status.hasBet;
 }
 
-export function HomeBrasilEgitoPromoFlow({
+export function HomeBrasilMarrocosPromoFlow({
   friendsGoal,
   promoEnabled,
-}: HomeBrasilEgitoPromoFlowProps) {
+}: HomeBrasilMarrocosPromoFlowProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const toast = useBolaoToast();
@@ -108,11 +107,12 @@ export function HomeBrasilEgitoPromoFlow({
   const { ready, isLoggedIn, user } = useAuth();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<FlowStep>("offer");
-  const [status, setStatus] = useState<BrasilEgitoPlacarPromoStatus | null>(
+  const [status, setStatus] = useState<BrasilMarrocosPlacarPromoStatus | null>(
     null,
   );
   const [predCasa, setPredCasa] = useState(0);
   const [predVisitante, setPredVisitante] = useState(0);
+  const [predEscanteios, setPredEscanteios] = useState(0);
   const [transitionLoading, setTransitionLoading] = useState(false);
   const [transitionMessage, setTransitionMessage] = useState(
     "Preparando seu cadastro...",
@@ -127,19 +127,19 @@ export function HomeBrasilEgitoPromoFlow({
   const signupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchPromoStatus =
-    useCallback(async (): Promise<BrasilEgitoPlacarPromoStatus | null> => {
+    useCallback(async (): Promise<BrasilMarrocosPlacarPromoStatus | null> => {
       const r = await fetch(API_PATH, {
         method: "GET",
         credentials: "include",
         cache: "no-store",
       });
       if (!r.ok) return null;
-      return (await r.json()) as BrasilEgitoPlacarPromoStatus;
+      return (await r.json()) as BrasilMarrocosPlacarPromoStatus;
     }, []);
 
   const stripPalpiteQueryFromUrl = useCallback(() => {
     const next = new URLSearchParams(searchParams.toString());
-    if (!stripBrasilEgitoPalpiteSearchParams(next)) return;
+    if (!stripBrasilMarrocosPalpiteSearchParams(next)) return;
     const q = next.toString();
     router.replace(q ? `${HOME_PROMO_FLOW_PATH}?${q}` : HOME_PROMO_FLOW_PATH, {
       scroll: false,
@@ -147,7 +147,7 @@ export function HomeBrasilEgitoPromoFlow({
   }, [router, searchParams]);
 
   const buildGuestStatus = useCallback(
-    (): BrasilEgitoPlacarPromoStatus => ({
+    (): BrasilMarrocosPlacarPromoStatus => ({
       enabled: true,
       showOfferModal: true,
       hasBet: false,
@@ -158,6 +158,7 @@ export function HomeBrasilEgitoPromoFlow({
       friendsGoal,
       predCasa: null,
       predVisitante: null,
+      escanteiosBrasil: null,
     }),
     [friendsGoal],
   );
@@ -173,17 +174,18 @@ export function HomeBrasilEgitoPromoFlow({
     async (
       casa: number,
       visitante: number,
+      escanteios: number,
       options?: { silent?: boolean },
-    ): Promise<BrasilEgitoPlacarPromoStatus | null> => {
+    ): Promise<BrasilMarrocosPlacarPromoStatus | null> => {
       const r = await fetch(API_PATH, {
         method: "POST",
         credentials: "include",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ predCasa: casa, predVisitante: visitante }),
+        body: JSON.stringify({ predCasa: casa, predVisitante: visitante, escanteiosBrasil: escanteios }),
       });
       const data = (await r
         .json()
-        .catch(() => ({}))) as BrasilEgitoPlacarPromoStatus & { error?: string };
+        .catch(() => ({}))) as BrasilMarrocosPlacarPromoStatus & { error?: string };
       if (!r.ok) {
         if (r.status === 409 && isAlreadySubmittedPromoError(data.error)) {
           const existing = await fetchPromoStatus();
@@ -209,63 +211,58 @@ export function HomeBrasilEgitoPromoFlow({
 
   /** Limpa storage/URL — sem modal, sem toast, sem POST. */
   const silentDismissPromoFlow = useCallback(() => {
-    markBrasilEgitoPalpiteFinalized(user?.id);
-    clearPendingBrasilEgitoPalpite();
-    clearBrasilEgitoGuestFlowActive();
+    markBrasilMarrocosPalpiteFinalized(user?.id);
+    clearPendingBrasilMarrocosPalpite();
+    clearBrasilMarrocosGuestFlowActive();
     stripPalpiteQueryFromUrl();
     setTransitionLoading(false);
     setOpen(false);
   }, [stripPalpiteQueryFromUrl, user?.id]);
 
   const openOffer = useCallback(
-    (scores?: { predCasa: number; predVisitante: number }) => {
+    (scores?: { predCasa: number; predVisitante: number; escanteiosBrasil?: number }) => {
       const casa = scores?.predCasa ?? predCasa;
       const visitante = scores?.predVisitante ?? predVisitante;
+      const escanteios = scores?.escanteiosBrasil ?? predEscanteios;
       setPredCasa(casa);
       setPredVisitante(visitante);
+      setPredEscanteios(escanteios);
       setStep("offer");
       setStatus(buildGuestStatus());
       setOpen(true);
     },
-    [buildGuestStatus, predCasa, predVisitante],
+    [buildGuestStatus, predCasa, predVisitante, predEscanteios],
   );
 
   const continueAfterReferral = useCallback(() => {
     if (continuationAfterReferralRef.current) return;
     continuationAfterReferralRef.current = true;
-    persistBrasilEgitoReferralModalDismissed(user?.id);
+    persistBrasilMarrocosReferralModalDismissed(user?.id);
     setOpen(false);
     setTransitionLoading(false);
-    clearBrasilEgitoGuestFlowActive();
+    clearBrasilMarrocosGuestFlowActive();
     if (readMainBolaoPromoModalDismissed(user?.id)) return;
     requestModal({ once: true });
   }, [requestModal, user?.id]);
 
   const openSuccess = useCallback(
     (
-      data: BrasilEgitoPlacarPromoStatus,
-      scores: { predCasa: number; predVisitante: number },
+      _data: BrasilMarrocosPlacarPromoStatus,
+      _scores: { predCasa: number; predVisitante: number },
     ) => {
-      markBrasilEgitoPalpiteFinalized(user?.id);
-      clearPendingBrasilEgitoPalpite();
+      markBrasilMarrocosPalpiteFinalized(user?.id);
+      clearPendingBrasilMarrocosPalpite();
+      clearBrasilMarrocosGuestFlowActive();
       stripPalpiteQueryFromUrl();
-      setPredCasa(scores.predCasa);
-      setPredVisitante(scores.predVisitante);
-      setStatus(data);
       setTransitionLoading(false);
-      if (readBrasilEgitoReferralModalDismissed(user?.id)) {
-        continueAfterReferral();
-        return;
-      }
-      setStep("success");
-      setOpen(true);
+      router.push("/promo-camisa-brasil");
     },
-    [stripPalpiteQueryFromUrl, continueAfterReferral, user?.id],
+    [stripPalpiteQueryFromUrl, router, user?.id],
   );
 
   /** Após cadastro: GET → se já fez, dismiss; senão POST uma vez e success. */
   const savePendingPalpiteAfterAuth = useCallback(
-    async (pending: { predCasa: number; predVisitante: number }) => {
+    async (pending: { predCasa: number; predVisitante: number; escanteiosBrasil?: number }) => {
       if (finalizeInFlightRef.current) return;
       finalizeInFlightRef.current = true;
 
@@ -284,6 +281,7 @@ export function HomeBrasilEgitoPromoFlow({
         const data = await submitPalpite(
           pending.predCasa,
           pending.predVisitante,
+          pending.escanteiosBrasil ?? 0,
           { silent: true },
         );
 
@@ -327,9 +325,9 @@ export function HomeBrasilEgitoPromoFlow({
   useEffect(() => {
     if (!promoEnabled || !ready || isLoggedIn) return;
 
-    const pending = resolvePendingBrasilEgitoPalpite(searchParams);
+    const pending = resolvePendingBrasilMarrocosPalpite(searchParams);
     const guestFlowIntent =
-      pending != null || isBrasilEgitoGuestFlowActive();
+      pending != null || isBrasilMarrocosGuestFlowActive();
     if (!guestFlowIntent) return;
 
     if (guestAutoOpenedRef.current) return;
@@ -351,7 +349,7 @@ export function HomeBrasilEgitoPromoFlow({
         return;
       }
 
-      const pending = resolvePendingBrasilEgitoPalpite(searchParams, user.id);
+      const pending = resolvePendingBrasilMarrocosPalpite(searchParams, user.id);
       if (!pending) return;
 
       if (authFinalizeAttemptedRef.current || finalizeInFlightRef.current) return;
@@ -380,14 +378,14 @@ export function HomeBrasilEgitoPromoFlow({
       return;
     }
     if (step === "signup" || step === "offer") {
-      clearBrasilEgitoGuestFlowActive();
+      clearBrasilMarrocosGuestFlowActive();
     }
     setOpen(false);
   }, [continueAfterReferral, step]);
 
   const handleGuestSave = useCallback(() => {
-    writePendingBrasilEgitoPalpite(predCasa, predVisitante);
-    markBrasilEgitoGuestFlowActive();
+    writePendingBrasilMarrocosPalpite(predCasa, predVisitante, predEscanteios);
+    markBrasilMarrocosGuestFlowActive();
     setTransitionMessage("Salvando seu palpite...");
     setTransitionLoading(true);
 
@@ -397,13 +395,13 @@ export function HomeBrasilEgitoPromoFlow({
       setStep("signup");
       setTransitionLoading(false);
     }, SIGNUP_TRANSITION_MS);
-  }, [predCasa, predVisitante]);
+  }, [predCasa, predVisitante, predEscanteios]);
 
   const handleCreateAccount = useCallback(() => {
-    writePendingBrasilEgitoPalpite(predCasa, predVisitante);
-    markBrasilEgitoGuestFlowActive();
-    openCadastro(HOME_PROMO_FLOW_PATH);
-  }, [openCadastro, predCasa, predVisitante]);
+    writePendingBrasilMarrocosPalpite(predCasa, predVisitante, predEscanteios);
+    markBrasilMarrocosGuestFlowActive();
+    openCadastro("/promo-camisa-brasil");
+  }, [openCadastro, predCasa, predVisitante, predEscanteios]);
 
   useEffect(() => {
     if (!open) return;
@@ -419,8 +417,8 @@ export function HomeBrasilEgitoPromoFlow({
     isLoggedIn &&
     !open &&
     !transitionLoading &&
-    (isBrasilEgitoPalpiteFinalized(user?.id) ||
-      !resolvePendingBrasilEgitoPalpite(searchParams, user?.id))
+    (isBrasilMarrocosPalpiteFinalized(user?.id) ||
+      !resolvePendingBrasilMarrocosPalpite(searchParams, user?.id))
   ) {
     return null;
   }
@@ -450,10 +448,10 @@ export function HomeBrasilEgitoPromoFlow({
               aria-modal="true"
               aria-labelledby={
                 step === "signup"
-                  ? "brasil-egito-signup-prompt-title"
+                  ? "brasil-marrocos-signup-prompt-title"
                   : step === "offer"
-                    ? "brasil-egito-placar-promo-title"
-                    : "brasil-egito-placar-success-title"
+                    ? "brasil-marrocos-placar-promo-title"
+                    : "brasil-marrocos-placar-success-title"
               }
               onClick={step === "signup" ? undefined : handleClose}
             >
@@ -462,8 +460,10 @@ export function HomeBrasilEgitoPromoFlow({
                   <OfferStep
                     predCasa={predCasa}
                     predVisitante={predVisitante}
+                    predEscanteios={predEscanteios}
                     onPredCasaChange={setPredCasa}
                     onPredVisitanteChange={setPredVisitante}
+                    onPredEscanteiosChange={setPredEscanteios}
                     loading={submitting}
                     onSubmit={handleGuestSave}
                     onClose={handleClose}

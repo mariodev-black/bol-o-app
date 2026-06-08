@@ -4,7 +4,7 @@ import { AdminTabBar } from "@/app/admin/_components/AdminTabBar";
 import { adminStatGridClass, adminTabButtonClass } from "@/app/admin/_components/admin-layout";
 import { AdminTableScroll } from "@/app/admin/_components/AdminTableScroll";
 import { formatAdminDate } from "@/lib/admin/format";
-import type { AdminBrasilEgitoPromoDashboard } from "@/lib/admin/brasil-egito-placar-promo";
+import type { AdminBrasilMarrocosPromoDashboard } from "@/lib/admin/brasil-marrocos-placar-promo";
 import type { AdminBrasilPanamaPromoDashboard } from "@/lib/admin/brasil-panama-placar-promo";
 import { Download, Loader2, Trophy } from "lucide-react";
 import Link from "next/link";
@@ -66,15 +66,15 @@ function EligibleBadge({ eligible }: { eligible: boolean }) {
 }
 
 type PlacarPromoDashboard =
-  | AdminBrasilEgitoPromoDashboard
+  | AdminBrasilMarrocosPromoDashboard
   | AdminBrasilPanamaPromoDashboard;
 
 type PlacarPromoRow =
-  | AdminBrasilEgitoPromoDashboard["rows"][number]
+  | AdminBrasilMarrocosPromoDashboard["rows"][number]
   | AdminBrasilPanamaPromoDashboard["rows"][number];
 
 function officialResultSourceLabel(
-  source: AdminBrasilEgitoPromoDashboard["officialResult"] extends infer R
+  source: AdminBrasilMarrocosPromoDashboard["officialResult"] extends infer R
     ? R extends { source: infer S }
       ? S
       : never
@@ -508,11 +508,11 @@ function PlacarPromoSection({
 }
 
 export function AdminPromocoesClient({
-  brasilEgito,
+  brasilMarrocos,
   brasilPanama,
   hubUrl,
 }: {
-  brasilEgito: AdminBrasilEgitoPromoDashboard;
+  brasilMarrocos: AdminBrasilMarrocosPromoDashboard;
   brasilPanama: AdminBrasilPanamaPromoDashboard;
   hubUrl: string;
 }) {
@@ -544,14 +544,14 @@ export function AdminPromocoesClient({
       </AdminTabBar>
 
       {tab === "email" ? (
-        <AdminPromoEmailDispatch data={brasilEgito} />
+        <AdminPromoEmailDispatch data={brasilMarrocos} />
       ) : (
         <div className="space-y-12">
           <AdminPromoHubLinks hubUrl={hubUrl} />
           <PlacarPromoSection
-            title="Brasil x Egito — Placar exato"
-            data={brasilEgito}
-            exportSlug="brasil-egito"
+            title="Brasil x Marrocos — Placar exato"
+            data={brasilMarrocos}
+            exportSlug="brasil-marrocos"
             showWinners
           />
           {brasilPanama.stats.submissionsCount > 0 ||
