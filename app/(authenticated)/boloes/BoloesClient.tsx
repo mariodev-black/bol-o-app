@@ -52,9 +52,6 @@ import {
 } from "@/app/(authenticated)/boloes/_components/BoloesVitrineCards";
 import { BoloesBottomSheet } from "@/app/(authenticated)/boloes/_components/BoloesBottomSheet";
 import { buildBoloesSheetCatalog } from "@/app/(authenticated)/boloes/_components/boloes-sheet-items";
-import { OutrosBoloesGrid } from "@/app/(authenticated)/boloes/_components/OutrosBoloesGrid";
-import { getOutrosBoloesGridItems } from "@/lib/boloes-outros-grid";
-
 export type ActivePrincipalBolao = {
   id: string;
   title: string;
@@ -1711,11 +1708,6 @@ export function BoloesClient({
         ticketsHideDaily,
       }),
     [data, ticketsExtraOnly, ticketsHideDaily],
-  );
-
-  const outrosBoloesGridItems = useMemo(
-    () => getOutrosBoloesGridItems(),
-    [],
   );
 
   const openBoloesSheet = useCallback(() => setBoloesSheetOpen(true), []);
