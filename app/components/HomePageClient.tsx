@@ -3,9 +3,7 @@
 import { Header } from "@/app/shared/Header";
 import { HomePageContainer } from "@/app/shared/HomePageContainer";
 import { NavBottom } from "@/app/shared/NavBottom";
-import Image from "next/image";
-import Link from "next/link";
-import bannerHomeLoggedIn from "@/app/assets/banner-chekout-v2.png";
+import { HomeBannerCarousel } from "@/app/components/HomeBannerCarousel";
 import { HomeFromRedirectWhenLoggedIn } from "@/app/shared/HomeFromRedirectWhenLoggedIn";
 import { HomeBrasilMarrocosPromoFlow } from "@/app/components/HomeBrasilMarrocosPromoFlow";
 import { Suspense, useCallback, useEffect, useState } from "react";
@@ -175,24 +173,7 @@ function LoggedInHome({
       </Suspense>
       <Header />
       <main className="min-h-screen bg-black pb-32 text-white">
-        <section className="w-full pt-2">
-          <div className="mx-auto w-full max-w-[430px] px-3.5">
-            <Link
-              href="/boloes"
-              className="block overflow-hidden rounded-[16px] border border-white/8 bg-[#0a0a0a] shadow-[0_10px_36px_rgba(0,0,0,0.45)]"
-              aria-label="Entre no maior bolão da Copa — ver bolões"
-            >
-              <Image
-                src={bannerHomeLoggedIn}
-                alt="Entre no maior bolão da Copa — mais de 1 milhão em premiações"
-                className="h-auto w-full object-cover object-center"
-                priority
-                sizes="(max-width: 430px) 100vw, 430px"
-                draggable={false}
-              />
-            </Link>
-          </div>
-        </section>
+        <HomeBannerCarousel />
 
         <div className="mx-auto w-full max-w-[430px] px-3.5">
           {/* Promo highlight — shown when active */}
