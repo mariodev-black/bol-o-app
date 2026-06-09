@@ -40,6 +40,14 @@ export type TicketPixExtraLine = {
   displayLabel?: string;
 };
 
+export type TicketPixDailyLine = {
+  edition: number;
+  qty: number;
+  lineCents: number;
+  displayLabel?: string;
+  datesLabel?: string;
+};
+
 export type TicketPixGeneratedScreenProps = {
   pixPayload: string;
   secondsLeft: number;
@@ -53,6 +61,7 @@ export type TicketPixGeneratedScreenProps = {
   error: string | null;
   principalQty: number;
   dailyQty: number;
+  dailyPixLines?: TicketPixDailyLine[];
   /** Linhas de bolão extra (apenas itens com quantidade positiva). */
   extraPixLines?: TicketPixExtraLine[];
   prices: { general: number; daily: number };
@@ -74,6 +83,7 @@ export function TicketPixGeneratedScreen({
   error,
   principalQty,
   dailyQty,
+  dailyPixLines = [],
   extraPixLines = [],
   prices,
   principalUnitPriceCents,
@@ -93,8 +103,15 @@ export function TicketPixGeneratedScreen({
   const orderDescriptionParts: string[] = [];
   if (principalQty > 0)
     orderDescriptionParts.push(`Geral | ${formatBRL(prices.general)}`);
-  if (dailyQty > 0)
+  if (dailyPixLines.length > 0) {
+    for (const line of dailyPixLines) {
+      orderDescriptionParts.push(
+        `${line.displayLabel ?? "Bolão diário"} | ${formatBRL(line.lineCents)}`,
+      );
+    }
+  } else if (dailyQty > 0) {
     orderDescriptionParts.push(`Cota ${formatBRL(prices.daily)}`);
+  }
   for (const line of extraPixLines) {
     if (line.qty <= 0) continue;
     const label = line.displayLabel?.trim() || "Ticket extra";
@@ -109,7 +126,15 @@ export function TicketPixGeneratedScreen({
       `${principalQty}x Geral @ ${formatBRL(principalUnitPriceCents)}`,
     );
   }
-  if (dailyQty > 0) {
+  if (dailyPixLines.length > 0) {
+    for (const line of dailyPixLines) {
+      const avg =
+        line.qty > 0 ? Math.round(line.lineCents / line.qty) : line.lineCents;
+      quantitySegments.push(
+        `${line.qty}x ${line.displayLabel ?? "Bolão diário"} @ ${formatBRL(avg)}`,
+      );
+    }
+  } else if (dailyQty > 0) {
     quantitySegments.push(
       `${dailyQty}x Cota @ ${formatBRL(dailyUnitPriceCents)}`,
     );

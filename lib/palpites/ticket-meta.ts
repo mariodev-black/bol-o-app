@@ -1,3 +1,4 @@
+import { paidTicketDailyEditionNumber } from "@/lib/boloes/daily-editions";
 import { getPool } from "@/lib/db";
 import { getSoleConfiguredExtraChampionshipId } from "@/lib/boloes-extra-config";
 import { inferBolaoTypeFromTicketId } from "@/lib/ticket-kind-server";
@@ -16,13 +17,19 @@ export async function resolveOwnedTicketMeta(
   bolao: "principal" | "diario" | "extra";
   extraChampionshipId: number | null;
   extraRoundNumber: number | null;
+  dailyEditionNumber: number | null;
 } | null> {
   const raw = ticketId.trim();
   if (!raw) return null;
 
   const fromPrefix = inferBolaoTypeFromTicketPrefix(raw);
   if (fromPrefix && !isUuidTicketId(raw)) {
-    return { bolao: fromPrefix, extraChampionshipId: null, extraRoundNumber: null };
+    return {
+      bolao: fromPrefix,
+      extraChampionshipId: null,
+      extraRoundNumber: null,
+      dailyEditionNumber: null,
+    };
   }
 
   if (isUuidTicketId(raw)) {
@@ -42,9 +49,24 @@ export async function resolveOwnedTicketMeta(
     );
     const tt = rows[0]?.ticket_type;
     if (tt === "general")
-      return { bolao: "principal", extraChampionshipId: null, extraRoundNumber: null };
-    if (tt === "daily")
-      return { bolao: "diario", extraChampionshipId: null, extraRoundNumber: null };
+      return {
+        bolao: "principal",
+        extraChampionshipId: null,
+        extraRoundNumber: null,
+        dailyEditionNumber: null,
+      };
+    if (tt === "daily") {
+      const edition = paidTicketDailyEditionNumber({
+        ticketType: "daily",
+        round_number: rows[0]?.round_number,
+      });
+      return {
+        bolao: "diario",
+        extraChampionshipId: null,
+        extraRoundNumber: null,
+        dailyEditionNumber: edition,
+      };
+    }
     if (tt === "extra") {
       const rnumRaw = rows[0]?.round_number;
       const rnum =
@@ -53,10 +75,22 @@ export async function resolveOwnedTicketMeta(
           : null;
       const cid = rows[0]?.extra_championship_id;
       if (cid != null && Number.isFinite(Number(cid))) {
-        return { bolao: "extra", extraChampionshipId: Number(cid), extraRoundNumber: rnum };
+        return {
+          bolao: "extra",
+          extraChampionshipId: Number(cid),
+          extraRoundNumber: rnum,
+          dailyEditionNumber: null,
+        };
       }
       const sole = getSoleConfiguredExtraChampionshipId();
-      if (sole != null) return { bolao: "extra", extraChampionshipId: sole, extraRoundNumber: rnum };
+      if (sole != null) {
+        return {
+          bolao: "extra",
+          extraChampionshipId: sole,
+          extraRoundNumber: rnum,
+          dailyEditionNumber: null,
+        };
+      }
       return null;
     }
     return null;
@@ -64,5 +98,10 @@ export async function resolveOwnedTicketMeta(
 
   const inferred = await inferBolaoTypeFromTicketId(raw);
   if (!inferred) return null;
-  return { bolao: inferred, extraChampionshipId: null, extraRoundNumber: null };
+  return {
+    bolao: inferred,
+    extraChampionshipId: null,
+    extraRoundNumber: null,
+    dailyEditionNumber: null,
+  };
 }

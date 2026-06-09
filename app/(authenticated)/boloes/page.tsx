@@ -30,6 +30,11 @@ import {
   mergeExtraChampionshipFromPaidTickets,
 } from "@/lib/ticket-competition-server";
 import { resolvePaidTicketRankingPositions } from "@/lib/ranking/leaderboard";
+import {
+  dailyEditionLabel,
+  formatDailyEditionDatesSubtitle,
+  getDailyEdition,
+} from "@/lib/boloes/daily-editions";
 import { resolveDiarioPlayableDate } from "@/lib/diario-playable-date";
 import {
   bolaoDisplayStatusMeta,
@@ -637,10 +642,16 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
       };
     }
 
-    const date = ticket.playDate || playableDate;
+    const editionMeta =
+      ticket.dailyEditionNumber != null
+        ? getDailyEdition(ticket.dailyEditionNumber)
+        : null;
+    const editionDates = editionMeta?.datesBR ?? [ticket.playDate || playableDate];
     const dateMatches = Array.from(matches.values()).filter(
       (match) =>
-        match.dateBR === date && (Number(match.competitionId) || mainComp) === mainComp,
+        match.dateBR != null &&
+        editionDates.includes(match.dateBR) &&
+        (Number(match.competitionId) || mainComp) === mainComp,
     );
     const closeAt = nextLockMs(
       dateMatches.filter((match) => isOpenMatch(match, PALPITE_LOCK_MS_DIARIO)),
@@ -658,10 +669,18 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
         : displayPhase === "pendentes"
           ? "aguardando"
           : "ativo";
+    const dailyTitle =
+      ticket.dailyEditionNumber != null
+        ? dailyEditionLabel(ticket.dailyEditionNumber)
+        : "Bolão do Dia";
+    const dailyEditionDatesLabel = editionMeta
+      ? formatDailyEditionDatesSubtitle(editionMeta)
+      : null;
     return {
       id: ticket.id,
       type: "diario",
-      title: "Bolão do Dia",
+      title: dailyTitle,
+      dailyEditionDatesLabel,
       cotaLabel: `Cota #${shortTicketId(ticket.id)}`,
       href: `/palpites?${new URLSearchParams({ ticket: ticket.id }).toString()}`,
       status: legacyStatus as ActiveDailyStatus,
@@ -715,10 +734,16 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
     diario: firstDaily
       ? (() => {
           const metrics = metricsByTicket.get(firstDaily.id)!;
-          const date = firstDaily.playDate || playableDate;
+          const editionMeta =
+            firstDaily.dailyEditionNumber != null
+              ? getDailyEdition(firstDaily.dailyEditionNumber)
+              : null;
+          const editionDates = editionMeta?.datesBR ?? [firstDaily.playDate || playableDate];
           const dateMatches = Array.from(matches.values()).filter(
             (match) =>
-              match.dateBR === date && (Number(match.competitionId) || mainComp) === mainComp,
+              match.dateBR != null &&
+              editionDates.includes(match.dateBR) &&
+              (Number(match.competitionId) || mainComp) === mainComp,
           );
           const closeAt = nextLockMs(
             dateMatches.filter((match) => isOpenMatch(match, PALPITE_LOCK_MS_DIARIO)),
@@ -739,9 +764,17 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
               : displayPhase === "pendentes"
                 ? "aguardando"
                 : "ativo";
+          const dailyTitle =
+            firstDaily.dailyEditionNumber != null
+              ? dailyEditionLabel(firstDaily.dailyEditionNumber)
+              : "Bolão do Dia";
+          const dailyEditionDatesLabel = editionMeta
+            ? formatDailyEditionDatesSubtitle(editionMeta)
+            : null;
           return {
             id: firstDaily.id,
-            title: "Bolão do Dia",
+            title: dailyTitle,
+            dailyEditionDatesLabel,
             cotaLabel: `Cota #${shortTicketId(firstDaily.id)}`,
             href: `/palpites?${new URLSearchParams({ ticket: firstDaily.id }).toString()}`,
             status: legacyStatus as ActiveDailyStatus,

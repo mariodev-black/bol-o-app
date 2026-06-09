@@ -1,4 +1,5 @@
 import iconCopaMundo from "@/app/assets/icon-copa-mundo.png";
+import logoBolaoDiario from "@/app/assets/logo-bolao-diario.png";
 import type { ActiveBolaoListItem, BoloesScreenData } from "@/app/(authenticated)/boloes/BoloesClient";
 import { getExtraBolaoHeroSideVariant } from "@/lib/boloes-extra-competition-branding";
 import {
@@ -60,7 +61,10 @@ function iconForActive(item: ActiveBolaoListItem): {
   iconSrc: string;
   brandedIcon: boolean;
 } {
-  if (item.type === "principal" || item.type === "diario") {
+  if (item.type === "diario") {
+    return { iconSrc: logoBolaoDiario.src, brandedIcon: true };
+  }
+  if (item.type === "principal") {
     return { iconSrc: iconCopaMundo.src, brandedIcon: true };
   }
   const { name } = parseExtraTitleParts(item.title);
@@ -88,7 +92,7 @@ function activeToSheetItem(item: ActiveBolaoListItem): BoloesSheetItem {
     subtitle:
       round ??
       (item.type === "diario"
-        ? "Rodada do dia"
+        ? item.dailyEditionDatesLabel?.trim() || "Rodada do dia"
         : item.type === "principal"
           ? "Copa do Mundo 2026"
           : item.cotaLabel),
@@ -102,12 +106,11 @@ function activeToSheetItem(item: ActiveBolaoListItem): BoloesSheetItem {
 
 function filterActiveBoloes(
   items: ActiveBolaoListItem[],
-  options: { ticketsExtraOnly: boolean; ticketsHideDaily: boolean },
+  options: { ticketsExtraOnly: boolean },
 ): ActiveBolaoListItem[] {
   return items.filter((item) => {
     if (item.displayPhase === "finalizado") return false;
     if (options.ticketsExtraOnly && item.type === "principal") return false;
-    if (options.ticketsHideDaily && item.type === "diario") return false;
     return true;
   });
 }
@@ -123,11 +126,9 @@ export function buildBoloesSheetCatalog(
   championships: BoloesSheetChampionshipOption[];
 } {
   const ticketsExtraOnly = options.ticketsExtraOnly ?? false;
-  const ticketsHideDaily = options.ticketsHideDaily ?? false;
 
   const activeOnly = filterActiveBoloes(data?.active.all ?? [], {
     ticketsExtraOnly,
-    ticketsHideDaily,
   });
 
   const items = activeOnly.map(activeToSheetItem);

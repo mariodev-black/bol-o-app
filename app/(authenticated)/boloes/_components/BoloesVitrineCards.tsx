@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import iconCopaMundo from "@/app/assets/icon-copa-mundo.png";
+import logoBolaoDiario from "@/app/assets/logo-bolao-diario.png";
 import iconCopaMundo2 from "@/app/assets/icon-copa-mundo2.png";
 import ticketBlue from "@/app/assets/Ticket-Blue.png";
 import { useMainBolaoPromoModal } from "@/app/shared/MainBolaoPromoContext";
@@ -419,7 +420,8 @@ function resolveCta(item: ActiveBolaoListItem, now: number): string {
 }
 
 function logoForItem(item: ActiveBolaoListItem) {
-  if (item.type === "principal" || item.type === "diario") return iconCopaMundo;
+  if (item.type === "diario") return logoBolaoDiario;
+  if (item.type === "principal") return iconCopaMundo;
   const variant = getExtraBolaoHeroSideVariant(item.championshipId, item.title);
   return variant === "generic" ? ticketBlue : extraBolaoIconSrc(variant);
 }
@@ -445,9 +447,9 @@ function cardTitleParts(item: ActiveBolaoListItem): {
   }
   if (item.type === "diario") {
     return {
-      eyebrow: "Bolão do dia",
-      title: "Rodada atual",
-      subtitle: null,
+      eyebrow: item.title?.includes("#") ? "Fase de grupos" : "Bolão diário",
+      title: item.title || "Bolão Diário",
+      subtitle: "Palpites nos dias da edição",
     };
   }
   const { name, round } = parseExtraTitle(item.title);
@@ -543,7 +545,7 @@ export function PrincipalHeroPurchaseCard({
       <MilhaoPrincipalHeader cotaBadgeText="sem cota" />
       <CardActionFoot
         href={href}
-        label={`Comprar cota — ${priceLabel}`}
+        label={`Participar Agora`}
         helperText="Compre sua cota e dispute o prêmio milionário da Copa 2026."
       >
         <MilhaoPurchaseStatsGrid
@@ -595,7 +597,7 @@ export function ActiveBolaoCarouselCard({
     item.type === "extra"
       ? parseExtraTitle(item.title).round
       : item.type === "diario"
-        ? "Rodada do dia"
+        ? item.dailyEditionDatesLabel?.trim() || "Rodada do dia"
         : null;
 
   return (

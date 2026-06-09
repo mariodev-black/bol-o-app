@@ -14,6 +14,7 @@ export type PalpiteSaveContext = {
   bolaoType: PredictionBolaoType;
   extraChampionshipId: number | null;
   extraRoundNumber: number | null;
+  dailyEditionNumber: number | null;
   matchMap: MatchMap;
   mainComp: number;
   scopedComp: number;
@@ -34,6 +35,7 @@ export async function buildPalpiteSaveContext(
   const bolaoType = meta.bolao;
   const extraChampionshipId = meta.extraChampionshipId;
   let extraRoundNumber = meta.extraRoundNumber;
+  const dailyEditionNumber = meta.dailyEditionNumber;
 
   if (
     bolaoType === "extra" &&
@@ -77,6 +79,7 @@ export async function buildPalpiteSaveContext(
       bolaoType,
       extraChampionshipId,
       extraRoundNumber,
+      dailyEditionNumber,
       matchMap,
       mainComp,
       scopedComp,

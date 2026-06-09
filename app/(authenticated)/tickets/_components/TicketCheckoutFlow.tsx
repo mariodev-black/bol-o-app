@@ -23,6 +23,7 @@ import bannerCheckout from "@/app/assets/banner-chekout.png";
 import iconBrasileirao from "@/app/assets/icon-brasileirao.png";
 import iconCopaBrasil from "@/app/assets/icon-copa-brasil.png";
 import iconCopaMundo from "@/app/assets/icon-copa-mundo.png";
+import logoBolaoDiario from "@/app/assets/logo-bolao-diario.png";
 import ticketBlue from "@/app/assets/Ticket-Blue.png";
 import {
   getExtraBolaoHeroSideVariant,
@@ -79,6 +80,14 @@ type ExtraBolaoOption = {
   /** Rodada atual do campeonato (número + rótulo, ex.: "17ª Rodada"). */
   roundNumber?: number;
   roundLabel?: string;
+};
+
+type DailyEditionCatalogItem = {
+  number: number;
+  label: string;
+  datesLabel: string;
+  status: "aberto" | "encerrado" | "em_breve";
+  purchaseOpen: boolean;
 };
 
 function formatBRL(cents: number) {
@@ -147,9 +156,14 @@ type TicketCheckoutFlowProps = {
   ticketsHideDaily?: boolean;
   /** Loja `/tickets`: exibe somente Bolão do Milhão (principal). */
   ticketsPrincipalOnly?: boolean;
+  /** Loja `/tickets`: somente principal + edições do bolão diário (sem extras). */
+  ticketsPrincipalAndDailyOnly?: boolean;
 };
 
 const MAX_QTY = 20;
+
+const TICKET_CARD_LOGO_CLASS =
+  "h-[104px] w-auto shrink-0 object-contain sm:h-[112px]";
 
 export function TicketCheckoutFlow({
   initialTicketKind = "general",
@@ -158,8 +172,17 @@ export function TicketCheckoutFlow({
   ticketsExtraOnly = false,
   ticketsHideDaily = false,
   ticketsPrincipalOnly = false,
+  ticketsPrincipalAndDailyOnly = false,
 }: TicketCheckoutFlowProps) {
   const router = useRouter();
+  const showPrincipal = !ticketsExtraOnly;
+  const showDaily =
+    !ticketsHideDaily &&
+    (ticketsPrincipalAndDailyOnly || !ticketsPrincipalOnly);
+  const showExtra =
+    !ticketsPrincipalOnly &&
+    !ticketsPrincipalAndDailyOnly &&
+    !ticketsExtraOnly;
   const [principalQty, setPrincipalQty] = useState(() => {
     if (ticketsExtraOnly) return 0;
     if (ticketsPrincipalOnly) return 1;
@@ -167,12 +190,13 @@ export function TicketCheckoutFlow({
       ? 0
       : 1;
   });
-  const [dailyQty, setDailyQty] = useState(() => {
-    if (ticketsExtraOnly || ticketsHideDaily || ticketsPrincipalOnly) return 0;
-    return initialTicketKind === "daily" ? 1 : 0;
-  });
+  const [dailyQtyByEdition, setDailyQtyByEdition] = useState<Record<number, number>>(
+    () => ({}),
+  );
+  const [currentDailyEdition, setCurrentDailyEdition] =
+    useState<DailyEditionCatalogItem | null>(null);
   const [extraBoloes, setExtraBoloes] = useState<ExtraBolaoOption[]>(() => {
-    if (ticketsPrincipalOnly) return [];
+    if (ticketsPrincipalOnly || ticketsPrincipalAndDailyOnly) return [];
     const fromServer = filterTicketShopExtraChampionshipIds(
       (serverExtraChampionshipIds ?? []).filter(
         (n) => Number.isFinite(n) && n > 0,
@@ -192,7 +216,7 @@ export function TicketCheckoutFlow({
   const [extraQtyByChampionship, setExtraQtyByChampionship] = useState<
     Record<number, number>
   >(() => {
-    if (ticketsPrincipalOnly) return {};
+    if (ticketsPrincipalOnly || ticketsPrincipalAndDailyOnly) return {};
     if (
       _initialExtraChampionshipId != null &&
       (ticketsExtraOnly || initialTicketKind === "extra")
@@ -227,21 +251,39 @@ export function TicketCheckoutFlow({
   useEffect(() => {
     if (!ticketsExtraOnly) return;
     setPrincipalQty(0);
-    setDailyQty(0);
+    setDailyQtyByEdition({});
   }, [ticketsExtraOnly]);
 
   useEffect(() => {
-    if (!ticketsHideDaily && !ticketsPrincipalOnly) return;
-    setDailyQty(0);
-  }, [ticketsHideDaily, ticketsPrincipalOnly]);
+    if (showDaily) return;
+    setDailyQtyByEdition({});
+  }, [showDaily]);
 
   useEffect(() => {
     if (!ticketsPrincipalOnly) return;
     setPrincipalQty((q) => (q > 0 ? q : 1));
-    setDailyQty(0);
+    setDailyQtyByEdition({});
     setExtraQtyByChampionship({});
     setExtraBoloes([]);
   }, [ticketsPrincipalOnly]);
+
+  useEffect(() => {
+    if (!ticketsPrincipalAndDailyOnly) return;
+    setExtraQtyByChampionship({});
+    setExtraBoloes([]);
+  }, [ticketsPrincipalAndDailyOnly]);
+
+  const setDailyEditionQty = useCallback((edition: number, qty: number) => {
+    setDailyQtyByEdition((prev) => ({
+      ...prev,
+      [edition]: Math.max(0, Math.min(MAX_QTY, qty)),
+    }));
+  }, []);
+
+  const dailyEditionQty = useCallback(
+    (edition: number) => dailyQtyByEdition[edition] ?? 0,
+    [dailyQtyByEdition],
+  );
 
   useEffect(() => {
     setExtraQtyByChampionship((prev) => {
@@ -321,6 +363,7 @@ export function TicketCheckoutFlow({
         });
         const d = (await r.json()) as {
           prices?: { general: number; daily: number; extra?: number };
+          dailyEdition?: DailyEditionCatalogItem | null;
           extraBoloes?: Array<{
             championshipId: number;
             unitCents: number;
@@ -337,12 +380,19 @@ export function TicketCheckoutFlow({
             extra: d.prices.extra ?? DEFAULT_EXTRA_CENTS,
           });
         }
-        if (
-          r.ok &&
-          Array.isArray(d.extraBoloes) &&
-          d.extraBoloes.length > 0 &&
-          !ticketsPrincipalOnly
-        ) {
+        if (r.ok && d.dailyEdition) {
+          setCurrentDailyEdition(d.dailyEdition);
+          if (showDaily) {
+            setDailyQtyByEdition((prev) =>
+              Object.keys(prev).length > 0
+                ? prev
+                : { [d.dailyEdition!.number]: initialTicketKind === "daily" ? 1 : 0 },
+            );
+          }
+        } else if (r.ok) {
+          setCurrentDailyEdition(null);
+        }
+        if (r.ok && Array.isArray(d.extraBoloes) && d.extraBoloes.length > 0 && showExtra) {
           setExtraBoloes(
             filterTicketShopExtraBoloes(
               d.extraBoloes.map((row) => applyTicketShopExtraCatalogItem(row)),
@@ -358,7 +408,7 @@ export function TicketCheckoutFlow({
     return () => {
       cancelled = true;
     };
-  }, [ticketsPrincipalOnly]);
+  }, [showDaily, showExtra, initialTicketKind]);
 
   // SSE — canal primário (funciona em dev; pode não funcionar em serverless multi-instância)
   useEffect(() => {
@@ -478,7 +528,15 @@ export function TicketCheckoutFlow({
     prices.general,
     principalQty,
   );
-  const diarioLineCents = progressiveDiscountTotalCents(prices.daily, dailyQty);
+  const diarioLineCents = useMemo(() => {
+    if (!currentDailyEdition) return 0;
+    const q = dailyEditionQty(currentDailyEdition.number);
+    return progressiveDiscountTotalCents(prices.daily, q);
+  }, [currentDailyEdition, dailyEditionQty, prices.daily]);
+  const dailyTotalQty = useMemo(
+    () => Object.values(dailyQtyByEdition).reduce((s, q) => s + q, 0),
+    [dailyQtyByEdition],
+  );
   const extraLinesCents = useMemo(() => {
     let total = 0;
     for (const b of extraBoloes) {
@@ -510,16 +568,29 @@ export function TicketCheckoutFlow({
   );
 
   const totalCents = principalLineCents + diarioLineCents + extraLinesCents;
-  const totalQty = principalQty + dailyQty + extraTotalQty;
+  const totalQty = principalQty + dailyTotalQty + extraTotalQty;
   const hasSelection = totalCents > 0 && totalQty >= 1;
   const geralDiscountPct = progressiveDiscountPercent(principalQty);
-  const diarioDiscountPct = progressiveDiscountPercent(dailyQty);
   const principalUnitPriceCents =
     principalQty > 0
       ? Math.round(principalLineCents / principalQty)
       : prices.general;
   const dailyUnitPriceCents =
-    dailyQty > 0 ? Math.round(diarioLineCents / dailyQty) : prices.daily;
+    dailyTotalQty > 0 ? Math.round(diarioLineCents / dailyTotalQty) : prices.daily;
+  const dailyPixLines = useMemo(() => {
+    if (!currentDailyEdition) return [];
+    const qty = dailyEditionQty(currentDailyEdition.number);
+    if (qty <= 0) return [];
+    return [
+      {
+        edition: currentDailyEdition.number,
+        qty,
+        lineCents: progressiveDiscountTotalCents(prices.daily, qty),
+        displayLabel: currentDailyEdition.label,
+        datesLabel: currentDailyEdition.datesLabel,
+      },
+    ];
+  }, [currentDailyEdition, dailyEditionQty, prices.daily]);
   const secondsLeft =
     step === "pix" && pixDeadline != null
       ? Math.max(0, Math.ceil((pixDeadline - now) / 1000))
@@ -543,18 +614,33 @@ export function TicketCheckoutFlow({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             generalQuantity: principalQty,
-            dailyQuantity: dailyQty,
-            extraByChampionship: Object.fromEntries(
-              extraBoloes
-                .map(
-                  (b) =>
+            dailyQuantity: 0,
+            dailyByEdition:
+              showDaily && currentDailyEdition
+                ? Object.fromEntries(
                     [
-                      String(b.championshipId),
-                      extraQty(b.championshipId),
-                    ] as const,
-                )
-                .filter(([, q]) => q > 0),
-            ),
+                      [
+                        String(currentDailyEdition.number),
+                        dailyEditionQty(currentDailyEdition.number),
+                      ] as const,
+                    ].filter(([, q]) => q > 0),
+                  )
+                : {},
+            ...(showExtra
+              ? {
+                  extraByChampionship: Object.fromEntries(
+                    extraBoloes
+                      .map(
+                        (b) =>
+                          [
+                            String(b.championshipId),
+                            extraQty(b.championshipId),
+                          ] as const,
+                      )
+                      .filter(([, q]) => q > 0),
+                  ),
+                }
+              : {}),
           }),
         });
         const d = (await r.json()) as {
@@ -567,7 +653,7 @@ export function TicketCheckoutFlow({
           return;
         }
         purchasePrincipalRef.current = principalQty;
-        purchaseDiarioRef.current = dailyQty;
+        purchaseDiarioRef.current = dailyTotalQty;
         purchaseExtraRef.current = Object.fromEntries(
           extraBoloes
             .map((b) => [b.championshipId, extraQty(b.championshipId)] as const)
@@ -582,7 +668,15 @@ export function TicketCheckoutFlow({
         setStep("shop");
       }
     })();
-  }, [hasSelection, principalQty, dailyQty, extraBoloes, extraQty]);
+  }, [
+    hasSelection,
+    principalQty,
+    currentDailyEdition,
+    dailyEditionQty,
+    dailyTotalQty,
+    extraBoloes,
+    extraQty,
+  ]);
 
   const copyPix = useCallback(() => {
     if (!pixPayload || pixExpired) return;
@@ -663,80 +757,16 @@ export function TicketCheckoutFlow({
             </div>
 
             <div className="mx-auto w-full max-w-[430px] space-y-5 px-4 pt-5">
-              {/* Faixa promocional — layout alinhado ao print (fundo preto, borda neon, divisor, coluna ATÉ/25%) */}
-              <div
-                className="flex items-stretch rounded-[14px] border border-primary bg-[#121212] px-3.5 py-3.5 sm:px-4 sm:py-4"
-                style={{
-                  boxShadow:
-                    "0 0 0 1px rgba(177,235,11,0.35), 0 0 28px rgba(177,235,11,0.22), inset 0 0 32px rgba(177,235,11,0.04)",
-                }}
-              >
-                {/* Esquerda: ícone + textos (como no print) */}
-                <div className="flex min-w-0 flex-1 items-center gap-3 border-r border-primary/30 pr-3 sm:gap-3.5 sm:pr-4">
-                  <div className="relative size-11 shrink-0 sm:size-12">
-                    <Tags
-                      className="size-11 text-primary sm:size-12"
-                      strokeWidth={2}
-                      style={{
-                        filter:
-                          "drop-shadow(0 0 10px rgba(177,235,11,0.65)) drop-shadow(0 0 20px rgba(177,235,11,0.35))",
-                      }}
-                      aria-hidden
-                    />
-                    <Percent
-                      className="pointer-events-none absolute left-[55%] top-1/2 size-[13px] -translate-x-1/2 -translate-y-1/2 text-primary sm:size-[14px]"
-                      strokeWidth={3}
-                      aria-hidden
-                    />
-                  </div>
-                  <div className="min-w-0 flex-1 py-0.5">
-                    <p className="text-[16px] font-black uppercase leading-tight tracking-wide text-white sm:text-[11px]">
-                      ACIMA DE 2 TICKETS
-                    </p>
-                    <p
-                      className="mt-1 text-[15px] font-black uppercase leading-[1.1] tracking-wide text-primary sm:text-[16px]"
-                      style={{ textShadow: "0 0 18px rgba(177,235,11,0.45)" }}
-                    >
-                      DESCONTO PROGRESSIVO!
-                    </p>
-                    <p className="mt-1.5 text-[12px] font-normal leading-snug text-white sm:text-[11px]">
-                      Quanto mais tickets, maior a sua chance de ganhar!
-                    </p>
-                  </div>
-                </div>
-
-                {/* Direita: ATÉ / 25% / badge */}
-                <div className="flex w-[80px] shrink-0 flex-col items-center justify-center self-center pl-3 text-center sm:w-[84px]">
-                  <p className="text-[12px] font-black uppercase tracking-wide text-white sm:text-[11px]">
-                    ATÉ
-                  </p>
-                  <p
-                    className="mt-0.5 text-[34px] font-black leading-none tracking-tight text-primary sm:text-[38px]"
-                    style={{ textShadow: "0 0 22px rgba(177,235,11,0.5)" }}
-                  >
-                    15%
-                  </p>
-                  <span
-                    className="mt-2 w-full min-w-full bg-primary px-2 py-1 text-[8px] font-black uppercase flex justify-center items-center leading-tight tracking-wide text-black sm:text-[9px] text-center whitespace-nowrap"
-                    style={{
-                      clipPath:
-                        "polygon(3% 0, 97% 0, 100% 18%, 100% 82%, 97% 100%, 3% 100%, 0 82%, 0 18%)",
-                    }}
-                  >
-                    DE DESCONTO
-                  </span>
-                </div>
-              </div>
 
               <div className="space-y-3">
-                {!ticketsExtraOnly && (
+                {showPrincipal && (
                   <div className="overflow-hidden rounded-[16px] border border-white/10 bg-[#121212] shadow-[0_8px_26px_rgba(0,0,0,0.35)]">
-                    <div className="grid grid-cols-[74px_minmax(0,1fr)] items-center gap-3 p-3 sm:grid-cols-[86px_minmax(0,1fr)] sm:p-3.5">
-                      <div className="flex flex-col items-center justify-center">
+                    <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3 p-3 sm:p-3.5">
+                      <div className="flex shrink-0 flex-col items-center justify-center">
                         <img
                           src={iconCopaMundo.src}
                           alt=""
-                          className="h-[82px] w-[62px] shrink-0 object-contain sm:h-[86px] sm:w-[62px]"
+                          className={TICKET_CARD_LOGO_CLASS}
                         />
                       </div>
 
@@ -826,120 +856,147 @@ export function TicketCheckoutFlow({
                       </span>
                       <span className="inline-flex items-center gap-1 text-right font-medium">
                         Escolha a quantidade
-                        <ChevronRight
-                          className="size-3.5 text-white/80"
-                          strokeWidth={2.4}
-                        />
                       </span>
                     </div>
                   </div>
                 )}
 
-                {!ticketsExtraOnly && !ticketsHideDaily && (
-                  <div className="overflow-hidden rounded-[16px] border border-white/10 bg-[#121212] shadow-[0_8px_26px_rgba(0,0,0,0.35)]">
-                    <div className="grid grid-cols-[74px_minmax(0,1fr)] items-center gap-3 p-3 sm:grid-cols-[86px_minmax(0,1fr)] sm:p-3.5">
-                      <div className="flex flex-col items-center justify-center">
-                        <img
-                          src={iconCopaMundo.src}
-                          alt=""
-                          className="h-[82px] w-[62px] shrink-0 object-contain sm:h-[86px] sm:w-[62px]"
-                        />
-                      </div>
+                {showDaily && currentDailyEdition && (
+                  <div className="space-y-3">
+                    {(() => {
+                      const edition = currentDailyEdition;
+                      const qty = dailyEditionQty(edition.number);
+                      const closed = !edition.purchaseOpen;
+                      const lineCents = progressiveDiscountTotalCents(
+                        prices.daily,
+                        qty,
+                      );
+                      const discountPct = progressiveDiscountPercent(qty);
+                      const unitCents =
+                        qty > 0 ? Math.round(lineCents / qty) : prices.daily;
+                      const statusLabel =
+                        edition.status === "encerrado"
+                          ? "Encerrado"
+                          : edition.status === "em_breve"
+                            ? "Em breve"
+                            : "Aberto";
 
-                      <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_88px] items-center gap-3 sm:grid-cols-[minmax(0,1fr)_96px]">
-                        <div className="min-w-0">
-                          <div className="min-w-0">
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              <h3 className="whitespace-nowrap text-[14px] font-black uppercase leading-tight text-white sm:text-[15px]">
-                                Bolão do Dia
-                              </h3>
-                              <span className="w-fit shrink-0 rounded-md bg-primary/20 px-1.5 py-0.5 text-[7px] font-black uppercase tracking-wide text-primary sm:text-[8px]">
-                                Exclusivo
-                              </span>
+                      return (
+                        <div
+                          key={edition.number}
+                          className={`overflow-hidden rounded-[16px] border bg-[#121212] shadow-[0_8px_26px_rgba(0,0,0,0.35)] ${
+                            closed
+                              ? "border-white/8 opacity-70"
+                              : "border-white/10"
+                          }`}
+                        >
+                          <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3 p-3 sm:p-3.5">
+                            <div className="flex shrink-0 flex-col items-center justify-center">
+                              <img
+                                src={logoBolaoDiario.src}
+                                alt="Bolão Diário"
+                                className={TICKET_CARD_LOGO_CLASS}
+                              />
                             </div>
-                            <p className="mt-1 text-[12px] font-medium leading-snug text-white/80 sm:text-[11px]">
-                              Acesso exclusivo ao bolão do dia
-                            </p>
+                            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_88px] items-center gap-3 sm:grid-cols-[minmax(0,1fr)_96px]">
+                              <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <h3 className="text-[14px] font-black uppercase leading-tight text-white sm:text-[15px]">
+                                    {edition.label}
+                                  </h3>
+                                  <span
+                                    className={`w-fit shrink-0 rounded-md px-1.5 py-0.5 text-[7px] font-black uppercase tracking-wide sm:text-[8px] ${
+                                      closed
+                                        ? "bg-red-500/15 text-red-300"
+                                        : edition.status === "em_breve"
+                                          ? "bg-white/10 text-white/60"
+                                          : "bg-primary/20 text-primary"
+                                    }`}
+                                  >
+                                    {statusLabel}
+                                  </span>
+                                </div>
+                                <p className="mt-1 text-[12px] font-semibold leading-snug text-primary/90 sm:text-[11px]">
+                                  {edition.datesLabel}
+                                </p>
+                                <p className="mt-1 text-[11px] font-medium leading-snug text-white/55">
+                                  Palpites em todos os jogos destes dias
+                                </p>
+                                <div className="mt-3 flex w-fit items-center gap-1 rounded-[10px] border border-white/10 bg-[#0f0f0f] p-1">
+                                  <button
+                                    type="button"
+                                    aria-label={`Diminuir ${edition.label}`}
+                                    disabled={closed || qty <= 0}
+                                    onClick={() => {
+                                      setError(null);
+                                      setCouponHint(null);
+                                      setDailyEditionQty(edition.number, qty - 1);
+                                    }}
+                                    className="flex h-8 w-8 items-center justify-center rounded-[8px] border border-primary/20 bg-black/40 text-primary transition-colors hover:bg-white/10 disabled:opacity-30"
+                                  >
+                                    <span className="text-[18px] font-black leading-none">
+                                      -
+                                    </span>
+                                  </button>
+                                  <span className="w-8 text-center text-[18px] font-black tabular-nums text-white sm:text-[20px]">
+                                    {qty}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    aria-label={`Aumentar ${edition.label}`}
+                                    disabled={closed || qty >= MAX_QTY}
+                                    onClick={() => {
+                                      setError(null);
+                                      setCouponHint(null);
+                                      setDailyEditionQty(edition.number, qty + 1);
+                                    }}
+                                    className="flex h-8 w-8 items-center justify-center rounded-[8px] border border-primary/30 bg-black/40 text-primary transition-colors hover:bg-white/10 disabled:opacity-30"
+                                  >
+                                    <span className="text-[18px] font-black leading-none">
+                                      +
+                                    </span>
+                                  </button>
+                                </div>
+                              </div>
+                              <div className="self-center text-right">
+                                <p className="text-[12px] font-semibold text-white/40">
+                                  Preço unitário
+                                </p>
+                                <p className="mt-1 text-[14px] font-black tabular-nums text-white sm:text-[15px]">
+                                  {formatBRL(unitCents)}
+                                </p>
+                                <p className="mt-1 text-[12px] font-semibold tabular-nums text-white/80 line-through">
+                                  {discountPct > 0 ? formatBRL(prices.daily) : ""}
+                                </p>
+                                <p className="text-[12px] font-bold text-primary">
+                                  {discountPct > 0 ? `${discountPct}% OFF` : ""}
+                                </p>
+                              </div>
+                            </div>
                           </div>
-
-                          <div className="mt-3 flex w-fit items-center gap-1 rounded-[10px] border border-white/10 bg-[#0f0f0f] p-1">
-                            <button
-                              type="button"
-                              aria-label="Diminuir Bolão do Dia"
-                              disabled={dailyQty <= 0}
-                              onClick={() => {
-                                setError(null);
-                                setCouponHint(null);
-                                setDailyQty((q) => Math.max(0, q - 1));
-                              }}
-                              className="flex h-8 w-8 items-center justify-center rounded-[8px] border border-primary/20 bg-black/40 text-primary transition-colors hover:bg-white/10 disabled:opacity-30"
-                            >
-                              <span className="text-[18px] font-black leading-none">
-                                -
-                              </span>
-                            </button>
-                            <span className="w-8 text-center text-[18px] font-black tabular-nums text-white sm:text-[20px]">
-                              {dailyQty}
-                            </span>
-                            <button
-                              type="button"
-                              aria-label="Aumentar Bolão do Dia"
-                              disabled={dailyQty >= MAX_QTY}
-                              onClick={() => {
-                                setError(null);
-                                setCouponHint(null);
-                                setDailyQty((q) => Math.min(MAX_QTY, q + 1));
-                              }}
-                              className="flex h-8 w-8 items-center justify-center rounded-[8px] border border-primary/30 bg-black/40 text-primary transition-colors hover:bg-white/10 disabled:opacity-30"
-                            >
-                              <span className="text-[18px] font-black leading-none">
-                                +
-                              </span>
-                            </button>
-                          </div>
+                          {closed && (
+                            <div className="border-t border-white/6 bg-black/25 px-3.5 py-2 text-[11px] font-medium text-white/45 sm:px-4">
+                              Esta edição já encerrou — não é possível comprar.
+                            </div>
+                          )}
                         </div>
-
-                        <div className="self-center text-right">
-                          <p className="text-[12px] font-semibold text-white/40">
-                            Preço unitário
-                          </p>
-                          <p className="mt-1 text-[14px] font-black tabular-nums text-white sm:text-[15px]">
-                            {formatBRL(dailyUnitPriceCents)}
-                          </p>
-                          <p className="mt-1 text-[12px] font-semibold tabular-nums text-white/80 line-through">
-                            {diarioDiscountPct > 0
-                              ? formatBRL(prices.daily)
-                              : ""}
-                          </p>
-                          <p className="text-[12px] font-bold text-primary">
-                            {diarioDiscountPct}% OFF
-                          </p>
-                          <p className="mt-1 text-[9px] leading-tight text-white/40">
-                            a partir de 2 tickets
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between gap-2 border-t border-white/6 bg-black/25 px-3.5 py-2.5 text-[12px] text-white/50 sm:px-4">
-                      <span>
-                        Desconto aplicado:{" "}
-                        <span className="font-bold text-primary">
-                          {diarioDiscountPct}%
-                        </span>{" "}
-                        OFF
-                      </span>
-                      <span className="inline-flex items-center gap-1 text-right font-medium">
-                        Escolha a quantidade
-                        <ChevronRight
-                          className="size-3.5 text-white/80"
-                          strokeWidth={2.4}
-                        />
-                      </span>
-                    </div>
+                      );
+                    })()}
                   </div>
                 )}
 
-                {!ticketsPrincipalOnly &&
+                {showDaily && !currentDailyEdition && catalogReady && (
+                  <div className="rounded-[16px] border border-white/10 bg-[#121212] px-4 py-5 text-center">
+                    <p className="text-[13px] font-bold text-white/70">
+                      Nenhuma cota do bolão diário disponível no momento.
+                    </p>
+                    <p className="mt-1 text-[11px] text-white/45">
+                      Volte em breve para a próxima edição da fase de grupos.
+                    </p>
+                  </div>
+                )}
+
+                {showExtra &&
                   extraBoloes.map((b) => {
                     const qty = extraQty(b.championshipId);
                     const variant = getExtraBolaoHeroSideVariant(
@@ -1055,10 +1112,7 @@ export function TicketCheckoutFlow({
                           </span>
                           <span className="inline-flex items-center gap-1 text-right font-medium">
                             Escolha a quantidade
-                            <ChevronRight
-                              className="size-3.5 text-white/80"
-                              strokeWidth={2.4}
-                            />
+                          
                           </span>
                         </div>
                       </div>
@@ -1132,27 +1186,33 @@ export function TicketCheckoutFlow({
                 )}
 
                 <div className="space-y-2.5 border-b border-white/10 pb-3">
-                  <div className="flex items-center justify-between gap-2 text-[13px]">
-                    <span className="font-semibold text-white/70">
-                      Bolão Geral · {principalQty}{" "}
-                      {principalQty === 1 ? "ticket" : "tickets"}
-                    </span>
-                    <span className="shrink-0 font-black tabular-nums text-white">
-                      {formatBRL(principalLineCents)}
-                    </span>
-                  </div>
-                  {!ticketsHideDaily && dailyQty > 0 && (
+                  {showPrincipal && principalQty > 0 && (
                     <div className="flex items-center justify-between gap-2 text-[13px]">
                       <span className="font-semibold text-white/70">
-                        Bolão do Dia · {dailyQty}{" "}
-                        {dailyQty === 1 ? "ticket" : "tickets"}
+                        Bolão Geral · {principalQty}{" "}
+                        {principalQty === 1 ? "ticket" : "tickets"}
                       </span>
                       <span className="shrink-0 font-black tabular-nums text-white">
-                        {formatBRL(diarioLineCents)}
+                        {formatBRL(principalLineCents)}
                       </span>
                     </div>
                   )}
-                  {!ticketsPrincipalOnly &&
+                  {showDaily &&
+                    dailyPixLines.map((line) => (
+                      <div
+                        key={line.edition}
+                        className="flex items-center justify-between gap-2 text-[13px]"
+                      >
+                        <span className="font-semibold text-white/70">
+                          {line.displayLabel} · {line.qty}{" "}
+                          {line.qty === 1 ? "ticket" : "tickets"}
+                        </span>
+                        <span className="shrink-0 font-black tabular-nums text-white">
+                          {formatBRL(line.lineCents)}
+                        </span>
+                      </div>
+                    ))}
+                  {showExtra &&
                     extraBoloes.map((b) => {
                       const qty = extraQty(b.championshipId);
                       if (qty <= 0) return null;
@@ -1271,7 +1331,8 @@ export function TicketCheckoutFlow({
               confirmedPaid={confirmedPaid}
               error={error}
               principalQty={principalQty}
-              dailyQty={dailyQty}
+              dailyQty={dailyTotalQty}
+              dailyPixLines={dailyPixLines}
               extraPixLines={extraPixLines}
               prices={prices}
               principalUnitPriceCents={principalUnitPriceCents}

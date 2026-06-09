@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
+import {
+  dailyEditionLabel,
+  formatDailyEditionDatesLabel,
+  listGroupStageDailyEditions,
+  resolveDailyEditionStatus,
+  resolveShopDailyEdition,
+} from "@/lib/boloes/daily-editions";
+import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
+import { fetchMatchesMap } from "@/lib/football-api";
 import { createDepositTransaction, parseTicketTypeOrThrow } from "@/lib/payments/transactions";
 import { getBrasilMarrocosPlacarPromoStatusForUser } from "@/lib/promotions/brasil-marrocos-placar-promo";
 import { getExtraBolaoUnitCents, getTicketPriceCents } from "@/lib/payments/ticket-config";
@@ -36,10 +45,27 @@ const extraByChampionshipSchema = z
     return out;
   });
 
+const dailyByEditionSchema = z
+  .record(z.string(), z.number().int().min(0).max(5))
+  .optional()
+  .transform((rec) => {
+    if (!rec) return {} as Record<number, number>;
+    const out: Record<number, number> = {};
+    for (const [k, v] of Object.entries(rec)) {
+      const edition = Number.parseInt(k, 10);
+      if (!Number.isFinite(edition) || edition < 1 || edition > 11) continue;
+      if (v > 0) out[edition] = v;
+    }
+    return out;
+  });
+
 const createCartSchema = z
   .object({
     generalQuantity: z.number().int().min(0).max(20),
-    dailyQuantity: z.number().int().min(0).max(20),
+    /** Legado — rejeitado pelo servidor; use `dailyByEdition`. */
+    dailyQuantity: z.number().int().min(0).max(20).optional().default(0),
+    /** Quantidade por edição do bolão diário (chave = número 1–11). */
+    dailyByEdition: dailyByEditionSchema,
     /** Quantidade total de cotas “Bolão extra” (valor calculado só no servidor). */
     extraQuantity: z.number().int().min(0).max(20).optional(),
     /** Legado — ignorado se `extraQuantity` > 0. */
@@ -60,17 +86,29 @@ const createLegacySchema = z
 export async function GET() {
   const ids = parseExtraBolaoChampionshipIds();
   const unit = getExtraBolaoUnitCents();
-  const [labels, rounds] = await Promise.all([
+  const mainComp = getFootballMainCompetitionId();
+  const [labels, rounds, matchMap] = await Promise.all([
     readCompetitionDisplayNamesFromDb(ids).catch(() => ({} as Record<number, string>)),
     extraBolaoCurrentRoundsByChampionship(ids).catch(() => ({} as Record<number, ExtraBolaoRoundInfo>)),
+    fetchMatchesMap({ ensureCompetitionIds: [mainComp] }).catch(() => new Map()),
   ]);
   void warmCompetitionMetadataCache(ids).catch(() => {});
+  const dailyEditions = listGroupStageDailyEditions().map((edition) => ({
+    number: edition.number,
+    label: dailyEditionLabel(edition.number),
+    datesLabel: formatDailyEditionDatesLabel(edition),
+    datesBR: edition.datesBR,
+    status: resolveDailyEditionStatus(edition.number, matchMap, mainComp),
+    purchaseOpen: resolveDailyEditionStatus(edition.number, matchMap, mainComp) !== "encerrado",
+  }));
+  const dailyEdition = resolveShopDailyEdition(dailyEditions);
   return NextResponse.json({
     prices: {
       general: getTicketPriceCents("general"),
       daily: getTicketPriceCents("daily"),
       extra: getExtraBolaoUnitCents(),
     },
+    dailyEdition,
     extraBoloes: filterTicketShopExtraBoloes(
       ids.map((championshipId) =>
         applyTicketShopExtraCatalogItem({
@@ -116,8 +154,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: clientPriceFieldError(rejectedPriceField) }, { status: 400 });
   }
 
-  const looksLikeCart =
-    typeof raw.generalQuantity === "number" && typeof raw.dailyQuantity === "number";
+  const looksLikeCart = typeof raw.generalQuantity === "number";
 
   try {
     if (looksLikeCart) {
@@ -128,12 +165,19 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
-      const { generalQuantity, dailyQuantity, extraQuantity, extraByChampionship, checkoutPromo } =
+      const { generalQuantity, dailyQuantity, dailyByEdition, extraQuantity, extraByChampionship, checkoutPromo } =
         parsed.data;
       const extra = extraByChampionship ?? {};
       const exQ = Math.max(0, Math.min(20, extraQuantity ?? 0));
       const extraTotalLegacy = Object.values(extra).reduce((a, b) => a + b, 0);
-      if (generalQuantity + dailyQuantity + (exQ > 0 ? exQ : extraTotalLegacy) < 1) {
+      const dailyTotal = Object.values(dailyByEdition ?? {}).reduce((a, b) => a + b, 0);
+      if (dailyQuantity > 0 && dailyTotal === 0) {
+        return NextResponse.json(
+          { error: "Selecione a edicao do bolao diario (Bolao Diario #N)" },
+          { status: 400 },
+        );
+      }
+      if (generalQuantity + dailyTotal + (exQ > 0 ? exQ : extraTotalLegacy) < 1) {
         return NextResponse.json({ error: "Selecione pelo menos um ticket" }, { status: 400 });
       }
       if (checkoutPromo === "comprar-cotas") {
@@ -143,7 +187,7 @@ export async function POST(request: NextRequest) {
             { status: 400 },
           );
         }
-        if (dailyQuantity > 0 || exQ > 0 || extraTotalLegacy > 0) {
+        if (dailyTotal > 0 || exQ > 0 || extraTotalLegacy > 0) {
           return NextResponse.json(
             { error: "Promo comprar-cotas aceita apenas cotas do bolao principal" },
             { status: 400 },
@@ -166,7 +210,7 @@ export async function POST(request: NextRequest) {
       const transaction = await createDepositTransaction({
         userId,
         generalQty: generalQuantity,
-        dailyQty: dailyQuantity,
+        dailyByEdition: dailyByEdition ?? {},
         ...(exQ > 0 ? { extraQuantity: exQ } : { extraByChampionship: extra }),
         ...(checkoutPromo ? { checkoutPromo } : {}),
       });
