@@ -15,6 +15,11 @@ import {
 } from "@/lib/boloes/skale-config";
 import { calculateSkalePrizePoolCents } from "@/lib/boloes/skale-prize";
 import { getPool } from "@/lib/db";
+import {
+  getDailyEditionDatesSet,
+  inferDailyEditionFromMatchIds,
+  paidTicketDailyEditionNumber,
+} from "@/lib/boloes/daily-editions";
 import { resolveDiarioPlayableDate } from "@/lib/diario-playable-date";
 import {
   listMatchesForExtraRound,
@@ -589,9 +594,10 @@ async function loadPaidTickets(
     id: string;
     user_id: string;
     ticket_type: "general" | "daily";
+    round_number: number | null;
     total_amount_cents: string | number | null;
   }>(
-    `SELECT t.id::text AS id, t.user_id::text AS user_id, t.ticket_type,
+    `SELECT t.id::text AS id, t.user_id::text AS user_id, t.ticket_type, t.round_number,
             COALESCE(t.total_amount_cents, 0) AS total_amount_cents
      FROM tickets t
      WHERE t.status IN ('paid', 'approved')
@@ -603,6 +609,7 @@ async function loadPaidTickets(
     id: r.id,
     user_id: r.user_id,
     ticket_type: r.ticket_type,
+    round_number: r.round_number,
     total_amount_cents: Number(r.total_amount_cents ?? 0),
     is_promo_bonus: false,
   }));
@@ -705,8 +712,13 @@ export async function buildLeaderboardDiarioForTicket(focusTicketId: string): Pr
 
 async function buildLeaderboardDiarioUncached(focusTicketId: string): Promise<{ rows: LeaderboardRow[]; meta: LeaderboardBoardMeta }> {
   const pool = getPool();
-  const { rows: ticketCheck } = await pool.query<{ id: string; ticket_type: string }>(
-    `SELECT id::text AS id, ticket_type::text AS ticket_type FROM tickets WHERE id = $1 AND status = 'paid' LIMIT 1`,
+  const { rows: ticketCheck } = await pool.query<{
+    id: string;
+    ticket_type: string;
+    round_number: number | null;
+  }>(
+    `SELECT id::text AS id, ticket_type::text AS ticket_type, round_number
+     FROM tickets WHERE id = $1 AND status = 'paid' LIMIT 1`,
     [focusTicketId]
   );
   const ticketRow = ticketCheck[0];
@@ -733,42 +745,58 @@ async function buildLeaderboardDiarioUncached(focusTicketId: string): Promise<{ 
     listPredictionsAggregateByBolao("diario"),
   ]);
 
-  const datesFromFocus = new Set<string>();
-  for (const mid of focusMatchIds) {
-    const d = getMatchFromMap(matches, mainComp, mid)?.dateBR;
-    if (d) datesFromFocus.add(d);
-  }
+  let poolEdition =
+    paidTicketDailyEditionNumber({
+      ticketType: "daily",
+      round_number: ticketRow.round_number,
+    }) ?? inferDailyEditionFromMatchIds(focusMatchIds, matches, mainComp);
 
   const playable = resolveDiarioPlayableDate(matches, { competitionId: mainComp });
-  let poolPlayDate: string;
-  if (datesFromFocus.size === 1) {
-    poolPlayDate = [...datesFromFocus][0]!;
-  } else if (datesFromFocus.size > 1) {
-    poolPlayDate = datesFromFocus.has(playable) ? playable : minBrDate(datesFromFocus);
+  let poolPlayDate: string = playable;
+  let editionDates: Set<string>;
+
+  if (poolEdition != null) {
+    editionDates = new Set(getDailyEditionDatesSet(poolEdition));
   } else {
-    poolPlayDate = playable;
+    const datesFromFocus = new Set<string>();
+    for (const mid of focusMatchIds) {
+      const d = getMatchFromMap(matches, mainComp, mid)?.dateBR;
+      if (d) datesFromFocus.add(d);
+    }
+    if (datesFromFocus.size === 1) {
+      poolPlayDate = [...datesFromFocus][0]!;
+    } else if (datesFromFocus.size > 1) {
+      poolPlayDate = datesFromFocus.has(playable) ? playable : minBrDate(datesFromFocus);
+    }
+    editionDates = new Set([poolPlayDate]);
   }
 
   const allowedDailyIds = new Set(paidDaily.map((t) => t.id));
 
-  const cohortPreds = allDiario.filter((p) => {
-    if (!allowedDailyIds.has(p.ticket_id)) return false;
-    const mi = getMatchFromMap(matches, mainComp, Number(p.match_id));
-    if (!mi || Number(mi.competitionId) !== mainComp) return false;
-    return mi.dateBR === poolPlayDate;
-  });
-
-  const agg = aggregatePredictions(cohortPreds, matches, allowedDailyIds, mainComp);
-
-  const ticketPlayDates = buildTicketPlayDatesByCompetition(
-    allDiario,
-    matches,
-    allowedDailyIds,
-    mainComp,
+  const cohortTicketIds = new Set(
+    paidDaily
+      .filter((t) => {
+        const edition = paidTicketDailyEditionNumber({
+          ticketType: "daily",
+          round_number: t.round_number,
+        });
+        if (poolEdition != null) return edition === poolEdition;
+        return t.id === focusTicketId;
+      })
+      .map((t) => t.id),
   );
 
+  const cohortPreds = allDiario.filter((p) => {
+    if (!allowedDailyIds.has(p.ticket_id) || !cohortTicketIds.has(p.ticket_id)) return false;
+    const mi = getMatchFromMap(matches, mainComp, Number(p.match_id));
+    if (!mi || Number(mi.competitionId) !== mainComp) return false;
+    return mi.dateBR != null && editionDates.has(mi.dateBR);
+  });
+
+  const agg = aggregatePredictions(cohortPreds, matches, cohortTicketIds, mainComp);
+
   const sortedTickets = paidDaily
-    .filter((t) => ticketEligibleForPlayDate(t.id, poolPlayDate, ticketPlayDates))
+    .filter((t) => cohortTicketIds.has(t.id))
     .map((t) => {
       const a = agg.get(t.id);
       return {
@@ -811,24 +839,25 @@ async function buildLeaderboardDiarioUncached(focusTicketId: string): Promise<{ 
     };
   });
 
-  const cohortTicketIds = new Set(sortedTickets.map((t) => t.ticketId));
-  const revenueCents = paidDaily.filter((t) => cohortTicketIds.has(t.id)).reduce((s, t) => s + t.total_amount_cents, 0);
+  const cohortTicketIdSet = new Set(sortedTickets.map((t) => t.ticketId));
+  const revenueCents = paidDaily
+    .filter((t) => cohortTicketIdSet.has(t.id))
+    .reduce((s, t) => s + t.total_amount_cents, 0);
   const participantCount = sortedTickets.length;
   const poolCentsApprox = calculatePrizePoolCents(revenueCents);
 
-  const dateSet = new Set([poolPlayDate]);
   const nextPalpiteLockMs = computeNextPalpiteLockMs(matches, (m) => {
     if (!m.dateBR) return false;
     if (Number(m.competitionId) !== mainComp) return false;
-    return dateSet.has(m.dateBR);
+    return editionDates.has(m.dateBR);
   }, palpiteLockBeforeKickoffMs("diario"));
 
   const approxPremiados = Math.max(1, Math.ceil(participantCount / 10));
-  const hasResultedMatchesInPool = poolHasAnyResultedMatch(cohortPreds, matches, allowedDailyIds, mainComp);
+  const hasResultedMatchesInPool = poolHasAnyResultedMatch(cohortPreds, matches, cohortTicketIds, mainComp);
   const hasLiveMatchesInPool = poolHasLiveMatch(
     cohortPreds,
     matches,
-    allowedDailyIds,
+    cohortTicketIds,
     mainComp,
   );
 

@@ -7,15 +7,9 @@ import { TicketCheckoutFlow } from "./_components/TicketCheckoutFlow";
 import { LpTicketCheckoutFlow } from "./_components/LpTicketCheckoutFlow";
 
 function TicketsPageContent({
-  serverExtraChampionshipIds,
-  ticketsExtraOnly,
-  ticketsHideDaily,
-  ticketsPrincipalOnly = false,
+  ticketsPrincipalAndDailyOnly = false,
 }: {
-  serverExtraChampionshipIds: number[];
-  ticketsExtraOnly: boolean;
-  ticketsHideDaily: boolean;
-  ticketsPrincipalOnly?: boolean;
+  ticketsPrincipalAndDailyOnly?: boolean;
 }) {
   const search = useSearchParams();
   const lpFlow =
@@ -23,20 +17,8 @@ function TicketsPageContent({
     search.get("lp") === "true" ||
     search.get("flow") === "lp";
   const bolaoRaw = search.get("bolao");
-  const bolao = ticketsPrincipalOnly
-    ? "principal"
-    : bolaoRaw === "diario" && !ticketsHideDaily
-      ? "diario"
-      : bolaoRaw === "extra"
-        ? "extra"
-        : "principal";
-  const championshipParam = search.get("championshipId");
-  const parsedChamp = championshipParam ? Number.parseInt(championshipParam, 10) : NaN;
-  const initialExtraChampionshipId =
-    bolao === "extra" && Number.isFinite(parsedChamp) && parsedChamp > 0 ? parsedChamp : undefined;
-
   const initialTicketKind =
-    bolao === "diario" ? "daily" : bolao === "extra" && initialExtraChampionshipId != null ? "extra" : "general";
+    ticketsPrincipalAndDailyOnly && bolaoRaw === "diario" ? "daily" : "general";
 
   return (
     <div className="flex min-h-screen flex-1 flex-col bg-black">
@@ -44,13 +26,9 @@ function TicketsPageContent({
         <LpTicketCheckoutFlow />
       ) : (
         <TicketCheckoutFlow
-          key={`${bolao}-${initialExtraChampionshipId ?? ""}-${ticketsPrincipalOnly ? "principal" : ticketsExtraOnly ? "xo" : ticketsHideDaily ? "hd" : "all"}`}
+          key={ticketsPrincipalAndDailyOnly ? "principal-daily" : "full-shop"}
           initialTicketKind={initialTicketKind}
-          initialExtraChampionshipId={initialExtraChampionshipId}
-          serverExtraChampionshipIds={serverExtraChampionshipIds}
-          ticketsExtraOnly={ticketsExtraOnly}
-          ticketsHideDaily={ticketsHideDaily}
-          ticketsPrincipalOnly={ticketsPrincipalOnly}
+          ticketsPrincipalAndDailyOnly={ticketsPrincipalAndDailyOnly}
         />
       )}
     </div>
@@ -58,15 +36,9 @@ function TicketsPageContent({
 }
 
 export function TicketsPageClient({
-  serverExtraChampionshipIds = [],
-  ticketsExtraOnly = false,
-  ticketsHideDaily = false,
-  ticketsPrincipalOnly = false,
+  ticketsPrincipalAndDailyOnly = false,
 }: {
-  serverExtraChampionshipIds?: number[];
-  ticketsExtraOnly?: boolean;
-  ticketsHideDaily?: boolean;
-  ticketsPrincipalOnly?: boolean;
+  ticketsPrincipalAndDailyOnly?: boolean;
 }) {
   return (
     <Suspense
@@ -76,12 +48,7 @@ export function TicketsPageClient({
         </div>
       }
     >
-      <TicketsPageContent
-        serverExtraChampionshipIds={serverExtraChampionshipIds}
-        ticketsExtraOnly={ticketsExtraOnly}
-        ticketsHideDaily={ticketsHideDaily || ticketsPrincipalOnly}
-        ticketsPrincipalOnly={ticketsPrincipalOnly}
-      />
+      <TicketsPageContent ticketsPrincipalAndDailyOnly={ticketsPrincipalAndDailyOnly} />
     </Suspense>
   );
 }

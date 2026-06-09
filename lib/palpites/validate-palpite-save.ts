@@ -1,3 +1,11 @@
+import {
+  getDailyEdition,
+  getDailyEditionDatesSet,
+  inferDailyEditionFromMatchIds,
+  isDailyEditionClosed,
+  isDateInDailyEdition,
+  paidTicketDailyEditionNumber,
+} from "@/lib/boloes/daily-editions";
 import { isSkaleBolaoCompetition } from "@/lib/boloes/skale-config";
 import { getMatchFromMap, resolveKickoffAtIso } from "@/lib/football-api";
 import { brToday, resolveDiarioPlayableDate, utcMsForBrDate } from "@/lib/diario-playable-date";
@@ -24,8 +32,15 @@ export async function validatePalpiteForSave(
   ctx: PalpiteSaveContext,
   data: PalpiteItemInput,
 ): Promise<{ error: string; status: number } | null> {
-  const { bolaoType, extraChampionshipId, extraRoundNumber, matchMap, mainComp, scopedComp } =
-    ctx;
+  const {
+    bolaoType,
+    extraChampionshipId,
+    extraRoundNumber,
+    dailyEditionNumber,
+    matchMap,
+    mainComp,
+    scopedComp,
+  } = ctx;
 
   const match = getMatchFromMap(matchMap, scopedComp, data.matchId);
   if (!match) {
@@ -142,14 +157,63 @@ export async function validatePalpiteForSave(
         status: 400,
       };
     }
-  } else if (bolaoType === "diario" || bolaoType === "extra") {
-    const today = brToday();
-    const predBolao = bolaoType === "diario" ? "diario" : "extra";
-    const scopeComp = bolaoType === "diario" ? mainComp : (extraChampionshipId as number);
+  } else if (bolaoType === "diario") {
     const ticketPreds = await listPredictions({
       userId: ctx.userId,
       ticketId: ctx.ticketId,
-      bolaoType: predBolao,
+      bolaoType: "diario",
+    });
+    const lockIds = ticketPreds.map((p) => Number(p.match_id)).filter(Number.isFinite);
+    let edition =
+      dailyEditionNumber ??
+      inferDailyEditionFromMatchIds(lockIds, matchMap, mainComp);
+
+    if (edition == null) {
+      const playableDate = resolveDiarioPlayableDate(matchMap, {
+        lockToMatchIds: lockIds,
+        competitionId: mainComp,
+      });
+      if (dateBrDb !== playableDate) {
+        return {
+          error: `Ticket: esta partida esta no dia ${dateBrDb}; o ticket so aceita jogos do dia ${playableDate}.`,
+          status: 400,
+        };
+      }
+    } else {
+      if (!isDateInDailyEdition(dateBrDb, edition)) {
+        const editionMeta = getDailyEdition(edition);
+        return {
+          error: `Ticket: esta partida nao pertence ao ${editionMeta ? `Bolao Diario #${edition}` : "bolao diario"} (dias ${editionMeta?.datesBR.join(", ") ?? "?"}).`,
+          status: 400,
+        };
+      }
+      if (isDailyEditionClosed(edition, matchMap, mainComp)) {
+        return {
+          error: `Bolao Diario #${edition} ja encerrado para novos palpites.`,
+          status: 400,
+        };
+      }
+      const editionDates = getDailyEditionDatesSet(edition);
+      if (ticketPreds.length > 0) {
+        for (const p of ticketPreds) {
+          const m = getMatchFromMap(matchMap, mainComp, Number(p.match_id));
+          const date = m?.dateBR ?? null;
+          if (date && !editionDates.has(date)) {
+            return {
+              error: "Este ticket diario ja foi encerrado para novo uso",
+              status: 400,
+            };
+          }
+        }
+      }
+    }
+  } else if (bolaoType === "extra") {
+    const today = brToday();
+    const scopeComp = extraChampionshipId as number;
+    const ticketPreds = await listPredictions({
+      userId: ctx.userId,
+      ticketId: ctx.ticketId,
+      bolaoType: "extra",
     });
     const lockIds = ticketPreds.map((p) => Number(p.match_id)).filter(Number.isFinite);
     const playableDate = resolveDiarioPlayableDate(matchMap, {
@@ -183,7 +247,7 @@ export async function validatePalpiteForSave(
       }
       if (hasDateMismatch || allFinished) {
         return {
-          error: "Este ticket diario/extra ja foi encerrado para novo uso",
+          error: "Este ticket extra ja foi encerrado para novo uso",
           status: 400,
         };
       }
@@ -205,8 +269,7 @@ export async function validatePalpiteForSave(
       }).format(existing.submitted_at);
       if (playableDate === today && submittedDay !== today) {
         return {
-          error:
-            "Ticket diario/extra so permite alterar palpites criados no dia atual",
+          error: "Ticket extra so permite alterar palpites criados no dia atual",
           status: 400,
         };
       }

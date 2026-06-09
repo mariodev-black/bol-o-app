@@ -23,6 +23,7 @@ import iconPremierLeague from "@/app/assets/icon-premier-league.png";
 import iconLibertadores from "@/app/assets/icone-libertadores.png";
 import iconCopaBrasil from "@/app/assets/icon-copa-brasil.png";
 import iconCopaMundo from "@/app/assets/icon-copa-mundo.png";
+import logoBolaoDiario from "@/app/assets/logo-bolao-diario.png";
 import ticketBlue from "@/app/assets/Ticket-Blue.png";
 import {
   bolaoDisplayPhaseSortRank,
@@ -70,6 +71,8 @@ export type ActivePrincipalBolao = {
 export type ActiveDailyBolao = {
   id: string;
   title: string;
+  /** Ex.: "dias: 11, 12 e 13 de junho". */
+  dailyEditionDatesLabel?: string | null;
   cotaLabel: string;
   href: string;
   status: "ativo" | "aguardando" | "usado";
@@ -105,6 +108,8 @@ export type ActiveBolaoListItem = {
   participantCount?: number;
   /** Cota extra grátis (brinde `is_promo_bonus`). */
   isPromoBonus?: boolean;
+  /** Bolão diário: datas da edição (ex.: "dias: 11, 12 e 13 de junho"). */
+  dailyEditionDatesLabel?: string | null;
 };
 
 export type BoloesScreenData = {
@@ -401,15 +406,12 @@ function ActiveRowBolaoIcon({
     return (
       <div className="flex w-[58px] shrink-0 flex-col items-center justify-center px-0.5 text-center">
         <Image
-          src={iconCopaMundo}
-          alt=""
-          width={44}
+          src={logoBolaoDiario}
+          alt="Bolão Diário"
+          width={52}
           height={44}
-          className="h-11 w-11 object-contain"
+          className="h-11 w-[52px] object-contain"
         />
-        <p className="mt-1 whitespace-pre-line text-[8px] font-black uppercase leading-[0.96] text-primary">
-          {"Bolão do\ndia"}
-        </p>
       </div>
     );
   }
@@ -840,12 +842,12 @@ function buildNoTicketsProducts(
         id: "diario",
         kind: "diario",
         href: upcoming.daily.href,
-        title: "Bolão do Dia",
-        subtitle: "Palpites na rodada do dia",
+        title: "Bolão Diário",
+        subtitle: "11 edições na fase de grupos",
         priceLabel: upcoming.daily.priceLabel,
         prizeTotal: dailyPrizes.total,
         prizeFirst: dailyPrizes.first,
-        iconSrc: iconCopaMundo.src,
+        iconSrc: logoBolaoDiario.src,
         brandedIcon: true,
       });
     }
@@ -1265,7 +1267,7 @@ function ActiveShowcaseCard({
       ? extraHero === "generic"
         ? ticketBlue
         : extraBolaoIconSrc(extraHero)
-      : iconCopaMundo;
+      : logoBolaoDiario;
   const showVerResultados =
     item.displayPhase === "finalizado" ||
     item.displayPhase === "disputa" ||
@@ -1418,7 +1420,8 @@ function noTicketsHeroHeader(product: NoTicketsProduct) {
 
 function NoTicketsHeroCard({ product }: { product: NoTicketsProduct }) {
   const header = noTicketsHeroHeader(product);
-  const useCopaLogo = product.kind === "principal" || product.kind === "diario";
+  const usePrincipalLogo = product.kind === "principal";
+  const useDiarioLogo = product.kind === "diario";
 
   return (
     <article
@@ -1427,13 +1430,21 @@ function NoTicketsHeroCard({ product }: { product: NoTicketsProduct }) {
     >
       <div className="flex items-start gap-3 px-4 pb-3 pt-4">
         <div className="flex w-[72px] shrink-0 items-center justify-center sm:w-[80px]">
-          {useCopaLogo ? (
+          {usePrincipalLogo ? (
             <Image
               src={iconCopaMundo}
               alt=""
               width={80}
               height={80}
               className="h-[72px] w-[64px] object-contain sm:h-[80px] sm:w-[72px]"
+            />
+          ) : useDiarioLogo ? (
+            <Image
+              src={logoBolaoDiario}
+              alt="Bolão Diário"
+              width={96}
+              height={80}
+              className="h-[72px] w-[88px] object-contain sm:h-[80px] sm:w-[96px]"
             />
           ) : (
             <img
@@ -1489,7 +1500,7 @@ function NoTicketsHeroCard({ product }: { product: NoTicketsProduct }) {
           href={product.href}
           className="flex h-[50px] w-full items-center justify-center gap-2 rounded-[12px] bg-primary text-[16px] font-black uppercase tracking-[0.05em] text-[#0E141B] transition-[filter] hover:brightness-105 active:scale-[0.98]"
         >
-          Comprar cota — {product.priceLabel}
+          Participar Agora
           <ArrowRight className="size-4 shrink-0" strokeWidth={2.6} aria-hidden />
         </Link>
       </div>
@@ -1686,12 +1697,9 @@ export function BoloesClient({
     [activeItems, ticketsExtraOnly],
   );
   const activeNonPrincipal = useMemo(() => {
-    let items = activeItems.filter((item) => item.type !== "principal");
-    if (ticketsHideDaily) {
-      items = items.filter((item) => item.type !== "diario");
-    }
+    const items = activeItems.filter((item) => item.type !== "principal");
     return sortBoloesByAvailabilityForShowcase(items);
-  }, [activeItems, ticketsHideDaily]);
+  }, [activeItems]);
   const ticketsHref =
     upcoming.principal.href ??
     (ticketsExtraOnly ? "/tickets?bolao=extra" : "/tickets");

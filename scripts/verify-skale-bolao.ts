@@ -36,7 +36,7 @@ async function main() {
   console.log(`  extras list: ${parseExtraBolaoChampionshipIds().join(", ")}`);
 
   const priceOk = getExtraBolaoUnitCentsForChampionship(skaleId) === 50_000;
-  const lines = buildPurchaseTicketLines(0, 0, {
+  const lines = buildPurchaseTicketLines(0, {}, {
     extraByChampionship: { [skaleId]: 1 },
   });
   const lineOk =

@@ -7,6 +7,12 @@ import {
 } from "@/lib/payments/gateway";
 import { createSkalePixTransaction } from "@/lib/payments/skalepayments";
 import {
+  isDailyEditionPurchaseOpen,
+  normalizeDailyByEditionInput,
+} from "@/lib/boloes/daily-editions";
+import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
+import { fetchMatchesMap } from "@/lib/football-api";
+import {
   buildComprarCotasPromoTicketLines,
   buildPurchaseTicketLines,
   parseTicketType,
@@ -81,12 +87,15 @@ function mapRowToView(row: {
 }
 
 export type CreateDepositTransactionInput =
-  | { userId: string; ticketType: "general" | "daily"; quantity: number }
+  | { userId: string; ticketType: "general" | "daily"; quantity: number; dailyEditionNumber?: number }
   | { userId: string; ticketType: "extra"; quantity: number; extraChampionshipId: number }
   | {
       userId: string;
       generalQty: number;
-      dailyQty: number;
+      /** Legado — rejeitado; use `dailyByEdition`. */
+      dailyQty?: number;
+      /** Quantidade por edição do bolão diário (chave = número da edição 1–11). */
+      dailyByEdition?: Record<number, number>;
       /** Preferir: quantidade total de cotas extras (valor e alocação só no servidor). */
       extraQuantity?: number;
       /** Legado: quantidades por campeonato (filtrado pelo servidor). */
@@ -108,12 +117,16 @@ function normalizeExtraByChampionship(map: Record<number, number> | undefined): 
 
 function resolvePurchaseQuantities(input: CreateDepositTransactionInput): {
   generalQty: number;
-  dailyQty: number;
+  dailyByEdition: Record<number, number>;
   extraPurchase?: PurchaseExtraInput;
 } {
-  if ("generalQty" in input && "dailyQty" in input) {
+  if ("generalQty" in input) {
     const g = Math.max(0, Math.min(20, Math.trunc(input.generalQty)));
-    const d = Math.max(0, Math.min(20, Math.trunc(input.dailyQty)));
+    const dailyByEdition = normalizeDailyByEditionInput(input.dailyByEdition);
+    const legacyDaily = Math.max(0, Math.min(20, Math.trunc(Number(input.dailyQty) || 0)));
+    if (legacyDaily > 0 && Object.keys(dailyByEdition).length === 0) {
+      throw new Error("Selecione a edicao do bolao diario (Bolao Diario #N)");
+    }
     const exQ = Math.max(0, Math.min(20, Math.trunc(Number(input.extraQuantity) || 0)));
     const rawMap = normalizeExtraByChampionship(input.extraByChampionship);
     let extraPurchase: PurchaseExtraInput | undefined;
@@ -121,24 +134,32 @@ function resolvePurchaseQuantities(input: CreateDepositTransactionInput): {
     else if (Object.values(rawMap).some((v) => v > 0)) {
       extraPurchase = { extraByChampionship: rawMap };
     }
-    return { generalQty: g, dailyQty: d, extraPurchase };
+    return { generalQty: g, dailyByEdition, extraPurchase };
   }
   const single = input as
     | { ticketType: "general"; quantity: number }
-    | { ticketType: "daily"; quantity: number }
+    | { ticketType: "daily"; quantity: number; dailyEditionNumber?: number }
     | { ticketType: "extra"; quantity: number; extraChampionshipId: number };
   const q = Math.max(1, Math.min(20, Math.trunc(single.quantity)));
   if (single.ticketType === "general") {
-    return { generalQty: q, dailyQty: 0 };
+    return { generalQty: q, dailyByEdition: {} };
   }
   if (single.ticketType === "daily") {
-    return { generalQty: 0, dailyQty: q };
+    const edition = Number(single.dailyEditionNumber);
+    if (!Number.isFinite(edition) || edition <= 0) {
+      throw new Error("dailyEditionNumber obrigatorio para compra do bolao diario");
+    }
+    return { generalQty: 0, dailyByEdition: { [edition]: q } };
   }
   const cid = Math.trunc(single.extraChampionshipId);
   if (!Number.isFinite(cid) || cid <= 0) {
-    return { generalQty: 0, dailyQty: 0 };
+    return { generalQty: 0, dailyByEdition: {} };
   }
-  return { generalQty: 0, dailyQty: 0, extraPurchase: { extraByChampionship: { [cid]: q } } };
+  return {
+    generalQty: 0,
+    dailyByEdition: {},
+    extraPurchase: { extraByChampionship: { [cid]: q } },
+  };
 }
 
 export async function createDepositTransaction(input: CreateDepositTransactionInput): Promise<DepositTransactionView> {
@@ -158,13 +179,32 @@ export async function createDepositTransaction(input: CreateDepositTransactionIn
     throw new Error("E-mail do usuario invalido para pagamento");
   }
 
-  const { generalQty, dailyQty, extraPurchase } = resolvePurchaseQuantities(input);
+  const { generalQty, dailyByEdition, extraPurchase } = resolvePurchaseQuantities(input);
   const lines =
     "checkoutPromo" in input && input.checkoutPromo === "comprar-cotas"
       ? buildComprarCotasPromoTicketLines(generalQty)
-      : buildPurchaseTicketLines(generalQty, dailyQty, extraPurchase);
+      : buildPurchaseTicketLines(generalQty, dailyByEdition, extraPurchase);
   if (lines.length === 0) {
     throw new Error("Selecione pelo menos um ticket");
+  }
+
+  const dailyEditionNumbers = [
+    ...new Set(
+      lines
+        .filter((l) => l.ticketType === "daily" && l.dailyEditionNumber != null)
+        .map((l) => Number(l.dailyEditionNumber)),
+    ),
+  ];
+  if (dailyEditionNumbers.length > 0) {
+    const mainComp = getFootballMainCompetitionId();
+    const matchMap = await fetchMatchesMap({ ensureCompetitionIds: [mainComp] }).catch(
+      () => new Map(),
+    );
+    for (const edition of dailyEditionNumbers) {
+      if (!isDailyEditionPurchaseOpen(edition, matchMap, mainComp)) {
+        throw new Error(`Bolao Diario #${edition} ja encerrado para compra`);
+      }
+    }
   }
 
   const amountCents = lines.reduce((s, l) => s + l.unitCents, 0);
@@ -189,9 +229,11 @@ export async function createDepositTransaction(input: CreateDepositTransactionIn
     const extraId = line.ticketType === "extra" ? line.extraChampionshipId ?? null : null;
     extraIds.push(extraId);
     roundNumbers.push(
-      extraId != null && !isSkaleBolaoCompetition(extraId)
-        ? getTicketShopExtraRoundNumber(extraId)
-        : null,
+      line.ticketType === "daily" && line.dailyEditionNumber != null
+        ? line.dailyEditionNumber
+        : extraId != null && !isSkaleBolaoCompetition(extraId)
+          ? getTicketShopExtraRoundNumber(extraId)
+          : null,
     );
     unitPrices.push(line.unitCents);
     totalAmounts.push(line.unitCents);

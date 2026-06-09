@@ -1836,6 +1836,11 @@ export type PalpitesInitialData = {
    * o cliente compõe `${extraRoundNumber}ª Rodada` como fallback.
    */
   extraRoundName?: string | null;
+  /** Bolão diário por edição (`tickets.round_number` = 1–11). */
+  dailyEditionNumber?: number | null;
+  /** Datas dd/MM/yyyy cobertas pela edição do bolão diário. */
+  dailyEditionDates?: string[];
+  dailyEditionDatesLabel?: string | null;
   /** Bolão da Skale: palpites em todos os jogos da Copa (igual cota principal). */
   isSkaleFullCopaPool?: boolean;
   /** Título do bolão na página (SSR). */
@@ -3146,6 +3151,12 @@ function PalpitesPageContent({
   }, [bolaoType, initialData?.extraChampionshipId]);
 
   const isSkaleFullCopaPool = initialData?.isSkaleFullCopaPool === true;
+  const dailyEditionNumber = initialData?.dailyEditionNumber ?? null;
+  const dailyEditionDateSet = useMemo(() => {
+    const dates = initialData?.dailyEditionDates ?? [];
+    return dates.length > 0 ? new Set(dates) : null;
+  }, [initialData?.dailyEditionDates]);
+  const dailyEditionDatesLabel = initialData?.dailyEditionDatesLabel ?? null;
 
   const showPredictionsSkeleton =
     Boolean(ticketId) &&
@@ -3591,6 +3602,9 @@ function PalpitesPageContent({
     if (bolaoType === "principal" || isSkaleFullCopaPool) return true;
     if (extraRoundMode) return j.rodada === extraTicketRound;
     if (!dayScopedMode) return true;
+    if (bolaoType === "diario" && dailyEditionDateSet != null) {
+      return j.dataBR != null && dailyEditionDateSet.has(j.dataBR);
+    }
     return j.dataBR === diarioPlayableDate;
   });
   const nowMs = Date.now();
@@ -3874,6 +3888,14 @@ function PalpitesPageContent({
       return extraRoundLabel ?? `${extraTicketRound ?? selectedRodada ?? 1}ª Rodada`;
     }
     if (bolaoType === "diario") {
+      if (dailyEditionNumber != null) {
+        const d = selectedDate ?? diarioPlayableDate;
+        const pill = d ? parseDatePill(d) : null;
+        const editionHead = `Bolão Diário #${dailyEditionNumber}`;
+        if (pill) return `${editionHead} · ${pill.dia} ${pill.mes}`;
+        if (dailyEditionDatesLabel) return `${editionHead} · ${dailyEditionDatesLabel}`;
+        return editionHead;
+      }
       const d = selectedDate ?? diarioPlayableDate;
       const pill = d ? parseDatePill(d) : null;
       if (pill) return `Jogos do dia · ${pill.dia} ${pill.mes}`;
@@ -3963,9 +3985,11 @@ function PalpitesPageContent({
       ? "Jogos · Copa inteira"
       : extraRoundMode
         ? (extraRoundLabel ?? "Rodada atual")
-        : diarioPlayableDate === today
-          ? "Jogos do dia atual"
-          : `Jogos em ${diarioPlayableDate} (dia mais próximo com partidas)`;
+        : bolaoType === "diario" && dailyEditionDatesLabel
+          ? `Fase de grupos · ${dailyEditionDatesLabel}`
+          : diarioPlayableDate === today
+            ? "Jogos do dia atual"
+            : `Jogos em ${diarioPlayableDate} (dia mais próximo com partidas)`;
 
   useEffect(() => {
     if (!showPalpitesDebug) return;

@@ -22,6 +22,12 @@ import {
 } from "@/lib/boloes/skale-config";
 import { mirrorSkaleBolaoMatchesFromCopa } from "@/lib/football/skale-bolao-sync";
 import { readFootballApiCacheJson, standingsCacheKey } from "@/lib/football-api-cache-store";
+import {
+  dailyEditionLabel,
+  formatDailyEditionDatesLabel,
+  getDailyEdition,
+  paidTicketDailyEditionNumber,
+} from "@/lib/boloes/daily-editions";
 
 const MESES = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
 type StatusJogo = "aberto" | "encerrado";
@@ -235,7 +241,7 @@ function palpitesBolaoHeading(
   if (bolaoType === "extra" && extraChampionshipId != null && Number.isFinite(extraChampionshipId) && extraChampionshipId > 0) {
     return resolveExtraBolaoDisplayName(extraChampionshipId);
   }
-  if (bolaoType === "diario") return "Bolão do dia";
+  if (bolaoType === "diario") return "Bolão diário";
   return "Copa do Mundo 2026";
 }
 
@@ -250,6 +256,9 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
   let extraRoundNumber: number | null = null;
   let extraRoundName: string | null = null;
   let ticketRoundFromDb: number | null = null;
+  let dailyEditionNumber: number | null = null;
+  let dailyEditionDates: string[] = [];
+  let dailyEditionDatesLabel: string | null = null;
   let isPromoBonus = false;
   const tid = ticketId?.trim() ?? "";
   if (tid) {
@@ -286,6 +295,19 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
         const rnum = row?.rnum;
         extraRoundNumber = rnum != null && Number.isFinite(Number(rnum)) ? Number(rnum) : null;
         ticketRoundFromDb = extraRoundNumber;
+      }
+      if (inferred === "diario" || row?.ticket_type === "daily") {
+        bolaoType = "diario";
+        dailyEditionNumber = paidTicketDailyEditionNumber({
+          ticketType: "daily",
+          round_number: row?.rnum,
+        });
+        const editionMeta =
+          dailyEditionNumber != null ? getDailyEdition(dailyEditionNumber) : null;
+        if (editionMeta) {
+          dailyEditionDates = [...editionMeta.datesBR];
+          dailyEditionDatesLabel = formatDailyEditionDatesLabel(editionMeta);
+        }
       }
     }
   }
@@ -456,6 +478,10 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
   ) {
     jogos = jogos.filter((j) => j.rodada === extraRoundNumber);
   }
+  if (bolaoType === "diario" && dailyEditionDates.length > 0) {
+    const editionDateSet = new Set(dailyEditionDates);
+    jogos = jogos.filter((j) => j.dataBR && editionDateSet.has(j.dataBR));
+  }
   const tabelaGrupos =
     pickTabelaGruposForPalpites(tabelaPayload) ??
     (bolaoType === "extra" ? ({ "grupo-geral": [] } as TabelaGrupos) : null);
@@ -470,7 +496,13 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
     extraRoundNumber,
     extraRoundName,
     isSkaleFullCopaPool: isSkaleExtra,
-    bolaoHeading: palpitesBolaoHeading(bolaoType, extraChampionshipId),
+    bolaoHeading:
+      bolaoType === "diario" && dailyEditionNumber != null
+        ? `${dailyEditionLabel(dailyEditionNumber)}${dailyEditionDatesLabel ? ` · ${dailyEditionDatesLabel}` : ""}`
+        : palpitesBolaoHeading(bolaoType, extraChampionshipId),
+    dailyEditionNumber,
+    dailyEditionDates,
+    dailyEditionDatesLabel,
     tabela: (tabelaGrupos ?? { "grupo-geral": [] }) as TabelaGrupos,
     jogos,
     grupos,

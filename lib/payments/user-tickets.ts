@@ -1,3 +1,10 @@
+import {
+  formatDailyEditionDatesLabel,
+  getDailyEdition,
+  getDailyEditionDatesSet,
+  inferDailyEditionFromMatchIds,
+  paidTicketDailyEditionNumber,
+} from "@/lib/boloes/daily-editions";
 import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
 import { isSkaleBolaoCompetition } from "@/lib/boloes/skale-config";
 import { isBolaoScopeRoundComplete } from "@/lib/boloes/display-status";
@@ -21,6 +28,8 @@ export type PaidTicketRow = {
   extraChampionshipId?: number | null;
   /** Bolão extra por rodada (`tickets.round_number`). */
   extraRoundNumber?: number | null;
+  /** Bolão diário por edição (`tickets.round_number` = 1–11). */
+  dailyEditionNumber?: number | null;
   isPromoBonus?: boolean;
   dailyStatus?: "disponivel" | "em_uso" | "usado";
   playDate?: string | null;
@@ -111,11 +120,14 @@ export async function listPaidTicketsForUser(
                 roundNumberFromDb: r.round_number,
               })
           : null;
+      const dailyEditionNumber =
+        r.ticket_type === "daily" ? paidTicketDailyEditionNumber({ ticketType: "daily", round_number: r.round_number }) : null;
       return {
         id: r.id,
         ticketType: r.ticket_type,
         extraChampionshipId: compId,
         extraRoundNumber,
+        dailyEditionNumber,
         isPromoBonus:
           Boolean(r.is_promo_bonus) ||
           (r.ticket_type === "extra" && Number(r.total_amount_cents ?? 0) === 0),
@@ -189,9 +201,16 @@ export async function listPaidTicketsForUser(
       const playableDate = resolveDiarioPlayableDate(matchMap, { competitionId: scopeComp });
       const extraRound = paidTicketExtraRoundNumber(t);
 
+      const dailyEdition = t.ticketType === "daily" ? paidTicketDailyEditionNumber(t) : null;
+      const dailyEditionDates =
+        dailyEdition != null ? getDailyEditionDatesSet(dailyEdition) : null;
+
       const openInTicketScope = (om: OpenMatch): boolean => {
         if (isSkaleBolaoCompetition(scopeComp)) {
           return om.competitionId === scopeComp;
+        }
+        if (t.ticketType === "daily" && dailyEditionDates != null) {
+          return om.dateBR != null && dailyEditionDates.has(om.dateBR);
         }
         if (extraRound == null) return om.dateBR === playableDate;
         const m = getMatchFromMap(matchMap, scopeComp, om.matchId);
@@ -200,7 +219,19 @@ export async function listPaidTicketsForUser(
 
       if (palpitesCount === 0) {
         const availableGames = scopeOpen.filter(openInTicketScope).length;
-        return { ...t, dailyStatus: "disponivel" as const, playDate: playableDate, availableGames, palpitesCount: 0 };
+        const editionPlayDate =
+          dailyEditionDates != null
+            ? [...dailyEditionDates].sort(
+                (a, b) => (utcMsForBrDate(a) ?? 0) - (utcMsForBrDate(b) ?? 0),
+              )[0] ?? playableDate
+            : playableDate;
+        return {
+          ...t,
+          dailyStatus: "disponivel" as const,
+          playDate: editionPlayDate,
+          availableGames,
+          palpitesCount: 0,
+        };
       }
 
       const predictedIds = new Set<number>(ticketPreds.map((p) => Number(p.match_id)).filter(Number.isFinite));
@@ -214,8 +245,19 @@ export async function listPaidTicketsForUser(
       const phaseScope = bolaoPhaseScopeForPaidTicket(t, matchMap, predMatchIds);
       const predOnlyScope = bolaoPhaseScopeFromPredictions(t, matchMap, predMatchIds);
 
+      const inferredEdition =
+        dailyEdition ??
+        inferDailyEditionFromMatchIds(
+          ticketPreds.map((p) => Number(p.match_id)),
+          matchMap,
+          scopeComp,
+        );
       const predDate = minBrDate(matchDates);
-      const targetDate = predDate ?? playableDate;
+      const editionMeta = inferredEdition != null ? getDailyEdition(inferredEdition) : null;
+      const targetDate =
+        editionMeta != null
+          ? formatDailyEditionDatesLabel(editionMeta)
+          : predDate ?? playableDate;
       const availableGames = scopeOpen
         .filter(openInTicketScope)
         .reduce((acc, m) => (predictedIds.has(m.matchId) ? acc : acc + 1), 0);

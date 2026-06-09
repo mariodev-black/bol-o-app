@@ -1,5 +1,10 @@
 import "server-only";
 
+import {
+  dailyEditionLabel,
+  formatDailyEditionDatesLabel,
+  getDailyEdition,
+} from "@/lib/boloes/daily-editions";
 import { resolveExtraBolaoDisplayName } from "@/lib/boloes-extra-competition-branding";
 import { isSkaleBolaoCompetition } from "@/lib/boloes/skale-config";
 import { warmCompetitionMetadataCache } from "@/lib/competition-metadata-cache";
@@ -91,7 +96,14 @@ export async function buildRankingScopes(
     }
 
     for (const t of daily) {
-      const date = t.playDate?.trim() || "Dia";
+      const edition = t.dailyEditionNumber;
+      const editionMeta = edition != null ? getDailyEdition(edition) : null;
+      const date =
+        editionMeta != null
+          ? formatDailyEditionDatesLabel(editionMeta)
+          : t.playDate?.trim() || "Dia";
+      const primary =
+        edition != null ? dailyEditionLabel(edition) : "Bolão do dia";
       const unused = (t.availableGames ?? 0) > 0;
       const pendingPalpitesCount = Math.max(0, t.availableGames ?? 0);
       const palpitesSentCount = Math.max(0, t.palpitesCount ?? 0);
@@ -99,16 +111,16 @@ export async function buildRankingScopes(
         key: `diario:${t.id}`,
         mode: "diario",
         ticketId: t.id,
-        label: `Bolão do dia — ${date}`,
+        label: `${primary} — ${date}`,
         meta: `Cota ${shortId(t.id)}`,
-        selectPrimary: "Bolão do dia",
+        selectPrimary: primary,
         selectSecondary: date,
         extraChampionshipId: null,
         ...rankingScopeStatusForTicket(t, matches),
         unusedPalpites: unused,
         pendingPalpitesCount,
         palpitesSentCount,
-        roundLabel: `Jogos de ${date}`,
+        roundLabel: editionMeta ? `Fase de grupos · ${date}` : `Jogos de ${date}`,
         palpitesHref: palpitesHrefForTicket(t.id),
       });
     }

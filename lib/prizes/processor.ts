@@ -1,4 +1,5 @@
 import type { PoolClient } from "pg";
+import { listGroupStageDailyEditions } from "@/lib/boloes/daily-editions";
 import { getFootballMainCompetitionId, parseExtraBolaoChampionshipIds } from "@/lib/boloes-extra-config";
 import {
   calculateSkalePrizeAwards,
@@ -134,11 +135,15 @@ function closureKey(input: {
   competitionId: number;
   type: BolaoPrizeType;
   dateBR?: string | null;
+  dailyEditionNumber?: number | null;
   skaleFinal?: boolean;
 }): string {
   if (input.skaleFinal) return `${input.competitionId}:skale:final`;
   if (input.type === "general") return `${input.competitionId}:general`;
   if (input.type === "extra") return `${input.competitionId}:extra:${input.dateBR ?? "SEM_DATA"}`;
+  if (input.dailyEditionNumber != null && input.dailyEditionNumber > 0) {
+    return `${input.competitionId}:daily:edition:${input.dailyEditionNumber}`;
+  }
   return `${input.competitionId}:daily:${input.dateBR ?? "SEM_DATA"}`;
 }
 
@@ -210,6 +215,7 @@ async function insertClosure(
     compId: number;
     type: BolaoPrizeType;
     dateBR: string | null;
+    dailyEditionNumber?: number | null;
     totalRevenueCents: number;
     poolCents: number;
     metadata: Record<string, unknown>;
@@ -220,6 +226,7 @@ async function insertClosure(
     competitionId: input.compId,
     type: input.type,
     dateBR: input.dateBR,
+    dailyEditionNumber: input.dailyEditionNumber,
     skaleFinal: input.skaleFinal,
   });
   const { rows } = await client.query<{ id: string }>(
@@ -243,7 +250,12 @@ async function insertClosure(
 
 async function listTicketsForClosure(
   client: PoolClient,
-  input: { type: BolaoPrizeType; dateBR?: string | null; competitionId: number }
+  input: {
+    type: BolaoPrizeType;
+    dateBR?: string | null;
+    competitionId: number;
+    dailyEditionNumber?: number | null;
+  },
 ): Promise<TicketRow[]> {
   if (input.type === "general") {
     const { rows } = await client.query<TicketRow>(
@@ -258,6 +270,23 @@ async function listTicketsForClosure(
   }
 
   if (input.type === "daily") {
+    if (input.dailyEditionNumber != null && input.dailyEditionNumber > 0) {
+      const edition = listGroupStageDailyEditions().find(
+        (e) => e.number === input.dailyEditionNumber,
+      );
+      const dates = edition?.datesBR ?? [];
+      const { rows } = await client.query<TicketRow>(
+        `SELECT t.id::text AS id, t.user_id::text AS user_id, t.total_amount_cents, t.paid_at, t.created_at
+         FROM tickets t
+         WHERE t.ticket_type = 'daily'
+           AND NOT COALESCE(t.is_promo_bonus, false)
+           AND t.status IN ('paid', 'approved')
+           AND t.round_number = $1
+         ORDER BY t.paid_at ASC NULLS LAST, t.created_at ASC`,
+        [input.dailyEditionNumber],
+      );
+      if (rows.length > 0 || dates.length === 0) return rows;
+    }
     const { rows } = await client.query<TicketRow>(
       `WITH first_prediction_dates AS (
        SELECT DISTINCT ON (p.ticket_id) p.ticket_id, mc.date_br
@@ -508,6 +537,7 @@ async function processClosure(
     compId: number;
     type: BolaoPrizeType;
     dateBR: string | null;
+    dailyEditionNumber?: number | null;
     matches: MatchRow[];
     metadataExtra?: Record<string, unknown>;
   }
@@ -516,6 +546,7 @@ async function processClosure(
     type: input.type,
     dateBR: input.dateBR,
     competitionId: input.compId,
+    dailyEditionNumber: input.dailyEditionNumber,
   });
   const totalRevenueCents = tickets.reduce((sum, ticket) => sum + Number(ticket.total_amount_cents || 0), 0);
   const poolCents = calculatePrizePoolCents(totalRevenueCents);
@@ -525,6 +556,7 @@ async function processClosure(
     compId: input.compId,
     type: input.type,
     dateBR: input.dateBR,
+    dailyEditionNumber: input.dailyEditionNumber,
     totalRevenueCents,
     poolCents,
     metadata: {
@@ -673,34 +705,32 @@ export async function processPrizeClosuresAfterMatchSync(
     const nowMs = Date.now();
 
     if (matches.length > 0) {
-      const byDate = new Map<string, MatchRow[]>();
-      for (const match of matches) {
-        if (!match.date_br) continue;
-        const arr = byDate.get(match.date_br) ?? [];
-        arr.push(match);
-        byDate.set(match.date_br, arr);
-      }
-
-      for (const [dateBR, dateMatches] of byDate) {
-        if (dailyPoolReadyForClosure(dateMatches, nowMs)) {
-          await client.query("BEGIN");
-          try {
-            await processClosure(client, {
-              compId,
-              type: "daily",
-              dateBR,
-              matches: dateMatches,
-              metadataExtra: {
-                prizeGate: "daily",
-                lastKickoffMs: lastKickoffMs(dateMatches),
-                graceMinutesAfterLastKickoff: prizeDailyGraceAfterLastKickoffMinutes(),
-              },
-            });
-            await client.query("COMMIT");
-          } catch (error) {
-            await client.query("ROLLBACK");
-            throw error;
-          }
+      for (const edition of listGroupStageDailyEditions()) {
+        const dateSet = new Set(edition.datesBR);
+        const editionMatches = matches.filter(
+          (match) => match.date_br != null && dateSet.has(match.date_br),
+        );
+        if (!dailyPoolReadyForClosure(editionMatches, nowMs)) continue;
+        await client.query("BEGIN");
+        try {
+          await processClosure(client, {
+            compId,
+            type: "daily",
+            dateBR: edition.datesBR[edition.datesBR.length - 1] ?? null,
+            dailyEditionNumber: edition.number,
+            matches: editionMatches,
+            metadataExtra: {
+              prizeGate: "daily-edition",
+              dailyEditionNumber: edition.number,
+              editionDates: edition.datesBR,
+              lastKickoffMs: lastKickoffMs(editionMatches),
+              graceMinutesAfterLastKickoff: prizeDailyGraceAfterLastKickoffMinutes(),
+            },
+          });
+          await client.query("COMMIT");
+        } catch (error) {
+          await client.query("ROLLBACK");
+          throw error;
         }
       }
 

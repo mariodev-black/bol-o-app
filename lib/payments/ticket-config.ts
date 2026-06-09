@@ -1,4 +1,5 @@
 import { getExtraBolaoTicketUnitCents, parseExtraBolaoChampionshipIds } from "@/lib/boloes-extra-config";
+import { normalizeDailyByEditionInput } from "@/lib/boloes/daily-editions";
 import {
   getSkaleBolaoUnitCents,
   isSkaleBolaoCompetition,
@@ -40,8 +41,16 @@ export function getExtraTicketPriceCents(): number {
   return getExtraBolaoUnitCents();
 }
 
-export function ticketTypeLabel(type: TicketType, _extraChampionshipId?: number): string {
-  if (type === "daily") return "Ticket Diario";
+export function ticketTypeLabel(
+  type: TicketType,
+  _extraChampionshipId?: number,
+  dailyEditionNumber?: number,
+): string {
+  if (type === "daily") {
+    return dailyEditionNumber != null && dailyEditionNumber > 0
+      ? `Bolão Diário #${dailyEditionNumber}`
+      : "Ticket Diario";
+  }
   if (type === "general") return "Ticket Geral";
   return "Bolão extra";
 }
@@ -117,6 +126,8 @@ export type PurchaseTicketLine = {
   ticketType: TicketType;
   unitCents: number;
   extraChampionshipId?: number;
+  /** Bolão diário: edição da fase de grupos (`tickets.round_number`). */
+  dailyEditionNumber?: number;
 };
 
 /** Compra de extras: uma quantidade total (desconto progressivo sobre o total) ou mapa legado por campeonato. */
@@ -163,17 +174,35 @@ function normalizeExtraMap(map: Record<number, number> | undefined): Record<numb
   return out;
 }
 
+export function buildDailyEditionPurchaseLines(
+  dailyByEdition: Record<number, number> | Record<string, number> | undefined,
+): PurchaseTicketLine[] {
+  const map = normalizeDailyByEditionInput(dailyByEdition);
+  const lines: PurchaseTicketLine[] = [];
+  const dailyUnit = getTicketPriceCents("daily");
+  const editions = Object.keys(map)
+    .map((k) => Number.parseInt(k, 10))
+    .filter(Number.isFinite)
+    .sort((a, b) => a - b);
+  for (const edition of editions) {
+    const q = map[edition] ?? 0;
+    for (const unitCents of distributeDiscountedTicketAmounts(dailyUnit, q)) {
+      lines.push({ ticketType: "daily", unitCents, dailyEditionNumber: edition });
+    }
+  }
+  return lines;
+}
+
 /**
- * Monta as linhas de tickets para um carrinho (0–20 geral/dia; extras por quantidade total ou mapa legado).
+ * Monta as linhas de tickets para um carrinho (0–20 geral; diário por edição; extras por quantidade ou mapa).
  * Desconto progressivo: geral e dia por tipo; extras — uma curva só sobre a quantidade total de extras.
  */
 export function buildPurchaseTicketLines(
   generalQty: number,
-  dailyQty: number,
+  dailyByEdition?: Record<number, number> | Record<string, number>,
   extraInput?: PurchaseExtraInput,
 ): PurchaseTicketLine[] {
   const g = Math.max(0, Math.min(20, Math.trunc(generalQty)));
-  const d = Math.max(0, Math.min(20, Math.trunc(dailyQty)));
   const lines: PurchaseTicketLine[] = [];
   const genUnit = getTicketPriceCents("general");
 
@@ -181,10 +210,7 @@ export function buildPurchaseTicketLines(
     lines.push({ ticketType: "general", unitCents });
   }
 
-  const dailyUnit = getTicketPriceCents("daily");
-  for (const unitCents of distributeDiscountedTicketAmounts(dailyUnit, d)) {
-    lines.push({ ticketType: "daily", unitCents });
-  }
+  lines.push(...buildDailyEditionPurchaseLines(dailyByEdition));
 
   const allowedOrdered = parseExtraBolaoChampionshipIds();
 
@@ -219,8 +245,15 @@ export function buildPurchaseTicketLines(
 
 export function expectedPurchaseAmountCents(
   generalQty: number,
-  dailyQty: number,
+  dailyByEdition?: Record<number, number> | Record<string, number>,
   extraInput?: PurchaseExtraInput,
 ): number {
-  return buildPurchaseTicketLines(generalQty, dailyQty, extraInput).reduce((s, l) => s + l.unitCents, 0);
+  return buildPurchaseTicketLines(generalQty, dailyByEdition, extraInput).reduce((s, l) => s + l.unitCents, 0);
+}
+
+export function totalDailyEditionQuantity(
+  dailyByEdition?: Record<number, number> | Record<string, number>,
+): number {
+  const map = normalizeDailyByEditionInput(dailyByEdition);
+  return Object.values(map).reduce((s, q) => s + q, 0);
 }
