@@ -31,8 +31,8 @@ import {
 } from "@/lib/ticket-competition-server";
 import { resolvePaidTicketRankingPositions } from "@/lib/ranking/leaderboard";
 import {
-  dailyEditionLabel,
-  formatDailyEditionDatesSubtitle,
+  dailyEditionCardTitle,
+  formatDailyEditionCardSubtitle,
   getDailyEdition,
 } from "@/lib/boloes/daily-editions";
 import { resolveDiarioPlayableDate } from "@/lib/diario-playable-date";
@@ -167,10 +167,44 @@ function formatBRL(cents: number): string {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
 }
 
-function shortTicketId(id: string): string {
-  const clean = id.trim();
-  if (!clean) return "------";
-  return clean.slice(0, 6).toUpperCase();
+function formatCotaLabel(ordinal: number): string {
+  return `Cota #${String(ordinal).padStart(2, "0")}`;
+}
+
+/** Agrupa cotas para numeração sequencial (01, 02…) por tipo de bolão. */
+function ticketCotaGroupKey(ticket: PaidTicketRow): string {
+  if (ticket.ticketType === "general") return "general";
+  if (ticket.ticketType === "daily") {
+    const edition = ticket.dailyEditionNumber ?? 0;
+    return `daily:${edition}`;
+  }
+  const comp = Number(ticket.extraChampionshipId) || 0;
+  const round = ticket.extraRoundNumber ?? "all";
+  return `extra:${comp}:${round}`;
+}
+
+/** Primeira compra = 01, dentro de cada grupo (geral, diário por edição, extra por campeonato/rodada). */
+function buildCotaOrdinalByTicketId(tickets: PaidTicketRow[]): Map<string, number> {
+  const sorted = [...tickets].sort((a, b) => {
+    const aMs = a.paidAt ? new Date(a.paidAt).getTime() : new Date(a.createdAt).getTime();
+    const bMs = b.paidAt ? new Date(b.paidAt).getTime() : new Date(b.createdAt).getTime();
+    if (aMs !== bMs) return aMs - bMs;
+    return a.id.localeCompare(b.id);
+  });
+
+  const counters = new Map<string, number>();
+  const out = new Map<string, number>();
+  for (const ticket of sorted) {
+    const key = ticketCotaGroupKey(ticket);
+    const next = (counters.get(key) ?? 0) + 1;
+    counters.set(key, next);
+    out.set(ticket.id, next);
+  }
+  return out;
+}
+
+function cotaLabelForTicket(ticket: PaidTicketRow, ordinalByTicketId: Map<string, number>): string {
+  return formatCotaLabel(ordinalByTicketId.get(ticket.id) ?? 1);
 }
 
 function scopeOptsForTicket(
@@ -534,6 +568,7 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
     .map((ticket) => metricsByTicket.get(ticket.id)?.position ?? null)
     .filter((pos): pos is number => pos != null);
   const pending = Array.from(metricsByTicket.values()).reduce((sum, item) => sum + item.available, 0);
+  const cotaOrdinalByTicketId = buildCotaOrdinalByTicketId(tickets);
   const allActive = tickets.map((ticket): BoloesScreenData["active"]["all"][number] => {
     const scopeOpts = scopeOptsForTicket(ticket, effectiveExtraRoundByTicketId);
     const metrics = metricsByTicket.get(ticket.id) ?? {
@@ -561,7 +596,7 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
         id: ticket.id,
         type: "principal",
         title: "Bolão do Milhão",
-        cotaLabel: `Cota #${shortTicketId(ticket.id)}`,
+        cotaLabel: cotaLabelForTicket(ticket, cotaOrdinalByTicketId),
         href: `/palpites?${new URLSearchParams({ ticket: ticket.id }).toString()}`,
         status: legacyStatus,
         displayPhase,
@@ -620,7 +655,7 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
         type: "extra",
         championshipId: safeComp > 0 ? safeComp : undefined,
         title,
-        cotaLabel: `Cota #${shortTicketId(ticket.id)}`,
+        cotaLabel: cotaLabelForTicket(ticket, cotaOrdinalByTicketId),
         href: `/palpites?${new URLSearchParams({ ticket: ticket.id }).toString()}`,
         status: legacyStatus as ActiveDailyStatus,
         displayPhase,
@@ -671,17 +706,17 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
           : "ativo";
     const dailyTitle =
       ticket.dailyEditionNumber != null
-        ? dailyEditionLabel(ticket.dailyEditionNumber)
+        ? dailyEditionCardTitle(ticket.dailyEditionNumber)
         : "Bolão do Dia";
     const dailyEditionDatesLabel = editionMeta
-      ? formatDailyEditionDatesSubtitle(editionMeta)
+      ? formatDailyEditionCardSubtitle(editionMeta)
       : null;
     return {
       id: ticket.id,
       type: "diario",
       title: dailyTitle,
       dailyEditionDatesLabel,
-      cotaLabel: `Cota #${shortTicketId(ticket.id)}`,
+      cotaLabel: cotaLabelForTicket(ticket, cotaOrdinalByTicketId),
       href: `/palpites?${new URLSearchParams({ ticket: ticket.id }).toString()}`,
       status: legacyStatus as ActiveDailyStatus,
       displayPhase,
@@ -718,7 +753,7 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
           return {
             id: firstGeneral.id,
             title: "Bolão do Milhão",
-            cotaLabel: `Cota #${shortTicketId(firstGeneral.id)}`,
+            cotaLabel: cotaLabelForTicket(firstGeneral, cotaOrdinalByTicketId),
             href: `/palpites?${new URLSearchParams({ ticket: firstGeneral.id }).toString()}`,
             status: (displayPhase === "finalizado" ? "usado" : "ativo") as "ativo",
             displayPhase,
@@ -766,16 +801,16 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
                 : "ativo";
           const dailyTitle =
             firstDaily.dailyEditionNumber != null
-              ? dailyEditionLabel(firstDaily.dailyEditionNumber)
+              ? dailyEditionCardTitle(firstDaily.dailyEditionNumber)
               : "Bolão do Dia";
           const dailyEditionDatesLabel = editionMeta
-            ? formatDailyEditionDatesSubtitle(editionMeta)
+            ? formatDailyEditionCardSubtitle(editionMeta)
             : null;
           return {
             id: firstDaily.id,
             title: dailyTitle,
             dailyEditionDatesLabel,
-            cotaLabel: `Cota #${shortTicketId(firstDaily.id)}`,
+            cotaLabel: cotaLabelForTicket(firstDaily, cotaOrdinalByTicketId),
             href: `/palpites?${new URLSearchParams({ ticket: firstDaily.id }).toString()}`,
             status: legacyStatus as ActiveDailyStatus,
             displayPhase,

@@ -375,8 +375,8 @@ function milhaoPrincipalCta(item: ActiveBolaoListItem): string {
 }
 
 function cotaBadge(label: string | undefined): string {
-  const digits = String(label ?? "").replace(/\D/g, "");
-  if (digits.length >= 2) return digits.slice(-2).padStart(2, "0");
+  const hashMatch = String(label ?? "").match(/#\s*(\d+)/);
+  if (hashMatch?.[1]) return hashMatch[1].padStart(2, "0");
   return "01";
 }
 
@@ -447,9 +447,9 @@ function cardTitleParts(item: ActiveBolaoListItem): {
   }
   if (item.type === "diario") {
     return {
-      eyebrow: item.title?.includes("#") ? "Fase de grupos" : "Bolão diário",
-      title: item.title || "Bolão Diário",
-      subtitle: "Palpites nos dias da edição",
+      eyebrow: item.title || "Bolão Diário",
+      title: item.dailyEditionDatesLabel?.trim() || "Rodada do dia",
+      subtitle: null,
     };
   }
   const { name, round } = parseExtraTitle(item.title);
@@ -593,11 +593,11 @@ export function ActiveBolaoCarouselCard({
   const logo = logoForItem(item);
   const cta = resolveCta(item, now);
   const isGratisExtra = item.type === "extra" && item.isPromoBonus !== false;
-  const roundLabel =
+  const subtitleLine =
     item.type === "extra"
       ? parseExtraTitle(item.title).round
       : item.type === "diario"
-        ? item.dailyEditionDatesLabel?.trim() || "Rodada do dia"
+        ? parts.title
         : null;
 
   return (
@@ -626,9 +626,9 @@ export function ActiveBolaoCarouselCard({
             <h3 className="text-[17px] font-black uppercase leading-[1.02] tracking-[-0.02em] text-white min-[360px]:text-[18px]">
               {parts.eyebrow}
             </h3>
-            {roundLabel ? (
+            {subtitleLine ? (
               <p className="mt-1 text-[12px] font-medium text-white/48">
-                {roundLabel}
+                {subtitleLine}
               </p>
             ) : null}
           </div>

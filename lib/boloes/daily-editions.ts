@@ -70,6 +70,16 @@ export function dailyEditionLabel(number: number): string {
   return `Bolão Diário #${number}`;
 }
 
+/** Título do card na vitrine — ex.: "Bolão Diário 01". */
+export function dailyEditionCardTitle(number: number): string {
+  return `Bolão Diário ${String(number).padStart(2, "0")}`;
+}
+
+export function dailyEditionPhaseLabel(phase: DailyEditionPhase): string {
+  if (phase === "grupos") return "fase de grupos";
+  return phase;
+}
+
 export function getDailyEditionForDate(dateBR: string): DailyEdition | null {
   const d = dateBR.trim();
   if (!d) return null;
@@ -128,6 +138,15 @@ export function formatDailyEditionDatesSubtitle(edition: DailyEdition): string {
   if (!dates) return "";
   const prefix = edition.datesBR.length === 1 ? "dia:" : "dias:";
   return `${prefix} ${dates}`;
+}
+
+/** Ex.: "fase de grupos dias: 11, 12 e 13 de junho". */
+export function formatDailyEditionCardSubtitle(edition: DailyEdition): string {
+  const dates = formatDailyEditionDatesLabel(edition);
+  const phase = dailyEditionPhaseLabel(edition.phase);
+  if (!dates) return phase;
+  const dayWord = edition.datesBR.length === 1 ? "dia" : "dias";
+  return `${phase} ${dayWord}: ${dates}`;
 }
 
 export type DailyEditionStatus = "aberto" | "encerrado" | "em_breve";
