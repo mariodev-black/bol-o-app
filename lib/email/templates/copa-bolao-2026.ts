@@ -19,13 +19,15 @@ const FOOTER_NOTE =
 
 function hi(name?: string | null): string {
   const first = emailFirstName(name);
-  return first ? `Olá, ${escapeEmailHtml(first)} 👋` : "Olá 👋";
+  return first ? `👋 Olá, ${escapeEmailHtml(first)},` : "👋 Olá,";
 }
 
 function shell(subject: string, preheader: string, bodyHtml: string): string {
+  // Strip leading emoji from H1 — emojis at start of centered H1 wrap to their own line
+  const headline = subject.replace(/^[^A-Za-zÀ-ÿ0-9]+/, "").trim() || subject;
   return renderEmailShell({
     preheader,
-    headline: subject,
+    headline,
     bodyHtml,
     marketingFooter: true,
     footerNote: FOOTER_NOTE,
@@ -42,7 +44,7 @@ function textLines(first: string | null, subject: string, lines: string[], ctaLa
 // ────────────────────────────────────────────────
 function buildTer09h(params: CopaEmailParams): EmailOutput {
   const url = getEmailBoloesUrl();
-  const subject = "🏆 Mais de R$ 1 milhão em premiações por apenas R$29,90";
+  const subject = " Mais de R$ 1 milhão em premiações por apenas R$29,90";
   const first = emailFirstName(params.recipientName);
 
   const bodyHtml = `
@@ -53,14 +55,14 @@ function buildTer09h(params: CopaEmailParams): EmailOutput {
       Agora chegou a hora da principal disputa da Copa.`,
     )}
     ${emailBodyText(
-      `🏆 Mais de R$ 1 milhão em premiações<br />
-      ⚽ Copa inteira<br />
-      💰 Apenas R$29,90`,
+      ` Mais de R$ 1 milhão em premiações<br />
+       Copa inteira<br />
+       Apenas R$29,90`,
     )}
     ${emailBodyText(`Além disso, quem acertar o placar exato e os escanteios do Brasil ganha:`)}
     ${emailBodyText(
-      `👕 ${emailStrong("Camisa oficial da Seleção")}<br />
-      💰 ${emailStrong("R$1.000 no PIX")}`,
+      ` ${emailStrong("Camisa oficial da Seleção")}<br />
+       ${emailStrong("R$1.000 no PIX")}`,
     )}
     ${emailPrimaryButton(url, "GARANTIR MINHA COTA")}
   `;
@@ -74,13 +76,13 @@ function buildTer09h(params: CopaEmailParams): EmailOutput {
       "",
       "Agora chegou a hora da principal disputa da Copa.",
       "",
-      "🏆 Mais de R$ 1 milhão em premiações",
-      "⚽ Copa inteira",
-      "💰 Apenas R$29,90",
+      " Mais de R$ 1 milhão em premiações",
+      " Copa inteira",
+      " Apenas R$29,90",
       "",
       "Além disso, quem acertar o placar exato e os escanteios do Brasil ganha:",
-      "👕 Camisa oficial da Seleção",
-      "💰 R$1.000 no PIX",
+      " Camisa oficial da Seleção",
+      " R$1.000 no PIX",
     ], "GARANTIR MINHA COTA", url),
   };
 }
@@ -97,13 +99,13 @@ function buildTer12h(params: CopaEmailParams): EmailOutput {
     ${emailGreeting(hi(params.recipientName))}
     ${emailBodyText("Imagine acertar:")}
     ${emailBodyText(
-      `✅ placar exato do Brasil<br />
-      ✅ número de escanteios`,
+      ` placar exato do Brasil<br />
+       número de escanteios`,
     )}
     ${emailBodyText("e receber:")}
     ${emailBodyText(
-      `💰 ${emailStrong("R$1.000 no PIX")}<br />
-      👕 ${emailStrong("Camisa oficial da Seleção Brasileira")}`,
+      ` ${emailStrong("R$1.000 no PIX")}<br />
+       ${emailStrong("Camisa oficial da Seleção Brasileira")}`,
     )}
     ${emailBodyText(
       `Mas atenção: a promoção é exclusiva para participantes do ${emailStrong("Bolão do Milhão")}.`,
@@ -116,12 +118,12 @@ function buildTer12h(params: CopaEmailParams): EmailOutput {
     html: shell(subject, "Acerte o placar do Brasil e os escanteios. Ganhe R$1.000 + camisa oficial.", bodyHtml),
     text: textLines(first, subject, [
       "Imagine acertar:",
-      "✅ placar exato do Brasil",
-      "✅ número de escanteios",
+      " placar exato do Brasil",
+      " número de escanteios",
       "",
       "e receber:",
-      "💰 R$1.000 no PIX",
-      "👕 Camisa oficial da Seleção Brasileira",
+      " R$1.000 no PIX",
+      " Camisa oficial da Seleção Brasileira",
       "",
       "Mas atenção: a promoção é exclusiva para participantes do Bolão do Milhão.",
     ], "GARANTIR MINHA PARTICIPAÇÃO", url),
@@ -172,7 +174,7 @@ function buildTer16h(params: CopaEmailParams): EmailOutput {
 // ────────────────────────────────────────────────
 function buildTer20h(params: CopaEmailParams): EmailOutput {
   const url = getEmailBoloesUrl();
-  const subject = "⚽ Você já vai assistir aos jogos mesmo";
+  const subject = " Você já vai assistir aos jogos mesmo";
   const first = emailFirstName(params.recipientName);
 
   const bodyHtml = `
@@ -187,7 +189,7 @@ function buildTer20h(params: CopaEmailParams): EmailOutput {
       `A única diferença é:<br /><br />
       com uma cota você participa da disputa.`,
     )}
-    ${emailBodyText(`🏆 Mais de ${emailStrong("R$1 milhão")} em premiações`)}
+    ${emailBodyText(` Mais de ${emailStrong("R$1 milhão")} em premiações`)}
     ${emailPrimaryButton(url, "ENTRAR NA DISPUTA")}
   `;
 
@@ -203,7 +205,7 @@ function buildTer20h(params: CopaEmailParams): EmailOutput {
       "A única diferença é:",
       "com uma cota você participa da disputa.",
       "",
-      "🏆 Mais de R$1 milhão em premiações",
+      " Mais de R$1 milhão em premiações",
     ], "ENTRAR NA DISPUTA", url),
   };
 }
@@ -249,7 +251,7 @@ function buildQua09h(params: CopaEmailParams): EmailOutput {
 // ────────────────────────────────────────────────
 function buildQua12h(params: CopaEmailParams): EmailOutput {
   const url = getEmailBoloesUrl();
-  const subject = "🏆 O maior bolão da Copa já começou";
+  const subject = " O maior bolão da Copa já começou";
   const first = emailFirstName(params.recipientName);
 
   const bodyHtml = `
@@ -283,7 +285,7 @@ function buildQua12h(params: CopaEmailParams): EmailOutput {
 // ────────────────────────────────────────────────
 function buildQua16h(params: CopaEmailParams): EmailOutput {
   const url = getEmailBoloesUrl();
-  const subject = "💰 Mais de R$1 milhão será distribuído";
+  const subject = " Mais de R$1 milhão será distribuído";
   const first = emailFirstName(params.recipientName);
 
   const bodyHtml = `
@@ -316,7 +318,7 @@ function buildQua16h(params: CopaEmailParams): EmailOutput {
 // ────────────────────────────────────────────────
 function buildQua20h(params: CopaEmailParams): EmailOutput {
   const url = getEmailBoloesUrl();
-  const subject = "⚠️ E se seu palpite estiver certo?";
+  const subject = " E se seu palpite estiver certo?";
   const first = emailFirstName(params.recipientName);
 
   const bodyHtml = `
@@ -384,7 +386,7 @@ function buildQui09h(params: CopaEmailParams): EmailOutput {
 // ────────────────────────────────────────────────
 function buildQui12h(params: CopaEmailParams): EmailOutput {
   const url = getEmailBoloesUrl();
-  const subject = "🏆 Você já conhece o sistema";
+  const subject = " Você já conhece o sistema";
   const first = emailFirstName(params.recipientName);
 
   const bodyHtml = `
@@ -427,13 +429,13 @@ function buildQui16h(params: CopaEmailParams): EmailOutput {
     ${emailBodyText("Lembre-se:")}
     ${emailBodyText("Quem acertar:")}
     ${emailBodyText(
-      `✅ placar exato do Brasil<br />
-      ✅ número de escanteios`,
+      ` placar exato do Brasil<br />
+       número de escanteios`,
     )}
     ${emailBodyText("ganha:")}
     ${emailBodyText(
-      `💰 ${emailStrong("R$1.000 no PIX")}<br />
-      👕 ${emailStrong("Camisa oficial da Seleção Brasileira")}`,
+      ` ${emailStrong("R$1.000 no PIX")}<br />
+       ${emailStrong("Camisa oficial da Seleção Brasileira")}`,
     )}
     ${emailBodyText(
       `Mas apenas ${emailStrong("participantes do Bolão do Milhão")} podem ganhar.`,
@@ -448,12 +450,12 @@ function buildQui16h(params: CopaEmailParams): EmailOutput {
       "Lembre-se:",
       "",
       "Quem acertar:",
-      "✅ placar exato do Brasil",
-      "✅ número de escanteios",
+      " placar exato do Brasil",
+      " número de escanteios",
       "",
       "ganha:",
-      "💰 R$1.000 no PIX",
-      "👕 Camisa oficial da Seleção Brasileira",
+      " R$1.000 no PIX",
+      " Camisa oficial da Seleção Brasileira",
       "",
       "Mas apenas participantes do Bolão do Milhão podem ganhar.",
     ], "GARANTIR MINHA PARTICIPAÇÃO", url),
@@ -465,7 +467,7 @@ function buildQui16h(params: CopaEmailParams): EmailOutput {
 // ────────────────────────────────────────────────
 function buildQui20h(params: CopaEmailParams): EmailOutput {
   const url = getEmailBoloesUrl();
-  const subject = "⚠️ Último aviso";
+  const subject = " Último aviso";
   const first = emailFirstName(params.recipientName);
 
   const bodyHtml = `
@@ -481,9 +483,9 @@ function buildQui20h(params: CopaEmailParams): EmailOutput {
       ou disputar a Copa inteira por apenas ${emailStrong("R$29,90")}.`,
     )}
     ${emailBodyText(
-      `🏆 Mais de R$1 milhão em premiações<br />
-      ⚽ Copa inteira<br />
-      💰 R$1.000 + camisa oficial na promoção do Brasil`,
+      ` Mais de R$1 milhão em premiações<br />
+       Copa inteira<br />
+       R$1.000 + camisa oficial na promoção do Brasil`,
     )}
     ${emailPrimaryButton(url, "GARANTIR MINHA COTA AGORA")}
   `;
@@ -500,9 +502,9 @@ function buildQui20h(params: CopaEmailParams): EmailOutput {
       "continuar de fora",
       "ou disputar a Copa inteira por apenas R$29,90.",
       "",
-      "🏆 Mais de R$1 milhão em premiações",
-      "⚽ Copa inteira",
-      "💰 R$1.000 + camisa oficial na promoção do Brasil",
+      " Mais de R$1 milhão em premiações",
+      " Copa inteira",
+      " R$1.000 + camisa oficial na promoção do Brasil",
     ], "GARANTIR MINHA COTA AGORA", url),
   };
 }

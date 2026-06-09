@@ -19,13 +19,15 @@ const FOOTER_NOTE =
 
 function hi(name?: string | null): string {
   const first = emailFirstName(name);
-  return first ? `Olá, ${escapeEmailHtml(first)} 👋` : "Olá 👋";
+  return first ? `👋 Olá, ${escapeEmailHtml(first)},` : "👋 Olá,";
 }
 
 function shell(subject: string, preheader: string, bodyHtml: string): string {
+  // Strip leading emoji from H1 — emojis at start of centered H1 wrap to their own line
+  const headline = subject.replace(/^[^A-Za-zÀ-ÿ0-9]+/, "").trim() || subject;
   return renderEmailShell({
     preheader,
-    headline: subject,
+    headline,
     bodyHtml,
     marketingFooter: true,
     footerNote: FOOTER_NOTE,
@@ -52,9 +54,9 @@ function buildR01(params: PixRecoveryEmailParams): EmailOutput {
     )}
     ${emailBodyText("Sua cota continua reservada por tempo limitado.")}
     ${emailBodyText(
-      `🏆 Mais de R$1 milhão em premiações<br />
-      ⚽ Copa inteira<br />
-      💰 Apenas R$29,90`,
+      ` Mais de R$1 milhão em premiações<br />
+       Copa inteira<br />
+       Apenas R$29,90`,
     )}
     ${emailPrimaryButton(url, "FINALIZAR PAGAMENTO")}
   `;
@@ -66,9 +68,9 @@ function buildR01(params: PixRecoveryEmailParams): EmailOutput {
       `Você iniciou sua participação no Bolão do Milhão, mas o pagamento ainda não foi identificado.`,
       "Sua cota continua reservada por tempo limitado.",
       "",
-      "🏆 Mais de R$1 milhão em premiações",
-      "⚽ Copa inteira",
-      "💰 Apenas R$29,90",
+      " Mais de R$1 milhão em premiações",
+      " Copa inteira",
+      " Apenas R$29,90",
     ], "FINALIZAR PAGAMENTO", url),
   };
 }
@@ -90,8 +92,8 @@ function buildR02(params: PixRecoveryEmailParams): EmailOutput {
     )}
     ${emailBodyText("Lembrando: quem estiver participando do Bolão do Milhão poderá concorrer a:")}
     ${emailBodyText(
-      `👕 ${emailStrong("Camisa oficial da Seleção")}<br />
-      💰 ${emailStrong("R$1.000 no PIX")}<br />
+      ` ${emailStrong("Camisa oficial da Seleção")}<br />
+       ${emailStrong("R$1.000 no PIX")}<br />
       acertando o placar exato e os escanteios do Brasil.`,
     )}
     ${emailPrimaryButton(url, "PAGAR AGORA")}
@@ -106,8 +108,8 @@ function buildR02(params: PixRecoveryEmailParams): EmailOutput {
       "Agora falta apenas concluir o pagamento para garantir sua vaga na disputa.",
       "",
       "Lembrando: quem estiver participando do Bolão do Milhão poderá concorrer a:",
-      "👕 Camisa oficial da Seleção",
-      "💰 R$1.000 no PIX",
+      " Camisa oficial da Seleção",
+      " R$1.000 no PIX",
       "acertando o placar exato e os escanteios do Brasil.",
     ], "PAGAR AGORA", url),
   };
@@ -238,9 +240,9 @@ function buildR06Ganancia(params: PixRecoveryEmailParams): EmailOutput {
     )}
     ${emailBodyText("Mas a mesma participação permite concorrer a:")}
     ${emailBodyText(
-      `💰 ${emailStrong("R$1.000 no PIX")}<br />
-      👕 ${emailStrong("Camisa oficial da Seleção Brasileira")}<br />
-      🏆 Mais de R$1 milhão em premiações durante a Copa`,
+      ` ${emailStrong("R$1.000 no PIX")}<br />
+       ${emailStrong("Camisa oficial da Seleção Brasileira")}<br />
+       Mais de R$1 milhão em premiações durante a Copa`,
     )}
     ${emailPrimaryButton(url, "PAGAR MEU PIX")}
   `;
@@ -252,9 +254,9 @@ function buildR06Ganancia(params: PixRecoveryEmailParams): EmailOutput {
       "Você está deixando uma participação de R$29,90 para depois.",
       "",
       "Mas a mesma participação permite concorrer a:",
-      "💰 R$1.000 no PIX",
-      "👕 Camisa oficial da Seleção Brasileira",
-      "🏆 Mais de R$1 milhão em premiações durante a Copa",
+      " R$1.000 no PIX",
+      " Camisa oficial da Seleção Brasileira",
+      " Mais de R$1 milhão em premiações durante a Copa",
     ], "PAGAR MEU PIX", url),
   };
 }
@@ -274,9 +276,9 @@ function buildR07(params: PixRecoveryEmailParams): EmailOutput {
       `Caso ainda queira participar do ${emailStrong("Bolão do Milhão")}, recomendamos concluir sua participação agora.`,
     )}
     ${emailBodyText(
-      `🏆 Mais de R$1 milhão em premiações<br />
-      ⚽ Copa inteira<br />
-      💰 Apenas R$29,90`,
+      ` Mais de R$1 milhão em premiações<br />
+       Copa inteira<br />
+       Apenas R$29,90`,
     )}
     ${emailPrimaryButton(url, "FINALIZAR PAGAMENTO")}
   `;
@@ -289,9 +291,9 @@ function buildR07(params: PixRecoveryEmailParams): EmailOutput {
       "",
       "Caso ainda queira participar do Bolão do Milhão, recomendamos concluir sua participação agora.",
       "",
-      "🏆 Mais de R$1 milhão em premiações",
-      "⚽ Copa inteira",
-      "💰 Apenas R$29,90",
+      " Mais de R$1 milhão em premiações",
+      " Copa inteira",
+      " Apenas R$29,90",
     ], "FINALIZAR PAGAMENTO", url),
   };
 }
@@ -310,8 +312,8 @@ function buildR08(params: PixRecoveryEmailParams): EmailOutput {
     ${emailBodyText("Você ainda pode garantir sua participação.")}
     ${emailBodyText("E continuar concorrendo:")}
     ${emailBodyText(
-      `💰 ${emailStrong("R$1.000 no PIX")}<br />
-      👕 ${emailStrong("Camisa oficial da Seleção Brasileira")}`,
+      ` ${emailStrong("R$1.000 no PIX")}<br />
+       ${emailStrong("Camisa oficial da Seleção Brasileira")}`,
     )}
     ${emailPrimaryButton(url, "RECUPERAR MINHA COMPRA")}
   `;
@@ -324,8 +326,8 @@ function buildR08(params: PixRecoveryEmailParams): EmailOutput {
       "Você ainda pode garantir sua participação.",
       "",
       "E continuar concorrendo:",
-      "💰 R$1.000 no PIX",
-      "👕 Camisa oficial da Seleção Brasileira",
+      " R$1.000 no PIX",
+      " Camisa oficial da Seleção Brasileira",
     ], "RECUPERAR MINHA COMPRA", url),
   };
 }
