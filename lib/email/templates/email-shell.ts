@@ -60,7 +60,9 @@ export function renderEmailShell(params: EmailShellParams): string {
   const appName = getEmailAppName();
   const appUrl = getAppOrigin();
   const year = new Date().getFullYear();
-  const logo = renderEmailLogoImg({ width: 160, alt: appName });
+  // CID inline (imagem embutida no e-mail): mais robusto que URL externa,
+  // não depende de fetch/proxy nem de Cloudflare liberar o GoogleImageProxy.
+  const logo = renderEmailLogoImg({ width: 160, alt: appName, delivery: "inline" });
   const preheader = params.preheader ?? params.headline;
 
   return `<!DOCTYPE html>

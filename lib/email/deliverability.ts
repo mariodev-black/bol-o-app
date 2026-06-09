@@ -1,4 +1,5 @@
 import { getEmailAppUrl, getEmailFrom, getEmailReplyTo } from "@/lib/email/config";
+import { buildUnsubscribeUrl } from "@/lib/email/unsubscribe";
 
 /** Extrai o endereço de `Nome <email@dominio>`. */
 export function parseFromAddress(from: string): string | null {
@@ -40,9 +41,25 @@ export function getEmailPreferencesUrl(): string {
   return getEmailAppUrl("/perfil");
 }
 
-/** Headers RFC 2369 — Gmail/Outlook usam para não marcar como spam agressivo. */
-export function buildMarketingEmailHeaders(): Record<string, string> {
+/**
+ * Headers RFC 2369 + one-click RFC 8058. Gmail/Yahoo EXIGEM de remetentes em massa:
+ * List-Unsubscribe com URL HTTPS + List-Unsubscribe-Post para descadastro de 1 clique.
+ * Sem isso a campanha vai para spam/promoções.
+ */
+export function buildMarketingEmailHeaders(
+  recipientEmail?: string,
+): Record<string, string> {
   const mailto = getEmailUnsubscribeMailtoUrl();
+
+  if (recipientEmail && recipientEmail.includes("@")) {
+    const httpsUrl = buildUnsubscribeUrl(recipientEmail);
+    return {
+      "List-Unsubscribe": `<${httpsUrl}>, <${mailto}>`,
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    };
+  }
+
+  // Sem destinatário (não deveria ocorrer em campanha) — mailto + preferências.
   const prefs = getEmailPreferencesUrl();
   return {
     "List-Unsubscribe": `<${mailto}>, <${prefs}>`,
