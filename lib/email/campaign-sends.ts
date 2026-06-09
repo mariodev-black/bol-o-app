@@ -32,6 +32,11 @@ export function ensureEmailCampaignTables(): Promise<void> {
         );
         CREATE INDEX IF NOT EXISTS email_campaign_sends_campaign_sent_idx
           ON email_campaign_sends (campaign_id, sent_at DESC);
+        CREATE TABLE IF NOT EXISTS email_unsubscribes (
+          email_normalized TEXT PRIMARY KEY,
+          reason TEXT,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        );
       `);
     })().catch((err) => {
       campaignTablesReady = null;
@@ -167,6 +172,10 @@ export async function listCampaignRecipients(): Promise<CampaignRecipient[]> {
        (array_agg(u.name ORDER BY u.id ASC))[1] AS name
      FROM users u
      WHERE u.email IS NOT NULL AND trim(u.email) <> ''
+       AND NOT EXISTS (
+         SELECT 1 FROM email_unsubscribes eu
+         WHERE eu.email_normalized = lower(trim(u.email))
+       )
      GROUP BY lower(trim(u.email))`,
   );
   return rows.map((r) => ({

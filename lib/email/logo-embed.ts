@@ -25,7 +25,8 @@ export function getEmailLogoAttachmentForResend(): Attachment | null {
   if (!filePath) return null;
 
   return {
-    content: readFileSync(filePath),
+    // Base64 string (não Buffer) — formato que a doc do Resend usa para anexo local.
+    content: readFileSync(filePath).toString("base64"),
     filename: "logo-email.png",
     contentType: "image/png",
     inlineContentId: EMAIL_LOGO_INLINE_ID,
