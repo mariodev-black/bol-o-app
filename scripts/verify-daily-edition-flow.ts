@@ -9,8 +9,8 @@ import {
   getDailyEdition,
   getDailyEditionDatesSet,
   resolveShopDailyEdition,
-  resolveDailyEditionStatus,
 } from "@/lib/boloes/daily-editions";
+import { resolveDailyEditionStatus } from "@/lib/boloes/daily-editions-server";
 import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
 import { scopeMatchesForPaidTicket } from "@/lib/boloes/ticket-match-scope";
 import { fetchMatchesMap } from "@/lib/football-api";

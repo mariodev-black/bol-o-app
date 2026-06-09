@@ -5,9 +5,9 @@ import {
   dailyEditionLabel,
   formatDailyEditionDatesLabel,
   listGroupStageDailyEditions,
-  resolveDailyEditionStatus,
   resolveShopDailyEdition,
 } from "@/lib/boloes/daily-editions";
+import { resolveDailyEditionStatus } from "@/lib/boloes/daily-editions-server";
 import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
 import { fetchMatchesMap } from "@/lib/football-api";
 import { createDepositTransaction, parseTicketTypeOrThrow } from "@/lib/payments/transactions";

@@ -6,10 +6,8 @@ import {
   normalizeGatewayStatus,
 } from "@/lib/payments/gateway";
 import { createSkalePixTransaction } from "@/lib/payments/skalepayments";
-import {
-  isDailyEditionPurchaseOpen,
-  normalizeDailyByEditionInput,
-} from "@/lib/boloes/daily-editions";
+import { normalizeDailyByEditionInput } from "@/lib/boloes/daily-editions";
+import { isDailyEditionPurchaseOpen } from "@/lib/boloes/daily-editions-server";
 import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
 import { fetchMatchesMap } from "@/lib/football-api";
 import {
