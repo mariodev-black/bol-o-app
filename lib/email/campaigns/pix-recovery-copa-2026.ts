@@ -109,10 +109,14 @@ async function listEligibleRecipients(step: RecoveryStep): Promise<RecoveryRecip
        t.pix_qrcode IS NOT NULL
        AND t.status NOT IN ('paid', 'approved', 'completed', 'confirmed',
                             'cancelled', 'canceled', 'refunded', 'failed')
-       AND t.created_at >= now() - ($3 || ' minutes')::interval
-       AND t.created_at <  now() - ($2 || ' minutes')::interval
+       AND t.created_at >= now() - ($3 * INTERVAL '1 minute')
+       AND t.created_at <  now() - ($2 * INTERVAL '1 minute')
        AND u.email IS NOT NULL AND trim(u.email) <> ''
        AND prs.transaction_id IS NULL
+       AND NOT EXISTS (
+         SELECT 1 FROM email_unsubscribes eu
+         WHERE eu.email_normalized = lower(trim(u.email))
+       )
      ORDER BY t.created_at ASC
      LIMIT 500`,
     [step.id, step.minAgo, step.maxAgo],

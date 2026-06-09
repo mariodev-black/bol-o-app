@@ -72,7 +72,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
   const logoAttachment = getEmailLogoAttachmentForResend();
   const attachments = logoAttachment ? [logoAttachment] : undefined;
   const headers =
-    kind === "marketing" ? buildMarketingEmailHeaders() : undefined;
+    kind === "marketing" ? buildMarketingEmailHeaders(to) : undefined;
 
   const { data, error } = await client.emails.send({
     from,
