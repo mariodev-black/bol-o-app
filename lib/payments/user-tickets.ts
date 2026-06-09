@@ -2,9 +2,9 @@ import {
   formatDailyEditionDatesLabel,
   getDailyEdition,
   getDailyEditionDatesSet,
-  inferDailyEditionFromMatchIds,
   paidTicketDailyEditionNumber,
 } from "@/lib/boloes/daily-editions";
+import { inferDailyEditionFromMatchIds } from "@/lib/boloes/daily-editions-server";
 import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
 import { isSkaleBolaoCompetition } from "@/lib/boloes/skale-config";
 import { isBolaoScopeRoundComplete } from "@/lib/boloes/display-status";

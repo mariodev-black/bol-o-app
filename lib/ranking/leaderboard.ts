@@ -17,9 +17,9 @@ import { calculateSkalePrizePoolCents } from "@/lib/boloes/skale-prize";
 import { getPool } from "@/lib/db";
 import {
   getDailyEditionDatesSet,
-  inferDailyEditionFromMatchIds,
   paidTicketDailyEditionNumber,
 } from "@/lib/boloes/daily-editions";
+import { inferDailyEditionFromMatchIds } from "@/lib/boloes/daily-editions-server";
 import { resolveDiarioPlayableDate } from "@/lib/diario-playable-date";
 import {
   listMatchesForExtraRound,

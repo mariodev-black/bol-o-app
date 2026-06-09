@@ -1,11 +1,13 @@
 import {
   getDailyEdition,
   getDailyEditionDatesSet,
-  inferDailyEditionFromMatchIds,
-  isDailyEditionClosed,
   isDateInDailyEdition,
   paidTicketDailyEditionNumber,
 } from "@/lib/boloes/daily-editions";
+import {
+  inferDailyEditionFromMatchIds,
+  isDailyEditionClosed,
+} from "@/lib/boloes/daily-editions-server";
 import { isSkaleBolaoCompetition } from "@/lib/boloes/skale-config";
 import { getMatchFromMap, resolveKickoffAtIso } from "@/lib/football-api";
 import { brToday, resolveDiarioPlayableDate, utcMsForBrDate } from "@/lib/diario-playable-date";
