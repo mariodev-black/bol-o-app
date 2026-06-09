@@ -79,6 +79,13 @@
     { "path": "/api/cron/email-campaign-copa-bolao?slot=qui_20h", "schedule": "0 23 12 6 *" },
     { "path": "/api/cron/email-campaign-copa-bolao?slot=qui_20h", "schedule": "10 23 12 6 *" },
     { "path": "/api/cron/email-campaign-copa-bolao?slot=qui_20h", "schedule": "20 23 12 6 *" },
-    { "path": "/api/cron/email-campaign-copa-bolao?slot=qui_20h", "schedule": "30 23 12 6 *" }
+    { "path": "/api/cron/email-campaign-copa-bolao?slot=qui_20h", "schedule": "30 23 12 6 *" },
+
+    { "path": "/api/cron/email-pix-recovery-copa", "schedule": "0,30 * 10 6 *" },
+    { "path": "/api/cron/email-pix-recovery-copa", "schedule": "0,30 * 11 6 *" },
+    { "path": "/api/cron/email-pix-recovery-copa", "schedule": "0,30 * 12 6 *" },
+    { "path": "/api/cron/email-pix-recovery-copa", "schedule": "0,30 * 13 6 *" },
+    { "path": "/api/cron/email-pix-recovery-copa", "schedule": "0,30 * 14 6 *" },
+    { "path": "/api/cron/email-pix-recovery-copa", "schedule": "0,30 * 15 6 *" }
   ]
 }
