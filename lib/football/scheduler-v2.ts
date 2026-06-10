@@ -134,6 +134,14 @@ export function startSchedulerV2(): SchedulerHandle {
       await runRealtimeTick();
     } catch (err) {
       console.error("[scheduler-v2] tick falhou:", err);
+    }
+    // E-mail: CRM + recuperação PIX + broadcast Copa. Idempotente (locks+dedup),
+    // throttle interno. Em VPS é o ÚNICO gatilho (vercel.json não roda aqui).
+    try {
+      const { maybeRunEmailCron } = await import("@/lib/email/internal-cron");
+      await maybeRunEmailCron();
+    } catch (err) {
+      console.error("[scheduler-v2] email cron falhou:", err);
     } finally {
       running = false;
     }
