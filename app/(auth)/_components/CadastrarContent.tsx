@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useBolaoToast } from "@/app/components/BolaoToast";
 import { useAuth, type AuthUser } from "@/app/shared/AuthContext";
 import { isValidCpf } from "@/lib/auth/cpf";
+import { NICKNAME_MAX_LENGTH } from "@/lib/user/nickname";
 import {
   getBrazilPhoneValidationMessage,
   isValidBrazilNationalDigits,
@@ -74,6 +75,7 @@ export function CadastrarContent({
   const [showPw, setShowPw] = useState(false);
   const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [fullName, setFullName] = useState("");
+  const [nickname, setNickname] = useState("");
   const [cpf, setCpf] = useState("");
 
   const [phone, setPhone] = useState("");
@@ -222,6 +224,7 @@ export function CadastrarContent({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: nameTrim,
+          nickname: nickname.trim() || undefined,
           email: email.trim(),
           cpf: cpfDigits,
           password,
@@ -297,6 +300,18 @@ export function CadastrarContent({
                   : "Nome muito curto (mínimo 2 caracteres)."
                 : undefined
             }
+          />
+
+          <AuthField
+            label="Nickname (opcional)"
+            type="text"
+            autoComplete="off"
+            placeholder="Como você aparece no ranking"
+            value={nickname}
+            onChange={(e) => setNickname(e.target.value)}
+            disabled={busy}
+            maxLength={NICKNAME_MAX_LENGTH}
+            hint="Aparece no ranking. Em branco, usamos seu nome."
           />
 
           <AuthField

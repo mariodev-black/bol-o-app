@@ -1292,6 +1292,7 @@ export async function buildLeaderboardExtraForTicketDebug(
 type UserLite = {
   id: string;
   name: string | null;
+  nickname: string | null;
   email: string;
   avatar_index: string | number | null;
   avatar_upload_filename: string | null;
@@ -1304,6 +1305,8 @@ function safeUploadFilename(v: string | null | undefined): string | null {
 
 function displayNameFromUser(u: UserLite | undefined): string {
   if (!u) return "Jogador";
+  const nick = typeof u.nickname === "string" ? u.nickname.trim() : "";
+  if (nick) return nick;
   const n = typeof u.name === "string" ? u.name.trim() : "";
   if (n) return n;
   const email = typeof u.email === "string" ? u.email.trim() : "";
@@ -1316,7 +1319,7 @@ async function loadUsersMap(userIds: string[]): Promise<Map<string, UserLite>> {
   if (userIds.length === 0) return out;
   const pool = getPool();
   const { rows } = await pool.query<UserLite>(
-    `SELECT id::text AS id, name, email, avatar_index, avatar_upload_filename
+    `SELECT id::text AS id, name, nickname, email, avatar_index, avatar_upload_filename
      FROM users
      WHERE id::text = ANY($1::text[])`,
     [userIds]

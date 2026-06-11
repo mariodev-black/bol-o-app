@@ -641,6 +641,7 @@ export default function PerfilPage() {
         onClose={() => setAvatarDialogOpen(false)}
         currentIndex={avatarIndex}
         uploadFilename={user?.avatarUploadFilename ?? null}
+        currentNickname={user?.nickname ?? null}
         onSaved={applySessionUser}
       />
 

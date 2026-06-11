@@ -11,6 +11,7 @@ import {
 } from "@/lib/client/avatar-upload-prepare";
 import { AVATAR_PRESET_IMAGES, clampAvatarIndex } from "@/lib/user/avatar-presets";
 import { avatarUploadImageSrc, isStoredAvatarUploadFilename } from "@/lib/user/avatar-filename";
+import { NICKNAME_MAX_LENGTH } from "@/lib/user/nickname";
 
 type TabId = "presets" | "foto";
 
@@ -19,6 +20,7 @@ type Props = {
   onClose: () => void;
   currentIndex: number;
   uploadFilename: string | null;
+  currentNickname: string | null;
   onSaved: (user: AuthUser) => void;
 };
 
@@ -27,11 +29,15 @@ export function PerfilAvatarPickerDialog({
   onClose,
   currentIndex,
   uploadFilename,
+  currentNickname,
   onSaved,
 }: Props) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<TabId>("presets");
+  const [nickname, setNickname] = useState(currentNickname ?? "");
+  const [nicknameSaving, setNicknameSaving] = useState(false);
+  const [nicknameMsg, setNicknameMsg] = useState<{ ok: boolean; text: string } | null>(null);
   /** Só durante upload de foto: permite mensagem fluida sem bloquear pintura. */
   const [uploadPhase, setUploadPhase] = useState<null | "preparing" | "uploading">(null);
   const fileInputId = useId();
@@ -43,6 +49,8 @@ export function PerfilAvatarPickerDialog({
     setError(null);
     setUploadPhase(null);
     setTab("presets");
+    setNickname(currentNickname ?? "");
+    setNicknameMsg(null);
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => {
@@ -53,7 +61,7 @@ export function PerfilAvatarPickerDialog({
       document.body.style.overflow = prev;
       window.removeEventListener("keydown", onKey);
     };
-  }, [open, onClose, saving]);
+  }, [open, onClose, saving, currentNickname]);
 
   const pickPreset = useCallback(
     async (index: number) => {
@@ -160,6 +168,37 @@ export function PerfilAvatarPickerDialog({
     [onClose, onSaved]
   );
 
+  const saveNickname = useCallback(async () => {
+    if (nicknameSaving) return;
+    setNicknameSaving(true);
+    setNicknameMsg(null);
+    try {
+      const trimmed = nickname.trim();
+      const r = await fetch("/api/user/nickname", {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nickname: trimmed === "" ? null : trimmed }),
+      });
+      const data = (await r.json().catch(() => ({}))) as {
+        error?: string;
+        nickname?: string | null;
+        user?: AuthUser;
+      };
+      if (!r.ok) {
+        setNicknameMsg({ ok: false, text: data.error ?? "Não foi possível salvar." });
+        return;
+      }
+      if (data.user) onSaved(data.user);
+      setNickname(data.nickname ?? "");
+      setNicknameMsg({ ok: true, text: "Nickname salvo! Já aparece no ranking." });
+    } catch {
+      setNicknameMsg({ ok: false, text: "Erro de rede. Tente novamente." });
+    } finally {
+      setNicknameSaving(false);
+    }
+  }, [nickname, nicknameSaving, onSaved]);
+
   if (!open) return null;
 
   return (
@@ -182,7 +221,7 @@ export function PerfilAvatarPickerDialog({
             id="perfil-avatar-dialog-titulo"
             className="font-helvetica-now-display text-left text-[15px] font-black uppercase tracking-wide text-white"
           >
-            Alterar avatar
+            Editar perfil
           </h2>
           <button
             type="button"
@@ -193,6 +232,47 @@ export function PerfilAvatarPickerDialog({
           >
             <X className="size-5" strokeWidth={2.2} />
           </button>
+        </div>
+
+        <div className="shrink-0 border-b border-white/10 px-4 py-3.5">
+          <label
+            htmlFor="perfil-nickname-input"
+            className="block text-[11px] font-black uppercase tracking-wide text-white/60"
+          >
+            Nickname no ranking
+          </label>
+          <div className="mt-2 flex items-center gap-2">
+            <input
+              id="perfil-nickname-input"
+              type="text"
+              value={nickname}
+              onChange={(e) => setNickname(e.target.value)}
+              maxLength={NICKNAME_MAX_LENGTH}
+              placeholder="Como você aparece no ranking"
+              disabled={nicknameSaving}
+              className="h-11 min-w-0 flex-1 rounded-xl border border-white/10 bg-black/40 px-3 text-[14px] text-white placeholder:text-white/30 outline-none focus:border-primary/50 disabled:opacity-50"
+            />
+            <button
+              type="button"
+              onClick={() => void saveNickname()}
+              disabled={nicknameSaving}
+              className="inline-flex h-11 shrink-0 items-center rounded-xl bg-primary px-4 text-[12px] font-black uppercase tracking-wide text-[#0E141B] transition active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50"
+            >
+              {nicknameSaving ? "…" : "Salvar"}
+            </button>
+          </div>
+          <div className="mt-1.5 flex items-center justify-between gap-2">
+            <p
+              className={`text-[11px] ${
+                nicknameMsg ? (nicknameMsg.ok ? "text-primary" : "text-red-400") : "text-white/40"
+              }`}
+            >
+              {nicknameMsg?.text ?? "Em branco, usamos seu nome."}
+            </p>
+            <span className="shrink-0 text-[11px] tabular-nums text-white/35">
+              {nickname.length}/{NICKNAME_MAX_LENGTH}
+            </span>
+          </div>
         </div>
 
         <div className="flex shrink-0 gap-1 border-b border-white/10 px-3 pt-2">

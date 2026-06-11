@@ -1111,14 +1111,19 @@ export function BrasilMarrocosPlacarPromoHost({
       seedBrasilMarrocosPlacarPromoStatus(data);
       setPromotionPrefetch("brasil_marrocos_placar", data);
       invalidatePromotionsHub();
-      goToPromoActivation();
+      // Após salvar o palpite, sempre leva para ativar a cota (status já seedado,
+      // a página não rebota porque alreadySubmitted=true).
+      setOpen(false);
+      if (pathname !== PROMO_ACTIVATION_PATH) {
+        router.push(PROMO_ACTIVATION_PATH);
+      }
     } catch {
       toast.error("Erro de rede. Tente novamente.");
     } finally {
       submittingRef.current = false;
       setLoading(false);
     }
-  }, [predCasa, predVisitante, predEscanteios, toast, invalidatePromotionsHub, goToPromoActivation]);
+  }, [predCasa, predVisitante, predEscanteios, toast, invalidatePromotionsHub, pathname, router]);
 
   useEffect(() => {
     if (!open) return;
