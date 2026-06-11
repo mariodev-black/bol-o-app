@@ -128,9 +128,9 @@ async function advanceExtraRoundIfCurrentClosed(
 }
 
 /**
- * Rodada usada na UI e em palpites para um ticket extra.
- * Se o ticket ficou na rodada N mas a N já encerrou e a loja já está na N+1
- * (ex.: Premier 37 → 38), alinha com a rodada efetiva atual.
+ * Rodada usada na UI e em palpites para um ticket extra com `round_number` fixo.
+ * Mantém a rodada gravada na cota (ex.: 12ª Série B) mesmo quando o campeonato
+ * já avançou para a rodada seguinte na API.
  */
 export async function resolveEffectiveExtraRoundForTicket(
   competitionId: number,
@@ -173,27 +173,8 @@ export async function resolveEffectiveExtraRoundForTicket(
     };
   }
 
-  if (ticketRoundNumber + 1 === current.rodada) {
-    const prevMatches = await listMatchesForExtraRound(
-      competitionId,
-      ticketRoundNumber,
-    );
-    const prevClosed =
-      prevMatches.length === 0 ||
-      prevMatches.every((m) => !isExtraMatchOpen(m.status));
-    if (prevClosed) {
-      if (
-        process.env.DEBUG_FOOTBALL_API === "true" ||
-        process.env.DEBUG_BOLAOES === "true"
-      ) {
-        console.error(
-          `[extras-rodada] ticket comp=${competitionId}: rodada ${ticketRoundNumber} encerrada → efetiva ${current.rodada}`,
-        );
-      }
-      return current;
-    }
-  }
-
+  // Cota paga com rodada fixa (ex.: Série B 12ª): mantém a rodada do ticket
+  // para palpites, pontuação e ranking — não avança para rodada_atual da API.
   return {
     ...current,
     rodada: ticketRoundNumber,
