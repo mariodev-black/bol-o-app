@@ -106,9 +106,18 @@ export function extraBolaoTitleForPaidTicket(
  * (cada cota mantém sua rodada — ex. 17ª finalizada e 18ª ativa).
  * Só usa pin da vitrine/brinde quando a rodada não foi gravada.
  */
+export function formatExtraRoundLabel(roundNumber: number | null | undefined): string | null {
+  if (roundNumber == null || !Number.isFinite(Number(roundNumber)) || Number(roundNumber) <= 0) {
+    return null;
+  }
+  return `${Math.trunc(Number(roundNumber))}ª Rodada`;
+}
+
 export function effectiveExtraRoundForPaidTicket(input: {
   championshipId: number;
   roundNumberFromDb: number | null | undefined;
+  /** Rodada atual do campeonato (API/cache) — corrige avanço automático legado. */
+  liveRoundNumber?: number | null;
 }): number | null {
   const fromDb =
     input.roundNumberFromDb != null &&
@@ -116,8 +125,20 @@ export function effectiveExtraRoundForPaidTicket(input: {
     Number(input.roundNumberFromDb) > 0
       ? Math.trunc(Number(input.roundNumberFromDb))
       : null;
+  const shopPin = getTicketShopExtraRoundNumber(input.championshipId);
+  const live =
+    input.liveRoundNumber != null &&
+    Number.isFinite(Number(input.liveRoundNumber)) &&
+    Number(input.liveRoundNumber) > 0
+      ? Math.trunc(Number(input.liveRoundNumber))
+      : null;
+
+  if (fromDb != null && shopPin != null && live != null && fromDb === live && shopPin < fromDb) {
+    return shopPin;
+  }
+
   if (fromDb != null) return fromDb;
-  return getTicketShopExtraRoundNumber(input.championshipId);
+  return shopPin;
 }
 
 export function applyTicketShopExtraCatalogItem<

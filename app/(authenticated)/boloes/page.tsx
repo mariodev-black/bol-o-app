@@ -18,6 +18,7 @@ import { resolveExtraBolaoDisplayName } from "@/lib/boloes-extra-competition-bra
 import {
   effectiveExtraRoundForPaidTicket,
   extraBolaoTitleForPaidTicket,
+  formatExtraRoundLabel,
 } from "@/lib/ticket-shop-extra-display";
 import { readCompetitionDisplayNamesFromDb } from "@/lib/competition-metadata-cache";
 import { resolvePaidTicketRankingPositions } from "@/lib/ranking/leaderboard";
@@ -296,6 +297,7 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
     const round = effectiveExtraRoundForPaidTicket({
       championshipId: comp,
       roundNumberFromDb: ticket.extraRoundNumber,
+      liveRoundNumber: extraRounds[comp]?.roundNumber ?? null,
     });
     if (round != null) effectiveExtraRoundByTicketId.set(ticket.id, round);
   }
@@ -508,12 +510,14 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
         safeComp > 0
           ? resolveExtraBolaoDisplayName(safeComp, competitionLabels[safeComp])
           : "Bolão extra";
+      const roundNum = effectiveExtraRoundByTicketId.get(ticket.id) ?? null;
+      const roundLabel = formatExtraRoundLabel(roundNum);
       const title =
         safeComp > 0
           ? extraBolaoTitleForPaidTicket(
               safeComp,
               baseName,
-              ticket.extraRoundNumber,
+              roundNum,
               extraRounds,
             )
           : baseName;
@@ -546,6 +550,8 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
         type: "extra",
         championshipId: safeComp > 0 ? safeComp : undefined,
         title,
+        extraRoundNumber: roundNum,
+        extraRoundLabel: roundLabel,
         cotaLabel: cotaLabelForTicket(ticket, cotaOrdinalByTicketId),
         href: `/palpites?${new URLSearchParams({ ticket: ticket.id }).toString()}`,
         status: legacyStatus as ActiveDailyStatus,

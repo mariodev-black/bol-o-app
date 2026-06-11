@@ -5,7 +5,6 @@ import {
   resolveEffectiveExtraRoundForTicket,
   type ExtraRoundResolution,
 } from "@/lib/football/extras-rodada";
-import { getPool } from "@/lib/db";
 
 export type ExtraTicketRoundSource = {
   id: string;
@@ -36,21 +35,7 @@ export async function resolveEffectiveRoundForExtraTicket(
     allowProviderCall: opts?.allowProviderCall,
   });
 
-  if (
-    resolved &&
-    opts?.persistAdvance !== false &&
-    opts?.userId &&
-    fromDb != null &&
-    resolved.rodada > fromDb
-  ) {
-    await getPool()
-      .query(
-        `UPDATE tickets SET round_number = $1
-           WHERE id::text = $2 AND user_id = $3 AND ticket_type = 'extra'`,
-        [resolved.rodada, ticket.id, opts.userId],
-      )
-      .catch(() => {});
-  }
+  // Nunca avança `tickets.round_number` automaticamente — a rodada da cota é fixa.
 
   return resolved;
 }

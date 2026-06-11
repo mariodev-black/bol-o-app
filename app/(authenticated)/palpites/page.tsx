@@ -13,7 +13,9 @@ import { getPool } from "@/lib/db";
 import { parseKickoffFromPartidaPayload, pickScoreFromPartidaPayload } from "@/lib/partida-placar";
 import { hasOfficialMatchResult } from "@/lib/palpites-match-open";
 import { pickTabelaGruposForPalpites } from "@/lib/tabela-palpites-normalize";
-import { effectiveExtraRoundForPaidTicket } from "@/lib/ticket-shop-extra-display";
+import { effectiveExtraRoundForPaidTicket, formatExtraRoundLabel } from "@/lib/ticket-shop-extra-display";
+import { ensureExtraRoundMatchesCached } from "@/lib/football/extras-rodada";
+import { extraBolaoCurrentRoundsByChampionship } from "@/lib/ticket-shop-extra-rounds";
 import { syncExtraIfStale } from "@/lib/football/sync-orchestrator";
 import { isAmistososFriendliesCompetition } from "@/lib/football/amistosos-friendlies";
 import { ensureAmistososFriendliesMatchesSeeded } from "@/lib/football/amistosos-friendlies-persistence";
@@ -326,15 +328,25 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
         extraRoundNumber = null;
         extraRoundName = "Copa inteira";
       } else {
+        let liveExtraRound: number | null = null;
+        if (extraChampionshipId != null) {
+          const liveRounds = await extraBolaoCurrentRoundsByChampionship([
+            extraChampionshipId,
+          ]).catch(() => ({} as Record<number, { roundNumber: number }>));
+          liveExtraRound = liveRounds[extraChampionshipId]?.roundNumber ?? null;
+        }
         const pinnedRound = effectiveExtraRoundForPaidTicket({
           championshipId: extraChampionshipId,
           roundNumberFromDb: ticketRoundFromDb,
+          liveRoundNumber: liveExtraRound,
         });
         if (pinnedRound != null && pinnedRound > 0) {
           extraRoundNumber = pinnedRound;
-          extraRoundName = isAmistososFriendliesCompetition(extraChampionshipId)
-            ? "1ª Rodada"
-            : `${pinnedRound}ª Rodada`;
+          extraRoundName =
+            formatExtraRoundLabel(pinnedRound) ??
+            (isAmistososFriendliesCompetition(extraChampionshipId)
+              ? "1ª Rodada"
+              : `${pinnedRound}ª Rodada`);
         }
       }
     }
@@ -364,6 +376,19 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
 
   if (isSkaleExtra) {
     await mirrorSkaleBolaoMatchesFromCopa().catch(() => {});
+  }
+
+  if (
+    bolaoType === "extra" &&
+    extraChampionshipId != null &&
+    extraRoundNumber != null &&
+    extraRoundNumber > 0 &&
+    !isAmistososExtra &&
+    !isSkaleExtra
+  ) {
+    await ensureExtraRoundMatchesCached(extraChampionshipId, extraRoundNumber).catch(
+      () => {},
+    );
   }
 
   const [tabelaPayload, fasesResult, predictionsBundle] = await Promise.all([
@@ -457,26 +482,13 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
       : Promise.resolve(null),
   ]);
 
-  if (
-    bolaoType === "extra" &&
-    extraChampionshipId != null &&
-    extraRoundNumber != null &&
-    extraRoundNumber > 0 &&
-    !isAmistososExtra &&
-    !isSkaleExtra
-  ) {
-    void syncExtraIfStale(extraChampionshipId, {
-      extraRodadas: [extraRoundNumber],
-      onlyIfEmpty: true,
-    }).catch(() => {});
-  }
-
   const partidasOk = fasesResult != null;
   const parsedPartidas = parseAllPartidas((fasesResult ?? {}) as Record<string, any>);
   let jogos = parsedPartidas.jogos;
   let grupos = parsedPartidas.grupos;
   if (
-    isAmistososExtra &&
+    bolaoType === "extra" &&
+    !isSkaleExtra &&
     extraRoundNumber != null &&
     extraRoundNumber > 0
   ) {
@@ -486,6 +498,28 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
     const editionDateSet = new Set(dailyEditionDates);
     jogos = jogos.filter((j) => j.dataBR && editionDateSet.has(j.dataBR));
   }
+
+  if (
+    bolaoType === "extra" &&
+    extraChampionshipId != null &&
+    extraRoundNumber != null &&
+    extraRoundNumber > 0 &&
+    jogos.length === 0 &&
+    !isAmistososExtra &&
+    !isSkaleExtra
+  ) {
+    await syncExtraIfStale(extraChampionshipId, {
+      extraRodadas: [extraRoundNumber],
+      onlyIfEmpty: false,
+    }).catch(() => {});
+    const retryFases = await getPartidasFasesFromDb(partidasCompId).catch(() => null);
+    if (retryFases != null) {
+      const retryParsed = parseAllPartidas(retryFases as Record<string, any>);
+      jogos = retryParsed.jogos.filter((j) => j.rodada === extraRoundNumber);
+      grupos = retryParsed.grupos;
+    }
+  }
+
   const tabelaGrupos =
     pickTabelaGruposForPalpites(tabelaPayload) ??
     (bolaoType === "extra" ? ({ "grupo-geral": [] } as TabelaGrupos) : null);
@@ -518,6 +552,30 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
   };
 }
 
+function emptyPalpitesInitialData(ticketId: string | null): PalpitesInitialData {
+  return {
+    ticketId,
+    bolaoType: "principal",
+    isPromoBonus: false,
+    extraChampionshipId: null,
+    extraRoundNumber: null,
+    extraRoundName: null,
+    isSkaleFullCopaPool: false,
+    bolaoHeading: "Palpites",
+    dailyEditionNumber: null,
+    dailyEditionDates: [],
+    dailyEditionDatesLabel: null,
+    tabela: { "grupo-geral": [] },
+    jogos: [],
+    grupos: [],
+    grupo: "GERAL",
+    erro: true,
+    predictionsMap: {},
+    resumoStats: { palpites: 0, acertos: 0, pontos: 0, exatos: 0 },
+    historicoRows: [],
+  };
+}
+
 export default async function PalpitesPage(props: { searchParams?: Promise<{ ticket?: string }> | { ticket?: string } }) {
   const searchParams =
     props.searchParams && typeof (props.searchParams as Promise<{ ticket?: string }>).then === "function"
@@ -530,6 +588,12 @@ export default async function PalpitesPage(props: { searchParams?: Promise<{ tic
       redirect(`/palpites/artilheiros?ticket=${encodeURIComponent(ticketId)}`);
     }
   }
-  const initialData = await buildInitialData(ticketId);
-  return <PalpitesClient initialData={initialData} />;
+
+  try {
+    const initialData = await buildInitialData(ticketId);
+    return <PalpitesClient initialData={initialData} />;
+  } catch (error) {
+    console.error("[palpites/page] render failed", error);
+    return <PalpitesClient initialData={emptyPalpitesInitialData(ticketId)} />;
+  }
 }

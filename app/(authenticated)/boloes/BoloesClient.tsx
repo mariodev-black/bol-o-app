@@ -111,6 +111,10 @@ export type ActiveBolaoListItem = {
   participantCount?: number;
   /** Cota extra grátis (brinde `is_promo_bonus`). */
   isPromoBonus?: boolean;
+  /** Bolão extra por rodada — número fixo da cota (`tickets.round_number`). */
+  extraRoundNumber?: number | null;
+  /** Ex.: "18ª Rodada" — sempre da cota, nunca da rodada atual do campeonato. */
+  extraRoundLabel?: string | null;
   /** Bolão diário: datas da edição (ex.: "dias: 11, 12 e 13 de junho"). */
   dailyEditionDatesLabel?: string | null;
 };

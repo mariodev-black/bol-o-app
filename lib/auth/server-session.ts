@@ -7,18 +7,23 @@ import { findUserById } from "@/lib/auth/users";
 
 /** Usuário da sessão httpOnly (SSR) — evita flash de UI deslogada antes do `/me`. */
 export async function getServerAuthUser(): Promise<AuthUser | null> {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(sessionCookieName())?.value;
-  if (!token) return null;
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get(sessionCookieName())?.value;
+    if (!token) return null;
 
-  const userId = await verifySessionToken(token).catch(() => null);
-  if (!userId) return null;
+    const userId = await verifySessionToken(token).catch(() => null);
+    if (!userId) return null;
 
-  const user = await findUserById(userId);
-  if (!user) return null;
+    const user = await findUserById(userId);
+    if (!user) return null;
 
-  return enrichAuthUserWithSkaleFunnelFromCookie(
-    user,
-    cookieStore.get(SKALE_FUNNEL_COOKIE)?.value,
-  );
+    return enrichAuthUserWithSkaleFunnelFromCookie(
+      user,
+      cookieStore.get(SKALE_FUNNEL_COOKIE)?.value,
+    );
+  } catch (error) {
+    console.error("[auth] getServerAuthUser failed", error);
+    return null;
+  }
 }
