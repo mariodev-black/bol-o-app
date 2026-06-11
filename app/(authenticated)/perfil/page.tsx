@@ -6,8 +6,10 @@ import { LogoutAccountButton } from "@/app/(authenticated)/perfil/LogoutAccountB
 import { loadOwnedTicketsMerged } from "@/app/(authenticated)/tickets/lib/ownedTicketsStorage";
 import type { AffiliateSummary } from "@/app/(authenticated)/indique/affiliate-types";
 import { formatBRLFromCents } from "@/app/(authenticated)/indique/affiliate-types";
-import { fetchAffiliateSummaryCached } from "@/app/(authenticated)/indique/affiliate-summary-cache";
+import { fetchAffiliateSummaryCached, invalidateAffiliateSummaryCache } from "@/app/(authenticated)/indique/affiliate-summary-cache";
 import { WithdrawGanhosModal } from "@/app/(authenticated)/indique/WithdrawGanhosModal";
+import { WithdrawHistoryList } from "@/app/(authenticated)/saques/WithdrawHistoryList";
+import { useWithdrawHistory } from "@/app/(authenticated)/saques/useWithdrawHistory";
 import bannerRanking from "@/app/assets/banner-ranking.png";
 import { useAuth } from "@/app/shared/AuthContext";
 import { clampAvatarIndex } from "@/lib/auth/avatar-index";
@@ -129,10 +131,12 @@ export default function PerfilPage() {
   const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
   const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
   const [segurancaDialogOpen, setSegurancaDialogOpen] = useState(false);
+  const { items: withdrawHistory, loading: withdrawHistoryLoading, reload: reloadWithdrawHistory } = useWithdrawHistory(5);
 
   const reloadAffiliateSummary = useCallback(async () => {
     if (!ready) return;
     try {
+      invalidateAffiliateSummaryCache();
       setAffiliate(await fetchAffiliateSummaryCached());
     } catch {
       /* ignore */
@@ -534,12 +538,21 @@ export default function PerfilPage() {
                 Sacar
                 <ChevronRight className="size-4" strokeWidth={2.6} />
               </button>
-              <Link
-                href="/saques"
-                className="mt-2 block text-center text-[11px] font-semibold text-white/40 hover:text-white/55"
-              >
-                Histórico de saques
-              </Link>
+
+              <div className="mt-5 border-t border-white/[0.06] pt-4">
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <p className="text-[11px] font-black uppercase tracking-[0.14em] text-white/45">Histórico de saques</p>
+                  <Link href="/saques" className="text-[11px] font-semibold text-primary hover:opacity-80">
+                    Ver todos
+                  </Link>
+                </div>
+                <WithdrawHistoryList
+                  items={withdrawHistory}
+                  loading={withdrawHistoryLoading}
+                  compact
+                  emptyMessage="Nenhum saque solicitado ainda."
+                />
+              </div>
             </>
           )}
         </section>
@@ -645,7 +658,11 @@ export default function PerfilPage() {
         onOpenChange={setWithdrawModalOpen}
         summary={affiliate}
         summaryLoading={affiliateLoading}
-        onReloadSummary={reloadAffiliateSummary}
+        onReloadSummary={async () => {
+          await reloadAffiliateSummary();
+          await reloadWithdrawHistory();
+        }}
+        onSuccess={() => void reloadWithdrawHistory()}
       />
     </div>
   );

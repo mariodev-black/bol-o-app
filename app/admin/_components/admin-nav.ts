@@ -10,6 +10,7 @@ import {
   Trophy,
   Ticket,
   Users,
+  Wallet,
 } from "lucide-react";
 
 export type AdminNavItem = {
@@ -25,6 +26,7 @@ export const ADMIN_NAV: AdminNavItem[] = [
   { href: "/admin/boloes", label: "Bolões", icon: Trophy },
   { href: "/admin/promocoes", label: "Promoções", icon: Gift },
   { href: "/admin/affiliates", label: "Afiliados", icon: Handshake },
+  { href: "/admin/saques", label: "Saques", icon: Wallet },
   { href: "/admin/palpites", label: "Palpites", icon: ClipboardList },
   { href: "/admin/cotas", label: "Cotas", icon: Ticket },
   { href: "/admin/transactions", label: "Transações", icon: CreditCard },

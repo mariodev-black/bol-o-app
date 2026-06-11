@@ -122,9 +122,9 @@ export type AffiliateBalances = {
 
 export async function getAffiliateBalances(userId: string): Promise<AffiliateBalances> {
   const pool = getPool();
-  const affiliatePendingFilter = `user_id = $1::uuid AND status = 'pending' AND COALESCE(balance_source, 'affiliate') = 'affiliate'`;
+  const affiliatePendingFilter = `user_id = $1::uuid AND status IN ('pending', 'processing') AND COALESCE(balance_source, 'affiliate') = 'affiliate'`;
   const affiliateDoneFilter = `user_id = $1::uuid AND status IN ('approved', 'paid') AND COALESCE(balance_source, 'affiliate') = 'affiliate'`;
-  const walletPendingFilter = `user_id = $1::uuid AND status = 'pending' AND balance_source = 'wallet'`;
+  const walletPendingFilter = `user_id = $1::uuid AND status IN ('pending', 'processing') AND balance_source = 'wallet'`;
   const walletDoneFilter = `user_id = $1::uuid AND status IN ('approved', 'paid') AND balance_source = 'wallet'`;
 
   const [earned, pending, done, available, walletRow, pendingWallet, doneWallet] = await Promise.all([

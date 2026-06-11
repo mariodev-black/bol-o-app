@@ -3,19 +3,21 @@
 import { adminStatGridClass, adminTabButtonClass } from "@/app/admin/_components/admin-layout";
 import { AdminTabBar } from "@/app/admin/_components/AdminTabBar";
 import { AdminTableScroll } from "@/app/admin/_components/AdminTableScroll";
+import { AdminWithdrawalConfirmDialog } from "@/app/admin/_components/AdminWithdrawalConfirmDialog";
 import {
   formatAdminBRL,
   formatAdminCpaBps,
   formatAdminDate,
   maskAdminCpf,
 } from "@/lib/admin/format";
-import type { AdminPendingWithdrawalRow } from "@/lib/admin/withdrawals";
+import type { AdminWithdrawalRow } from "@/lib/admin/withdrawals";
 import type { AdminAffiliateDashboardData } from "@/lib/admin/sections";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { RefObject } from "react";
 
 type Tab = "affiliates" | "referred" | "commissions" | "withdrawals";
+type ConfirmState = { row: AdminWithdrawalRow; kind: "approve" | "reject" } | null;
 const PAGE_SIZE = 50;
 
 export function AdminAffiliatesClient({ data }: { data: AdminAffiliateDashboardData }) {
@@ -26,10 +28,12 @@ export function AdminAffiliatesClient({ data }: { data: AdminAffiliateDashboardD
     commissions: PAGE_SIZE,
     withdrawals: PAGE_SIZE,
   });
-  const [withdrawRows, setWithdrawRows] = useState<AdminPendingWithdrawalRow[]>([]);
+  const [withdrawRows, setWithdrawRows] = useState<AdminWithdrawalRow[]>([]);
   const [withdrawLoading, setWithdrawLoading] = useState(false);
   const [withdrawError, setWithdrawError] = useState<string | null>(null);
-  const [actionId, setActionId] = useState<string | null>(null);
+  const [confirm, setConfirm] = useState<ConfirmState>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [dialogError, setDialogError] = useState<string | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   const cards = [
@@ -69,9 +73,10 @@ export function AdminAffiliatesClient({ data }: { data: AdminAffiliateDashboardD
     void (async () => {
       try {
         const r = await fetch("/api/admin/withdrawals", { credentials: "include" });
-        const d = (await r.json()) as { items?: AdminPendingWithdrawalRow[]; error?: string };
+        const d = (await r.json()) as { items?: AdminWithdrawalRow[]; rows?: AdminWithdrawalRow[]; error?: string };
         if (cancelled) return;
-        if (r.ok && Array.isArray(d.items)) setWithdrawRows(d.items);
+        const list = d.rows ?? d.items;
+        if (r.ok && Array.isArray(list)) setWithdrawRows(list);
         else {
           setWithdrawRows([]);
           setWithdrawError(d.error || "Não foi possível carregar");
@@ -107,26 +112,44 @@ export function AdminAffiliatesClient({ data }: { data: AdminAffiliateDashboardD
     return () => observer.disconnect();
   }, [activeVisible, hasMore, tab, totalByTab.affiliates, totalByTab.commissions, totalByTab.referred, totalByTab.withdrawals]);
 
-  async function handleWithdrawAction(id: string, kind: "approve" | "reject") {
-    setActionId(id);
+  function openWithdrawConfirm(row: AdminWithdrawalRow, kind: "approve" | "reject") {
+    setDialogError(null);
+    setConfirm({ row, kind });
+  }
+
+  function closeWithdrawConfirm() {
+    if (submitting) return;
+    setConfirm(null);
+    setDialogError(null);
+  }
+
+  async function handleWithdrawConfirm() {
+    if (!confirm) return;
+    const { row, kind } = confirm;
+    setSubmitting(true);
+    setDialogError(null);
     setWithdrawError(null);
     try {
-      const r = await fetch(`/api/admin/withdrawals/${id}/${kind}`, {
+      const r = await fetch(`/api/admin/withdrawals/${row.id}/${kind}`, {
         method: "POST",
         credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: kind === "reject" ? JSON.stringify({}) : undefined,
       });
       const d = (await r.json()) as { error?: string; ok?: boolean };
       if (!r.ok || !d.ok) {
-        setWithdrawError(d.error || "Falha na operacao");
-        return;
+        throw new Error(d.error || "Falha na operacao");
       }
-      setWithdrawRows((list) => list.filter((row) => row.id !== id));
-    } catch {
-      setWithdrawError("Erro de rede");
+      setConfirm(null);
+      setWithdrawRows((list) => list.filter((item) => item.id !== row.id));
+    } catch (e) {
+      setDialogError(e instanceof Error ? e.message : "Erro de rede");
     } finally {
-      setActionId(null);
+      setSubmitting(false);
     }
   }
+
+  const withdrawActionBusy = submitting && confirm !== null;
 
   function resetTab(currentTab: Tab) {
     setTab(currentTab);
@@ -354,16 +377,16 @@ export function AdminAffiliatesClient({ data }: { data: AdminAffiliateDashboardD
                         <div className="flex flex-wrap justify-end gap-2">
                           <button
                             type="button"
-                            disabled={actionId === row.id}
-                            onClick={() => void handleWithdrawAction(row.id, "approve")}
+                            disabled={withdrawActionBusy}
+                            onClick={() => openWithdrawConfirm(row, "approve")}
                             className="rounded-full bg-primary px-4 py-2 text-[11px] font-black uppercase tracking-wide text-black disabled:opacity-40"
                           >
-                            {actionId === row.id ? "…" : "Aprovar"}
+                            Aprovar
                           </button>
                           <button
                             type="button"
-                            disabled={actionId === row.id}
-                            onClick={() => void handleWithdrawAction(row.id, "reject")}
+                            disabled={withdrawActionBusy}
+                            onClick={() => openWithdrawConfirm(row, "reject")}
                             className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-[11px] font-black uppercase tracking-wide text-white/72 hover:bg-white/10 disabled:opacity-40"
                           >
                             Recusar
@@ -386,6 +409,16 @@ export function AdminAffiliatesClient({ data }: { data: AdminAffiliateDashboardD
           </AdminTableScroll>
         ) : null}
       </section>
+
+      <AdminWithdrawalConfirmDialog
+        open={confirm !== null}
+        kind={confirm?.kind ?? "approve"}
+        row={confirm?.row ?? null}
+        submitting={submitting}
+        error={dialogError}
+        onClose={closeWithdrawConfirm}
+        onConfirm={() => void handleWithdrawConfirm()}
+      />
     </>
   );
 }

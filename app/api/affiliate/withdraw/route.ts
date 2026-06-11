@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { id } = await createAffiliateWithdrawalRequest({
+    const { id, balances } = await createAffiliateWithdrawalRequest({
       userId,
       amountCents: parsed.data.amountCents,
       pixKeyType: parsed.data.pixKeyType,
@@ -50,6 +50,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       ok: true,
       requestId: id,
+      balances,
       minWithdrawalCents: minAffiliateWithdrawalCents(),
       maxWithdrawalCents: maxWithdrawalCentsPerRequest(),
     });
