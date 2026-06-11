@@ -86,6 +86,10 @@ export function isSerieBExtraGiftChampionship(championshipId: number): boolean {
   return championshipId === configured;
 }
 
+export function getSerieBExtraChampionshipId(): number {
+  return envInt("SERIE_B_EXTRA_CHAMPIONSHIP_ID", 14);
+}
+
 export function amistososMatchToCacheRow(m: AmistososFriendlyMatchDef) {
   const competitionId = getAmistososFriendliesCompetitionId();
   return {

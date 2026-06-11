@@ -232,6 +232,12 @@ function normStatus(s: string | null | undefined): string {
  * `null` vindo da API significa "sem informação" — NÃO conta como diff
  * (já temos COALESCE no UPSERT).
  */
+function placarFieldsChanged(prev: PrevSnapshot, next: ProviderMatchV2): boolean {
+  if (next.resultCasa != null && next.resultCasa !== prev.result_casa) return true;
+  if (next.resultVisitante != null && next.resultVisitante !== prev.result_visitante) return true;
+  return false;
+}
+
 function scoredFieldsChanged(prev: PrevSnapshot, next: ProviderMatchV2): boolean {
   if (next.status != null && normStatus(prev.status) !== normStatus(next.status)) return true;
   if (next.resultCasa != null && next.resultCasa !== prev.result_casa) return true;
@@ -283,6 +289,7 @@ export async function persistMatchesV2(
 
   const writtenMatchIds: number[] = [];
   const scoredChangedIds: number[] = [];
+  const placarChangedIds: number[] = [];
   let unchanged = 0;
   let predictionScoresUpdated = 0;
 
@@ -337,12 +344,21 @@ export async function persistMatchesV2(
         toUpsert.push(m);
         writtenMatchIds.push(m.matchId);
         scoredChangedIds.push(m.matchId);
+        if (
+          (m.resultCasa != null && m.resultCasa > 0) ||
+          (m.resultVisitante != null && m.resultVisitante > 0)
+        ) {
+          placarChangedIds.push(m.matchId);
+        }
         continue;
       }
       if (scoredFieldsChanged(prev, m)) {
         toUpsert.push(m);
         writtenMatchIds.push(m.matchId);
         scoredChangedIds.push(m.matchId);
+        if (placarFieldsChanged(prev, m)) {
+          placarChangedIds.push(m.matchId);
+        }
       } else {
         unchanged += 1;
       }
@@ -392,6 +408,7 @@ export async function persistMatchesV2(
     await runCascadeAfterMatchUpdate({
       source: opts?.cascadeSource ?? "persist-v2",
       runClosures: opts?.runCascadingClosures ?? true,
+      placarChangedIds,
     }).catch((err) => {
       console.warn("[persistMatchesV2] cascade failed:", err);
     });
@@ -418,8 +435,19 @@ export async function persistMatchesV2(
 export async function runCascadeAfterMatchUpdate(opts: {
   source: string;
   runClosures?: boolean;
+  placarChangedIds?: number[];
 }): Promise<void> {
   invalidateMatchMapMemoryAfterDbWrite();
+
+  if (opts.placarChangedIds && opts.placarChangedIds.length > 0) {
+    void import("@/lib/push/score-change-notify")
+      .then(({ dispatchScoreChangePushNotifications }) =>
+        dispatchScoreChangePushNotifications(opts.placarChangedIds!),
+      )
+      .catch((err) => {
+        console.warn("[runCascadeAfterMatchUpdate] score push failed", err);
+      });
+  }
 
   if (opts.runClosures !== false) {
     await processPrizeClosuresAfterMatchSync({ source: opts.source }).catch((err) => {

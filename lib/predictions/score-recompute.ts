@@ -19,6 +19,7 @@
 
 import type { PoolClient } from "pg";
 import { calcPredictionPoints } from "@/lib/predictions";
+import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
 
 type PredictionForRecompute = {
   prediction_id: string;
@@ -70,6 +71,8 @@ export async function recomputePredictionScoresForMatches(
   const uniqueIds = [...new Set(matchIds.filter((n) => Number.isFinite(n) && n > 0))];
   if (uniqueIds.length === 0) return { updated: 0, matchesTouched: [] };
 
+  const mainComp = getFootballMainCompetitionId();
+
   const { rows } = await client.query<PredictionForRecompute>(
     `SELECT
        p.id::text                AS prediction_id,
@@ -83,9 +86,14 @@ export async function recomputePredictionScoresForMatches(
        mc.result_casa            AS result_casa,
        mc.result_visitante       AS result_visitante
      FROM predictions p
+     LEFT JOIN tickets t ON t.id::text = p.ticket_id
      LEFT JOIN matches_cache mc ON mc.match_id = p.match_id
+       AND mc.competition_id = CASE
+         WHEN p.bolao_type = 'extra' THEN t.extra_championship_id
+         ELSE $2::int
+       END
      WHERE p.match_id = ANY($1::bigint[])`,
-    [uniqueIds],
+    [uniqueIds, mainComp],
   );
 
   if (rows.length === 0) return { updated: 0, matchesTouched: [] };

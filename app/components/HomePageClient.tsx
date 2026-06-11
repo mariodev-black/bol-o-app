@@ -30,6 +30,10 @@ import {
   pickPalpitesAbertosForHome,
 } from "@/lib/home-palpites-abertos";
 import type { OutrosBolaoGridItem } from "@/lib/boloes-outros-grid";
+import {
+  LIVE_PARTIDAS_POLL_MS,
+  partidasUrlWithLiveSync,
+} from "@/lib/football/live-sync-client";
 
 type PartidasResponse = {
   partidas?: Record<string, unknown>;
@@ -128,8 +132,11 @@ function LoggedInHome({
 
   useEffect(() => {
     let cancelled = false;
-    async function loadPalpitesAbertos() {
+    let intervalId: ReturnType<typeof setInterval> | undefined;
+
+    async function loadPalpitesAbertos(liveSync = false) {
       if (
+        !liveSync &&
         loggedHomePalpitesCache &&
         Date.now() - loggedHomePalpitesCache.at < LOGGED_HOME_PALPITES_CACHE_MS
       ) {
@@ -143,9 +150,10 @@ function LoggedInHome({
       const showLoading = palpitesAbertos.length === 0;
       if (showLoading) setPalpitesLoading(true);
       try {
-        const response = await fetch("/api/partidas?allSynced=1", {
-          cache: "force-cache",
-        });
+        const response = await fetch(
+          partidasUrlWithLiveSync("/api/partidas", { allSynced: 1 }),
+          { cache: "no-store" },
+        );
         const data = (await response
           .json()
           .catch(() => ({}))) as PartidasResponse;
@@ -160,9 +168,12 @@ function LoggedInHome({
         if (!cancelled) setPalpitesLoading(false);
       }
     }
-    void loadPalpitesAbertos();
+
+    void loadPalpitesAbertos(true);
+    intervalId = setInterval(() => void loadPalpitesAbertos(true), LIVE_PARTIDAS_POLL_MS);
     return () => {
       cancelled = true;
+      if (intervalId) clearInterval(intervalId);
     };
   }, []);
 

@@ -15,5 +15,5 @@ export async function POST(
   const { id } = await params;
   const result = await approveWithdrawalRequestById(id);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, cartwaveTransactionId: result.cartwaveTransactionId });
 }

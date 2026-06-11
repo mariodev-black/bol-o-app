@@ -63,6 +63,7 @@ export function RankingBoardStep({
   myRowsFooter,
   onBack,
   refreshClockMs,
+  highlightMatchId,
 }: {
   scope: RankingScopeOption;
   loading: boolean;
@@ -82,6 +83,7 @@ export function RankingBoardStep({
   myRowsFooter: RankingBoardRow[];
   onBack: () => void;
   refreshClockMs?: number;
+  highlightMatchId?: string | null;
 }) {
   return (
     <div className="pt-6">
@@ -122,6 +124,7 @@ export function RankingBoardStep({
             matches={matchResults}
             loading={loadingMatches}
             refreshClockMs={refreshClockMs}
+            highlightMatchId={highlightMatchId}
           />
 
           <MyStatsFooter stats={stats} />

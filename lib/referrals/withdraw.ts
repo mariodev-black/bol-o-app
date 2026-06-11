@@ -1,4 +1,5 @@
 import { getPool } from "@/lib/db";
+import { getAffiliateBalances, type AffiliateBalances } from "@/lib/referrals/commissions";
 import type { WithdrawalBalanceSource } from "@/lib/referrals/withdrawSource";
 import {
   assertBalanceCoversWithdrawal,
@@ -22,13 +23,18 @@ export function minAffiliateWithdrawalCents(): number {
 
 export { maxWithdrawalCentsPerRequest } from "@/lib/referrals/withdrawGuards";
 
+/**
+ * Solicita saque: debita o saldo na hora (wallet ou afiliado).
+ * - Aprovado (paid): saldo permanece debitado — PIX enviado.
+ * - Recusado: admin devolve o valor ao mesmo saldo de origem.
+ */
 export async function createAffiliateWithdrawalRequest(input: {
   userId: string;
   amountCents: number;
   pixKeyType: "cpf" | "email" | "phone" | "random";
   pixKey: string;
   balanceSource?: WithdrawalBalanceSource;
-}): Promise<{ id: string }> {
+}): Promise<{ id: string; balances: AffiliateBalances }> {
   const min = minAffiliateWithdrawalCents();
   const source: WithdrawalBalanceSource = input.balanceSource ?? "affiliate";
 
@@ -106,7 +112,8 @@ export async function createAffiliateWithdrawalRequest(input: {
     const id = rows[0]?.id;
     if (!id) throw new Error("Falha ao registrar solicitacao");
     await client.query("COMMIT");
-    return { id };
+    const balances = await getAffiliateBalances(userRow.id);
+    return { id, balances };
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;
