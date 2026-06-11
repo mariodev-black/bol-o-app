@@ -178,6 +178,15 @@ export function HomeComoFuncionaPontuacaoSection({
           <SectionRulesLink />
         </div>
 
+        <p className="mb-3.5 text-pretty text-[13px] font-medium leading-[1.5] text-white/78">
+          É um campeonato de{" "}
+          <strong className="font-black text-white">pontos corridos</strong>. Com uma
+          única cota você participa da{" "}
+          <strong className="font-black text-white">Copa inteira</strong> — do primeiro
+          jogo até a final. Mande seus palpites a cada rodada: quanto mais pontos, maior
+          sua chance de terminar entre os primeiros.
+        </p>
+
         <div className="grid grid-cols-2 gap-3">
           {HOW_IT_WORKS_STEPS.map(({ step, title, body }) => (
             <HowItWorksStepCard key={step} step={step} title={title} body={body} />
@@ -203,7 +212,91 @@ export function HomeComoFuncionaPontuacaoSection({
           {SCORE_RULES.map((rule) => (
             <ScoreRuleCard key={rule.label} {...rule} />
           ))}
+
+          {/* Destaque da final — ocupa toda a largura (2 cards) */}
+          <article
+            className="col-span-2 flex items-center gap-4 overflow-hidden rounded-[12px] border px-4 py-4"
+            style={{ backgroundColor: NESTED_CARD_BG, borderColor: `${GREEN}55` }}
+          >
+            <p
+              className="shrink-0 text-[34px] font-black leading-none tracking-tight"
+              style={{ color: GREEN }}
+            >
+              +10 pts
+            </p>
+            <div className="min-w-0">
+              <p className="text-[13px] font-black uppercase leading-tight tracking-[0.02em] text-white">
+                🔥 Na final, o placar exato vale 10 pontos
+              </p>
+              <p className="mt-1 text-[12px] font-medium leading-snug text-white/70">
+                O jogo decisivo pesa o dobro na sua pontuação.
+              </p>
+            </div>
+          </article>
         </div>
+      </section>
+
+      <section className="mt-5" aria-labelledby="sistema-premiacao-home-heading">
+        <h2
+          id="sistema-premiacao-home-heading"
+          className="mb-3.5 text-[16px] font-black uppercase tracking-[0.04em] text-white"
+        >
+          SISTEMA DE PREMIAÇÃO
+        </h2>
+
+        <article
+          className="overflow-hidden rounded-[14px] border border-white/8 px-4 py-5"
+          style={{ backgroundColor: CARD_BG }}
+        >
+          <p className="text-[14px] font-medium leading-[1.5] text-white/85">
+            Os{" "}
+            <strong className="font-black" style={{ color: GREEN }}>
+              10% melhores colocados
+            </strong>{" "}
+            são premiados.
+          </p>
+          <div
+            className="mt-3 flex items-center gap-3 rounded-[12px] px-3.5 py-3"
+            style={{ backgroundColor: NESTED_CARD_BG }}
+          >
+            <span className="text-[22px] leading-none" aria-hidden>
+              🏆
+            </span>
+            <p className="text-[13px] font-medium leading-snug text-white/80">
+              Exemplo: se{" "}
+              <strong className="font-black text-white">100 pessoas</strong> participarem,{" "}
+              <strong className="font-black text-white">10 são premiadas</strong>.
+            </p>
+          </div>
+          <p className="mt-3 text-[13px] font-medium leading-[1.5] text-white/70">
+            Quanto maior sua pontuação e sua posição na tabela, maior será sua premiação.
+          </p>
+        </article>
+      </section>
+
+      <section className="mt-5" aria-labelledby="sem-red-home-heading">
+        <article
+          className="overflow-hidden rounded-[14px] border px-4 py-5"
+          style={{ backgroundColor: CARD_BG, borderColor: `${GREEN}55` }}
+        >
+          <h2
+            id="sem-red-home-heading"
+            className="text-[17px] font-black uppercase leading-tight tracking-[0.02em] text-white"
+          >
+            🔥 Aqui não existe <span style={{ color: GREEN }}>RED</span>
+          </h2>
+          <p className="mt-3 text-[14px] font-medium leading-[1.5] text-white/85">
+            Mesmo errando alguns palpites, você{" "}
+            <strong className="font-black text-white">continua vivo</strong> na competição.
+          </p>
+          <p className="mt-2 text-[14px] font-medium leading-[1.5] text-white/85">
+            A cada rodada dá pra recuperar posições e subir na tabela — do primeiro jogo
+            até a final da Copa.
+          </p>
+          <p className="mt-3 text-[13px] font-black uppercase leading-snug tracking-[0.02em] text-white">
+            🏆 Quem faz mais pontos leva as maiores premiações.
+          </p>
+        </article>
       </section>
     </div>
   );
