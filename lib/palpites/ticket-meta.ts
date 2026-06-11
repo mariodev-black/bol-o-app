@@ -97,7 +97,7 @@ export async function resolveOwnedTicketMeta(
   }
 
   const inferred = await inferBolaoTypeFromTicketId(raw);
-  if (!inferred) return null;
+  if (!inferred || inferred === "artilheiros") return null;
   return {
     bolao: inferred,
     extraChampionshipId: null,

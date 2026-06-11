@@ -95,6 +95,10 @@ export function AuthProvider({
   }, []);
 
   useEffect(() => {
+    if (initialUser) {
+      setReady(true);
+      return;
+    }
     let cancelled = false;
     void loadInitialSessionUser()
       .then((u) => {
@@ -107,7 +111,7 @@ export function AuthProvider({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [initialUser]);
 
   const loginWithPassword = useCallback(
     async (identifier: string, password: string) => {

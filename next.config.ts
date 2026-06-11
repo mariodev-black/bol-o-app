@@ -21,6 +21,10 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "cdn.api-futebol.com.br",
       },
+      {
+        protocol: "https",
+        hostname: "media.api-sports.io",
+      },
     ],
     // Qualidades aceitas pelo otimizador. `75` é o default; adicionamos `90` e
     // `100` para banners de marca (login/cadastro) que precisam de nitidez.

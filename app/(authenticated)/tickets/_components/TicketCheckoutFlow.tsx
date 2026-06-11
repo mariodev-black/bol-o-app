@@ -23,6 +23,7 @@ import bannerCheckout from "@/app/assets/banner-chekout.png";
 import iconBrasileirao from "@/app/assets/icon-brasileirao.png";
 import iconCopaBrasil from "@/app/assets/icon-copa-brasil.png";
 import iconCopaMundo from "@/app/assets/icon-copa-mundo.png";
+import iconeBolaoArtilheiro from "@/app/assets/icone-bolao-artilheiro.png";
 import logoBolaoDiario from "@/app/assets/logo-bolao-diario.png";
 import ticketBlue from "@/app/assets/Ticket-Blue.png";
 import {
@@ -54,6 +55,7 @@ import {
 const DEFAULT_PRINCIPAL_CENTS = 3990;
 const DEFAULT_DIARIO_CENTS = 2000;
 const DEFAULT_EXTRA_CENTS = 1000;
+const DEFAULT_ARTILHEIROS_CENTS = 2000;
 
 /** Mesmo espírito de `BOLOES_EXTRA_*` — permite cards no primeiro paint antes do GET (opcional). */
 function parseNextPublicExtraChampionshipIds(): number[] {
@@ -142,7 +144,7 @@ type TransactionUpdatePayload = {
 };
 
 type TicketCheckoutFlowProps = {
-  initialTicketKind?: "general" | "daily" | "extra";
+  initialTicketKind?: "general" | "daily" | "extra" | "artilheiros";
   /** Com `initialTicketKind === "extra"`, pré-seleciona este campeonato (id da API). */
   initialExtraChampionshipId?: number;
   /** IDs extras vindos do servidor — alinhados a `BOLOES_EXTRA_*`. */
@@ -158,12 +160,18 @@ type TicketCheckoutFlowProps = {
   ticketsPrincipalOnly?: boolean;
   /** Loja `/tickets`: somente principal + edições do bolão diário (sem extras). */
   ticketsPrincipalAndDailyOnly?: boolean;
+  /** Loja `/tickets`: exibe principal + diário + artilheiros, sem extras. */
+  ticketsHideExtra?: boolean;
+  /** Checkout focado: somente Bolão dos Artilheiros (`/tickets?bolao=artilheiros`). */
+  ticketsArtilheirosOnly?: boolean;
 };
 
 const MAX_QTY = 20;
 
+const TICKET_CARD_LOGO_WRAP_CLASS =
+  "flex h-[104px] w-[86px] shrink-0 items-center justify-center sm:h-[112px] sm:w-[92px]";
 const TICKET_CARD_LOGO_CLASS =
-  "h-[104px] w-auto shrink-0 object-contain sm:h-[112px]";
+  "max-h-full max-w-full object-contain";
 
 export function TicketCheckoutFlow({
   initialTicketKind = "general",
@@ -173,22 +181,40 @@ export function TicketCheckoutFlow({
   ticketsHideDaily = false,
   ticketsPrincipalOnly = false,
   ticketsPrincipalAndDailyOnly = false,
+  ticketsHideExtra = false,
+  ticketsArtilheirosOnly = false,
 }: TicketCheckoutFlowProps) {
   const router = useRouter();
-  const showPrincipal = !ticketsExtraOnly;
+  const showPrincipal = !ticketsExtraOnly && !ticketsArtilheirosOnly;
   const showDaily =
     !ticketsHideDaily &&
+    !ticketsArtilheirosOnly &&
     (ticketsPrincipalAndDailyOnly || !ticketsPrincipalOnly);
   const showExtra =
     !ticketsPrincipalOnly &&
     !ticketsPrincipalAndDailyOnly &&
-    !ticketsExtraOnly;
+    !ticketsHideExtra &&
+    !ticketsExtraOnly &&
+    !ticketsArtilheirosOnly;
+  const [artilheirosEnabled, setArtilheirosEnabled] = useState(true);
+  const showArtilheiros =
+    ticketsArtilheirosOnly ||
+    (artilheirosEnabled &&
+      !ticketsPrincipalAndDailyOnly &&
+      !ticketsExtraOnly &&
+      !ticketsPrincipalOnly);
   const [principalQty, setPrincipalQty] = useState(() => {
     if (ticketsExtraOnly) return 0;
     if (ticketsPrincipalOnly) return 1;
-    return initialTicketKind === "daily" || initialTicketKind === "extra"
+    return initialTicketKind === "daily" ||
+      initialTicketKind === "extra" ||
+      initialTicketKind === "artilheiros"
       ? 0
       : 1;
+  });
+  const [artilheirosQty, setArtilheirosQty] = useState(() => {
+    if (ticketsArtilheirosOnly || initialTicketKind === "artilheiros") return 1;
+    return 0;
   });
   const [dailyQtyByEdition, setDailyQtyByEdition] = useState<Record<number, number>>(
     () => ({}),
@@ -229,6 +255,7 @@ export function TicketCheckoutFlow({
     general: DEFAULT_PRINCIPAL_CENTS,
     daily: DEFAULT_DIARIO_CENTS,
     extra: DEFAULT_EXTRA_CENTS,
+    artilheiros: DEFAULT_ARTILHEIROS_CENTS,
   });
   const [step, setStep] = useState<FlowStep>("shop");
   const [transactionId, setTransactionId] = useState<string | null>(null);
@@ -362,7 +389,13 @@ export function TicketCheckoutFlow({
           credentials: "include",
         });
         const d = (await r.json()) as {
-          prices?: { general: number; daily: number; extra?: number };
+          prices?: {
+            general: number;
+            daily: number;
+            extra?: number;
+            artilheiros?: number;
+          };
+          artilheirosEnabled?: boolean;
           dailyEdition?: DailyEditionCatalogItem | null;
           extraBoloes?: Array<{
             championshipId: number;
@@ -378,7 +411,11 @@ export function TicketCheckoutFlow({
             general: d.prices.general,
             daily: d.prices.daily,
             extra: d.prices.extra ?? DEFAULT_EXTRA_CENTS,
+            artilheiros: d.prices.artilheiros ?? DEFAULT_ARTILHEIROS_CENTS,
           });
+        }
+        if (r.ok && typeof d.artilheirosEnabled === "boolean") {
+          setArtilheirosEnabled(d.artilheirosEnabled);
         }
         if (r.ok && d.dailyEdition) {
           setCurrentDailyEdition(d.dailyEdition);
@@ -546,6 +583,19 @@ export function TicketCheckoutFlow({
     return total;
   }, [extraBoloes, extraQty, prices.extra]);
 
+  const artilheirosLineCents = useMemo(
+    () =>
+      showArtilheiros
+        ? progressiveDiscountTotalCents(prices.artilheiros, artilheirosQty)
+        : 0,
+    [showArtilheiros, prices.artilheiros, artilheirosQty],
+  );
+  const artilheirosDiscountPct = progressiveDiscountPercent(artilheirosQty);
+  const artilheirosUnitPriceCents =
+    artilheirosQty > 0
+      ? Math.round(artilheirosLineCents / artilheirosQty)
+      : prices.artilheiros;
+
   const extraPixLines = useMemo(
     () =>
       extraBoloes
@@ -567,8 +617,10 @@ export function TicketCheckoutFlow({
     [extraBoloes, extraQty, prices.extra],
   );
 
-  const totalCents = principalLineCents + diarioLineCents + extraLinesCents;
-  const totalQty = principalQty + dailyTotalQty + extraTotalQty;
+  const totalCents =
+    principalLineCents + diarioLineCents + extraLinesCents + artilheirosLineCents;
+  const totalQty =
+    principalQty + dailyTotalQty + extraTotalQty + (showArtilheiros ? artilheirosQty : 0);
   const hasSelection = totalCents > 0 && totalQty >= 1;
   const geralDiscountPct = progressiveDiscountPercent(principalQty);
   const principalUnitPriceCents =
@@ -641,6 +693,9 @@ export function TicketCheckoutFlow({
                   ),
                 }
               : {}),
+            ...(showArtilheiros && artilheirosQty > 0
+              ? { artilheirosQuantity: artilheirosQty }
+              : { artilheirosQuantity: 0 }),
           }),
         });
         const d = (await r.json()) as {
@@ -676,6 +731,8 @@ export function TicketCheckoutFlow({
     dailyTotalQty,
     extraBoloes,
     extraQty,
+    showArtilheiros,
+    artilheirosQty,
   ]);
 
   const copyPix = useCallback(() => {
@@ -762,9 +819,9 @@ export function TicketCheckoutFlow({
                 {showPrincipal && (
                   <div className="overflow-hidden rounded-[16px] border border-white/10 bg-[#121212] shadow-[0_8px_26px_rgba(0,0,0,0.35)]">
                     <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3 p-3 sm:p-3.5">
-                      <div className="flex shrink-0 flex-col items-center justify-center">
-                        <img
-                          src={iconCopaMundo.src}
+                      <div className={TICKET_CARD_LOGO_WRAP_CLASS}>
+                        <Image
+                          src={iconCopaMundo}
                           alt=""
                           className={TICKET_CARD_LOGO_CLASS}
                         />
@@ -891,9 +948,9 @@ export function TicketCheckoutFlow({
                           }`}
                         >
                           <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3 p-3 sm:p-3.5">
-                            <div className="flex shrink-0 flex-col items-center justify-center">
-                              <img
-                                src={logoBolaoDiario.src}
+                            <div className={TICKET_CARD_LOGO_WRAP_CLASS}>
+                              <Image
+                                src={logoBolaoDiario}
                                 alt="Bolão Diário"
                                 className={TICKET_CARD_LOGO_CLASS}
                               />
@@ -919,7 +976,7 @@ export function TicketCheckoutFlow({
                                 <p className="mt-1 text-[12px] font-semibold leading-snug text-primary/90 sm:text-[11px]">
                                   {edition.datesLabel}
                                 </p>
-                                <p className="mt-1 text-[11px] font-medium leading-snug text-white/55">
+                                <p className="mt-1 text-[12px] font-medium leading-snug text-white/55">
                                   Palpites em todos os jogos destes dias
                                 </p>
                                 <div className="mt-3 flex w-fit items-center gap-1 rounded-[10px] border border-white/10 bg-[#0f0f0f] p-1">
@@ -993,6 +1050,103 @@ export function TicketCheckoutFlow({
                     <p className="mt-1 text-[11px] text-white/45">
                       Volte em breve para a próxima edição da fase de grupos.
                     </p>
+                  </div>
+                )}
+
+                {showArtilheiros && (
+                  <div className="overflow-hidden rounded-[16px] border border-white/10 bg-[#121212] shadow-[0_8px_26px_rgba(0,0,0,0.35)]">
+                    <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3 p-3 sm:p-3.5">
+                      <div className={TICKET_CARD_LOGO_WRAP_CLASS}>
+                        <Image
+                          src={iconeBolaoArtilheiro}
+                          alt=""
+                          className={TICKET_CARD_LOGO_CLASS}
+                        />
+                      </div>
+
+                      <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_88px] items-center gap-3 sm:grid-cols-[minmax(0,1fr)_96px]">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <h3 className="whitespace-nowrap text-[14px] font-black uppercase leading-tight text-white sm:text-[15px]">
+                              Bolão dos Artilheiros
+                            </h3>
+                            <span className="w-fit shrink-0 rounded-md bg-primary/20 px-1.5 py-0.5 text-[7px] font-black uppercase tracking-wide text-primary sm:text-[8px]">
+                              Novo
+                            </span>
+                          </div>
+                          <p className="mt-1 text-[12px] font-medium leading-snug text-white/80 sm:text-[11px]">
+                            Palpite os 3 artilheiros da Copa do Mundo 2026
+                          </p>
+
+                          <div className="mt-3 flex w-fit items-center gap-1 rounded-[10px] border border-white/10 bg-[#0f0f0f] p-1">
+                            <button
+                              type="button"
+                              aria-label="Diminuir Bolão dos Artilheiros"
+                              disabled={artilheirosQty <= 0}
+                              onClick={() => {
+                                setError(null);
+                                setCouponHint(null);
+                                setArtilheirosQty((q) => Math.max(0, q - 1));
+                              }}
+                              className="flex h-8 w-8 items-center justify-center rounded-[8px] border border-primary/20 bg-black/40 text-primary transition-colors hover:bg-white/10 disabled:opacity-30"
+                            >
+                              <span className="text-[18px] font-black leading-none">
+                                -
+                              </span>
+                            </button>
+                            <span className="w-8 text-center text-[18px] font-black tabular-nums text-white sm:text-[20px]">
+                              {artilheirosQty}
+                            </span>
+                            <button
+                              type="button"
+                              aria-label="Aumentar Bolão dos Artilheiros"
+                              disabled={artilheirosQty >= MAX_QTY}
+                              onClick={() => {
+                                setError(null);
+                                setCouponHint(null);
+                                setArtilheirosQty((q) => Math.min(MAX_QTY, q + 1));
+                              }}
+                              className="flex h-8 w-8 items-center justify-center rounded-[8px] border border-primary/30 bg-black/40 text-primary transition-colors hover:bg-white/10 disabled:opacity-30"
+                            >
+                              <span className="text-[18px] font-black leading-none">
+                                +
+                              </span>
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="self-center text-right">
+                          <p className="text-[12px] font-semibold text-white/40">
+                            Preço unitário
+                          </p>
+                          <p className="mt-1 text-[14px] font-black tabular-nums text-white sm:text-[15px]">
+                            {formatBRL(artilheirosUnitPriceCents)}
+                          </p>
+                          <p className="mt-1 text-[12px] font-semibold tabular-nums text-white/80 line-through">
+                            {artilheirosDiscountPct > 0
+                              ? formatBRL(prices.artilheiros)
+                              : ""}
+                          </p>
+                          <p className="text-[12px] font-bold text-primary">
+                            {artilheirosDiscountPct > 0
+                              ? `${artilheirosDiscountPct}% OFF`
+                              : ""}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 border-t border-white/6 bg-black/25 px-3.5 py-2.5 text-[12px] text-white/50 sm:px-4">
+                      <span>
+                        Desconto aplicado:{" "}
+                        <span className="font-bold text-primary">
+                          {artilheirosDiscountPct}%
+                        </span>{" "}
+                        OFF
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-right font-medium">
+                        Escolha a quantidade
+                      </span>
+                    </div>
                   </div>
                 )}
 
@@ -1212,6 +1366,17 @@ export function TicketCheckoutFlow({
                         </span>
                       </div>
                     ))}
+                  {showArtilheiros && artilheirosQty > 0 && (
+                    <div className="flex items-center justify-between gap-2 text-[13px]">
+                      <span className="font-semibold text-white/70">
+                        Bolão dos Artilheiros · {artilheirosQty}{" "}
+                        {artilheirosQty === 1 ? "ticket" : "tickets"}
+                      </span>
+                      <span className="shrink-0 font-black tabular-nums text-white">
+                        {formatBRL(artilheirosLineCents)}
+                      </span>
+                    </div>
+                  )}
                   {showExtra &&
                     extraBoloes.map((b) => {
                       const qty = extraQty(b.championshipId);
@@ -1332,6 +1497,9 @@ export function TicketCheckoutFlow({
               error={error}
               principalQty={principalQty}
               dailyQty={dailyTotalQty}
+              artilheirosQty={showArtilheiros ? artilheirosQty : 0}
+              artilheirosLineCents={artilheirosLineCents}
+              artilheirosUnitPriceCents={artilheirosUnitPriceCents}
               dailyPixLines={dailyPixLines}
               extraPixLines={extraPixLines}
               prices={prices}

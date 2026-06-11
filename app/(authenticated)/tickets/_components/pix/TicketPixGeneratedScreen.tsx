@@ -61,6 +61,9 @@ export type TicketPixGeneratedScreenProps = {
   error: string | null;
   principalQty: number;
   dailyQty: number;
+  artilheirosQty?: number;
+  artilheirosLineCents?: number;
+  artilheirosUnitPriceCents?: number;
   dailyPixLines?: TicketPixDailyLine[];
   /** Linhas de bolão extra (apenas itens com quantidade positiva). */
   extraPixLines?: TicketPixExtraLine[];
@@ -83,6 +86,9 @@ export function TicketPixGeneratedScreen({
   error,
   principalQty,
   dailyQty,
+  artilheirosQty = 0,
+  artilheirosLineCents = 0,
+  artilheirosUnitPriceCents = 0,
   dailyPixLines = [],
   extraPixLines = [],
   prices,
@@ -92,7 +98,7 @@ export function TicketPixGeneratedScreen({
 }: TicketPixGeneratedScreenProps) {
   const toast = useBolaoToast();
   const extraQtySum = extraPixLines.reduce((s, l) => s + l.qty, 0);
-  const totalQty = principalQty + dailyQty + extraQtySum;
+  const totalQty = principalQty + dailyQty + extraQtySum + artilheirosQty;
 
   const handleCopyPix = useCallback(() => {
     if (pixExpired || !pixPayload.trim()) return;
@@ -116,6 +122,11 @@ export function TicketPixGeneratedScreen({
     if (line.qty <= 0) continue;
     const label = line.displayLabel?.trim() || "Ticket extra";
     orderDescriptionParts.push(`${label} | ${formatBRL(line.lineCents)}`);
+  }
+  if (artilheirosQty > 0) {
+    orderDescriptionParts.push(
+      `Artilheiros | ${formatBRL(artilheirosLineCents)}`,
+    );
   }
   orderDescriptionParts.push(`${totalQty} ticket${totalQty === 1 ? "" : "s"}`);
   const orderDescriptionLine = orderDescriptionParts.join(" • ");
@@ -145,6 +156,11 @@ export function TicketPixGeneratedScreen({
       line.qty > 0 ? Math.round(line.lineCents / line.qty) : line.lineCents;
     const label = line.displayLabel?.trim() || "Ticket extra";
     quantitySegments.push(`${line.qty}x ${label} @ ${formatBRL(avg)}`);
+  }
+  if (artilheirosQty > 0) {
+    quantitySegments.push(
+      `${artilheirosQty}x Artilheiros @ ${formatBRL(artilheirosUnitPriceCents)}`,
+    );
   }
   const quantityRight = quantitySegments.join(" · ") || "—";
 

@@ -8,8 +8,10 @@ import { LpTicketCheckoutFlow } from "./_components/LpTicketCheckoutFlow";
 
 function TicketsPageContent({
   ticketsPrincipalAndDailyOnly = false,
+  ticketsHideExtra = false,
 }: {
   ticketsPrincipalAndDailyOnly?: boolean;
+  ticketsHideExtra?: boolean;
 }) {
   const search = useSearchParams();
   const lpFlow =
@@ -17,8 +19,13 @@ function TicketsPageContent({
     search.get("lp") === "true" ||
     search.get("flow") === "lp";
   const bolaoRaw = search.get("bolao");
+  const ticketsArtilheirosOnly = bolaoRaw === "artilheiros";
   const initialTicketKind =
-    ticketsPrincipalAndDailyOnly && bolaoRaw === "diario" ? "daily" : "general";
+    ticketsArtilheirosOnly
+      ? "artilheiros"
+      : ticketsPrincipalAndDailyOnly && bolaoRaw === "diario"
+        ? "daily"
+        : "general";
 
   return (
     <div className="flex min-h-screen flex-1 flex-col bg-black">
@@ -26,9 +33,19 @@ function TicketsPageContent({
         <LpTicketCheckoutFlow />
       ) : (
         <TicketCheckoutFlow
-          key={ticketsPrincipalAndDailyOnly ? "principal-daily" : "full-shop"}
+          key={
+            ticketsArtilheirosOnly
+              ? "artilheiros"
+              : ticketsPrincipalAndDailyOnly
+                ? "principal-daily"
+                : "full-shop"
+          }
           initialTicketKind={initialTicketKind}
-          ticketsPrincipalAndDailyOnly={ticketsPrincipalAndDailyOnly}
+          ticketsPrincipalAndDailyOnly={
+            ticketsPrincipalAndDailyOnly && !ticketsArtilheirosOnly
+          }
+          ticketsHideExtra={ticketsHideExtra && !ticketsArtilheirosOnly}
+          ticketsArtilheirosOnly={ticketsArtilheirosOnly}
         />
       )}
     </div>
@@ -37,8 +54,10 @@ function TicketsPageContent({
 
 export function TicketsPageClient({
   ticketsPrincipalAndDailyOnly = false,
+  ticketsHideExtra = false,
 }: {
   ticketsPrincipalAndDailyOnly?: boolean;
+  ticketsHideExtra?: boolean;
 }) {
   return (
     <Suspense
@@ -48,7 +67,10 @@ export function TicketsPageClient({
         </div>
       }
     >
-      <TicketsPageContent ticketsPrincipalAndDailyOnly={ticketsPrincipalAndDailyOnly} />
+      <TicketsPageContent
+        ticketsPrincipalAndDailyOnly={ticketsPrincipalAndDailyOnly}
+        ticketsHideExtra={ticketsHideExtra}
+      />
     </Suspense>
   );
 }

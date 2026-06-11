@@ -28,6 +28,15 @@ export async function GET(request: NextRequest) {
   if (ticketId) {
     const inferred = await inferBolaoTypeFromTicketId(ticketId);
     if (!inferred) return NextResponse.json({ error: "Ticket invalido" }, { status: 400 });
+    if (inferred === "artilheiros") {
+      const { getArtilheiroTicketScore } = await import("@/lib/artilheiros/ranking");
+      const score = await getArtilheiroTicketScore(ticketId);
+      return NextResponse.json({
+        position: score?.rankingPosition ?? null,
+        points: score?.totalPoints ?? 0,
+        artilheiros: true,
+      });
+    }
     bolaoType = inferred;
   } else if (bolaoParam === "diario") {
     bolaoType = "diario";

@@ -48,7 +48,7 @@ export function getExtraBolaoFirstPlaceLine(
 }
 
 export const SHOWCASE_PRIZES: Record<
-  "principal" | "diario" | "extra",
+  "principal" | "diario" | "extra" | "artilheiros",
   ShowcasePrizeCopy
 > = {
   principal: {
@@ -58,4 +58,9 @@ export const SHOWCASE_PRIZES: Record<
   },
   diario: { total: "R$ 10.000", first: "R$ 5.000" },
   extra: { total: "R$ 10.000", first: "R$ 1.000" },
+  artilheiros: {
+    total: "ATÉ 100 PTS",
+    first: "por cota",
+    firstPlaceLine: "🥇 50 · 🥈 30 · 🥉 20 pts + bônus top 3",
+  },
 };

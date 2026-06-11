@@ -23,6 +23,7 @@ import iconPremierLeague from "@/app/assets/icon-premier-league.png";
 import iconLibertadores from "@/app/assets/icone-libertadores.png";
 import iconCopaBrasil from "@/app/assets/icon-copa-brasil.png";
 import iconCopaMundo from "@/app/assets/icon-copa-mundo.png";
+import iconeBolaoArtilheiro from "@/app/assets/icone-bolao-artilheiro.png";
 import logoBolaoDiario from "@/app/assets/logo-bolao-diario.png";
 import ticketBlue from "@/app/assets/Ticket-Blue.png";
 import {
@@ -87,10 +88,12 @@ export type ActiveDailyBolao = {
 
 export type ActiveBolaoListItem = {
   id: string;
-  type: "principal" | "diario" | "extra";
+  type: "principal" | "diario" | "extra" | "artilheiros";
   /** Bolão extra: id do campeonato na API-Futebol. */
   championshipId?: number;
   title: string;
+  /** Subtítulo opcional (ex.: artilheiros). */
+  subtitle?: string | null;
   cotaLabel: string;
   href: string;
   status: "ativo" | "aguardando" | "usado";
@@ -117,6 +120,7 @@ export type BoloesScreenData = {
     principal: number;
     diario: number;
     extra: number;
+    artilheiros: number;
   };
   summary: {
     activeCount: number;
@@ -139,6 +143,11 @@ export type BoloesScreenData = {
       href: string;
       priceLabel: string;
       closesAtMs: number | null;
+    };
+    artilheiros?: {
+      href: string;
+      priceLabel: string;
+      participantCount: number;
     };
     extras: Array<{
       championshipId: number;
@@ -782,7 +791,7 @@ function AvailableCard({
    Estado vazio — usuário sem cotas
    ───────────────────────────────────────────────────── */
 
-type NoTicketsProductKind = "principal" | "diario" | "extra";
+type NoTicketsProductKind = "principal" | "diario" | "extra" | "artilheiros";
 
 type NoTicketsProduct = {
   id: string;
@@ -848,6 +857,23 @@ function buildNoTicketsProducts(
         prizeTotal: dailyPrizes.total,
         prizeFirst: dailyPrizes.first,
         iconSrc: logoBolaoDiario.src,
+        brandedIcon: true,
+      });
+    }
+
+    if (upcoming.artilheiros) {
+      const artPrizes = SHOWCASE_PRIZES.artilheiros;
+      items.push({
+        id: "artilheiros",
+        kind: "artilheiros",
+        href: upcoming.artilheiros.href,
+        title: "Bolão dos Artilheiros",
+        subtitle: "Copa do Mundo 2026",
+        priceLabel: upcoming.artilheiros.priceLabel,
+        prizeTotal: artPrizes.total,
+        prizeFirst: artPrizes.first,
+        prizeFirstLine: artPrizes.firstPlaceLine,
+        iconSrc: iconeBolaoArtilheiro.src,
         brandedIcon: true,
       });
     }
@@ -1411,6 +1437,9 @@ function noTicketsHeroHeader(product: NoTicketsProduct) {
   if (product.kind === "diario") {
     return { category: "Bolão do dia", title: "Rodada atual" };
   }
+  if (product.kind === "artilheiros") {
+    return { category: "Bolão dos Artilheiros", title: "Top 3 artilheiros" };
+  }
   const roundLabel = product.subtitle.split(" · ")[0]?.trim();
   return {
     category: product.title,
@@ -1422,6 +1451,7 @@ function NoTicketsHeroCard({ product }: { product: NoTicketsProduct }) {
   const header = noTicketsHeroHeader(product);
   const usePrincipalLogo = product.kind === "principal";
   const useDiarioLogo = product.kind === "diario";
+  const useArtilheirosLogo = product.kind === "artilheiros";
 
   return (
     <article
@@ -1445,6 +1475,14 @@ function NoTicketsHeroCard({ product }: { product: NoTicketsProduct }) {
               width={96}
               height={80}
               className="h-[72px] w-[88px] object-contain sm:h-[80px] sm:w-[96px]"
+            />
+          ) : useArtilheirosLogo ? (
+            <Image
+              src={iconeBolaoArtilheiro}
+              alt=""
+              width={72}
+              height={72}
+              className="h-[72px] w-[72px] object-contain"
             />
           ) : (
             <img

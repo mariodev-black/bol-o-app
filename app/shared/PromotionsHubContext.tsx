@@ -10,8 +10,6 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { seedBrasilMarrocosPlacarPromoStatus } from "@/app/shared/useBrasilMarrocosPlacarPromoStatus";
-import type { BrasilMarrocosPlacarPromoStatus } from "@/lib/promotions/brasil-marrocos-placar-promo-shared";
 import { useBolaoToast } from "@/app/components/BolaoToast";
 import { PromotionsBottomSheet } from "@/app/shared/PromotionsBottomSheet";
 import { useAuth } from "@/app/shared/AuthContext";
@@ -212,38 +210,15 @@ export function PromotionsHubProvider({ children }: { children: ReactNode }) {
       setSheetOpen(false);
       return;
     }
-
-    void fetchHub();
-
     if (prefetchedRef.current) return;
     prefetchedRef.current = true;
 
-    let cancelled = false;
-    const prefetchPromotions = async () => {
-      const [marrocosRes, extraRes] = await Promise.all([
-        fetch("/api/promotions/brasil-marrocos-placar", {
-          credentials: "include",
-          cache: "no-store",
-        }),
-        fetch("/api/promotions/extra-gift", {
-          credentials: "include",
-          cache: "no-store",
-        }),
-      ]);
-      if (cancelled) return;
-      if (marrocosRes.ok) {
-        const json = (await marrocosRes.json()) as BrasilMarrocosPlacarPromoStatus;
-        seedBrasilMarrocosPlacarPromoStatus(json);
-        setPromotionPrefetch("brasil_marrocos_placar", json);
-      }
-      if (extraRes.ok) {
-        setPromotionPrefetch("extra_gift", await extraRes.json());
-      }
-    };
-    void prefetchPromotions();
+    const timeoutId = window.setTimeout(() => {
+      void fetchHub({ silent: true });
+    }, 3500);
 
     return () => {
-      cancelled = true;
+      window.clearTimeout(timeoutId);
     };
   }, [ready, isLoggedIn, fetchHub, setPromotionPrefetch]);
 
