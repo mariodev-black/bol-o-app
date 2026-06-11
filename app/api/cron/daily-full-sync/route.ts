@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
   const shouldForce = force === "1" || force === "true";
   try {
     if (shouldForce) {
-      const result = await syncAllConfigured();
+      const result = await syncAllConfigured({ force: true });
       return NextResponse.json({ ok: true, forced: true, result });
     }
     const result = await maybeRunDailyFullSync();

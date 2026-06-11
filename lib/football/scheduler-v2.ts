@@ -80,11 +80,12 @@ export async function maybeRunDailyFullSync(opts?: { force?: boolean }): Promise
     if (!inDailyWindow()) {
       return { ran: false, reason: "fora-da-janela-00:01-00:30-brt" };
     }
+    // Marca antes de rodar — evita retentativa a cada tick se o sync falhar parcialmente.
+    globalThis.__bolaoSchedulerV2DailyDate = today;
   }
   const t0 = Date.now();
   try {
     await syncAllConfigured();
-    globalThis.__bolaoSchedulerV2DailyDate = today;
     return { ran: true, date: today, durationMs: Date.now() - t0 };
   } catch (err) {
     console.error("[scheduler-v2] daily full sync falhou:", err);

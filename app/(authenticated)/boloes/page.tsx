@@ -19,7 +19,7 @@ import {
   effectiveExtraRoundForPaidTicket,
   extraBolaoTitleForPaidTicket,
 } from "@/lib/ticket-shop-extra-display";
-import { warmCompetitionMetadataCache } from "@/lib/competition-metadata-cache";
+import { readCompetitionDisplayNamesFromDb } from "@/lib/competition-metadata-cache";
 import { resolvePaidTicketRankingPositions } from "@/lib/ranking/leaderboard";
 import {
   dailyEditionCardTitle,
@@ -272,7 +272,15 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
     matchesPromise,
     matchesPromise.then((m) => listPaidTicketsForUser(userId, { matchMap: m })),
     listPredictions({ userId }).catch(() => []),
-    warmCompetitionMetadataCache(configuredExtraIds).catch(() => ({}) as Record<number, string>),
+    readCompetitionDisplayNamesFromDb(configuredExtraIds)
+      .then((fromDb) => {
+        const out: Record<number, string> = {};
+        for (const id of configuredExtraIds) {
+          out[id] = fromDb[id] ?? resolveExtraBolaoDisplayName(id, null);
+        }
+        return out;
+      })
+      .catch(() => ({}) as Record<number, string>),
     countParticipantsByBolaoType().catch(() => ({ principal: 0, diario: 0, extra: 0 })),
     countArtilheirosParticipants().catch(() => 0),
     extraBolaoCurrentRoundsByChampionship(configuredExtraIds).catch(

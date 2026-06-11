@@ -1,6 +1,7 @@
 import { resolveExtraBolaoDisplayName } from "@/lib/boloes-extra-competition-branding";
 import { getPool } from "@/lib/db";
 import { fetchFootballApiV1 } from "@/lib/football-api-fetch";
+import { isFootballApiSyncExcludedCompetitionId } from "@/lib/football/amistosos-friendlies-config";
 import { upsertFootballApiCache } from "@/lib/football-api-cache-store";
 
 const CACHE_PREFIX = "competition_meta:";
@@ -125,7 +126,19 @@ export async function warmCompetitionMetadataCache(competitionIds: number[]): Pr
   const uniq = [...new Set(competitionIds.filter((n) => Number.isFinite(n) && n > 0))];
   if (uniq.length === 0) return {};
 
-  const keys = uniq.map(competitionMetadataCacheKey);
+  const out: Record<number, string> = {};
+  const apiIds: number[] = [];
+  for (const id of uniq) {
+    if (isFootballApiSyncExcludedCompetitionId(id)) {
+      out[id] = resolveExtraBolaoDisplayName(id, null);
+      continue;
+    }
+    apiIds.push(id);
+  }
+
+  if (apiIds.length === 0) return out;
+
+  const keys = apiIds.map(competitionMetadataCacheKey);
   const pool = getPool();
   const { rows } = await pool.query<{ cache_key: string; payload: unknown; synced_at: Date | null }>(
     `SELECT cache_key, payload, synced_at FROM football_api_cache WHERE cache_key = ANY($1::text[])`,
@@ -133,10 +146,9 @@ export async function warmCompetitionMetadataCache(competitionIds: number[]): Pr
   );
   const rowByKey = new Map(rows.map((r) => [r.cache_key, r]));
 
-  const out: Record<number, string> = {};
   const staleIds: number[] = [];
 
-  for (const id of uniq) {
+  for (const id of apiIds) {
     const key = competitionMetadataCacheKey(id);
     const row = rowByKey.get(key);
     const payload = row?.payload as CompetitionMetaPayload | null;

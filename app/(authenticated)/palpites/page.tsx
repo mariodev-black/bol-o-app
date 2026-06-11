@@ -14,7 +14,7 @@ import { parseKickoffFromPartidaPayload, pickScoreFromPartidaPayload } from "@/l
 import { hasOfficialMatchResult } from "@/lib/palpites-match-open";
 import { pickTabelaGruposForPalpites } from "@/lib/tabela-palpites-normalize";
 import { effectiveExtraRoundForPaidTicket } from "@/lib/ticket-shop-extra-display";
-import { syncExtra } from "@/lib/football/sync-orchestrator";
+import { syncExtraIfStale } from "@/lib/football/sync-orchestrator";
 import { isAmistososFriendliesCompetition } from "@/lib/football/amistosos-friendlies";
 import { ensureAmistososFriendliesMatchesSeeded } from "@/lib/football/amistosos-friendlies-persistence";
 import {
@@ -465,7 +465,10 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
     !isAmistososExtra &&
     !isSkaleExtra
   ) {
-    void syncExtra(extraChampionshipId, { extraRodadas: [extraRoundNumber] }).catch(() => {});
+    void syncExtraIfStale(extraChampionshipId, {
+      extraRodadas: [extraRoundNumber],
+      onlyIfEmpty: true,
+    }).catch(() => {});
   }
 
   const partidasOk = fasesResult != null;

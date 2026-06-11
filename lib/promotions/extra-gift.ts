@@ -287,7 +287,9 @@ export async function getExtraGiftStatusForUser(userId: string): Promise<ExtraGi
     const isAmistosos = isAmistososFriendliesCompetition(championshipId);
     const resolved = isAmistosos
       ? null
-      : await resolveCurrentExtraRound(championshipId).catch(() => null);
+      : await resolveCurrentExtraRound(championshipId, {
+          allowProviderCall: false,
+        }).catch(() => null);
     const championshipName = isAmistosos
       ? "Bolão dos Amistosos"
       : (resolved?.championshipNome ?? null);

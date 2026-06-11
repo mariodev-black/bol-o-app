@@ -2,6 +2,7 @@ import "server-only";
 
 import {
   getAllSyncedCompetitionIds,
+  getFootballMainCompetitionId,
 } from "@/lib/boloes-extra-config";
 import {
   partidaRecordToPalpiteAbertoMatch,
@@ -10,13 +11,13 @@ import {
 } from "@/lib/home-palpites-abertos";
 import { readMatchesCache } from "@/lib/matches-cache";
 import { rowToPartidaPayload } from "@/lib/partidas-cache-payload";
-import { syncAllConfiguredIfStale } from "@/lib/football/sync-orchestrator";
+import { bootstrapCompetitionCacheIfEmpty } from "@/lib/football/sync-orchestrator";
 
 export async function loadHomePalpitesAbertosFromCache(
   limit = 2,
 ): Promise<PalpiteAbertoMatch[]> {
   try {
-    await syncAllConfiguredIfStale();
+    await bootstrapCompetitionCacheIfEmpty(getFootballMainCompetitionId());
   } catch {
     /* cache pode já existir */
   }

@@ -7,7 +7,7 @@ import { readMatchesCache } from "@/lib/matches-cache";
 import { buildPartidasFasesFromRows } from "@/lib/partidas-cache-payload";
 import { isAmistososFriendliesCompetition } from "@/lib/football/amistosos-friendlies";
 import { ensureAmistososFriendliesMatchesSeeded } from "@/lib/football/amistosos-friendlies-persistence";
-import { syncAllConfiguredIfStale } from "@/lib/football/sync-orchestrator";
+import { bootstrapCompetitionCacheIfEmpty, syncAllConfiguredIfStale } from "@/lib/football/sync-orchestrator";
 
 export const runtime = "nodejs";
 
@@ -48,9 +48,13 @@ export async function GET(request: NextRequest) {
     }
     if (partidasPayloadEmpty(partidas as Record<string, unknown>)) {
       try {
-        await syncAllConfiguredIfStale();
+        if (allSynced) {
+          await syncAllConfiguredIfStale();
+        } else {
+          await bootstrapCompetitionCacheIfEmpty(comp);
+        }
       } catch (e) {
-        console.error("[api/partidas] syncAllConfiguredIfStale failed", {
+        console.error("[api/partidas] cache bootstrap failed", {
           message: e instanceof Error ? e.message : String(e),
         });
       }

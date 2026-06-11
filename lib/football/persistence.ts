@@ -157,6 +157,10 @@ function buildRow(m: ProviderMatchV2): unknown[] {
 
 const COLS_PER_ROW = 34;
 
+function matchDedupeKey(m: ProviderMatchV2): string {
+  return `${Number(m.competitionId)}:${Number(m.matchId)}`;
+}
+
 /**
  * Deduplica partidas por (competitionId, matchId) — a API Futebol pode listar
  * a mesma partida em multiplos nos da arvore hierarquica (ex.: ida/volta de
@@ -166,7 +170,7 @@ const COLS_PER_ROW = 34;
 function dedupeMatches(matches: ProviderMatchV2[]): ProviderMatchV2[] {
   const byKey = new Map<string, ProviderMatchV2>();
   for (const m of matches) {
-    const key = `${m.competitionId}:${m.matchId}`;
+    const key = matchDedupeKey(m);
     const prev = byKey.get(key);
     if (!prev) {
       byKey.set(key, m);
@@ -327,7 +331,7 @@ export async function persistMatchesV2(
     // gerar UPDATE no Postgres em todo tick.
     const toUpsert: ProviderMatchV2[] = [];
     for (const m of unique) {
-      const key = `${m.competitionId}:${m.matchId}`;
+      const key = matchDedupeKey(m);
       const prev = prevByKey.get(key);
       if (!prev) {
         toUpsert.push(m);
@@ -345,8 +349,14 @@ export async function persistMatchesV2(
     }
 
     if (toUpsert.length > 0) {
-      for (let off = 0; off < toUpsert.length; off += MATCH_UPSERT_CHUNK) {
-        const chunk = toUpsert.slice(off, off + MATCH_UPSERT_CHUNK);
+      const upsertRows = dedupeMatches(toUpsert);
+      if (upsertRows.length !== toUpsert.length) {
+        console.warn(
+          `[persistMatchesV2] dedupe extra no upsert: ${toUpsert.length} → ${upsertRows.length}`,
+        );
+      }
+      for (let off = 0; off < upsertRows.length; off += MATCH_UPSERT_CHUNK) {
+        const chunk = upsertRows.slice(off, off + MATCH_UPSERT_CHUNK);
         const values: string[] = [];
         const params: unknown[] = [];
         let p = 1;
