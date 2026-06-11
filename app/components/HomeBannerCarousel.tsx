@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import bannerBolao from "@/app/assets/banner-bolao.png";
-import bannerBraMar from "@/app/assets/banner-bra-mar.jpeg";
-import bannerIndique from "@/app/assets/banner-indique.png";
+import bannerBraMar from "@/app/assets/banner-brasil-marrocos.png";
+import bannerIndique from "@/app/assets/banner-indique-ganhe.png";
 import { usePromotionsHub } from "@/app/shared/PromotionsHubContext";
 import {
   fetchBrasilMarrocosPlacarPromoStatus,
@@ -36,13 +36,13 @@ const SLIDES: {
     id: "palpite",
     src: bannerBraMar,
     href: "/palpites",
-    alt: "Registre seu palpite Brasil x Marrocos",
+    alt: "Brasil x Marrocos — acerte e ganhe R$1.000 no PIX + camisa oficial",
   },
   {
     id: "indique",
     src: bannerIndique,
     href: "/indique",
-    alt: "Indique amigos e ganhe recompensas",
+    alt: "Indique e ganhe R$12 por indicação paga",
   },
 ];
 
@@ -111,10 +111,37 @@ export function HomeBannerCarousel() {
     [getPromotionPrefetch, openPromotion, router],
   );
 
+  // Swipe lateral (mobile): arrasta pro lado pra trocar de banner.
+  const touchStartX = useRef<number | null>(null);
+  const touchDeltaX = useRef(0);
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0]?.clientX ?? null;
+    touchDeltaX.current = 0;
+  };
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (touchStartX.current == null) return;
+    touchDeltaX.current = (e.touches[0]?.clientX ?? 0) - touchStartX.current;
+  };
+  const onTouchEnd = () => {
+    const delta = touchDeltaX.current;
+    touchStartX.current = null;
+    if (Math.abs(delta) < 40) return;
+    const len = SLIDES.length;
+    setIndex((i) => (delta < 0 ? (i + 1) % len : (i - 1 + len) % len));
+    startTimer();
+  };
+
   return (
     <section className="w-full pt-2">
       <div className="mx-auto w-full max-w-[430px] px-3.5">
-        <div className="relative overflow-hidden rounded-[16px] border border-white/8 bg-[#0a0a0a] shadow-[0_10px_36px_rgba(0,0,0,0.45)]">
+        <div
+          className="relative overflow-hidden rounded-[16px] border border-white/8 bg-[#0a0a0a] shadow-[0_10px_36px_rgba(0,0,0,0.45)]"
+          style={{ touchAction: "pan-y" }}
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+        >
           {/* Track — desliza horizontalmente */}
           <div
             className="flex transition-transform duration-500 ease-out"

@@ -15,8 +15,8 @@ export { BRASIL_MARROCOS_PLACAR_FRIENDS_GOAL };
 export type { BrasilMarrocosPlacarPromoStatus };
 export { isMeaningfulBrasilMarrocosPlacarSubmission };
 
-/** Partida alvo da promo — Amistoso Brasil x Marrocos. TODO: atualizar com o match_id correto. */
-export const BRASIL_MARROCOS_PLACAR_MATCH_ID = 90606004;
+/** Partida alvo da promo — Brasil x Marrocos da Copa 2026 (comp 72, 13/06/2026 19:00). */
+export const BRASIL_MARROCOS_PLACAR_MATCH_ID = 27380;
 
 function env(name: string): string {
   const raw = process.env[name];

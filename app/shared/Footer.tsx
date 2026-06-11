@@ -74,7 +74,7 @@ const SOCIAL_LINKS = [
   { Icon: Facebook,   label: "Facebook",   href: "#" },
   { Icon: Twitter,    label: "Twitter/X",  href: "#" },
   { Icon: Youtube,    label: "YouTube",    href: "#" },
-  { Icon: Instagram,  label: "Instagram",  href: "#" },
+  { Icon: Instagram,  label: "Instagram",  href: "https://instagram.com/bolaodomilhao26" },
   { Icon: Send,       label: "Telegram",   href: "#" },
   { Icon: TikTokIcon, label: "TikTok",     href: "#" },
 ] as const;
@@ -134,6 +134,8 @@ export function Footer() {
                 key={label}
                 href={href}
                 aria-label={label}
+                target={href.startsWith("http") ? "_blank" : undefined}
+                rel={href.startsWith("http") ? "noopener noreferrer" : undefined}
                 className="flex items-center justify-center w-9 h-9 rounded-full transition-colors hover:bg-white/15"
                 style={{
                   color: "rgba(255,255,255,0.65)",
