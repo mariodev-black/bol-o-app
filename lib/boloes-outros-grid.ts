@@ -29,13 +29,17 @@ export function getPremierChampionshipId(): number {
   return parseIdList(env("PREMIER_LEAGUE_EXTRA_CHAMPIONSHIP_IDS"), [69])[0]!;
 }
 
+export function getChampionsChampionshipId(): number {
+  return parseIdList(env("CHAMPIONS_LEAGUE_EXTRA_CHAMPIONSHIP_IDS"), [20])[0]!;
+}
+
 export type OutrosBolaoGridItem = {
   championshipId: number;
   label: string;
   participants: number;
 };
 
-export type OutrosBolaoLogoKey = "copa2026" | "brasileirao" | "premier";
+export type OutrosBolaoLogoKey = "copa2026" | "brasileirao" | "premier" | "champions";
 
 export type OutrosBolaoItemDef = {
   championshipId: number;
@@ -48,6 +52,7 @@ export const OUTROS_BOLAO_ITEM_DEFS: readonly OutrosBolaoItemDef[] = [
   { championshipId: getCopaChampionshipId(), label: "COPA DO MUNDO", logoKey: "copa2026" },
   { championshipId: getBrasileiraoChampionshipId(), label: "BRASILEIRÃO", logoKey: "brasileirao" },
   { championshipId: getPremierChampionshipId(), label: "PREMIER LEAGUE", logoKey: "premier" },
+  { championshipId: getChampionsChampionshipId(), label: "CHAMPIONS LEAGUE", logoKey: "champions" },
 ] as const;
 
 /** Participantes fake por campeonato (chave = championshipId). */
@@ -55,6 +60,7 @@ export const OUTROS_BOLAO_FAKE_PARTICIPANTS: Record<number, number> = {
   [getCopaChampionshipId()]: 720,
   [getBrasileiraoChampionshipId()]: 640,
   [getPremierChampionshipId()]: 360,
+  [getChampionsChampionshipId()]: 480,
 };
 
 function resolveOutrosBolaoParticipants(

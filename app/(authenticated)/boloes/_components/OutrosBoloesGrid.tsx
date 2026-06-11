@@ -8,8 +8,10 @@ import type { OutrosBolaoGridItem } from "@/lib/boloes-outros-grid";
 import iconBrasileirao2 from "@/app/assets/icon-brasileirao2.png";
 import iconCopaMundo2026 from "@/app/assets/icon-copa-mundo2.png";
 import iconPremiere2 from "@/app/assets/icon-premiere2.png";
+import iconChampions from "@/app/assets/ucl-logo.png";
 import {
   getBrasileiraoChampionshipId,
+  getChampionsChampionshipId,
   getPremierChampionshipId,
 } from "@/lib/boloes-outros-grid";
 import { getCopaChampionshipId } from "@/lib/boloes-extra-config";
@@ -23,12 +25,14 @@ const LOGO_BY_CHAMPIONSHIP_ID: Record<number, StaticImageData> = {
   [getCopaChampionshipId()]: iconCopaMundo2026,
   [getBrasileiraoChampionshipId()]: iconBrasileirao2,
   [getPremierChampionshipId()]: iconPremiere2,
+  [getChampionsChampionshipId()]: iconChampions,
 };
 
 const LOGO_BY_LABEL: Record<string, StaticImageData> = {
   "COPA DO MUNDO": iconCopaMundo2026,
   "BRASILEIRÃO": iconBrasileirao2,
   "PREMIER LEAGUE": iconPremiere2,
+  "CHAMPIONS LEAGUE": iconChampions,
 };
 
 function logoForItem(item: OutrosBolaoGridItem): StaticImageData {
@@ -120,7 +124,7 @@ export function OutrosBoloesGrid({
         )}
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 gap-2">
         {items.map((item) => (
           <OutrosBolaoCard key={item.championshipId} item={item} />
         ))}

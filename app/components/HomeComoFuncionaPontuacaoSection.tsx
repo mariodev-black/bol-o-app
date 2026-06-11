@@ -105,11 +105,12 @@ function HowItWorksStepCard({
       style={{ backgroundColor: CARD_BG }}
     >
       <span
-        className="flex size-10 shrink-0 items-center justify-center rounded-full text-[17px] font-black leading-none text-[#0E141B]"
-        style={{ backgroundColor: GREEN }}
+        className="text-[30px] font-black leading-none"
+        style={{ color: GREEN }}
         aria-hidden
       >
         {step}
+        <span className="text-[18px] align-top">º</span>
       </span>
       <h3 className="mt-3 text-pretty text-[13px] font-black uppercase leading-[1.2] tracking-[0.02em] text-white">
         {title}
