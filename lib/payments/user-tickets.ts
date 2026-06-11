@@ -13,7 +13,6 @@ import {
   bolaoPhaseScopeFromPredictions,
   paidTicketExtraRoundNumber,
 } from "@/lib/boloes/ticket-match-scope";
-import { effectiveExtraRoundForPaidTicket } from "@/lib/ticket-shop-extra-display";
 import { getPool } from "@/lib/db";
 import { brToday, minBrDate, resolveDiarioPlayableDate, utcMsForBrDate } from "@/lib/diario-playable-date";
 import { fetchMatchesMap, getMatchFromMap, type MatchMap } from "@/lib/football-api";
@@ -112,13 +111,12 @@ export async function listPaidTicketsForUser(
       const compNum =
         compId != null && Number.isFinite(Number(compId)) ? Number(compId) : 0;
       const extraRoundNumber: number | null =
-        r.ticket_type === "extra" && compNum > 0
-          ? isSkaleBolaoCompetition(compNum)
-            ? null
-            : effectiveExtraRoundForPaidTicket({
-                championshipId: compNum,
-                roundNumberFromDb: r.round_number,
-              })
+        r.ticket_type === "extra" && compNum > 0 && !isSkaleBolaoCompetition(compNum)
+          ? r.round_number != null &&
+            Number.isFinite(Number(r.round_number)) &&
+            Number(r.round_number) > 0
+            ? Math.trunc(Number(r.round_number))
+            : null
           : null;
       const dailyEditionNumber =
         r.ticket_type === "daily" ? paidTicketDailyEditionNumber({ ticketType: "daily", round_number: r.round_number }) : null;

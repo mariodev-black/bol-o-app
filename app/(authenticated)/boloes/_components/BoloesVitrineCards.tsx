@@ -54,15 +54,35 @@ function MiniSoccerBallIcon({ className }: { className?: string }) {
   );
 }
 
+function cotaBadge(label: string | undefined): string {
+  const hashMatch = String(label ?? "").match(/#\s*(\d+)/);
+  if (hashMatch?.[1]) return hashMatch[1].padStart(2, "0");
+  return "01";
+}
+
+function CotaBadgePill({ cotaLabel }: { cotaLabel: string }) {
+  return (
+    <span className="absolute right-4 top-4 rounded-[5px] border border-white/10 bg-[#161616] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.06em] text-white/90">
+      COTA {cotaBadge(cotaLabel)}
+    </span>
+  );
+}
+
 function MilhaoPrincipalHeader({
-  cotaBadgeText,
+  cotaLabel,
 }: {
-  cotaBadgeText: string;
+  cotaLabel?: string | null;
 }) {
   return (
     <div className="relative px-4 pb-3 pt-4">
-      
-      <div className="flex items-start gap-2.5 min-[360px]:gap-3">
+      {cotaLabel ? <CotaBadgePill cotaLabel={cotaLabel} /> : null}
+
+      <div
+        className={[
+          "flex items-start gap-2.5 min-[360px]:gap-3",
+          cotaLabel ? "pr-[72px]" : "",
+        ].join(" ")}
+      >
         <div className="flex w-[78px] shrink-0 items-center justify-center min-[360px]:w-[88px]">
           <Image
             src={iconCopaMundo2}
@@ -492,12 +512,6 @@ function milhaoPrincipalCta(item: ActiveBolaoListItem): string {
   return "Ver palpites";
 }
 
-function cotaBadge(label: string | undefined): string {
-  const hashMatch = String(label ?? "").match(/#\s*(\d+)/);
-  if (hashMatch?.[1]) return hashMatch[1].padStart(2, "0");
-  return "01";
-}
-
 function remainingGames(item: ActiveBolaoListItem): number {
   if (item.displayPhase === "finalizado") return 0;
   if (item.type === "artilheiros") {
@@ -587,6 +601,11 @@ function cardTitleParts(item: ActiveBolaoListItem): {
       title: item.subtitle?.trim() || ARTILHEIROS_BOLAO_SUBTITLE,
       subtitle: null,
     };
+  }
+  if (item.type === "extra") {
+    const { name } = parseExtraTitle(item.title);
+    const round = item.extraRoundLabel?.trim() || parseExtraTitle(item.title).round;
+    return { eyebrow: name, title: round ?? name, subtitle: round ? name : null };
   }
   const { name, round } = parseExtraTitle(item.title);
   return { eyebrow: name, title: round ?? name, subtitle: round ? name : null };
@@ -678,7 +697,7 @@ export function PrincipalHeroPurchaseCard({
 
   return (
     <article className={`${MILHAO_CARD_INNER_CLASS} ${layoutClass}`}>
-      <MilhaoPrincipalHeader cotaBadgeText="sem cota" />
+      <MilhaoPrincipalHeader />
       <CardActionFoot
         href={href}
         label={`Participar Agora`}
@@ -706,9 +725,7 @@ export function PrincipalHeroCard({
 
   return (
     <article className={`${MILHAO_CARD_CLASS} ${layoutClass}`}>
-      <MilhaoPrincipalHeader
-        cotaBadgeText={`cota ${cotaBadge(item.cotaLabel)}`}
-      />
+      <MilhaoPrincipalHeader cotaLabel={item.cotaLabel} />
       <CardActionFoot href={item.href} label={cta}>
         <MilhaoOwnedStatsGrid item={item} />
       </CardActionFoot>
@@ -731,7 +748,7 @@ export function ActiveBolaoCarouselCard({
   const isGratisExtra = item.type === "extra" && item.isPromoBonus !== false;
   const subtitleLine =
     item.type === "extra"
-      ? parseExtraTitle(item.title).round
+      ? item.extraRoundLabel?.trim() || parseExtraTitle(item.title).round
       : item.type === "diario" || item.type === "artilheiros"
         ? parts.title
         : null;
@@ -744,9 +761,7 @@ export function ActiveBolaoCarouselCard({
       ].join(" ")}
     >
       <div className="relative px-4 pb-3 pt-4">
-        <span className="absolute right-4 top-4 rounded-[5px] border border-white/10 bg-[#161616] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.06em] text-white/90">
-          COTA {cotaBadge(item.cotaLabel)}
-        </span>
+        <CotaBadgePill cotaLabel={item.cotaLabel} />
 
         <div className="flex items-start gap-3 pr-[72px]">
           <div className="flex w-[64px] shrink-0 items-center justify-center min-[360px]:w-[72px]">

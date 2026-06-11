@@ -24,8 +24,8 @@ import { resolveDiarioPlayableDate } from "@/lib/diario-playable-date";
 import {
   listMatchesForExtraRound,
   resolveCurrentExtraRound,
-  resolveEffectiveExtraRoundForTicket,
 } from "@/lib/football/extras-rodada";
+import { effectiveExtraRoundForPaidTicket } from "@/lib/ticket-shop-extra-display";
 import { calculatePrizePoolCents } from "@/lib/prizes/distribution";
 import { clampAvatarIndex } from "@/lib/auth/avatar-index";
 import { hasOfficialMatchResult, isLiveOrInProgressMatchStatus } from "@/lib/palpites-match-open";
@@ -163,15 +163,18 @@ function buildTicketFirstPlayRoundByCompetition(
 async function resolveEffectiveRodadaCached(
   competitionId: number,
   roundNumber: number,
+  liveRoundNumber: number | null,
   cache: Map<string, number>,
 ): Promise<number> {
   const key = `${competitionId}:${roundNumber}`;
   const hit = cache.get(key);
   if (hit != null) return hit;
-  const effective = await resolveEffectiveExtraRoundForTicket(competitionId, roundNumber, {
-    allowProviderCall: false,
-  });
-  const rodada = effective?.rodada ?? roundNumber;
+  const rodada =
+    effectiveExtraRoundForPaidTicket({
+      championshipId: competitionId,
+      roundNumberFromDb: roundNumber,
+      liveRoundNumber,
+    }) ?? roundNumber;
   cache.set(key, rodada);
   return rodada;
 }
@@ -181,13 +184,17 @@ async function buildAssignedExtraRodadaByTicket(
   tickets: PaidTicketRow[],
   firstPlayRound: Map<string, number>,
   competitionId: number,
+  liveRoundNumber: number | null,
 ): Promise<Map<string, number | null>> {
   const effectiveCache = new Map<string, number>();
   const out = new Map<string, number | null>();
   for (const t of tickets) {
     const rn = t.round_number;
     if (rn != null && Number.isFinite(rn) && rn > 0) {
-      out.set(t.id, await resolveEffectiveRodadaCached(competitionId, rn, effectiveCache));
+      out.set(
+        t.id,
+        await resolveEffectiveRodadaCached(competitionId, rn, liveRoundNumber, effectiveCache),
+      );
       continue;
     }
     const fromPred = firstPlayRound.get(t.id);
@@ -233,13 +240,14 @@ async function resolveExtraPoolRodadaForFocus(
     allowedExtraIds,
     extraComp,
   );
+  const current = await resolveCurrentExtraRound(extraComp, { allowProviderCall: false });
+  const currentRodada = current?.rodada ?? null;
   const assignedRodadaByTicket = await buildAssignedExtraRodadaByTicket(
     paidExtra,
     firstPlayRound,
     extraComp,
+    currentRodada,
   );
-  const current = await resolveCurrentExtraRound(extraComp, { allowProviderCall: false });
-  const currentRodada = current?.rodada ?? null;
   const fromFocus = assignedRodadaByTicket.get(focusTicketId);
   const poolRodada = fromFocus ?? currentRodada;
   return { poolRodada, currentRodada, assignedRodadaByTicket };
@@ -1008,7 +1016,7 @@ export async function buildLeaderboardExtraForTicket(
 
   const getCached = unstable_cache(
     async () => buildLeaderboardExtraForCompRoundUncached(extraComp, poolRodada),
-    ["leaderboard", "extra", String(extraComp), String(poolRodada), "v21-real-only"],
+    ["leaderboard", "extra", String(extraComp), String(poolRodada), "v22-round-scope"],
     { revalidate: RANKING_REVALIDATE_SEC, tags: ["leaderboard"] },
   );
   return getCached();
@@ -1048,13 +1056,14 @@ async function buildLeaderboardExtraForCompRoundUncached(
     allowedExtraIds,
     extraComp,
   );
+  const currentRodadaResolved =
+    (await resolveCurrentExtraRound(extraComp, { allowProviderCall: false }))?.rodada ?? null;
   const assignedRodadaByTicket = await buildAssignedExtraRodadaByTicket(
     paidExtra,
     firstPlayRound,
     extraComp,
+    currentRodadaResolved,
   );
-  const currentRodadaResolved =
-    (await resolveCurrentExtraRound(extraComp, { allowProviderCall: false }))?.rodada ?? null;
 
   const playable = resolveDiarioPlayableDate(matches, { competitionId: extraComp });
   let poolPlayDate = playable;

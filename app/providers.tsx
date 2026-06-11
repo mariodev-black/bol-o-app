@@ -13,6 +13,7 @@ import { ChampionsPlacarPromoHost } from "@/app/shared/ChampionsPlacarPromoHost"
 import { MainBolaoPromoModalHost } from "@/app/shared/MainBolaoPromoModalHost";
 import { ProfileCompletionHost } from "@/app/shared/ProfileCompletionHost";
 import { PwaManager } from "@/app/shared/PwaManager";
+import { ChunkLoadRecovery } from "@/app/shared/ChunkLoadRecovery";
 import { ReferralCapture } from "@/app/shared/ReferralCapture";
 import { PromotionsHubDeepLink } from "@/app/shared/PromotionsHubDeepLink";
 import { SkaleFunnelLockHost } from "@/app/shared/SkaleFunnelLockHost";
@@ -33,6 +34,7 @@ export function Providers({
     <BolaoToastProvider>
       <AppServerConfigProvider value={appServerConfig}>
       <AuthProvider initialUser={initialAuthUser}>
+        <ChunkLoadRecovery />
         <PwaManager />
         <ProfileCompletionHost>
           <PromotionsHubProvider>

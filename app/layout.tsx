@@ -83,7 +83,10 @@ export default async function RootLayout({
     ...getAppServerConfig(),
     isMarketingRequest,
   };
-  const initialAuthUser = await getServerAuthUser();
+  const initialAuthUser = await getServerAuthUser().catch((error) => {
+    console.error("[layout] getServerAuthUser failed", error);
+    return null;
+  });
 
   return (
     <html

@@ -3102,24 +3102,18 @@ function PalpitesPageContent({
   const [loadingPredictions, setLoadingPredictions] = useState(false);
   const [loadingResumo, setLoadingResumo] = useState(false);
   const [selectedRodada, setSelectedRodada] = useState<number | null>(() => {
-    if (!initialData?.jogos?.length) return null;
-    const bt = initialData.bolaoType;
-    const skaleFullPool = initialData.isSkaleFullCopaPool === true;
-    // Ticket extra "por rodada" → trava na rodada do ticket.
-    const ticketRound =
+    const bt = initialData?.bolaoType;
+    const skaleFullPool = initialData?.isSkaleFullCopaPool === true;
+    const ticketRoundFromServer =
       bt === "extra" &&
-        !skaleFullPool &&
-        initialData.extraRoundNumber != null &&
-        Number.isFinite(Number(initialData.extraRoundNumber)) &&
-        Number(initialData.extraRoundNumber) > 0
+      !skaleFullPool &&
+      initialData?.extraRoundNumber != null &&
+      Number.isFinite(Number(initialData.extraRoundNumber)) &&
+      Number(initialData.extraRoundNumber) > 0
         ? Number(initialData.extraRoundNumber)
         : null;
-    if (ticketRound != null) {
-      const rodadas = Array.from(
-        new Set(initialData.jogos.map((j: Jogo) => j.rodada)),
-      );
-      return rodadas.includes(ticketRound) ? ticketRound : (rodadas[0] ?? null);
-    }
+    if (ticketRoundFromServer != null) return ticketRoundFromServer;
+    if (!initialData?.jogos?.length) return null;
     const lockIds =
       bt === "diario" || (bt === "extra" && !skaleFullPool)
         ? Object.keys(initialData.predictionsMap ?? {})
@@ -3300,7 +3294,18 @@ function PalpitesPageContent({
           return;
         }
         const fases = data?.partidas as Record<string, any> | undefined;
-        const { jogos: parsed, grupos: letras } = parseAllPartidas(fases);
+        let { jogos: parsed, grupos: letras } = parseAllPartidas(fases);
+        const bt = bolaoTypeRef.current;
+        const ticketRound =
+          bt === "extra" &&
+          initialDataRef.current?.extraRoundNumber != null &&
+          Number.isFinite(Number(initialDataRef.current.extraRoundNumber)) &&
+          Number(initialDataRef.current.extraRoundNumber) > 0
+            ? Number(initialDataRef.current.extraRoundNumber)
+            : null;
+        if (ticketRound != null) {
+          parsed = parsed.filter((j) => j.rodada === ticketRound);
+        }
         if (parsed.length === 0) {
           setJogos([]);
           setGrupos([]);
@@ -3337,7 +3342,29 @@ function PalpitesPageContent({
   useEffect(() => {
     if (!initialData?.ticketId || initialData.ticketId !== ticketId) return;
     setBolaoType(initialData.bolaoType);
-  }, [initialData?.ticketId, initialData?.bolaoType, ticketId]);
+    if (initialData.jogos?.length) {
+      setJogos(initialData.jogos);
+      setGrupos(initialData.grupos ?? []);
+      setGrupo(initialData.grupo ?? "GERAL");
+      setErro(false);
+    }
+    if (
+      initialData.bolaoType === "extra" &&
+      initialData.extraRoundNumber != null &&
+      Number.isFinite(Number(initialData.extraRoundNumber)) &&
+      Number(initialData.extraRoundNumber) > 0
+    ) {
+      setSelectedRodada(Number(initialData.extraRoundNumber));
+    }
+  }, [
+    initialData?.ticketId,
+    initialData?.bolaoType,
+    initialData?.jogos,
+    initialData?.grupos,
+    initialData?.grupo,
+    initialData?.extraRoundNumber,
+    ticketId,
+  ]);
 
   useEffect(() => {
     if (initialData && initialData.ticketId === ticketId) return;
@@ -3619,6 +3646,7 @@ function PalpitesPageContent({
   const nowMs = Date.now();
   const diarioLockedMode =
     dailyLike &&
+    !extraRoundMode &&
     jogosOnPlayableDate.length > 0 &&
     jogosOnPlayableDate.every(
       (j) => j.status === "encerrado" || isLockedByKickoff(j.kickoffAt, nowMs, bolaoType),
@@ -3638,12 +3666,21 @@ function PalpitesPageContent({
   /** Dia/rodada visível nas abas (Ontem/Hoje/…) — o rodapé só reflete este escopo. */
   const jogosEscopoVisivel = useMemo(() => {
     if (!hasBoloesFlow) return jogosDisplayBase;
+    const rodadaScope =
+      extraRoundMode && extraTicketRound != null ? extraTicketRound : selectedRodada;
     return jogosDisplayBase.filter((j) => {
-      if (selectedRodada != null && j.rodada !== selectedRodada) return false;
+      if (rodadaScope != null && j.rodada !== rodadaScope) return false;
       if (selectedDate && j.dataBR !== selectedDate) return false;
       return true;
     });
-  }, [hasBoloesFlow, jogosDisplayBase, selectedRodada, selectedDate]);
+  }, [
+    hasBoloesFlow,
+    jogosDisplayBase,
+    selectedRodada,
+    selectedDate,
+    extraRoundMode,
+    extraTicketRound,
+  ]);
 
   const hasEditableMatches = jogosEscopoVisivel.some((j) =>
     isJogoEditavelParaPalpite(j, bolaoType),
@@ -3916,8 +3953,10 @@ function PalpitesPageContent({
 
   const jogosFiltradosNav = useMemo(() => {
     if (!hasBoloesFlow) return jogosDisplayBase.filter(matchesGroup);
+    const rodadaScope =
+      extraRoundMode && extraTicketRound != null ? extraTicketRound : selectedRodada;
     return jogosDisplayBase.filter((j) => {
-      if (selectedRodada != null && j.rodada !== selectedRodada) return false;
+      if (rodadaScope != null && j.rodada !== rodadaScope) return false;
       if (selectedDate && j.dataBR !== selectedDate) return false;
       return matchesGroup(j);
     });
@@ -3928,6 +3967,8 @@ function PalpitesPageContent({
     selectedDate,
     grupo,
     shouldFilterByGroup,
+    extraRoundMode,
+    extraTicketRound,
   ]);
 
   const rodadasDisponiveis = Array.from(
@@ -3937,6 +3978,10 @@ function PalpitesPageContent({
       ),
     ),
   ).sort((a, b) => a - b);
+  const effectiveSelectedRodada =
+    extraRoundMode && extraTicketRound != null
+      ? extraTicketRound
+      : (selectedRodada ?? rodadasDisponiveis[0] ?? 0);
   const jogosPorRodada = rodadasDisponiveis.map((idx) => {
     const source = hasBoloesFlow ? jogosFiltradosNav : jogosDisplayBase;
     const jogosDaRodada = source
@@ -4275,7 +4320,7 @@ function PalpitesPageContent({
               jogos={jogosDisplayBase}
               predictionsMap={predictionsMap}
               hasPalpite={hasPalpite}
-              selectedRodada={selectedRodada ?? rodadasNoEscopo[0] ?? 0}
+              selectedRodada={effectiveSelectedRodada}
               onRodada={(r) => {
                 setSelectedRodada(r);
                 setSelectedDate(null);
@@ -4297,7 +4342,7 @@ function PalpitesPageContent({
           {showBolaoRoundNav ? (
             <BolaoRoundStickyDateProgress
               jogos={jogosDisplayBase}
-              selectedRodada={selectedRodada ?? rodadasNoEscopo[0] ?? 0}
+              selectedRodada={effectiveSelectedRodada}
               hasPalpite={hasPalpite}
               selectedDate={selectedDate}
               onDate={setSelectedDate}
@@ -4346,11 +4391,13 @@ function PalpitesPageContent({
                     <p className="text-white/30 text-sm">
                       {dailyLike && diarioLockedMode
                         ? "Nenhum palpite encontrado para este ticket"
-                        : hasBoloesFlow
-                          ? dailyLike
-                            ? "Nenhuma partida para este bolão no momento. Use ?debugPalpites=1 para diagnóstico."
-                            : "Nenhum jogo disponível hoje"
-                          : "Nenhum jogo neste grupo"}
+                        : extraRoundMode
+                          ? "Nenhuma partida nesta rodada do bolão"
+                          : hasBoloesFlow
+                            ? dailyLike
+                              ? "Nenhuma partida para este bolão no momento. Use ?debugPalpites=1 para diagnóstico."
+                              : "Nenhum jogo disponível hoje"
+                            : "Nenhum jogo neste grupo"}
                     </p>
                   </div>
                 ) : showGroupedByGroup ? (
@@ -4527,11 +4574,13 @@ function PalpitesPageContent({
                 <p className="text-white/30 text-sm">
                   {dailyLike && diarioLockedMode
                     ? "Nenhum palpite encontrado para este ticket"
-                    : hasBoloesFlow
-                      ? dailyLike
-                        ? "Nenhuma partida para este bolão no momento. Use ?debugPalpites=1 para diagnóstico."
-                        : "Nenhum jogo disponível hoje"
-                      : "Nenhum jogo neste grupo"}
+                    : extraRoundMode
+                      ? "Nenhuma partida nesta rodada do bolão"
+                      : hasBoloesFlow
+                        ? dailyLike
+                          ? "Nenhuma partida para este bolão no momento. Use ?debugPalpites=1 para diagnóstico."
+                          : "Nenhum jogo disponível hoje"
+                        : "Nenhum jogo neste grupo"}
                 </p>
               </div>
             ) : showGroupedByGroup ? (

@@ -97,7 +97,7 @@ export function isExtraTicketByRound(
 }
 
 export type ScopeMatchesForPaidTicketOpts = {
-  /** Rodada efetiva (API) — sobrescreve `tickets.round_number` quando a rodada do ticket já encerrou. */
+  /** Rodada fixa da cota — sobrescreve fallback legado por dia jogável. */
   extraRoundNumber?: number | null;
 };
 

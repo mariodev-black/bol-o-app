@@ -111,11 +111,15 @@ function poolScalingOptions(): Pick<
 
 export function getPool(): Pool {
   if (!globalThis.__bolaoPgPool) {
-    globalThis.__bolaoPgPool = new Pool({
+    const pool = new Pool({
       ...poolConfigFromEnv(),
       ...poolScalingOptions(),
       allowExitOnIdle: process.env.DATABASE_POOL_ALLOW_EXIT_ON_IDLE === "1",
     });
+    pool.on("error", (err) => {
+      console.error("[db] idle client error (pool stays alive)", err);
+    });
+    globalThis.__bolaoPgPool = pool;
   }
   return globalThis.__bolaoPgPool;
 }

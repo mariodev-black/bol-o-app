@@ -1,6 +1,8 @@
 import { paidTicketDailyEditionNumber } from "@/lib/boloes/daily-editions";
 import { getPool } from "@/lib/db";
 import { getSoleConfiguredExtraChampionshipId } from "@/lib/boloes-extra-config";
+import { effectiveExtraRoundForPaidTicket } from "@/lib/ticket-shop-extra-display";
+import { extraBolaoCurrentRoundsByChampionship } from "@/lib/ticket-shop-extra-rounds";
 import { inferBolaoTypeFromTicketId } from "@/lib/ticket-kind-server";
 import { inferBolaoTypeFromTicketPrefix } from "@/lib/ticket-kind-shared";
 
@@ -74,20 +76,22 @@ export async function resolveOwnedTicketMeta(
           ? Number(rnumRaw)
           : null;
       const cid = rows[0]?.extra_championship_id;
-      if (cid != null && Number.isFinite(Number(cid))) {
+      const compId =
+        cid != null && Number.isFinite(Number(cid))
+          ? Number(cid)
+          : getSoleConfiguredExtraChampionshipId();
+      if (compId != null) {
+        const liveRounds = await extraBolaoCurrentRoundsByChampionship([compId]).catch(
+          () => ({} as Record<number, { roundNumber: number }>),
+        );
         return {
           bolao: "extra",
-          extraChampionshipId: Number(cid),
-          extraRoundNumber: rnum,
-          dailyEditionNumber: null,
-        };
-      }
-      const sole = getSoleConfiguredExtraChampionshipId();
-      if (sole != null) {
-        return {
-          bolao: "extra",
-          extraChampionshipId: sole,
-          extraRoundNumber: rnum,
+          extraChampionshipId: compId,
+          extraRoundNumber: effectiveExtraRoundForPaidTicket({
+            championshipId: compId,
+            roundNumberFromDb: rnum,
+            liveRoundNumber: liveRounds[compId]?.roundNumber ?? null,
+          }),
           dailyEditionNumber: null,
         };
       }

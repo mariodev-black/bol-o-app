@@ -247,6 +247,38 @@ export type ExtraRoundMatchRow = {
   disputa_penalti: boolean | null;
 };
 
+/** Garante partidas da rodada da cota no cache (sync sob demanda). */
+export async function ensureExtraRoundMatchesCached(
+  competitionId: number,
+  rodada: number,
+): Promise<{ synced: boolean; matchCount: number }> {
+  if (!Number.isFinite(competitionId) || competitionId <= 0) {
+    return { synced: false, matchCount: 0 };
+  }
+  if (!Number.isFinite(rodada) || rodada <= 0) {
+    return { synced: false, matchCount: 0 };
+  }
+
+  const existing = await listMatchesForExtraRound(competitionId, rodada);
+  if (existing.length > 0) {
+    return { synced: false, matchCount: existing.length };
+  }
+
+  try {
+    const { syncExtra } = await import("@/lib/football/sync-orchestrator");
+    await syncExtra(competitionId, { extraRodadas: [rodada] });
+  } catch (err) {
+    console.warn(
+      `[extras-rodada] ensureExtraRoundMatchesCached ${competitionId} r${rodada}:`,
+      err,
+    );
+    return { synced: false, matchCount: 0 };
+  }
+
+  const after = await listMatchesForExtraRound(competitionId, rodada);
+  return { synced: true, matchCount: after.length };
+}
+
 export async function listMatchesForExtraRound(
   competitionId: number,
   rodada: number,

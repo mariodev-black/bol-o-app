@@ -30,19 +30,25 @@ export default async function ArtilheirosPalpitesPage(props: {
   const userId = token ? await verifySessionToken(token).catch(() => null) : null;
   if (!userId) redirect("/login");
 
-  const pool = getPool();
-  const { rows } = await pool.query<{ id: string }>(
-    `SELECT id::text FROM tickets
-     WHERE id = $1 AND user_id = $2 AND ticket_type = 'artilheiros' AND status = 'paid'
-     LIMIT 1`,
-    [ticketId, userId],
-  );
-  if (!rows[0]) redirect("/boloes");
+  let ticketOk = false;
+  try {
+    const pool = getPool();
+    const { rows } = await pool.query<{ id: string }>(
+      `SELECT id::text FROM tickets
+       WHERE id = $1 AND user_id = $2 AND ticket_type = 'artilheiros' AND status = 'paid'
+       LIMIT 1`,
+      [ticketId, userId],
+    );
+    ticketOk = Boolean(rows[0]);
+  } catch (error) {
+    console.error("[palpites/artilheiros] ticket lookup failed", error);
+  }
+  if (!ticketOk) redirect("/boloes");
 
   const elencos = getArtilheiroElencosBundle();
   const [picks, results] = await Promise.all([
-    listArtilheiroPicksForTicket(ticketId),
-    listArtilheiroOfficialResults(),
+    listArtilheiroPicksForTicket(ticketId).catch(() => []),
+    listArtilheiroOfficialResults().catch(() => []),
   ]);
 
   return (
