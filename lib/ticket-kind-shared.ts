@@ -9,5 +9,6 @@ export function inferBolaoTypeFromTicketPrefix(ticketId: string): "principal" | 
   if (!id) return null;
   if (id.startsWith("TG-")) return "principal";
   if (id.startsWith("TD-")) return "diario";
+  if (id.startsWith("TA-")) return null;
   return null;
 }

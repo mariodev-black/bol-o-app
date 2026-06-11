@@ -1,4 +1,5 @@
 import iconCopaMundo from "@/app/assets/icon-copa-mundo.png";
+import iconeBolaoArtilheiro from "@/app/assets/icone-bolao-artilheiro.png";
 import logoBolaoDiario from "@/app/assets/logo-bolao-diario.png";
 import type { ActiveBolaoListItem, BoloesScreenData } from "@/app/(authenticated)/boloes/BoloesClient";
 import { getExtraBolaoHeroSideVariant } from "@/lib/boloes-extra-competition-branding";
@@ -28,6 +29,7 @@ export type BoloesSheetChampionshipOption = {
 const CHAMPIONSHIP_LABELS: Record<string, string> = {
   principal: "Copa do Mundo 2026",
   diario: "Bolão do Dia",
+  artilheiros: "Bolão dos Artilheiros",
 };
 
 function parseExtraTitleParts(title: string): { name: string; round: string | null } {
@@ -40,6 +42,7 @@ function parseExtraTitleParts(title: string): { name: string; round: string | nu
 function filterKeyForActive(item: ActiveBolaoListItem): string {
   if (item.type === "principal") return "principal";
   if (item.type === "diario") return "diario";
+  if (item.type === "artilheiros") return "artilheiros";
   return `extra:${item.championshipId ?? "unknown"}`;
 }
 
@@ -63,6 +66,9 @@ function iconForActive(item: ActiveBolaoListItem): {
 } {
   if (item.type === "diario") {
     return { iconSrc: logoBolaoDiario.src, brandedIcon: true };
+  }
+  if (item.type === "artilheiros") {
+    return { iconSrc: iconeBolaoArtilheiro.src, brandedIcon: true };
   }
   if (item.type === "principal") {
     return { iconSrc: iconCopaMundo.src, brandedIcon: true };
@@ -93,9 +99,11 @@ function activeToSheetItem(item: ActiveBolaoListItem): BoloesSheetItem {
       round ??
       (item.type === "diario"
         ? item.dailyEditionDatesLabel?.trim() || "Rodada do dia"
-        : item.type === "principal"
-          ? "Copa do Mundo 2026"
-          : item.cotaLabel),
+        : item.type === "artilheiros"
+          ? item.subtitle?.trim() || "Copa do Mundo 2026"
+          : item.type === "principal"
+            ? "Copa do Mundo 2026"
+            : item.cotaLabel),
     href: item.href,
     priceLabel: item.cotaLabel,
     prizeLine: position ?? item.statusLabel,

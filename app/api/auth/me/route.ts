@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { oauthLog, oauthRequestSnapshot, oauthWarn } from "@/lib/auth/oauth-console";
+import { enrichAuthUserWithSkaleFunnel } from "@/lib/auth/skale-funnel-auth";
 import { clearSessionCookie, sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 import { findUserById } from "@/lib/auth/users";
+import { syncSkaleFunnelCookies } from "@/lib/boloes/skale-funnel";
 
 export const runtime = "nodejs";
 
@@ -53,7 +55,10 @@ export async function GET(request: NextRequest) {
         emailDomain: user.email?.includes("@") ? user.email.split("@")[1] : undefined,
       });
     }
-    return NextResponse.json({ user });
+    const enriched = await enrichAuthUserWithSkaleFunnel(user, request);
+    const res = NextResponse.json({ user: enriched });
+    await syncSkaleFunnelCookies(res, request, user.id);
+    return res;
   } catch (e) {
     console.error("[auth/me]", e);
     return NextResponse.json({ user: null }, { status: 500 });

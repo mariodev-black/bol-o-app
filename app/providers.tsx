@@ -15,6 +15,7 @@ import { ProfileCompletionHost } from "@/app/shared/ProfileCompletionHost";
 import { PwaManager } from "@/app/shared/PwaManager";
 import { ReferralCapture } from "@/app/shared/ReferralCapture";
 import { PromotionsHubDeepLink } from "@/app/shared/PromotionsHubDeepLink";
+import { SkaleFunnelLockHost } from "@/app/shared/SkaleFunnelLockHost";
 import { SidenavProvider } from "@/app/shared/SidenavContext";
 import type { AuthUser } from "@/lib/auth/auth-user";
 import type { AppServerConfig } from "@/lib/app-server-config";
@@ -44,6 +45,7 @@ export function Providers({
               <Suspense fallback={null}>
                 <ReferralCapture />
                 <PromotionsHubDeepLink />
+                <SkaleFunnelLockHost />
               </Suspense>
               <SidenavProvider>{children}</SidenavProvider>
             </ChampionsPlacarPromoHost>

@@ -87,6 +87,24 @@ export default async function AdminBoloesPage() {
 
       <section className="mt-4 space-y-4 rounded-[18px] border border-white/8 bg-[#101010] p-4 sm:p-5">
         <div>
+          <h2 className="text-[15px] font-black text-white">Bolão dos Artilheiros</h2>
+          <p className="mt-1 text-[12px] font-medium text-white/38">
+            Top 3 artilheiros da Copa — resultado oficial e ranking por cota.
+          </p>
+        </div>
+        <AdminBolaoDashboardCard
+          href="/admin/boloes/artilheiros"
+          kind="principal"
+          eyebrow="Copa 2026"
+          title="Bolão dos Artilheiros"
+          subtitle="Palpites de jogadores · pontuação por posição + bônus top 3."
+          badge="Artilheiros"
+          stats={{ ticketsCount: 0, playersCount: 0, finishedCount: 0 }}
+        />
+      </section>
+
+      <section className="mt-4 space-y-4 rounded-[18px] border border-white/8 bg-[#101010] p-4 sm:p-5">
+        <div>
           <h2 className="text-[15px] font-black text-white">Bolões diários</h2>
           <p className="mt-1 text-[12px] font-medium text-white/38">
             Uma data por card — cotas com jogos naquele dia.

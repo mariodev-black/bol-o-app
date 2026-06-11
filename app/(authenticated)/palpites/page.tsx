@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import PalpitesClient, { type PalpitesInitialData } from "./PalpitesClient";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 import { inferBolaoTypeFromTicketId } from "@/lib/ticket-kind-server";
@@ -284,7 +285,7 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
           [tid, userId],
         ),
       ]);
-      if (inferred) bolaoType = inferred;
+      if (inferred && inferred !== "artilheiros") bolaoType = inferred;
       const row = ticketRows.rows[0];
       isPromoBonus =
         Boolean(row?.is_promo_bonus) ||
@@ -520,6 +521,12 @@ export default async function PalpitesPage(props: { searchParams?: Promise<{ tic
       ? await (props.searchParams as Promise<{ ticket?: string }>)
       : (props.searchParams as { ticket?: string } | undefined);
   const ticketId = searchParams?.ticket?.trim() || null;
+  if (ticketId) {
+    const inferred = await inferBolaoTypeFromTicketId(ticketId);
+    if (inferred === "artilheiros") {
+      redirect(`/palpites/artilheiros?ticket=${encodeURIComponent(ticketId)}`);
+    }
+  }
   const initialData = await buildInitialData(ticketId);
   return <PalpitesClient initialData={initialData} />;
 }

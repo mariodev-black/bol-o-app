@@ -87,6 +87,7 @@ function mapRowToView(row: {
 export type CreateDepositTransactionInput =
   | { userId: string; ticketType: "general" | "daily"; quantity: number; dailyEditionNumber?: number }
   | { userId: string; ticketType: "extra"; quantity: number; extraChampionshipId: number }
+  | { userId: string; ticketType: "artilheiros"; quantity: number }
   | {
       userId: string;
       generalQty: number;
@@ -100,6 +101,8 @@ export type CreateDepositTransactionInput =
       extraByChampionship?: Record<number, number>;
       /** Checkout promocional `/comprar-cotas` — preço fixo por cota, calculado no servidor. */
       checkoutPromo?: "comprar-cotas";
+      /** Cotas do Bolão dos Artilheiros. */
+      artilheirosQuantity?: number;
     };
 
 function normalizeExtraByChampionship(map: Record<number, number> | undefined): Record<number, number> {
@@ -117,6 +120,7 @@ function resolvePurchaseQuantities(input: CreateDepositTransactionInput): {
   generalQty: number;
   dailyByEdition: Record<number, number>;
   extraPurchase?: PurchaseExtraInput;
+  artilheirosQty: number;
 } {
   if ("generalQty" in input) {
     const g = Math.max(0, Math.min(20, Math.trunc(input.generalQty)));
@@ -126,36 +130,42 @@ function resolvePurchaseQuantities(input: CreateDepositTransactionInput): {
       throw new Error("Selecione a edicao do bolao diario (Bolao Diario #N)");
     }
     const exQ = Math.max(0, Math.min(20, Math.trunc(Number(input.extraQuantity) || 0)));
+    const artQ = Math.max(0, Math.min(20, Math.trunc(Number(input.artilheirosQuantity) || 0)));
     const rawMap = normalizeExtraByChampionship(input.extraByChampionship);
     let extraPurchase: PurchaseExtraInput | undefined;
     if (exQ > 0) extraPurchase = { extraQuantity: exQ };
     else if (Object.values(rawMap).some((v) => v > 0)) {
       extraPurchase = { extraByChampionship: rawMap };
     }
-    return { generalQty: g, dailyByEdition, extraPurchase };
+    return { generalQty: g, dailyByEdition, extraPurchase, artilheirosQty: artQ };
   }
   const single = input as
     | { ticketType: "general"; quantity: number }
     | { ticketType: "daily"; quantity: number; dailyEditionNumber?: number }
-    | { ticketType: "extra"; quantity: number; extraChampionshipId: number };
+    | { ticketType: "extra"; quantity: number; extraChampionshipId: number }
+    | { ticketType: "artilheiros"; quantity: number };
   const q = Math.max(1, Math.min(20, Math.trunc(single.quantity)));
   if (single.ticketType === "general") {
-    return { generalQty: q, dailyByEdition: {} };
+    return { generalQty: q, dailyByEdition: {}, artilheirosQty: 0 };
   }
   if (single.ticketType === "daily") {
     const edition = Number(single.dailyEditionNumber);
     if (!Number.isFinite(edition) || edition <= 0) {
       throw new Error("dailyEditionNumber obrigatorio para compra do bolao diario");
     }
-    return { generalQty: 0, dailyByEdition: { [edition]: q } };
+    return { generalQty: 0, dailyByEdition: { [edition]: q }, artilheirosQty: 0 };
+  }
+  if (single.ticketType === "artilheiros") {
+    return { generalQty: 0, dailyByEdition: {}, artilheirosQty: q };
   }
   const cid = Math.trunc(single.extraChampionshipId);
   if (!Number.isFinite(cid) || cid <= 0) {
-    return { generalQty: 0, dailyByEdition: {} };
+    return { generalQty: 0, dailyByEdition: {}, artilheirosQty: 0 };
   }
   return {
     generalQty: 0,
     dailyByEdition: {},
+    artilheirosQty: 0,
     extraPurchase: { extraByChampionship: { [cid]: q } },
   };
 }
@@ -177,11 +187,12 @@ export async function createDepositTransaction(input: CreateDepositTransactionIn
     throw new Error("E-mail do usuario invalido para pagamento");
   }
 
-  const { generalQty, dailyByEdition, extraPurchase } = resolvePurchaseQuantities(input);
+  const { generalQty, dailyByEdition, extraPurchase, artilheirosQty } =
+    resolvePurchaseQuantities(input);
   const lines =
     "checkoutPromo" in input && input.checkoutPromo === "comprar-cotas"
       ? buildComprarCotasPromoTicketLines(generalQty)
-      : buildPurchaseTicketLines(generalQty, dailyByEdition, extraPurchase);
+      : buildPurchaseTicketLines(generalQty, dailyByEdition, extraPurchase, artilheirosQty);
   if (lines.length === 0) {
     throw new Error("Selecione pelo menos um ticket");
   }

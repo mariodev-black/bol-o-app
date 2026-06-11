@@ -35,6 +35,9 @@ export async function GET(request: NextRequest) {
   if (ticketId) {
     const inferred = await inferBolaoTypeFromTicketId(ticketId);
     if (!inferred) return NextResponse.json({ error: "Ticket invalido" }, { status: 400 });
+    if (inferred === "artilheiros") {
+      return NextResponse.json({ rows: [] });
+    }
     bolaoType = inferred;
   } else if (bolaoParam === "diario") {
     bolaoType = "diario";

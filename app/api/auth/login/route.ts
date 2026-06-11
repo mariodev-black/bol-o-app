@@ -4,7 +4,9 @@ import { authLog, oauthRequestSnapshot } from "@/lib/auth/oauth-console";
 import { isValidCpf, normalizeCpf } from "@/lib/auth/cpf";
 import { loginInputLooksLikeEmail } from "@/lib/auth/login-identifier";
 import { verifyPassword } from "@/lib/auth/password";
+import { enrichAuthUserWithSkaleFunnel } from "@/lib/auth/skale-funnel-auth";
 import { attachSessionCookie } from "@/lib/auth/session";
+import { syncSkaleFunnelCookies } from "@/lib/boloes/skale-funnel";
 import { responseForDbError } from "@/lib/db-errors";
 import { findUserByCpf, findUserByEmail, findUserById } from "@/lib/auth/users";
 
@@ -68,8 +70,10 @@ export async function POST(request: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: "Conta inconsistente" }, { status: 500 });
   }
-  const res = NextResponse.json({ user });
+  const enriched = await enrichAuthUserWithSkaleFunnel(user, request);
+  const res = NextResponse.json({ user: enriched });
   await attachSessionCookie(res, row.id, request);
+  await syncSkaleFunnelCookies(res, request, row.id);
   authLog("password_login_ok", {
     userIdPrefix: `${row.id.slice(0, 8)}…`,
     ...oauthRequestSnapshot(request),

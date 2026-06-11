@@ -21,7 +21,7 @@ import { listPredictionTicketMatchPairsForUser, palpiteLockBeforeKickoffMs } fro
 
 export type PaidTicketRow = {
   id: string;
-  ticketType: "general" | "daily" | "extra";
+  ticketType: "general" | "daily" | "extra" | "artilheiros";
   quantity: number;
   paidAt: string | null;
   createdAt: string;
@@ -84,7 +84,7 @@ export async function listPaidTicketsForUser(
     const [{ rows }, matchMap, preds] = await Promise.all([
       pool.query<{
         id: string;
-        ticket_type: "general" | "daily" | "extra";
+        ticket_type: "general" | "daily" | "extra" | "artilheiros";
         extra_championship_id: number | null;
         round_number: number | null;
         is_promo_bonus: boolean;
@@ -178,9 +178,32 @@ export async function listPaidTicketsForUser(
       byTicket.set(p.ticket_id, arr);
     }
 
+    const { rows: artPickRows } = await pool.query<{ ticket_id: string; cnt: string }>(
+      `SELECT ticket_id::text AS ticket_id, COUNT(*)::text AS cnt
+       FROM artilheiro_picks
+       WHERE ticket_id IN (
+         SELECT id FROM tickets WHERE user_id = $1 AND ticket_type = 'artilheiros' AND status = 'paid'
+       )
+       GROUP BY ticket_id`,
+      [userId],
+    ).catch(() => ({ rows: [] as { ticket_id: string; cnt: string }[] }));
+    const artPicksByTicket = new Map(
+      artPickRows.map((r) => [r.ticket_id, Number(r.cnt) || 0]),
+    );
+
     const result = mapped.map((t) => {
       const ticketPreds = byTicket.get(t.id) ?? [];
       const palpitesCount = ticketPreds.length;
+
+      if (t.ticketType === "artilheiros") {
+        const picksCount = artPicksByTicket.get(t.id) ?? 0;
+        return {
+          ...t,
+          palpitesCount: picksCount,
+          availableGames: Math.max(0, 3 - picksCount),
+          dailyStatus: (picksCount >= 3 ? "em_uso" : "disponivel") as "disponivel" | "em_uso",
+        };
+      }
 
       if (t.ticketType === "general") {
         const predictedIds = new Set<number>(ticketPreds.map((p) => Number(p.match_id)).filter(Number.isFinite));

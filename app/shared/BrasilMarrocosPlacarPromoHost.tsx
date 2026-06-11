@@ -911,6 +911,9 @@ export function BrasilMarrocosPlacarPromoHost({
   }, []);
 
   const profileBlocksPromo = Boolean(user && user.profileComplete === false);
+  const skaleFunnelBlocksPromo = user?.skaleFunnelLocked === true;
+  const isSkaleCheckoutPath =
+    pathname === "/skale" || pathname.startsWith("/skale/");
 
   const goToPromoActivation = useCallback(() => {
     if (isPromoCheckoutPath(pathname)) return;
@@ -939,7 +942,10 @@ export function BrasilMarrocosPlacarPromoHost({
       if (data.showOfferModal) {
         if (
           !options?.manual &&
-          (pathname === "/" || pathname === "/homepage")
+          (pathname === "/" ||
+            pathname === "/homepage" ||
+            isSkaleCheckoutPath ||
+            skaleFunnelBlocksPromo)
         ) {
           return;
         }
@@ -962,7 +968,7 @@ export function BrasilMarrocosPlacarPromoHost({
         setOpen(true);
       }
     },
-    [pathname],
+    [pathname, isSkaleCheckoutPath, skaleFunnelBlocksPromo],
   );
 
   const openFromPromotionsHub = useCallback(() => {
@@ -1012,6 +1018,8 @@ export function BrasilMarrocosPlacarPromoHost({
       !ready ||
       !isLoggedIn ||
       profileBlocksPromo ||
+      skaleFunnelBlocksPromo ||
+      isSkaleCheckoutPath ||
       !user?.id
     ) {
       setOpen(false);
@@ -1062,6 +1070,8 @@ export function BrasilMarrocosPlacarPromoHost({
     ready,
     isLoggedIn,
     profileBlocksPromo,
+    skaleFunnelBlocksPromo,
+    isSkaleCheckoutPath,
     user?.id,
     pathname,
     getPromotionPrefetch,

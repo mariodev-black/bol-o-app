@@ -16,8 +16,10 @@ import {
   Star,
   Target,
   Trophy,
+  Users,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import iconeBolaoArtilheiro from "@/app/assets/icone-bolao-artilheiro.png";
 import iconCopaMundo from "@/app/assets/icon-copa-mundo.png";
 import logoBolaoDiario from "@/app/assets/logo-bolao-diario.png";
 import iconCopaMundo2 from "@/app/assets/icon-copa-mundo2.png";
@@ -26,6 +28,7 @@ import { useMainBolaoPromoModal } from "@/app/shared/MainBolaoPromoContext";
 import { extraBolaoIconSrc } from "@/app/shared/extra-bolao-icons";
 import { getExtraBolaoHeroSideVariant } from "@/lib/boloes-extra-competition-branding";
 import type { ActiveBolaoListItem } from "@/app/(authenticated)/boloes/BoloesClient";
+import { ARTILHEIROS_BOLAO_SUBTITLE, ARTILHEIROS_BOLAO_TITLE } from "@/lib/artilheiros/config";
 import { formatParticipantsShort } from "@/app/(authenticated)/ranking/_components/ranking-scope-ui";
 
 const GREEN = "#B1EB0B";
@@ -97,6 +100,121 @@ function MilhaoPrincipalHeader({
           Primeiro lugar ganha{" "}
           <span className="font-black text-primary">180 MIL</span>
         </p>
+      </div>
+    </div>
+  );
+}
+
+function artilheirosRemainingPicks(item: ActiveBolaoListItem): number {
+  return Math.max(0, (item.total ?? 3) - (item.sent ?? 0));
+}
+
+function artilheiroStatusColumnMeta(item: ActiveBolaoListItem): {
+  headline: string;
+  subtext: string;
+  tone: string;
+  Icon: typeof Activity;
+} {
+  switch (item.displayPhase) {
+    case "pendentes":
+      return {
+        headline: "Aberto",
+        subtext: "escolha agora",
+        tone: GREEN,
+        Icon: ClipboardList,
+      };
+    case "enviados":
+      return {
+        headline: "Enviado",
+        subtext: "aguardando copa",
+        tone: GREEN_SOFT,
+        Icon: CheckCircle2,
+      };
+    default:
+      return {
+        headline: "Encerrado",
+        subtext: item.points > 0 ? `${item.points} pts` : "resultado final",
+        tone: "#E6B726",
+        Icon: Flag,
+      };
+  }
+}
+
+function ArtilheirosOwnedStatsGrid({
+  item,
+  compact = false,
+}: {
+  item: ActiveBolaoListItem;
+  compact?: boolean;
+}) {
+  const remaining = artilheirosRemainingPicks(item);
+  const participants = item.participantCount ?? 0;
+  const showRanking = item.displayPhase === "finalizado";
+  const position = showRanking && item.position != null ? `${item.position}º` : "—";
+  const status = artilheiroStatusColumnMeta(item);
+  const StatusIcon = status.Icon;
+  const valueClass = compact
+    ? "mt-1 text-[18px] font-black leading-none text-primary min-[360px]:text-[20px]"
+    : "mt-1 text-[22px] font-black leading-none text-primary min-[360px]:text-[24px]";
+  const labelClass = compact
+    ? "mt-1.5 text-[8px] font-medium leading-tight text-white/38 min-[360px]:text-[9px]"
+    : "mt-1.5 px-0.5 text-[9px] font-medium leading-tight text-white/38 min-[360px]:text-[10px]";
+  const headlineClass = compact
+    ? "mt-1 text-[11px] font-black uppercase leading-tight tracking-[0.02em] min-[360px]:text-[12px]"
+    : "mt-1 text-[13px] font-black uppercase leading-tight tracking-[0.02em] min-[360px]:text-[14px]";
+
+  return (
+    <div className="grid grid-cols-3">
+      <div className="min-w-0 px-1 text-center">
+        <LineChart
+          className="mx-auto size-[16px] text-primary min-[360px]:size-[18px]"
+          strokeWidth={2.35}
+          aria-hidden
+        />
+        <p className="mt-1.5 text-[8px] font-black uppercase tracking-[0.07em] text-white/88 min-[360px]:text-[9px]">
+          Sua posição
+        </p>
+        <p className={valueClass}>{position}</p>
+        {showRanking && participants > 0 ? (
+          <p className={labelClass}>
+            Entre {formatParticipantsShort(participants)} participantes
+          </p>
+        ) : (
+          <p className={labelClass}>após resultado oficial</p>
+        )}
+      </div>
+
+      <div className="min-w-0 border-x border-white/[0.07] px-1 text-center">
+        <Users
+          className="mx-auto size-[16px] text-primary min-[360px]:size-[18px]"
+          strokeWidth={2.35}
+          aria-hidden
+        />
+        <p className="mt-1.5 text-[8px] font-black uppercase tracking-[0.07em] text-white/88 min-[360px]:text-[9px]">
+          Restantes
+        </p>
+        <p className={valueClass}>{remaining}</p>
+        <p className={labelClass}>
+          {remaining > 0 ? "para escolher" : "palpite completo"}
+        </p>
+      </div>
+
+      <div className="min-w-0 px-1 text-center">
+        <div className="relative mx-auto flex size-[22px] items-center justify-center">
+          <StatusIcon
+            className="size-[16px] min-[360px]:size-[18px]"
+            style={{ color: status.tone }}
+            strokeWidth={2.35}
+            aria-hidden
+          />
+        </div>
+        <p className="mt-1.5 text-[8px] font-black uppercase tracking-[0.07em] text-white/88 min-[360px]:text-[9px]">
+          Status
+        </p>
+        <p className={headlineClass} style={{ color: status.tone }}>
+          {status.headline}
+        </p>
+        <p className={labelClass}>{status.subtext}</p>
       </div>
     </div>
   );
@@ -382,6 +500,9 @@ function cotaBadge(label: string | undefined): string {
 
 function remainingGames(item: ActiveBolaoListItem): number {
   if (item.displayPhase === "finalizado") return 0;
+  if (item.type === "artilheiros") {
+    return Math.max(0, (item.total ?? 3) - (item.sent ?? 0));
+  }
   if (item.type === "principal") {
     return Math.max(0, (item.total ?? 0) - (item.sent ?? 0));
   }
@@ -405,6 +526,13 @@ function resolveCta(item: ActiveBolaoListItem, now: number): string {
   if (item.type === "principal") {
     return item.displayPhase === "pendentes" ? "Fazer palpites" : "Ver palpites";
   }
+  if (item.type === "artilheiros") {
+    const sent = item.sent ?? 0;
+    if (item.displayPhase === "pendentes") {
+      return sent > 0 ? "Continuar palpite" : "Escolher artilheiros";
+    }
+    return "Ver palpites";
+  }
   if (isGratisExtra) {
     return item.displayPhase === "pendentes"
       ? "Fazer palpites"
@@ -421,6 +549,7 @@ function resolveCta(item: ActiveBolaoListItem, now: number): string {
 
 function logoForItem(item: ActiveBolaoListItem) {
   if (item.type === "diario") return logoBolaoDiario;
+  if (item.type === "artilheiros") return iconeBolaoArtilheiro;
   if (item.type === "principal") return iconCopaMundo;
   const variant = getExtraBolaoHeroSideVariant(item.championshipId, item.title);
   return variant === "generic" ? ticketBlue : extraBolaoIconSrc(variant);
@@ -449,6 +578,13 @@ function cardTitleParts(item: ActiveBolaoListItem): {
     return {
       eyebrow: item.title || "Bolão Diário",
       title: item.dailyEditionDatesLabel?.trim() || "Rodada do dia",
+      subtitle: null,
+    };
+  }
+  if (item.type === "artilheiros") {
+    return {
+      eyebrow: item.title || ARTILHEIROS_BOLAO_TITLE,
+      title: item.subtitle?.trim() || ARTILHEIROS_BOLAO_SUBTITLE,
       subtitle: null,
     };
   }
@@ -596,7 +732,7 @@ export function ActiveBolaoCarouselCard({
   const subtitleLine =
     item.type === "extra"
       ? parseExtraTitle(item.title).round
-      : item.type === "diario"
+      : item.type === "diario" || item.type === "artilheiros"
         ? parts.title
         : null;
 
@@ -640,7 +776,11 @@ export function ActiveBolaoCarouselCard({
         label={cta}
         promoIntercept={isGratisExtra}
       >
-        <MilhaoOwnedStatsGrid item={item} compact />
+        {item.type === "artilheiros" ? (
+          <ArtilheirosOwnedStatsGrid item={item} compact />
+        ) : (
+          <MilhaoOwnedStatsGrid item={item} compact />
+        )}
       </CardActionFoot>
     </article>
   );

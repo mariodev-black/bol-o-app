@@ -26,6 +26,20 @@ export async function computePalpitesResumo(
     if (!inferred) {
       return { palpites: 0, acertos: 0, pontos: 0, exatos: 0 };
     }
+    if (inferred === "artilheiros") {
+      const { getArtilheiroTicketScore } = await import("@/lib/artilheiros/ranking");
+      const { listArtilheiroPicksForTicket } = await import("@/lib/artilheiros/picks");
+      const [score, picks] = await Promise.all([
+        ticketId ? getArtilheiroTicketScore(ticketId) : Promise.resolve(null),
+        ticketId ? listArtilheiroPicksForTicket(ticketId) : Promise.resolve([]),
+      ]);
+      return {
+        palpites: picks.length,
+        acertos: 0,
+        pontos: score?.totalPoints ?? 0,
+        exatos: 0,
+      };
+    }
     bolaoType = inferred;
   }
 

@@ -11,4 +11,6 @@ export type AuthUser = {
   referralCode: string;
   /** Contas Google sem CPF ainda: `false` até completar o cadastro no modal. */
   profileComplete: boolean;
+  /** Funil Skale ativo — bloqueia promoções e rotas até comprar cota. */
+  skaleFunnelLocked?: boolean;
 };

@@ -272,7 +272,10 @@ export function NotificationsBell({ variant }: { variant: "mobile" | "desktop" }
   }, []);
 
   useEffect(() => {
-    void fetchNotifications();
+    const timeoutId = window.setTimeout(() => {
+      void fetchNotifications({ silent: true });
+    }, 4000);
+    return () => window.clearTimeout(timeoutId);
   }, [fetchNotifications]);
 
   useEffect(() => {

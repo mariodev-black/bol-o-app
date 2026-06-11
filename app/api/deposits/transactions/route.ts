@@ -26,6 +26,7 @@ import {
   type ExtraBolaoRoundInfo,
 } from "@/lib/ticket-shop-extra-rounds";
 import { responseForDbError } from "@/lib/db-errors";
+import { getArtilheirosTicketPriceCents, isArtilheirosBolaoEnabled } from "@/lib/artilheiros/config";
 import { clientPriceFieldError, findClientPriceField } from "@/lib/payments/reject-client-price-fields";
 
 export const runtime = "nodejs";
@@ -72,12 +73,14 @@ const createCartSchema = z
     extraByChampionship: extraByChampionshipSchema,
     /** Checkout `/comprar-cotas` — preço promocional fixo (1–3 cotas gerais). */
     checkoutPromo: z.enum(["comprar-cotas"]).optional(),
+    /** Cotas Bolão dos Artilheiros. */
+    artilheirosQuantity: z.number().int().min(0).max(20).optional().default(0),
   })
   .strict();
 
 const createLegacySchema = z
   .object({
-    ticketType: z.enum(["general", "daily", "extra"]),
+    ticketType: z.enum(["general", "daily", "extra", "artilheiros"]),
     quantity: z.number().int().min(1).max(20).default(1),
     extraChampionshipId: z.number().int().positive().optional(),
   })
@@ -107,7 +110,9 @@ export async function GET() {
       general: getTicketPriceCents("general"),
       daily: getTicketPriceCents("daily"),
       extra: getExtraBolaoUnitCents(),
+      artilheiros: getArtilheirosTicketPriceCents(),
     },
+    artilheirosEnabled: isArtilheirosBolaoEnabled(),
     dailyEdition,
     extraBoloes: filterTicketShopExtraBoloes(
       ids.map((championshipId) =>
@@ -165,10 +170,18 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
-      const { generalQuantity, dailyQuantity, dailyByEdition, extraQuantity, extraByChampionship, checkoutPromo } =
-        parsed.data;
+      const {
+        generalQuantity,
+        dailyQuantity,
+        dailyByEdition,
+        extraQuantity,
+        extraByChampionship,
+        checkoutPromo,
+        artilheirosQuantity,
+      } = parsed.data;
       const extra = extraByChampionship ?? {};
       const exQ = Math.max(0, Math.min(20, extraQuantity ?? 0));
+      const artQ = Math.max(0, Math.min(20, artilheirosQuantity ?? 0));
       const extraTotalLegacy = Object.values(extra).reduce((a, b) => a + b, 0);
       const dailyTotal = Object.values(dailyByEdition ?? {}).reduce((a, b) => a + b, 0);
       if (dailyQuantity > 0 && dailyTotal === 0) {
@@ -177,8 +190,14 @@ export async function POST(request: NextRequest) {
           { status: 400 },
         );
       }
-      if (generalQuantity + dailyTotal + (exQ > 0 ? exQ : extraTotalLegacy) < 1) {
+      if (generalQuantity + dailyTotal + artQ + (exQ > 0 ? exQ : extraTotalLegacy) < 1) {
         return NextResponse.json({ error: "Selecione pelo menos um ticket" }, { status: 400 });
+      }
+      if (artQ > 0 && !isArtilheirosBolaoEnabled()) {
+        return NextResponse.json(
+          { error: "Bolão dos Artilheiros indisponível no momento" },
+          { status: 403 },
+        );
       }
       if (checkoutPromo === "comprar-cotas") {
         if (generalQuantity < 1 || generalQuantity > 3) {
@@ -187,7 +206,7 @@ export async function POST(request: NextRequest) {
             { status: 400 },
           );
         }
-        if (dailyTotal > 0 || exQ > 0 || extraTotalLegacy > 0) {
+        if (dailyTotal > 0 || artQ > 0 || exQ > 0 || extraTotalLegacy > 0) {
           return NextResponse.json(
             { error: "Promo comprar-cotas aceita apenas cotas do bolao principal" },
             { status: 400 },
@@ -211,6 +230,7 @@ export async function POST(request: NextRequest) {
         userId,
         generalQty: generalQuantity,
         dailyByEdition: dailyByEdition ?? {},
+        artilheirosQuantity: artQ,
         ...(exQ > 0 ? { extraQuantity: exQ } : { extraByChampionship: extra }),
         ...(checkoutPromo ? { checkoutPromo } : {}),
       });
@@ -234,6 +254,21 @@ export async function POST(request: NextRequest) {
         ticketType: "extra",
         quantity,
         extraChampionshipId: cid,
+      });
+      return NextResponse.json({ transaction }, { status: 201 });
+    }
+
+    if (ticketType === "artilheiros") {
+      if (!isArtilheirosBolaoEnabled()) {
+        return NextResponse.json(
+          { error: "Bolão dos Artilheiros indisponível no momento" },
+          { status: 403 },
+        );
+      }
+      const transaction = await createDepositTransaction({
+        userId,
+        ticketType: "artilheiros",
+        quantity,
       });
       return NextResponse.json({ transaction }, { status: 201 });
     }
