@@ -69,7 +69,8 @@ function PromotionsHubSheetHost({
 
 export function PromotionsHubProvider({ children }: { children: ReactNode }) {
   const toast = useBolaoToast();
-  const { ready, isLoggedIn } = useAuth();
+  const { ready, isLoggedIn, user } = useAuth();
+  const skaleFunnelLocked = user?.skaleFunnelLocked === true;
   const handlersRef = useRef(new Map<PromoHubItemId, PromotionOpenHandler>());
   const prefetchRef = useRef<Partial<Record<PromoHubItemId, unknown>>>({});
   const fetchedAtRef = useRef(0);
@@ -202,7 +203,7 @@ export function PromotionsHubProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
-    if (!ready || !isLoggedIn) {
+    if (!ready || !isLoggedIn || skaleFunnelLocked) {
       prefetchedRef.current = false;
       fetchedAtRef.current = 0;
       setHubData(null);
@@ -220,7 +221,7 @@ export function PromotionsHubProvider({ children }: { children: ReactNode }) {
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [ready, isLoggedIn, fetchHub, setPromotionPrefetch]);
+  }, [ready, isLoggedIn, skaleFunnelLocked, fetchHub, setPromotionPrefetch]);
 
   const value = useMemo(
     () => ({

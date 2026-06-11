@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight } from "lucide-react";
 import logoSkale from "@/app/assets/skale.png";
+import { useAuth } from "@/app/shared/AuthContext";
 import { TicketPixGeneratedScreen } from "@/app/(authenticated)/tickets/_components/pix/TicketPixGeneratedScreen";
 import { TicketPixGeneratingPanel } from "@/app/(authenticated)/tickets/_components/pix/TicketPixGeneratingPanel";
 import {
@@ -54,6 +55,8 @@ export function SkaleCheckoutClient({
   displayName: string;
 }) {
   const router = useRouter();
+  const { user, refresh } = useAuth();
+  const skaleFunnelLocked = user?.skaleFunnelLocked === true;
   const [step, setStep] = useState<FlowStep>("shop");
   const [selectedQty, setSelectedQty] = useState<(typeof QTY_OPTIONS)[number]>(1);
   const [transactionId, setTransactionId] = useState<string | null>(null);
@@ -165,6 +168,12 @@ export function SkaleCheckoutClient({
         appendTicketsFromPurchase(0, 0, {
           [championshipId]: purchaseQtyRef.current,
         });
+        void fetch("/api/skale/funnel-complete", {
+          method: "POST",
+          credentials: "include",
+        })
+          .then(() => refresh())
+          .catch(() => undefined);
         const q = new URLSearchParams({
           tx: transactionId,
           principal: "0",
@@ -177,7 +186,7 @@ export function SkaleCheckoutClient({
         }, 1500);
       }
     },
-    [router, transactionId, championshipId],
+    [router, transactionId, championshipId, refresh],
   );
 
   useEffect(() => {
@@ -275,12 +284,6 @@ export function SkaleCheckoutClient({
   return (
     <div className="min-h-dvh bg-background text-foreground">
       <div className="mx-auto flex w-full max-w-md flex-col px-5 pb-12 pt-8">
-        <Link
-          href="/boloes"
-          className="mb-8 text-[11px] font-bold uppercase tracking-[0.14em] text-white/40 transition-colors hover:text-primary"
-        >
-          Voltar
-        </Link>
 
         <div className="flex flex-col items-center text-center">
           <div className="mb-5 size-20 overflow-hidden rounded-2xl">

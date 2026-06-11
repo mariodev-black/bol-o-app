@@ -523,6 +523,7 @@ export function ChampionsPlacarPromoHost({
   }, []);
 
   const profileBlocksPromo = Boolean(user && user.profileComplete === false);
+  const skaleFunnelBlocksPromo = user?.skaleFunnelLocked === true;
 
   const refreshStatus =
     useCallback(async (): Promise<ChampionsPlacarPromoStatus | null> => {
@@ -544,6 +545,7 @@ export function ChampionsPlacarPromoHost({
       !ready ||
       !isLoggedIn ||
       profileBlocksPromo ||
+      skaleFunnelBlocksPromo ||
       !user?.id
     ) {
       setOpen(false);
@@ -592,6 +594,7 @@ export function ChampionsPlacarPromoHost({
     ready,
     isLoggedIn,
     profileBlocksPromo,
+    skaleFunnelBlocksPromo,
     user?.id,
     refreshStatus,
   ]);

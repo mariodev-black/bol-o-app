@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { oauthErr, oauthLog, oauthRequestSnapshot, oauthWarn } from "@/lib/auth/oauth-console";
 import { getOAuthPublicOrigin } from "@/lib/auth/request-host";
 import { attachSessionCookie, oauthStateCookieOptions, sessionCookieDomain } from "@/lib/auth/session";
+import { syncSkaleFunnelCookies } from "@/lib/boloes/skale-funnel";
 import { findUserIdByReferralCode } from "@/lib/auth/referral-code";
 import {
   createUserFromGoogle,
@@ -241,6 +242,7 @@ export async function GET(request: NextRequest) {
     res.cookies.set(REFERRAL_COOKIE, "", oc);
     res.cookies.set(RETURN_COOKIE, "", oc);
     await attachSessionCookie(res, userId, request);
+    await syncSkaleFunnelCookies(res, request, userId);
 
     oauthLog("google_callback_success", {
       authMode,

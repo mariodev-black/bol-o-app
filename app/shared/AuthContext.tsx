@@ -39,6 +39,7 @@ function normalizeSessionUser(u: AuthUser): AuthUser {
     avatarIndex: clampAvatarIndex(Number(u.avatarIndex)),
     avatarUploadFilename: raw && isStoredAvatarUploadFilename(raw) ? raw : null,
     profileComplete: typeof u.profileComplete === "boolean" ? u.profileComplete : true,
+    skaleFunnelLocked: u.skaleFunnelLocked === true,
   };
 }
 

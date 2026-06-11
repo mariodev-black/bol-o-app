@@ -3,7 +3,9 @@ import { z } from "zod";
 import { authLog, oauthRequestSnapshot } from "@/lib/auth/oauth-console";
 import { isValidCpf, normalizeCpf } from "@/lib/auth/cpf";
 import { hashPassword } from "@/lib/auth/password";
+import { enrichAuthUserWithSkaleFunnel } from "@/lib/auth/skale-funnel-auth";
 import { attachSessionCookie } from "@/lib/auth/session";
+import { syncSkaleFunnelCookies } from "@/lib/boloes/skale-funnel";
 import { responseForDbError } from "@/lib/db-errors";
 import { isValidBrazilNationalDigits, normalizeBrazilPhoneE164 } from "@/lib/auth/phone";
 import { createUserWithPassword, getRegistrationConflicts } from "@/lib/auth/users";
@@ -101,13 +103,16 @@ export async function POST(request: NextRequest) {
       phone: phoneE164,
       inviteCodeEntered,
     });
-    const payload: { user: typeof user; referralWarning?: string } = { user };
+    const payload: { user: Awaited<ReturnType<typeof enrichAuthUserWithSkaleFunnel>>; referralWarning?: string } = {
+      user: await enrichAuthUserWithSkaleFunnel(user, request),
+    };
     if (inviteInvalid && inviteCodeEntered) {
       payload.referralWarning =
         "Código de indicação não encontrado. Sua conta foi criada; você pode compartilhar o seu código em Indique.";
     }
     const res = NextResponse.json(payload);
     await attachSessionCookie(res, user.id, request);
+    await syncSkaleFunnelCookies(res, request, user.id);
     void sendWelcomeEmail({ email, name: fullName, userId: user.id }).catch((err) => {
       console.error("[auth/register] welcome email", err);
     });

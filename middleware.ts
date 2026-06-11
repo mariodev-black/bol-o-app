@@ -2,6 +2,12 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { canonicalHostname } from "@/lib/auth/request-host";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
+import {
+  hasSkaleLockedCookie,
+  isSkaleFunnelAllowedPath,
+  markSkaleFunnelEntry,
+  shouldMarkSkaleFunnelFromRequest,
+} from "@/lib/boloes/skale-funnel-shared";
 import { getSignInPathForHost, resolveHostRouting } from "@/lib/site-hosts";
 
 const PROTECTED_PREFIXES = [
@@ -28,6 +34,16 @@ function isProtectedPath(pathname: string): boolean {
   );
 }
 
+function withSkaleFunnelCookie(
+  request: NextRequest,
+  response: NextResponse,
+): NextResponse {
+  if (shouldMarkSkaleFunnelFromRequest(request)) {
+    markSkaleFunnelEntry(response);
+  }
+  return response;
+}
+
 /**
  * Rotas que exigem sessão válida no cookie httpOnly `bolao_session`.
  */
@@ -35,8 +51,20 @@ export async function middleware(request: NextRequest) {
   const hostRedirect = await resolveHostRouting(request);
   if (hostRedirect) return hostRedirect;
 
-  if (!isProtectedPath(request.nextUrl.pathname)) {
-    return NextResponse.next();
+  const pathname = request.nextUrl.pathname;
+
+  if (
+    hasSkaleLockedCookie(request) &&
+    !isSkaleFunnelAllowedPath(pathname)
+  ) {
+    return withSkaleFunnelCookie(
+      request,
+      NextResponse.redirect(new URL("/skale", request.url)),
+    );
+  }
+
+  if (!isProtectedPath(pathname)) {
+    return withSkaleFunnelCookie(request, NextResponse.next());
   }
 
   const name = sessionCookieName();
@@ -56,11 +84,11 @@ export async function middleware(request: NextRequest) {
   };
 
   if (isAdminLogin) {
-    return NextResponse.next();
+    return withSkaleFunnelCookie(request, NextResponse.next());
   }
 
   if (!token) {
-    return redirectToSignIn();
+    return withSkaleFunnelCookie(request, redirectToSignIn());
   }
 
   let userId: string | null;
@@ -73,10 +101,10 @@ export async function middleware(request: NextRequest) {
   if (!userId) {
     const res = redirectToSignIn();
     res.cookies.set(name, "", { path: "/", maxAge: 0, sameSite: "lax" });
-    return res;
+    return withSkaleFunnelCookie(request, res);
   }
 
-  return NextResponse.next();
+  return withSkaleFunnelCookie(request, NextResponse.next());
 }
 
 export const config = {
