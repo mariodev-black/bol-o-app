@@ -352,7 +352,7 @@ export function SkaleCheckoutClient({
           <ArrowRight className="size-5" strokeWidth={2.5} />
         </button>
 
-        <p className="mt-5 text-center text-[11px] text-white/35">Pagamento via PIX</p>
+        <p className="mt-5 text-center text-[14px] text-white/35">Pagamento via PIX</p>
       </div>
     </div>
   );

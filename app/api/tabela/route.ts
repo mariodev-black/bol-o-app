@@ -5,6 +5,7 @@ import {
   upsertFootballApiCache,
 } from "@/lib/football-api-cache-store";
 import { getAllSyncedCompetitionIds } from "@/lib/boloes-extra-config";
+import { isFootballApiSyncExcludedCompetitionId } from "@/lib/football/amistosos-friendlies-config";
 import { downloadStandingsJson } from "@/lib/football-external-downloads";
 
 export const runtime = "nodejs";
@@ -19,6 +20,7 @@ function footballApiToken(): string {
 
 /** Só preenche cache sob demanda para campeonatos que o app já sincroniza (principal + BOLOES_EXTRA_*). */
 function isAllowedStandingsCompetition(compNum: number): boolean {
+  if (isFootballApiSyncExcludedCompetitionId(compNum)) return false;
   return getAllSyncedCompetitionIds().includes(compNum);
 }
 

@@ -2,7 +2,7 @@ import { readMatchesCache, type CachedMatchRow } from "@/lib/matches-cache";
 import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
 import { isAmistososFriendliesCompetition } from "@/lib/football/amistosos-friendlies";
 import { ensureAmistososFriendliesMatchesSeeded } from "@/lib/football/amistosos-friendlies-persistence";
-import { syncAllConfiguredIfStale } from "@/lib/football/sync-orchestrator";
+import { bootstrapCompetitionCacheIfEmpty } from "@/lib/football/sync-orchestrator";
 
 type NestedRounds = Record<string, Array<Record<string, unknown>>>;
 type PhaseMap = Record<string, NestedRounds | Record<string, NestedRounds>>;
@@ -122,7 +122,7 @@ export async function getPartidasFasesFromDb(competitionId?: number): Promise<Ph
     filtered = rows.filter((r) => Number(r.competition_id) === comp);
   }
   if (filtered.length === 0) {
-    await syncAllConfiguredIfStale().catch(() => {});
+    await bootstrapCompetitionCacheIfEmpty(comp).catch(() => {});
     rows = await readMatchesCache();
     filtered = rows.filter((r) => Number(r.competition_id) === comp);
   }

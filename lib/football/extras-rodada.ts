@@ -207,7 +207,7 @@ export async function resolveCurrentExtraRound(
   competitionId: number,
   opts?: { allowProviderCall?: boolean },
 ): Promise<ExtraRoundResolution | null> {
-  const allowProvider = opts?.allowProviderCall !== false;
+  const allowProvider = opts?.allowProviderCall === true;
 
   // 1) cache (sem rodada no cache → tenta provider para derivar da fase, ex. Libertadores)
   const cached = await readChampionshipSnapshot(competitionId);

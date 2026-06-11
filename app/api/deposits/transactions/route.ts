@@ -17,7 +17,6 @@ import { resolveExtraBolaoDisplayName } from "@/lib/boloes-extra-competition-bra
 import { parseExtraBolaoChampionshipIds } from "@/lib/boloes-extra-config";
 import {
   readCompetitionDisplayNamesFromDb,
-  warmCompetitionMetadataCache,
 } from "@/lib/competition-metadata-cache";
 import { applyTicketShopExtraCatalogItem } from "@/lib/ticket-shop-extra-display";
 import { filterTicketShopExtraBoloes } from "@/lib/ticket-shop-flags";
@@ -95,7 +94,6 @@ export async function GET() {
     extraBolaoCurrentRoundsByChampionship(ids).catch(() => ({} as Record<number, ExtraBolaoRoundInfo>)),
     fetchMatchesMap({ ensureCompetitionIds: [mainComp] }).catch(() => new Map()),
   ]);
-  void warmCompetitionMetadataCache(ids).catch(() => {});
   const dailyEditions = listGroupStageDailyEditions().map((edition) => ({
     number: edition.number,
     label: dailyEditionLabel(edition.number),

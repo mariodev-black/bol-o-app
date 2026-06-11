@@ -15,7 +15,9 @@ export async function extraBolaoCurrentRoundsByChampionship(
   const entries = await Promise.all(
     ids.map(async (championshipId) => {
       try {
-        const resolved = await resolveCurrentExtraRound(championshipId);
+        const resolved = await resolveCurrentExtraRound(championshipId, {
+          allowProviderCall: false,
+        });
         if (!resolved || !Number.isFinite(resolved.rodada) || resolved.rodada <= 0) {
           return null;
         }
