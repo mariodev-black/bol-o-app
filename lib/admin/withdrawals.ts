@@ -4,6 +4,7 @@ import { isCartwaveConfigured } from "@/lib/payments/cartwave/config";
 import { createCartwavePixCashoutSelfApprove } from "@/lib/payments/cartwave/cashout";
 import type { WithdrawalBalanceSource } from "@/lib/referrals/withdrawSource";
 import { creditWithdrawalBalance } from "@/lib/referrals/withdrawRefund";
+import { isUuidString } from "@/lib/referrals/withdrawGuards";
 
 export type AdminWithdrawalRow = {
   id: string;

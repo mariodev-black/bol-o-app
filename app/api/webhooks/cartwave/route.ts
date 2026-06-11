@@ -54,7 +54,7 @@ export async function POST(request: Request) {
   try {
     const result = await handleCartwaveWebhookPayload(payload);
     console.info("[cartwave/webhook] handled", result);
-    return NextResponse.json({ ok: true, ...result });
+    return NextResponse.json(result);
   } catch (err) {
     console.error("[cartwave/webhook] error", err);
     return NextResponse.json({ error: "Erro ao processar webhook" }, { status: 500 });

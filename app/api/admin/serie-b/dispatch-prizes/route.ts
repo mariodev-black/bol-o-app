@@ -66,7 +66,6 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({
     ok: true,
-    dryRun: payload.dryRun === true,
     prizes: SERIE_B_PRIZE_AMOUNTS_BRL,
     ...result,
   });
