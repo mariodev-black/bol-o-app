@@ -34,6 +34,9 @@ export const SKALE_BOLAO_DISPLAY_NAME = "Bolão Skale";
 export const SKALE_BOLAO_SUBTITLE =
   "Copa do Mundo 2026 — pool exclusivo Skale";
 
+/** Rótulo do escopo na vitrine/ranking — todos os jogos da Copa (não é bolão do dia). */
+export const SKALE_BOLAO_SCOPE_LABEL = "Copa do Mundo 2026";
+
 export function isSkaleBolaoEnabled(): boolean {
   const s = env("SKALE_BOLAO_ENABLED").toLowerCase();
   if (!s) return true;

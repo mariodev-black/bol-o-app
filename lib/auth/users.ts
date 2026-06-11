@@ -78,13 +78,18 @@ function toPublic(row: UserRow): PublicUser {
 }
 
 export async function findUserById(id: string): Promise<PublicUser | null> {
-  const pool = getPool();
-  const { rows } = await pool.query<UserRow>(
-    `SELECT ${U} FROM users WHERE id = $1 LIMIT 1`,
-    [id]
-  );
-  const row = rows[0];
-  return row ? toPublic(row) : null;
+  try {
+    const pool = getPool();
+    const { rows } = await pool.query<UserRow>(
+      `SELECT ${U} FROM users WHERE id = $1 LIMIT 1`,
+      [id],
+    );
+    const row = rows[0];
+    return row ? toPublic(row) : null;
+  } catch (error) {
+    console.error("[users] findUserById failed", error);
+    return null;
+  }
 }
 
 export async function findUserCreatedAt(id: string): Promise<Date | null> {

@@ -10,6 +10,7 @@ import {
 } from "@/lib/boloes/daily-editions-server";
 import { isSkaleBolaoCompetition } from "@/lib/boloes/skale-config";
 import { getMatchFromMap, resolveKickoffAtIso } from "@/lib/football-api";
+import { resolveBolaoMatchFromMap } from "@/lib/boloes/skale-match-resolve";
 import { brToday, resolveDiarioPlayableDate, utcMsForBrDate } from "@/lib/diario-playable-date";
 import {
   getPalpiteRejectReason,
@@ -44,7 +45,7 @@ export async function validatePalpiteForSave(
     scopedComp,
   } = ctx;
 
-  const match = getMatchFromMap(matchMap, scopedComp, data.matchId);
+  const match = resolveBolaoMatchFromMap(matchMap, scopedComp, data.matchId);
   if (!match) {
     const scope =
       bolaoType === "diario"

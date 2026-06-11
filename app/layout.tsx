@@ -72,12 +72,18 @@ export default async function RootLayout({
   children: React.ReactNode;
   modal: React.ReactNode;
 }>) {
-  const headersList = await headers();
-  const hostRaw = headersList.get("x-forwarded-host") ?? headersList.get("host") ?? "";
-  const hostname = parseHostnameFromHostHeader(hostRaw);
-  const routing = isSubdomainRoutingEnabled();
-  const isMarketingRequest =
-    routing && Boolean(hostname) && isMarketingHostname(hostname) && !isAppHostname(hostname);
+  let hostname = "";
+  let isMarketingRequest = false;
+  try {
+    const headersList = await headers();
+    const hostRaw = headersList.get("x-forwarded-host") ?? headersList.get("host") ?? "";
+    hostname = parseHostnameFromHostHeader(hostRaw);
+    const routing = isSubdomainRoutingEnabled();
+    isMarketingRequest =
+      routing && Boolean(hostname) && isMarketingHostname(hostname) && !isAppHostname(hostname);
+  } catch (error) {
+    console.error("[layout] headers failed", error);
+  }
 
   const appServerConfig = {
     ...getAppServerConfig(),

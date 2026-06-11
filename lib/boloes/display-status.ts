@@ -203,6 +203,10 @@ export function computeBolaoDisplayPhase(input: {
     return "enviados";
   }
 
+  if (input.sent > 0 && input.available > 0) {
+    return "disputa";
+  }
+
   return "pendentes";
 }
 

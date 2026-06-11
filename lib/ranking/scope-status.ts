@@ -32,11 +32,14 @@ export function rankingScopeStatusForTicket(
   ticket: PaidTicketRow,
   matches: MatchMap,
 ): { status: RankingScopeStatus; statusLabel: string } {
+  const sent = Math.max(0, ticket.palpitesCount ?? 0);
   const pending = (ticket.availableGames ?? 0) > 0;
   const phase = bolaoDisplayPhaseForTicket(ticket, matches);
 
   if (phase === "pendentes") {
-    return { status: "aguardando", statusLabel: "Aguardando seus palpites" };
+    return sent > 0
+      ? { status: "ativa", statusLabel: "Palpites em aberto" }
+      : { status: "aguardando", statusLabel: "Aguardando seus palpites" };
   }
   if (phase === "enviados") {
     return { status: "ativa", statusLabel: bolaoDisplayBadgeText("enviados") };

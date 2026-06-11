@@ -6,17 +6,18 @@ import {
   getDailyEdition,
 } from "@/lib/boloes/daily-editions";
 import { resolveExtraBolaoDisplayName } from "@/lib/boloes-extra-competition-branding";
-import { isSkaleBolaoCompetition } from "@/lib/boloes/skale-config";
+import { isSkaleBolaoCompetition, SKALE_BOLAO_SCOPE_LABEL } from "@/lib/boloes/skale-config";
 import { warmCompetitionMetadataCache } from "@/lib/competition-metadata-cache";
 import {
-  extraBolaoCurrentRoundsByChampionship,
-  type ExtraBolaoRoundInfo,
-} from "@/lib/ticket-shop-extra-rounds";
+  formatExtraRoundLabel,
+  getTicketShopExtraRoundNumber,
+} from "@/lib/ticket-shop-extra-display";
 import {
   listPaidTicketsForUser,
   type PaidTicketRow,
 } from "@/lib/payments/user-tickets";
 import { getFootballMainCompetitionId, getSoleConfiguredExtraChampionshipId } from "@/lib/boloes-extra-config";
+import { skaleCompetitionIdsForMatchMap } from "@/lib/boloes/skale-match-resolve";
 import { fetchMatchesMap } from "@/lib/football-api";
 import {
   palpitesHrefForTicket,
@@ -56,11 +57,15 @@ export async function buildRankingScopes(
   const scopes: RankingScopeOption[] = [];
 
   try {
-    const tickets = await listPaidTicketsForUser(userId);
-    const ensureCompIds = competitionIdsEnsureFromPaidTickets(tickets);
+    const ticketsInitial = await listPaidTicketsForUser(userId);
+    const ensureCompIds = [
+      ...competitionIdsEnsureFromPaidTickets(ticketsInitial),
+      ...skaleCompetitionIdsForMatchMap(),
+    ];
     const matches = await fetchMatchesMap({ ensureCompetitionIds: ensureCompIds }).catch(
       () => new Map(),
     );
+    const tickets = await listPaidTicketsForUser(userId, { matchMap: matches });
     const general = tickets.filter((t) => t.ticketType === "general");
     const daily = tickets.filter((t) => t.ticketType === "daily");
     const extra = tickets.filter((t) => t.ticketType === "extra");
@@ -139,23 +144,20 @@ export async function buildRankingScopes(
           .filter((n): n is number => n != null && Number.isFinite(n) && n > 0),
       ),
     ];
-    const [compNames, extraRounds] = await Promise.all([
+    const compNames =
       uniqExtraCompIds.length > 0
-        ? warmCompetitionMetadataCache(uniqExtraCompIds).catch(
+        ? await warmCompetitionMetadataCache(uniqExtraCompIds).catch(
             () => ({}) as Record<number, string>,
           )
-        : Promise.resolve({} as Record<number, string>),
-      uniqExtraCompIds.length > 0
-        ? extraBolaoCurrentRoundsByChampionship(uniqExtraCompIds).catch(
-            () => ({}) as Record<number, ExtraBolaoRoundInfo>,
-          )
-        : Promise.resolve({} as Record<number, ExtraBolaoRoundInfo>),
-    ]);
+        : ({} as Record<number, string>);
 
     for (let i = 0; i < extraSorted.length; i++) {
       const t = extraSorted[i]!;
-      const date = t.playDate?.trim() || "Dia";
       const compId = t.extraChampionshipId;
+      const isSkale = isSkaleBolaoCompetition(compId);
+      const date = isSkale
+        ? SKALE_BOLAO_SCOPE_LABEL
+        : t.playDate?.trim() || "Dia";
       const championshipName =
         compId != null && Number.isFinite(compId)
           ? resolveExtraBolaoDisplayName(compId, compNames[compId])
@@ -164,18 +166,10 @@ export async function buildRankingScopes(
       const unused = (t.availableGames ?? 0) > 0;
       const pendingPalpitesCount = Math.max(0, t.availableGames ?? 0);
       const palpitesSentCount = Math.max(0, t.palpitesCount ?? 0);
-      const roundInfo = compId != null ? extraRounds[compId] : undefined;
-      const ticketRound =
-        t.extraRoundNumber != null &&
-        Number.isFinite(Number(t.extraRoundNumber)) &&
-        Number(t.extraRoundNumber) > 0
-          ? Number(t.extraRoundNumber)
-          : null;
       const roundLabel = isSkaleBolaoCompetition(compId)
         ? "Copa inteira"
-        : ticketRound != null
-          ? `${ticketRound}ª Rodada`
-          : roundInfo?.roundLabel?.trim() || null;
+        : formatExtraRoundLabel(t.extraRoundNumber) ??
+          (compId != null ? formatExtraRoundLabel(getTicketShopExtraRoundNumber(compId)) : null);
       const selectPrimary = roundLabel
         ? `${championshipName} · ${roundLabel}`
         : championshipName;

@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import PalpitesClient, { type PalpitesInitialData } from "./PalpitesClient";
+import { runSafeServerPage } from "@/lib/server/safe-server";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 import { inferBolaoTypeFromTicketId } from "@/lib/ticket-kind-server";
 import { inferBolaoTypeFromTicketPrefix } from "@/lib/ticket-kind-shared";
@@ -589,11 +590,10 @@ export default async function PalpitesPage(props: { searchParams?: Promise<{ tic
     }
   }
 
-  try {
-    const initialData = await buildInitialData(ticketId);
-    return <PalpitesClient initialData={initialData} />;
-  } catch (error) {
-    console.error("[palpites/page] render failed", error);
-    return <PalpitesClient initialData={emptyPalpitesInitialData(ticketId)} />;
-  }
+  const initialData = await runSafeServerPage(
+    "palpites-build",
+    () => buildInitialData(ticketId),
+    emptyPalpitesInitialData(ticketId),
+  );
+  return <PalpitesClient initialData={initialData} />;
 }

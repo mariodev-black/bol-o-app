@@ -14,6 +14,10 @@ import { fetchMatchesMap, type MatchMapEntry } from "@/lib/football-api";
 import { BoloesClient, type BoloesScreenData } from "@/app/(authenticated)/boloes/BoloesClient";
 import { BoloesPurchaseSync } from "@/app/(authenticated)/boloes/_components/BoloesPurchaseSync";
 import { getFootballMainCompetitionId, getSoleConfiguredExtraChampionshipId, parseExtraBolaoChampionshipIds } from "@/lib/boloes-extra-config";
+import {
+  ensureSkaleBolaoMatchesMirrored,
+  skaleCompetitionIdsForMatchMap,
+} from "@/lib/boloes/skale-match-resolve";
 import { resolveExtraBolaoDisplayName } from "@/lib/boloes-extra-competition-branding";
 import {
   effectiveExtraRoundForPaidTicket,
@@ -257,7 +261,10 @@ function bolaoStatusFromMetrics(
 async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
   const configuredExtraIds = parseExtraBolaoChampionshipIds();
   const mainComp = getFootballMainCompetitionId();
-  const preloadCompIds = [...new Set([mainComp, ...configuredExtraIds])];
+  await ensureSkaleBolaoMatchesMirrored();
+  const preloadCompIds = [
+    ...new Set([mainComp, ...configuredExtraIds, ...skaleCompetitionIdsForMatchMap()]),
+  ];
   const matchesPromise = fetchMatchesMap({ ensureCompetitionIds: preloadCompIds }).catch(
     () => new Map(),
   );

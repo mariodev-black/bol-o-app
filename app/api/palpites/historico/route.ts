@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
-import { fetchMatchesMap, getMatchFromMap } from "@/lib/football-api";
+import { fetchMatchesMap } from "@/lib/football-api";
+import { resolveBolaoMatchFromMap, ensureSkaleBolaoMatchesMirrored, skaleCompetitionIdsForMatchMap } from "@/lib/boloes/skale-match-resolve";
 import { calcPredictionPoints, listPredictions, type PredictionBolaoType } from "@/lib/predictions";
 import {
   formatRankingHistoricoLiveLabel,
@@ -50,7 +51,10 @@ export async function GET(request: NextRequest) {
   }
   const limit = Math.min(100, Math.max(1, Number.parseInt(request.nextUrl.searchParams.get("limit") ?? "20", 10) || 20));
   const predsRaw = await listPredictions({ userId, bolaoType, ticketId });
-  const matches = await fetchMatchesMap();
+  await ensureSkaleBolaoMatchesMirrored();
+  const matches = await fetchMatchesMap({
+    ensureCompetitionIds: skaleCompetitionIdsForMatchMap(),
+  });
 
   let preds = predsRaw;
   if (bolaoType === "extra" && ticketId) {
@@ -71,7 +75,7 @@ export async function GET(request: NextRequest) {
       const comp = p.bolao_type === "extra" ? extraMap.get(p.ticket_id) ?? null : mainComp;
       const m =
         normalizedMatchId != null && comp != null && Number.isFinite(comp) && comp > 0
-          ? getMatchFromMap(matches, comp, normalizedMatchId)
+          ? resolveBolaoMatchFromMap(matches, comp, normalizedMatchId)
           : undefined;
       const resultadoCasa = m?.resultCasa ?? null;
       const resultadoVisitante = m?.resultVisitante ?? null;

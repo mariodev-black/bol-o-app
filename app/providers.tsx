@@ -13,6 +13,7 @@ import { ChampionsPlacarPromoHost } from "@/app/shared/ChampionsPlacarPromoHost"
 import { MainBolaoPromoModalHost } from "@/app/shared/MainBolaoPromoModalHost";
 import { ProfileCompletionHost } from "@/app/shared/ProfileCompletionHost";
 import { PwaManager } from "@/app/shared/PwaManager";
+import { AppErrorBoundary } from "@/app/shared/AppErrorBoundary";
 import { ChunkLoadRecovery } from "@/app/shared/ChunkLoadRecovery";
 import { ReferralCapture } from "@/app/shared/ReferralCapture";
 import { PromotionsHubDeepLink } from "@/app/shared/PromotionsHubDeepLink";
@@ -25,10 +26,13 @@ export function Providers({
   children,
   appServerConfig,
   initialAuthUser = null,
+  errorBoundaryChrome = false,
 }: {
   children: React.ReactNode;
   appServerConfig: AppServerConfig;
   initialAuthUser?: AuthUser | null;
+  /** Header + nav no fallback de erro (rotas autenticadas). */
+  errorBoundaryChrome?: boolean;
 }) {
   return (
     <BolaoToastProvider>
@@ -49,7 +53,9 @@ export function Providers({
                 <PromotionsHubDeepLink />
                 <SkaleFunnelLockHost />
               </Suspense>
-              <SidenavProvider>{children}</SidenavProvider>
+              <AppErrorBoundary showAppChrome={errorBoundaryChrome}>
+                <SidenavProvider>{children}</SidenavProvider>
+              </AppErrorBoundary>
             </ChampionsPlacarPromoHost>
           </BrasilMarrocosPlacarPromoHost>
           </ExtraGiftPromoHost>

@@ -6,7 +6,12 @@ import {
 } from "@/lib/boloes/daily-editions";
 import { inferDailyEditionFromMatchIds } from "@/lib/boloes/daily-editions-server";
 import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
-import { isSkaleBolaoCompetition } from "@/lib/boloes/skale-config";
+import { isSkaleBolaoCompetition, getSkaleBolaoSourceCopaCompetitionId, SKALE_BOLAO_SCOPE_LABEL } from "@/lib/boloes/skale-config";
+import {
+  ensureSkaleBolaoMatchesMirrored,
+  resolveBolaoMatchFromMap,
+  skaleCompetitionIdsForMatchMap,
+} from "@/lib/boloes/skale-match-resolve";
 import { isBolaoScopeRoundComplete } from "@/lib/boloes/display-status";
 import {
   bolaoPhaseScopeForPaidTicket,
@@ -15,8 +20,10 @@ import {
 } from "@/lib/boloes/ticket-match-scope";
 import { getPool } from "@/lib/db";
 import { brToday, minBrDate, resolveDiarioPlayableDate, utcMsForBrDate } from "@/lib/diario-playable-date";
-import { fetchMatchesMap, getMatchFromMap, type MatchMap } from "@/lib/football-api";
+import { fetchMatchesMap, type MatchMap } from "@/lib/football-api";
 import { listPredictionTicketMatchPairsForUser, palpiteLockBeforeKickoffMs } from "@/lib/predictions";
+import { effectiveExtraRoundForPaidTicket } from "@/lib/ticket-shop-extra-display";
+import { extraBolaoCurrentRoundsByChampionship } from "@/lib/ticket-shop-extra-rounds";
 
 export type PaidTicketRow = {
   id: string;
@@ -71,6 +78,17 @@ type OpenMatch = {
   kickoffAt: number | null;
 };
 
+function dedupeOpenMatchesById(matches: OpenMatch[]): OpenMatch[] {
+  const seen = new Set<number>();
+  const out: OpenMatch[] = [];
+  for (const m of matches) {
+    if (seen.has(m.matchId)) continue;
+    seen.add(m.matchId);
+    out.push(m);
+  }
+  return out;
+}
+
 /** Tickets com pagamento confirmado (origem do banco — fonte de verdade). */
 export async function listPaidTicketsForUser(
   userId: string,
@@ -80,43 +98,80 @@ export async function listPaidTicketsForUser(
   const mainComp = getFootballMainCompetitionId();
   try {
     const preloadedMatchMap = opts?.matchMap;
-    const [{ rows }, matchMap, preds] = await Promise.all([
-      pool.query<{
-        id: string;
-        ticket_type: "general" | "daily" | "extra" | "artilheiros";
-        extra_championship_id: number | null;
-        round_number: number | null;
-        is_promo_bonus: boolean;
-        total_amount_cents: number | null;
-        quantity: number;
-        paid_at: Date | null;
-        created_at: Date;
-      }>(
-        `SELECT id, ticket_type, extra_championship_id, round_number,
-                COALESCE(is_promo_bonus, false) AS is_promo_bonus,
-                COALESCE(total_amount_cents, 0) AS total_amount_cents,
-                quantity, paid_at, created_at
-         FROM tickets
-         WHERE user_id = $1 AND status = 'paid'
-         ORDER BY COALESCE(paid_at, created_at) DESC NULLS LAST, created_at DESC`,
-        [userId]
+    const { rows } = await pool.query<{
+      id: string;
+      ticket_type: "general" | "daily" | "extra" | "artilheiros";
+      extra_championship_id: number | null;
+      round_number: number | null;
+      is_promo_bonus: boolean;
+      total_amount_cents: number | null;
+      quantity: number;
+      paid_at: Date | null;
+      created_at: Date;
+    }>(
+      `SELECT id, ticket_type, extra_championship_id, round_number,
+              COALESCE(is_promo_bonus, false) AS is_promo_bonus,
+              COALESCE(total_amount_cents, 0) AS total_amount_cents,
+              quantity, paid_at, created_at
+       FROM tickets
+       WHERE user_id = $1 AND status = 'paid'
+       ORDER BY COALESCE(paid_at, created_at) DESC NULLS LAST, created_at DESC`,
+      [userId],
+    );
+
+    const hasSkaleTicket = rows.some(
+      (r) =>
+        r.ticket_type === "extra" &&
+        isSkaleBolaoCompetition(Number(r.extra_championship_id)),
+    );
+    if (hasSkaleTicket) {
+      await ensureSkaleBolaoMatchesMirrored();
+    }
+
+    const extraCompIds = [
+      ...new Set(
+        rows
+          .filter((r) => r.ticket_type === "extra" && r.extra_championship_id != null)
+          .map((r) => Number(r.extra_championship_id))
+          .filter((n) => Number.isFinite(n) && n > 0),
       ),
+    ];
+
+    const [matchMap, preds, liveExtraRounds] = await Promise.all([
       preloadedMatchMap != null
         ? Promise.resolve(preloadedMatchMap)
-        : fetchMatchesMap().catch(() => new Map() as MatchMap),
-      listPredictionTicketMatchPairsForUser(userId).catch(() => [] as { ticket_id: string; match_id: number }[]),
+        : fetchMatchesMap({
+            ensureCompetitionIds: [
+              ...extraCompIds,
+              ...skaleCompetitionIdsForMatchMap(),
+            ],
+          }).catch(() => new Map() as MatchMap),
+      listPredictionTicketMatchPairsForUser(userId).catch(
+        () => [] as { ticket_id: string; match_id: number }[],
+      ),
+      extraCompIds.length > 0
+        ? extraBolaoCurrentRoundsByChampionship(extraCompIds).catch(
+            () => ({}) as Record<number, { roundNumber: number }>,
+          )
+        : Promise.resolve({} as Record<number, { roundNumber: number }>),
     ]);
+
     const mapped = rows.map((r) => {
       const compId = r.ticket_type === "extra" ? r.extra_championship_id : null;
       const compNum =
         compId != null && Number.isFinite(Number(compId)) ? Number(compId) : 0;
       const extraRoundNumber: number | null =
         r.ticket_type === "extra" && compNum > 0 && !isSkaleBolaoCompetition(compNum)
-          ? r.round_number != null &&
-            Number.isFinite(Number(r.round_number)) &&
-            Number(r.round_number) > 0
-            ? Math.trunc(Number(r.round_number))
-            : null
+          ? effectiveExtraRoundForPaidTicket({
+              championshipId: compNum,
+              roundNumberFromDb:
+                r.round_number != null &&
+                Number.isFinite(Number(r.round_number)) &&
+                Number(r.round_number) > 0
+                  ? Math.trunc(Number(r.round_number))
+                  : null,
+              liveRoundNumber: liveExtraRounds[compNum]?.roundNumber ?? null,
+            })
           : null;
       const dailyEditionNumber =
         r.ticket_type === "daily" ? paidTicketDailyEditionNumber({ ticketType: "daily", round_number: r.round_number }) : null;
@@ -215,10 +270,49 @@ export async function listPaidTicketsForUser(
         return { ...t, dailyStatus: "disponivel" as const, playDate: brToday(), availableGames: 0 };
       }
 
-      const scopeOpen =
+      /** Bolão Skale = Copa inteira (como principal), não bolão do dia por data/edição. */
+      if (t.ticketType === "extra" && isSkaleBolaoCompetition(scopeComp)) {
+        const copaId = getSkaleBolaoSourceCopaCompetitionId();
+        const skaleScopeOpen = dedupeOpenMatchesById(
+          openMatchesExtraLock.filter(
+            (m) => m.competitionId === scopeComp || m.competitionId === copaId,
+          ),
+        );
+        const predictedIds = new Set<number>(
+          ticketPreds.map((p) => Number(p.match_id)).filter(Number.isFinite),
+        );
+        const availableGames = skaleScopeOpen.reduce(
+          (acc, m) => (predictedIds.has(m.matchId) ? acc : acc + 1),
+          0,
+        );
+        const dailyStatus: NonNullable<PaidTicketRow["dailyStatus"]> =
+          palpitesCount === 0
+            ? "disponivel"
+            : availableGames === 0
+              ? "usado"
+              : "em_uso";
+        return {
+          ...t,
+          dailyStatus,
+          playDate: SKALE_BOLAO_SCOPE_LABEL,
+          availableGames,
+          palpitesCount,
+        };
+      }
+
+      const scopeOpenRaw =
         t.ticketType === "daily"
           ? openMatchesDefaultLock.filter((m) => m.competitionId === scopeComp)
-          : openMatchesExtraLock.filter((m) => m.competitionId === scopeComp);
+          : isSkaleBolaoCompetition(scopeComp)
+            ? openMatchesExtraLock.filter(
+                (m) =>
+                  m.competitionId === scopeComp ||
+                  m.competitionId === getSkaleBolaoSourceCopaCompetitionId(),
+              )
+            : openMatchesExtraLock.filter((m) => m.competitionId === scopeComp);
+      const scopeOpen = isSkaleBolaoCompetition(scopeComp)
+        ? dedupeOpenMatchesById(scopeOpenRaw)
+        : scopeOpenRaw;
       const playableDate = resolveDiarioPlayableDate(matchMap, { competitionId: scopeComp });
       const extraRound = paidTicketExtraRoundNumber(t);
 
@@ -228,13 +322,14 @@ export async function listPaidTicketsForUser(
 
       const openInTicketScope = (om: OpenMatch): boolean => {
         if (isSkaleBolaoCompetition(scopeComp)) {
-          return om.competitionId === scopeComp;
+          const copaId = getSkaleBolaoSourceCopaCompetitionId();
+          return om.competitionId === scopeComp || om.competitionId === copaId;
         }
         if (t.ticketType === "daily" && dailyEditionDates != null) {
           return om.dateBR != null && dailyEditionDates.has(om.dateBR);
         }
         if (extraRound == null) return om.dateBR === playableDate;
-        const m = getMatchFromMap(matchMap, scopeComp, om.matchId);
+        const m = resolveBolaoMatchFromMap(matchMap, scopeComp, om.matchId);
         return m != null && Number(m.rodada) === extraRound;
       };
 
@@ -258,7 +353,7 @@ export async function listPaidTicketsForUser(
       const predictedIds = new Set<number>(ticketPreds.map((p) => Number(p.match_id)).filter(Number.isFinite));
       const matchDates = new Set<string>();
       for (const p of ticketPreds) {
-        const m = getMatchFromMap(matchMap, scopeComp, Number(p.match_id));
+        const m = resolveBolaoMatchFromMap(matchMap, scopeComp, Number(p.match_id));
         if (m?.dateBR) matchDates.add(m.dateBR);
       }
 
@@ -267,16 +362,19 @@ export async function listPaidTicketsForUser(
       const predOnlyScope = bolaoPhaseScopeFromPredictions(t, matchMap, predMatchIds);
 
       const inferredEdition =
-        dailyEdition ??
-        inferDailyEditionFromMatchIds(
-          ticketPreds.map((p) => Number(p.match_id)),
-          matchMap,
-          scopeComp,
-        );
+        isSkaleBolaoCompetition(scopeComp)
+          ? null
+          : dailyEdition ??
+            inferDailyEditionFromMatchIds(
+              ticketPreds.map((p) => Number(p.match_id)),
+              matchMap,
+              scopeComp,
+            );
       const predDate = minBrDate(matchDates);
       const editionMeta = inferredEdition != null ? getDailyEdition(inferredEdition) : null;
-      const targetDate =
-        editionMeta != null
+      const targetDate = isSkaleBolaoCompetition(scopeComp)
+        ? SKALE_BOLAO_SCOPE_LABEL
+        : editionMeta != null
           ? formatDailyEditionDatesLabel(editionMeta)
           : predDate ?? playableDate;
       const availableGames = scopeOpen
