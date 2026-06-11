@@ -8,6 +8,7 @@ import { buildPartidasFasesFromRows } from "@/lib/partidas-cache-payload";
 import { isAmistososFriendliesCompetition } from "@/lib/football/amistosos-friendlies";
 import { ensureAmistososFriendliesMatchesSeeded } from "@/lib/football/amistosos-friendlies-persistence";
 import { bootstrapCompetitionCacheIfEmpty, syncAllConfiguredIfStale } from "@/lib/football/sync-orchestrator";
+import { triggerLiveMatchSync } from "@/lib/football/live-sync";
 
 export const runtime = "nodejs";
 
@@ -23,9 +24,25 @@ function partidasPayloadEmpty(partidas: Record<string, unknown>): boolean {
  * Query params:
  *   ?competitionId=N    — competicao especifica (default = FOOTBALL_COMPETITION_ID).
  *   ?allSynced=1        — principal + BOLOES_EXTRA_CHAMPIONSHIP_IDS.
+ *   ?liveSync=1         — dispara worker ao vivo (API por partida) antes de ler o cache.
  */
 export async function GET(request: NextRequest) {
   try {
+    const liveSync = request.nextUrl.searchParams.get("liveSync") === "1";
+    if (liveSync) {
+      try {
+        const sync = await triggerLiveMatchSync();
+        if (sync && sync.scoredChangedIds.length > 0) {
+          console.info("[api/partidas] liveSync scored", {
+            changed: sync.scoredChangedIds.length,
+            predictionScoresUpdated: sync.predictionScoresUpdated,
+          });
+        }
+      } catch (e) {
+        console.warn("[api/partidas] liveSync failed", e);
+      }
+    }
+
     const allSynced = request.nextUrl.searchParams.get("allSynced") === "1";
     const raw = request.nextUrl.searchParams.get("competitionId");
     const comp =
@@ -65,7 +82,9 @@ export async function GET(request: NextRequest) {
       { partidas },
       {
         headers: {
-          "Cache-Control": "private, max-age=120, stale-while-revalidate=600",
+          "Cache-Control": liveSync
+            ? "private, no-store, max-age=0"
+            : "private, max-age=120, stale-while-revalidate=600",
         },
       },
     );

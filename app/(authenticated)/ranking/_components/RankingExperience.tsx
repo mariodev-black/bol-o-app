@@ -23,6 +23,8 @@ import {
   palpitesHrefForScope,
   type RankingScopeOption,
 } from "@/lib/ranking/scopes-shared";
+import { partidasUrlWithLiveSync } from "@/lib/football/live-sync-client";
+import { parseRankingPalpitePushParams } from "@/lib/push/ranking-push-url";
 
 type Step = "pick" | "board";
 
@@ -43,10 +45,8 @@ const boardCache = new Map<
 
 export function RankingExperience() {
   const searchParams = useSearchParams();
-  const highlightTicketId =
-    searchParams.get("ticket")?.trim() ||
-    searchParams.get("ticketId")?.trim() ||
-    "";
+  const { ticketId: highlightTicketId, matchId: highlightMatchId } =
+    parseRankingPalpitePushParams(searchParams);
 
   const [step, setStep] = useState<Step>("pick");
   const [scopes, setScopes] = useState<RankingScopeOption[]>([]);
@@ -240,6 +240,10 @@ export function RankingExperience() {
     async (scope: RankingScopeOption) => {
       const boardUrl = boardUrlForScope(scope);
       try {
+        await fetch(partidasUrlWithLiveSync("/api/partidas", { allSynced: 1 }), {
+          cache: "no-store",
+        }).catch(() => undefined);
+
         const [boardResp, resumoResp] = await Promise.all([
           fetch(boardUrl, { credentials: "include", cache: "no-store" }),
           fetch(`/api/palpites/resumo?${buildResumoQuery(scope).toString()}`, {
@@ -470,6 +474,7 @@ export function RankingExperience() {
             myRowsFooter={myRowsFooter}
             onBack={handleBackFromBoard}
             refreshClockMs={tick}
+            highlightMatchId={highlightMatchId}
           />
         ) : null}
 

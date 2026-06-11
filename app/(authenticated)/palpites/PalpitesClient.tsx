@@ -62,6 +62,10 @@ import {
   palpiteEligibilityFromJogo,
 } from "@/lib/palpites-match-open";
 import { pickTabelaGruposForPalpites } from "@/lib/tabela-palpites-normalize";
+import {
+  LIVE_PARTIDAS_POLL_MS,
+  partidasUrlWithLiveSync,
+} from "@/lib/football/live-sync-client";
 import { PalpitesViewTabs } from "@/app/(authenticated)/palpites/_components/PalpitesViewTabs";
 
 // ── Tipos ────────────────────────────────────────────────────
@@ -1184,11 +1188,13 @@ function PalpitePontuacaoBreakdown({
   onToggle,
   review,
   linhas,
+  headlineMode = "final",
 }: {
   expanded: boolean;
   onToggle: () => void;
   review: ReturnType<typeof calcPredictionPoints>;
   linhas: PalpitePontosLinha[];
+  headlineMode?: "final" | "live";
 }) {
   const ptsHeadline =
     review.points > 0 ? `+${review.points}` : String(review.points);
@@ -1196,6 +1202,8 @@ function PalpitePontuacaoBreakdown({
     review.points > 0
       ? `+${review.points} pontos`
       : `${review.points} pontos`;
+  const headlineLabel =
+    headlineMode === "live" ? "Pontuação parcial" : "Pontuação final";
 
   return (
     <div className="mx-5 mb-5">
@@ -1210,7 +1218,7 @@ function PalpitePontuacaoBreakdown({
           className="flex w-full items-center justify-between gap-3 px-4 py-4 text-left transition active:scale-[0.99]"
         >
           <p className="min-w-0 text-[15px] font-semibold text-white">
-            Pontuação final :{" "}
+            {headlineLabel} :{" "}
             <span className="font-black text-primary">{ptsText}</span>
           </p>
           <span className="flex shrink-0 items-center gap-2">
@@ -1368,18 +1376,21 @@ function JogoCard({
   const displayCasa = phase === "post" ? jogo.resultCasa! : palpiteCasa;
   const displayVisitante =
     phase === "post" ? jogo.resultVisitante! : palpiteVisitante;
-  const review =
-    phase === "post" &&
-      hasInitialPrediction &&
-      temPlacarOficial &&
-      scoresAreComplete(scores)
-      ? calcPredictionPoints(
+  const canReviewPoints =
+    (phase === "live" || phase === "post") &&
+    hasInitialPrediction &&
+    temPlacarOficial &&
+    scoresAreComplete(scores) &&
+    jogo.resultCasa != null &&
+    jogo.resultVisitante != null;
+  const review = canReviewPoints
+    ? calcPredictionPoints(
         scores.scoreCasa,
         scores.scoreVisitante,
         jogo.resultCasa!,
         jogo.resultVisitante!,
       )
-      : null;
+    : null;
 
   const koMs = kickoffMsFromJogo(jogo);
   const beforeKickoff = koMs != null && nowMs < koMs;
@@ -1403,7 +1414,9 @@ function JogoCard({
     koMs != null &&
     nowMs >= koMs;
   const showResultadoDetalhado =
-    phase === "post" && hasInitialPrediction && review != null;
+    (phase === "live" || phase === "post") &&
+    hasInitialPrediction &&
+    review != null;
   const pontosLinhas =
     review != null && temPlacarOficial && initialPrediction
       ? palpitePontosBreakdown(
@@ -1560,12 +1573,13 @@ function JogoCard({
         </p>
       ) : null}
 
-      {phase === "post" && showResultadoDetalhado && review ? (
+      {showResultadoDetalhado && review ? (
         <PalpitePontuacaoBreakdown
           expanded={pontosExpanded}
           onToggle={() => setPontosExpanded((v) => !v)}
           review={review}
           linhas={pontosLinhas}
+          headlineMode={phase === "live" ? "live" : "final"}
         />
       ) : null}
 
@@ -3274,11 +3288,11 @@ function PalpitesPageContent({
               return getSoleConfiguredExtraChampionshipId();
             })()
             : null;
-        const comp =
+        const partidasUrl =
           bolaoTypeRef.current === "extra" && id != null
-            ? `?competitionId=${encodeURIComponent(String(id))}`
-            : "";
-        const r = await fetch(`/api/partidas${comp}`, { cache: "no-store" });
+            ? partidasUrlWithLiveSync("/api/partidas", { competitionId: id })
+            : partidasUrlWithLiveSync("/api/partidas");
+        const r = await fetch(partidasUrl, { cache: "no-store" });
         const data = await r.json().catch(() => null);
         if (cancelled) return;
         if (!r.ok) {
@@ -3308,13 +3322,8 @@ function PalpitesPageContent({
       }
     }
 
-    const skipImmediateTick =
-      Boolean(initialDataRef.current?.jogos?.length) &&
-      initialDataRef.current?.ticketId === ticketId;
-    if (!skipImmediateTick) {
-      void tick();
-    }
-    intervalId = setInterval(tick, 45_000);
+    void tick();
+    intervalId = setInterval(tick, LIVE_PARTIDAS_POLL_MS);
     return () => {
       cancelled = true;
       if (intervalId) clearInterval(intervalId);
@@ -3431,7 +3440,7 @@ function PalpitesPageContent({
       jogos
         .map(
           (j) =>
-            `${j.id}:${j.resultCasa ?? ""}:${j.resultVisitante ?? ""}:${j.status}`,
+            `${j.id}:${j.resultCasa ?? ""}:${j.resultVisitante ?? ""}:${j.status}:${j.statusBruto ?? ""}:${j.liveMinuto ?? ""}`,
         )
         .sort()
         .join("|"),
@@ -4416,6 +4425,7 @@ function PalpitesPageContent({
                 onRankingLinkClick={
                   isGratisExtra ? openGratisRanking : undefined
                 }
+                liveRefreshKey={jogosPlacarSignature}
               />
             ) : null}
             {showResumo ? (
@@ -4479,6 +4489,7 @@ function PalpitesPageContent({
                 onRankingLinkClick={
                   isGratisExtra ? openGratisRanking : undefined
                 }
+                liveRefreshKey={jogosPlacarSignature}
               />
             ) : erro ? (
               <div className="flex flex-col items-center py-16">

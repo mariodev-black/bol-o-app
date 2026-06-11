@@ -12,6 +12,7 @@ import {
 import type { PredictionBolaoType } from "@/lib/predictions";
 import type { RankingBoardMeta, RankingBoardRow } from "@/lib/ranking/board-types";
 import type { RankingHistoricoRow } from "@/lib/ranking/historico-types";
+import { partidasUrlWithLiveSync } from "@/lib/football/live-sync-client";
 
 type ResumoStats = {
   palpites: number;
@@ -60,6 +61,7 @@ export function PalpitesRankingTab({
   error,
   lockBloco,
   onRankingLinkClick,
+  liveRefreshKey,
 }: {
   ticketId: string | null;
   bolaoType: PredictionBolaoType;
@@ -71,15 +73,18 @@ export function PalpitesRankingTab({
   lockBloco?: string;
   /** Bolão grátis: intercepta link "Ranking completo". */
   onRankingLinkClick?: () => void;
+  /** Muda quando placares ao vivo atualizam (ex.: signature de partidas). */
+  liveRefreshKey?: string;
 }) {
   const [matchResults, setMatchResults] = useState<RankingHistoricoRow[]>([]);
   const [loadingMatches, setLoadingMatches] = useState(false);
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
-    const id = window.setInterval(() => setTick((t) => t + 1), 30_000);
+    const pollMs = meta?.hasLiveMatchesInPool ? 15_000 : 30_000;
+    const id = window.setInterval(() => setTick((t) => t + 1), pollMs);
     return () => window.clearInterval(id);
-  }, []);
+  }, [meta?.hasLiveMatchesInPool]);
 
   useEffect(() => {
     const historicoQ = new URLSearchParams();
@@ -103,6 +108,11 @@ export function PalpitesRankingTab({
     setLoadingMatches(true);
     void (async () => {
       try {
+        if (meta?.hasLiveMatchesInPool) {
+          await fetch(partidasUrlWithLiveSync("/api/partidas", { allSynced: 1 }), {
+            cache: "no-store",
+          }).catch(() => undefined);
+        }
         const histResp = await fetch(
           `/api/palpites/historico?${historicoQ.toString()}`,
           { credentials: "include", cache: "no-store" },
@@ -133,7 +143,7 @@ export function PalpitesRankingTab({
     return () => {
       cancelled = true;
     };
-  }, [bolaoType, ticketId, resumoStats.palpites]);
+  }, [bolaoType, ticketId, resumoStats.palpites, tick, liveRefreshKey, meta?.hasLiveMatchesInPool]);
 
   const topThree = useMemo(() => rows.slice(0, 3), [rows]);
   const rowsAfterPodium = useMemo(() => rows.slice(3, 10), [rows]);

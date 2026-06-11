@@ -11,6 +11,7 @@ import {
   rankingHistoricoOutcomeLabel,
 } from "@/lib/ranking/historico-display";
 import type { RankingHistoricoRow } from "@/lib/ranking/historico-types";
+import { rankingMatchDomId } from "@/lib/push/ranking-push-url";
 
 const PANEL = "#101010";
 
@@ -91,9 +92,11 @@ function ScoreCell({
 function MatchResultRow({
   row,
   nowMs,
+  highlighted,
 }: {
   row: RankingHistoricoRow;
   nowMs: number;
+  highlighted?: boolean;
 }) {
   const { live, liveClock, input } = matchLiveState(row, nowMs);
   const hasResult =
@@ -113,7 +116,14 @@ function MatchResultRow({
       : "—";
 
   return (
-    <li className="border-b border-white/[0.07] px-4 py-4 last:border-b-0 min-[380px]:px-4 min-[380px]:py-5">
+    <li
+      id={rankingMatchDomId(row.matchId)}
+      className={`border-b border-white/[0.07] px-4 py-4 last:border-b-0 min-[380px]:px-4 min-[380px]:py-5 scroll-mt-28 transition-colors ${
+        highlighted
+          ? "bg-primary/10 ring-2 ring-inset ring-primary/55"
+          : ""
+      }`}
+    >
       {/* Linha 1 — times */}
 
 
@@ -206,12 +216,15 @@ export function RankingBoardMatchResults({
   matches,
   loading,
   refreshClockMs,
+  highlightMatchId,
 }: {
   matches: RankingHistoricoRow[];
   loading: boolean;
   refreshClockMs?: number;
+  highlightMatchId?: string | null;
 }) {
   const [nowMs, setNowMs] = useState(() => Date.now());
+  const normalizedHighlight = highlightMatchId?.trim() || null;
 
   const sortedMatches = useMemo(() => {
     return [...matches].sort((a, b) => {
@@ -236,6 +249,16 @@ export function RankingBoardMatchResults({
     const id = window.setInterval(() => setNowMs(Date.now()), 60_000);
     return () => window.clearInterval(id);
   }, [hasAnyLive]);
+
+  useEffect(() => {
+    if (!normalizedHighlight || loading || sortedMatches.length === 0) return;
+    const target = document.getElementById(rankingMatchDomId(normalizedHighlight));
+    if (!target) return;
+    const id = window.setTimeout(() => {
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 120);
+    return () => window.clearTimeout(id);
+  }, [normalizedHighlight, loading, sortedMatches.length]);
 
   return (
     <section aria-label="Resultados das partidas e seus palpites">
@@ -275,6 +298,10 @@ export function RankingBoardMatchResults({
                 key={`${row.ticketId}-${row.matchId}`}
                 row={row}
                 nowMs={nowMs}
+                highlighted={
+                  normalizedHighlight != null &&
+                  String(row.matchId) === normalizedHighlight
+                }
               />
             ))}
           </ul>
