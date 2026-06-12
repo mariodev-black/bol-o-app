@@ -17,6 +17,8 @@ type RouteErrorPageProps = {
   showAppChrome?: boolean;
   /** Versão mínima para global-error (sem providers). */
   minimal?: boolean;
+  /** Dentro de layout com header/nav — não ocupa tela inteira. */
+  embedded?: boolean;
 };
 
 export function RouteErrorPage({
@@ -26,6 +28,7 @@ export function RouteErrorPage({
   message = "Algo deu errado ao abrir esta tela. Tente recarregar ou volte para continuar palpitando.",
   showAppChrome = false,
   minimal = false,
+  embedded = false,
 }: RouteErrorPageProps) {
   useEffect(() => {
     if (digest) {
@@ -101,6 +104,14 @@ export function RouteErrorPage({
       ) : null}
     </div>
   );
+
+  if (embedded) {
+    return (
+      <div className="flex flex-col items-center justify-center px-4 py-16 text-center">
+        {content}
+      </div>
+    );
+  }
 
   if (minimal) {
     return (

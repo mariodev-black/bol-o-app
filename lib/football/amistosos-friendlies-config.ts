@@ -1,6 +1,8 @@
 import { getAmistososFriendliesCompetitionId } from "@/lib/football/amistosos-friendlies";
 import { getAllSyncedCompetitionIds } from "@/lib/boloes-extra-config";
 import { getSkaleBolaoCompetitionId, isSkaleBolaoEnabled } from "@/lib/boloes/skale-config";
+import { getChampionsChampionshipId } from "@/lib/boloes-outros-grid";
+
 function env(name: string): string {
   const raw = process.env[name];
   return raw == null ? "" : String(raw).trim();
@@ -15,9 +17,13 @@ function parseIdsFromEnv(name: string): number[] {
     .filter((n) => Number.isFinite(n) && n > 0);
 }
 
-/** Competições extras que não devem ser sincronizadas pela API-Futebol. */
+/**
+ * Competições extras que NÃO devem ser sincronizadas pela API-Futebol.
+ * Champions League (card de branding) não está no plano da API → retorna 401;
+ * fica só como card no grid, sem sync.
+ */
 export function getFootballApiSyncExcludedCompetitionIds(): number[] {
-  const ids = [getAmistososFriendliesCompetitionId()];
+  const ids = [getAmistososFriendliesCompetitionId(), getChampionsChampionshipId()];
   if (isSkaleBolaoEnabled()) ids.push(getSkaleBolaoCompetitionId());
   for (const id of parseIdsFromEnv("FOOTBALL_API_SYNC_EXCLUDED_COMPETITION_IDS")) {
     ids.push(id);

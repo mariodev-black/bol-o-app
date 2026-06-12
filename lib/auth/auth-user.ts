@@ -2,6 +2,8 @@ export type AuthUser = {
   id: string;
   email: string;
   name: string | null;
+  /** Apelido público exibido no ranking (null ⇒ usa `name`). */
+  nickname: string | null;
   avatarUrl: string | null;
   /** Preset 0–4 (`app/assets/avatares/{n}.png`), persistido em `users.avatar_index`. */
   avatarIndex: number;

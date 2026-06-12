@@ -1,7 +1,12 @@
 import { unstable_cache } from "next/cache";
 import { fetchMatchesMap, getMatchFromMap, matchMapKey } from "@/lib/football-api";
 import {
-  calcPredictionPoints,
+  ensureSkaleBolaoMatchesMirrored,
+  isMatchInSkaleBolaoPool,
+  resolveBolaoMatchFromMap,
+  skaleCompetitionIdsForMatchMap,
+} from "@/lib/boloes/skale-match-resolve";
+import {
   listMatchIdsForTicketPredictions,
   listPredictionsAggregateByBolao,
   listPredictionsAggregateByExtraCompetition,
@@ -11,6 +16,7 @@ import {
 import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
 import {
   getSkaleBolaoCompetitionId,
+  getSkaleBolaoSourceCopaCompetitionId,
   isSkaleBolaoCompetition,
 } from "@/lib/boloes/skale-config";
 import { calculateSkalePrizePoolCents } from "@/lib/boloes/skale-prize";
@@ -28,7 +34,14 @@ import {
 import { effectiveExtraRoundForPaidTicket } from "@/lib/ticket-shop-extra-display";
 import { calculatePrizePoolCents } from "@/lib/prizes/distribution";
 import { clampAvatarIndex } from "@/lib/auth/avatar-index";
-import { hasOfficialMatchResult, isLiveOrInProgressMatchStatus } from "@/lib/palpites-match-open";
+import {
+  dedupeLatestPredictions,
+  scorePredictionAgainstMatch,
+} from "@/lib/predictions/score-aggregate";
+import {
+  hasOfficialMatchResult,
+  isLiveOrInProgressMatchStatus,
+} from "@/lib/palpites-match-open";
 import { isRankingFillerRow } from "@/lib/ranking/ranking-bots";
 import { isStoredAvatarUploadFilename } from "@/lib/user/avatar-filename";
 
@@ -111,7 +124,7 @@ function buildTicketPlayDatesByCompetition(
   const ticketDates = new Map<string, Set<string>>();
   for (const p of predictions) {
     if (!allowedTicketIds.has(p.ticket_id)) continue;
-    const mi = getMatchFromMap(matches, competitionId, Number(p.match_id));
+    const mi = resolveBolaoMatchFromMap(matches, competitionId, Number(p.match_id));
     if (!mi || Number(mi.competitionId) !== competitionId) continue;
     const date = mi.dateBR;
     if (!date) continue;
@@ -146,7 +159,7 @@ function buildTicketFirstPlayRoundByCompetition(
   const first = new Map<string, { rodada: number; at: number }>();
   for (const p of predictions) {
     if (!allowedTicketIds.has(p.ticket_id)) continue;
-    const mi = getMatchFromMap(matches, competitionId, Number(p.match_id));
+    const mi = resolveBolaoMatchFromMap(matches, competitionId, Number(p.match_id));
     if (!mi || Number(mi.competitionId) !== competitionId) continue;
     const rodada = mi.rodada;
     if (rodada == null || !Number.isFinite(rodada) || rodada <= 0) continue;
@@ -303,11 +316,11 @@ function aggregatePredictions(
 ): Map<string, AggRow> {
   const byTicket = new Map<string, AggRow>();
 
-  for (const prediction of predictions) {
+  for (const prediction of dedupeLatestPredictions(predictions)) {
     if (!allowedTicketIds.has(prediction.ticket_id)) continue;
     const matchId = Number(prediction.match_id);
     if (!Number.isFinite(matchId)) continue;
-    const match = getMatchFromMap(matches, competitionId, matchId);
+    const match = resolveBolaoMatchFromMap(matches, competitionId, matchId);
     const submitMs = new Date(prediction.submitted_at).getTime();
     if (!Number.isFinite(submitMs)) continue;
 
@@ -327,10 +340,8 @@ function aggregatePredictions(
     cur.firstSubmitAt = Math.min(cur.firstSubmitAt, submitMs);
 
     if (match != null) {
-      const rc = match.resultCasa;
-      const rv = match.resultVisitante;
-      if (rc != null && rv != null) {
-        const calc = calcPredictionPoints(prediction.score_casa, prediction.score_visitante, rc, rv);
+      const calc = scorePredictionAgainstMatch(prediction, match);
+      if (calc != null) {
         cur.totalPoints += calc.points;
         cur.exactCount += calc.exact ? 1 : 0;
         cur.outcomeCount += calc.outcomeHit ? 1 : 0;
@@ -392,7 +403,7 @@ function poolMatchesForPreds(
     const key = matchMapKey(competitionId, mid);
     if (seen.has(key)) continue;
     seen.add(key);
-    const m = getMatchFromMap(matches, competitionId, mid);
+    const m = resolveBolaoMatchFromMap(matches, competitionId, mid);
     if (m) out.push(m);
   }
   return out;
@@ -887,8 +898,12 @@ async function buildLeaderboardSkaleUncached(): Promise<{
   meta: LeaderboardBoardMeta;
 }> {
   const skaleComp = getSkaleBolaoCompetitionId();
+  await ensureSkaleBolaoMatchesMirrored();
+  const copaId = getSkaleBolaoSourceCopaCompetitionId();
   const [matches, paidTickets, preds] = await Promise.all([
-    fetchMatchesMap().catch(() => new Map<string, MatchInfo>()),
+    fetchMatchesMap({
+      ensureCompetitionIds: [skaleComp, copaId],
+    }).catch(() => new Map<string, MatchInfo>()),
     loadPaidTickets("extra", skaleComp, { includePromoBonus: false }),
     listPredictionsAggregateByExtraCompetition(skaleComp),
   ]);
@@ -944,7 +959,7 @@ async function buildLeaderboardSkaleUncached(): Promise<{
   const poolCentsApprox = calculateSkalePrizePoolCents(revenueCents);
   const nextPalpiteLockMs = computeNextPalpiteLockMs(
     matches,
-    (m) => Number(m.competitionId) === skaleComp,
+    (m) => isMatchInSkaleBolaoPool(m, skaleComp),
     palpiteLockBeforeKickoffMs("extra"),
   );
   const approxPremiados = Math.min(3, Math.max(participantCount > 0 ? 1 : 0, participantCount));
@@ -989,12 +1004,7 @@ export async function buildLeaderboardExtraForTicket(
   const extraComp = Number(ticketRow.extra_championship_id);
 
   if (isSkaleBolaoCompetition(extraComp)) {
-    const getCached = unstable_cache(
-      async () => buildLeaderboardSkaleUncached(),
-      ["leaderboard", "skale", String(extraComp), "v1"],
-      { revalidate: RANKING_REVALIDATE_SEC, tags: ["leaderboard"] },
-    );
-    return getCached();
+    return buildLeaderboardSkaleUncached();
   }
 
   const [matches, paidExtra, allExtra] = await Promise.all([
@@ -1087,7 +1097,7 @@ async function buildLeaderboardExtraForCompRoundUncached(
     if (roundMatchIds.size > 0) {
       return roundMatchIds.has(mid);
     }
-    const mi = getMatchFromMap(matches, extraComp, mid);
+    const mi = resolveBolaoMatchFromMap(matches, extraComp, mid);
     if (!mi || Number(mi.competitionId) !== extraComp) return false;
     return matchInExtraPool(mi, poolRodada, poolPlayDate);
   });
@@ -1282,6 +1292,7 @@ export async function buildLeaderboardExtraForTicketDebug(
 type UserLite = {
   id: string;
   name: string | null;
+  nickname: string | null;
   email: string;
   avatar_index: string | number | null;
   avatar_upload_filename: string | null;
@@ -1294,6 +1305,8 @@ function safeUploadFilename(v: string | null | undefined): string | null {
 
 function displayNameFromUser(u: UserLite | undefined): string {
   if (!u) return "Jogador";
+  const nick = typeof u.nickname === "string" ? u.nickname.trim() : "";
+  if (nick) return nick;
   const n = typeof u.name === "string" ? u.name.trim() : "";
   if (n) return n;
   const email = typeof u.email === "string" ? u.email.trim() : "";
@@ -1306,7 +1319,7 @@ async function loadUsersMap(userIds: string[]): Promise<Map<string, UserLite>> {
   if (userIds.length === 0) return out;
   const pool = getPool();
   const { rows } = await pool.query<UserLite>(
-    `SELECT id::text AS id, name, email, avatar_index, avatar_upload_filename
+    `SELECT id::text AS id, name, nickname, email, avatar_index, avatar_upload_filename
      FROM users
      WHERE id::text = ANY($1::text[])`,
     [userIds]

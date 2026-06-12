@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { authLog, oauthRequestSnapshot } from "@/lib/auth/oauth-console";
 import { isValidCpf, normalizeCpf } from "@/lib/auth/cpf";
+import { sanitizeNickname } from "@/lib/user/nickname";
 import { hashPassword } from "@/lib/auth/password";
 import { enrichAuthUserWithSkaleFunnel } from "@/lib/auth/skale-funnel-auth";
 import { attachSessionCookie } from "@/lib/auth/session";
@@ -17,6 +18,8 @@ export const runtime = "nodejs";
 
 const bodySchema = z.object({
   name: z.string().trim().min(2, "Informe seu nome").max(120, "Nome muito longo"),
+  /** Apelido público no ranking (opcional). */
+  nickname: z.string().max(40).optional().nullable(),
   email: z.string().email("E-mail inválido"),
   cpf: z.string().min(1, "CPF obrigatório"),
   password: z.string().min(8, "Senha deve ter no mínimo 8 caracteres").max(200),
@@ -61,6 +64,11 @@ export async function POST(request: NextRequest) {
 
   const fullName = nameRaw.trim();
 
+  const nick = sanitizeNickname(parsed.data.nickname);
+  if (!nick.ok) {
+    return NextResponse.json({ error: nick.error }, { status: 400 });
+  }
+
   const phoneDigits = phone.replace(/\D/g, "");
   if (!isValidBrazilNationalDigits(phoneDigits)) {
     return NextResponse.json({ error: "Telefone inválido" }, { status: 400 });
@@ -100,6 +108,7 @@ export async function POST(request: NextRequest) {
       cpf,
       passwordHash,
       name: fullName,
+      nickname: nick.value,
       phone: phoneE164,
       inviteCodeEntered,
     });

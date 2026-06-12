@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
-import { fetchMatchesMap, getMatchFromMap } from "@/lib/football-api";
+import { fetchMatchesMap } from "@/lib/football-api";
+import { resolveBolaoMatchFromMap } from "@/lib/boloes/skale-match-resolve";
 import { calcPredictionPoints, listPredictions, type PredictionBolaoType } from "@/lib/predictions";
 import { inferBolaoTypeFromTicketId } from "@/lib/ticket-kind-server";
 import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
@@ -67,12 +68,12 @@ export async function GET(request: NextRequest) {
     const selectedDates = new Set(
       preds
         .filter((p) => p.ticket_id === ticketId)
-        .map((p) => getMatchFromMap(matches, filterComp, Number(p.match_id))?.dateBR)
+        .map((p) => resolveBolaoMatchFromMap(matches, filterComp, Number(p.match_id))?.dateBR)
         .filter((d): d is string => Boolean(d))
     );
     if (selectedDates.size > 0) {
       preds = preds.filter((p) => {
-        const d = getMatchFromMap(matches, filterComp, Number(p.match_id))?.dateBR;
+        const d = resolveBolaoMatchFromMap(matches, filterComp, Number(p.match_id))?.dateBR;
         return d ? selectedDates.has(d) : false;
       });
     } else {
@@ -98,7 +99,7 @@ export async function GET(request: NextRequest) {
     if (!Number.isFinite(matchId)) continue;
     const comp = p.bolao_type === "extra" ? extraForRanking.get(p.ticket_id) ?? null : mainComp;
     if (comp == null || !Number.isFinite(comp) || comp <= 0) continue;
-    const m = getMatchFromMap(matches, comp, matchId);
+    const m = resolveBolaoMatchFromMap(matches, comp, matchId);
     if (!m || m.resultCasa == null || m.resultVisitante == null) continue;
     const cur =
       byTicket.get(p.ticket_id) ??

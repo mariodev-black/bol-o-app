@@ -5,8 +5,10 @@ import {
 } from "@/lib/boloes/daily-editions";
 import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
 import { isSkaleBolaoCompetition } from "@/lib/boloes/skale-config";
+import { skaleScopeMatchesFromMap } from "@/lib/boloes/skale-match-resolve";
 import { resolveDiarioPlayableDate } from "@/lib/diario-playable-date";
-import { getMatchFromMap, type MatchMap, type MatchMapEntry } from "@/lib/football-api";
+import { resolveBolaoMatchFromMap } from "@/lib/boloes/skale-match-resolve";
+import { type MatchMap, type MatchMapEntry } from "@/lib/football-api";
 import type { PaidTicketRow } from "@/lib/payments/user-tickets";
 
 export function matchToBolaoPhaseInput(
@@ -51,7 +53,7 @@ export function matchEntriesFromPredictions(
   for (const rawId of predictionMatchIds) {
     const mid = Number(rawId);
     if (!Number.isFinite(mid)) continue;
-    const m = getMatchFromMap(matches, comp, mid);
+    const m = resolveBolaoMatchFromMap(matches, comp, mid);
     if (m) out.push(m);
   }
   return out;
@@ -138,7 +140,7 @@ export function scopeMatchesForPaidTicket(
   if (!Number.isFinite(comp) || comp <= 0) return [];
 
   if (isSkaleBolaoCompetition(comp)) {
-    return list.filter((m) => (Number(m.competitionId) || comp) === comp);
+    return skaleScopeMatchesFromMap(matches, comp);
   }
 
   const round =

@@ -152,7 +152,8 @@ function PodiumCard({
           ) : null}
         </div>
         <p className="mt-2 text-[9px] font-black uppercase tracking-wide text-white/48">
-          {row.outcomeCount} acertos
+          {row.exactCount}{" "}
+          {row.exactCount === 1 ? "placar exato" : "placares exatos"}
         </p>
         <p
           className="mt-0.5 text-center font-black leading-none text-primary"
@@ -211,7 +212,7 @@ function RankingDataRow({ row }: { row: RankingBoardRow }) {
         ) : null}
       </div>
       <span className="text-right text-[12px] font-bold tabular-nums text-white/78">
-        {row.outcomeCount}
+        {row.exactCount}
       </span>
       <span className="text-right text-[16px] font-black tabular-nums text-primary">
         {row.totalPoints}
@@ -367,7 +368,7 @@ export function RankingBoardPanel({
           <div className="grid grid-cols-[40px_minmax(0,1fr)_64px_56px] gap-1 border-b border-white/7 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-white/45 min-[380px]:text-[11px]">
             <span>#</span>
             <span>Jogador</span>
-            <span className="text-right">Acertos</span>
+            <span className="text-right">Exatos</span>
             <span className="text-right">Pontos</span>
           </div>
           {rowsAfterPodium.length > 0 ? (

@@ -43,7 +43,10 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: "Cota nao encontrada" }, { status: 403 });
       }
       const { rows, meta } = await buildLeaderboardDiarioForTicket(ticketId);
-      const rowsWithMe = rows.map((r) => ({ ...r, isMe: r.userId === userId }));
+      const rowsWithMe = rows.map((r) => ({
+        ...r,
+        isMe: r.ticketId === ticketId,
+      }));
       return NextResponse.json({ rows: rowsWithMe, meta }, { headers: NO_STORE });
     }
 
@@ -57,7 +60,10 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: "Cota nao encontrada" }, { status: 403 });
       }
       const { rows, meta } = await buildLeaderboardExtraForTicket(ticketId);
-      const rowsWithMe = rows.map((r) => ({ ...r, isMe: r.userId === userId }));
+      const rowsWithMe = rows.map((r) => ({
+        ...r,
+        isMe: r.ticketId === ticketId,
+      }));
       return NextResponse.json({ rows: rowsWithMe, meta }, { headers: NO_STORE });
     }
 

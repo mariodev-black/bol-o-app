@@ -82,8 +82,12 @@ export function scopeStatusColor(status: RankingScopeStatus): string {
 export function scopeStatusLabel(option: {
   status: RankingScopeStatus;
   statusLabel: string;
+  palpitesSentCount?: number;
 }): string {
-  if (option.status === "aguardando") return "Falta enviar seu palpite";
+  const sent = Math.max(0, option.palpitesSentCount ?? 0);
+  if (option.status === "aguardando") {
+    return sent > 0 ? "Palpites em aberto" : "Falta enviar seu palpite";
+  }
   return option.statusLabel;
 }
 

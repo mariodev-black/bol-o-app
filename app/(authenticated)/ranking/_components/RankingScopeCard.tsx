@@ -42,7 +42,11 @@ export function RankingScopeCard({
 }) {
   const { primary, secondary } = scopeSelectLines(option);
   const header = scopeCardHeaderParts(option, primary);
-  const statusLabel = scopeStatusLabel(option);
+  const statusLabel = scopeStatusLabel({
+    status: option.status,
+    statusLabel: option.statusLabel,
+    palpitesSentCount: option.palpitesSentCount,
+  });
   const statusColor = scopeStatusColor(option.status);
   const roundLabel = scopeRoundLabel(option);
   const pendingBarLine = scopePendingBarMessage({

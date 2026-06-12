@@ -7,12 +7,14 @@ import { deleteUserAvatarFile, newRandomAvatarFilename, assertAvatarUploadBuffer
 import { fetchPictureAsBuffer } from "@/lib/google/fetch-picture-as-buffer";
 
 const U =
-  "id, email, cpf, password_hash, name, phone, avatar_url, avatar_index, avatar_upload_filename, google_sub, email_verified_at, referral_code, referred_by_user_id";
+  "id, email, cpf, password_hash, name, nickname, phone, avatar_url, avatar_index, avatar_upload_filename, google_sub, email_verified_at, referral_code, referred_by_user_id";
 
 export type PublicUser = {
   id: string;
   email: string;
   name: string | null;
+  /** Apelido público exibido no ranking (null ⇒ usa `name`). */
+  nickname: string | null;
   avatarUrl: string | null;
   /** Preset local 0–4 (`app/assets/avatares/{n}.png`). */
   avatarIndex: number;
@@ -31,6 +33,7 @@ type UserRow = {
   cpf: string | null;
   password_hash: string | null;
   name: string | null;
+  nickname: string | null;
   phone: string | null;
   avatar_url: string | null;
   avatar_index: string | number | null;
@@ -69,6 +72,7 @@ function toPublic(row: UserRow): PublicUser {
     id: row.id,
     email: row.email,
     name: row.name,
+    nickname: row.nickname?.trim() || null,
     avatarUrl: row.avatar_url,
     avatarIndex: rowAvatarIndex(row),
     avatarUploadFilename: rowAvatarUploadFilename(row),
@@ -78,13 +82,18 @@ function toPublic(row: UserRow): PublicUser {
 }
 
 export async function findUserById(id: string): Promise<PublicUser | null> {
-  const pool = getPool();
-  const { rows } = await pool.query<UserRow>(
-    `SELECT ${U} FROM users WHERE id = $1 LIMIT 1`,
-    [id]
-  );
-  const row = rows[0];
-  return row ? toPublic(row) : null;
+  try {
+    const pool = getPool();
+    const { rows } = await pool.query<UserRow>(
+      `SELECT ${U} FROM users WHERE id = $1 LIMIT 1`,
+      [id],
+    );
+    const row = rows[0];
+    return row ? toPublic(row) : null;
+  } catch (error) {
+    console.error("[users] findUserById failed", error);
+    return null;
+  }
 }
 
 export async function findUserCreatedAt(id: string): Promise<Date | null> {
@@ -170,6 +179,8 @@ export async function createUserWithPassword(input: {
   cpf: string;
   passwordHash: string;
   name: string;
+  /** Apelido público (já sanitizado). null ⇒ usa o nome no ranking. */
+  nickname?: string | null;
   phone: string | null;
   /** Código de outro usuário (opcional). */
   inviteCodeEntered: string | null;
@@ -190,14 +201,15 @@ export async function createUserWithPassword(input: {
   const avatarIndex = randomPresetAvatarIndex();
 
   const { rows } = await pool.query<UserRow>(
-    `INSERT INTO users (email, cpf, password_hash, name, phone, referral_code, referred_by_user_id, avatar_index)
-     VALUES (lower(trim($1)), $2, $3, trim($4), $5, $6, $7, $8)
+    `INSERT INTO users (email, cpf, password_hash, name, nickname, phone, referral_code, referred_by_user_id, avatar_index)
+     VALUES (lower(trim($1)), $2, $3, trim($4), $5, $6, $7, $8, $9)
      RETURNING ${U}`,
     [
       input.email,
       input.cpf,
       input.passwordHash,
       displayName,
+      input.nickname ?? null,
       input.phone,
       myCode,
       referredByUserId,
@@ -446,6 +458,16 @@ export async function updateUserPasswordHash(userId: string, passwordHash: strin
   const r = await pool.query(`UPDATE users SET password_hash = $2, updated_at = now() WHERE id = $1`, [
     userId,
     passwordHash,
+  ]);
+  return (r.rowCount ?? 0) > 0;
+}
+
+/** Atualiza o apelido público (ranking). `null` ⇒ limpa (volta a usar o nome). */
+export async function updateUserNickname(userId: string, nickname: string | null): Promise<boolean> {
+  const pool = getPool();
+  const r = await pool.query(`UPDATE users SET nickname = $2, updated_at = now() WHERE id = $1`, [
+    userId,
+    nickname,
   ]);
   return (r.rowCount ?? 0) > 0;
 }

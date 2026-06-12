@@ -3,6 +3,11 @@
  * da API-Futebol (`campeonato_id`). Lista em `BOLOES_EXTRA_CHAMPIONSHIP_IDS`.
  */
 
+import {
+  getSkaleBolaoCompetitionId,
+  isSkaleBolaoEnabled,
+} from "@/lib/boloes/skale-config";
+
 function env(name: string): string {
   const raw = process.env[name];
   return raw == null ? "" : String(raw).trim();
@@ -31,7 +36,8 @@ export function getCopaChampionshipId(): number {
 export function getAllSyncedCompetitionIds(): number[] {
   const main = getFootballMainCompetitionId();
   const extras = parseExtraBolaoChampionshipIds();
-  return [...new Set([main, ...extras])];
+  const skale = isSkaleBolaoEnabled() ? [getSkaleBolaoCompetitionId()] : [];
+  return [...new Set([main, ...extras, ...skale])];
 }
 
 /** Preço unitário do ticket extra (default R$ 10,00). */

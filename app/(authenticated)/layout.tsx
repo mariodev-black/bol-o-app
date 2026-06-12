@@ -4,6 +4,7 @@ import { PushNotificationsModal } from "@/app/shared/PushNotificationsModal";
 import { Header } from "../shared/Header";
 import { Suspense } from "react";
 import { buildPageMetadata } from "@/lib/seo/config";
+import { AuthenticatedErrorShell } from "./AuthenticatedErrorShell";
 
 export const metadata: Metadata = buildPageMetadata({
   title: "Área do participante",
@@ -17,15 +18,17 @@ export default function AuthenticatedLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen flex flex-col">
-      <PushNotificationsModal />
-      <Header />
-      <div className="flex flex-1 pt-[var(--app-header-height,55px)] lg:pt-[var(--app-header-height,80px)]">
-        <main className="flex min-w-0 flex-1 flex-col pb-32 md:pb-8">{children}</main>
+    <AuthenticatedErrorShell>
+      <div className="min-h-screen flex flex-col">
+        <PushNotificationsModal />
+        <Header />
+        <div className="flex flex-1 pt-[var(--app-header-height,55px)] lg:pt-[var(--app-header-height,80px)]">
+          <main className="flex min-w-0 flex-1 flex-col pb-32 md:pb-8">{children}</main>
+        </div>
+        <Suspense fallback={null}>
+          <NavBottom />
+        </Suspense>
       </div>
-      <Suspense fallback={null}>
-        <NavBottom />
-      </Suspense>
-    </div>
+    </AuthenticatedErrorShell>
   );
 }

@@ -1,5 +1,11 @@
-import { fetchMatchesMap, getMatchFromMap } from "@/lib/football-api";
-import { calcPredictionPoints, listPredictions } from "@/lib/predictions";
+import { fetchMatchesMap } from "@/lib/football-api";
+import {
+  ensureSkaleBolaoMatchesMirrored,
+  resolveBolaoMatchFromMap,
+  skaleCompetitionIdsForMatchMap,
+} from "@/lib/boloes/skale-match-resolve";
+import { listPredictions } from "@/lib/predictions";
+import { dedupeLatestPredictions, scorePredictionAgainstMatch } from "@/lib/predictions/score-aggregate";
 import {
   filterPredictionsForExtraTicketRound,
   resolveExtraTicketRoundScope,
@@ -45,7 +51,10 @@ export async function computePalpitesResumo(
 
   const [predsRaw, matches] = await Promise.all([
     listPredictions({ userId, bolaoType, ticketId }),
-    fetchMatchesMap(),
+    (async () => {
+      await ensureSkaleBolaoMatchesMirrored();
+      return fetchMatchesMap({ ensureCompetitionIds: skaleCompetitionIdsForMatchMap() });
+    })(),
   ]);
 
   let preds = predsRaw;
@@ -66,15 +75,28 @@ export async function computePalpitesResumo(
   let pontos = 0;
   let exatos = 0;
 
-  for (const p of preds) {
+  const deduped = dedupeLatestPredictions(
+    preds.map((row) => ({
+      ticket_id: row.ticket_id,
+      match_id: row.match_id,
+      score_casa: row.score_casa,
+      score_visitante: row.score_visitante,
+      submitted_at: row.submitted_at,
+    })),
+  );
+  const bolaoByTicket = new Map(preds.map((row) => [row.ticket_id, row.bolao_type]));
+
+  for (const p of deduped) {
     palpites += 1;
     const matchId = Number(p.match_id);
     if (!Number.isFinite(matchId)) continue;
-    const comp = p.bolao_type === "extra" ? extraMap.get(p.ticket_id) ?? null : mainComp;
+    const bolao = bolaoByTicket.get(p.ticket_id);
+    const comp = bolao === "extra" ? extraMap.get(p.ticket_id) ?? null : mainComp;
     if (comp == null || !Number.isFinite(comp) || comp <= 0) continue;
-    const m = getMatchFromMap(matches, comp, matchId);
-    if (!m || m.resultCasa == null || m.resultVisitante == null) continue;
-    const calc = calcPredictionPoints(p.score_casa, p.score_visitante, m.resultCasa, m.resultVisitante);
+    const m = resolveBolaoMatchFromMap(matches, comp, matchId);
+    if (!m) continue;
+    const calc = scorePredictionAgainstMatch(p, m);
+    if (calc == null) continue;
     pontos += calc.points;
     acertos += calc.outcomeHit ? 1 : 0;
     exatos += calc.exact ? 1 : 0;
