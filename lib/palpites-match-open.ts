@@ -128,9 +128,9 @@ export function palpiteRejectErrorMessage(
     case "finished":
       return "Partida ja encerrada para palpites";
     case "lock_window":
-      return bolaoType === "extra"
-        ? "Palpite recusado: o prazo maximo e ate 5 minutos antes do apito. Apos esse limite nao aceita nem primeiro palpite nem alteracao."
-        : "Palpite recusado: o prazo maximo e ate 1h antes do apito. Na ultima hora antes do jogo nao aceita nem primeiro palpite nem alteracao; quem nao registrou a tempo nao entra nesta partida.";
+      return bolaoType === "diario"
+        ? "Palpite recusado: o prazo maximo e ate 1h antes do apito. Na ultima hora antes do jogo nao aceita nem primeiro palpite nem alteracao; quem nao registrou a tempo nao entra nesta partida."
+        : "Palpite recusado: o prazo maximo e ate 5 minutos antes do apito. Apos esse limite nao aceita nem primeiro palpite nem alteracao.";
     case "live":
       return "Palpite recusado: partida em andamento. So e possivel palpitar ou alterar antes do apito.";
     case "match_started":

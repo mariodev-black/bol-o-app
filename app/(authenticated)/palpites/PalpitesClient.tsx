@@ -53,6 +53,7 @@ import {
 } from "@/lib/partida-placar";
 import {
   palpiteLockBeforeKickoffMs,
+  palpiteUsesFiveMinuteLock,
   type PredictionBolaoType,
 } from "@/lib/palpites-kickoff-lock";
 import {
@@ -199,11 +200,11 @@ function palpiteLockUiCopy(bolaoType: PredictionBolaoType): {
   faixaForaPrazo: string;
   rankingBloco: string;
 } {
-  if (bolaoType === "extra") {
+  if (palpiteUsesFiveMinuteLock(bolaoType)) {
     return {
       fechadoJaPassou: "Fechado: prazo era até 5 min antes do jogo",
       faixaForaPrazo:
-        "O prazo termina 5 minutos antes do apito. Depois disso não dá para apostar. Se você não tiver salvo um palpite antes desse horário, não entra nesta partida.",
+        "O prazo termina 5 minutos antes do apito. Depois disso não dá para apostar nem alterar. Se você não tiver salvo um palpite antes desse horário, não entra nesta partida.",
       rankingBloco:
         "Palpites só até 5 minutos antes do apito: após esse limite e após o início o sistema fecha. Quem não tiver palpite salvo até esse horário não entra na partida.",
     };
@@ -1314,7 +1315,7 @@ function JogoCard({
     return undefined;
   }, [lockAtMs, jogo.kickoffAt, readOnly, jogo.resultCasa, jogo.resultVisitante]);
   const isLockedByTime = lockAtMs != null ? nowMs >= lockAtMs : false;
-  /** Palpite até instantes antes do apito (1h no geral/dia, 5 min no extra). */
+  /** Palpite até instantes antes do apito (5 min Copa/Skale/extra; 1h no diário). */
   const matchOpen = isMatchOpenForPalpite(
     palpiteEligibilityFromJogo(jogo),
     bolaoType,

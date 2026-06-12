@@ -221,7 +221,10 @@ export async function listPaidTicketsForUser(
           return !finished && stillOpenByTime;
         });
 
-    const openMatchesDefaultLock = buildOpenMatches(palpiteLockBeforeKickoffMs("diario"));
+    const openMatchesPrincipalLock = buildOpenMatches(
+      palpiteLockBeforeKickoffMs("principal"),
+    );
+    const openMatchesDiarioLock = buildOpenMatches(palpiteLockBeforeKickoffMs("diario"));
     const openMatchesExtraLock = buildOpenMatches(palpiteLockBeforeKickoffMs("extra"));
 
     const byTicket = new Map<string, { ticket_id: string; match_id: number }[]>();
@@ -260,7 +263,7 @@ export async function listPaidTicketsForUser(
 
       if (t.ticketType === "general") {
         const predictedIds = new Set<number>(ticketPreds.map((p) => Number(p.match_id)).filter(Number.isFinite));
-        const openMain = openMatchesDefaultLock.filter((m) => m.competitionId === mainComp);
+        const openMain = openMatchesPrincipalLock.filter((m) => m.competitionId === mainComp);
         const availableGames = openMain.reduce((acc, m) => (predictedIds.has(m.matchId) ? acc : acc + 1), 0);
         return { ...t, availableGames, palpitesCount };
       }
@@ -300,19 +303,10 @@ export async function listPaidTicketsForUser(
         };
       }
 
-      const scopeOpenRaw =
+      const scopeOpen =
         t.ticketType === "daily"
-          ? openMatchesDefaultLock.filter((m) => m.competitionId === scopeComp)
-          : isSkaleBolaoCompetition(scopeComp)
-            ? openMatchesExtraLock.filter(
-                (m) =>
-                  m.competitionId === scopeComp ||
-                  m.competitionId === getSkaleBolaoSourceCopaCompetitionId(),
-              )
-            : openMatchesExtraLock.filter((m) => m.competitionId === scopeComp);
-      const scopeOpen = isSkaleBolaoCompetition(scopeComp)
-        ? dedupeOpenMatchesById(scopeOpenRaw)
-        : scopeOpenRaw;
+          ? openMatchesDiarioLock.filter((m) => m.competitionId === scopeComp)
+          : openMatchesExtraLock.filter((m) => m.competitionId === scopeComp);
       const playableDate = resolveDiarioPlayableDate(matchMap, { competitionId: scopeComp });
       const extraRound = paidTicketExtraRoundNumber(t);
 
