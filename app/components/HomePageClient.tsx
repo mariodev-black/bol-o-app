@@ -159,7 +159,7 @@ function LoggedInHome({
           .catch(() => ({}))) as PartidasResponse;
         if (!response.ok) throw new Error("Falha ao carregar partidas");
         const all = collectPalpitesAbertosFromPartidasPayload(data.partidas);
-        const picked = pickPalpitesAbertosForHome(all, 2);
+        const picked = pickPalpitesAbertosForHome(all, 15);
         loggedHomePalpitesCache = { at: Date.now(), matches: picked };
         if (!cancelled) setPalpitesAbertos(picked);
       } catch {
@@ -186,30 +186,39 @@ function LoggedInHome({
       <main className="min-h-screen bg-black pb-32 text-white">
         <HomeBannerCarousel />
 
-        <div className="mx-auto w-full max-w-[430px] px-3.5">
-          {/* Promo highlight — shown when active */}
-          {promoEnabled ? <PromoBrasilMarrocosHomeCard /> : null}
+        <div className="mx-auto w-full max-w-[460px] px-3.5 lg:max-w-[1040px]">
+          {/* Desktop: 2 colunas (cada uma ~largura mobile, componentes intactos). */}
+          <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-6">
+            {/* Coluna principal */}
+            <div>
+              {/* Promo highlight — shown when active */}
+              {promoEnabled ? <PromoBrasilMarrocosHomeCard /> : null}
 
-          {/* Palpites abertos — conteúdo mais dinâmico, em destaque */}
-          <PalpitesAbertosGrid
-            matches={palpitesAbertos}
-            loading={palpitesLoading}
-            className="mt-5"
-          />
+              {/* Palpites abertos — conteúdo mais dinâmico, em destaque */}
+              <PalpitesAbertosGrid
+                matches={palpitesAbertos}
+                loading={palpitesLoading}
+                className="mt-5"
+              />
 
-          {/* Outros bolões ativos */}
-          {outrosBoloes.length > 0 ? (
-            <OutrosBoloesGrid items={outrosBoloes} className="mt-5" />
-          ) : null}
+              {/* Outros bolões ativos */}
+              {outrosBoloes.length > 0 ? (
+                <OutrosBoloesGrid items={outrosBoloes} className="mt-5" />
+              ) : null}
 
-          <QuemEstaNoBolaoSection className="mt-5" />
+              <QuemEstaNoBolaoSection className="mt-5" />
+            </div>
 
-          <HomeClassificacaoCtaSection />
+            {/* Coluna lateral (desktop) — conteúdo de apoio/educacional */}
+            <div>
+              <HomeClassificacaoCtaSection />
 
-          {/* Como funciona — conteúdo educacional, ao final */}
-          <HomeComoFuncionaPontuacaoSection
-            onVerMaisPontuacao={() => setScoringExplainerOpen(true)}
-          />
+              {/* Como funciona — conteúdo educacional */}
+              <HomeComoFuncionaPontuacaoSection
+                onVerMaisPontuacao={() => setScoringExplainerOpen(true)}
+              />
+            </div>
+          </div>
         </div>
       </main>
       <ScoringExplainerModal

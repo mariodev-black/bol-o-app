@@ -42,6 +42,9 @@ SELECT
   source_updated_at, now()
 FROM matches_cache
 WHERE competition_id = $2::int
+  AND kickoff_at IS NOT NULL
+  -- Gambiarra: só sábado (6) e domingo (0), horário BRT
+  AND EXTRACT(DOW FROM (kickoff_at AT TIME ZONE 'America/Sao_Paulo')) IN (0, 6)
 ON CONFLICT (competition_id, match_id)
 DO UPDATE SET
   phase_key                = COALESCE(EXCLUDED.phase_key, matches_cache.phase_key),
@@ -151,6 +154,17 @@ export async function mirrorSkaleBolaoMatchesFromCopa(): Promise<SkaleBolaoSyncR
     copaId,
     SKALE_BOLAO_DISPLAY_NAME,
   ]);
+
+  // Gambiarra: remove do bolão qualquer jogo já espelhado que NÃO seja sáb/dom.
+  await pool.query(
+    `DELETE FROM matches_cache
+     WHERE competition_id = $1::int
+       AND (
+         kickoff_at IS NULL
+         OR EXTRACT(DOW FROM (kickoff_at AT TIME ZONE 'America/Sao_Paulo')) NOT IN (0, 6)
+       )`,
+    [skaleId],
+  );
 
   invalidateMatchMapMemoryAfterDbWrite();
 

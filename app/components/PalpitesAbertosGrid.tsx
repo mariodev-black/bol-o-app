@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Clock } from "lucide-react";
+import { ChevronRight, Clock } from "lucide-react";
 import {
   matchKickoffMs,
   type PalpiteAbertoMatch,
@@ -11,6 +11,9 @@ export type { PalpiteAbertoMatch };
 
 const GREEN = "#B1EB0B";
 const CARD_BG = "#111111";
+const MAX_MATCHES = 15;
+/** Mobile mostra poucas (normal); desktop mostra todas (até MAX_MATCHES). */
+const MOBILE_LIMIT = 5;
 
 function matchDayLabel(match: PalpiteAbertoMatch): string {
   const ms = matchKickoffMs(match);
@@ -27,107 +30,117 @@ function matchDayLabel(match: PalpiteAbertoMatch): string {
   return new Intl.DateTimeFormat("pt-BR", {
     weekday: "short",
     day: "2-digit",
-    month: "2-digit",
+    month: "short",
   })
     .format(target)
-    .replace(".", "")
+    .replace(/\./g, "")
     .toUpperCase();
 }
 
-function teamDisplaySlug(
-  team: PalpiteAbertoMatch["time_mandante"],
-): string {
-  const sigla = team.sigla?.trim();
-  if (sigla) return sigla.toUpperCase();
-  const popular = team.nome_popular?.trim();
-  if (popular) return popular.slice(0, 3).toUpperCase();
-  return "---";
+function teamName(team: PalpiteAbertoMatch["time_mandante"]): string {
+  return (
+    team.nome_popular?.trim() ||
+    team.sigla?.trim()?.toUpperCase() ||
+    "A definir"
+  );
 }
 
-function TeamLogoBox({
-  team,
-}: {
-  team: PalpiteAbertoMatch["time_mandante"];
-}) {
-  const sigla = teamDisplaySlug(team);
+function TeamFlag({ team }: { team: PalpiteAbertoMatch["time_mandante"] }) {
   return (
-    <span className="flex size-[56px] items-center justify-center rounded-[12px] bg-white p-2">
+    <span className="flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white">
       {team.escudo ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={team.escudo}
           alt=""
-          className="size-full object-contain"
+          className="size-full object-contain p-0.5"
           draggable={false}
         />
       ) : (
-        <span className="text-[13px] font-black text-[#0E141B]">{sigla}</span>
+        <span className="text-[9px] font-black text-[#0E141B]">
+          {team.sigla?.slice(0, 3).toUpperCase() ?? "?"}
+        </span>
       )}
     </span>
   );
 }
 
-function PalpiteAbertoCard({ match }: { match: PalpiteAbertoMatch }) {
-  const dayLabel = matchDayLabel(match);
+function MatchRow({
+  match,
+  hiddenOnMobile,
+}: {
+  match: PalpiteAbertoMatch;
+  hiddenOnMobile?: boolean;
+}) {
   const time = match.hora_realizacao?.slice(0, 5) || "--:--";
-
   return (
-    <article
-      className="flex min-w-0 flex-col rounded-[16px] px-3 pb-3 pt-3"
-      style={{ backgroundColor: CARD_BG }}
+    <Link
+      href="/palpites"
+      className={`${hiddenOnMobile ? "hidden lg:flex" : "flex"} items-center gap-3 px-3.5 py-3 transition-colors hover:bg-white/[0.04] focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary`}
     >
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-[13px] font-black uppercase tracking-wide text-primary">
-          {dayLabel}
-        </span>
-        <span className="flex items-center gap-1.5 text-[13px] font-bold tabular-nums text-white">
-          <Clock className="size-4 shrink-0 opacity-90" strokeWidth={2.4} aria-hidden />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <TeamFlag team={match.time_mandante} />
+          <span className="truncate text-[13.5px] font-bold leading-tight text-white">
+            {teamName(match.time_mandante)}
+          </span>
+        </div>
+        <div className="mt-1.5 flex items-center gap-2">
+          <TeamFlag team={match.time_visitante} />
+          <span className="truncate text-[13.5px] font-bold leading-tight text-white">
+            {teamName(match.time_visitante)}
+          </span>
+        </div>
+        <div className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold tabular-nums text-white/45">
+          <Clock className="size-3.5 shrink-0" strokeWidth={2.4} aria-hidden />
           {time}
-        </span>
-      </div>
-
-      <div className="mt-3 flex items-start justify-center gap-3">
-        <div className="flex min-w-0 flex-1 flex-col items-center gap-2">
-          <TeamLogoBox team={match.time_mandante} />
-          <span className="text-[14px] font-black leading-none text-white">
-            {teamDisplaySlug(match.time_mandante)}
-          </span>
-        </div>
-
-        <span
-          className="mt-5 shrink-0 px-1 text-[15px] font-black leading-none text-white"
-          aria-hidden
-        >
-          X
-        </span>
-
-        <div className="flex min-w-0 flex-1 flex-col items-center gap-2">
-          <TeamLogoBox team={match.time_visitante} />
-          <span className="text-[14px] font-black leading-none text-white">
-            {teamDisplaySlug(match.time_visitante)}
-          </span>
         </div>
       </div>
 
-      <Link
-        href="/boloes"
-        className="mt-4 flex h-10 w-full items-center justify-center rounded-[11px] bg-primary text-[12px] font-black uppercase tracking-[0.02em] text-[#0E141B] transition-transform active:scale-[0.98] hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-      >
-        Fazer palpite
-      </Link>
-    </article>
+      <span className="inline-flex h-9 shrink-0 items-center gap-1 rounded-[10px] bg-primary pl-3 pr-2 text-[11.5px] font-black uppercase tracking-[0.02em] text-[#0E141B]">
+        Palpitar
+        <ChevronRight className="size-4" strokeWidth={2.6} aria-hidden />
+      </span>
+    </Link>
   );
+}
+
+type DayGroup = {
+  label: string;
+  items: PalpiteAbertoMatch[];
+  /** Índice global do 1º jogo do grupo (para cortar no mobile). */
+  startIndex: number;
+};
+
+function groupByDay(matches: PalpiteAbertoMatch[]): DayGroup[] {
+  const sorted = [...matches]
+    .sort((a, b) => matchKickoffMs(a) - matchKickoffMs(b))
+    .slice(0, MAX_MATCHES);
+  const groups: DayGroup[] = [];
+  for (const m of sorted) {
+    const label = matchDayLabel(m);
+    const last = groups[groups.length - 1];
+    if (last && last.label === label) last.items.push(m);
+    else groups.push({ label, items: [m], startIndex: 0 });
+  }
+  let acc = 0;
+  for (const g of groups) {
+    g.startIndex = acc;
+    acc += g.items.length;
+  }
+  return groups;
 }
 
 function PalpitesAbertosSkeleton() {
   return (
-    <div className="grid grid-cols-2 gap-x-3.5 gap-y-3">
-      {[0, 1].map((i) => (
-        <div
-          key={i}
-          className="h-[172px] animate-pulse rounded-[16px] bg-white/8"
-          aria-hidden
-        />
+    <div
+      className="overflow-hidden rounded-[16px]"
+      style={{ backgroundColor: CARD_BG }}
+      aria-hidden
+    >
+      <div className="h-9 animate-pulse bg-white/8" />
+      {[0, 1, 2, 3].map((i) => (
+        <div key={i} className="h-[76px] animate-pulse border-t border-white/5 bg-white/[0.03]" />
       ))}
     </div>
   );
@@ -142,6 +155,8 @@ export function PalpitesAbertosGrid({
   loading: boolean;
   className?: string;
 }) {
+  const groups = groupByDay(matches);
+
   return (
     <section className={className} aria-labelledby="palpites-abertos-heading">
       <div className="mb-3 flex items-center justify-between gap-3">
@@ -149,10 +164,10 @@ export function PalpitesAbertosGrid({
           id="palpites-abertos-heading"
           className="text-[15px] font-black uppercase tracking-[0.04em] text-white"
         >
-          PALPITES ABERTOS
+          PRÓXIMAS PARTIDAS
         </h2>
         <Link
-          href="/boloes"
+          href="/palpites"
           className="shrink-0 text-[13px] font-black uppercase tracking-wide transition-opacity hover:opacity-90"
           style={{ color: GREEN }}
         >
@@ -162,19 +177,41 @@ export function PalpitesAbertosGrid({
 
       {loading ? (
         <PalpitesAbertosSkeleton />
-      ) : matches.length > 0 ? (
-        <div className="grid grid-cols-2 gap-x-3.5 gap-y-3">
-          {matches.map((match) => (
-            <PalpiteAbertoCard
-              key={`${match.competition_id ?? 0}-${match.partida_id}`}
-              match={match}
-            />
+      ) : groups.length > 0 ? (
+        <div
+          className="overflow-hidden rounded-[16px] border border-white/8"
+          style={{ backgroundColor: CARD_BG }}
+        >
+          {groups.map((group) => (
+            <div
+              key={group.label}
+              className={group.startIndex >= MOBILE_LIMIT ? "hidden lg:block" : undefined}
+            >
+              <div className="flex items-center justify-between bg-white/[0.06] px-3.5 py-2">
+                <span className="text-[11px] font-black uppercase tracking-[0.08em] text-white/70">
+                  {group.label}
+                </span>
+                <span className="text-[10px] font-bold uppercase tracking-wide text-white/35">
+                  {group.items.length}{" "}
+                  {group.items.length === 1 ? "jogo" : "jogos"}
+                </span>
+              </div>
+              <div className="divide-y divide-white/5">
+                {group.items.map((match, i) => (
+                  <MatchRow
+                    key={`${match.competition_id ?? 0}-${match.partida_id}`}
+                    match={match}
+                    hiddenOnMobile={group.startIndex + i >= MOBILE_LIMIT}
+                  />
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       ) : (
         <div className="rounded-[14px] border border-primary/20 bg-primary/[0.07] p-4 text-center">
           <p className="text-[14px] font-black uppercase text-white">
-            Nenhum palpite aberto agora
+            Nenhuma partida aberta agora
           </p>
           <p className="mx-auto mt-1 max-w-[260px] text-[12px] font-medium leading-snug text-white/55">
             Assim que liberar novas partidas, elas aparecem aqui.

@@ -3,8 +3,6 @@ import type { NextRequest } from "next/server";
 import { canonicalHostname } from "@/lib/auth/request-host";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 import {
-  hasSkaleLockedCookie,
-  isSkaleFunnelAllowedPath,
   markSkaleFunnelEntry,
   shouldMarkSkaleFunnelFromRequest,
 } from "@/lib/boloes/skale-funnel-shared";
@@ -54,15 +52,7 @@ export async function middleware(request: NextRequest) {
 
     const pathname = request.nextUrl.pathname;
 
-    if (
-      hasSkaleLockedCookie(request) &&
-      !isSkaleFunnelAllowedPath(pathname)
-    ) {
-      return withSkaleFunnelCookie(
-        request,
-        NextResponse.redirect(new URL("/skale", request.url)),
-      );
-    }
+    // Funil Skale NÃO trava mais a navegação (removido: prendia o usuário em /skale).
 
     if (!isProtectedPath(pathname)) {
       return withSkaleFunnelCookie(request, NextResponse.next());

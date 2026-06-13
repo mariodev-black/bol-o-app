@@ -16,8 +16,6 @@ import {
 import { appendTicketsFromPurchase } from "@/app/(authenticated)/tickets/lib/ownedTicketsStorage";
 import { SKALE_PRIZE_RULES_COPY } from "@/lib/boloes/skale-prize";
 
-const QTY_OPTIONS = [1, 2, 3, 5] as const;
-
 type FlowStep = "shop" | "generating" | "pix";
 
 type DepositTransaction = {
@@ -58,7 +56,8 @@ export function SkaleCheckoutClient({
   const { user, refresh } = useAuth();
   const skaleFunnelLocked = user?.skaleFunnelLocked === true;
   const [step, setStep] = useState<FlowStep>("shop");
-  const [selectedQty, setSelectedQty] = useState<(typeof QTY_OPTIONS)[number]>(1);
+  // Inscrição única — sempre 1 cota.
+  const selectedQty = 1;
   const [transactionId, setTransactionId] = useState<string | null>(null);
   const [pixPayload, setPixPayload] = useState("");
   const [pixDeadline, setPixDeadline] = useState<number | null>(null);
@@ -181,8 +180,27 @@ export function SkaleCheckoutClient({
           extra: String(purchaseQtyRef.current),
           skale: "1",
         });
+        // Após pagar, vai direto pros palpites do bolão (precisa do ticket pago).
         window.setTimeout(() => {
-          router.replace(`/tickets/obrigado?${q.toString()}`);
+          void (async () => {
+            try {
+              const r = await fetch(
+                `/api/deposits/transactions/${transactionId}`,
+                { credentials: "include", cache: "no-store" },
+              );
+              const d = (await r.json()) as {
+                transaction?: { ticketId?: string };
+              };
+              const ticketId = d.transaction?.ticketId;
+              if (ticketId) {
+                router.replace(`/palpites?ticket=${ticketId}`);
+                return;
+              }
+            } catch {
+              /* fallback abaixo */
+            }
+            router.replace(`/tickets/obrigado?${q.toString()}`);
+          })();
         }, 1500);
       }
     },
@@ -298,43 +316,20 @@ export function SkaleCheckoutClient({
           </div>
 
           <h1 className="text-[24px] font-black leading-tight">{displayName}</h1>
-          <p className="mt-2 max-w-[300px] text-[13px] leading-relaxed text-white/55">
-            Palpites em todos os jogos da Copa 2026. Após o pagamento, sua cota aparece em Meus
-            Bolões.
+          <p className="mt-2 max-w-[320px] text-[13px] leading-relaxed text-white/55">
+            Bolão especial da Copa — palpite em <strong className="text-white/80">todos os jogos de
+            sábado e domingo</strong> da rodada. Após o pagamento, sua cota aparece em Meus Bolões.
           </p>
           <p className="mt-3 max-w-[300px] text-[12px] leading-relaxed text-primary/90">
             {SKALE_PRIZE_RULES_COPY}
           </p>
         </div>
 
-        <div className="mt-10">
-          <p className="mb-3 text-center text-[11px] font-bold uppercase tracking-[0.14em] text-white/40">
-            Cotas
+        <div className="mt-10 text-center">
+          <p className="text-[12px] uppercase tracking-[0.14em] text-white/45">
+            Inscrição
           </p>
-          <div className="grid grid-cols-4 gap-2">
-            {QTY_OPTIONS.map((qty) => {
-              const active = selectedQty === qty;
-              return (
-                <button
-                  key={qty}
-                  type="button"
-                  onClick={() => setSelectedQty(qty)}
-                  className={`rounded-xl py-3 text-center transition-colors ${
-                    active
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-white/[0.06] text-white/70 hover:bg-white/[0.1]"
-                  }`}
-                >
-                  <span className="block text-[17px] font-black">{qty}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="mt-8 text-center">
-          <p className="text-[12px] text-white/45">{formatBRL(unitCents)} por cota</p>
-          <p className="mt-1 text-[32px] font-black text-primary">{formatBRL(totalCents)}</p>
+          <p className="mt-1 text-[34px] font-black text-primary">{formatBRL(totalCents)}</p>
         </div>
 
         {error ? (
@@ -348,11 +343,80 @@ export function SkaleCheckoutClient({
           onClick={() => void goGenerate()}
           className="mt-8 flex w-full items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-4 text-[15px] font-black uppercase tracking-[0.06em] text-primary-foreground transition-opacity hover:opacity-90"
         >
-          Comprar cota
+          Fazer inscrição
           <ArrowRight className="size-5" strokeWidth={2.5} />
         </button>
 
         <p className="mt-5 text-center text-[14px] text-white/35">Pagamento via PIX</p>
+
+        {/* ── Como funciona / premiação / exemplo ── */}
+        <div className="mt-10 space-y-3">
+          <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-4">
+            <p className="text-[13px] font-black uppercase tracking-wide text-primary">
+              🏆 Como funciona
+            </p>
+            <ul className="mt-3 space-y-2 text-[13px] leading-relaxed text-white/75">
+              <li>
+                ⚽ Você palpita em{" "}
+                <strong className="text-white">todas as partidas</strong> de sábado e
+                domingo da rodada.
+              </li>
+              <li>
+                💰 Inscrição: <strong className="text-white">R$ 100,00</strong>.
+              </li>
+              <li>
+                📊 A classificação é definida pela{" "}
+                <strong className="text-white">pontuação</strong> dos seus palpites.
+              </li>
+              <li>🔥 Quanto mais acertos, maior a chance de terminar no topo.</li>
+              <li>
+                ⏰ Palpites até o{" "}
+                <strong className="text-white">início do 1º jogo</strong> da rodada.
+              </li>
+            </ul>
+          </div>
+
+          <div className="rounded-2xl border border-primary/25 bg-primary/[0.06] p-4">
+            <p className="text-[13px] font-black uppercase tracking-wide text-primary">
+              Premiação — 100% da arrecadação
+            </p>
+            <div className="mt-3 space-y-1.5 text-[13px] text-white/80">
+              <p>
+                🥇 1º lugar — <strong className="text-white">60%</strong>
+              </p>
+              <p>
+                🥈 2º lugar — <strong className="text-white">30%</strong>
+              </p>
+              <p>
+                🥉 3º lugar — <strong className="text-white">10%</strong>
+              </p>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-4">
+            <p className="text-[12px] font-bold uppercase tracking-wide text-white/45">
+              Exemplo · 100 participantes
+            </p>
+            <div className="mt-3 space-y-1.5 text-[13px] text-white/75">
+              <p>
+                Arrecadação total: <strong className="text-white">R$ 10.000</strong>
+              </p>
+              <p>
+                🥇 1º lugar: <strong className="text-primary">R$ 6.000</strong>
+              </p>
+              <p>
+                🥈 2º lugar: <strong className="text-white">R$ 3.000</strong>
+              </p>
+              <p>
+                🥉 3º lugar: <strong className="text-white">R$ 1.000</strong>
+              </p>
+            </div>
+            <p className="mt-3 text-[11px] leading-snug text-white/40">
+              Premiação garantida em 100% da arrecadação 🚀 — jogos da Copa disputados no
+              sábado e domingo da rodada correspondente.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );

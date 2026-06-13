@@ -393,7 +393,7 @@ export function RankingExperience() {
   if (loadingScopes) {
     return (
       <main className="font-helvetica-now-display bg-black pb-28 text-white">
-        <div className="mx-auto w-full px-4 pt-6">
+        <div className="mx-auto w-full px-4 pt-6 lg:max-w-4xl lg:px-6">
           <RankingFullPageSkeleton />
         </div>
       </main>
@@ -402,7 +402,7 @@ export function RankingExperience() {
 
   return (
     <main className="font-helvetica-now-display bg-black pb-28 text-white">
-      <div className="mx-auto w-full px-4">
+      <div className="mx-auto w-full px-4 lg:max-w-4xl lg:px-6">
         {step === "pick" ? (
           <>
             <RankingPageHeader

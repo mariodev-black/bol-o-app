@@ -4,6 +4,7 @@
  */
 
 import { getCopaChampionshipId, parseExtraBolaoChampionshipIds } from "@/lib/boloes-extra-config";
+import { getSkaleBolaoCompetitionId } from "@/lib/boloes/skale-config";
 
 export { getCopaChampionshipId } from "@/lib/boloes-extra-config";
 
@@ -53,6 +54,7 @@ export const OUTROS_BOLAO_ITEM_DEFS: readonly OutrosBolaoItemDef[] = [
   { championshipId: getBrasileiraoChampionshipId(), label: "BRASILEIRÃO", logoKey: "brasileirao" },
   { championshipId: getPremierChampionshipId(), label: "PREMIER LEAGUE", logoKey: "premier" },
   { championshipId: getChampionsChampionshipId(), label: "CHAMPIONS LEAGUE", logoKey: "champions" },
+  { championshipId: getSkaleBolaoCompetitionId(), label: "COPA SÁB/DOM", logoKey: "copa2026" },
 ] as const;
 
 /** Participantes fake por campeonato (chave = championshipId). */
@@ -61,6 +63,7 @@ export const OUTROS_BOLAO_FAKE_PARTICIPANTS: Record<number, number> = {
   [getBrasileiraoChampionshipId()]: 640,
   [getPremierChampionshipId()]: 360,
   [getChampionsChampionshipId()]: 480,
+  [getSkaleBolaoCompetitionId()]: 540,
 };
 
 function resolveOutrosBolaoParticipants(
