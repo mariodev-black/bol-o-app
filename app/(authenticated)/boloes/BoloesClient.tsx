@@ -1641,7 +1641,7 @@ function NoTicketsState({
 
   return (
     <div className="overflow-hidden text-white">
-      <div className="mx-auto w-full max-w-[430px] px-4 pt-2">
+      <div className="mx-auto w-full max-w-[430px] px-4 pt-2 lg:max-w-5xl lg:px-6">
         <header className="mt-2 text-center">
           <p
             className="text-[15px] font-black uppercase tracking-[0.22em]"
@@ -1765,7 +1765,7 @@ export function BoloesClient({
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-black pb-10 text-white">
-      <div className="mx-auto w-full max-w-[430px] px-4">
+      <div className="mx-auto w-full max-w-[430px] px-4 lg:max-w-5xl lg:px-6">
         <BoloesPageEyebrow />
 
         {showPrincipalHero ? (

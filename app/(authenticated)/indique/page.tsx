@@ -462,8 +462,8 @@ export default function IndiqueGanhePage() {
             </div>
           </div>
         </section>
-      <div className="mx-auto w-full max-w-[430px] px-3.5">
-        
+      <div className="mx-auto w-full max-w-[480px] px-3.5 lg:max-w-3xl lg:px-6">
+
 
         <section className="mt-3 rounded-[14px] border border-primary/22 bg-primary/8 p-3 shadow-[0_0_24px_rgba(177,235,11,0.08)]">
           <div className="flex items-center gap-3">
@@ -488,8 +488,8 @@ export default function IndiqueGanhePage() {
         </section>
 
         <section className="mt-4">
-          <p className="mb-2 text-[12px] font-black uppercase tracking-[0.2em] text-white/26">Seu progresso</p>
-          <div className="grid grid-cols-3 gap-2.5">
+          <p className="mb-2 text-[12px] font-black uppercase tracking-[0.2em] text-white/26 lg:text-[13px]">Seu progresso</p>
+          <div className="grid grid-cols-3 gap-2.5 lg:gap-4">
             {[
               { icon: MousePointerClick, value: affiliateSummary?.signupReferralsCount ?? 0, label: "Cliques" },
               { icon: UserPlus, value: paidIndicacoes, label: "Pagas" },
@@ -497,15 +497,15 @@ export default function IndiqueGanhePage() {
             ].map(({ icon: Icon, value, label, highlight }) => (
               <article
                 key={label}
-                className={`rounded-[13px] border p-3 text-center ${
+                className={`rounded-[13px] border p-3 text-center lg:p-5 ${
                   highlight ? "border-primary/30 bg-primary/7" : "border-white/10 bg-[#101010]"
                 }`}
               >
-                <Icon className={`mx-auto size-5 ${highlight ? "text-primary" : "text-white/80"}`} strokeWidth={2.15} />
-                <p className={`mt-3 truncate text-[22px] font-black leading-none ${highlight ? "text-primary" : "text-white"}`}>
+                <Icon className={`mx-auto size-5 lg:size-7 ${highlight ? "text-primary" : "text-white/80"}`} strokeWidth={2.15} />
+                <p className={`mt-3 truncate text-[22px] font-black leading-none lg:mt-4 lg:text-[34px] ${highlight ? "text-primary" : "text-white"}`}>
                   {value}
                 </p>
-                <p className="mt-1 text-[9px] font-black uppercase tracking-[0.08em] text-white/40">{label}</p>
+                <p className="mt-1 text-[9px] font-black uppercase tracking-[0.08em] text-white/40 lg:mt-2 lg:text-[12px]">{label}</p>
               </article>
             ))}
           </div>
@@ -514,9 +514,9 @@ export default function IndiqueGanhePage() {
         <button
           type="button"
           onClick={() => setWithdrawModalOpen(true)}
-          className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-[12px] border border-primary/22 bg-[#101010] text-[16px] font-black text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] active:scale-[0.99]"
+          className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-[12px] border border-primary/22 bg-[#101010] text-[16px] font-black text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] active:scale-[0.99] lg:mt-4 lg:h-14 lg:text-[18px]"
         >
-          <CircleDollarSign className="size-4" strokeWidth={2.3} />
+          <CircleDollarSign className="size-4 lg:size-5" strokeWidth={2.3} />
           Sacar ganhos
         </button>
 

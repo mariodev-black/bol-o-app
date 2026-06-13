@@ -25,7 +25,7 @@ export default async function HomePage() {
     countParticipantsByExtraChampionshipIds(ids).catch(
       () => ({} as Record<number, number>),
     ),
-    loadHomePalpitesAbertosFromCache(2).catch(
+    loadHomePalpitesAbertosFromCache(15).catch(
       () => [] as PalpiteAbertoMatch[],
     ),
   ]);

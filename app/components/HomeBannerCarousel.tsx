@@ -134,7 +134,7 @@ export function HomeBannerCarousel() {
 
   return (
     <section className="w-full pt-2">
-      <div className="mx-auto w-full max-w-[430px] px-3.5">
+      <div className="mx-auto w-full max-w-[460px] px-3.5 lg:max-w-[720px]">
         <div
           className="relative overflow-hidden rounded-[16px] border border-white/8 bg-[#0a0a0a] shadow-[0_10px_36px_rgba(0,0,0,0.45)]"
           style={{ touchAction: "pan-y" }}
