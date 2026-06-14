@@ -9,6 +9,10 @@ import {
   getSkaleBolaoCompetitionId,
   isSkaleBolaoCompetition,
 } from "@/lib/boloes/skale-config";
+import {
+  getWeekendBolaoCompetitionId,
+  isWeekendBolaoCompetition,
+} from "@/lib/boloes/weekend-bolao-config";
 import { getPool } from "@/lib/db";
 
 /** Log estruturado simples: `[prizes] {"t":"ISO","phase":"...","source":"..."}`. */
@@ -757,7 +761,7 @@ export async function processPrizeClosuresAfterMatchSync(
     }
 
     for (const extraComp of parseExtraBolaoChampionshipIds()) {
-      if (isSkaleBolaoCompetition(extraComp)) continue;
+      if (isSkaleBolaoCompetition(extraComp) || isWeekendBolaoCompetition(extraComp)) continue;
       const matchesExtra = await listMatches(client, extraComp);
       if (matchesExtra.length === 0) continue;
       const byDateExtra = new Map<string, MatchRow[]>();
@@ -802,6 +806,29 @@ export async function processPrizeClosuresAfterMatchSync(
             metadataExtra: {
               prizeGate: "skale_final_copa",
               lastKickoffMs: lastKickoffMs(skaleMatches),
+              graceHoursAfterLastKickoff: prizeGeneralGraceHoursAfterLastKickoff(),
+            },
+          });
+          await client.query("COMMIT");
+        } catch (error) {
+          await client.query("ROLLBACK");
+          throw error;
+        }
+      }
+    }
+
+    const weekendComp = getWeekendBolaoCompetitionId();
+    if (isWeekendBolaoCompetition(weekendComp)) {
+      const weekendMatches = await listMatches(client, weekendComp);
+      if (weekendMatches.length > 0 && generalPoolReadyForClosure(weekendMatches, nowMs)) {
+        await client.query("BEGIN");
+        try {
+          await processSkaleClosure(client, {
+            compId: weekendComp,
+            matches: weekendMatches,
+            metadataExtra: {
+              prizeGate: "weekend_pool",
+              lastKickoffMs: lastKickoffMs(weekendMatches),
               graceHoursAfterLastKickoff: prizeGeneralGraceHoursAfterLastKickoff(),
             },
           });

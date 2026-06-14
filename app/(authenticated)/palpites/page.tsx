@@ -24,7 +24,12 @@ import {
   getSkaleBolaoSourceCopaCompetitionId,
   isSkaleBolaoCompetition,
 } from "@/lib/boloes/skale-config";
+import {
+  getWeekendBolaoSourceCopaCompetitionId,
+  isWeekendBolaoCompetition,
+} from "@/lib/boloes/weekend-bolao-config";
 import { mirrorSkaleBolaoMatchesFromCopa } from "@/lib/football/skale-bolao-sync";
+import { mirrorWeekendBolaoMatchesFromCopa } from "@/lib/football/weekend-bolao-sync";
 import { readFootballApiCacheJson, standingsCacheKey } from "@/lib/football-api-cache-store";
 import {
   dailyEditionLabel,
@@ -328,6 +333,9 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
       if (isSkaleBolaoCompetition(extraChampionshipId)) {
         extraRoundNumber = null;
         extraRoundName = "Copa inteira";
+      } else if (isWeekendBolaoCompetition(extraChampionshipId)) {
+        extraRoundNumber = null;
+        extraRoundName = "Rodada do fim de semana";
       } else {
         let liveExtraRound: number | null = null;
         if (extraChampionshipId != null) {
@@ -362,10 +370,16 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
     bolaoType === "extra" &&
     extraChampionshipId != null &&
     isSkaleBolaoCompetition(extraChampionshipId);
+  const isWeekendExtra =
+    bolaoType === "extra" &&
+    extraChampionshipId != null &&
+    isWeekendBolaoCompetition(extraChampionshipId);
 
   const tabelaCompId = isSkaleExtra
     ? getSkaleBolaoSourceCopaCompetitionId()
-    : partidasCompId;
+    : isWeekendExtra
+      ? getWeekendBolaoSourceCopaCompetitionId()
+      : partidasCompId;
   const isAmistososExtra =
     bolaoType === "extra" &&
     extraChampionshipId != null &&
@@ -377,6 +391,10 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
 
   if (isSkaleExtra) {
     await mirrorSkaleBolaoMatchesFromCopa().catch(() => {});
+  }
+
+  if (isWeekendExtra) {
+    await mirrorWeekendBolaoMatchesFromCopa().catch(() => {});
   }
 
   if (
@@ -525,7 +543,9 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
     pickTabelaGruposForPalpites(tabelaPayload) ??
     (bolaoType === "extra" ? ({ "grupo-geral": [] } as TabelaGrupos) : null);
   const tabelaOk =
-    bolaoType !== "extra" || isSkaleExtra ? tabelaPayload != null : true;
+    bolaoType !== "extra" || isSkaleExtra || isWeekendExtra
+      ? tabelaPayload != null
+      : true;
 
   return {
     ticketId,
@@ -534,7 +554,7 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
     extraChampionshipId,
     extraRoundNumber,
     extraRoundName,
-    isSkaleFullCopaPool: isSkaleExtra,
+    isSkaleFullCopaPool: isSkaleExtra || isWeekendExtra,
     bolaoHeading:
       bolaoType === "diario" && dailyEditionNumber != null
         ? `${dailyEditionLabel(dailyEditionNumber)}${dailyEditionDatesLabel ? ` · ${dailyEditionDatesLabel}` : ""}`

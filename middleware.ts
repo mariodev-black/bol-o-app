@@ -24,6 +24,7 @@ const PROTECTED_PREFIXES = [
   "/premiacao",
   "/promocoes",
   "/skale",
+  "/copa-fds",
 ] as const;
 
 function isProtectedPath(pathname: string): boolean {

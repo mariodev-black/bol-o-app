@@ -18,6 +18,7 @@ import {
   ensureSkaleBolaoMatchesMirrored,
   skaleCompetitionIdsForMatchMap,
 } from "@/lib/boloes/skale-match-resolve";
+import { ensureWeekendBolaoMatchesMirrored } from "@/lib/football/weekend-bolao-sync";
 import { resolveExtraBolaoDisplayName } from "@/lib/boloes-extra-competition-branding";
 import {
   effectiveExtraRoundForPaidTicket,
@@ -262,6 +263,7 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
   const configuredExtraIds = parseExtraBolaoChampionshipIds();
   const mainComp = getFootballMainCompetitionId();
   await ensureSkaleBolaoMatchesMirrored();
+  await ensureWeekendBolaoMatchesMirrored();
   const preloadCompIds = [
     ...new Set([mainComp, ...configuredExtraIds, ...skaleCompetitionIdsForMatchMap()]),
   ];

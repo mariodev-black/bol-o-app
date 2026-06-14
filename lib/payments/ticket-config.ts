@@ -5,6 +5,10 @@ import {
   getSkaleBolaoUnitCents,
   isSkaleBolaoCompetition,
 } from "@/lib/boloes/skale-config";
+import {
+  getWeekendBolaoUnitCents,
+  isWeekendBolaoCompetition,
+} from "@/lib/boloes/weekend-bolao-config";
 
 export type TicketType = "general" | "daily" | "extra" | "artilheiros";
 
@@ -34,6 +38,7 @@ export function getExtraBolaoUnitCents(): number {
 /** Preço unitário por campeonato extra (Skale = R$ 500). */
 export function getExtraBolaoUnitCentsForChampionship(championshipId: number): number {
   if (isSkaleBolaoCompetition(championshipId)) return getSkaleBolaoUnitCents();
+  if (isWeekendBolaoCompetition(championshipId)) return getWeekendBolaoUnitCents();
   return getExtraBolaoUnitCents();
 }
 
