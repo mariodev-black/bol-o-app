@@ -1,16 +1,17 @@
 /**
- * Espelha partidas da Copa (comp 72) no bolão sintético da Skale.
- * Mantém placares, status e kickoff sincronizados com o principal.
+ * Espelha os jogos da Copa (comp 72) de SÁBADO e DOMINGO no bolão sintético
+ * "Copa – Sábado e Domingo" (comp próprio). Mantém placares/status sincronizados.
+ * Separado do Skale: comp próprio, não afeta o pool da Skale.
  */
 
 import { getPool } from "@/lib/db";
 import { invalidateMatchMapMemoryAfterDbWrite } from "@/lib/match-map-cache-invalidator";
 import {
-  getSkaleBolaoCompetitionId,
-  getSkaleBolaoSourceCopaCompetitionId,
-  isSkaleBolaoEnabled,
-  SKALE_BOLAO_DISPLAY_NAME,
-} from "@/lib/boloes/skale-config";
+  getWeekendBolaoCompetitionId,
+  getWeekendBolaoSourceCopaCompetitionId,
+  isWeekendBolaoEnabled,
+  WEEKEND_BOLAO_DISPLAY_NAME,
+} from "@/lib/boloes/weekend-bolao-config";
 
 const MIRROR_MATCHES_SQL = `
 INSERT INTO matches_cache (
@@ -42,6 +43,12 @@ SELECT
   source_updated_at, now()
 FROM matches_cache
 WHERE competition_id = $2::int
+  AND kickoff_at IS NOT NULL
+  -- só sábado (6) e domingo (0), horário BRT
+  AND EXTRACT(DOW FROM (kickoff_at AT TIME ZONE 'America/Sao_Paulo')) IN (0, 6)
+  -- apenas a rodada (1 fim de semana): janela [from, to)
+  AND (kickoff_at AT TIME ZONE 'America/Sao_Paulo')::date >= $4::date
+  AND (kickoff_at AT TIME ZONE 'America/Sao_Paulo')::date <  $5::date
 ON CONFLICT (competition_id, match_id)
 DO UPDATE SET
   phase_key                = COALESCE(EXCLUDED.phase_key, matches_cache.phase_key),
@@ -80,6 +87,18 @@ DO UPDATE SET
   synced_at                = now()
 `;
 
+/** Remove do bolão tudo que não seja sáb/dom DA RODADA (janela [from, to)). */
+const CLEANUP_SQL = `
+DELETE FROM matches_cache
+WHERE competition_id = $1::int
+  AND (
+    kickoff_at IS NULL
+    OR EXTRACT(DOW FROM (kickoff_at AT TIME ZONE 'America/Sao_Paulo')) NOT IN (0, 6)
+    OR (kickoff_at AT TIME ZONE 'America/Sao_Paulo')::date <  $2::date
+    OR (kickoff_at AT TIME ZONE 'America/Sao_Paulo')::date >= $3::date
+  )
+`;
+
 const UPSERT_CHAMPIONSHIP_SQL = `
 INSERT INTO championships_cache (
   competition_id, nome, slug, nome_popular, temporada,
@@ -88,36 +107,16 @@ INSERT INTO championships_cache (
   raw_payload, fetched_at
 )
 SELECT
-  $1::int,
-  $2::text,
-  COALESCE(slug, 'skale-copa'),
-  nome_popular,
-  temporada,
-  rodada_atual_numero,
-  rodada_atual_slug,
-  rodada_atual_nome,
-  rodada_atual_status,
-  fase_atual_nome,
-  fase_atual_slug,
-  status,
-  logo,
-  total_rodadas,
-  raw_payload,
-  now()
+  $1::int, $2::text, COALESCE(slug, 'copa-fds'), nome_popular, temporada,
+  rodada_atual_numero, rodada_atual_slug, rodada_atual_nome, rodada_atual_status,
+  fase_atual_nome, fase_atual_slug, status, logo, total_rodadas,
+  raw_payload, now()
 FROM championships_cache
 WHERE competition_id = $3::int
 ON CONFLICT (competition_id)
 DO UPDATE SET
   nome = EXCLUDED.nome,
   slug = COALESCE(EXCLUDED.slug, championships_cache.slug),
-  nome_popular = COALESCE(EXCLUDED.nome_popular, championships_cache.nome_popular),
-  temporada = COALESCE(EXCLUDED.temporada, championships_cache.temporada),
-  rodada_atual_numero = COALESCE(EXCLUDED.rodada_atual_numero, championships_cache.rodada_atual_numero),
-  rodada_atual_slug = COALESCE(EXCLUDED.rodada_atual_slug, championships_cache.rodada_atual_slug),
-  rodada_atual_nome = COALESCE(EXCLUDED.rodada_atual_nome, championships_cache.rodada_atual_nome),
-  rodada_atual_status = COALESCE(EXCLUDED.rodada_atual_status, championships_cache.rodada_atual_status),
-  fase_atual_nome = COALESCE(EXCLUDED.fase_atual_nome, championships_cache.fase_atual_nome),
-  fase_atual_slug = COALESCE(EXCLUDED.fase_atual_slug, championships_cache.fase_atual_slug),
   status = COALESCE(EXCLUDED.status, championships_cache.status),
   logo = COALESCE(EXCLUDED.logo, championships_cache.logo),
   total_rodadas = COALESCE(EXCLUDED.total_rodadas, championships_cache.total_rodadas),
@@ -125,39 +124,84 @@ DO UPDATE SET
   fetched_at = now()
 `;
 
-export type SkaleBolaoSyncResult = {
-  skaleCompetitionId: number;
+export type WeekendBolaoSyncResult = {
+  weekendCompetitionId: number;
   sourceCompetitionId: number;
   matchesMirrored: number;
   ms: number;
 };
 
-export async function mirrorSkaleBolaoMatchesFromCopa(): Promise<SkaleBolaoSyncResult | null> {
-  if (!isSkaleBolaoEnabled()) return null;
+function envDate(name: string): string | null {
+  const v = (process.env[name] || "").trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
+}
+
+function addDaysIso(iso: string, days: number): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+export async function mirrorWeekendBolaoMatchesFromCopa(): Promise<WeekendBolaoSyncResult | null> {
+  if (!isWeekendBolaoEnabled()) return null;
 
   const t0 = Date.now();
-  const skaleId = getSkaleBolaoCompetitionId();
-  const copaId = getSkaleBolaoSourceCopaCompetitionId();
+  const compId = getWeekendBolaoCompetitionId();
+  const copaId = getWeekendBolaoSourceCopaCompetitionId();
   const pool = getPool();
 
-  await pool.query(UPSERT_CHAMPIONSHIP_SQL, [
-    skaleId,
-    SKALE_BOLAO_DISPLAY_NAME,
-    copaId,
-  ]);
+  // Janela = 1 rodada (sáb+dom). Override por env, senão o fim de semana mais próximo.
+  let from = envDate("WEEKEND_BOLAO_DATE_FROM");
+  let to = envDate("WEEKEND_BOLAO_DATE_TO");
+  if (!from) {
+    const { rows } = await pool.query<{ d0: string | null }>(
+      `SELECT to_char(MIN((kickoff_at AT TIME ZONE 'America/Sao_Paulo')::date), 'YYYY-MM-DD') AS d0
+         FROM matches_cache
+        WHERE competition_id = $1::int
+          AND kickoff_at >= now() - interval '36 hours'
+          AND EXTRACT(DOW FROM (kickoff_at AT TIME ZONE 'America/Sao_Paulo')) IN (0, 6)`,
+      [copaId],
+    );
+    from = rows[0]?.d0 ?? null;
+  }
+  if (from && !to) to = addDaysIso(from, 2);
 
+  if (!from || !to) {
+    // Sem fim de semana próximo — zera o bolão.
+    await pool.query(`DELETE FROM matches_cache WHERE competition_id = $1::int`, [compId]);
+    invalidateMatchMapMemoryAfterDbWrite();
+    return { weekendCompetitionId: compId, sourceCompetitionId: copaId, matchesMirrored: 0, ms: Date.now() - t0 };
+  }
+
+  await pool.query(UPSERT_CHAMPIONSHIP_SQL, [compId, WEEKEND_BOLAO_DISPLAY_NAME, copaId]);
   const result = await pool.query(MIRROR_MATCHES_SQL, [
-    skaleId,
+    compId,
     copaId,
-    SKALE_BOLAO_DISPLAY_NAME,
+    WEEKEND_BOLAO_DISPLAY_NAME,
+    from,
+    to,
   ]);
+  await pool.query(CLEANUP_SQL, [compId, from, to]);
 
   invalidateMatchMapMemoryAfterDbWrite();
 
   return {
-    skaleCompetitionId: skaleId,
+    weekendCompetitionId: compId,
     sourceCompetitionId: copaId,
     matchesMirrored: result.rowCount ?? 0,
     ms: Date.now() - t0,
   };
+}
+
+let ensured: Promise<void> | null = null;
+/** Garante o espelhamento ao menos uma vez por processo (idempotente). */
+export function ensureWeekendBolaoMatchesMirrored(): Promise<void> {
+  if (!ensured) {
+    ensured = mirrorWeekendBolaoMatchesFromCopa()
+      .then(() => undefined)
+      .catch(() => {
+        ensured = null;
+      });
+  }
+  return ensured;
 }

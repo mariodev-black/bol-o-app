@@ -16,9 +16,9 @@ import {
 } from "@/lib/boloes-outros-grid";
 import { getCopaChampionshipId } from "@/lib/boloes-extra-config";
 import {
-  getSkaleBolaoCompetitionId,
-  isSkaleBolaoCompetition,
-} from "@/lib/boloes/skale-config";
+  getWeekendBolaoCompetitionId,
+  isWeekendBolaoCompetition,
+} from "@/lib/boloes/weekend-bolao-config";
 import type { StaticImageData } from "next/image";
 
 const GREEN = "#B1EB0B";
@@ -30,7 +30,7 @@ const LOGO_BY_CHAMPIONSHIP_ID: Record<number, StaticImageData> = {
   [getBrasileiraoChampionshipId()]: iconBrasileirao2,
   [getPremierChampionshipId()]: iconPremiere2,
   [getChampionsChampionshipId()]: iconChampions,
-  [getSkaleBolaoCompetitionId()]: iconCopaMundo2026,
+  [getWeekendBolaoCompetitionId()]: iconCopaMundo2026,
 };
 
 const LOGO_BY_LABEL: Record<string, StaticImageData> = {
@@ -49,8 +49,8 @@ function logoForItem(item: OutrosBolaoGridItem): StaticImageData {
 }
 
 function OutrosBolaoCard({ item }: { item: OutrosBolaoGridItem }) {
-  const href = isSkaleBolaoCompetition(item.championshipId)
-    ? "/skale"
+  const href = isWeekendBolaoCompetition(item.championshipId)
+    ? "/copa-fds"
     : `/tickets?bolao=extra&championshipId=${item.championshipId}`;
   const participantsLabel = `${formatParticipantsShort(item.participants)} mil`;
 

@@ -1,6 +1,10 @@
 import { getAmistososFriendliesCompetitionId } from "@/lib/football/amistosos-friendlies";
 import { getAllSyncedCompetitionIds } from "@/lib/boloes-extra-config";
 import { getSkaleBolaoCompetitionId, isSkaleBolaoEnabled } from "@/lib/boloes/skale-config";
+import {
+  getWeekendBolaoCompetitionId,
+  isWeekendBolaoEnabled,
+} from "@/lib/boloes/weekend-bolao-config";
 import { getChampionsChampionshipId } from "@/lib/boloes-outros-grid";
 
 function env(name: string): string {
@@ -25,6 +29,7 @@ function parseIdsFromEnv(name: string): number[] {
 export function getFootballApiSyncExcludedCompetitionIds(): number[] {
   const ids = [getAmistososFriendliesCompetitionId(), getChampionsChampionshipId()];
   if (isSkaleBolaoEnabled()) ids.push(getSkaleBolaoCompetitionId());
+  if (isWeekendBolaoEnabled()) ids.push(getWeekendBolaoCompetitionId());
   for (const id of parseIdsFromEnv("FOOTBALL_API_SYNC_EXCLUDED_COMPETITION_IDS")) {
     ids.push(id);
   }
