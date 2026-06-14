@@ -1576,7 +1576,7 @@ function JogoCard({
       </div>
 
       {showSteppers && onSavePalpite ? (
-        <div className="px-6 pb-6 -mt-2">
+        <div className="hidden lg:block px-6 pb-6 -mt-2">
           {savePalpiteError ? (
             <p className="mb-2 text-center text-[12px] font-semibold text-red-300">
               {savePalpiteError}
@@ -3989,7 +3989,6 @@ function PalpitesPageContent({
       onScoresChange: canChangeOnCard
         ? (s: JogoCardScores) => handleScoresChange(jogo.id, s)
         : undefined,
-      onSavePalpite: canChangeOnCard ? () => void saveSinglePalpite(jogo.id) : undefined,
       savingPalpite: savingMatchId === jogo.id,
       savePalpiteError: saveMatchErrors[jogo.id] ?? null,
     };
