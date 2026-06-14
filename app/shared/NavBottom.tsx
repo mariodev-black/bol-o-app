@@ -20,6 +20,7 @@ import {
   Ticket,
   Trophy,
   User,
+  Users,
   X,
 } from "lucide-react";
 import { cn } from "@/app/lib/utils";
@@ -83,6 +84,7 @@ const MENU_SECTIONS: MenuSection[] = [
       { label: "Página inicial", href: "/", icon: Home, subtitle: "Início" },
       { label: "Meus Bolões", href: "/boloes", icon: Trophy, subtitle: "Cotas e palpites" },
       { label: "Meus Palpites", href: "/meus-palpites", icon: BarChart2, subtitle: "Histórico e ranking" },
+      { label: "Palpites da Galera", href: "/palpites-jogadores", icon: Users, subtitle: "Palpites dos outros jogadores" },
       { label: "Comprar", href: "/tickets", icon: Ticket, subtitle: "Comprar cota" },
     ],
   },

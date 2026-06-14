@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import bgPalpitesDesk from "@/app/assets/bg-palpites-desktop.png";
 import { PalpitesRankingTab } from "@/app/(authenticated)/palpites/_components/PalpitesRankingTab";
+import { PalpitesJogadoresTab } from "@/app/(authenticated)/palpites/_components/PalpitesJogadoresTab";
 import {
   isGratisBolaoExtraTicket,
   useMainBolaoPromoModal,
@@ -70,8 +71,8 @@ import {
 import { PalpitesViewTabs } from "@/app/(authenticated)/palpites/_components/PalpitesViewTabs";
 
 // ── Tipos ────────────────────────────────────────────────────
-type TabView = "jogos" | "tabela" | "ranking" | "resumo";
-type ResultTabView = "jogos" | "ranking" | "resumo";
+type TabView = "jogos" | "tabela" | "ranking" | "resumo" | "jogadores";
+type ResultTabView = "jogos" | "ranking" | "resumo" | "jogadores";
 type StatusJogo = "aberto" | "encerrado";
 
 interface ClassificacaoTime {
@@ -1273,6 +1274,9 @@ function JogoCard({
   editingEnabled = false,
   scores,
   onScoresChange,
+  onSavePalpite,
+  savingPalpite = false,
+  savePalpiteError = null,
   initialPrediction,
   predictionsLoading = false,
   bolaoType,
@@ -1282,6 +1286,9 @@ function JogoCard({
   editingEnabled?: boolean;
   scores: JogoCardScores;
   onScoresChange?: (scores: JogoCardScores) => void;
+  onSavePalpite?: () => void;
+  savingPalpite?: boolean;
+  savePalpiteError?: string | null;
   initialPrediction?: { scoreCasa: number; scoreVisitante: number } | null;
   predictionsLoading?: boolean;
   bolaoType: PredictionBolaoType;
@@ -1567,6 +1574,27 @@ function JogoCard({
           />
         ) : null}
       </div>
+
+      {showSteppers && onSavePalpite ? (
+        <div className="px-6 pb-6 -mt-2">
+          {savePalpiteError ? (
+            <p className="mb-2 text-center text-[12px] font-semibold text-red-300">
+              {savePalpiteError}
+            </p>
+          ) : null}
+          <button
+            type="button"
+            onClick={onSavePalpite}
+            disabled={savingPalpite || !scoresAreComplete(scores)}
+            className="flex min-h-[46px] w-full items-center justify-center gap-2 rounded-xl bg-primary text-[14px] font-black uppercase tracking-wide text-[#0E141B] transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-[#1A1A1A] disabled:text-white/25"
+          >
+            {savingPalpite ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+            ) : null}
+            {savingPalpite ? "Salvando..." : "Salvar palpite"}
+          </button>
+        </div>
+      ) : null}
 
       {phase === "post" && !hasInitialPrediction ? (
         <p className={`px-5 pb-4 ${PALPITE_CARD_TYPE.bodyMsg}`}>
@@ -3100,6 +3128,15 @@ function PalpitesPageContent({
   const [palpitesEditing, setPalpitesEditing] = useState(false);
   const [savingAllPalpites, setSavingAllPalpites] = useState(false);
   const [saveAllError, setSaveAllError] = useState<string | null>(null);
+  const [savingMatchId, setSavingMatchId] = useState<number | null>(null);
+  const [saveMatchErrors, setSaveMatchErrors] = useState<Record<number, string>>({});
+  const [palpiteToast, setPalpiteToast] = useState<string | null>(null);
+  const palpiteToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showPalpiteToast = useCallback((msg: string) => {
+    setPalpiteToast(msg);
+    if (palpiteToastTimer.current) clearTimeout(palpiteToastTimer.current);
+    palpiteToastTimer.current = setTimeout(() => setPalpiteToast(null), 2600);
+  }, []);
   const [loadingPredictions, setLoadingPredictions] = useState(false);
   const [loadingResumo, setLoadingResumo] = useState(false);
   const [selectedRodada, setSelectedRodada] = useState<number | null>(() => {
@@ -3658,6 +3695,9 @@ function PalpitesPageContent({
     ? resultTab === "ranking"
     : tab === "ranking";
   const showResumo = readOnlyMode ? resultTab === "resumo" : tab === "resumo";
+  const showJogadores = readOnlyMode
+    ? resultTab === "jogadores"
+    : tab === "jogadores";
 
   /** Inclui jogos encerrados para o usuário ver placar, pontuação e detalhes do palpite. */
   const jogosBase = jogosOnPlayableDate;
@@ -3829,6 +3869,7 @@ function PalpitesPageContent({
         return next;
       });
       setPalpitesEditing(false);
+      showPalpiteToast(toSave.length > 1 ? "Palpites salvos!" : "Palpite salvo!");
       if (
         filterPalpitesByDay &&
         selectedDate &&
@@ -3864,19 +3905,93 @@ function PalpitesPageContent({
     }
   };
 
+  const saveSinglePalpite = async (matchId: number) => {
+    if (!ticketId || savingMatchId != null) return;
+    const scores = scoresForMatch(matchId);
+    setSaveMatchErrors((prev) => {
+      const next = { ...prev };
+      delete next[matchId];
+      return next;
+    });
+    if (!scoresAreComplete(scores)) {
+      setSaveMatchErrors((prev) => ({
+        ...prev,
+        [matchId]: "Preencha os dois placares.",
+      }));
+      return;
+    }
+    setSavingMatchId(matchId);
+    try {
+      const r = await fetch("/api/palpites/batch", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ticketId,
+          palpites: [
+            {
+              matchId,
+              scoreCasa: scores.scoreCasa,
+              scoreVisitante: scores.scoreVisitante,
+            },
+          ],
+        }),
+      });
+      if (!r.ok) {
+        const d = (await r.json().catch(() => ({}))) as { error?: string };
+        throw new Error(d.error || "Falha ao salvar palpite");
+      }
+      const data = (await r.json()) as {
+        predictions: Array<{
+          matchId: number;
+          scoreCasa: number;
+          scoreVisitante: number;
+        }>;
+      };
+      const isNew = !predictionsMap[matchId];
+      const predictionsAfter: Record<
+        number,
+        { scoreCasa: number; scoreVisitante: number }
+      > = { ...predictionsMap };
+      for (const p of data.predictions) {
+        predictionsAfter[p.matchId] = {
+          scoreCasa: p.scoreCasa,
+          scoreVisitante: p.scoreVisitante,
+        };
+      }
+      setPredictionsMap(predictionsAfter);
+      if (isNew) {
+        setResumoStats((prev) => ({ ...prev, palpites: prev.palpites + 1 }));
+      }
+      draftDirtyRef.current.delete(matchId);
+      setDraftTouchedIds((prev) => {
+        const next = { ...prev };
+        delete next[matchId];
+        return next;
+      });
+      showPalpiteToast("Palpite salvo!");
+    } catch (e) {
+      setSaveMatchErrors((prev) => ({
+        ...prev,
+        [matchId]: e instanceof Error ? e.message : "Falha ao salvar palpite",
+      }));
+    } finally {
+      setSavingMatchId(null);
+    }
+  };
+
   const buildJogoCardEditProps = (jogo: Jogo) => {
     const canEditMatch = isJogoEditavelParaPalpite(jogo, bolaoType);
-    const hasSavedOnCard = Boolean(predictionsMap[jogo.id]);
-    /** +/- no card: aberto no pré-jogo; trava só após salvar até "Editar palpites" no rodapé. */
-    const canChangeOnCard =
-      !readOnlyMode &&
-      canEditMatch &&
-      (!hasSavedPalpitesOnScope || !hasSavedOnCard || palpitesEditing);
+    /** Palpite salvo continua visível E editável até o apito (não trava após salvar). */
+    const canChangeOnCard = !readOnlyMode && canEditMatch && Boolean(ticketId);
     return {
       editingEnabled: canChangeOnCard,
       onScoresChange: canChangeOnCard
         ? (s: JogoCardScores) => handleScoresChange(jogo.id, s)
         : undefined,
+      onSavePalpite: canChangeOnCard ? () => void saveSinglePalpite(jogo.id) : undefined,
+      savingPalpite: savingMatchId === jogo.id,
+      savePalpiteError: saveMatchErrors[jogo.id] ?? null,
     };
   };
 
@@ -4224,6 +4339,19 @@ function PalpitesPageContent({
     <div
       className="w-full max-w-lg mx-auto px-4 pb-8 lg:max-w-7xl"
     >
+      {palpiteToast ? (
+        <div
+          className="fixed inset-x-0 bottom-24 z-[60] flex justify-center px-4 lg:bottom-8"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="animate-tab-in flex items-center gap-2 rounded-full border border-primary/30 bg-[#0E1A0E] px-4 py-2.5 shadow-[0_8px_30px_rgba(0,0,0,0.55)]">
+            <CircleCheck className="size-5 text-primary" strokeWidth={2.4} aria-hidden />
+            <span className="text-[14px] font-bold text-white">{palpiteToast}</span>
+          </div>
+        </div>
+      ) : null}
+
       <div
         className="fixed inset-0 pointer-events-none -z-20"
         style={{
@@ -4273,6 +4401,7 @@ function PalpitesPageContent({
                 items={[
                   { key: "jogos", label: "Jogos" },
                   { key: "ranking", label: "Ranking" },
+                  { key: "jogadores", label: "Jogadores" },
                 ]}
                 value={resultTab}
                 onChange={(next) => {
@@ -4289,6 +4418,7 @@ function PalpitesPageContent({
                   { key: "jogos", label: "Jogos" },
                   { key: "tabela", label: "Tabela" },
                   { key: "ranking", label: "Ranking" },
+                  { key: "jogadores", label: "Jogadores" },
                 ]}
                 value={tab}
                 onChange={(next) => {
@@ -4306,6 +4436,7 @@ function PalpitesPageContent({
           {grupos.length > 1 &&
             tab !== "ranking" &&
             tab !== "resumo" &&
+            tab !== "jogadores" &&
             !readOnlyMode &&
             !hasBoloesFlow && (
               <div className="mb-5 lg:hidden">
@@ -4489,6 +4620,9 @@ function PalpitesPageContent({
                 jogosById={jogosById}
               />
             ) : null}
+            {showJogadores ? (
+              <PalpitesJogadoresTab ticketId={ticketId} bolaoType={bolaoType} />
+            ) : null}
           </div>
 
           {/* Desktop: grid 2 colunas de cards por rodada */}
@@ -4500,6 +4634,7 @@ function PalpitesPageContent({
                   { key: "jogos", label: "Jogos" },
                   { key: "ranking", label: "Ranking" },
                   { key: "resumo", label: "Resumo" },
+                  { key: "jogadores", label: "Jogadores" },
                 ]}
                 value={resultTab}
                 onChange={(next) => {
@@ -4524,6 +4659,8 @@ function PalpitesPageContent({
                 loadingHistorico={loadingResumo}
                 jogosById={jogosById}
               />
+            ) : showJogadores ? (
+              <PalpitesJogadoresTab ticketId={ticketId} bolaoType={bolaoType} />
             ) : showRanking ? (
               <PalpitesRankingTab
                 ticketId={ticketId}
@@ -4658,7 +4795,11 @@ function PalpitesPageContent({
                 </div>
               ))
             )}
-            {palpitesListFooter}
+            {showPalpitesFooter ? (
+              <div className="sticky bottom-3 z-20 mt-6 rounded-2xl border border-white/10 bg-black/85 p-3 shadow-[0_-10px_30px_rgba(0,0,0,0.6)] backdrop-blur-sm [&>div]:mt-0">
+                {palpitesListFooter}
+              </div>
+            ) : null}
           </div>
         </div>
 
