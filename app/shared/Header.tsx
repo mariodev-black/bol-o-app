@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useProductHref } from "@/app/shared/useProductHref";
 import logo from "@/app/assets/logo.svg";
-import { Menu as MenuIcon } from "lucide-react";
+import { Menu as MenuIcon, LogOut, User } from "lucide-react";
 import { NotificationsBell } from "@/app/shared/NotificationsBell";
 import { PromotionsGiftButton } from "@/app/shared/PromotionsGiftButton";
 import { useHomeAuthModal } from "@/app/shared/HomeAuthModalContext";
@@ -20,6 +20,7 @@ import {
   syncAppHeaderHeightCss,
 } from "@/app/shared/install-app-banner";
 import { useStandalonePwa } from "@/app/shared/useStandalonePwa";
+import { getAvatarPresetImage } from "@/lib/user/avatar-presets";
 
 const NAV_LINKS_GUEST = [
   { label: "Como funciona?", href: "/#como-funciona", external: false },
@@ -31,11 +32,126 @@ const NAV_LINKS_GUEST = [
 const NAV_LINKS_LOGGED = [
   { label: "Home", href: "/" },
   { label: "Palpites", href: "/meus-palpites" },
+  { label: "Palpites da Galera", href: "/palpites-jogadores" },
   { label: "Ranking", href: "/ranking" },
   { label: "Premiação", href: "/premiacao" },
   { label: "Indique e ganhe", href: "/indique" },
   { label: "Regulamento", href: "/privacidade" },
 ];
+
+function UserAvatar({
+  userId,
+  avatarIndex,
+  avatarUploadFilename,
+  size = 36,
+}: {
+  userId: string;
+  avatarIndex: number;
+  avatarUploadFilename: string | null;
+  size?: number;
+}) {
+  if (avatarUploadFilename) {
+    const src = `/api/public/avatar/${encodeURIComponent(userId)}?v=${encodeURIComponent(avatarUploadFilename)}`;
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={src} alt="" className="size-full object-cover" />
+    );
+  }
+  return (
+    <Image
+      src={getAvatarPresetImage(avatarIndex)}
+      alt=""
+      fill
+      className="object-cover"
+      sizes={`${size}px`}
+    />
+  );
+}
+
+function UserMenuDesktop() {
+  const { user, logout } = useAuth();
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const handleLogout = async () => {
+    setOpen(false);
+    await logout();
+    router.push("/login");
+  };
+
+  if (!user) return null;
+
+  const displayName = user.nickname ?? user.name ?? user.email;
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="relative size-[38px] shrink-0 overflow-hidden rounded-full ring-2 ring-white/15 transition hover:ring-primary/60 focus:outline-none"
+        aria-label="Menu do usuário"
+        aria-expanded={open}
+      >
+        <UserAvatar
+          userId={user.id}
+          avatarIndex={user.avatarIndex}
+          avatarUploadFilename={user.avatarUploadFilename}
+          size={38}
+        />
+      </button>
+
+      {open ? (
+        <div
+          className="absolute right-0 top-[calc(100%+10px)] z-[200] w-[220px] overflow-hidden rounded-2xl border border-white/10 bg-[#111] shadow-[0_8px_40px_rgba(0,0,0,0.6)]"
+        >
+          <div className="flex items-center gap-3 border-b border-white/8 px-4 py-3.5">
+            <div className="relative size-9 shrink-0 overflow-hidden rounded-full">
+              <UserAvatar
+                userId={user.id}
+                avatarIndex={user.avatarIndex}
+                avatarUploadFilename={user.avatarUploadFilename}
+                size={36}
+              />
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-[13px] font-bold text-white">{displayName}</p>
+              <p className="truncate text-[11px] text-white/45">{user.email}</p>
+            </div>
+          </div>
+
+          <div className="py-1">
+            <Link
+              href="/perfil"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-3 px-4 py-2.5 text-[13px] text-white/75 transition hover:bg-white/[0.06] hover:text-white"
+            >
+              <User className="size-4 shrink-0" strokeWidth={2} />
+              Perfil
+            </Link>
+            <button
+              type="button"
+              onClick={() => void handleLogout()}
+              className="flex w-full items-center gap-3 px-4 py-2.5 text-[13px] text-red-400/80 transition hover:bg-white/[0.06] hover:text-red-400"
+            >
+              <LogOut className="size-4 shrink-0" strokeWidth={2} />
+              Sair
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 function HeaderShell({
   showInstallBanner,
@@ -180,9 +296,13 @@ export function Header() {
                     ? pathname === "/"
                     : label === "Ranking"
                       ? pathname.startsWith("/ranking")
-                      : label === "Palpites"
-                        ? pathname.startsWith("/meus-palpites") || pathname.startsWith("/palpites")
-                        : pathname === baseHref || pathname.startsWith(`${baseHref}/`);
+                      : label === "Palpites da Galera"
+                        ? pathname.startsWith("/palpites-jogadores")
+                        : label === "Palpites"
+                          ? (pathname.startsWith("/meus-palpites") ||
+                              pathname.startsWith("/palpites")) &&
+                            !pathname.startsWith("/palpites-jogadores")
+                          : pathname === baseHref || pathname.startsWith(`${baseHref}/`);
 
                 return (
                   <Link
@@ -209,6 +329,8 @@ export function Header() {
             >
               Comprar Ticket
             </Link>
+
+            <UserMenuDesktop />
           </div>
         </div>
       </HeaderShell>

@@ -15,6 +15,7 @@ const PROTECTED_PREFIXES = [
   "/perfil",
   "/ranking",
   "/palpites",
+  "/palpites-jogadores",
   "/meus-palpites",
   "/dashboard",
   "/deposito",
