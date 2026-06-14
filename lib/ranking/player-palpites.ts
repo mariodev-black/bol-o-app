@@ -134,7 +134,7 @@ export async function listRecentPlayerPalpites(opts: {
         m.result_visitante    AS result_visitante,
         p.score_casa          AS score_casa,
         p.score_visitante     AS score_visitante,
-        GREATEST(p.submitted_at, COALESCE(p.updated_at, p.submitted_at)) AS ord
+        m.kickoff_at          AS ord
       FROM predictions p
       INNER JOIN tickets t ON t.id::text = p.ticket_id::text
       INNER JOIN users u ON u.id::text = p.user_id::text
@@ -143,8 +143,11 @@ export async function listRecentPlayerPalpites(opts: {
              AND m.match_id = p.match_id
       WHERE p.bolao_type = $1
         AND t.status IN ('paid', 'approved')
+        AND m.kickoff_at IS NOT NULL
+        AND m.kickoff_at <= NOW()
         ${extraScope}
-      ORDER BY ord DESC
+      ORDER BY m.kickoff_at DESC,
+               GREATEST(p.submitted_at, COALESCE(p.updated_at, p.submitted_at)) DESC
       LIMIT $${limitIdx}`,
     params,
   );
