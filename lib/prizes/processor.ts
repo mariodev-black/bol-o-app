@@ -10,6 +10,11 @@ import {
   isSkaleBolaoCompetition,
 } from "@/lib/boloes/skale-config";
 import {
+  getSkaleDailyBolaoCompetitionId,
+  isSkaleDailyBolaoCompetition,
+  isSkaleDailyBolaoEnabled,
+} from "@/lib/boloes/skale-daily-config";
+import {
   getWeekendBolaoCompetitionId,
   isWeekendBolaoCompetition,
 } from "@/lib/boloes/weekend-bolao-config";
@@ -308,6 +313,26 @@ async function listTicketsForClosure(
        AND fpd.date_br = $1
      ORDER BY t.paid_at ASC NULLS LAST, t.created_at ASC`,
       [input.dateBR, input.competitionId]
+    );
+    return rows;
+  }
+
+  if (
+    input.type === "extra" &&
+    isSkaleDailyBolaoCompetition(input.competitionId) &&
+    input.dailyEditionNumber != null &&
+    input.dailyEditionNumber > 0
+  ) {
+    const { rows } = await client.query<TicketRow>(
+      `SELECT t.id::text AS id, t.user_id::text AS user_id, t.total_amount_cents, t.paid_at, t.created_at
+       FROM tickets t
+       WHERE t.ticket_type = 'extra'
+         AND t.extra_championship_id = $2
+         AND t.round_number = $1
+         AND NOT COALESCE(t.is_promo_bonus, false)
+         AND t.status IN ('paid', 'approved')
+       ORDER BY t.paid_at ASC NULLS LAST, t.created_at ASC`,
+      [input.dailyEditionNumber, input.competitionId],
     );
     return rows;
   }
@@ -738,6 +763,41 @@ export async function processPrizeClosuresAfterMatchSync(
         }
       }
 
+      const skaleDailyComp = getSkaleDailyBolaoCompetitionId();
+      if (isSkaleDailyBolaoEnabled()) {
+        const skaleDailyMatches = await listMatches(client, skaleDailyComp);
+        const editionSourceMatches =
+          skaleDailyMatches.length > 0 ? skaleDailyMatches : matches;
+        for (const edition of listGroupStageDailyEditions()) {
+          const dateSet = new Set(edition.datesBR);
+          const editionMatches = editionSourceMatches.filter(
+            (match) => match.date_br != null && dateSet.has(match.date_br),
+          );
+          if (!dailyPoolReadyForClosure(editionMatches, nowMs)) continue;
+          await client.query("BEGIN");
+          try {
+            await processClosure(client, {
+              compId: skaleDailyComp,
+              type: "extra",
+              dateBR: edition.datesBR[edition.datesBR.length - 1] ?? null,
+              dailyEditionNumber: edition.number,
+              matches: editionMatches,
+              metadataExtra: {
+                prizeGate: "skale-daily-edition",
+                dailyEditionNumber: edition.number,
+                editionDates: edition.datesBR,
+                lastKickoffMs: lastKickoffMs(editionMatches),
+                graceMinutesAfterLastKickoff: prizeDailyGraceAfterLastKickoffMinutes(),
+              },
+            });
+            await client.query("COMMIT");
+          } catch (error) {
+            await client.query("ROLLBACK");
+            throw error;
+          }
+        }
+      }
+
       if (generalPoolReadyForClosure(matches, nowMs)) {
         await client.query("BEGIN");
         try {
@@ -761,7 +821,13 @@ export async function processPrizeClosuresAfterMatchSync(
     }
 
     for (const extraComp of parseExtraBolaoChampionshipIds()) {
-      if (isSkaleBolaoCompetition(extraComp) || isWeekendBolaoCompetition(extraComp)) continue;
+      if (
+        isSkaleBolaoCompetition(extraComp) ||
+        isWeekendBolaoCompetition(extraComp) ||
+        isSkaleDailyBolaoCompetition(extraComp)
+      ) {
+        continue;
+      }
       const matchesExtra = await listMatches(client, extraComp);
       if (matchesExtra.length === 0) continue;
       const byDateExtra = new Map<string, MatchRow[]>();

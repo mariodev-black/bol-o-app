@@ -7,6 +7,10 @@ import {
   getSkaleBolaoCompetitionId,
   isSkaleBolaoEnabled,
 } from "@/lib/boloes/skale-config";
+import {
+  getSkaleDailyBolaoCompetitionId,
+  isSkaleDailyBolaoEnabled,
+} from "@/lib/boloes/skale-daily-config";
 
 function env(name: string): string {
   const raw = process.env[name];
@@ -37,7 +41,10 @@ export function getAllSyncedCompetitionIds(): number[] {
   const main = getFootballMainCompetitionId();
   const extras = parseExtraBolaoChampionshipIds();
   const skale = isSkaleBolaoEnabled() ? [getSkaleBolaoCompetitionId()] : [];
-  return [...new Set([main, ...extras, ...skale])];
+  const skaleDaily = isSkaleDailyBolaoEnabled()
+    ? [getSkaleDailyBolaoCompetitionId()]
+    : [];
+  return [...new Set([main, ...extras, ...skale, ...skaleDaily])];
 }
 
 /** Preço unitário do ticket extra (default R$ 10,00). */

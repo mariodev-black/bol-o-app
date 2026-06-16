@@ -21,7 +21,7 @@ function centsToBRL(cents: number): string {
 }
 
 export default function DepositoPage() {
-  const [prices, setPrices] = useState<{ general: number; daily: number }>({ general: 3990, daily: 2000 });
+  const [prices, setPrices] = useState<{ general: number; daily: number }>({ general: 3990, daily: 1000 });
   const [ticketType, setTicketType] = useState<TicketType>("general");
   const [tx, setTx] = useState<DepositTransaction | null>(null);
   const [loading, setLoading] = useState(false);

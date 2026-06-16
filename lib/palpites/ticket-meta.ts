@@ -1,4 +1,9 @@
 import { paidTicketDailyEditionNumber } from "@/lib/boloes/daily-editions";
+import { isSkaleBolaoCompetition } from "@/lib/boloes/skale-config";
+import {
+  isSkaleDailyBolaoCompetition,
+  paidTicketSkaleDailyEditionNumber,
+} from "@/lib/boloes/skale-daily-config";
 import { getPool } from "@/lib/db";
 import { getSoleConfiguredExtraChampionshipId } from "@/lib/boloes-extra-config";
 import { effectiveExtraRoundForPaidTicket } from "@/lib/ticket-shop-extra-display";
@@ -80,6 +85,27 @@ export async function resolveOwnedTicketMeta(
         cid != null && Number.isFinite(Number(cid))
           ? Number(cid)
           : getSoleConfiguredExtraChampionshipId();
+      if (compId != null && isSkaleDailyBolaoCompetition(compId)) {
+        const edition = paidTicketSkaleDailyEditionNumber({
+          ticketType: "extra",
+          extraChampionshipId: compId,
+          round_number: rnum,
+        });
+        return {
+          bolao: "extra",
+          extraChampionshipId: compId,
+          extraRoundNumber: edition,
+          dailyEditionNumber: null,
+        };
+      }
+      if (compId != null && isSkaleBolaoCompetition(compId)) {
+        return {
+          bolao: "extra",
+          extraChampionshipId: compId,
+          extraRoundNumber: null,
+          dailyEditionNumber: null,
+        };
+      }
       if (compId != null) {
         const liveRounds = await extraBolaoCurrentRoundsByChampionship([compId]).catch(
           () => ({} as Record<number, { roundNumber: number }>),

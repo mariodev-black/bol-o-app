@@ -25,6 +25,13 @@ import {
   isSkaleBolaoCompetition,
 } from "@/lib/boloes/skale-config";
 import {
+  getSkaleDailyBolaoCompetitionId,
+  isSkaleDailyBolaoCompetition,
+  paidTicketSkaleDailyEditionNumber,
+  skaleDailyEditionLabel,
+} from "@/lib/boloes/skale-daily-config";
+import { ensureSkaleDailyBolaoMatchesMirrored } from "@/lib/boloes/skale-match-resolve";
+import {
   getWeekendBolaoSourceCopaCompetitionId,
   isWeekendBolaoCompetition,
 } from "@/lib/boloes/weekend-bolao-config";
@@ -268,6 +275,7 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
   let dailyEditionNumber: number | null = null;
   let dailyEditionDates: string[] = [];
   let dailyEditionDatesLabel: string | null = null;
+  let isSkaleDailyEditionPool = false;
   let isPromoBonus = false;
   const tid = ticketId?.trim() ?? "";
   if (tid) {
@@ -304,6 +312,20 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
         const rnum = row?.rnum;
         extraRoundNumber = rnum != null && Number.isFinite(Number(rnum)) ? Number(rnum) : null;
         ticketRoundFromDb = extraRoundNumber;
+        if (isSkaleDailyBolaoCompetition(extraChampionshipId)) {
+          isSkaleDailyEditionPool = true;
+          dailyEditionNumber = paidTicketSkaleDailyEditionNumber({
+            ticketType: "extra",
+            extraChampionshipId,
+            round_number: row?.rnum,
+          });
+          const editionMeta =
+            dailyEditionNumber != null ? getDailyEdition(dailyEditionNumber) : null;
+          if (editionMeta) {
+            dailyEditionDates = [...editionMeta.datesBR];
+            dailyEditionDatesLabel = formatDailyEditionDatesLabel(editionMeta);
+          }
+        }
       }
       if (inferred === "diario" || row?.ticket_type === "daily") {
         bolaoType = "diario";
@@ -333,6 +355,9 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
       if (isSkaleBolaoCompetition(extraChampionshipId)) {
         extraRoundNumber = null;
         extraRoundName = "Copa inteira";
+      } else if (isSkaleDailyBolaoCompetition(extraChampionshipId)) {
+        extraRoundNumber = null;
+        extraRoundName = null;
       } else if (isWeekendBolaoCompetition(extraChampionshipId)) {
         extraRoundNumber = null;
         extraRoundName = "Rodada do fim de semana";
@@ -370,6 +395,10 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
     bolaoType === "extra" &&
     extraChampionshipId != null &&
     isSkaleBolaoCompetition(extraChampionshipId);
+  const isSkaleDailyExtra =
+    bolaoType === "extra" &&
+    extraChampionshipId != null &&
+    isSkaleDailyBolaoCompetition(extraChampionshipId);
   const isWeekendExtra =
     bolaoType === "extra" &&
     extraChampionshipId != null &&
@@ -391,6 +420,10 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
 
   if (isSkaleExtra) {
     await mirrorSkaleBolaoMatchesFromCopa().catch(() => {});
+  }
+
+  if (isSkaleDailyExtra) {
+    await ensureSkaleDailyBolaoMatchesMirrored().catch(() => {});
   }
 
   if (isWeekendExtra) {
@@ -517,6 +550,10 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
     const editionDateSet = new Set(dailyEditionDates);
     jogos = jogos.filter((j) => j.dataBR && editionDateSet.has(j.dataBR));
   }
+  if (isSkaleDailyExtra && dailyEditionDates.length > 0) {
+    const editionDateSet = new Set(dailyEditionDates);
+    jogos = jogos.filter((j) => j.dataBR && editionDateSet.has(j.dataBR));
+  }
 
   if (
     bolaoType === "extra" &&
@@ -556,9 +593,12 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
     extraRoundName,
     isSkaleFullCopaPool: isSkaleExtra || isWeekendExtra,
     bolaoHeading:
-      bolaoType === "diario" && dailyEditionNumber != null
-        ? `${dailyEditionLabel(dailyEditionNumber)}${dailyEditionDatesLabel ? ` · ${dailyEditionDatesLabel}` : ""}`
-        : palpitesBolaoHeading(bolaoType, extraChampionshipId),
+      isSkaleDailyExtra && dailyEditionNumber != null
+        ? `${skaleDailyEditionLabel(dailyEditionNumber)}${dailyEditionDatesLabel ? ` · ${dailyEditionDatesLabel}` : ""}`
+        : bolaoType === "diario" && dailyEditionNumber != null
+          ? `${dailyEditionLabel(dailyEditionNumber)}${dailyEditionDatesLabel ? ` · ${dailyEditionDatesLabel}` : ""}`
+          : palpitesBolaoHeading(bolaoType, extraChampionshipId),
+    isSkaleDailyEditionPool: isSkaleDailyExtra,
     dailyEditionNumber,
     dailyEditionDates,
     dailyEditionDatesLabel,
@@ -582,6 +622,7 @@ function emptyPalpitesInitialData(ticketId: string | null): PalpitesInitialData 
     extraRoundNumber: null,
     extraRoundName: null,
     isSkaleFullCopaPool: false,
+    isSkaleDailyEditionPool: false,
     bolaoHeading: "Palpites",
     dailyEditionNumber: null,
     dailyEditionDates: [],

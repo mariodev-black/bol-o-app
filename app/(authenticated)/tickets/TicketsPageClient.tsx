@@ -20,6 +20,7 @@ function TicketsPageContent({
     search.get("flow") === "lp";
   const bolaoRaw = search.get("bolao");
   const ticketsArtilheirosOnly = bolaoRaw === "artilheiros";
+  const initialSkaleDaily = bolaoRaw === "skale-diario";
   const initialTicketKind =
     ticketsArtilheirosOnly
       ? "artilheiros"
@@ -41,6 +42,7 @@ function TicketsPageContent({
                 : "full-shop"
           }
           initialTicketKind={initialTicketKind}
+          initialSkaleDaily={initialSkaleDaily}
           ticketsPrincipalAndDailyOnly={
             ticketsPrincipalAndDailyOnly && !ticketsArtilheirosOnly
           }
