@@ -327,9 +327,9 @@ export async function listPaidTicketsForUser(
         };
       }
 
-      const scopeOpen =
+      const scopeOpenRaw =
         t.ticketType === "daily"
-          ? openMatchesDefaultLock.filter((m) => m.competitionId === scopeComp)
+          ? openMatchesDiarioLock.filter((m) => m.competitionId === scopeComp)
           : openMatchesExtraLock.filter(
               (m) =>
                 m.competitionId === scopeComp ||
