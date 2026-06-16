@@ -1,12 +1,11 @@
 import {
   getDailyEdition,
-  getDailyEditionDatesSet,
   isDateInDailyEdition,
-  paidTicketDailyEditionNumber,
 } from "@/lib/boloes/daily-editions";
 import {
   inferDailyEditionFromMatchIds,
   isDailyEditionClosed,
+  isDailyTicketCrossEditionConflict,
 } from "@/lib/boloes/daily-editions-server";
 import { isSkaleBolaoCompetition } from "@/lib/boloes/skale-config";
 import {
@@ -146,18 +145,19 @@ export async function validatePalpiteForSave(
         status: 400,
       };
     }
-    const editionDates = getDailyEditionDatesSet(skaleDailyEdition);
-    if (ticketPreds.length > 0) {
-      for (const p of ticketPreds) {
-        const m = resolveBolaoMatchFromMap(matchMap, scopeComp, Number(p.match_id));
-        const date = m?.dateBR ?? null;
-        if (date && !editionDates.has(date)) {
-          return {
-            error: "Este ticket diario Skale ja foi encerrado para novo uso",
-            status: 400,
-          };
-        }
-      }
+    if (
+      ticketPreds.length > 0 &&
+      isDailyTicketCrossEditionConflict(
+        skaleDailyEdition,
+        ticketPreds.map((p) => Number(p.match_id)),
+        matchMap,
+        mainComp,
+      )
+    ) {
+      return {
+        error: "Este ticket diario Skale ja foi encerrado para novo uso",
+        status: 400,
+      };
     }
     return null;
   }
@@ -245,18 +245,19 @@ export async function validatePalpiteForSave(
           status: 400,
         };
       }
-      const editionDates = getDailyEditionDatesSet(edition);
-      if (ticketPreds.length > 0) {
-        for (const p of ticketPreds) {
-          const m = getMatchFromMap(matchMap, mainComp, Number(p.match_id));
-          const date = m?.dateBR ?? null;
-          if (date && !editionDates.has(date)) {
-            return {
-              error: "Este ticket diario ja foi encerrado para novo uso",
-              status: 400,
-            };
-          }
-        }
+      if (
+        ticketPreds.length > 0 &&
+        isDailyTicketCrossEditionConflict(
+          edition,
+          ticketPreds.map((p) => Number(p.match_id)),
+          matchMap,
+          mainComp,
+        )
+      ) {
+        return {
+          error: "Este ticket diario ja foi encerrado para novo uso",
+          status: 400,
+        };
       }
     }
   } else if (bolaoType === "extra") {
