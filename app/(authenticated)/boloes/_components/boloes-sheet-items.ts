@@ -1,6 +1,7 @@
 import iconCopaMundo from "@/app/assets/icon-copa-mundo.png";
 import iconeBolaoArtilheiro from "@/app/assets/icone-bolao-artilheiro.png";
 import logoBolaoDiario from "@/app/assets/logo-bolao-diario.png";
+import skaleLogo from "@/app/assets/skale.png";
 import type { ActiveBolaoListItem, BoloesScreenData } from "@/app/(authenticated)/boloes/BoloesClient";
 import { getExtraBolaoHeroSideVariant } from "@/lib/boloes-extra-competition-branding";
 import {
@@ -65,7 +66,10 @@ function iconForActive(item: ActiveBolaoListItem): {
   brandedIcon: boolean;
 } {
   if (item.type === "diario") {
-    return { iconSrc: logoBolaoDiario.src, brandedIcon: true };
+    return {
+      iconSrc: item.isSkaleDaily ? skaleLogo.src : logoBolaoDiario.src,
+      brandedIcon: true,
+    };
   }
   if (item.type === "artilheiros") {
     return { iconSrc: iconeBolaoArtilheiro.src, brandedIcon: true };

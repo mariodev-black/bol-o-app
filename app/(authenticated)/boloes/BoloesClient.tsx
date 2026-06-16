@@ -405,11 +405,13 @@ function SectionTitle({
 function ActiveRowBolaoIcon({
   isPrincipal,
   isExtra,
+  isSkaleDaily,
   title,
   championshipId,
 }: {
   isPrincipal: boolean;
   isExtra: boolean;
+  isSkaleDaily?: boolean;
   title: string;
   championshipId?: number | null;
 }) {
@@ -433,8 +435,8 @@ function ActiveRowBolaoIcon({
     return (
       <div className="flex w-[58px] shrink-0 flex-col items-center justify-center px-0.5 text-center">
         <Image
-          src={logoBolaoDiario}
-          alt="Bolão Diário"
+          src={isSkaleDaily ? skaleLogo : logoBolaoDiario}
+          alt={isSkaleDaily ? "Bolão Diário Skale" : "Bolão Diário"}
           width={52}
           height={44}
           className="h-11 w-[52px] object-contain"
@@ -637,6 +639,7 @@ function ActiveBoloesList({
                 <ActiveRowBolaoIcon
                   isPrincipal={isPrincipal}
                   isExtra={isExtra}
+                  isSkaleDaily={item.isSkaleDaily}
                   title={item.title}
                   championshipId={item.championshipId}
                 />
@@ -1504,8 +1507,8 @@ function NoTicketsHeroCard({ product }: { product: NoTicketsProduct }) {
             />
           ) : useDiarioLogo ? (
             <Image
-              src={logoBolaoDiario}
-              alt="Bolão Diário"
+              src={product.iconSrc}
+              alt={product.id === "skale-diario" ? "Bolão Diário Skale" : "Bolão Diário"}
               width={96}
               height={80}
               className="h-[72px] w-[88px] object-contain sm:h-[80px] sm:w-[96px]"
