@@ -25,6 +25,7 @@ import iconCopaBrasil from "@/app/assets/icon-copa-brasil.png";
 import iconCopaMundo from "@/app/assets/icon-copa-mundo.png";
 import iconeBolaoArtilheiro from "@/app/assets/icone-bolao-artilheiro.png";
 import logoBolaoDiario from "@/app/assets/logo-bolao-diario.png";
+import skaleLogo from "@/app/assets/skale.png";
 import ticketBlue from "@/app/assets/Ticket-Blue.png";
 import {
   getExtraBolaoHeroSideVariant,
@@ -53,8 +54,9 @@ import {
 } from "./pix/ticket-pix-ui-constants";
 
 const DEFAULT_PRINCIPAL_CENTS = 3990;
-const DEFAULT_DIARIO_CENTS = 2000;
+const DEFAULT_DIARIO_CENTS = 1000;
 const DEFAULT_EXTRA_CENTS = 1000;
+const DEFAULT_SKALE_DAILY_CENTS = 10_000;
 const DEFAULT_ARTILHEIROS_CENTS = 2000;
 
 /** Mesmo espírito de `BOLOES_EXTRA_*` — permite cards no primeiro paint antes do GET (opcional). */
@@ -162,8 +164,10 @@ type TicketCheckoutFlowProps = {
   ticketsPrincipalAndDailyOnly?: boolean;
   /** Loja `/tickets`: exibe principal + diário + artilheiros, sem extras. */
   ticketsHideExtra?: boolean;
-  /** Checkout focado: somente Bolão dos Artilheiros (`/tickets?bolao=artilheiros`). */
+  /** Loja `/tickets?bolao=artilheiros`: somente artilheiros. */
   ticketsArtilheirosOnly?: boolean;
+  /** Pré-seleciona bolão diário Skale (`?bolao=skale-diario`). */
+  initialSkaleDaily?: boolean;
 };
 
 const MAX_QTY = 20;
@@ -183,6 +187,7 @@ export function TicketCheckoutFlow({
   ticketsPrincipalAndDailyOnly = false,
   ticketsHideExtra = false,
   ticketsArtilheirosOnly = false,
+  initialSkaleDaily = false,
 }: TicketCheckoutFlowProps) {
   const router = useRouter();
   const showPrincipal = !ticketsExtraOnly && !ticketsArtilheirosOnly;
@@ -251,9 +256,15 @@ export function TicketCheckoutFlow({
     }
     return {};
   });
+  const [currentSkaleDailyEdition, setCurrentSkaleDailyEdition] =
+    useState<DailyEditionCatalogItem | null>(null);
+  const [skaleDailyQtyByEdition, setSkaleDailyQtyByEdition] = useState<
+    Record<number, number>
+  >(() => ({}));
   const [prices, setPrices] = useState({
     general: DEFAULT_PRINCIPAL_CENTS,
     daily: DEFAULT_DIARIO_CENTS,
+    skaleDaily: DEFAULT_SKALE_DAILY_CENTS,
     extra: DEFAULT_EXTRA_CENTS,
     artilheiros: DEFAULT_ARTILHEIROS_CENTS,
   });
@@ -299,6 +310,18 @@ export function TicketCheckoutFlow({
     setExtraQtyByChampionship({});
     setExtraBoloes([]);
   }, [ticketsPrincipalAndDailyOnly]);
+
+  const setSkaleDailyEditionQty = useCallback((edition: number, qty: number) => {
+    setSkaleDailyQtyByEdition((prev) => ({
+      ...prev,
+      [edition]: Math.max(0, Math.min(MAX_QTY, qty)),
+    }));
+  }, []);
+
+  const skaleDailyEditionQty = useCallback(
+    (edition: number) => skaleDailyQtyByEdition[edition] ?? 0,
+    [skaleDailyQtyByEdition],
+  );
 
   const setDailyEditionQty = useCallback((edition: number, qty: number) => {
     setDailyQtyByEdition((prev) => ({
@@ -392,11 +415,13 @@ export function TicketCheckoutFlow({
           prices?: {
             general: number;
             daily: number;
+            skaleDaily?: number;
             extra?: number;
             artilheiros?: number;
           };
           artilheirosEnabled?: boolean;
           dailyEdition?: DailyEditionCatalogItem | null;
+          skaleDailyEdition?: DailyEditionCatalogItem | null;
           extraBoloes?: Array<{
             championshipId: number;
             unitCents: number;
@@ -410,6 +435,7 @@ export function TicketCheckoutFlow({
           setPrices({
             general: d.prices.general,
             daily: d.prices.daily,
+            skaleDaily: d.prices.skaleDaily ?? DEFAULT_SKALE_DAILY_CENTS,
             extra: d.prices.extra ?? DEFAULT_EXTRA_CENTS,
             artilheiros: d.prices.artilheiros ?? DEFAULT_ARTILHEIROS_CENTS,
           });
@@ -429,6 +455,20 @@ export function TicketCheckoutFlow({
         } else if (r.ok) {
           setCurrentDailyEdition(null);
         }
+        if (r.ok && d.skaleDailyEdition) {
+          setCurrentSkaleDailyEdition(d.skaleDailyEdition);
+          if (showDaily) {
+            setSkaleDailyQtyByEdition((prev) =>
+              Object.keys(prev).length > 0
+                ? prev
+                : {
+                    [d.skaleDailyEdition!.number]: initialSkaleDaily ? 1 : 0,
+                  },
+            );
+          }
+        } else if (r.ok) {
+          setCurrentSkaleDailyEdition(null);
+        }
         if (r.ok && Array.isArray(d.extraBoloes) && d.extraBoloes.length > 0 && showExtra) {
           setExtraBoloes(
             filterTicketShopExtraBoloes(
@@ -445,7 +485,7 @@ export function TicketCheckoutFlow({
     return () => {
       cancelled = true;
     };
-  }, [showDaily, showExtra, initialTicketKind]);
+  }, [showDaily, showExtra, initialTicketKind, initialSkaleDaily]);
 
   // SSE — canal primário (funciona em dev; pode não funcionar em serverless multi-instância)
   useEffect(() => {
@@ -570,6 +610,15 @@ export function TicketCheckoutFlow({
     const q = dailyEditionQty(currentDailyEdition.number);
     return progressiveDiscountTotalCents(prices.daily, q);
   }, [currentDailyEdition, dailyEditionQty, prices.daily]);
+  const skaleDiarioLineCents = useMemo(() => {
+    if (!currentSkaleDailyEdition) return 0;
+    const q = skaleDailyEditionQty(currentSkaleDailyEdition.number);
+    return progressiveDiscountTotalCents(prices.skaleDaily, q);
+  }, [currentSkaleDailyEdition, skaleDailyEditionQty, prices.skaleDaily]);
+  const skaleDailyTotalQty = useMemo(
+    () => Object.values(skaleDailyQtyByEdition).reduce((s, q) => s + q, 0),
+    [skaleDailyQtyByEdition],
+  );
   const dailyTotalQty = useMemo(
     () => Object.values(dailyQtyByEdition).reduce((s, q) => s + q, 0),
     [dailyQtyByEdition],
@@ -618,9 +667,17 @@ export function TicketCheckoutFlow({
   );
 
   const totalCents =
-    principalLineCents + diarioLineCents + extraLinesCents + artilheirosLineCents;
+    principalLineCents +
+    diarioLineCents +
+    skaleDiarioLineCents +
+    extraLinesCents +
+    artilheirosLineCents;
   const totalQty =
-    principalQty + dailyTotalQty + extraTotalQty + (showArtilheiros ? artilheirosQty : 0);
+    principalQty +
+    dailyTotalQty +
+    skaleDailyTotalQty +
+    extraTotalQty +
+    (showArtilheiros ? artilheirosQty : 0);
   const hasSelection = totalCents > 0 && totalQty >= 1;
   const geralDiscountPct = progressiveDiscountPercent(principalQty);
   const principalUnitPriceCents =
@@ -674,6 +731,17 @@ export function TicketCheckoutFlow({
                       [
                         String(currentDailyEdition.number),
                         dailyEditionQty(currentDailyEdition.number),
+                      ] as const,
+                    ].filter(([, q]) => q > 0),
+                  )
+                : {},
+            skaleDailyByEdition:
+              showDaily && currentSkaleDailyEdition
+                ? Object.fromEntries(
+                    [
+                      [
+                        String(currentSkaleDailyEdition.number),
+                        skaleDailyEditionQty(currentSkaleDailyEdition.number),
                       ] as const,
                     ].filter(([, q]) => q > 0),
                   )
@@ -1024,6 +1092,130 @@ export function TicketCheckoutFlow({
                                 </p>
                                 <p className="mt-1 text-[12px] font-semibold tabular-nums text-white/80 line-through">
                                   {discountPct > 0 ? formatBRL(prices.daily) : ""}
+                                </p>
+                                <p className="text-[12px] font-bold text-primary">
+                                  {discountPct > 0 ? `${discountPct}% OFF` : ""}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          {closed && (
+                            <div className="border-t border-white/6 bg-black/25 px-3.5 py-2 text-[11px] font-medium text-white/45 sm:px-4">
+                              Esta edição já encerrou — não é possível comprar.
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+
+                {showDaily && currentSkaleDailyEdition && (
+                  <div className="space-y-3">
+                    {(() => {
+                      const edition = currentSkaleDailyEdition;
+                      const qty = skaleDailyEditionQty(edition.number);
+                      const closed = !edition.purchaseOpen;
+                      const lineCents = progressiveDiscountTotalCents(
+                        prices.skaleDaily,
+                        qty,
+                      );
+                      const discountPct = progressiveDiscountPercent(qty);
+                      const unitCents =
+                        qty > 0 ? Math.round(lineCents / qty) : prices.skaleDaily;
+                      const statusLabel =
+                        edition.status === "encerrado"
+                          ? "Encerrado"
+                          : edition.status === "em_breve"
+                            ? "Em breve"
+                            : "Aberto";
+
+                      return (
+                        <div
+                          key={`skale-${edition.number}`}
+                          className={`overflow-hidden rounded-[16px] border bg-[#121212] shadow-[0_8px_26px_rgba(0,0,0,0.35)] ${
+                            closed
+                              ? "border-white/8 opacity-70"
+                              : "border-white/10"
+                          }`}
+                        >
+                          <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3 p-3 sm:p-3.5">
+                            <div className={TICKET_CARD_LOGO_WRAP_CLASS}>
+                              <Image
+                                src={skaleLogo}
+                                alt="Bolão Diário Skale"
+                                className={TICKET_CARD_LOGO_CLASS}
+                              />
+                            </div>
+                            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_88px] items-center gap-3 sm:grid-cols-[minmax(0,1fr)_96px]">
+                              <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <h3 className="text-[14px] font-black uppercase leading-tight text-white sm:text-[15px]">
+                                    {edition.label}
+                                  </h3>
+                                  <span
+                                    className={`w-fit shrink-0 rounded-md px-1.5 py-0.5 text-[7px] font-black uppercase tracking-wide sm:text-[8px] ${
+                                      closed
+                                        ? "bg-red-500/15 text-red-300"
+                                        : edition.status === "em_breve"
+                                          ? "bg-white/10 text-white/60"
+                                          : "bg-primary/20 text-primary"
+                                    }`}
+                                  >
+                                    {statusLabel}
+                                  </span>
+                                </div>
+                                <p className="mt-1 text-[12px] font-semibold leading-snug text-primary/90 sm:text-[11px]">
+                                  {edition.datesLabel}
+                                </p>
+                                <p className="mt-1 text-[12px] font-medium leading-snug text-white/55">
+                                  Palpites em todos os jogos destes dias
+                                </p>
+                                <div className="mt-3 flex w-fit items-center gap-1 rounded-[10px] border border-white/10 bg-[#0f0f0f] p-1">
+                                  <button
+                                    type="button"
+                                    aria-label={`Diminuir ${edition.label}`}
+                                    disabled={closed || qty <= 0}
+                                    onClick={() => {
+                                      setError(null);
+                                      setCouponHint(null);
+                                      setSkaleDailyEditionQty(edition.number, qty - 1);
+                                    }}
+                                    className="flex h-8 w-8 items-center justify-center rounded-[8px] border border-primary/20 bg-black/40 text-primary transition-colors hover:bg-white/10 disabled:opacity-30"
+                                  >
+                                    <span className="text-[18px] font-black leading-none">
+                                      -
+                                    </span>
+                                  </button>
+                                  <span className="w-8 text-center text-[18px] font-black tabular-nums text-white sm:text-[20px]">
+                                    {qty}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    aria-label={`Aumentar ${edition.label}`}
+                                    disabled={closed || qty >= MAX_QTY}
+                                    onClick={() => {
+                                      setError(null);
+                                      setCouponHint(null);
+                                      setSkaleDailyEditionQty(edition.number, qty + 1);
+                                    }}
+                                    className="flex h-8 w-8 items-center justify-center rounded-[8px] border border-primary/30 bg-black/40 text-primary transition-colors hover:bg-white/10 disabled:opacity-30"
+                                  >
+                                    <span className="text-[18px] font-black leading-none">
+                                      +
+                                    </span>
+                                  </button>
+                                </div>
+                              </div>
+                              <div className="self-center text-right">
+                                <p className="text-[12px] font-semibold text-white/40">
+                                  Preço unitário
+                                </p>
+                                <p className="mt-1 text-[14px] font-black tabular-nums text-white sm:text-[15px]">
+                                  {formatBRL(unitCents)}
+                                </p>
+                                <p className="mt-1 text-[12px] font-semibold tabular-nums text-white/80 line-through">
+                                  {discountPct > 0 ? formatBRL(prices.skaleDaily) : ""}
                                 </p>
                                 <p className="text-[12px] font-bold text-primary">
                                   {discountPct > 0 ? `${discountPct}% OFF` : ""}

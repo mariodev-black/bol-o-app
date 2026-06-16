@@ -30,8 +30,21 @@ import { resolvePaidTicketRankingPositions } from "@/lib/ranking/leaderboard";
 import {
   dailyEditionCardTitle,
   formatDailyEditionCardSubtitle,
+  formatDailyEditionDatesLabel,
   getDailyEdition,
+  listGroupStageDailyEditions,
+  paidTicketDailyEditionNumber,
+  resolveShopDailyEdition,
 } from "@/lib/boloes/daily-editions";
+import {
+  getSkaleDailyBolaoCompetitionId,
+  getSkaleDailyBolaoUnitCents,
+  isSkaleDailyBolaoCompetition,
+  isSkaleDailyBolaoEnabled,
+  paidTicketSkaleDailyEditionNumber,
+  skaleDailyEditionCardTitle,
+} from "@/lib/boloes/skale-daily-config";
+import { resolveDailyEditionStatus } from "@/lib/boloes/daily-editions-server";
 import {
   ARTILHEIROS_BOLAO_SUBTITLE,
   ARTILHEIROS_BOLAO_TITLE,
@@ -179,6 +192,13 @@ function ticketCotaGroupKey(ticket: PaidTicketRow): string {
     const edition = ticket.dailyEditionNumber ?? 0;
     return `daily:${edition}`;
   }
+  if (
+    ticket.ticketType === "extra" &&
+    isSkaleDailyBolaoCompetition(ticket.extraChampionshipId)
+  ) {
+    const edition = paidTicketSkaleDailyEditionNumber(ticket) ?? 0;
+    return `skale-daily:${edition}`;
+  }
   const comp = Number(ticket.extraChampionshipId) || 0;
   const round = ticket.extraRoundNumber ?? "all";
   return `extra:${comp}:${round}`;
@@ -303,6 +323,7 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
   for (const ticket of tickets.filter((t) => t.ticketType === "extra")) {
     const comp = Number(ticket.extraChampionshipId);
     if (!Number.isFinite(comp) || comp <= 0) continue;
+    if (isSkaleDailyBolaoCompetition(comp)) continue;
     const round = effectiveExtraRoundForPaidTicket({
       championshipId: comp,
       roundNumberFromDb: ticket.extraRoundNumber,
@@ -515,6 +536,71 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
     if (ticket.ticketType === "extra") {
       const compId = Number(ticket.extraChampionshipId);
       const safeComp = Number.isFinite(compId) && compId > 0 ? compId : 0;
+
+      if (isSkaleDailyBolaoCompetition(safeComp)) {
+        const editionNum = paidTicketSkaleDailyEditionNumber(ticket);
+        const editionMeta =
+          editionNum != null ? getDailyEdition(editionNum) : null;
+        const editionDates = editionMeta?.datesBR ?? [];
+        const dateMatches = Array.from(matches.values()).filter(
+          (match) =>
+            match.dateBR != null &&
+            editionDates.includes(match.dateBR) &&
+            (Number(match.competitionId) === safeComp ||
+              (Number(match.competitionId) || mainComp) === mainComp),
+        );
+        const closeAt = nextLockMs(
+          dateMatches.filter((match) => isOpenMatch(match, PALPITE_LOCK_MS_DIARIO)),
+          PALPITE_LOCK_MS_DIARIO,
+        );
+        const { displayPhase, statusLabel } = bolaoStatusFromMetrics(
+          ticket,
+          metrics,
+          matches,
+          predictionMatchIds,
+          scopeOpts,
+        );
+        const legacyStatus =
+          displayPhase === "finalizado"
+            ? "usado"
+            : displayPhase === "pendentes"
+              ? "aguardando"
+              : "ativo";
+        const skaleDailyTitle =
+          editionNum != null
+            ? skaleDailyEditionCardTitle(editionNum)
+            : "Diário Skale";
+        const dailyEditionDatesLabel = editionMeta
+          ? formatDailyEditionCardSubtitle(editionMeta)
+          : null;
+        return {
+          id: ticket.id,
+          type: "diario",
+          championshipId: safeComp,
+          isSkaleDaily: true,
+          title: skaleDailyTitle,
+          dailyEditionDatesLabel,
+          cotaLabel: cotaLabelForTicket(ticket, cotaOrdinalByTicketId),
+          href: `/palpites?${new URLSearchParams({ ticket: ticket.id }).toString()}`,
+          status: legacyStatus as ActiveDailyStatus,
+          displayPhase,
+          statusLabel,
+          sent: metrics.sent,
+          total: metrics.total,
+          gamesCount: metrics.available,
+          countdownLabel:
+            displayPhase === "finalizado"
+              ? "Encerrado"
+              : displayPhase === "pendentes" && legacyStatus === "aguardando"
+                ? "Início em"
+                : "Fecha em",
+          countdownTargetMs: displayPhase === "finalizado" ? null : closeAt,
+          position: metrics.position,
+          points: metrics.points,
+          participantCount: participantsByBolao.extra,
+        };
+      }
+
       const baseName =
         safeComp > 0
           ? resolveExtraBolaoDisplayName(safeComp, competitionLabels[safeComp])
@@ -737,6 +823,47 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
     all: allActive,
   };
 
+  const skaleDailyShopEdition = isSkaleDailyBolaoEnabled()
+    ? resolveShopDailyEdition(
+        listGroupStageDailyEditions().map((edition) => ({
+          number: edition.number,
+          label: skaleDailyEditionCardTitle(edition.number),
+          datesLabel: formatDailyEditionCardSubtitle(edition),
+          datesBR: edition.datesBR,
+          status: resolveDailyEditionStatus(edition.number, matches, mainComp),
+          purchaseOpen:
+            resolveDailyEditionStatus(edition.number, matches, mainComp) !==
+            "encerrado",
+        })),
+      )
+    : null;
+  const skaleDailyEditionDates = skaleDailyShopEdition
+    ? getDailyEdition(skaleDailyShopEdition.number)?.datesBR ?? []
+    : [];
+  const skaleDailyMatchesCount = skaleDailyEditionDates.length
+    ? Array.from(matches.values()).filter(
+        (match) =>
+          match.dateBR != null &&
+          skaleDailyEditionDates.includes(match.dateBR) &&
+          isOpenMatch(match, PALPITE_LOCK_MS_DIARIO) &&
+          (Number(match.competitionId) === getSkaleDailyBolaoCompetitionId() ||
+            (Number(match.competitionId) || mainComp) === mainComp),
+      ).length
+    : 0;
+  const skaleDailyCloseAtMs = skaleDailyEditionDates.length
+    ? nextLockMs(
+        Array.from(matches.values()).filter(
+          (match) =>
+            match.dateBR != null &&
+            skaleDailyEditionDates.includes(match.dateBR) &&
+            isOpenMatch(match, PALPITE_LOCK_MS_DIARIO) &&
+            (Number(match.competitionId) === getSkaleDailyBolaoCompetitionId() ||
+              (Number(match.competitionId) || mainComp) === mainComp),
+        ),
+        PALPITE_LOCK_MS_DIARIO,
+      )
+    : null;
+
   const data: BoloesScreenData = {
     participantsByBolao: {
       ...participantsByBolao,
@@ -755,6 +882,16 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
         closesAtMs: dailyCloseAtMs,
         priceLabel: formatBRL(getTicketPriceCents("daily")),
       },
+      ...(isSkaleDailyBolaoEnabled() && skaleDailyShopEdition
+        ? {
+            skaleDaily: {
+              href: "/tickets?bolao=skale-diario",
+              gamesCount: skaleDailyMatchesCount,
+              closesAtMs: skaleDailyCloseAtMs,
+              priceLabel: formatBRL(getSkaleDailyBolaoUnitCents()),
+            },
+          }
+        : {}),
       principal: {
         href: "/tickets",
         priceLabel: formatBRL(getTicketPriceCents("general")),
@@ -769,7 +906,9 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
             },
           }
         : {}),
-      extras: configuredExtraIds.map((championshipId) => {
+      extras: configuredExtraIds
+        .filter((championshipId) => !isSkaleDailyBolaoCompetition(championshipId))
+        .map((championshipId) => {
         const roundInfo = extraRounds[championshipId];
         const scopeMatches =
           roundInfo != null

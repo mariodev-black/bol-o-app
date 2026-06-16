@@ -6,6 +6,10 @@ import {
   isSkaleBolaoCompetition,
 } from "@/lib/boloes/skale-config";
 import {
+  getSkaleDailyBolaoCompetitionId,
+  getSkaleDailyBolaoUnitCents,
+} from "@/lib/boloes/skale-daily-config";
+import {
   getWeekendBolaoUnitCents,
   isWeekendBolaoCompetition,
 } from "@/lib/boloes/weekend-bolao-config";
@@ -25,7 +29,7 @@ function parsePositiveInt(value: string, fallback: number): number {
 
 export function getTicketPriceCents(type: "general" | "daily"): number {
   if (type === "daily") {
-    return parsePositiveInt(env("TICKET_PRICE_DAILY_CENTS"), 2000);
+    return parsePositiveInt(env("TICKET_PRICE_DAILY_CENTS"), 1000);
   }
   return parsePositiveInt(env("TICKET_PRICE_GENERAL_CENTS"), 3990);
 }
@@ -220,11 +224,37 @@ export function buildArtilheirosPurchaseLines(quantity: number): PurchaseTicketL
   }));
 }
 
+export function buildSkaleDailyEditionPurchaseLines(
+  skaleDailyByEdition: Record<number, number> | Record<string, number> | undefined,
+): PurchaseTicketLine[] {
+  const map = normalizeDailyByEditionInput(skaleDailyByEdition);
+  const lines: PurchaseTicketLine[] = [];
+  const unit = getSkaleDailyBolaoUnitCents();
+  const compId = getSkaleDailyBolaoCompetitionId();
+  const editions = Object.keys(map)
+    .map((k) => Number.parseInt(k, 10))
+    .filter(Number.isFinite)
+    .sort((a, b) => a - b);
+  for (const edition of editions) {
+    const q = map[edition] ?? 0;
+    for (const unitCents of distributeDiscountedTicketAmounts(unit, q)) {
+      lines.push({
+        ticketType: "extra",
+        unitCents,
+        extraChampionshipId: compId,
+        dailyEditionNumber: edition,
+      });
+    }
+  }
+  return lines;
+}
+
 export function buildPurchaseTicketLines(
   generalQty: number,
   dailyByEdition?: Record<number, number> | Record<string, number>,
   extraInput?: PurchaseExtraInput,
   artilheirosQty = 0,
+  skaleDailyByEdition?: Record<number, number> | Record<string, number>,
 ): PurchaseTicketLine[] {
   const g = Math.max(0, Math.min(20, Math.trunc(generalQty)));
   const lines: PurchaseTicketLine[] = [];
@@ -235,6 +265,7 @@ export function buildPurchaseTicketLines(
   }
 
   lines.push(...buildDailyEditionPurchaseLines(dailyByEdition));
+  lines.push(...buildSkaleDailyEditionPurchaseLines(skaleDailyByEdition));
   lines.push(...buildArtilheirosPurchaseLines(artilheirosQty));
 
   const allowedOrdered = parseExtraBolaoChampionshipIds();

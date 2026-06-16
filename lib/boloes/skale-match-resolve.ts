@@ -4,8 +4,30 @@ import {
   isSkaleBolaoCompetition,
   isSkaleBolaoEnabled,
 } from "@/lib/boloes/skale-config";
-import { mirrorSkaleBolaoMatchesFromCopa } from "@/lib/football/skale-bolao-sync";
+import {
+  getSkaleDailyBolaoCompetitionId,
+  isSkaleDailyBolaoCompetition,
+  isSkaleDailyBolaoEnabled,
+} from "@/lib/boloes/skale-daily-config";
+import {
+  mirrorAllSkaleBolaoMatchesFromCopa,
+  mirrorSkaleBolaoMatchesFromCopa,
+  mirrorSkaleDailyBolaoMatchesFromCopa,
+} from "@/lib/football/skale-bolao-sync";
 import { getMatchFromMap, type MatchMap, type MatchMapEntry } from "@/lib/football-api";
+
+function resolveFromCopaSource(
+  map: MatchMap,
+  competitionId: number,
+  matchId: number,
+): MatchMapEntry | undefined {
+  const copaId = getSkaleBolaoSourceCopaCompetitionId();
+  const copaMatch = getMatchFromMap(map, copaId, matchId);
+  if (copaMatch) {
+    return { ...copaMatch, competitionId };
+  }
+  return getMatchFromMap(map, competitionId, matchId);
+}
 
 /**
  * Partida para palpites/ranking do bolão Skale.
@@ -16,12 +38,11 @@ export function resolveBolaoMatchFromMap(
   competitionId: number,
   matchId: number,
 ): MatchMapEntry | undefined {
-  if (isSkaleBolaoCompetition(competitionId)) {
-    const copaId = getSkaleBolaoSourceCopaCompetitionId();
-    const copaMatch = getMatchFromMap(map, copaId, matchId);
-    if (copaMatch) {
-      return { ...copaMatch, competitionId };
-    }
+  if (
+    isSkaleBolaoCompetition(competitionId) ||
+    isSkaleDailyBolaoCompetition(competitionId)
+  ) {
+    return resolveFromCopaSource(map, competitionId, matchId);
   }
   return getMatchFromMap(map, competitionId, matchId);
 }
@@ -32,7 +53,8 @@ export function isMatchInSkaleBolaoPool(
 ): boolean {
   if (Number(match.competitionId) === skaleComp) return true;
   if (
-    isSkaleBolaoCompetition(skaleComp) &&
+    (isSkaleBolaoCompetition(skaleComp) ||
+      isSkaleDailyBolaoCompetition(skaleComp)) &&
     Number(match.competitionId) === getSkaleBolaoSourceCopaCompetitionId()
   ) {
     return true;
@@ -40,15 +62,21 @@ export function isMatchInSkaleBolaoPool(
   return false;
 }
 
-/** Garante `matches_cache` do bolão Skale antes de contar jogos ou pontuar. */
+/** Garante espelho Skale integral + diário antes de contar jogos ou pontuar. */
 export async function ensureSkaleBolaoMatchesMirrored(): Promise<void> {
-  if (!isSkaleBolaoEnabled()) return;
-  await mirrorSkaleBolaoMatchesFromCopa().catch(() => {});
+  await mirrorAllSkaleBolaoMatchesFromCopa().catch(() => {});
+}
+
+export async function ensureSkaleDailyBolaoMatchesMirrored(): Promise<void> {
+  if (!isSkaleDailyBolaoEnabled()) return;
+  await mirrorSkaleDailyBolaoMatchesFromCopa().catch(() => {});
 }
 
 export function skaleCompetitionIdsForMatchMap(): number[] {
-  if (!isSkaleBolaoEnabled()) return [];
-  return [getSkaleBolaoCompetitionId(), getSkaleBolaoSourceCopaCompetitionId()];
+  const ids: number[] = [getSkaleBolaoSourceCopaCompetitionId()];
+  if (isSkaleBolaoEnabled()) ids.push(getSkaleBolaoCompetitionId());
+  if (isSkaleDailyBolaoEnabled()) ids.push(getSkaleDailyBolaoCompetitionId());
+  return ids;
 }
 
 /** Todas as partidas da Copa no escopo Skale (espelho + fonte), sem duplicar `match_id`. */

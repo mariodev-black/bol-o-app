@@ -3,11 +3,17 @@ import {
   getDailyEditionDatesSet,
   paidTicketDailyEditionNumber,
 } from "@/lib/boloes/daily-editions";
-import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
 import { isSkaleBolaoCompetition } from "@/lib/boloes/skale-config";
-import { skaleScopeMatchesFromMap } from "@/lib/boloes/skale-match-resolve";
+import {
+  isSkaleDailyBolaoCompetition,
+  paidTicketSkaleDailyEditionNumber,
+} from "@/lib/boloes/skale-daily-config";
+import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
+import {
+  resolveBolaoMatchFromMap,
+  skaleScopeMatchesFromMap,
+} from "@/lib/boloes/skale-match-resolve";
 import { resolveDiarioPlayableDate } from "@/lib/diario-playable-date";
-import { resolveBolaoMatchFromMap } from "@/lib/boloes/skale-match-resolve";
 import { type MatchMap, type MatchMapEntry } from "@/lib/football-api";
 import type { PaidTicketRow } from "@/lib/payments/user-tickets";
 
@@ -138,6 +144,16 @@ export function scopeMatchesForPaidTicket(
 
   const comp = Number(ticket.extraChampionshipId);
   if (!Number.isFinite(comp) || comp <= 0) return [];
+
+  if (isSkaleDailyBolaoCompetition(comp)) {
+    const edition = paidTicketSkaleDailyEditionNumber(ticket);
+    if (edition != null) {
+      const dateSet = getDailyEditionDatesSet(edition);
+      return skaleScopeMatchesFromMap(matches, comp).filter(
+        (m) => m.dateBR != null && dateSet.has(m.dateBR),
+      );
+    }
+  }
 
   if (isSkaleBolaoCompetition(comp)) {
     return skaleScopeMatchesFromMap(matches, comp);

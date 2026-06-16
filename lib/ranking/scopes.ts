@@ -7,6 +7,10 @@ import {
 } from "@/lib/boloes/daily-editions";
 import { resolveExtraBolaoDisplayName } from "@/lib/boloes-extra-competition-branding";
 import { isSkaleBolaoCompetition, SKALE_BOLAO_SCOPE_LABEL } from "@/lib/boloes/skale-config";
+import {
+  isSkaleDailyBolaoCompetition,
+  skaleDailyEditionLabel,
+} from "@/lib/boloes/skale-daily-config";
 import { warmCompetitionMetadataCache } from "@/lib/competition-metadata-cache";
 import {
   formatExtraRoundLabel,
@@ -154,25 +158,41 @@ export async function buildRankingScopes(
     for (let i = 0; i < extraSorted.length; i++) {
       const t = extraSorted[i]!;
       const compId = t.extraChampionshipId;
+      const isSkaleDaily = isSkaleDailyBolaoCompetition(compId);
       const isSkale = isSkaleBolaoCompetition(compId);
-      const date = isSkale
-        ? SKALE_BOLAO_SCOPE_LABEL
-        : t.playDate?.trim() || "Dia";
-      const championshipName =
-        compId != null && Number.isFinite(compId)
+      const edition = t.skaleDailyEditionNumber;
+      const editionMeta = edition != null ? getDailyEdition(edition) : null;
+      const date = isSkaleDaily
+        ? editionMeta != null
+          ? formatDailyEditionDatesLabel(editionMeta)
+          : t.playDate?.trim() || "Dia"
+        : isSkale
+          ? SKALE_BOLAO_SCOPE_LABEL
+          : t.playDate?.trim() || "Dia";
+      const championshipName = isSkaleDaily
+        ? skaleDailyEditionLabel(edition ?? 1).replace(/ #\d+$/, "")
+        : compId != null && Number.isFinite(compId)
           ? resolveExtraBolaoDisplayName(compId, compNames[compId])
           : "Bolão extra";
       const ordinalSuffix = extraSorted.length > 1 ? ` · #${i + 1}` : "";
       const unused = (t.availableGames ?? 0) > 0;
       const pendingPalpitesCount = Math.max(0, t.availableGames ?? 0);
       const palpitesSentCount = Math.max(0, t.palpitesCount ?? 0);
-      const roundLabel = isSkaleBolaoCompetition(compId)
-        ? "Copa inteira"
-        : formatExtraRoundLabel(t.extraRoundNumber) ??
-          (compId != null ? formatExtraRoundLabel(getTicketShopExtraRoundNumber(compId)) : null);
-      const selectPrimary = roundLabel
-        ? `${championshipName} · ${roundLabel}`
-        : championshipName;
+      const roundLabel = isSkaleDaily
+        ? editionMeta
+          ? `Fase de grupos · ${formatDailyEditionDatesLabel(editionMeta)}`
+          : "Fase de grupos"
+        : isSkaleBolaoCompetition(compId)
+          ? "Copa inteira"
+          : formatExtraRoundLabel(t.extraRoundNumber) ??
+            (compId != null ? formatExtraRoundLabel(getTicketShopExtraRoundNumber(compId)) : null);
+      const selectPrimary = isSkaleDaily
+        ? edition != null
+          ? skaleDailyEditionLabel(edition)
+          : championshipName
+        : roundLabel
+          ? `${championshipName} · ${roundLabel}`
+          : championshipName;
       scopes.push({
         key: `extra:${t.id}`,
         mode: "extra",

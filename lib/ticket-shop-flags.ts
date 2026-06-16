@@ -2,6 +2,7 @@
 
 import { isPremierLeagueExtraChampionship } from "@/lib/boloes-extra-competition-branding";
 import { isSkaleBolaoCompetition } from "@/lib/boloes/skale-config";
+import { isSkaleDailyBolaoCompetition } from "@/lib/boloes/skale-daily-config";
 
 export function parseEnvBool(v: string | undefined): boolean {
   const s = (v ?? "").trim().toLowerCase();
@@ -25,7 +26,10 @@ export function getTicketShopFlags(): TicketShopFlags {
 /** Loja `/tickets` — Premier e Skale têm checkout dedicado. */
 export function filterTicketShopExtraChampionshipIds(ids: number[]): number[] {
   return ids.filter(
-    (id) => !isPremierLeagueExtraChampionship(id) && !isSkaleBolaoCompetition(id),
+    (id) =>
+      !isPremierLeagueExtraChampionship(id) &&
+      !isSkaleBolaoCompetition(id) &&
+      !isSkaleDailyBolaoCompetition(id),
   );
 }
 
@@ -35,6 +39,7 @@ export function filterTicketShopExtraBoloes<T extends { championshipId: number }
   return items.filter(
     (b) =>
       !isPremierLeagueExtraChampionship(b.championshipId) &&
-      !isSkaleBolaoCompetition(b.championshipId),
+      !isSkaleBolaoCompetition(b.championshipId) &&
+      !isSkaleDailyBolaoCompetition(b.championshipId),
   );
 }
