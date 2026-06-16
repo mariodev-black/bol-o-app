@@ -5,19 +5,7 @@ import { HomePageContainer } from "@/app/shared/HomePageContainer";
 import { NavBottom } from "@/app/shared/NavBottom";
 import { HomeBannerCarousel } from "@/app/components/HomeBannerCarousel";
 import { HomeFromRedirectWhenLoggedIn } from "@/app/shared/HomeFromRedirectWhenLoggedIn";
-import { HomeBrasilMarrocosPromoFlow } from "@/app/components/HomeBrasilMarrocosPromoFlow";
-import { Suspense, useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { usePromotionsHub } from "@/app/shared/PromotionsHubContext";
-import {
-  fetchBrasilMarrocosPlacarPromoStatus,
-  peekBrasilMarrocosPlacarPromoStatus,
-} from "@/app/shared/useBrasilMarrocosPlacarPromoStatus";
-import {
-  mustCompletePromoQuotaPurchase,
-  type BrasilMarrocosPlacarPromoStatus,
-} from "@/lib/promotions/brasil-marrocos-placar-promo-shared";
-import { BRASIL_MARROCOS_PLACAR_FRIENDS_GOAL } from "@/lib/promotions/brasil-marrocos-guest-flow";
+import { Suspense, useEffect, useState } from "react";
 import { OutrosBoloesGrid } from "@/app/(authenticated)/boloes/_components/OutrosBoloesGrid";
 import { QuemEstaNoBolaoSection } from "@/app/components/QuemEstaNoBolaoSection";
 import { PalpitesAbertosGrid } from "@/app/components/PalpitesAbertosGrid";
@@ -45,77 +33,12 @@ let loggedHomePalpitesCache: {
 } | null = null;
 const LOGGED_HOME_PALPITES_CACHE_MS = 3 * 60 * 1000;
 
-function PromoBrasilMarrocosHomeCard() {
-  const router = useRouter();
-  const { openPromotion, getPromotionPrefetch } = usePromotionsHub();
-
-  const handleParticipar = useCallback(
-    (e: React.MouseEvent<HTMLAnchorElement>) => {
-      e.preventDefault();
-      void (async () => {
-        let status: BrasilMarrocosPlacarPromoStatus | null =
-          (getPromotionPrefetch("brasil_marrocos_placar") as
-            | BrasilMarrocosPlacarPromoStatus
-            | undefined) ??
-          peekBrasilMarrocosPlacarPromoStatus();
-
-        if (!status?.enabled) {
-          status = await fetchBrasilMarrocosPlacarPromoStatus();
-        }
-        if (status && mustCompletePromoQuotaPurchase(status)) {
-          router.push("/promo-camisa-brasil");
-          return;
-        }
-        if (status?.showOfferModal) {
-          openPromotion("brasil_marrocos_placar");
-          return;
-        }
-        if (status?.promoActivated) {
-          router.push("/boloes");
-          return;
-        }
-        router.push("/promo-camisa-brasil");
-      })();
-    },
-    [getPromotionPrefetch, openPromotion, router],
-  );
-
-  return (
-    <a
-      href="/promo-camisa-brasil"
-      onClick={handleParticipar}
-      className="mt-4 flex items-center gap-3 overflow-hidden rounded-2xl border px-4 py-3"
-      style={{ background: "#0d1a00", borderColor: "#B1EB0B55" }}
-    >
-      <div className="flex-1">
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50">
-          Promoção ativa
-        </p>
-        <p className="text-[15px] font-black uppercase leading-tight tracking-tight text-white">
-          Palpite Brasil x Marrocos
-        </p>
-        <p className="mt-0.5 text-[11px] font-semibold text-white/60">
-          Concorra à camisa oficial + R$&nbsp;1.000 no PIX
-        </p>
-      </div>
-      <div
-        className="shrink-0 rounded-full px-3 py-1.5 text-[11px] font-black uppercase tracking-wide text-[#0E141B]"
-        style={{ background: "#B1EB0B" }}
-      >
-        Participar
-      </div>
-    </a>
-  );
-}
-
 function LoggedInHome({
   outrosBoloes,
   palpitesAbertos: initialPalpitesAbertos,
-  promoEnabled = false,
 }: {
   outrosBoloes: OutrosBolaoGridItem[];
   palpitesAbertos: PalpiteAbertoMatch[];
-  promoEnabled?: boolean;
 }) {
   const [palpitesAbertos, setPalpitesAbertos] = useState(
     initialPalpitesAbertos,
@@ -191,9 +114,6 @@ function LoggedInHome({
           <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-6">
             {/* Coluna principal */}
             <div>
-              {/* Promo highlight — shown when active */}
-              {promoEnabled ? <PromoBrasilMarrocosHomeCard /> : null}
-
               {/* Palpites abertos — conteúdo mais dinâmico, em destaque */}
               <PalpitesAbertosGrid
                 matches={palpitesAbertos}
@@ -235,27 +155,14 @@ function LoggedInHome({
 export function HomePageClient({
   outrosBoloes = [],
   palpitesAbertos = [],
-  brasilMarrocosPlacarPromoEnabled = false,
 }: {
   outrosBoloes?: OutrosBolaoGridItem[];
   palpitesAbertos?: PalpiteAbertoMatch[];
-  brasilMarrocosPlacarPromoEnabled?: boolean;
 }) {
   return (
-    <>
-      <LoggedInHome
-        outrosBoloes={outrosBoloes}
-        palpitesAbertos={palpitesAbertos}
-        promoEnabled={brasilMarrocosPlacarPromoEnabled}
-      />
-      {brasilMarrocosPlacarPromoEnabled ? (
-        <Suspense fallback={null}>
-          <HomeBrasilMarrocosPromoFlow
-            friendsGoal={BRASIL_MARROCOS_PLACAR_FRIENDS_GOAL}
-            promoEnabled
-          />
-        </Suspense>
-      ) : null}
-    </>
+    <LoggedInHome
+      outrosBoloes={outrosBoloes}
+      palpitesAbertos={palpitesAbertos}
+    />
   );
 }
