@@ -126,3 +126,18 @@ export function inferDailyEditionFromMatchIds(
   }
   return inferDailyEditionFromDates(dates);
 }
+
+/**
+ * Bloqueia só quando palpites já salvos pertencem a outra edição numerada.
+ * Não invalida o ticket por datas removidas do calendário da edição (ex.: após
+ * reconfigurar GROUP_STAGE_DAILY_EDITIONS).
+ */
+export function isDailyTicketCrossEditionConflict(
+  ticketEditionNumber: number,
+  existingMatchIds: Iterable<number>,
+  matchMap: MatchMap,
+  mainComp: number,
+): boolean {
+  const inferred = inferDailyEditionFromMatchIds(existingMatchIds, matchMap, mainComp);
+  return inferred != null && inferred !== ticketEditionNumber;
+}
