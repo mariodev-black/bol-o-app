@@ -184,27 +184,7 @@ function formatCotaLabel(ordinal: number): string {
   return `Cota #${String(ordinal).padStart(2, "0")}`;
 }
 
-/** Agrupa cotas para numeração sequencial (01, 02…) por tipo de bolão. */
-function ticketCotaGroupKey(ticket: PaidTicketRow): string {
-  if (ticket.ticketType === "general") return "general";
-  if (ticket.ticketType === "artilheiros") return "artilheiros";
-  if (ticket.ticketType === "daily") {
-    const edition = ticket.dailyEditionNumber ?? 0;
-    return `daily:${edition}`;
-  }
-  if (
-    ticket.ticketType === "extra" &&
-    isSkaleDailyBolaoCompetition(ticket.extraChampionshipId)
-  ) {
-    const edition = paidTicketSkaleDailyEditionNumber(ticket) ?? 0;
-    return `skale-daily:${edition}`;
-  }
-  const comp = Number(ticket.extraChampionshipId) || 0;
-  const round = ticket.extraRoundNumber ?? "all";
-  return `extra:${comp}:${round}`;
-}
-
-/** Primeira compra = 01, dentro de cada grupo (geral, diário por edição, extra por campeonato/rodada). */
+/** Numeração sequencial única por usuário (01, 02…) — ordem de compra. */
 function buildCotaOrdinalByTicketId(tickets: PaidTicketRow[]): Map<string, number> {
   const sorted = [...tickets].sort((a, b) => {
     const aMs = a.paidAt ? new Date(a.paidAt).getTime() : new Date(a.createdAt).getTime();
@@ -213,14 +193,10 @@ function buildCotaOrdinalByTicketId(tickets: PaidTicketRow[]): Map<string, numbe
     return a.id.localeCompare(b.id);
   });
 
-  const counters = new Map<string, number>();
   const out = new Map<string, number>();
-  for (const ticket of sorted) {
-    const key = ticketCotaGroupKey(ticket);
-    const next = (counters.get(key) ?? 0) + 1;
-    counters.set(key, next);
-    out.set(ticket.id, next);
-  }
+  sorted.forEach((ticket, index) => {
+    out.set(ticket.id, index + 1);
+  });
   return out;
 }
 
