@@ -327,31 +327,24 @@ export async function listPaidTicketsForUser(
       const scopeOpenRaw =
         t.ticketType === "daily"
           ? openMatchesDefaultLock.filter((m) => m.competitionId === scopeComp)
-          : isSkaleBolaoCompetition(scopeComp) &&
-              !isSkaleDailyBolaoCompetition(scopeComp)
-            ? openMatchesExtraLock.filter(
-                (m) =>
-                  m.competitionId === scopeComp ||
-                  m.competitionId === getSkaleBolaoSourceCopaCompetitionId(),
-              )
-            : openMatchesExtraLock.filter(
-                (m) =>
-                  m.competitionId === scopeComp ||
-                  (isSkaleDailyBolaoCompetition(scopeComp) &&
-                    m.competitionId === getSkaleBolaoSourceCopaCompetitionId()),
-              );
-      const scopeOpen =
-        isSkaleBolaoCompetition(scopeComp) ||
-        isSkaleDailyBolaoCompetition(scopeComp)
-          ? dedupeOpenMatchesById(scopeOpenRaw)
-          : scopeOpenRaw;
+          : openMatchesExtraLock.filter(
+              (m) =>
+                m.competitionId === scopeComp ||
+                (isSkaleDailyBolaoCompetition(scopeComp) &&
+                  m.competitionId === getSkaleBolaoSourceCopaCompetitionId()),
+            );
+      const scopeOpen = isSkaleDailyBolaoCompetition(scopeComp)
+        ? dedupeOpenMatchesById(scopeOpenRaw)
+        : scopeOpenRaw;
       const playableDate = resolveDiarioPlayableDate(matchMap, { competitionId: scopeComp });
       const extraRound = paidTicketExtraRoundNumber(t);
 
       const dailyEdition =
         t.ticketType === "daily"
           ? paidTicketDailyEditionNumber(t)
-          : t.skaleDailyEditionNumber ?? null;
+          : isSkaleDailyBolaoCompetition(scopeComp)
+            ? paidTicketSkaleDailyEditionNumber(t)
+            : null;
       const dailyEditionDates =
         dailyEdition != null ? getDailyEditionDatesSet(dailyEdition) : null;
 
