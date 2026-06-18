@@ -7,13 +7,15 @@ import {
   isDailyEditionClosed,
   isDailyTicketCrossEditionConflict,
 } from "@/lib/boloes/daily-editions-server";
-import { isSkaleBolaoCompetition } from "@/lib/boloes/skale-config";
+import {
+  isFullCopaMirrorBolao,
+  resolveBolaoMatchFromMap,
+} from "@/lib/boloes/skale-match-resolve";
 import {
   isSkaleDailyBolaoCompetition,
   paidTicketSkaleDailyEditionNumber,
 } from "@/lib/boloes/skale-daily-config";
 import { getMatchFromMap, resolveKickoffAtIso } from "@/lib/football-api";
-import { resolveBolaoMatchFromMap } from "@/lib/boloes/skale-match-resolve";
 import { brToday, resolveDiarioPlayableDate, utcMsForBrDate } from "@/lib/diario-playable-date";
 import {
   getPalpiteRejectReason,
@@ -108,12 +110,12 @@ export async function validatePalpiteForSave(
     };
   }
 
-  const isSkaleFullCopaPool =
+  const isFullCopaExtraPool =
     bolaoType === "extra" &&
     extraChampionshipId != null &&
-    isSkaleBolaoCompetition(extraChampionshipId) &&
+    isFullCopaMirrorBolao(extraChampionshipId) &&
     !isSkaleDailyBolaoCompetition(extraChampionshipId);
-  if (isSkaleFullCopaPool) {
+  if (isFullCopaExtraPool) {
     return null;
   }
 
