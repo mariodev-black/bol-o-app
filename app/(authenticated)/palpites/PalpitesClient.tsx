@@ -195,26 +195,17 @@ function brDateToUtcMs(dateBR: string): number | null {
   return Date.UTC(year, month - 1, day);
 }
 
-function palpiteLockUiCopy(bolaoType: PredictionBolaoType): {
+function palpiteLockUiCopy(): {
   fechadoJaPassou: string;
   faixaForaPrazo: string;
   rankingBloco: string;
 } {
-  if (bolaoType === "extra") {
-    return {
-      fechadoJaPassou: "Fechado: prazo era até 5 min antes do jogo",
-      faixaForaPrazo:
-        "O prazo termina 5 minutos antes do apito. Depois disso não dá para apostar. Se você não tiver salvo um palpite antes desse horário, não entra nesta partida.",
-      rankingBloco:
-        "Palpites só até 5 minutos antes do apito: após esse limite e após o início o sistema fecha. Quem não tiver palpite salvo até esse horário não entra na partida.",
-    };
-  }
   return {
-    fechadoJaPassou: "Fechado: prazo era ate 1h antes do jogo",
+    fechadoJaPassou: "Fechado: prazo era até o apito do jogo",
     faixaForaPrazo:
-      "O prazo termina 1 hora antes do apito. Depois disso não dá para apostar. Se você não tiver salvo um palpite antes desse horário, não entra nesta partida.",
+      "O prazo fecha 5 segundos antes do apito. Depois disso não dá para apostar nem alterar. Se você não tiver salvo um palpite antes desse horário, não entra nesta partida.",
     rankingBloco:
-      "Palpites so ate 1h antes do apito: na ultima hora antes do jogo e depois do inicio o sistema fecha. Quem nao tiver palpite salvo ate esse limite nao entra na partida.",
+      "Palpites até 5 segundos antes do apito: após esse limite e com o jogo em andamento o sistema fecha. Quem não tiver palpite salvo a tempo não entra na partida.",
   };
 }
 
@@ -1321,7 +1312,7 @@ function JogoCard({
     return undefined;
   }, [lockAtMs, jogo.kickoffAt, readOnly, jogo.resultCasa, jogo.resultVisitante]);
   const isLockedByTime = lockAtMs != null ? nowMs >= lockAtMs : false;
-  /** Palpite até instantes antes do apito (1h no geral/dia, 5 min no extra). */
+  /** Palpite até 5 segundos antes do apito (todos os bolões). */
   const matchOpen = isMatchOpenForPalpite(
     palpiteEligibilityFromJogo(jogo),
     bolaoType,
@@ -1885,6 +1876,8 @@ export type PalpitesInitialData = {
   dailyEditionDatesLabel?: string | null;
   /** Bolão da Skale: palpites em todos os jogos da Copa (igual cota principal). */
   isSkaleFullCopaPool?: boolean;
+  /** Bolão Diário Skale: mesmas edições/dias do diário Copa (comp 90009). */
+  isSkaleDailyEditionPool?: boolean;
   /** Título do bolão na página (SSR). */
   bolaoHeading?: string | null;
   tabela: TabelaGrupos | null;
@@ -2387,7 +2380,7 @@ function DesktopSidebar({
   bolaoType: PredictionBolaoType;
   onRankingLinkClick?: () => void;
 }) {
-  const lockCopy = palpiteLockUiCopy(bolaoType);
+  const lockCopy = palpiteLockUiCopy();
   const grupoKey = `grupo-${grupo.toLowerCase()}`;
   let times = tabela ? (tabela[grupoKey] ?? []) : [];
   if (!times.length && tabela?.["grupo-geral"]?.length) {
@@ -3196,6 +3189,7 @@ function PalpitesPageContent({
   }, [bolaoType, initialData?.extraChampionshipId]);
 
   const isSkaleFullCopaPool = initialData?.isSkaleFullCopaPool === true;
+  const isSkaleDailyEditionPool = initialData?.isSkaleDailyEditionPool === true;
   const dailyEditionNumber = initialData?.dailyEditionNumber ?? null;
   const dailyEditionDateSet = useMemo(() => {
     const dates = initialData?.dailyEditionDates ?? [];
@@ -3636,7 +3630,9 @@ function PalpitesPageContent({
 
   const today = todayBR();
   const dailyLike =
-    bolaoType === "diario" || (bolaoType === "extra" && !isSkaleFullCopaPool);
+    bolaoType === "diario" ||
+    isSkaleDailyEditionPool ||
+    (bolaoType === "extra" && !isSkaleFullCopaPool && !isSkaleDailyEditionPool);
   const extraPlayCompId = bolaoType === "extra" ? resolvedExtraChampionshipId : null;
   /**
    * Quando o ticket extra é "por rodada" (`tickets.round_number`), o bolão é
@@ -3651,10 +3647,14 @@ function PalpitesPageContent({
       ? Number(initialData.extraRoundNumber)
       : null;
   const extraRoundMode =
-    bolaoType === "extra" && !isSkaleFullCopaPool && extraTicketRound != null;
+    bolaoType === "extra" &&
+    !isSkaleFullCopaPool &&
+    !isSkaleDailyEditionPool &&
+    extraTicketRound != null;
   /** "Dia‐jogavel" só faz sentido em diario e em extras legados (sem rodada). */
   const dayScopedMode =
     bolaoType === "diario" ||
+    isSkaleDailyEditionPool ||
     (bolaoType === "extra" && !extraRoundMode && !isSkaleFullCopaPool);
 
   const lockIdsForDailyLike = dailyLike
@@ -3676,6 +3676,9 @@ function PalpitesPageContent({
     if (extraRoundMode) return j.rodada === extraTicketRound;
     if (!dayScopedMode) return true;
     if (bolaoType === "diario" && dailyEditionDateSet != null) {
+      return j.dataBR != null && dailyEditionDateSet.has(j.dataBR);
+    }
+    if (isSkaleDailyEditionPool && dailyEditionDateSet != null) {
       return j.dataBR != null && dailyEditionDateSet.has(j.dataBR);
     }
     return j.dataBR === diarioPlayableDate;
@@ -4061,6 +4064,14 @@ function PalpitesPageContent({
       if (pill) return `Jogos do dia · ${pill.dia} ${pill.mes}`;
       return "Jogos do dia";
     }
+    if (isSkaleDailyEditionPool && dailyEditionNumber != null) {
+      const d = selectedDate ?? diarioPlayableDate;
+      const pill = d ? parseDatePill(d) : null;
+      const editionHead = `Bolão Diário Skale #${dailyEditionNumber}`;
+      if (pill) return `${editionHead} · ${pill.dia} ${pill.mes}`;
+      if (dailyEditionDatesLabel) return `${editionHead} · ${dailyEditionDatesLabel}`;
+      return editionHead;
+    }
     if (selectedRodada != null) return rodadaLabel(selectedRodada);
     return "Rodada";
   })();
@@ -4155,7 +4166,9 @@ function PalpitesPageContent({
         ? (extraRoundLabel ?? "Rodada atual")
         : bolaoType === "diario" && dailyEditionDatesLabel
           ? `Fase de grupos · ${dailyEditionDatesLabel}`
-          : diarioPlayableDate === today
+          : isSkaleDailyEditionPool && dailyEditionDatesLabel
+            ? `Fase de grupos · ${dailyEditionDatesLabel}`
+            : diarioPlayableDate === today
             ? "Jogos do dia atual"
             : `Jogos em ${diarioPlayableDate} (dia mais próximo com partidas)`;
 
@@ -4250,7 +4263,7 @@ function PalpitesPageContent({
   });
   const myRankingPos =
     rankingBoardRows.find((row) => row.isMe)?.pos ?? null;
-  const rankingLockBloco = palpiteLockUiCopy(bolaoType).rankingBloco;
+  const rankingLockBloco = palpiteLockUiCopy().rankingBloco;
   const scrollToGroup = (groupKey: string) => {
     setGrupo(groupKey);
     if (typeof window === "undefined") return;

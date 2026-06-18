@@ -5,11 +5,20 @@
 
 export type PredictionBolaoType = "principal" | "diario" | "extra";
 
-/** Bolão geral e bolão do dia: até 1h antes do apito. */
-export const PALPITE_LOCK_BEFORE_KICKOFF_MS_DEFAULT = 60 * 60 * 1000;
-/** Bolão extra: apostar ou alterar até 5 minutos antes do apito. */
-export const PALPITE_LOCK_BEFORE_KICKOFF_MS_EXTRA = 5 * 60 * 1000;
+/** Todos os bolões: apostar ou alterar até 5 segundos antes do apito. */
+export const PALPITE_LOCK_BEFORE_KICKOFF_MS = 5_000;
 
-export function palpiteLockBeforeKickoffMs(bolaoType: PredictionBolaoType): number {
-  return bolaoType === "extra" ? PALPITE_LOCK_BEFORE_KICKOFF_MS_EXTRA : PALPITE_LOCK_BEFORE_KICKOFF_MS_DEFAULT;
+/** @deprecated Use PALPITE_LOCK_BEFORE_KICKOFF_MS */
+export const PALPITE_LOCK_BEFORE_KICKOFF_MS_DIARIO = PALPITE_LOCK_BEFORE_KICKOFF_MS;
+/** @deprecated Use PALPITE_LOCK_BEFORE_KICKOFF_MS */
+export const PALPITE_LOCK_BEFORE_KICKOFF_MS_COPA_POOL = PALPITE_LOCK_BEFORE_KICKOFF_MS;
+/** @deprecated Use PALPITE_LOCK_BEFORE_KICKOFF_MS */
+export const PALPITE_LOCK_BEFORE_KICKOFF_MS_DEFAULT = PALPITE_LOCK_BEFORE_KICKOFF_MS;
+/** @deprecated Use PALPITE_LOCK_BEFORE_KICKOFF_MS */
+export const PALPITE_LOCK_BEFORE_KICKOFF_MS_EXTRA = PALPITE_LOCK_BEFORE_KICKOFF_MS;
+
+export function palpiteLockBeforeKickoffMs(
+  _bolaoType?: PredictionBolaoType,
+): number {
+  return PALPITE_LOCK_BEFORE_KICKOFF_MS;
 }

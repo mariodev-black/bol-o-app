@@ -2,23 +2,12 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import bannerBolao from "@/app/assets/banner-bolao.png";
-import bannerBraMar from "@/app/assets/banner-brasil-marrocos.png";
 import bannerIndique from "@/app/assets/banner-indique-ganhe.png";
-import { usePromotionsHub } from "@/app/shared/PromotionsHubContext";
-import {
-  fetchBrasilMarrocosPlacarPromoStatus,
-  peekBrasilMarrocosPlacarPromoStatus,
-} from "@/app/shared/useBrasilMarrocosPlacarPromoStatus";
-import {
-  mustCompletePromoQuotaPurchase,
-  type BrasilMarrocosPlacarPromoStatus,
-} from "@/lib/promotions/brasil-marrocos-placar-promo-shared";
 
 /** Banners da home — auto-rotação a cada 5s, slide horizontal, responsivo. */
-type SlideId = "cota" | "palpite" | "indique";
+type SlideId = "cota" | "indique";
 
 const SLIDES: {
   id: SlideId;
@@ -29,14 +18,8 @@ const SLIDES: {
   {
     id: "cota",
     src: bannerBolao,
-    href: "/comprar-cotas",
+    href: "/tickets",
     alt: "Garanta sua cota no maior bolão da Copa",
-  },
-  {
-    id: "palpite",
-    src: bannerBraMar,
-    href: "/palpites",
-    alt: "Brasil x Marrocos — acerte e ganhe R$1.000 no PIX + camisa oficial",
   },
   {
     id: "indique",
@@ -74,41 +57,6 @@ export function HomeBannerCarousel({ fullWidth = false }: { fullWidth?: boolean 
       startTimer(); // reinicia o timer ao navegar manualmente
     },
     [startTimer],
-  );
-
-  /**
-   * Banner da cota: o checkout exige palpite Brasil×Marrocos registrado.
-   * Sem palpite → abre o modal de registro primeiro. Com palpite → checkout.
-   */
-  const handleCotaClick = useCallback(
-    (e: React.MouseEvent<HTMLAnchorElement>) => {
-      e.preventDefault();
-      void (async () => {
-        let status: BrasilMarrocosPlacarPromoStatus | null =
-          (getPromotionPrefetch("brasil_marrocos_placar") as
-            | BrasilMarrocosPlacarPromoStatus
-            | undefined) ?? peekBrasilMarrocosPlacarPromoStatus();
-
-        if (!status?.enabled) {
-          status = await fetchBrasilMarrocosPlacarPromoStatus();
-        }
-
-        if (status?.promoActivated) {
-          router.push("/boloes");
-          return;
-        }
-        if (status && mustCompletePromoQuotaPurchase(status)) {
-          router.push("/comprar-cotas");
-          return;
-        }
-        if (status?.showOfferModal) {
-          openPromotion("brasil_marrocos_placar");
-          return;
-        }
-        router.push("/comprar-cotas");
-      })();
-    },
-    [getPromotionPrefetch, openPromotion, router],
   );
 
   // Swipe lateral (mobile): arrasta pro lado pra trocar de banner.
@@ -151,7 +99,6 @@ export function HomeBannerCarousel({ fullWidth = false }: { fullWidth?: boolean 
               <Link
                 key={slide.id}
                 href={slide.href}
-                onClick={slide.id === "cota" ? handleCotaClick : undefined}
                 className="block w-full shrink-0"
                 aria-label={slide.alt}
               >

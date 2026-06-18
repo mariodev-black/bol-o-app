@@ -32,6 +32,12 @@ import {
   bolaoDisplayStatusMeta,
   type BolaoDisplayPhase,
 } from "@/lib/boloes/display-status";
+import { listGroupStageDailyEditions } from "@/lib/boloes/daily-editions";
+import {
+  getSkaleDailyBolaoUnitCents,
+  isSkaleDailyBolaoEnabled,
+} from "@/lib/boloes/skale-daily-config";
+import skaleLogo from "@/app/assets/skale.png";
 import { getExtraBolaoHeroSideVariant } from "@/lib/boloes-extra-competition-branding";
 import {
   getExtraBolaoFirstPlaceLine,
@@ -72,7 +78,7 @@ export type ActivePrincipalBolao = {
 export type ActiveDailyBolao = {
   id: string;
   title: string;
-  /** Ex.: "dias: 11, 12 e 13 de junho". */
+  /** Ex.: "dias: 16 e 17 de junho". */
   dailyEditionDatesLabel?: string | null;
   cotaLabel: string;
   href: string;
@@ -115,8 +121,10 @@ export type ActiveBolaoListItem = {
   extraRoundNumber?: number | null;
   /** Ex.: "18ª Rodada" — sempre da cota, nunca da rodada atual do campeonato. */
   extraRoundLabel?: string | null;
-  /** Bolão diário: datas da edição (ex.: "dias: 11, 12 e 13 de junho"). */
+  /** Bolão diário: datas da edição (ex.: "dias: 16 e 17 de junho"). */
   dailyEditionDatesLabel?: string | null;
+  /** Bolão Diário Skale (mesmas edições da Copa, logo Skale). */
+  isSkaleDaily?: boolean;
 };
 
 export type BoloesScreenData = {
@@ -138,6 +146,12 @@ export type BoloesScreenData = {
   };
   upcoming: {
     daily: {
+      href: string;
+      gamesCount: number;
+      closesAtMs: number | null;
+      priceLabel: string;
+    };
+    skaleDaily?: {
       href: string;
       gamesCount: number;
       closesAtMs: number | null;
@@ -391,11 +405,13 @@ function SectionTitle({
 function ActiveRowBolaoIcon({
   isPrincipal,
   isExtra,
+  isSkaleDaily,
   title,
   championshipId,
 }: {
   isPrincipal: boolean;
   isExtra: boolean;
+  isSkaleDaily?: boolean;
   title: string;
   championshipId?: number | null;
 }) {
@@ -419,8 +435,8 @@ function ActiveRowBolaoIcon({
     return (
       <div className="flex w-[58px] shrink-0 flex-col items-center justify-center px-0.5 text-center">
         <Image
-          src={logoBolaoDiario}
-          alt="Bolão Diário"
+          src={isSkaleDaily ? skaleLogo : logoBolaoDiario}
+          alt={isSkaleDaily ? "Bolão Diário Skale" : "Bolão Diário"}
           width={52}
           height={44}
           className="h-11 w-[52px] object-contain"
@@ -623,6 +639,7 @@ function ActiveBoloesList({
                 <ActiveRowBolaoIcon
                   isPrincipal={isPrincipal}
                   isExtra={isExtra}
+                  isSkaleDaily={item.isSkaleDaily}
                   title={item.title}
                   championshipId={item.championshipId}
                 />
@@ -856,13 +873,27 @@ function buildNoTicketsProducts(
         kind: "diario",
         href: upcoming.daily.href,
         title: "Bolão Diário",
-        subtitle: "11 edições na fase de grupos",
+        subtitle: `${listGroupStageDailyEditions().length} edições na fase de grupos`,
         priceLabel: upcoming.daily.priceLabel,
         prizeTotal: dailyPrizes.total,
         prizeFirst: dailyPrizes.first,
         iconSrc: logoBolaoDiario.src,
         brandedIcon: true,
       });
+      if (isSkaleDailyBolaoEnabled() && upcoming.skaleDaily) {
+        items.push({
+          id: "skale-diario",
+          kind: "diario",
+          href: upcoming.skaleDaily.href,
+          title: "Bolão Diário Skale",
+          subtitle: `${listGroupStageDailyEditions().length} edições na fase de grupos`,
+          priceLabel: upcoming.skaleDaily.priceLabel,
+          prizeTotal: dailyPrizes.total,
+          prizeFirst: dailyPrizes.first,
+          iconSrc: skaleLogo.src,
+          brandedIcon: true,
+        });
+      }
     }
 
     if (upcoming.artilheiros) {
@@ -1297,7 +1328,9 @@ function ActiveShowcaseCard({
       ? extraHero === "generic"
         ? ticketBlue
         : extraBolaoIconSrc(extraHero)
-      : logoBolaoDiario;
+      : item.isSkaleDaily
+        ? skaleLogo
+        : logoBolaoDiario;
   const showVerResultados =
     item.displayPhase === "finalizado" ||
     item.displayPhase === "disputa" ||
@@ -1474,8 +1507,8 @@ function NoTicketsHeroCard({ product }: { product: NoTicketsProduct }) {
             />
           ) : useDiarioLogo ? (
             <Image
-              src={logoBolaoDiario}
-              alt="Bolão Diário"
+              src={product.iconSrc}
+              alt={product.id === "skale-diario" ? "Bolão Diário Skale" : "Bolão Diário"}
               width={96}
               height={80}
               className="h-[72px] w-[88px] object-contain sm:h-[80px] sm:w-[96px]"

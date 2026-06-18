@@ -22,6 +22,7 @@ import { useEffect, useRef, useState } from "react";
 import iconeBolaoArtilheiro from "@/app/assets/icone-bolao-artilheiro.png";
 import iconCopaMundo from "@/app/assets/icon-copa-mundo.png";
 import logoBolaoDiario from "@/app/assets/logo-bolao-diario.png";
+import skaleLogo from "@/app/assets/skale.png";
 import iconCopaMundo2 from "@/app/assets/icon-copa-mundo2.png";
 import ticketBlue from "@/app/assets/Ticket-Blue.png";
 import { useMainBolaoPromoModal } from "@/app/shared/MainBolaoPromoContext";
@@ -562,7 +563,9 @@ function resolveCta(item: ActiveBolaoListItem, now: number): string {
 }
 
 function logoForItem(item: ActiveBolaoListItem) {
-  if (item.type === "diario") return logoBolaoDiario;
+  if (item.type === "diario") {
+    return item.isSkaleDaily ? skaleLogo : logoBolaoDiario;
+  }
   if (item.type === "artilheiros") return iconeBolaoArtilheiro;
   if (item.type === "principal") return iconCopaMundo;
   const variant = getExtraBolaoHeroSideVariant(item.championshipId, item.title);
@@ -590,7 +593,7 @@ function cardTitleParts(item: ActiveBolaoListItem): {
   }
   if (item.type === "diario") {
     return {
-      eyebrow: item.title || "Bolão Diário",
+      eyebrow: item.title || (item.isSkaleDaily ? "Bolão Diário Skale" : "Bolão Diário"),
       title: item.dailyEditionDatesLabel?.trim() || "Rodada do dia",
       subtitle: null,
     };

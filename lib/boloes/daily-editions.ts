@@ -1,6 +1,6 @@
 /**
  * Bolões diários da Fase de Grupos — edições numeradas que englobam intervalos de datas.
- * `tickets.round_number` guarda o número da edição (1–11) em cotas `daily`.
+ * `tickets.round_number` guarda o número da edição (1–4) em cotas `daily`.
  */
 
 export type DailyEditionPhase = "grupos";
@@ -29,17 +29,10 @@ const MONTH_NAMES_PT = [
 
 /** Fase de Grupos — Copa do Mundo 2026 (junho). */
 export const GROUP_STAGE_DAILY_EDITIONS: DailyEdition[] = [
-  { number: 1, phase: "grupos", datesBR: ["11/06/2026", "12/06/2026", "13/06/2026"] },
-  { number: 2, phase: "grupos", datesBR: ["14/06/2026"] },
-  { number: 3, phase: "grupos", datesBR: ["15/06/2026", "16/06/2026"] },
-  { number: 4, phase: "grupos", datesBR: ["17/06/2026", "18/06/2026"] },
-  { number: 5, phase: "grupos", datesBR: ["19/06/2026", "20/06/2026"] },
-  { number: 6, phase: "grupos", datesBR: ["21/06/2026", "22/06/2026"] },
-  { number: 7, phase: "grupos", datesBR: ["23/06/2026"] },
-  { number: 8, phase: "grupos", datesBR: ["24/06/2026"] },
-  { number: 9, phase: "grupos", datesBR: ["25/06/2026"] },
-  { number: 10, phase: "grupos", datesBR: ["26/06/2026"] },
-  { number: 11, phase: "grupos", datesBR: ["27/06/2026"] },
+  { number: 1, phase: "grupos", datesBR: ["16/06/2026", "17/06/2026"] },
+  { number: 2, phase: "grupos", datesBR: ["18/06/2026", "19/06/2026"] },
+  { number: 3, phase: "grupos", datesBR: ["20/06/2026"] },
+  { number: 4, phase: "grupos", datesBR: ["21/06/2026"] },
 ];
 
 const EDITION_BY_NUMBER = new Map(
@@ -107,7 +100,7 @@ function dayMonthLabel(dateBR: string): string | null {
   return `${day} de ${MONTH_NAMES_PT[month - 1]}`;
 }
 
-/** Ex.: "11, 12 e 13 de junho" ou "14 de junho". */
+/** Ex.: "16 e 17 de junho" ou "20 de junho". */
 export function formatDailyEditionDatesLabel(edition: DailyEdition): string {
   const parts = edition.datesBR
     .map((d) => {
@@ -132,7 +125,7 @@ export function formatDailyEditionDatesLabel(edition: DailyEdition): string {
   return `${head} e ${last} de ${monthName}`;
 }
 
-/** Ex.: "dias: 11, 12 e 13 de junho" ou "dia: 14 de junho". */
+/** Ex.: "dias: 16 e 17 de junho" ou "dia: 20 de junho". */
 export function formatDailyEditionDatesSubtitle(edition: DailyEdition): string {
   const dates = formatDailyEditionDatesLabel(edition);
   if (!dates) return "";
@@ -140,7 +133,7 @@ export function formatDailyEditionDatesSubtitle(edition: DailyEdition): string {
   return `${prefix} ${dates}`;
 }
 
-/** Ex.: "fase de grupos dias: 11, 12 e 13 de junho". */
+/** Ex.: "fase de grupos dias: 16 e 17 de junho". */
 export function formatDailyEditionCardSubtitle(edition: DailyEdition): string {
   const dates = formatDailyEditionDatesLabel(edition);
   const phase = dailyEditionPhaseLabel(edition.phase);
@@ -151,7 +144,7 @@ export function formatDailyEditionCardSubtitle(edition: DailyEdition): string {
 
 export type DailyEditionStatus = "aberto" | "encerrado" | "em_breve";
 
-/** Número da edição gravado em `tickets.round_number` (1–11). */
+/** Número da edição gravado em `tickets.round_number` (1–4). */
 export function paidTicketDailyEditionNumber(ticket: {
   ticketType?: string;
   round_number?: number | null;
@@ -208,7 +201,7 @@ export type DailyEditionShopItem = {
 
 /**
  * Edição exibida na loja: a mais próxima no calendário que ainda aceita compra.
- * Percorre #1 → #11 e retorna a primeira não encerrada.
+ * Percorre #1 → #4 e retorna a primeira não encerrada.
  */
 export function resolveShopDailyEdition(
   items: DailyEditionShopItem[],

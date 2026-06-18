@@ -4,6 +4,7 @@ import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 import {
   dailyEditionLabel,
   formatDailyEditionDatesLabel,
+  isValidDailyEditionNumber,
   listGroupStageDailyEditions,
   resolveShopDailyEdition,
 } from "@/lib/boloes/daily-editions";
@@ -13,6 +14,11 @@ import { fetchMatchesMap } from "@/lib/football-api";
 import { createDepositTransaction, parseTicketTypeOrThrow } from "@/lib/payments/transactions";
 import { getBrasilMarrocosPlacarPromoStatusForUser } from "@/lib/promotions/brasil-marrocos-placar-promo";
 import { getExtraBolaoUnitCents, getTicketPriceCents } from "@/lib/payments/ticket-config";
+import {
+  getSkaleDailyBolaoUnitCents,
+  isSkaleDailyBolaoEnabled,
+  skaleDailyEditionLabel,
+} from "@/lib/boloes/skale-daily-config";
 import { resolveExtraBolaoDisplayName } from "@/lib/boloes-extra-competition-branding";
 import { parseExtraBolaoChampionshipIds } from "@/lib/boloes-extra-config";
 import {
@@ -53,7 +59,21 @@ const dailyByEditionSchema = z
     const out: Record<number, number> = {};
     for (const [k, v] of Object.entries(rec)) {
       const edition = Number.parseInt(k, 10);
-      if (!Number.isFinite(edition) || edition < 1 || edition > 11) continue;
+      if (!isValidDailyEditionNumber(edition)) continue;
+      if (v > 0) out[edition] = v;
+    }
+    return out;
+  });
+
+const skaleDailyByEditionSchema = z
+  .record(z.string(), z.number().int().min(0).max(5))
+  .optional()
+  .transform((rec) => {
+    if (!rec) return {} as Record<number, number>;
+    const out: Record<number, number> = {};
+    for (const [k, v] of Object.entries(rec)) {
+      const edition = Number.parseInt(k, 10);
+      if (!isValidDailyEditionNumber(edition)) continue;
       if (v > 0) out[edition] = v;
     }
     return out;
@@ -64,8 +84,10 @@ const createCartSchema = z
     generalQuantity: z.number().int().min(0).max(20),
     /** Legado — rejeitado pelo servidor; use `dailyByEdition`. */
     dailyQuantity: z.number().int().min(0).max(20).optional().default(0),
-    /** Quantidade por edição do bolão diário (chave = número 1–11). */
+    /** Quantidade por edição do bolão diário (chave = número da edição). */
     dailyByEdition: dailyByEditionSchema,
+    /** Quantidade por edição do bolão diário Skale. */
+    skaleDailyByEdition: skaleDailyByEditionSchema,
     /** Quantidade total de cotas “Bolão extra” (valor calculado só no servidor). */
     extraQuantity: z.number().int().min(0).max(20).optional(),
     /** Legado — ignorado se `extraQuantity` > 0. */
@@ -103,15 +125,31 @@ export async function GET() {
     purchaseOpen: resolveDailyEditionStatus(edition.number, matchMap, mainComp) !== "encerrado",
   }));
   const dailyEdition = resolveShopDailyEdition(dailyEditions);
+  const skaleDailyEditions = isSkaleDailyBolaoEnabled()
+    ? listGroupStageDailyEditions().map((edition) => ({
+        number: edition.number,
+        label: skaleDailyEditionLabel(edition.number),
+        datesLabel: formatDailyEditionDatesLabel(edition),
+        datesBR: edition.datesBR,
+        status: resolveDailyEditionStatus(edition.number, matchMap, mainComp),
+        purchaseOpen:
+          resolveDailyEditionStatus(edition.number, matchMap, mainComp) !==
+          "encerrado",
+      }))
+    : [];
+  const skaleDailyEdition = resolveShopDailyEdition(skaleDailyEditions);
   return NextResponse.json({
     prices: {
       general: getTicketPriceCents("general"),
       daily: getTicketPriceCents("daily"),
+      skaleDaily: getSkaleDailyBolaoUnitCents(),
       extra: getExtraBolaoUnitCents(),
       artilheiros: getArtilheirosTicketPriceCents(),
     },
     artilheirosEnabled: isArtilheirosBolaoEnabled(),
     dailyEdition,
+    skaleDailyEdition,
+    skaleDailyEditions,
     extraBoloes: filterTicketShopExtraBoloes(
       ids.map((championshipId) =>
         applyTicketShopExtraCatalogItem({
@@ -172,6 +210,7 @@ export async function POST(request: NextRequest) {
         generalQuantity,
         dailyQuantity,
         dailyByEdition,
+        skaleDailyByEdition,
         extraQuantity,
         extraByChampionship,
         checkoutPromo,
@@ -182,14 +221,31 @@ export async function POST(request: NextRequest) {
       const artQ = Math.max(0, Math.min(20, artilheirosQuantity ?? 0));
       const extraTotalLegacy = Object.values(extra).reduce((a, b) => a + b, 0);
       const dailyTotal = Object.values(dailyByEdition ?? {}).reduce((a, b) => a + b, 0);
+      const skaleDailyTotal = Object.values(skaleDailyByEdition ?? {}).reduce(
+        (a, b) => a + b,
+        0,
+      );
       if (dailyQuantity > 0 && dailyTotal === 0) {
         return NextResponse.json(
           { error: "Selecione a edicao do bolao diario (Bolao Diario #N)" },
           { status: 400 },
         );
       }
-      if (generalQuantity + dailyTotal + artQ + (exQ > 0 ? exQ : extraTotalLegacy) < 1) {
+      if (
+        generalQuantity +
+          dailyTotal +
+          skaleDailyTotal +
+          artQ +
+          (exQ > 0 ? exQ : extraTotalLegacy) <
+        1
+      ) {
         return NextResponse.json({ error: "Selecione pelo menos um ticket" }, { status: 400 });
+      }
+      if (skaleDailyTotal > 0 && !isSkaleDailyBolaoEnabled()) {
+        return NextResponse.json(
+          { error: "Bolão Diário Skale indisponível no momento" },
+          { status: 403 },
+        );
       }
       if (artQ > 0 && !isArtilheirosBolaoEnabled()) {
         return NextResponse.json(
@@ -204,7 +260,7 @@ export async function POST(request: NextRequest) {
             { status: 400 },
           );
         }
-        if (dailyTotal > 0 || artQ > 0 || exQ > 0 || extraTotalLegacy > 0) {
+        if (dailyTotal > 0 || skaleDailyTotal > 0 || artQ > 0 || exQ > 0 || extraTotalLegacy > 0) {
           return NextResponse.json(
             { error: "Promo comprar-cotas aceita apenas cotas do bolao principal" },
             { status: 400 },
@@ -228,6 +284,7 @@ export async function POST(request: NextRequest) {
         userId,
         generalQty: generalQuantity,
         dailyByEdition: dailyByEdition ?? {},
+        skaleDailyByEdition: skaleDailyByEdition ?? {},
         artilheirosQuantity: artQ,
         ...(exQ > 0 ? { extraQuantity: exQ } : { extraByChampionship: extra }),
         ...(checkoutPromo ? { checkoutPromo } : {}),

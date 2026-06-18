@@ -23,6 +23,7 @@ import { validateBrasilMarrocosPlacarPromoSubmission } from "@/lib/promotions/br
 import { invalidatePromoHubCache } from "@/lib/promotions/hub";
 import { recordReferralCommissionIfApplicable } from "@/lib/referrals/commissions";
 import { isSkaleBolaoCompetition } from "@/lib/boloes/skale-config";
+import { isSkaleDailyBolaoEnabled } from "@/lib/boloes/skale-daily-config";
 import { getTicketShopExtraRoundNumber } from "@/lib/ticket-shop-extra-display";
 
 type BillingUser = {
@@ -93,7 +94,7 @@ export type CreateDepositTransactionInput =
       generalQty: number;
       /** Legado — rejeitado; use `dailyByEdition`. */
       dailyQty?: number;
-      /** Quantidade por edição do bolão diário (chave = número da edição 1–11). */
+      /** Quantidade por edição do bolão diário (chave = número da edição). */
       dailyByEdition?: Record<number, number>;
       /** Preferir: quantidade total de cotas extras (valor e alocação só no servidor). */
       extraQuantity?: number;
@@ -101,7 +102,9 @@ export type CreateDepositTransactionInput =
       extraByChampionship?: Record<number, number>;
       /** Checkout promocional `/comprar-cotas` — preço fixo por cota, calculado no servidor. */
       checkoutPromo?: "comprar-cotas";
-      /** Cotas do Bolão dos Artilheiros. */
+      /** Quantidade por edição do bolão diário Skale (chave = número da edição). */
+      skaleDailyByEdition?: Record<number, number>;
+      /** Cotas do bolão artilheiros no carrinho combinado. */
       artilheirosQuantity?: number;
     };
 
@@ -119,12 +122,16 @@ function normalizeExtraByChampionship(map: Record<number, number> | undefined): 
 function resolvePurchaseQuantities(input: CreateDepositTransactionInput): {
   generalQty: number;
   dailyByEdition: Record<number, number>;
+  skaleDailyByEdition: Record<number, number>;
   extraPurchase?: PurchaseExtraInput;
   artilheirosQty: number;
 } {
   if ("generalQty" in input) {
     const g = Math.max(0, Math.min(20, Math.trunc(input.generalQty)));
     const dailyByEdition = normalizeDailyByEditionInput(input.dailyByEdition);
+    const skaleDailyByEdition = normalizeDailyByEditionInput(
+      input.skaleDailyByEdition,
+    );
     const legacyDaily = Math.max(0, Math.min(20, Math.trunc(Number(input.dailyQty) || 0)));
     if (legacyDaily > 0 && Object.keys(dailyByEdition).length === 0) {
       throw new Error("Selecione a edicao do bolao diario (Bolao Diario #N)");
@@ -137,7 +144,7 @@ function resolvePurchaseQuantities(input: CreateDepositTransactionInput): {
     else if (Object.values(rawMap).some((v) => v > 0)) {
       extraPurchase = { extraByChampionship: rawMap };
     }
-    return { generalQty: g, dailyByEdition, extraPurchase, artilheirosQty: artQ };
+    return { generalQty: g, dailyByEdition, skaleDailyByEdition, extraPurchase, artilheirosQty: artQ };
   }
   const single = input as
     | { ticketType: "general"; quantity: number }
@@ -146,25 +153,26 @@ function resolvePurchaseQuantities(input: CreateDepositTransactionInput): {
     | { ticketType: "artilheiros"; quantity: number };
   const q = Math.max(1, Math.min(20, Math.trunc(single.quantity)));
   if (single.ticketType === "general") {
-    return { generalQty: q, dailyByEdition: {}, artilheirosQty: 0 };
+    return { generalQty: q, dailyByEdition: {}, skaleDailyByEdition: {}, artilheirosQty: 0 };
   }
   if (single.ticketType === "daily") {
     const edition = Number(single.dailyEditionNumber);
     if (!Number.isFinite(edition) || edition <= 0) {
       throw new Error("dailyEditionNumber obrigatorio para compra do bolao diario");
     }
-    return { generalQty: 0, dailyByEdition: { [edition]: q }, artilheirosQty: 0 };
+    return { generalQty: 0, dailyByEdition: { [edition]: q }, skaleDailyByEdition: {}, artilheirosQty: 0 };
   }
   if (single.ticketType === "artilheiros") {
-    return { generalQty: 0, dailyByEdition: {}, artilheirosQty: q };
+    return { generalQty: 0, dailyByEdition: {}, skaleDailyByEdition: {}, artilheirosQty: q };
   }
   const cid = Math.trunc(single.extraChampionshipId);
   if (!Number.isFinite(cid) || cid <= 0) {
-    return { generalQty: 0, dailyByEdition: {}, artilheirosQty: 0 };
+    return { generalQty: 0, dailyByEdition: {}, skaleDailyByEdition: {}, artilheirosQty: 0 };
   }
   return {
     generalQty: 0,
     dailyByEdition: {},
+    skaleDailyByEdition: {},
     artilheirosQty: 0,
     extraPurchase: { extraByChampionship: { [cid]: q } },
   };
@@ -187,12 +195,18 @@ export async function createDepositTransaction(input: CreateDepositTransactionIn
     throw new Error("E-mail do usuario invalido para pagamento");
   }
 
-  const { generalQty, dailyByEdition, extraPurchase, artilheirosQty } =
+  const { generalQty, dailyByEdition, skaleDailyByEdition, extraPurchase, artilheirosQty } =
     resolvePurchaseQuantities(input);
   const lines =
     "checkoutPromo" in input && input.checkoutPromo === "comprar-cotas"
       ? buildComprarCotasPromoTicketLines(generalQty)
-      : buildPurchaseTicketLines(generalQty, dailyByEdition, extraPurchase, artilheirosQty);
+      : buildPurchaseTicketLines(
+          generalQty,
+          dailyByEdition,
+          extraPurchase,
+          artilheirosQty,
+          skaleDailyByEdition,
+        );
   if (lines.length === 0) {
     throw new Error("Selecione pelo menos um ticket");
   }
@@ -212,6 +226,33 @@ export async function createDepositTransaction(input: CreateDepositTransactionIn
     for (const edition of dailyEditionNumbers) {
       if (!isDailyEditionPurchaseOpen(edition, matchMap, mainComp)) {
         throw new Error(`Bolao Diario #${edition} ja encerrado para compra`);
+      }
+    }
+  }
+
+  const skaleDailyEditionNumbers = [
+    ...new Set(
+      lines
+        .filter(
+          (l) =>
+            l.ticketType === "extra" &&
+            l.extraChampionshipId != null &&
+            l.dailyEditionNumber != null,
+        )
+        .map((l) => Number(l.dailyEditionNumber)),
+    ),
+  ];
+  if (skaleDailyEditionNumbers.length > 0) {
+    if (!isSkaleDailyBolaoEnabled()) {
+      throw new Error("Bolao Diario Skale indisponivel");
+    }
+    const mainComp = getFootballMainCompetitionId();
+    const matchMap = await fetchMatchesMap({ ensureCompetitionIds: [mainComp] }).catch(
+      () => new Map(),
+    );
+    for (const edition of skaleDailyEditionNumbers) {
+      if (!isDailyEditionPurchaseOpen(edition, matchMap, mainComp)) {
+        throw new Error(`Bolao Diario Skale #${edition} ja encerrado para compra`);
       }
     }
   }
@@ -240,9 +281,11 @@ export async function createDepositTransaction(input: CreateDepositTransactionIn
     roundNumbers.push(
       line.ticketType === "daily" && line.dailyEditionNumber != null
         ? line.dailyEditionNumber
-        : extraId != null && !isSkaleBolaoCompetition(extraId)
-          ? getTicketShopExtraRoundNumber(extraId)
-          : null,
+        : line.ticketType === "extra" && line.dailyEditionNumber != null
+          ? line.dailyEditionNumber
+          : extraId != null && !isSkaleBolaoCompetition(extraId)
+            ? getTicketShopExtraRoundNumber(extraId)
+            : null,
     );
     unitPrices.push(line.unitCents);
     totalAmounts.push(line.unitCents);

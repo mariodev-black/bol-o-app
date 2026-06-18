@@ -257,7 +257,7 @@ Desconto progressivo (mesma compra): 2 cotas −5%, 3 cotas −10%, 4+ cotas −
 
 **Brinde extra pós-login** (`EXTRA_GIFT_PROMO_ENABLED=true`): assim que o usuário entra, um modal oferece **1 cota grátis do bolão extra (Brasileirão) da rodada atual**. O resgate via `POST /api/promotions/extra-gift` é idempotente em três camadas — UI bloqueia o botão durante o POST, app faz SELECT pré-INSERT, e o banco garante via índice único parcial `tickets_extra_gift_unique` (`(user_id, extra_championship_id, round_number) WHERE ticket_type='extra' AND is_promo_bonus=true AND status IN ('paid','approved')`, migration `scripts/sql/20260521-tickets-extra-gift-unique.sql`). Cria um `tickets.is_promo_bonus=true` (não soma ao PIX, não entra no ranking principal nem na distribuição de prêmios) e renova a cada nova rodada do campeonato extra.
 
-**Lock de palpite antes do apito:** geral/diário 60 min, extra 5 min (`lib/palpites-kickoff-lock.ts`).
+**Lock de palpite antes do apito:** todos os bolões fecham **5 segundos** antes do apito (`lib/palpites-kickoff-lock.ts`).
 
 ---
 

@@ -7,6 +7,10 @@ import {
   isSkaleBolaoCompetition,
   SKALE_BOLAO_DISPLAY_NAME,
 } from "@/lib/boloes/skale-config";
+import {
+  isSkaleDailyBolaoCompetition,
+  SKALE_DAILY_BOLAO_DISPLAY_NAME,
+} from "@/lib/boloes/skale-daily-config";
 
 /**
  * IDs na API-Futebol v1 tratados como Brasileirão (ex. Série A = 10).
@@ -150,7 +154,12 @@ export function getExtraBolaoHeroSideVariant(
   title: string | undefined | null,
 ): ExtraBolaoHeroSideVariant {
   if (isAmistososFriendliesCompetition(championshipId)) return "amistosos";
-  if (isSkaleBolaoCompetition(championshipId)) return "skale";
+  if (
+    isSkaleBolaoCompetition(championshipId) ||
+    isSkaleDailyBolaoCompetition(championshipId)
+  ) {
+    return "skale";
+  }
   if (isSerieBExtraGiftChampionship(Number(championshipId))) return "serie_b";
   if (isCopaDoBrasilChampionshipTitle(title)) return "copa_brasil";
   if (isBrasileiraoExtraChampionship(championshipId, title)) return "brasileirao";
@@ -162,6 +171,7 @@ export function getExtraBolaoHeroSideVariant(
 /** Nome curto quando não há metadata da API no cache. */
 export function extraBolaoFallbackDisplayName(championshipId: number): string {
   if (isAmistososFriendliesCompetition(championshipId)) return "Bolão dos Amistosos";
+  if (isSkaleDailyBolaoCompetition(championshipId)) return SKALE_DAILY_BOLAO_DISPLAY_NAME;
   if (isSkaleBolaoCompetition(championshipId)) return SKALE_BOLAO_DISPLAY_NAME;
   if (isSerieBExtraGiftChampionship(championshipId)) return "Bolão Grátis Série B";
   if (brasileiraoExtraIdSet().has(championshipId)) return "Brasileirão";

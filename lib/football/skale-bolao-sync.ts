@@ -11,6 +11,11 @@ import {
   isSkaleBolaoEnabled,
   SKALE_BOLAO_DISPLAY_NAME,
 } from "@/lib/boloes/skale-config";
+import {
+  getSkaleDailyBolaoCompetitionId,
+  isSkaleDailyBolaoEnabled,
+  SKALE_DAILY_BOLAO_DISPLAY_NAME,
+} from "@/lib/boloes/skale-daily-config";
 
 const MIRROR_MATCHES_SQL = `
 INSERT INTO matches_cache (
@@ -160,4 +165,39 @@ export async function mirrorSkaleBolaoMatchesFromCopa(): Promise<SkaleBolaoSyncR
     matchesMirrored: result.rowCount ?? 0,
     ms: Date.now() - t0,
   };
+}
+
+export async function mirrorSkaleDailyBolaoMatchesFromCopa(): Promise<SkaleBolaoSyncResult | null> {
+  if (!isSkaleDailyBolaoEnabled()) return null;
+
+  const t0 = Date.now();
+  const skaleDailyId = getSkaleDailyBolaoCompetitionId();
+  const copaId = getSkaleBolaoSourceCopaCompetitionId();
+  const pool = getPool();
+
+  await pool.query(UPSERT_CHAMPIONSHIP_SQL, [
+    skaleDailyId,
+    SKALE_DAILY_BOLAO_DISPLAY_NAME,
+    copaId,
+  ]);
+
+  const result = await pool.query(MIRROR_MATCHES_SQL, [
+    skaleDailyId,
+    copaId,
+    SKALE_DAILY_BOLAO_DISPLAY_NAME,
+  ]);
+
+  invalidateMatchMapMemoryAfterDbWrite();
+
+  return {
+    skaleCompetitionId: skaleDailyId,
+    sourceCompetitionId: copaId,
+    matchesMirrored: result.rowCount ?? 0,
+    ms: Date.now() - t0,
+  };
+}
+
+export async function mirrorAllSkaleBolaoMatchesFromCopa(): Promise<void> {
+  await mirrorSkaleBolaoMatchesFromCopa().catch(() => {});
+  await mirrorSkaleDailyBolaoMatchesFromCopa().catch(() => {});
 }

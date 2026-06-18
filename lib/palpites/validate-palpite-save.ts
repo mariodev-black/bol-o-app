@@ -1,14 +1,17 @@
 import {
   getDailyEdition,
-  getDailyEditionDatesSet,
   isDateInDailyEdition,
-  paidTicketDailyEditionNumber,
 } from "@/lib/boloes/daily-editions";
 import {
   inferDailyEditionFromMatchIds,
   isDailyEditionClosed,
+  isDailyTicketCrossEditionConflict,
 } from "@/lib/boloes/daily-editions-server";
 import { isSkaleBolaoCompetition } from "@/lib/boloes/skale-config";
+import {
+  isSkaleDailyBolaoCompetition,
+  paidTicketSkaleDailyEditionNumber,
+} from "@/lib/boloes/skale-daily-config";
 import { getMatchFromMap, resolveKickoffAtIso } from "@/lib/football-api";
 import { resolveBolaoMatchFromMap } from "@/lib/boloes/skale-match-resolve";
 import { brToday, resolveDiarioPlayableDate, utcMsForBrDate } from "@/lib/diario-playable-date";
@@ -108,8 +111,54 @@ export async function validatePalpiteForSave(
   const isSkaleFullCopaPool =
     bolaoType === "extra" &&
     extraChampionshipId != null &&
-    isSkaleBolaoCompetition(extraChampionshipId);
+    isSkaleBolaoCompetition(extraChampionshipId) &&
+    !isSkaleDailyBolaoCompetition(extraChampionshipId);
   if (isSkaleFullCopaPool) {
+    return null;
+  }
+
+  const skaleDailyEdition =
+    bolaoType === "extra" && extraChampionshipId != null
+      ? paidTicketSkaleDailyEditionNumber({
+          ticketType: "extra",
+          extraChampionshipId,
+          extraRoundNumber: extraRoundNumber,
+        })
+      : null;
+  if (skaleDailyEdition != null && extraChampionshipId != null) {
+    const scopeComp = extraChampionshipId;
+    const ticketPreds = await listPredictions({
+      userId: ctx.userId,
+      ticketId: ctx.ticketId,
+      bolaoType: "extra",
+    });
+    if (!isDateInDailyEdition(dateBrDb, skaleDailyEdition)) {
+      const editionMeta = getDailyEdition(skaleDailyEdition);
+      return {
+        error: `Ticket: esta partida nao pertence ao Bolao Diario Skale #${skaleDailyEdition} (dias ${editionMeta?.datesBR.join(", ") ?? "?"}).`,
+        status: 400,
+      };
+    }
+    if (isDailyEditionClosed(skaleDailyEdition, matchMap, mainComp)) {
+      return {
+        error: `Bolao Diario Skale #${skaleDailyEdition} ja encerrado para novos palpites.`,
+        status: 400,
+      };
+    }
+    if (
+      ticketPreds.length > 0 &&
+      isDailyTicketCrossEditionConflict(
+        skaleDailyEdition,
+        ticketPreds.map((p) => Number(p.match_id)),
+        matchMap,
+        mainComp,
+      )
+    ) {
+      return {
+        error: "Este ticket diario Skale ja foi encerrado para novo uso",
+        status: 400,
+      };
+    }
     return null;
   }
 
@@ -196,18 +245,19 @@ export async function validatePalpiteForSave(
           status: 400,
         };
       }
-      const editionDates = getDailyEditionDatesSet(edition);
-      if (ticketPreds.length > 0) {
-        for (const p of ticketPreds) {
-          const m = getMatchFromMap(matchMap, mainComp, Number(p.match_id));
-          const date = m?.dateBR ?? null;
-          if (date && !editionDates.has(date)) {
-            return {
-              error: "Este ticket diario ja foi encerrado para novo uso",
-              status: 400,
-            };
-          }
-        }
+      if (
+        ticketPreds.length > 0 &&
+        isDailyTicketCrossEditionConflict(
+          edition,
+          ticketPreds.map((p) => Number(p.match_id)),
+          matchMap,
+          mainComp,
+        )
+      ) {
+        return {
+          error: "Este ticket diario ja foi encerrado para novo uso",
+          status: 400,
+        };
       }
     }
   } else if (bolaoType === "extra") {
