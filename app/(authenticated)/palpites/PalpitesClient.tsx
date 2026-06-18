@@ -3996,11 +3996,21 @@ function PalpitesPageContent({
     };
   };
 
-  const palpitesFooterMode: PalpitesFooterMode = !hasSavedPalpitesOnScope
-    ? "initial"
-    : palpitesEditing
-      ? "editing"
-      : "edit-locked";
+  const hasNewUnsavedPalpites = useMemo(() => {
+    const now = Date.now();
+    return jogosEscopoSalvar.some((j) => {
+      if (!isJogoEditavelParaPalpite(j, bolaoType, now)) return false;
+      if (predictionsMap[j.id]) return false;
+      return matchNeedsSave(j.id, scoresForMatch(j.id));
+    });
+  }, [jogosEscopoSalvar, bolaoType, matchNeedsSave, draftScores, draftTouchedIds, predictionsMap]);
+
+  const palpitesFooterMode: PalpitesFooterMode =
+    !hasSavedPalpitesOnScope || hasNewUnsavedPalpites
+      ? "initial"
+      : palpitesEditing
+        ? "editing"
+        : "edit-locked";
 
   const palpitesListFooter = showPalpitesFooter ? (
     <PalpitesListFooter
