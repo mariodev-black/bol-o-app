@@ -48,7 +48,7 @@ const SLIDES: {
 
 const INTERVAL_MS = 5000;
 
-export function HomeBannerCarousel() {
+export function HomeBannerCarousel({ fullWidth = false }: { fullWidth?: boolean }) {
   const router = useRouter();
   const { openPromotion, getPromotionPrefetch } = usePromotionsHub();
   const [index, setIndex] = useState(0);
@@ -133,8 +133,8 @@ export function HomeBannerCarousel() {
   };
 
   return (
-    <section className="w-full pt-2">
-      <div className="mx-auto w-full max-w-[460px] px-3.5 lg:max-w-[720px]">
+    <section className="w-full">
+      <div className={`mx-auto w-full ${fullWidth ? "lg:max-w-none lg:px-0" : "px-3.5 lg:max-w-[720px]"} max-w-[460px] px-3.5`}>
         <div
           className="relative overflow-hidden rounded-[16px] border border-white/8 bg-[#0a0a0a] shadow-[0_10px_36px_rgba(0,0,0,0.45)]"
           style={{ touchAction: "pan-y" }}

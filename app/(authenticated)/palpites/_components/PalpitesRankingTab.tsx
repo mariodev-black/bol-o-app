@@ -146,7 +146,7 @@ export function PalpitesRankingTab({
   }, [bolaoType, ticketId, resumoStats.palpites, tick, liveRefreshKey, meta?.hasLiveMatchesInPool]);
 
   const topThree = useMemo(() => rows.slice(0, 3), [rows]);
-  const rowsAfterPodium = useMemo(() => rows.slice(3, 10), [rows]);
+  const rowsAfterPodium = useMemo(() => rows.slice(3), [rows]);
   const padTopThree = useMemo(
     () =>
       [topThree[0] ?? null, topThree[1] ?? null, topThree[2] ?? null] as const,
