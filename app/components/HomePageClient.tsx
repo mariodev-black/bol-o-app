@@ -12,6 +12,7 @@ import { PalpitesAbertosGrid } from "@/app/components/PalpitesAbertosGrid";
 import { HomeComoFuncionaPontuacaoSection } from "@/app/components/HomeComoFuncionaPontuacaoSection";
 import { ScoringExplainerModal } from "@/app/shared/ScoringExplainerModal";
 import { HomeClassificacaoCtaSection } from "@/app/components/HomeClassificacaoCtaSection";
+import { ProximosBolaoCarousel } from "@/app/components/ProximosBolaoCarousel";
 import type { PalpiteAbertoMatch } from "@/lib/home-palpites-abertos";
 import {
   collectPalpitesAbertosFromPartidasPayload,
@@ -107,21 +108,32 @@ function LoggedInHome({
       </Suspense>
       <Header />
       <main className="min-h-screen bg-black pb-32 text-white">
-        <HomeBannerCarousel />
+        {/* ── Topo: Banner + Carrossel Próximos Bolões (side-by-side no desktop) ── */}
+        <div className="mx-auto w-full max-w-[460px] px-3.5 pt-2 lg:flex lg:max-w-[1040px] lg:items-stretch lg:gap-5 lg:pt-4">
+          {/* Banner principal — ocupa todo espaço disponível */}
+          <div className="lg:min-w-0 lg:flex-1">
+            <HomeBannerCarousel fullWidth />
+          </div>
+          {/* Carrossel Próximos Bolões — coluna fixa no desktop */}
+          <div className="mt-4 lg:mt-0 lg:w-[340px] lg:shrink-0">
+            <ProximosBolaoCarousel />
+          </div>
+        </div>
 
         <div className="mx-auto w-full max-w-[460px] px-3.5 lg:max-w-[1040px]">
-          {/* Desktop: 2 colunas (cada uma ~largura mobile, componentes intactos). */}
+          {/* Promoção ativa */}
+          {promoEnabled ? <PromoBrasilMarrocosHomeCard /> : null}
+
+          {/* Desktop: 2 colunas */}
           <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-6">
             {/* Coluna principal */}
             <div>
-              {/* Palpites abertos — conteúdo mais dinâmico, em destaque */}
               <PalpitesAbertosGrid
                 matches={palpitesAbertos}
                 loading={palpitesLoading}
                 className="mt-5"
               />
 
-              {/* Outros bolões ativos */}
               {outrosBoloes.length > 0 ? (
                 <OutrosBoloesGrid items={outrosBoloes} className="mt-5" />
               ) : null}
@@ -129,11 +141,9 @@ function LoggedInHome({
               <QuemEstaNoBolaoSection className="mt-5" />
             </div>
 
-            {/* Coluna lateral (desktop) — conteúdo de apoio/educacional */}
+            {/* Coluna lateral */}
             <div>
               <HomeClassificacaoCtaSection />
-
-              {/* Como funciona — conteúdo educacional */}
               <HomeComoFuncionaPontuacaoSection
                 onVerMaisPontuacao={() => setScoringExplainerOpen(true)}
               />

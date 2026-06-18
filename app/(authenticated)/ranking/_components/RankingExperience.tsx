@@ -338,8 +338,7 @@ export function RankingExperience() {
   }, []);
 
   const topThree = useMemo(() => rankingRows.slice(0, 3), [rankingRows]);
-  /** Tabela: apenas 4º ao 10º (pódio = top 3). */
-  const rowsAfterPodium = useMemo(() => rankingRows.slice(3, 10), [rankingRows]);
+  const rowsAfterPodium = useMemo(() => rankingRows.slice(3), [rankingRows]);
   const padTopThree = useMemo(
     () =>
       [topThree[0] ?? null, topThree[1] ?? null, topThree[2] ?? null] as const,
