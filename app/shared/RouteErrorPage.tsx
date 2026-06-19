@@ -129,7 +129,7 @@ export function RouteErrorPage({
         className={[
           "relative flex flex-1 flex-col items-center justify-center overflow-hidden px-4",
           showAppChrome
-            ? "pb-32 pt-[var(--app-header-height,55px)] md:pb-8 lg:pt-[var(--app-header-height,80px)]"
+            ? "pb-32 pt-[var(--app-header-height,55px)] md:pb-8 lg:pt-[var(--app-header-height,64px)]"
             : "py-12",
         ].join(" ")}
       >

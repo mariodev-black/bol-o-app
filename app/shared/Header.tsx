@@ -273,20 +273,7 @@ export function Header() {
           </div>
         </div>
 
-        <div className="mx-auto hidden h-[80px] w-full max-w-[1500px] items-center justify-between px-8 lg:flex">
-          <Link href="/" className="flex items-center shrink-0" aria-label="Início">
-            <Image
-              src={logo}
-              alt="Bolão do Milhão"
-              width={154}
-              height={36}
-              quality={100}
-              sizes="154px"
-              priority
-              className="h-[34px] w-auto"
-            />
-          </Link>
-
+        <div className="hidden h-[64px] w-full items-center justify-end gap-[24px] pl-[210px] pr-8 lg:flex">
           <div className="flex items-center gap-[24px]">
             <nav className="hidden items-center gap-[24px]">
               {NAV_LINKS_LOGGED.map(({ label, href }) => {

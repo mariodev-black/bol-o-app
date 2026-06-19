@@ -13,7 +13,7 @@ export function NotFoundPage() {
     <div className="flex min-h-screen flex-col bg-black">
       <Header />
 
-      <main className="relative flex flex-1 flex-col items-center justify-center overflow-hidden px-4 pb-32 pt-[var(--app-header-height,55px)] md:pb-8 lg:pt-[var(--app-header-height,80px)]">
+      <main className="relative flex flex-1 flex-col items-center justify-center overflow-hidden px-4 pb-32 pt-[var(--app-header-height,55px)] md:pb-8 lg:pt-[var(--app-header-height,64px)]">
         <div
           className="pointer-events-none absolute inset-0"
           aria-hidden

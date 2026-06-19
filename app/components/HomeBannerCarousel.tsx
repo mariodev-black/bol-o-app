@@ -48,7 +48,13 @@ const SLIDES: {
 
 const INTERVAL_MS = 5000;
 
-export function HomeBannerCarousel({ fullWidth = false }: { fullWidth?: boolean }) {
+export function HomeBannerCarousel({
+  fullWidth = false,
+  fillHeight = false,
+}: {
+  fullWidth?: boolean;
+  fillHeight?: boolean;
+}) {
   const router = useRouter();
   const { openPromotion, getPromotionPrefetch } = usePromotionsHub();
   const [index, setIndex] = useState(0);
@@ -133,10 +139,10 @@ export function HomeBannerCarousel({ fullWidth = false }: { fullWidth?: boolean 
   };
 
   return (
-    <section className="w-full">
-      <div className={`mx-auto w-full ${fullWidth ? "lg:max-w-none lg:px-0" : "px-3.5 lg:max-w-[720px]"} max-w-[460px] px-3.5`}>
+    <section className={`w-full ${fillHeight ? "lg:h-full" : ""}`}>
+      <div className={`mx-auto w-full ${fullWidth ? "lg:max-w-none lg:px-0" : "px-3.5 lg:max-w-[720px]"} ${fillHeight ? "lg:h-full" : ""} max-w-[460px] px-3.5`}>
         <div
-          className="relative overflow-hidden rounded-[16px] border border-white/8 bg-[#0a0a0a] shadow-[0_10px_36px_rgba(0,0,0,0.45)]"
+          className={`relative overflow-hidden rounded-[16px] border border-white/8 bg-[#0a0a0a] shadow-[0_10px_36px_rgba(0,0,0,0.45)] ${fillHeight ? "lg:h-full" : ""}`}
           style={{ touchAction: "pan-y" }}
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
@@ -144,7 +150,7 @@ export function HomeBannerCarousel({ fullWidth = false }: { fullWidth?: boolean 
         >
           {/* Track — desliza horizontalmente */}
           <div
-            className="flex transition-transform duration-500 ease-out"
+            className={`flex transition-transform duration-500 ease-out ${fillHeight ? "lg:h-full" : ""}`}
             style={{ transform: `translateX(-${index * 100}%)` }}
           >
             {SLIDES.map((slide, i) => (
@@ -152,13 +158,13 @@ export function HomeBannerCarousel({ fullWidth = false }: { fullWidth?: boolean 
                 key={slide.id}
                 href={slide.href}
                 onClick={slide.id === "cota" ? handleCotaClick : undefined}
-                className="block w-full shrink-0"
+                className={`block w-full shrink-0 ${fillHeight ? "lg:h-full" : ""}`}
                 aria-label={slide.alt}
               >
                 <Image
                   src={slide.src}
                   alt={slide.alt}
-                  className="h-auto w-full"
+                  className={`w-full ${fillHeight ? "h-auto object-center lg:h-full lg:object-cover" : "h-auto"}`}
                   priority={i === 0}
                   sizes="(max-width: 430px) 100vw, 1300px"
                   draggable={false}

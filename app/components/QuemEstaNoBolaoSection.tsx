@@ -2,10 +2,12 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { Share2 } from "lucide-react";
 import { HOME_INFLUENCERS } from "@/lib/home-influencers";
 import logoInstagram from "@/app/assets/icon-instagram.png";
 
 const CARD_BG = "#111111";
+const GREEN = "#B1EB0B";
 const INSTAGRAM_URL = "https://instagram.com/bolaodomilhao26";
 
 function OfficialInstagramCard() {
@@ -79,6 +81,15 @@ export function QuemEstaNoBolaoSection({ className = "mt-5" }: { className?: str
         ))}
         <OfficialInstagramCard />
       </div>
+
+      <Link
+        href="/indique"
+        className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-[12px] text-[12px] font-black uppercase tracking-wide transition hover:brightness-110 active:scale-[0.98]"
+        style={{ background: "rgba(177,235,11,0.12)", border: `1px solid ${GREEN}4D`, color: GREEN }}
+      >
+        <Share2 className="size-4" strokeWidth={2.3} aria-hidden />
+        Convidar Amigos
+      </Link>
     </section>
   );
 }

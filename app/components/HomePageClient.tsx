@@ -22,12 +22,15 @@ import { BRASIL_MARROCOS_PLACAR_FRIENDS_GOAL } from "@/lib/promotions/brasil-mar
 import { OutrosBoloesGrid } from "@/app/(authenticated)/boloes/_components/OutrosBoloesGrid";
 import { QuemEstaNoBolaoSection } from "@/app/components/QuemEstaNoBolaoSection";
 import { PalpitesAbertosGrid } from "@/app/components/PalpitesAbertosGrid";
+import { PalpitesAbertosTable } from "@/app/components/PalpitesAbertosTable";
 import { HomeComoFuncionaPontuacaoSection } from "@/app/components/HomeComoFuncionaPontuacaoSection";
 import { ScoringExplainerModal } from "@/app/shared/ScoringExplainerModal";
 import { HomeClassificacaoCtaSection } from "@/app/components/HomeClassificacaoCtaSection";
 import { ProximosBolaoCarousel } from "@/app/components/ProximosBolaoCarousel";
 import { HomeFeatureBand } from "@/app/components/HomeFeatureBand";
 import { HomeRankingTop5 } from "@/app/components/HomeRankingTop5";
+import { HomeDesktopEducationCards } from "@/app/components/HomeDesktopEducationCards";
+import { HomeTrustBand } from "@/app/components/HomeTrustBand";
 import type { PalpiteAbertoMatch } from "@/lib/home-palpites-abertos";
 import {
   collectPalpitesAbertosFromPartidasPayload,
@@ -189,19 +192,25 @@ function LoggedInHome({
       <Header />
       {/* Sidebar fixo — desktop only (fixed escapa do overflow-hidden do container) */}
       <aside
-        className="fixed left-0 hidden h-screen w-[210px] flex-col lg:flex"
-        style={{ top: 0, paddingTop: "var(--app-header-height, 80px)", zIndex: 35 }}
+        className="fixed left-0 top-0 hidden h-screen w-[210px] flex-col lg:flex"
+        style={{ zIndex: 60 }}
       >
         <DesktopSidebar className="flex-1" />
       </aside>
       <main className="min-h-screen bg-black pb-32 text-white lg:pl-[210px]">
-        {/* ── Banner full-width no desktop, altura controlada ── */}
         <div className="mx-auto w-full max-w-[460px] px-3.5 pt-2 lg:mx-0 lg:max-w-none lg:px-6 lg:pt-4">
-          <HomeBannerCarousel fullWidth />
-        </div>
 
-        <div className="mx-auto w-full max-w-[460px] px-3.5 lg:mx-0 lg:max-w-none lg:px-6">
-          {/* Feature band */}
+          {/* ── Linha 1: Banner (largura fixa p/ altura ~290 sem corte) + Próximos ── */}
+          <div className="lg:flex lg:items-start lg:gap-5">
+            <div className="lg:w-[540px] lg:shrink-0">
+              <HomeBannerCarousel fullWidth />
+            </div>
+            <div className="mt-4 min-w-0 overflow-hidden lg:mt-0 lg:flex-1">
+              <ProximosBolaoCarousel />
+            </div>
+          </div>
+
+          {/* ── Linha 2: Feature band (4 cards) ── */}
           <HomeFeatureBand promoEnabled={promoEnabled} className="mt-4" />
 
           {/* Promoção ativa (mobile extra card) */}
@@ -211,11 +220,24 @@ function LoggedInHome({
             </div>
           ) : null}
 
-          {/* ── Desktop: 2 colunas | Mobile: stack ── */}
-          <div className="mt-5 lg:grid lg:grid-cols-[1fr_360px] lg:items-start lg:gap-6">
+          {/* ── Linha 3: 3 colunas — Partidas | Principais Bolões | Top5 + Quem ── */}
+          <div className="mt-5 lg:grid lg:grid-cols-[1.2fr_1fr_330px] lg:items-start lg:gap-5">
+            {/* Coluna 1 — Próximas Partidas (tabela no desktop, cards no mobile) */}
+            <div>
+              <PalpitesAbertosTable
+                matches={palpitesAbertos}
+                loading={palpitesLoading}
+                className="hidden lg:block"
+              />
+              <PalpitesAbertosGrid
+                matches={palpitesAbertos}
+                loading={palpitesLoading}
+                className="mt-0 lg:hidden"
+              />
+            </div>
 
-            {/* Coluna esquerda — Principais Bolões + Próximos Bolões */}
-            <div className="space-y-5">
+            {/* Coluna 2 — Principais Bolões */}
+            <div className="mt-5 lg:mt-0">
               {outrosBoloes.length > 0 ? (
                 <OutrosBoloesGrid
                   items={outrosBoloes}
@@ -223,33 +245,32 @@ function LoggedInHome({
                   className="mt-0"
                 />
               ) : null}
-              <ProximosBolaoCarousel />
             </div>
 
-            {/* Coluna direita — TOP 5 RANKING + QUEM ESTÁ */}
-            <div>
+            {/* Coluna 3 — Top 5 Ranking + Quem já está */}
+            <div className="mt-5 lg:mt-0">
               <HomeRankingTop5 />
               <QuemEstaNoBolaoSection className="mt-5" />
             </div>
           </div>
 
-          {/* Seção educacional + jogos */}
-          <div className="mt-6 lg:grid lg:grid-cols-2 lg:items-start lg:gap-6">
-            {/* Coluna esquerda: Telegram/Ajuda + Partidas */}
-            <div>
-              <HomeClassificacaoCtaSection className="" />
-              <PalpitesAbertosGrid
-                matches={palpitesAbertos}
-                loading={palpitesLoading}
-                className="mt-5"
-              />
-            </div>
-            {/* Coluna direita: Como funciona / Pontuação */}
+          {/* ── Linha 4: Educacional ── */}
+          {/* Desktop: 4 cards compactos */}
+          <HomeDesktopEducationCards
+            className="mt-6 hidden lg:block"
+            onScoring={() => setScoringExplainerOpen(true)}
+          />
+          {/* Mobile: seções completas */}
+          <div className="lg:hidden">
+            <HomeClassificacaoCtaSection className="mt-6" />
             <HomeComoFuncionaPontuacaoSection
-              className="mt-5 lg:mt-0"
+              className="mt-5"
               onVerMaisPontuacao={() => setScoringExplainerOpen(true)}
             />
           </div>
+
+          {/* ── Linha 5: Faixa de confiança (desktop) ── */}
+          <HomeTrustBand className="mt-6 hidden lg:block" />
         </div>
       </main>
       <ScoringExplainerModal
