@@ -54,7 +54,6 @@ import {
 } from "@/lib/partida-placar";
 import {
   palpiteLockBeforeKickoffMs,
-  palpiteUsesFiveMinuteLock,
   type PredictionBolaoType,
 } from "@/lib/palpites-kickoff-lock";
 import {
@@ -196,26 +195,17 @@ function brDateToUtcMs(dateBR: string): number | null {
   return Date.UTC(year, month - 1, day);
 }
 
-function palpiteLockUiCopy(bolaoType: PredictionBolaoType): {
+function palpiteLockUiCopy(): {
   fechadoJaPassou: string;
   faixaForaPrazo: string;
   rankingBloco: string;
 } {
-  if (palpiteUsesFiveMinuteLock(bolaoType)) {
-    return {
-      fechadoJaPassou: "Fechado: prazo era até 5 min antes do jogo",
-      faixaForaPrazo:
-        "O prazo termina 5 minutos antes do apito. Depois disso não dá para apostar nem alterar. Se você não tiver salvo um palpite antes desse horário, não entra nesta partida.",
-      rankingBloco:
-        "Palpites só até 5 minutos antes do apito: após esse limite e após o início o sistema fecha. Quem não tiver palpite salvo até esse horário não entra na partida.",
-    };
-  }
   return {
-    fechadoJaPassou: "Fechado: prazo era ate 1h antes do jogo",
+    fechadoJaPassou: "Fechado: prazo era até o apito do jogo",
     faixaForaPrazo:
-      "O prazo termina 1 hora antes do apito. Depois disso não dá para apostar. Se você não tiver salvo um palpite antes desse horário, não entra nesta partida.",
+      "O prazo fecha 5 segundos antes do apito. Depois disso não dá para apostar nem alterar. Se você não tiver salvo um palpite antes desse horário, não entra nesta partida.",
     rankingBloco:
-      "Palpites so ate 1h antes do apito: na ultima hora antes do jogo e depois do inicio o sistema fecha. Quem nao tiver palpite salvo ate esse limite nao entra na partida.",
+      "Palpites até 5 segundos antes do apito: após esse limite e com o jogo em andamento o sistema fecha. Quem não tiver palpite salvo a tempo não entra na partida.",
   };
 }
 
@@ -1322,7 +1312,7 @@ function JogoCard({
     return undefined;
   }, [lockAtMs, jogo.kickoffAt, readOnly, jogo.resultCasa, jogo.resultVisitante]);
   const isLockedByTime = lockAtMs != null ? nowMs >= lockAtMs : false;
-  /** Palpite até instantes antes do apito (5 min Copa/Skale/extra; 1h no diário). */
+  /** Palpite até 5 segundos antes do apito (todos os bolões). */
   const matchOpen = isMatchOpenForPalpite(
     palpiteEligibilityFromJogo(jogo),
     bolaoType,
@@ -2390,7 +2380,7 @@ function DesktopSidebar({
   bolaoType: PredictionBolaoType;
   onRankingLinkClick?: () => void;
 }) {
-  const lockCopy = palpiteLockUiCopy(bolaoType);
+  const lockCopy = palpiteLockUiCopy();
   const grupoKey = `grupo-${grupo.toLowerCase()}`;
   let times = tabela ? (tabela[grupoKey] ?? []) : [];
   if (!times.length && tabela?.["grupo-geral"]?.length) {
@@ -4006,11 +3996,21 @@ function PalpitesPageContent({
     };
   };
 
-  const palpitesFooterMode: PalpitesFooterMode = !hasSavedPalpitesOnScope
-    ? "initial"
-    : palpitesEditing
-      ? "editing"
-      : "edit-locked";
+  const hasNewUnsavedPalpites = useMemo(() => {
+    const now = Date.now();
+    return jogosEscopoSalvar.some((j) => {
+      if (!isJogoEditavelParaPalpite(j, bolaoType, now)) return false;
+      if (predictionsMap[j.id]) return false;
+      return matchNeedsSave(j.id, scoresForMatch(j.id));
+    });
+  }, [jogosEscopoSalvar, bolaoType, matchNeedsSave, draftScores, draftTouchedIds, predictionsMap]);
+
+  const palpitesFooterMode: PalpitesFooterMode =
+    !hasSavedPalpitesOnScope || hasNewUnsavedPalpites
+      ? "initial"
+      : palpitesEditing
+        ? "editing"
+        : "edit-locked";
 
   const palpitesListFooter = showPalpitesFooter ? (
     <PalpitesListFooter
@@ -4273,7 +4273,7 @@ function PalpitesPageContent({
   });
   const myRankingPos =
     rankingBoardRows.find((row) => row.isMe)?.pos ?? null;
-  const rankingLockBloco = palpiteLockUiCopy(bolaoType).rankingBloco;
+  const rankingLockBloco = palpiteLockUiCopy().rankingBloco;
   const scrollToGroup = (groupKey: string) => {
     setGrupo(groupKey);
     if (typeof window === "undefined") return;

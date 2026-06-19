@@ -1,5 +1,6 @@
 import { paidTicketDailyEditionNumber } from "@/lib/boloes/daily-editions";
 import { isSkaleBolaoCompetition } from "@/lib/boloes/skale-config";
+import { isWeekendBolaoCompetition } from "@/lib/boloes/weekend-bolao-config";
 import {
   isSkaleDailyBolaoCompetition,
   paidTicketSkaleDailyEditionNumber,
@@ -99,6 +100,14 @@ export async function resolveOwnedTicketMeta(
         };
       }
       if (compId != null && isSkaleBolaoCompetition(compId)) {
+        return {
+          bolao: "extra",
+          extraChampionshipId: compId,
+          extraRoundNumber: null,
+          dailyEditionNumber: null,
+        };
+      }
+      if (compId != null && isWeekendBolaoCompetition(compId)) {
         return {
           bolao: "extra",
           extraChampionshipId: compId,
