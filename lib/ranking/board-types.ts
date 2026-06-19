@@ -8,6 +8,7 @@ export type RankingBoardRow = {
   outcomeCount: number;
   goalsCount: number;
   bestStreak: number;
+  cotaOrdinal?: number;
   avatarIndex: number;
   avatarUploadFilename: string | null;
   /** Participante de preenchimento (não está neste bolão). */

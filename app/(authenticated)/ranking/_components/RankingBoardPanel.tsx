@@ -25,6 +25,11 @@ function rankingTicketShortLabel(ticketId: string): string {
   return hex.slice(0, 6).toUpperCase();
 }
 
+function twoWordName(name: string): string {
+  const words = name.trim().split(/\s+/);
+  return words.slice(0, 2).join(" ");
+}
+
 function rankingRowsForTop10Gap(allRows: RankingBoardRow[]): RankingBoardRow[] {
   return allRows.filter((r) => !isRankingFillerRow(r));
 }
@@ -141,7 +146,7 @@ function PodiumCard({
         />
         <div className="mt-2 flex max-w-full items-center justify-center gap-0.5 px-0.5">
           <span className="truncate text-center text-[12px] font-black text-white min-[380px]:text-[13px]">
-            {row.displayName}
+            {twoWordName(row.displayName)}
           </span>
           {!filler ? (
             <Check
@@ -201,7 +206,7 @@ function RankingDataRow({ row }: { row: RankingBoardRow }) {
           sizeClass="size-8"
         />
         <span className="truncate text-[12px] font-black text-white">
-          {row.displayName}
+          {twoWordName(row.displayName)}
         </span>
         {!filler ? (
           <Check
@@ -212,7 +217,7 @@ function RankingDataRow({ row }: { row: RankingBoardRow }) {
         ) : null}
       </div>
       <span className="text-right text-[12px] font-bold tabular-nums text-white/78">
-        {row.exactCount}
+        {row.cotaOrdinal ?? "—"}
       </span>
       <span className="text-right text-[16px] font-black tabular-nums text-primary">
         {row.totalPoints}
@@ -362,13 +367,13 @@ export function RankingBoardPanel({
         >
           <div className="flex items-center justify-between border-b border-white/7 px-3 py-2.5">
             <p className="text-[10px] font-black uppercase tracking-widest text-white/45 min-[380px]:text-[11px]">
-              Top 10 — 4º ao 10º
+              Classificação Completa
             </p>
           </div>
           <div className="grid grid-cols-[40px_minmax(0,1fr)_64px_56px] gap-1 border-b border-white/7 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-white/45 min-[380px]:text-[11px]">
             <span>#</span>
             <span>Jogador</span>
-            <span className="text-right">Exatos</span>
+            <span className="text-right">Nº Cota</span>
             <span className="text-right">Pontos</span>
           </div>
           {rowsAfterPodium.length > 0 ? (

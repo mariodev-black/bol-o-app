@@ -281,6 +281,7 @@ type PaidTicketRow = {
   extra_championship_id?: number | null;
   round_number?: number | null;
   is_promo_bonus?: boolean;
+  created_at?: string | null;
 };
 
 function paidTicketRevenueCents(t: PaidTicketRow): number {
@@ -477,6 +478,7 @@ export type LeaderboardRow = {
   outcomeCount: number;
   goalsCount: number;
   bestStreak: number;
+  cotaOrdinal?: number;
   avatarIndex: number;
   avatarUploadFilename: string | null;
   isFiller?: boolean;
@@ -620,12 +622,13 @@ async function loadPaidTickets(
     ticket_type: "general" | "daily";
     round_number: number | null;
     total_amount_cents: string | number | null;
+    created_at: string | null;
   }>(
     `SELECT t.id::text AS id, t.user_id::text AS user_id, t.ticket_type, t.round_number,
-            COALESCE(t.total_amount_cents, 0) AS total_amount_cents
+            COALESCE(t.total_amount_cents, 0) AS total_amount_cents,
+            t.created_at::text AS created_at
      FROM tickets t
      WHERE t.status IN ('paid', 'approved')
-       AND NOT COALESCE(t.is_promo_bonus, false)
        AND t.ticket_type = $1`,
     [ticketType]
   );
@@ -636,13 +639,14 @@ async function loadPaidTickets(
     round_number: r.round_number,
     total_amount_cents: Number(r.total_amount_cents ?? 0),
     is_promo_bonus: false,
+    created_at: r.created_at ?? null,
   }));
 }
 
 export async function buildLeaderboardPrincipal(): Promise<{ rows: LeaderboardRow[]; meta: LeaderboardBoardMeta }> {
   const getCached = unstable_cache(
     async () => buildLeaderboardPrincipalUncached(),
-    ["leaderboard", "principal", "v21-real-only"],
+    ["leaderboard", "principal", "v23-cota-ordinal"],
     { revalidate: RANKING_REVALIDATE_SEC, tags: ["leaderboard"] }
   );
   return getCached();
@@ -687,6 +691,25 @@ async function buildLeaderboardPrincipalUncached(): Promise<{ rows: LeaderboardR
   const userIds = [...new Set(sortedTickets.map((t) => t.userId))];
   const usersMap = await loadUsersMap(userIds);
 
+  // Cota ordinal: per-user ordering by created_at (oldest = cota 1)
+  const userTicketsSorted = new Map<string, string[]>();
+  for (const t of paidInPool) {
+    const list = userTicketsSorted.get(t.user_id) ?? [];
+    list.push(t.id);
+    userTicketsSorted.set(t.user_id, list);
+  }
+  const ticketCreatedAt = new Map<string, string>(
+    paidInPool.map((t) => [t.id, t.created_at ?? t.id])
+  );
+  for (const [uid, list] of userTicketsSorted) {
+    list.sort((a, b) => (ticketCreatedAt.get(a) ?? a).localeCompare(ticketCreatedAt.get(b) ?? b));
+    userTicketsSorted.set(uid, list);
+  }
+  const cotaOrdinalMap = new Map<string, number>();
+  for (const list of userTicketsSorted.values()) {
+    list.forEach((tid, i) => cotaOrdinalMap.set(tid, i + 1));
+  }
+
   const rows: LeaderboardRow[] = sortedTickets.map((t, idx) => {
     const u = usersMap.get(t.userId);
     return {
@@ -699,6 +722,7 @@ async function buildLeaderboardPrincipalUncached(): Promise<{ rows: LeaderboardR
       outcomeCount: t.outcomeCount,
       goalsCount: t.goalsCount,
       bestStreak: t.bestStreak,
+      cotaOrdinal: cotaOrdinalMap.get(t.ticketId),
       avatarIndex: avatarIndexFromDb(u?.avatar_index),
       avatarUploadFilename: safeUploadFilename(u?.avatar_upload_filename),
     };

@@ -31,7 +31,7 @@ const SLIDES: {
 
 const INTERVAL_MS = 5000;
 
-export function HomeBannerCarousel() {
+export function HomeBannerCarousel({ fullWidth = false }: { fullWidth?: boolean }) {
   const [index, setIndex] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -52,12 +52,11 @@ export function HomeBannerCarousel() {
   const goTo = useCallback(
     (i: number) => {
       setIndex(i);
-      startTimer(); // reinicia o timer ao navegar manualmente
+      startTimer();
     },
     [startTimer],
   );
 
-  // Swipe lateral (mobile): arrasta pro lado pra trocar de banner.
   const touchStartX = useRef<number | null>(null);
   const touchDeltaX = useRef(0);
 
@@ -79,8 +78,10 @@ export function HomeBannerCarousel() {
   };
 
   return (
-    <section className="w-full pt-2">
-      <div className="mx-auto w-full max-w-[460px] px-3.5 lg:max-w-[720px]">
+    <section className="w-full">
+      <div
+        className={`mx-auto w-full ${fullWidth ? "lg:max-w-none lg:px-0" : "px-3.5 lg:max-w-[720px]"} max-w-[460px] px-3.5`}
+      >
         <div
           className="relative overflow-hidden rounded-[16px] border border-white/8 bg-[#0a0a0a] shadow-[0_10px_36px_rgba(0,0,0,0.45)]"
           style={{ touchAction: "pan-y" }}
@@ -88,7 +89,6 @@ export function HomeBannerCarousel() {
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
         >
-          {/* Track — desliza horizontalmente */}
           <div
             className="flex transition-transform duration-500 ease-out"
             style={{ transform: `translateX(-${index * 100}%)` }}
@@ -112,7 +112,6 @@ export function HomeBannerCarousel() {
             ))}
           </div>
 
-          {/* Indicadores */}
           <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 items-center gap-1.5">
             {SLIDES.map((slide, i) => (
               <button
