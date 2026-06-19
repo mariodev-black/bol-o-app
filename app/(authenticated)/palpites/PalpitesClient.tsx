@@ -4465,26 +4465,6 @@ function PalpitesPageContent({
               </div>
             )}
 
-          {showBolaoRoundNav && (
-            <RoundPhaseNav
-              embedded
-              headerOnly
-              hideProgress
-              jogos={jogosDisplayBase}
-              predictionsMap={predictionsMap}
-              hasPalpite={hasPalpite}
-              selectedRodada={effectiveSelectedRodada}
-              onRodada={(r) => {
-                setSelectedRodada(r);
-                setSelectedDate(null);
-              }}
-              selectedDate={selectedDate}
-              onDate={setSelectedDate}
-              roundTitle={roundNavTitle}
-              showRoundNav={showRoundNavControls}
-            />
-          )}
-
           {/* Desktop: filtro de grupos */}
           {grupos.length > 1 && !readOnlyMode && !hasBoloesFlow && (
             <div className="hidden lg:block mb-6">
