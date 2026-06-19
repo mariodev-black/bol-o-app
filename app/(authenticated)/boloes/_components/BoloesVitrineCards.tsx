@@ -96,16 +96,16 @@ function MilhaoPrincipalHeader({
         </div>
 
         <div className="min-w-0 flex-1 pt-0.5">
-          <h2 className="text-[19px] font-black uppercase leading-[0.92] tracking-[-0.02em] text-white min-[360px]:text-[21px]">
+          <h2 className="text-[clamp(1rem,4.5vw,1.3125rem)] font-black uppercase leading-[0.95] tracking-[-0.02em] text-white">
             Bolão do Milhão
           </h2>
-          <p className="mt-1 text-[12px] font-bold uppercase tracking-[0.05em] text-white/92 min-[360px]:text-[13px]">
+          <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.05em] text-white/92 sm:text-[12px]">
             Copa do Mundo 2026
           </p>
-          <p className="mt-2.5 text-[28px] font-black uppercase leading-none tracking-[-0.03em] text-primary min-[360px]:text-[30px]">
+          <p className="mt-2 text-[clamp(1.35rem,6.5vw,1.75rem)] font-black uppercase leading-none tracking-[-0.03em] text-primary">
             + DE 1 MILHÃO
           </p>
-          <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.14em] text-white/78 min-[360px]:text-[12px]">
+          <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.12em] text-white/78 sm:text-[11px]">
             EM PREMIAÇÕES
           </p>
         </div>

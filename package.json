@@ -25,7 +25,7 @@
     "rank:extra-top100": "tsx --tsconfig tsconfig.scripts.json scripts/list-extra-ranking-top100.ts",
     "promo:milhao-gift": "tsx --tsconfig tsconfig.scripts.json scripts/dispatch-extra-round-milhao-gift.ts",
     "promo:milhao-gift:verify": "tsx --tsconfig tsconfig.scripts.json scripts/verify-milhao-gift.ts",
-    "build": "next build",
+    "build": "node scripts/clean-next.mjs && next build",
     "deploy:github": "bash scripts/deploy-from-github.sh",
     "start": "next start",
     "lint": "eslint",

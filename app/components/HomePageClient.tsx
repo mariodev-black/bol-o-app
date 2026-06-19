@@ -107,9 +107,9 @@ function LoggedInHome({
         <HomeFromRedirectWhenLoggedIn />
       </Suspense>
       <Header />
-      <main className="min-h-screen bg-black pb-32 text-white">
-        <div className="mx-auto w-full max-w-[460px] px-3.5 pt-2 lg:flex lg:max-w-[1040px] lg:items-stretch lg:gap-5 lg:pt-4">
-          <div className="lg:min-w-0 lg:flex-1">
+      <main className="min-h-screen overflow-x-clip bg-black pb-32 text-white">
+        <div className="mx-auto w-full min-w-0 max-w-[460px] px-3.5 pt-2 lg:flex lg:max-w-[1040px] lg:items-stretch lg:gap-5 lg:pt-4">
+          <div className="min-w-0 flex-1 overflow-hidden">
             <HomeBannerCarousel fullWidth />
           </div>
           <div className="mt-4 lg:mt-0 lg:w-[340px] lg:shrink-0">

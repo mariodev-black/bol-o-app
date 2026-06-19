@@ -78,34 +78,38 @@ export function HomeBannerCarousel({ fullWidth = false }: { fullWidth?: boolean 
   };
 
   return (
-    <section className="w-full">
+    <section className="w-full min-w-0 max-w-full overflow-hidden">
       <div
-        className={`mx-auto w-full ${fullWidth ? "lg:max-w-none lg:px-0" : "px-3.5 lg:max-w-[720px]"} max-w-[460px] px-3.5`}
+        className={
+          fullWidth
+            ? "w-full min-w-0 max-w-full lg:max-w-none"
+            : "mx-auto w-full min-w-0 max-w-[460px] px-3.5 lg:max-w-[720px]"
+        }
       >
         <div
-          className="relative overflow-hidden rounded-[16px] border border-white/8 bg-[#0a0a0a] shadow-[0_10px_36px_rgba(0,0,0,0.45)]"
+          className="relative w-full min-w-0 overflow-hidden rounded-[16px] border border-white/8 bg-[#0a0a0a] shadow-[0_10px_36px_rgba(0,0,0,0.45)]"
           style={{ touchAction: "pan-y" }}
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
         >
           <div
-            className="flex transition-transform duration-500 ease-out"
+            className="flex w-full transition-transform duration-500 ease-out"
             style={{ transform: `translateX(-${index * 100}%)` }}
           >
             {SLIDES.map((slide, i) => (
               <Link
                 key={slide.id}
                 href={slide.href}
-                className="block w-full shrink-0"
+                className="block w-full min-w-0 shrink-0 basis-full"
                 aria-label={slide.alt}
               >
                 <Image
                   src={slide.src}
                   alt={slide.alt}
-                  className="h-auto w-full object-cover"
+                  className="h-auto w-full max-w-full object-contain"
                   priority={i === 0}
-                  sizes="(max-width: 430px) 100vw, 430px"
+                  sizes="(max-width: 460px) 100vw, 460px"
                   draggable={false}
                 />
               </Link>
