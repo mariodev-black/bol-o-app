@@ -288,7 +288,7 @@ export function Header() {
           </Link>
 
           <div className="flex items-center gap-[24px]">
-            <nav className="flex items-center gap-[24px]">
+            <nav className="hidden items-center gap-[24px]">
               {NAV_LINKS_LOGGED.map(({ label, href }) => {
                 const baseHref = href.split("?")[0] ?? href;
                 const isActive =

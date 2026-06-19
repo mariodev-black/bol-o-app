@@ -91,10 +91,12 @@ export function OutrosBoloesGrid({
   items,
   className = "mt-5",
   onVerTodos,
+  title = "OUTROS BOLÕES",
 }: {
   items: OutrosBolaoGridItem[];
   className?: string;
   onVerTodos?: () => void;
+  title?: string;
 }) {
   if (items.length === 0) return null;
 
@@ -109,7 +111,7 @@ export function OutrosBoloesGrid({
           id="outros-boloes-heading"
           className="text-[15px] font-black uppercase tracking-[0.04em] text-white"
         >
-          OUTROS BOLÕES
+          {title}
         </h3>
         {onVerTodos ? (
           <button
