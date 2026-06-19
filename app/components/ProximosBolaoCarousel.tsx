@@ -4,138 +4,164 @@ import Image from "next/image";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import iconCopaMundo from "@/app/assets/icon-copa-mundo2.png";
-import iconArtilheiro from "@/app/assets/icon-artilheiro.png";
-import logoBolaoDialio from "@/app/assets/logo-bolao-diario.png";
+import iconUCL from "@/app/assets/ucl-logo.png";
 import iconCopaBrasil from "@/app/assets/icon-copa-brasil.png";
+import iconBrasileirao from "@/app/assets/icon-brasileirao2.png";
+import iconCopa from "@/app/assets/icon-copa-mundo2.png";
 import type { StaticImageData } from "next/image";
 
 const GREEN = "#B1EB0B";
-const CARD_BG = "#111111";
-const BORDER = "rgba(255,255,255,0.08)";
+const CARD_BG = "#0d0d0d";
+const CARD_BORDER = "rgba(255,255,255,0.08)";
 const INTERVAL_MS = 4500;
 
-type BadgeVariant = "hot" | "new" | "highlight";
-
-type BolaoCardDef = {
+type BolaoCard = {
   id: string;
-  logo: StaticImageData;
+  badge: string;
+  badgeVariant: "primary" | "muted";
+  /** null = mostra flags BRA x MAR */
+  logo: StaticImageData | null;
+  flagBR?: boolean;
   name: string;
-  description: string;
+  dateText: string;
+  timeText: string;
   prizeLabel: string;
-  prizeSub?: string;
-  badge?: { label: string; variant: BadgeVariant };
+  prizeUnit: string;
+  isPrimary: boolean;
   href: string;
 };
 
-const BADGE_STYLES: Record<BadgeVariant, { bg: string; text: string }> = {
-  hot:       { bg: "#FF5A1F", text: "#fff" },
-  new:       { bg: "#0078D4", text: "#fff" },
-  highlight: { bg: GREEN,     text: "#0E141B" },
-};
-
-const CARDS: BolaoCardDef[] = [
+const CARDS: BolaoCard[] = [
   {
-    id: "milhao",
-    logo: iconCopaMundo,
-    name: "BOLÃO DO MILHÃO",
-    description: "Acerte os placares da Copa do Mundo",
+    id: "brasil-marrocos",
+    badge: "MAIS PREMIADO",
+    badgeVariant: "primary",
+    logo: null,
+    flagBR: true,
+    name: "BRASIL X MARROCOS",
+    dateText: "SAB, 08/06",
+    timeText: "16:00",
     prizeLabel: "R$ 1.000.000",
-    prizeSub: "no PIX",
-    badge: { label: "🔥 MAIS VENDIDO", variant: "hot" },
-    href: "/comprar-cotas",
+    prizeUnit: "NO PIX",
+    isPrimary: true,
+    href: "/promo-camisa-brasil",
   },
   {
-    id: "artilheiro",
-    logo: iconArtilheiro,
-    name: "ARTILHEIRO DA COPA",
-    description: "Acerte o artilheiro da Copa do Mundo",
-    prizeLabel: "R$ 20.000",
-    prizeSub: "no PIX",
-    badge: { label: "🆕 NOVO", variant: "new" },
-    href: "/tickets?bolao=artilheiros",
+    id: "champions",
+    badge: "EM BREVE",
+    badgeVariant: "muted",
+    logo: iconUCL,
+    name: "CHAMPIONS LEAGUE",
+    dateText: "TER, 11/06",
+    timeText: "16:00",
+    prizeLabel: "R$ 500.000",
+    prizeUnit: "NO PIX",
+    isPrimary: false,
+    href: "/tickets?bolao=extra",
   },
   {
-    id: "diario",
-    logo: logoBolaoDialio,
-    name: "BOLÃO DO DIA",
-    description: "Palpite nos jogos do dia e ganhe prêmios diários",
-    prizeLabel: "Prêmio variável",
-    prizeSub: "todo dia",
-    badge: { label: "🔥 MAIS VENDIDO", variant: "hot" },
-    href: "/tickets?bolao=diario",
-  },
-  {
-    id: "copafds",
+    id: "copa-brasil",
+    badge: "EM BREVE",
+    badgeVariant: "muted",
     logo: iconCopaBrasil,
-    name: "COPA SÁB E DOM",
-    description: "100% da arrecadação distribuída entre os vencedores",
-    prizeLabel: "100% arrecadado",
-    prizeSub: "distribuído",
-    badge: { label: "⭐ DESTAQUE", variant: "highlight" },
-    href: "/copa-fds",
+    name: "COPA DO BRASIL",
+    dateText: "QUA, 12/06",
+    timeText: "19:00",
+    prizeLabel: "R$ 300.000",
+    prizeUnit: "NO PIX",
+    isPrimary: false,
+    href: "/tickets?bolao=extra",
+  },
+  {
+    id: "brasileirao",
+    badge: "EM BREVE",
+    badgeVariant: "muted",
+    logo: iconBrasileirao,
+    name: "BRASILEIRÃO",
+    dateText: "QUI, 13/06",
+    timeText: "21:00",
+    prizeLabel: "R$ 400.000",
+    prizeUnit: "NO PIX",
+    isPrimary: false,
+    href: "/tickets?bolao=extra",
   },
 ];
 
-function BolaoCard({ card }: { card: BolaoCardDef }) {
-  const badge = card.badge ? BADGE_STYLES[card.badge.variant] : null;
+function BolaoCard({ card }: { card: BolaoCard }) {
+  const badgeBg = card.badgeVariant === "primary" ? GREEN : "rgba(255,255,255,0.10)";
+  const badgeColor = card.badgeVariant === "primary" ? "#0E141B" : "rgba(255,255,255,0.65)";
+
   return (
     <Link
       href={card.href}
-      className="relative flex w-full shrink-0 flex-col overflow-hidden rounded-[16px] border transition active:scale-[0.98] hover:brightness-105"
-      style={{ background: CARD_BG, borderColor: BORDER }}
-      aria-label={`${card.name} — ${card.prizeLabel}`}
+      data-card
+      className="relative flex w-full shrink-0 flex-col overflow-hidden rounded-[14px] border transition active:scale-[0.98] hover:brightness-105 sm:w-1/2 lg:w-1/3"
+      style={{ background: CARD_BG, borderColor: CARD_BORDER }}
+      aria-label={card.name}
     >
-      {card.badge && badge ? (
-        <span
-          className="absolute left-3 top-3 z-10 rounded-full px-2.5 py-1 text-[10px] font-black uppercase leading-none tracking-wide"
-          style={{ background: badge.bg, color: badge.text }}
-        >
-          {card.badge.label}
-        </span>
-      ) : null}
-
-      <div className="flex items-center justify-center px-4 pb-2 pt-10">
-        <Image
-          src={card.logo}
-          alt=""
-          width={100}
-          height={60}
-          className="h-[60px] w-auto max-w-[120px] object-contain"
-          draggable={false}
-        />
+      {/* Badge */}
+      <div
+        className="flex h-7 w-full items-center justify-center text-[10px] font-black uppercase tracking-widest"
+        style={{ background: badgeBg, color: badgeColor }}
+      >
+        {card.badge}
       </div>
 
-      <div className="flex flex-1 flex-col px-4 pb-4">
-        <p className="text-[14px] font-black uppercase leading-tight tracking-[0.02em] text-white">
+      {/* Logo / flags */}
+      <div className="flex h-[60px] items-center justify-center px-2 pt-2">
+        {card.logo ? (
+          <Image
+            src={card.logo}
+            alt=""
+            width={80}
+            height={48}
+            className="h-[48px] w-auto max-w-[90px] object-contain"
+            draggable={false}
+          />
+        ) : (
+          /* Flags: Brasil × Marrocos */
+          <div className="flex items-center gap-1.5">
+            <Image src={iconCopa} alt="BRA" width={32} height={32} className="size-8 rounded-full object-cover" draggable={false} />
+            <span className="text-[11px] font-bold text-white/50">×</span>
+            <Image src={iconCopa} alt="MAR" width={32} height={32} className="size-8 rounded-full object-cover brightness-75" draggable={false} />
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-1 flex-col px-3 pb-3">
+        {/* Name */}
+        <p className="mt-1.5 text-center text-[11px] font-black uppercase leading-tight tracking-tight text-white">
           {card.name}
         </p>
-        <p className="mt-1 text-[11px] font-medium leading-snug text-white/65">
-          {card.description}
+        {/* Date */}
+        <p className="mt-1 text-center text-[10px] font-bold" style={{ color: GREEN }}>
+          {card.dateText} · {card.timeText}
         </p>
 
-        <div className="mt-3 flex-1">
-          <p className="text-[11px] font-black uppercase tracking-widest text-white/40">
-            PREMIAÇÃO GARANTIDA
+        {/* Divider */}
+        <div className="my-2.5 h-px w-full bg-white/8" />
+
+        {/* Prize */}
+        <div className="flex-1 text-center">
+          <p className="text-[9px] font-black uppercase tracking-widest text-white/40">
+            PRÊMIO GARANTIDO
           </p>
-          <p
-            className="mt-0.5 text-[20px] font-black leading-none tracking-tight"
-            style={{ color: GREEN }}
-          >
+          <p className="mt-0.5 text-[16px] font-black leading-none" style={{ color: GREEN }}>
             {card.prizeLabel}
           </p>
-          {card.prizeSub ? (
-            <p className="mt-0.5 text-[11px] font-semibold text-white/55">
-              {card.prizeSub}
-            </p>
-          ) : null}
+          <p className="mt-0.5 text-[9px] font-semibold text-white/50">{card.prizeUnit}</p>
         </div>
 
+        {/* Button */}
         <div
-          className="mt-4 flex h-10 items-center justify-center rounded-[10px] text-[12px] font-black uppercase tracking-wide"
-          style={{ background: GREEN, color: "#0E141B" }}
+          className="mt-3 flex h-8 w-full items-center justify-center rounded-[8px] text-[10px] font-black uppercase tracking-wide"
+          style={
+            card.isPrimary
+              ? { background: GREEN, color: "#0E141B" }
+              : { background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.75)", border: "1px solid rgba(255,255,255,0.12)" }
+          }
         >
-          PARTICIPAR
+          {card.isPrimary ? "PARTICIPAR" : "QUERO PARTICIPAR"}
         </div>
       </div>
     </Link>
@@ -143,58 +169,57 @@ function BolaoCard({ card }: { card: BolaoCardDef }) {
 }
 
 export function ProximosBolaoCarousel({ className = "" }: { className?: string }) {
-  const [index, setIndex] = useState(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [canPrev, setCanPrev] = useState(false);
+  const [canNext, setCanNext] = useState(true);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const total = CARDS.length;
 
-  const startTimer = useCallback(() => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => {
-      setIndex((i) => (i + 1) % total);
-    }, INTERVAL_MS);
-  }, [total]);
+  const updateArrows = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setCanPrev(el.scrollLeft > 4);
+    setCanNext(el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
+  }, []);
 
+  const scrollCards = useCallback((dir: 1 | -1) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const firstCard = el.querySelector("[data-card]") as HTMLElement | null;
+    const cardW = firstCard ? firstCard.offsetWidth : el.clientWidth;
+    el.scrollBy({ left: dir * cardW, behavior: "smooth" });
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  // Auto-scroll
   useEffect(() => {
-    startTimer();
+    timerRef.current = setInterval(() => {
+      const el = scrollRef.current;
+      if (!el) return;
+      const atEnd = el.scrollLeft >= el.scrollWidth - el.clientWidth - 4;
+      if (atEnd) {
+        el.scrollTo({ left: 0, behavior: "smooth" });
+      } else {
+        const firstCard = el.querySelector("[data-card]") as HTMLElement | null;
+        el.scrollBy({ left: firstCard?.offsetWidth ?? el.clientWidth, behavior: "smooth" });
+      }
+    }, INTERVAL_MS);
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [startTimer]);
+  }, []);
 
-  const goTo = useCallback(
-    (i: number) => {
-      setIndex(i);
-      startTimer();
-    },
-    [startTimer],
-  );
-
-  const prev = useCallback(() => goTo((index - 1 + total) % total), [goTo, index, total]);
-  const next = useCallback(() => goTo((index + 1) % total), [goTo, index, total]);
-
-  // Touch / swipe
+  // Touch swipe
   const touchStartX = useRef<number | null>(null);
   const touchDeltaX = useRef(0);
-  const onTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0]?.clientX ?? null;
-    touchDeltaX.current = 0;
-  };
-  const onTouchMove = (e: React.TouchEvent) => {
-    if (touchStartX.current == null) return;
-    touchDeltaX.current = (e.touches[0]?.clientX ?? 0) - touchStartX.current;
-  };
-  const onTouchEnd = () => {
-    const delta = touchDeltaX.current;
-    touchStartX.current = null;
-    if (Math.abs(delta) < 40) return;
-    delta < 0 ? next() : prev();
-  };
+  const onTouchStart = (e: React.TouchEvent) => { touchStartX.current = e.touches[0]?.clientX ?? null; touchDeltaX.current = 0; };
+  const onTouchMove = (e: React.TouchEvent) => { if (touchStartX.current == null) return; touchDeltaX.current = (e.touches[0]?.clientX ?? 0) - touchStartX.current; };
+  const onTouchEnd = () => { const d = touchDeltaX.current; touchStartX.current = null; if (Math.abs(d) >= 40) scrollCards(d < 0 ? 1 : -1); };
 
   return (
-    <section
-      className={`${className}`}
-      aria-label="Próximos Bolões"
-    >
+    <section className={className} aria-label="Próximos Bolões">
       <div className="mb-3 flex items-center justify-between gap-3">
         <h2 className="text-[15px] font-black uppercase tracking-[0.04em] text-white">
           PRÓXIMOS BOLÕES
@@ -208,55 +233,45 @@ export function ProximosBolaoCarousel({ className = "" }: { className?: string }
         </Link>
       </div>
 
-      <div className="relative" style={{ touchAction: "pan-y" }}
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
-      >
-        {/* Track */}
-        <div className="overflow-hidden rounded-[16px]">
-          <div
-            className="flex transition-transform duration-500 ease-out"
-            style={{ transform: `translateX(-${index * 100}%)` }}
+      <div className="relative">
+        {/* Arrow prev */}
+        {canPrev && (
+          <button
+            type="button"
+            onClick={() => scrollCards(-1)}
+            className="absolute -left-3 top-1/2 z-10 flex size-7 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/80 shadow-md backdrop-blur-sm transition hover:bg-black"
+            aria-label="Anterior"
           >
-            {CARDS.map((card) => (
-              <BolaoCard key={card.id} card={card} />
-            ))}
-          </div>
+            <ChevronLeft className="size-4 text-white" strokeWidth={2.5} />
+          </button>
+        )}
+
+        {/* Track */}
+        <div
+          ref={scrollRef}
+          className="flex gap-2.5 overflow-x-auto scroll-smooth"
+          style={{ scrollSnapType: "x mandatory", scrollbarWidth: "none", msOverflowStyle: "none" }}
+          onScroll={updateArrows}
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+        >
+          {CARDS.map((card) => (
+            <BolaoCard key={card.id} card={card} />
+          ))}
         </div>
 
-        {/* Prev / Next arrows */}
-        <button
-          type="button"
-          onClick={prev}
-          className="absolute left-2 top-1/2 z-10 flex size-7 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/60 backdrop-blur-sm transition hover:bg-black/80"
-          aria-label="Anterior"
-        >
-          <ChevronLeft className="size-4 text-white" strokeWidth={2.5} />
-        </button>
-        <button
-          type="button"
-          onClick={next}
-          className="absolute right-2 top-1/2 z-10 flex size-7 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/60 backdrop-blur-sm transition hover:bg-black/80"
-          aria-label="Próximo"
-        >
-          <ChevronRight className="size-4 text-white" strokeWidth={2.5} />
-        </button>
-      </div>
-
-      {/* Dots */}
-      <div className="mt-2.5 flex items-center justify-center gap-1.5">
-        {CARDS.map((card, i) => (
+        {/* Arrow next */}
+        {canNext && (
           <button
-            key={card.id}
             type="button"
-            onClick={() => goTo(i)}
-            aria-label={`Bolão ${i + 1}`}
-            className={`h-1.5 rounded-full transition-all duration-300 ${
-              i === index ? "w-5 bg-[#B1EB0B]" : "w-1.5 bg-white/30"
-            }`}
-          />
-        ))}
+            onClick={() => scrollCards(1)}
+            className="absolute -right-3 top-1/2 z-10 flex size-7 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/80 shadow-md backdrop-blur-sm transition hover:bg-black"
+            aria-label="Próximo"
+          >
+            <ChevronRight className="size-4 text-white" strokeWidth={2.5} />
+          </button>
+        )}
       </div>
     </section>
   );

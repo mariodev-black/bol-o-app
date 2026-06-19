@@ -105,9 +105,9 @@ export function HomeBannerCarousel({ fullWidth = false }: { fullWidth?: boolean 
                 <Image
                   src={slide.src}
                   alt={slide.alt}
-                  className="h-auto w-full object-cover"
+                  className="h-auto w-full"
                   priority={i === 0}
-                  sizes="(max-width: 430px) 100vw, 430px"
+                  sizes="(max-width: 430px) 100vw, 1300px"
                   draggable={false}
                 />
               </Link>

@@ -4465,7 +4465,7 @@ function PalpitesPageContent({
               </div>
             )}
 
-          {/* Desktop: filtro de grupos */}
+                                                                                                                                                                                                                  {/* Desktop: filtro de grupos */}
           {grupos.length > 1 && !readOnlyMode && !hasBoloesFlow && (
             <div className="hidden lg:block mb-6">
               <BotoesGrupo />
