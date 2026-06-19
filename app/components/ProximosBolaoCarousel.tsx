@@ -95,7 +95,7 @@ function BolaoCard({ card }: { card: BolaoCard }) {
     <Link
       href={card.href}
       data-card
-      className="relative flex w-full shrink-0 flex-col overflow-hidden rounded-[14px] border transition active:scale-[0.98] hover:brightness-105 sm:w-1/2 lg:w-1/3"
+      className="relative flex w-[230px] shrink-0 flex-col overflow-hidden rounded-[14px] border transition active:scale-[0.98] hover:brightness-105 sm:w-[240px] lg:w-[158px]"
       style={{ background: CARD_BG, borderColor: CARD_BORDER }}
       aria-label={card.name}
     >

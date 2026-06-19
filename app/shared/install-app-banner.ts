@@ -3,7 +3,7 @@ export const INSTALL_BANNER_STORAGE_KEY = "bolao_install_banner_dismissed";
 
 export const INSTALL_BANNER_HEIGHT_PX = 52;
 export const HEADER_MAIN_HEIGHT_MOBILE_PX = 55;
-export const HEADER_MAIN_HEIGHT_DESKTOP_PX = 80;
+export const HEADER_MAIN_HEIGHT_DESKTOP_PX = 64;
 
 export function readInstallBannerDismissed(): boolean {
   if (typeof window === "undefined") return false;

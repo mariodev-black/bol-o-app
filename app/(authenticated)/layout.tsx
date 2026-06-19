@@ -23,10 +23,10 @@ export default function AuthenticatedLayout({
       <div className="min-h-screen flex flex-col">
         <PushNotificationsModal />
         <Header />
-        <div className="flex flex-1 pt-[var(--app-header-height,55px)] lg:pt-[var(--app-header-height,80px)]">
-          {/* Sidebar — desktop only */}
+        <div className="flex flex-1 pt-[var(--app-header-height,55px)] lg:pt-[var(--app-header-height,64px)]">
+          {/* Sidebar — desktop only (fixa no topo, logo no canto sup esq) */}
           <aside className="hidden lg:block lg:w-[210px] lg:shrink-0">
-            <div className="sticky top-[80px] h-[calc(100vh-80px)]">
+            <div className="fixed left-0 top-0 z-[60] h-screen w-[210px]">
               <DesktopSidebar className="h-full" />
             </div>
           </aside>

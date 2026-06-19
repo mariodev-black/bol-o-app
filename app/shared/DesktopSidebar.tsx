@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import logo from "@/app/assets/logo.svg";
 import {
   BarChart2,
   BookOpen,
@@ -94,9 +95,18 @@ export function DesktopSidebar({ className = "" }: { className?: string }) {
 
   return (
     <div
-      className={`flex flex-col overflow-y-auto px-2.5 py-4 ${className}`}
+      className={`flex flex-col overflow-y-auto px-2.5 pb-4 ${className}`}
       style={{ background: "#040404", borderRight: "1px solid rgba(255,255,255,0.06)" }}
     >
+      {/* Logo — topo da sidebar */}
+      <Link
+        href="/"
+        aria-label="Início"
+        className="mb-3 flex h-[64px] shrink-0 items-center px-2.5"
+      >
+        <Image src={logo} alt="Bolão do Milhão" width={150} height={34} priority className="h-[30px] w-auto" />
+      </Link>
+
       {/* Navegação principal */}
       <nav aria-label="Navegação principal">
         <div className="flex flex-col gap-0.5">

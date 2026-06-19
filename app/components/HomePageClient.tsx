@@ -6,16 +6,31 @@ import { NavBottom } from "@/app/shared/NavBottom";
 import { DesktopSidebar } from "@/app/shared/DesktopSidebar";
 import { HomeBannerCarousel } from "@/app/components/HomeBannerCarousel";
 import { HomeFromRedirectWhenLoggedIn } from "@/app/shared/HomeFromRedirectWhenLoggedIn";
-import { Suspense, useEffect, useState } from "react";
+import { HomeBrasilMarrocosPromoFlow } from "@/app/components/HomeBrasilMarrocosPromoFlow";
+import { Suspense, useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { usePromotionsHub } from "@/app/shared/PromotionsHubContext";
+import {
+  fetchBrasilMarrocosPlacarPromoStatus,
+  peekBrasilMarrocosPlacarPromoStatus,
+} from "@/app/shared/useBrasilMarrocosPlacarPromoStatus";
+import {
+  mustCompletePromoQuotaPurchase,
+  type BrasilMarrocosPlacarPromoStatus,
+} from "@/lib/promotions/brasil-marrocos-placar-promo-shared";
+import { BRASIL_MARROCOS_PLACAR_FRIENDS_GOAL } from "@/lib/promotions/brasil-marrocos-guest-flow";
 import { OutrosBoloesGrid } from "@/app/(authenticated)/boloes/_components/OutrosBoloesGrid";
 import { QuemEstaNoBolaoSection } from "@/app/components/QuemEstaNoBolaoSection";
 import { PalpitesAbertosGrid } from "@/app/components/PalpitesAbertosGrid";
+import { PalpitesAbertosTable } from "@/app/components/PalpitesAbertosTable";
 import { HomeComoFuncionaPontuacaoSection } from "@/app/components/HomeComoFuncionaPontuacaoSection";
 import { ScoringExplainerModal } from "@/app/shared/ScoringExplainerModal";
 import { HomeClassificacaoCtaSection } from "@/app/components/HomeClassificacaoCtaSection";
 import { ProximosBolaoCarousel } from "@/app/components/ProximosBolaoCarousel";
 import { HomeFeatureBand } from "@/app/components/HomeFeatureBand";
 import { HomeRankingTop5 } from "@/app/components/HomeRankingTop5";
+import { HomeDesktopEducationCards } from "@/app/components/HomeDesktopEducationCards";
+import { HomeTrustBand } from "@/app/components/HomeTrustBand";
 import type { PalpiteAbertoMatch } from "@/lib/home-palpites-abertos";
 import {
   collectPalpitesAbertosFromPartidasPayload,
@@ -38,14 +53,79 @@ let loggedHomePalpitesCache: {
 const LOGGED_HOME_PALPITES_CACHE_MS = 3 * 60 * 1000;
 
 const HOME_CONTENT_CLASS =
-  "mx-auto w-full min-w-0 max-w-[460px] px-3.5 lg:mx-0 lg:max-w-none lg:px-6";
+  "mx-auto w-full min-w-0 max-w-[460px] px-3.5 pt-2 lg:mx-0 lg:max-w-none lg:px-6 lg:pt-4";
+
+function PromoBrasilMarrocosHomeCard() {
+  const router = useRouter();
+  const { openPromotion, getPromotionPrefetch } = usePromotionsHub();
+
+  const handleParticipar = useCallback(
+    (e: React.MouseEvent<HTMLAnchorElement>) => {
+      e.preventDefault();
+      void (async () => {
+        let status: BrasilMarrocosPlacarPromoStatus | null =
+          (getPromotionPrefetch("brasil_marrocos_placar") as
+            | BrasilMarrocosPlacarPromoStatus
+            | undefined) ??
+          peekBrasilMarrocosPlacarPromoStatus();
+
+        if (!status?.enabled) {
+          status = await fetchBrasilMarrocosPlacarPromoStatus();
+        }
+        if (status && mustCompletePromoQuotaPurchase(status)) {
+          router.push("/promo-camisa-brasil");
+          return;
+        }
+        if (status?.showOfferModal) {
+          openPromotion("brasil_marrocos_placar");
+          return;
+        }
+        if (status?.promoActivated) {
+          router.push("/boloes");
+          return;
+        }
+        router.push("/promo-camisa-brasil");
+      })();
+    },
+    [getPromotionPrefetch, openPromotion, router],
+  );
+
+  return (
+    <a
+      href="/promo-camisa-brasil"
+      onClick={handleParticipar}
+      className="mt-4 flex items-center gap-3 overflow-hidden rounded-2xl border px-4 py-3"
+      style={{ background: "#0d1a00", borderColor: "#B1EB0B55" }}
+    >
+      <div className="flex-1">
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50">
+          Promoção ativa
+        </p>
+        <p className="text-[15px] font-black uppercase leading-tight tracking-tight text-white">
+          Palpite Brasil x Marrocos
+        </p>
+        <p className="mt-0.5 text-[11px] font-semibold text-white/60">
+          Concorra à camisa oficial + R$&nbsp;1.000 no PIX
+        </p>
+      </div>
+      <div
+        className="shrink-0 rounded-full px-3 py-1.5 text-[11px] font-black uppercase tracking-wide text-[#0E141B]"
+        style={{ background: "#B1EB0B" }}
+      >
+        Participar
+      </div>
+    </a>
+  );
+}
 
 function LoggedInHome({
   outrosBoloes,
   palpitesAbertos: initialPalpitesAbertos,
+  promoEnabled = false,
 }: {
   outrosBoloes: OutrosBolaoGridItem[];
   palpitesAbertos: PalpiteAbertoMatch[];
+  promoEnabled?: boolean;
 }) {
   const [palpitesAbertos, setPalpitesAbertos] = useState(
     initialPalpitesAbertos,
@@ -115,22 +195,46 @@ function LoggedInHome({
       <Header />
 
       <aside
-        className="fixed left-0 hidden h-screen w-[210px] flex-col lg:flex"
-        style={{ top: 0, paddingTop: "var(--app-header-height, 80px)", zIndex: 35 }}
+        className="fixed left-0 top-0 hidden h-screen w-[210px] flex-col lg:flex"
+        style={{ zIndex: 60 }}
       >
         <DesktopSidebar className="flex-1" />
       </aside>
 
       <main className="min-h-screen overflow-x-clip bg-black pb-32 text-white lg:pl-[210px]">
-        <div className={`${HOME_CONTENT_CLASS} pt-2 lg:pt-4`}>
-          <HomeBannerCarousel fullWidth />
-        </div>
-
         <div className={HOME_CONTENT_CLASS}>
-          <HomeFeatureBand className="mt-4" />
+          <div className="lg:flex lg:items-start lg:gap-5">
+            <div className="lg:w-[540px] lg:shrink-0">
+              <HomeBannerCarousel fullWidth fillHeight />
+            </div>
+            <div className="mt-4 min-w-0 overflow-hidden lg:mt-0 lg:flex-1">
+              <ProximosBolaoCarousel />
+            </div>
+          </div>
 
-          <div className="mt-5 lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-6">
-            <div className="min-w-0 space-y-5">
+          <HomeFeatureBand promoEnabled={promoEnabled} className="mt-4" />
+
+          {promoEnabled ? (
+            <div className="lg:hidden">
+              <PromoBrasilMarrocosHomeCard />
+            </div>
+          ) : null}
+
+          <div className="mt-5 lg:grid lg:grid-cols-[1.2fr_1fr_330px] lg:items-start lg:gap-5">
+            <div className="min-w-0">
+              <PalpitesAbertosTable
+                matches={palpitesAbertos}
+                loading={palpitesLoading}
+                className="hidden lg:block"
+              />
+              <PalpitesAbertosGrid
+                matches={palpitesAbertos}
+                loading={palpitesLoading}
+                className="mt-0 lg:hidden"
+              />
+            </div>
+
+            <div className="mt-5 min-w-0 lg:mt-0">
               {outrosBoloes.length > 0 ? (
                 <OutrosBoloesGrid
                   items={outrosBoloes}
@@ -138,7 +242,6 @@ function LoggedInHome({
                   className="mt-0"
                 />
               ) : null}
-              <ProximosBolaoCarousel />
             </div>
 
             <div className="mt-5 min-w-0 lg:mt-0">
@@ -147,20 +250,20 @@ function LoggedInHome({
             </div>
           </div>
 
-          <div className="mt-6 lg:grid lg:grid-cols-2 lg:items-start lg:gap-6">
-            <div className="min-w-0">
-              <HomeClassificacaoCtaSection />
-              <PalpitesAbertosGrid
-                matches={palpitesAbertos}
-                loading={palpitesLoading}
-                className="mt-5"
-              />
-            </div>
+          <HomeDesktopEducationCards
+            className="mt-6 hidden lg:block"
+            onScoring={() => setScoringExplainerOpen(true)}
+          />
+
+          <div className="lg:hidden">
+            <HomeClassificacaoCtaSection className="mt-6" />
             <HomeComoFuncionaPontuacaoSection
-              className="mt-5 lg:mt-0"
+              className="mt-5"
               onVerMaisPontuacao={() => setScoringExplainerOpen(true)}
             />
           </div>
+
+          <HomeTrustBand className="mt-6 hidden lg:block" />
         </div>
       </main>
 
@@ -178,14 +281,27 @@ function LoggedInHome({
 export function HomePageClient({
   outrosBoloes = [],
   palpitesAbertos = [],
+  brasilMarrocosPlacarPromoEnabled = false,
 }: {
   outrosBoloes?: OutrosBolaoGridItem[];
   palpitesAbertos?: PalpiteAbertoMatch[];
+  brasilMarrocosPlacarPromoEnabled?: boolean;
 }) {
   return (
-    <LoggedInHome
-      outrosBoloes={outrosBoloes}
-      palpitesAbertos={palpitesAbertos}
-    />
+    <>
+      <LoggedInHome
+        outrosBoloes={outrosBoloes}
+        palpitesAbertos={palpitesAbertos}
+        promoEnabled={brasilMarrocosPlacarPromoEnabled}
+      />
+      {brasilMarrocosPlacarPromoEnabled ? (
+        <Suspense fallback={null}>
+          <HomeBrasilMarrocosPromoFlow
+            friendsGoal={BRASIL_MARROCOS_PLACAR_FRIENDS_GOAL}
+            promoEnabled
+          />
+        </Suspense>
+      ) : null}
+    </>
   );
 }

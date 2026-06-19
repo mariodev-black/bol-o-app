@@ -2,12 +2,23 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import bannerBolao from "@/app/assets/banner-bolao.png";
+import bannerBraMar from "@/app/assets/banner-brasil-marrocos.png";
 import bannerIndique from "@/app/assets/banner-indique-ganhe.png";
+import { usePromotionsHub } from "@/app/shared/PromotionsHubContext";
+import {
+  fetchBrasilMarrocosPlacarPromoStatus,
+  peekBrasilMarrocosPlacarPromoStatus,
+} from "@/app/shared/useBrasilMarrocosPlacarPromoStatus";
+import {
+  mustCompletePromoQuotaPurchase,
+  type BrasilMarrocosPlacarPromoStatus,
+} from "@/lib/promotions/brasil-marrocos-placar-promo-shared";
 
 /** Banners da home — auto-rotação a cada 5s, slide horizontal, responsivo. */
-type SlideId = "cota" | "indique";
+type SlideId = "cota" | "palpite" | "indique";
 
 const SLIDES: {
   id: SlideId;
@@ -18,8 +29,14 @@ const SLIDES: {
   {
     id: "cota",
     src: bannerBolao,
-    href: "/tickets",
+    href: "/comprar-cotas",
     alt: "Garanta sua cota no maior bolão da Copa",
+  },
+  {
+    id: "palpite",
+    src: bannerBraMar,
+    href: "/palpites",
+    alt: "Brasil x Marrocos — acerte e ganhe R$1.000 no PIX + camisa oficial",
   },
   {
     id: "indique",
@@ -31,7 +48,15 @@ const SLIDES: {
 
 const INTERVAL_MS = 5000;
 
-export function HomeBannerCarousel({ fullWidth = false }: { fullWidth?: boolean }) {
+export function HomeBannerCarousel({
+  fullWidth = false,
+  fillHeight = false,
+}: {
+  fullWidth?: boolean;
+  fillHeight?: boolean;
+}) {
+  const router = useRouter();
+  const { openPromotion, getPromotionPrefetch } = usePromotionsHub();
   const [index, setIndex] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -57,6 +82,37 @@ export function HomeBannerCarousel({ fullWidth = false }: { fullWidth?: boolean 
     [startTimer],
   );
 
+  const handleCotaClick = useCallback(
+    (e: React.MouseEvent<HTMLAnchorElement>) => {
+      e.preventDefault();
+      void (async () => {
+        let status: BrasilMarrocosPlacarPromoStatus | null =
+          (getPromotionPrefetch("brasil_marrocos_placar") as
+            | BrasilMarrocosPlacarPromoStatus
+            | undefined) ?? peekBrasilMarrocosPlacarPromoStatus();
+
+        if (!status?.enabled) {
+          status = await fetchBrasilMarrocosPlacarPromoStatus();
+        }
+
+        if (status?.promoActivated) {
+          router.push("/boloes");
+          return;
+        }
+        if (status && mustCompletePromoQuotaPurchase(status)) {
+          router.push("/comprar-cotas");
+          return;
+        }
+        if (status?.showOfferModal) {
+          openPromotion("brasil_marrocos_placar");
+          return;
+        }
+        router.push("/comprar-cotas");
+      })();
+    },
+    [getPromotionPrefetch, openPromotion, router],
+  );
+
   const touchStartX = useRef<number | null>(null);
   const touchDeltaX = useRef(0);
 
@@ -78,36 +134,37 @@ export function HomeBannerCarousel({ fullWidth = false }: { fullWidth?: boolean 
   };
 
   return (
-    <section className="w-full min-w-0 max-w-full overflow-hidden">
+    <section
+      className={`w-full min-w-0 max-w-full overflow-hidden ${fillHeight ? "lg:h-full" : ""}`}
+    >
       <div
-        className={
-          fullWidth
-            ? "w-full min-w-0 max-w-full lg:max-w-none"
-            : "mx-auto w-full min-w-0 max-w-[460px] px-3.5 lg:max-w-[720px]"
-        }
+        className={`mx-auto w-full min-w-0 max-w-[460px] px-3.5 ${
+          fullWidth ? "lg:max-w-none lg:px-0" : "lg:max-w-[720px]"
+        } ${fillHeight ? "lg:h-full" : ""}`}
       >
         <div
-          className="relative w-full min-w-0 overflow-hidden rounded-[16px] border border-white/8 bg-[#0a0a0a] shadow-[0_10px_36px_rgba(0,0,0,0.45)]"
+          className={`relative w-full min-w-0 overflow-hidden rounded-[16px] border border-white/8 bg-[#0a0a0a] shadow-[0_10px_36px_rgba(0,0,0,0.45)] ${fillHeight ? "lg:h-full" : ""}`}
           style={{ touchAction: "pan-y" }}
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
         >
           <div
-            className="flex w-full transition-transform duration-500 ease-out"
+            className={`flex w-full transition-transform duration-500 ease-out ${fillHeight ? "lg:h-full" : ""}`}
             style={{ transform: `translateX(-${index * 100}%)` }}
           >
             {SLIDES.map((slide, i) => (
               <Link
                 key={slide.id}
                 href={slide.href}
-                className="block w-full min-w-0 shrink-0 basis-full"
+                onClick={slide.id === "cota" ? handleCotaClick : undefined}
+                className={`block w-full min-w-0 shrink-0 basis-full ${fillHeight ? "lg:h-full" : ""}`}
                 aria-label={slide.alt}
               >
                 <Image
                   src={slide.src}
                   alt={slide.alt}
-                  className="h-auto w-full max-w-full object-contain"
+                  className={`h-auto w-full max-w-full object-contain ${fillHeight ? "lg:h-full lg:object-cover lg:object-center" : ""}`}
                   priority={i === 0}
                   sizes="(max-width: 460px) 100vw, (max-width: 1040px) 720px, 1300px"
                   draggable={false}
