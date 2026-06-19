@@ -25,6 +25,12 @@ import { recordReferralCommissionIfApplicable } from "@/lib/referrals/commission
 import { isSkaleBolaoCompetition } from "@/lib/boloes/skale-config";
 import { isSkaleDailyBolaoEnabled } from "@/lib/boloes/skale-daily-config";
 import { getTicketShopExtraRoundNumber } from "@/lib/ticket-shop-extra-display";
+import {
+  buildDefinitionPurchaseLines,
+  isBolaoDefinitionPurchaseOpen,
+  normalizeDefinitionsByIdInput,
+} from "@/lib/boloes/definitions/purchase";
+import { getBolaoDefinitionsByIds } from "@/lib/boloes/definitions/repository";
 
 type BillingUser = {
   id: string;
@@ -106,6 +112,8 @@ export type CreateDepositTransactionInput =
       skaleDailyByEdition?: Record<number, number>;
       /** Cotas do bolão artilheiros no carrinho combinado. */
       artilheirosQuantity?: number;
+      /** Cotas por bolão do catálogo admin (chave = UUID da definição). */
+      definitionsById?: Record<string, number>;
     };
 
 function normalizeExtraByChampionship(map: Record<number, number> | undefined): Record<number, number> {
@@ -197,7 +205,7 @@ export async function createDepositTransaction(input: CreateDepositTransactionIn
 
   const { generalQty, dailyByEdition, skaleDailyByEdition, extraPurchase, artilheirosQty } =
     resolvePurchaseQuantities(input);
-  const lines =
+  let lines =
     "checkoutPromo" in input && input.checkoutPromo === "comprar-cotas"
       ? buildComprarCotasPromoTicketLines(generalQty)
       : buildPurchaseTicketLines(
@@ -207,6 +215,29 @@ export async function createDepositTransaction(input: CreateDepositTransactionIn
           artilheirosQty,
           skaleDailyByEdition,
         );
+
+  const definitionsById =
+    "definitionsById" in input
+      ? normalizeDefinitionsByIdInput(input.definitionsById)
+      : {};
+  const definitionIds = Object.keys(definitionsById);
+  if (definitionIds.length > 0) {
+    const definitions = await getBolaoDefinitionsByIds(definitionIds);
+    if (definitions.length !== definitionIds.length) {
+      throw new Error("Um ou mais boloes do catalogo nao foram encontrados");
+    }
+    const mainComp = getFootballMainCompetitionId();
+    const matchMap = await fetchMatchesMap({ ensureCompetitionIds: [mainComp] }).catch(
+      () => new Map(),
+    );
+    for (const def of definitions) {
+      if (!isBolaoDefinitionPurchaseOpen(def, matchMap)) {
+        throw new Error(`${def.displayName} ja encerrado para compra`);
+      }
+    }
+    lines = [...lines, ...buildDefinitionPurchaseLines(definitionsById, definitions)];
+  }
+
   if (lines.length === 0) {
     throw new Error("Selecione pelo menos um ticket");
   }
@@ -269,6 +300,7 @@ export async function createDepositTransaction(input: CreateDepositTransactionIn
   const ticketTypes: string[] = [];
   const extraIds: Array<number | null> = [];
   const roundNumbers: Array<number | null> = [];
+  const bolaoDefinitionIds: Array<string | null> = [];
   const unitPrices: number[] = [];
   const totalAmounts: number[] = [];
   const externalRefs: string[] = [];
@@ -287,6 +319,7 @@ export async function createDepositTransaction(input: CreateDepositTransactionIn
             ? getTicketShopExtraRoundNumber(extraId)
             : null,
     );
+    bolaoDefinitionIds.push(line.bolaoDefinitionId ?? null);
     unitPrices.push(line.unitCents);
     totalAmounts.push(line.unitCents);
     externalRefs.push(`${paymentExternalRef}:p${i}`);
@@ -295,21 +328,23 @@ export async function createDepositTransaction(input: CreateDepositTransactionIn
   // `claimExtraGiftForUser` (vide `lib/promotions/extra-gift.ts`).
   const ticketInsert = await pool.query<{ id: string }>(
     `INSERT INTO tickets (
-       user_id, ticket_type, extra_championship_id, round_number, unit_price_cents, quantity,
+       user_id, ticket_type, extra_championship_id, round_number, bolao_definition_id,
+       unit_price_cents, quantity,
        total_amount_cents, is_promo_bonus, status, external_ref
      )
-     SELECT u, tt, e, rn, up, 1, ta, false, 'pending_payment', er
+     SELECT u, tt, e, rn, bd, up, 1, ta, false, 'pending_payment', er
      FROM UNNEST(
        $1::uuid[],
        $2::ticket_type_enum[],
        $3::int[],
        $4::int[],
-       $5::int[],
+       $5::uuid[],
        $6::int[],
-       $7::text[]
-     ) AS t(u, tt, e, rn, up, ta, er)
+       $7::int[],
+       $8::text[]
+     ) AS t(u, tt, e, rn, bd, up, ta, er)
      RETURNING id`,
-    [userIds, ticketTypes, extraIds, roundNumbers, unitPrices, totalAmounts, externalRefs]
+    [userIds, ticketTypes, extraIds, roundNumbers, bolaoDefinitionIds, unitPrices, totalAmounts, externalRefs]
   );
   const ticketIds = ticketInsert.rows.map((r) => r.id);
   const ticketId = ticketIds[0]!;

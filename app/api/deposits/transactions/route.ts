@@ -19,6 +19,9 @@ import {
   isSkaleDailyBolaoEnabled,
   skaleDailyEditionLabel,
 } from "@/lib/boloes/skale-daily-config";
+import { enrichBolaoDefinitionCatalog } from "@/lib/boloes/definitions/branding";
+import { listBolaoDefinitionsForSale } from "@/lib/boloes/definitions/repository";
+import { isBolaoDefinitionPurchaseOpen } from "@/lib/boloes/definitions/purchase";
 import { resolveExtraBolaoDisplayName } from "@/lib/boloes-extra-competition-branding";
 import { parseExtraBolaoChampionshipIds } from "@/lib/boloes-extra-config";
 import {
@@ -79,6 +82,20 @@ const skaleDailyByEditionSchema = z
     return out;
   });
 
+const definitionsByIdSchema = z
+  .record(z.string(), z.number().int().min(0).max(20))
+  .optional()
+  .transform((rec) => {
+    if (!rec) return {} as Record<string, number>;
+    const out: Record<string, number> = {};
+    for (const [k, v] of Object.entries(rec)) {
+      const id = String(k).trim();
+      if (!id) continue;
+      if (v > 0) out[id] = v;
+    }
+    return out;
+  });
+
 const createCartSchema = z
   .object({
     generalQuantity: z.number().int().min(0).max(20),
@@ -92,6 +109,8 @@ const createCartSchema = z
     extraQuantity: z.number().int().min(0).max(20).optional(),
     /** Legado — ignorado se `extraQuantity` > 0. */
     extraByChampionship: extraByChampionshipSchema,
+    /** Cotas por bolão do catálogo admin (UUID → quantidade). */
+    definitionsById: definitionsByIdSchema,
     /** Checkout `/comprar-cotas` — preço promocional fixo (1–3 cotas gerais). */
     checkoutPromo: z.enum(["comprar-cotas"]).optional(),
     /** Cotas Bolão dos Artilheiros. */
@@ -138,6 +157,12 @@ export async function GET() {
       }))
     : [];
   const skaleDailyEdition = resolveShopDailyEdition(skaleDailyEditions);
+  const catalogDefinitions = await listBolaoDefinitionsForSale().catch(() => []);
+  const catalogBoloes = await enrichBolaoDefinitionCatalog(catalogDefinitions).catch(() => []);
+  const catalogWithStatus = catalogBoloes.map((item) => ({
+    ...item,
+    purchaseOpen: isBolaoDefinitionPurchaseOpen(item, matchMap),
+  }));
   return NextResponse.json({
     prices: {
       general: getTicketPriceCents("general"),
@@ -165,6 +190,7 @@ export async function GET() {
         }),
       ),
     ),
+    catalogBoloes: catalogWithStatus,
   });
 }
 
@@ -213,6 +239,7 @@ export async function POST(request: NextRequest) {
         skaleDailyByEdition,
         extraQuantity,
         extraByChampionship,
+        definitionsById,
         checkoutPromo,
         artilheirosQuantity,
       } = parsed.data;
@@ -225,6 +252,7 @@ export async function POST(request: NextRequest) {
         (a, b) => a + b,
         0,
       );
+      const catalogTotal = Object.values(definitionsById ?? {}).reduce((a, b) => a + b, 0);
       if (dailyQuantity > 0 && dailyTotal === 0) {
         return NextResponse.json(
           { error: "Selecione a edicao do bolao diario (Bolao Diario #N)" },
@@ -235,6 +263,7 @@ export async function POST(request: NextRequest) {
         generalQuantity +
           dailyTotal +
           skaleDailyTotal +
+          catalogTotal +
           artQ +
           (exQ > 0 ? exQ : extraTotalLegacy) <
         1
@@ -260,7 +289,7 @@ export async function POST(request: NextRequest) {
             { status: 400 },
           );
         }
-        if (dailyTotal > 0 || skaleDailyTotal > 0 || artQ > 0 || exQ > 0 || extraTotalLegacy > 0) {
+        if (dailyTotal > 0 || skaleDailyTotal > 0 || catalogTotal > 0 || artQ > 0 || exQ > 0 || extraTotalLegacy > 0) {
           return NextResponse.json(
             { error: "Promo comprar-cotas aceita apenas cotas do bolao principal" },
             { status: 400 },
@@ -288,6 +317,7 @@ export async function POST(request: NextRequest) {
         artilheirosQuantity: artQ,
         ...(exQ > 0 ? { extraQuantity: exQ } : { extraByChampionship: extra }),
         ...(checkoutPromo ? { checkoutPromo } : {}),
+        ...(catalogTotal > 0 ? { definitionsById: definitionsById ?? {} } : {}),
       });
       return NextResponse.json({ transaction }, { status: 201 });
     }

@@ -186,6 +186,7 @@ function formatCotaLabel(ordinal: number): string {
 
 /** Chave do bolão para numeração de cotas — cada grupo reinicia em 01. */
 function ticketCotaGroupKey(ticket: PaidTicketRow): string {
+  if (ticket.bolaoDefinitionId) return `def:${ticket.bolaoDefinitionId}`;
   if (ticket.ticketType === "general") return "general";
   if (ticket.ticketType === "artilheiros") return "artilheiros";
   if (ticket.ticketType === "daily") {

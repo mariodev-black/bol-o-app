@@ -16,6 +16,7 @@ function scopeQuery(scope: AdminBolaoRankingScope): string {
   q.set("type", scope.type);
   if (scope.type === "daily") q.set("date", scope.date);
   if (scope.type === "extra") q.set("key", scope.key);
+  if (scope.type === "definition") q.set("id", scope.id);
   return q.toString();
 }
 

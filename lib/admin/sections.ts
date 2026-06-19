@@ -255,16 +255,24 @@ function resolveAdminBolaoRanking(
       baseRows.filter((row) => row.ticketType === "daily" && row.groupDate === scope.date),
     );
   }
-  const parsed = parseExtraBolaoScopeKey(scope.key);
-  if (!parsed) return [];
-  return rankBolaoRows(
-    baseRows.filter(
-      (row) =>
-        row.ticketType === "extra" &&
-        row.extraChampionshipId === parsed.championshipId &&
-        row.groupRound === parsed.rodada,
-    ),
-  );
+  if (scope.type === "extra") {
+    const parsed = parseExtraBolaoScopeKey(scope.key);
+    if (!parsed) return [];
+    return rankBolaoRows(
+      baseRows.filter(
+        (row) =>
+          row.ticketType === "extra" &&
+          row.extraChampionshipId === parsed.championshipId &&
+          row.groupRound === parsed.rodada,
+      ),
+    );
+  }
+  if (scope.type === "definition") {
+    return rankBolaoRows(
+      baseRows.filter((row) => row.bolaoDefinitionId === scope.id),
+    );
+  }
+  return [];
 }
 
 async function loadAdminBolaoBaseRows(): Promise<Omit<AdminBolaoRankingRow, "position">[]> {
@@ -278,6 +286,7 @@ async function loadAdminBolaoBaseRows(): Promise<Omit<AdminBolaoRankingRow, "pos
     user_email: string;
     ticket_type: string;
     extra_championship_id: number | null;
+    bolao_definition_id: string | null;
     is_promo_bonus: boolean;
     group_date: string | null;
     group_round: number | null;
@@ -375,6 +384,7 @@ async function loadAdminBolaoBaseRows(): Promise<Omit<AdminBolaoRankingRow, "pos
        u.email AS user_email,
        t.ticket_type,
        t.extra_championship_id,
+       t.bolao_definition_id,
        COALESCE(t.is_promo_bonus, false) AS is_promo_bonus,
        tg.group_date,
        tg.group_round,
@@ -417,6 +427,7 @@ async function loadAdminBolaoBaseRows(): Promise<Omit<AdminBolaoRankingRow, "pos
       userEmail: row.user_email,
       ticketType: row.ticket_type,
       extraChampionshipId: row.extra_championship_id,
+      bolaoDefinitionId: row.bolao_definition_id,
       isPromoBonus: Boolean(row.is_promo_bonus),
       groupDate: row.group_date,
       groupRound: row.group_round != null ? Number(row.group_round) : null,

@@ -94,6 +94,18 @@ type DailyEditionCatalogItem = {
   purchaseOpen: boolean;
 };
 
+type CatalogBolaoItem = {
+  id: string;
+  displayName: string;
+  subtitle: string | null;
+  unitPriceCents: number;
+  priceLabel: string;
+  datesLabel: string | null;
+  resolvedLogoUrl: string | null;
+  resolvedIconVariant: string;
+  purchaseOpen: boolean;
+};
+
 function formatBRL(cents: number) {
   return (cents / 100).toLocaleString("pt-BR", {
     style: "currency",
@@ -261,6 +273,10 @@ export function TicketCheckoutFlow({
   const [skaleDailyQtyByEdition, setSkaleDailyQtyByEdition] = useState<
     Record<number, number>
   >(() => ({}));
+  const [catalogBoloes, setCatalogBoloes] = useState<CatalogBolaoItem[]>([]);
+  const [catalogQtyById, setCatalogQtyById] = useState<Record<string, number>>(
+    () => ({}),
+  );
   const [prices, setPrices] = useState({
     general: DEFAULT_PRINCIPAL_CENTS,
     daily: DEFAULT_DIARIO_CENTS,
@@ -322,6 +338,16 @@ export function TicketCheckoutFlow({
     (edition: number) => skaleDailyQtyByEdition[edition] ?? 0,
     [skaleDailyQtyByEdition],
   );
+  const catalogQty = useCallback(
+    (id: string) => catalogQtyById[id] ?? 0,
+    [catalogQtyById],
+  );
+  const setCatalogQty = useCallback((id: string, qty: number) => {
+    setCatalogQtyById((prev) => ({
+      ...prev,
+      [id]: Math.max(0, Math.min(MAX_QTY, Math.trunc(qty))),
+    }));
+  }, []);
 
   const setDailyEditionQty = useCallback((edition: number, qty: number) => {
     setDailyQtyByEdition((prev) => ({
@@ -429,6 +455,7 @@ export function TicketCheckoutFlow({
             roundNumber?: number;
             roundLabel?: string;
           }>;
+          catalogBoloes?: CatalogBolaoItem[];
         };
         if (cancelled) return;
         if (r.ok && d.prices) {
@@ -474,6 +501,11 @@ export function TicketCheckoutFlow({
             filterTicketShopExtraBoloes(
               d.extraBoloes.map((row) => applyTicketShopExtraCatalogItem(row)),
             ),
+          );
+        }
+        if (r.ok && Array.isArray(d.catalogBoloes) && d.catalogBoloes.length > 0) {
+          setCatalogBoloes(
+            d.catalogBoloes.filter((item) => item.purchaseOpen !== false),
           );
         }
       } catch {
@@ -666,17 +698,32 @@ export function TicketCheckoutFlow({
     [extraBoloes, extraQty, prices.extra],
   );
 
+  const catalogLinesCents = useMemo(() => {
+    let total = 0;
+    for (const item of catalogBoloes) {
+      const q = catalogQty(item.id);
+      total += progressiveDiscountTotalCents(item.unitPriceCents, q);
+    }
+    return total;
+  }, [catalogBoloes, catalogQty]);
+  const catalogTotalQty = useMemo(
+    () => Object.values(catalogQtyById).reduce((s, q) => s + q, 0),
+    [catalogQtyById],
+  );
+
   const totalCents =
     principalLineCents +
     diarioLineCents +
     skaleDiarioLineCents +
     extraLinesCents +
-    artilheirosLineCents;
+    artilheirosLineCents +
+    catalogLinesCents;
   const totalQty =
     principalQty +
     dailyTotalQty +
     skaleDailyTotalQty +
     extraTotalQty +
+    catalogTotalQty +
     (showArtilheiros ? artilheirosQty : 0);
   const hasSelection = totalCents > 0 && totalQty >= 1;
   const geralDiscountPct = progressiveDiscountPercent(principalQty);
@@ -764,6 +811,15 @@ export function TicketCheckoutFlow({
             ...(showArtilheiros && artilheirosQty > 0
               ? { artilheirosQuantity: artilheirosQty }
               : { artilheirosQuantity: 0 }),
+            ...(catalogTotalQty > 0
+              ? {
+                  definitionsById: Object.fromEntries(
+                    catalogBoloes
+                      .map((item) => [item.id, catalogQty(item.id)] as const)
+                      .filter(([, q]) => q > 0),
+                  ),
+                }
+              : {}),
           }),
         });
         const d = (await r.json()) as {
@@ -1464,6 +1520,98 @@ export function TicketCheckoutFlow({
                       </div>
                     );
                   })}
+
+                {catalogBoloes.length > 0
+                  ? catalogBoloes.map((item) => {
+                      const qty = catalogQty(item.id);
+                      const lineCents = progressiveDiscountTotalCents(
+                        item.unitPriceCents,
+                        qty,
+                      );
+                      const discountPct = progressiveDiscountPercent(qty);
+                      const unitCents =
+                        qty > 0 ? Math.round(lineCents / qty) : item.unitPriceCents;
+                      const iconSrc = item.resolvedLogoUrl
+                        ? item.resolvedLogoUrl
+                        : extraBolaoIconSrc(
+                            item.resolvedIconVariant as Parameters<
+                              typeof extraBolaoIconSrc
+                            >[0],
+                          ).src;
+
+                      return (
+                        <div
+                          key={item.id}
+                          className="overflow-hidden rounded-[16px] border border-primary/20 bg-[#121212] shadow-[0_8px_26px_rgba(0,0,0,0.35)]"
+                        >
+                          <div className="border-b border-white/6 px-3 pb-2.5 pt-3 sm:px-3.5">
+                            <h3 className="text-[14px] font-black uppercase tracking-tight text-white sm:text-[15px]">
+                              {item.displayName}
+                            </h3>
+                            {item.datesLabel ? (
+                              <p className="mt-1 text-[11px] font-medium text-white/45">
+                                {item.datesLabel}
+                              </p>
+                            ) : null}
+                          </div>
+                          <div className="grid grid-cols-[74px_minmax(0,1fr)] items-start gap-3 p-3 sm:grid-cols-[86px_minmax(0,1fr)] sm:p-3.5">
+                            <div className="flex items-center justify-center">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={iconSrc}
+                                alt=""
+                                className="h-[68px] w-[68px] object-contain sm:h-[78px] sm:w-[78px]"
+                              />
+                            </div>
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                              <div>
+                                <p className="text-[12px] font-semibold text-white/50">
+                                  {item.subtitle ?? "Bolão especial"}
+                                </p>
+                                <p className="mt-1 text-[18px] font-black tabular-nums text-white">
+                                  {item.priceLabel}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <button
+                                  type="button"
+                                  disabled={qty <= 0}
+                                  onClick={() => setCatalogQty(item.id, qty - 1)}
+                                  className="flex size-9 items-center justify-center rounded-full border border-white/10 bg-black/40 text-white disabled:opacity-30"
+                                >
+                                  −
+                                </button>
+                                <span className="min-w-[1.5rem] text-center text-[16px] font-black tabular-nums text-white">
+                                  {qty}
+                                </span>
+                                <button
+                                  type="button"
+                                  disabled={qty >= MAX_QTY}
+                                  onClick={() => setCatalogQty(item.id, qty + 1)}
+                                  className="flex size-9 items-center justify-center rounded-full border border-primary/30 bg-primary/15 text-primary disabled:opacity-30"
+                                >
+                                  +
+                                </button>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-[12px] font-semibold text-white/40">
+                                  Unitário
+                                </p>
+                                <p className="text-[14px] font-black tabular-nums text-white">
+                                  {formatBRL(unitCents)}
+                                </p>
+                                {discountPct > 0 ? (
+                                  <p className="text-[11px] font-bold text-primary">
+                                    {discountPct}% OFF
+                                  </p>
+                                ) : null}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  : null}
               </div>
 
               {/* ── Resumo da compra ─────────────────────────────── */}

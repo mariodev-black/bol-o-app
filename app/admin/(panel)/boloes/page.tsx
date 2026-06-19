@@ -2,7 +2,7 @@ import { AdminPageTitle } from "@/app/admin/_components/AdminShell";
 import { AdminBolaoDashboardCard } from "@/app/admin/(panel)/boloes/_components/AdminBolaoDashboardCard";
 import { AdminExtraCompetitionSection } from "@/app/admin/(panel)/boloes/_components/AdminExtraCompetitionSection";
 import { getAdminBoloesDashboardData, type AdminExtraBolaoCard } from "@/lib/admin/sections";
-import { Gift, Layers, Ticket, Trophy, Users } from "lucide-react";
+import { Gift, Layers, Settings2, Ticket, Trophy, Users } from "lucide-react";
 import Link from "next/link";
 
 function groupExtraCardsByCompetition(cards: AdminExtraBolaoCard[]) {
@@ -30,6 +30,28 @@ export default async function AdminBoloesPage() {
         title="Bolões apostados"
         subtitle="Visão por tipo de bolão com logos, métricas e cotas gratuitas resgatadas no brinde."
       />
+
+      <section className="mb-6">
+        <Link
+          href="/admin/boloes/definicoes/novo"
+          className="flex items-center justify-between gap-3 rounded-[16px] border border-primary/25 bg-primary/8 px-4 py-4 transition-colors hover:bg-primary/12 sm:px-5"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex size-10 items-center justify-center rounded-[12px] border border-primary/30 bg-primary/10">
+              <Settings2 className="size-5 text-primary" strokeWidth={2.2} aria-hidden />
+            </div>
+            <div>
+              <p className="text-[14px] font-black text-white">Criar bolão</p>
+              <p className="mt-0.5 text-[12px] font-medium text-white/50">
+                Assistente passo a passo — campeonato, modalidade, preço e premiação.
+              </p>
+            </div>
+          </div>
+          <span className="shrink-0 text-[11px] font-black uppercase tracking-[0.14em] text-primary">
+            Abrir →
+          </span>
+        </Link>
+      </section>
 
       <section className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[

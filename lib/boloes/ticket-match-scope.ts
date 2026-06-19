@@ -15,6 +15,9 @@ import {
 } from "@/lib/boloes/skale-match-resolve";
 import { resolveDiarioPlayableDate } from "@/lib/diario-playable-date";
 import { type MatchMap, type MatchMapEntry } from "@/lib/football-api";
+import {
+  scopeMatchesForBolaoDefinition,
+} from "@/lib/boloes/definitions/scope";
 import type { PaidTicketRow } from "@/lib/payments/user-tickets";
 
 export function matchToBolaoPhaseInput(
@@ -115,6 +118,10 @@ export function scopeMatchesForPaidTicket(
   matches: MatchMap,
   opts?: ScopeMatchesForPaidTicketOpts,
 ): MatchMapEntry[] {
+  if (ticket.bolaoDefinition) {
+    return scopeMatchesForBolaoDefinition(ticket.bolaoDefinition, matches);
+  }
+
   const list = Array.from(matches.values());
   const mainComp = getFootballMainCompetitionId();
 

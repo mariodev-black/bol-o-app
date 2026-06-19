@@ -29,6 +29,9 @@ import { fetchMatchesMap, type MatchMap } from "@/lib/football-api";
 import { listPredictionTicketMatchPairsForUser, palpiteLockBeforeKickoffMs } from "@/lib/predictions";
 import { effectiveExtraRoundForPaidTicket } from "@/lib/ticket-shop-extra-display";
 import { extraBolaoCurrentRoundsByChampionship } from "@/lib/ticket-shop-extra-rounds";
+import { getBolaoDefinitionsByIds } from "@/lib/boloes/definitions/repository";
+import { ensureBolaoDefinitionsSchema } from "@/lib/boloes/definitions/schema";
+import type { BolaoDefinition } from "@/lib/boloes/definitions/types";
 
 export type PaidTicketRow = {
   id: string;
@@ -43,6 +46,9 @@ export type PaidTicketRow = {
   dailyEditionNumber?: number | null;
   /** Bolão diário Skale — mesma semântica de edição em `round_number`. */
   skaleDailyEditionNumber?: number | null;
+  /** Definição admin vinculada à cota. */
+  bolaoDefinitionId?: string | null;
+  bolaoDefinition?: BolaoDefinition | null;
   isPromoBonus?: boolean;
   dailyStatus?: "disponivel" | "em_uso" | "usado";
   playDate?: string | null;
@@ -101,6 +107,7 @@ export async function listPaidTicketsForUser(
   userId: string,
   opts?: { matchMap?: MatchMap },
 ): Promise<PaidTicketRow[]> {
+  await ensureBolaoDefinitionsSchema().catch(() => undefined);
   const pool = getPool();
   const mainComp = getFootballMainCompetitionId();
   try {
@@ -110,13 +117,14 @@ export async function listPaidTicketsForUser(
       ticket_type: "general" | "daily" | "extra" | "artilheiros";
       extra_championship_id: number | null;
       round_number: number | null;
+      bolao_definition_id: string | null;
       is_promo_bonus: boolean;
       total_amount_cents: number | null;
       quantity: number;
       paid_at: Date | null;
       created_at: Date;
     }>(
-      `SELECT id, ticket_type, extra_championship_id, round_number,
+      `SELECT id, ticket_type, extra_championship_id, round_number, bolao_definition_id,
               COALESCE(is_promo_bonus, false) AS is_promo_bonus,
               COALESCE(total_amount_cents, 0) AS total_amount_cents,
               quantity, paid_at, created_at
@@ -125,6 +133,16 @@ export async function listPaidTicketsForUser(
        ORDER BY COALESCE(paid_at, created_at) DESC NULLS LAST, created_at DESC`,
       [userId],
     );
+
+    const definitionIds = [
+      ...new Set(
+        rows
+          .map((r) => r.bolao_definition_id)
+          .filter((id): id is string => typeof id === "string" && id.length > 0),
+      ),
+    ];
+    const definitions = await getBolaoDefinitionsByIds(definitionIds).catch(() => []);
+    const definitionById = new Map(definitions.map((d) => [d.id, d]));
 
     const hasSkaleTicket = rows.some(
       (r) =>
@@ -201,6 +219,10 @@ export async function listPaidTicketsForUser(
         extraRoundNumber,
         dailyEditionNumber,
         skaleDailyEditionNumber,
+        bolaoDefinitionId: r.bolao_definition_id,
+        bolaoDefinition: r.bolao_definition_id
+          ? definitionById.get(r.bolao_definition_id) ?? null
+          : null,
         isPromoBonus:
           Boolean(r.is_promo_bonus) ||
           (r.ticket_type === "extra" && Number(r.total_amount_cents ?? 0) === 0),

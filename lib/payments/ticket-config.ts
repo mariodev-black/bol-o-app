@@ -146,6 +146,8 @@ export type PurchaseTicketLine = {
   extraChampionshipId?: number;
   /** Bolão diário: edição da fase de grupos (`tickets.round_number`). */
   dailyEditionNumber?: number;
+  /** Bolão criado no admin (`bolao_definitions.id`). */
+  bolaoDefinitionId?: string;
 };
 
 /** Compra de extras: uma quantidade total (desconto progressivo sobre o total) ou mapa legado por campeonato. */

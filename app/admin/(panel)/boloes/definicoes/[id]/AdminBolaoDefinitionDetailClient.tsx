@@ -1,0 +1,140 @@
+"use client";
+
+import { formatCentsBRL } from "@/app/admin/(panel)/boloes/definicoes/_components/BolaoCurrencyInput";
+import { ticketTypeLabel } from "@/lib/boloes/definitions/presets";
+import type { BolaoDefinitionWithStats } from "@/lib/boloes/definitions/types";
+import { extraBolaoIconSrc } from "@/app/shared/extra-bolao-icons";
+import { Pencil } from "lucide-react";
+import Link from "next/link";
+
+export function AdminBolaoDefinitionDetailClient({
+  id,
+  item,
+}: {
+  id: string;
+  item: BolaoDefinitionWithStats;
+}) {
+  const logoSrc =
+    item.logoUrl ??
+    extraBolaoIconSrc(
+      (item.logoVariant ?? "generic") as Parameters<typeof extraBolaoIconSrc>[0],
+    ).src;
+  const prizePoolCents = Math.floor((item.revenueCents * item.prizePoolBps) / 10000);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Link
+          href="/admin/boloes/definicoes"
+          className="text-[12px] font-bold uppercase tracking-[0.12em] text-white/45 hover:text-primary"
+        >
+          ← Voltar ao catálogo
+        </Link>
+        <Link
+          href={`/admin/boloes/definicoes/${id}/edit`}
+          className="inline-flex items-center gap-2 rounded-[10px] border border-white/10 bg-white/5 px-4 py-2 text-[12px] font-black uppercase text-white/80 hover:bg-white/10"
+        >
+          <Pencil className="size-4" />
+          Editar
+        </Link>
+      </div>
+
+      <div className="rounded-[16px] border border-white/8 bg-[#101010] p-5">
+        <div className="flex flex-wrap items-start gap-4">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={logoSrc}
+            alt=""
+            className="h-16 w-16 rounded-xl border border-white/10 bg-white/5 object-contain p-1"
+          />
+          <div className="min-w-0 flex-1">
+            <h2 className="text-[20px] font-black text-white">{item.displayName}</h2>
+            <p className="mt-1 text-[13px] text-white/45">{item.subtitle ?? item.slug}</p>
+            <p className="mt-2 text-[12px] text-white/35">
+              {ticketTypeLabel(item.ticketType)} · #{item.competitionId} · {item.scopeMode}
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-[11px] font-black uppercase tracking-[0.12em] text-white/35">
+              Preço
+            </p>
+            <p className="text-[22px] font-black text-primary">
+              {formatCentsBRL(item.unitPriceCents)}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {[
+          { label: "Cotas pagas", value: String(item.ticketsPaid) },
+          { label: "Pendentes", value: String(item.ticketsPending) },
+          { label: "Receita", value: formatCentsBRL(item.revenueCents) },
+          { label: "Participantes", value: String(item.participants) },
+        ].map((card) => (
+            <div
+              key={card.label}
+              className="rounded-[14px] border border-white/8 bg-[#0d0d0d] px-4 py-3"
+            >
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/35">
+                {card.label}
+              </p>
+              <p className="mt-1 text-[20px] font-black tabular-nums text-white">{card.value}</p>
+            </div>
+          ))}
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="rounded-[14px] border border-white/8 bg-[#0d0d0d] p-4">
+          <h3 className="text-[12px] font-black uppercase tracking-[0.14em] text-white/40">
+            Premiação estimada
+          </h3>
+          <p className="mt-2 text-[13px] text-white/60">
+            Pool: {item.prizePoolBps / 100}% ={" "}
+            <span className="font-bold text-primary">{formatCentsBRL(prizePoolCents)}</span>
+          </p>
+          <ul className="mt-3 space-y-2">
+            {item.prizeTiers.map((tier) => (
+              <li key={tier.rank} className="flex justify-between text-[13px] text-white/75">
+                <span>{tier.rank}º lugar</span>
+                <span className="font-bold tabular-nums">
+                  {formatCentsBRL(Math.floor((prizePoolCents * tier.poolBps) / 10000))}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="rounded-[14px] border border-white/8 bg-[#0d0d0d] p-4">
+          <h3 className="text-[12px] font-black uppercase tracking-[0.14em] text-white/40">
+            Escopo e venda
+          </h3>
+          <dl className="mt-3 space-y-2 text-[13px] text-white/70">
+            <div className="flex justify-between gap-4">
+              <dt>Dias</dt>
+              <dd className="text-right font-medium text-white">
+                {item.scopeDates.length > 0 ? item.scopeDates.join(", ") : "—"}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt>Edição / rodada</dt>
+              <dd className="font-medium text-white">
+                {item.editionNumber ?? item.roundNumber ?? "—"}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt>Venda</dt>
+              <dd className="font-bold text-primary">
+                {item.saleEnabled && item.enabled ? "Ativo" : "Inativo"}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt>Palpites</dt>
+              <dd className="font-medium text-white">{item.predictionsCount}</dd>
+            </div>
+          </dl>
+        </div>
+      </div>
+    </div>
+  );
+}

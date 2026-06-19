@@ -8,6 +8,7 @@ export type AdminBolaoRankingRow = {
   userEmail: string;
   ticketType: string;
   extraChampionshipId: number | null;
+  bolaoDefinitionId: string | null;
   isPromoBonus: boolean;
   groupDate: string | null;
   groupRound: number | null;
@@ -25,7 +26,8 @@ export type AdminBolaoRankingRow = {
 export type AdminBolaoRankingScope =
   | { type: "principal" }
   | { type: "daily"; date: string }
-  | { type: "extra"; key: string };
+  | { type: "extra"; key: string }
+  | { type: "definition"; id: string };
 
 export type AdminBolaoRankingSummary = {
   ticketsCount: number;

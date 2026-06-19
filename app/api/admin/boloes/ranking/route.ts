@@ -22,6 +22,11 @@ function parseScope(searchParams: URLSearchParams): AdminBolaoRankingScope | nul
     if (!key || !parseExtraBolaoScopeKey(key)) return null;
     return { type: "extra", key };
   }
+  if (type === "definition") {
+    const id = searchParams.get("id")?.trim();
+    if (!id) return null;
+    return { type: "definition", id };
+  }
   return null;
 }
 
