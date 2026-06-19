@@ -4,6 +4,7 @@ import { enrichAuthUserWithSkaleFunnelFromCookie } from "@/lib/auth/skale-funnel
 import { SKALE_FUNNEL_COOKIE } from "@/lib/boloes/skale-funnel-shared";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 import { findUserById } from "@/lib/auth/users";
+import { isDynamicServerUsageError } from "@/lib/next/dynamic-server-error";
 
 /** Usuário da sessão httpOnly (SSR) — evita flash de UI deslogada antes do `/me`. */
 export async function getServerAuthUser(): Promise<AuthUser | null> {
@@ -23,7 +24,9 @@ export async function getServerAuthUser(): Promise<AuthUser | null> {
       cookieStore.get(SKALE_FUNNEL_COOKIE)?.value,
     );
   } catch (error) {
-    console.error("[auth] getServerAuthUser failed", error);
+    if (!isDynamicServerUsageError(error)) {
+      console.error("[auth] getServerAuthUser failed", error);
+    }
     return null;
   }
 }

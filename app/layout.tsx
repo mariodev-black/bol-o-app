@@ -12,7 +12,11 @@ import {
   isSubdomainRoutingEnabled,
 } from "@/lib/site-hosts";
 import { getServerAuthUser } from "@/lib/auth/server-session";
+import { isDynamicServerUsageError } from "@/lib/next/dynamic-server-error";
 import { Providers } from "./providers";
+
+/** Sessão e host dependem de cookies/headers — evita tentativa de SSG ruidosa no build. */
+export const dynamic = "force-dynamic";
 
 const montserrat = Montserrat({
   variable: "--font-montserrat",
@@ -82,7 +86,9 @@ export default async function RootLayout({
     isMarketingRequest =
       routing && Boolean(hostname) && isMarketingHostname(hostname) && !isAppHostname(hostname);
   } catch (error) {
-    console.error("[layout] headers failed", error);
+    if (!isDynamicServerUsageError(error)) {
+      console.error("[layout] headers failed", error);
+    }
   }
 
   const appServerConfig = {
@@ -90,7 +96,9 @@ export default async function RootLayout({
     isMarketingRequest,
   };
   const initialAuthUser = await getServerAuthUser().catch((error) => {
-    console.error("[layout] getServerAuthUser failed", error);
+    if (!isDynamicServerUsageError(error)) {
+      console.error("[layout] getServerAuthUser failed", error);
+    }
     return null;
   });
 
