@@ -121,12 +121,11 @@ export type ChampionshipSnapshotV2 = {
 // ---------------------------------------------------------------------
 
 function isPartida(value: any): boolean {
+  // Aceita partidas com times null/undefined (fases eliminatórias com vaga A definir)
   return Boolean(
     value &&
       typeof value === "object" &&
-      Number.isFinite(Number(value.partida_id)) &&
-      value.time_mandante &&
-      value.time_visitante,
+      Number.isFinite(Number(value.partida_id)),
   );
 }
 
@@ -206,12 +205,12 @@ function mapPartida(
   const away = p?.time_visitante ?? {};
 
   const homePopular = asStr(home.nome_popular);
-  const homeNome = asStr(home.nome) ?? homePopular ?? asStr(home.sigla) ?? "CASA";
-  const homeSigla = asStr(home.sigla) ?? homePopular ?? homeNome;
+  const homeNome = asStr(home.nome) ?? homePopular ?? asStr(home.sigla) ?? "A definir";
+  const homeSigla = asStr(home.sigla) ?? homePopular ?? (homeNome !== "A definir" ? homeNome : null) ?? "---";
 
   const awayPopular = asStr(away.nome_popular);
-  const awayNome = asStr(away.nome) ?? awayPopular ?? asStr(away.sigla) ?? "VISIT";
-  const awaySigla = asStr(away.sigla) ?? awayPopular ?? awayNome;
+  const awayNome = asStr(away.nome) ?? awayPopular ?? asStr(away.sigla) ?? "A definir";
+  const awaySigla = asStr(away.sigla) ?? awayPopular ?? (awayNome !== "A definir" ? awayNome : null) ?? "---";
 
   const { id: estadioId, nome: estadioNome } = pickEstadio(p);
   const { disputa, casa, visit } = pickPenaltis(p);
