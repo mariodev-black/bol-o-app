@@ -4,7 +4,12 @@ import {
   getFootballMainCompetitionId,
 } from "@/lib/boloes-extra-config";
 import { readMatchesCache } from "@/lib/matches-cache";
-import { buildPartidasFasesFromRows } from "@/lib/partidas-cache-payload";
+import { isSkaleBolaoCompetition } from "@/lib/boloes/skale-config";
+import { mirrorSkaleBolaoMatchesFromCopa } from "@/lib/football/skale-bolao-sync";
+import {
+  buildPartidasFasesFromRows,
+  partidasCacheSourceCompetitionId,
+} from "@/lib/partidas-cache-payload";
 import { isAmistososFriendliesCompetition } from "@/lib/football/amistosos-friendlies";
 import { ensureAmistososFriendliesMatchesSeeded } from "@/lib/football/amistosos-friendlies-persistence";
 import { bootstrapCompetitionCacheIfEmpty, syncAllConfiguredIfStale } from "@/lib/football/sync-orchestrator";
@@ -49,7 +54,12 @@ export async function GET(request: NextRequest) {
       raw != null && String(raw).trim() !== "" && Number.isFinite(Number(raw))
         ? Number(raw)
         : getFootballMainCompetitionId();
-    const competitionIds = allSynced ? getAllSyncedCompetitionIds() : [comp];
+    if (!allSynced && isSkaleBolaoCompetition(comp)) {
+      await mirrorSkaleBolaoMatchesFromCopa().catch(() => {});
+    }
+    const competitionIds = allSynced
+      ? getAllSyncedCompetitionIds()
+      : [partidasCacheSourceCompetitionId(comp)];
     const idSet = new Set(competitionIds);
 
     let rows = (await readMatchesCache()).filter((r) => idSet.has(Number(r.competition_id)));
@@ -68,7 +78,7 @@ export async function GET(request: NextRequest) {
         if (allSynced) {
           await syncAllConfiguredIfStale();
         } else {
-          await bootstrapCompetitionCacheIfEmpty(comp);
+          await bootstrapCompetitionCacheIfEmpty(partidasCacheSourceCompetitionId(comp));
         }
       } catch (e) {
         console.error("[api/partidas] cache bootstrap failed", {

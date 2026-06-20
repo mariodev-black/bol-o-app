@@ -335,7 +335,7 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
   for (const ticket of tickets.filter((t) => t.ticketType === "extra")) {
     const comp = Number(ticket.extraChampionshipId);
     if (!Number.isFinite(comp) || comp <= 0) continue;
-    if (isSkaleDailyBolaoCompetition(comp)) continue;
+    if (isSkaleDailyBolaoCompetition(comp) || isSkaleBolaoCompetition(comp)) continue;
     const round = effectiveExtraRoundForPaidTicket({
       championshipId: comp,
       roundNumberFromDb: ticket.extraRoundNumber,
@@ -617,10 +617,14 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
         safeComp > 0
           ? resolveExtraBolaoDisplayName(safeComp, competitionLabels[safeComp])
           : "Bolão extra";
-      const roundNum = effectiveExtraRoundByTicketId.get(ticket.id) ?? null;
-      const roundLabel = formatExtraRoundLabel(roundNum);
-      const title =
-        safeComp > 0
+      const isSkaleIntegral = isSkaleBolaoCompetition(safeComp);
+      const roundNum = isSkaleIntegral
+        ? null
+        : (effectiveExtraRoundByTicketId.get(ticket.id) ?? null);
+      const roundLabel = isSkaleIntegral ? "Copa inteira" : formatExtraRoundLabel(roundNum);
+      const title = isSkaleIntegral
+        ? baseName
+        : safeComp > 0
           ? extraBolaoTitleForPaidTicket(
               safeComp,
               baseName,

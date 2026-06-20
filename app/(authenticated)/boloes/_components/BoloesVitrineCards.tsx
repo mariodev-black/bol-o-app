@@ -555,11 +555,15 @@ function resolveCta(item: ActiveBolaoListItem, now: number): string {
         ? "Ver resultados"
         : "Ver palpites";
   }
-  return item.displayPhase === "pendentes"
-    ? "Fazer palpites"
-    : showVerResultados
-      ? "Ver classificação"
-      : "Ver classificação";
+  const remaining = remainingGames(item);
+  const sent = item.sent ?? 0;
+  if (item.displayPhase === "pendentes") {
+    return sent > 0 ? "Continuar palpites" : "Fazer palpites";
+  }
+  if (remaining > 0) {
+    return sent > 0 ? "Continuar palpites" : "Fazer palpites";
+  }
+  return showVerResultados ? "Ver classificação" : "Ver classificação";
 }
 
 function logoForItem(item: ActiveBolaoListItem) {
