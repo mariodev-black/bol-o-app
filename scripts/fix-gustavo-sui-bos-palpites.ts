@@ -8,6 +8,7 @@
  *   npx tsx --tsconfig tsconfig.scripts.json scripts/fix-gustavo-sui-bos-palpites.ts
  */
 import "dotenv/config";
+import type { PoolClient } from "pg";
 import { getPool } from "../lib/db";
 import { calcPredictionPoints } from "../lib/predictions";
 import { recomputePredictionScoreForPrediction } from "../lib/predictions/score-recompute";
@@ -94,7 +95,7 @@ async function resolveSuiBosMatch(
 }
 
 async function upsertPalpite(
-  client: Awaited<ReturnType<ReturnType<typeof getPool>["connect"]>>,
+  client: PoolClient,
   opts: {
     userId: string;
     ticketId: string;
