@@ -3252,9 +3252,11 @@ function PalpitesPageContent({
 
     function applyRodadaInicial(parsed: Jogo[]) {
       const bt = bolaoTypeRef.current;
+      const skaleFullPool = initialDataRef.current?.isSkaleFullCopaPool === true;
       // Ticket extra por rodada → seleciona a rodada do ticket.
       const ticketRound =
         bt === "extra" &&
+          !skaleFullPool &&
           initialDataRef.current?.extraRoundNumber != null &&
           Number.isFinite(Number(initialDataRef.current.extraRoundNumber)) &&
           Number(initialDataRef.current.extraRoundNumber) > 0
@@ -3269,13 +3271,15 @@ function PalpitesPageContent({
         return;
       }
       const lockIds =
-        bt === "diario" || bt === "extra"
-          ? Object.keys(predictionsMapRef.current)
-            .map(Number)
-            .filter(Number.isFinite)
-          : [];
+        bt === "principal" || skaleFullPool
+          ? []
+          : bt === "diario" || bt === "extra"
+            ? Object.keys(predictionsMapRef.current)
+              .map(Number)
+              .filter(Number.isFinite)
+            : [];
       const extraId =
-        bt === "extra"
+        bt === "extra" && !skaleFullPool
           ? (() => {
             const r = initialDataRef.current?.extraChampionshipId;
             if (r != null && Number.isFinite(Number(r)) && Number(r) > 0) return Number(r);
@@ -3283,12 +3287,12 @@ function PalpitesPageContent({
           })()
           : null;
       const map =
-        bt === "extra" && extraId != null
+        extraId != null
           ? matchDateMapFromJogosWithCompetition(parsed, extraId)
           : matchDateMapFromJogos(parsed);
       const todayDateStr = resolveDiarioPlayableDate(map, {
         lockToMatchIds: lockIds,
-        ...(bt === "extra" && extraId != null ? { competitionId: extraId } : {}),
+        ...(extraId != null ? { competitionId: extraId } : {}),
       });
       const rodadasDispAll = Array.from(
         new Set(parsed.map((j) => j.rodada)),
@@ -3327,8 +3331,10 @@ function PalpitesPageContent({
         const fases = data?.partidas as Record<string, any> | undefined;
         let { jogos: parsed, grupos: letras } = parseAllPartidas(fases);
         const bt = bolaoTypeRef.current;
+        const skaleFullPool = initialDataRef.current?.isSkaleFullCopaPool === true;
         const ticketRound =
           bt === "extra" &&
+          !skaleFullPool &&
           initialDataRef.current?.extraRoundNumber != null &&
           Number.isFinite(Number(initialDataRef.current.extraRoundNumber)) &&
           Number(initialDataRef.current.extraRoundNumber) > 0
@@ -4106,13 +4112,23 @@ function PalpitesPageContent({
     extraTicketRound,
   ]);
 
-  const rodadasDisponiveis = Array.from(
-    new Set(
-      (hasBoloesFlow ? jogosFiltradosNav : jogosDisplayBase.filter(matchesGroup)).map(
-        (j) => j.rodada,
-      ),
-    ),
-  ).sort((a, b) => a - b);
+  const rodadasDisponiveis = useMemo(() => {
+    const source =
+      hasBoloesFlow && (bolaoType === "principal" || isSkaleFullCopaPool)
+        ? jogosDisplayBase
+        : hasBoloesFlow
+          ? jogosFiltradosNav
+          : jogosDisplayBase.filter(matchesGroup);
+    return Array.from(new Set(source.map((j) => j.rodada))).sort((a, b) => a - b);
+  }, [
+    hasBoloesFlow,
+    bolaoType,
+    isSkaleFullCopaPool,
+    jogosDisplayBase,
+    jogosFiltradosNav,
+    shouldFilterByGroup,
+    grupo,
+  ]);
   const effectiveSelectedRodada =
     extraRoundMode && extraTicketRound != null
       ? extraTicketRound
@@ -4167,6 +4183,11 @@ function PalpitesPageContent({
       new Set(jogos.map((j) => j.dataBR).filter(Boolean)),
     ).slice(0, 10),
   };
+
+  const handleRodadaChange = useCallback((rodada: number) => {
+    setSelectedRodada(rodada);
+    setSelectedDate(null);
+  }, []);
 
   const jogosSubtitle = !hasBoloesFlow
     ? "Fase de Grupos"
@@ -4471,6 +4492,21 @@ function PalpitesPageContent({
               <BotoesGrupo />
             </div>
           )}
+
+          {showBolaoRoundNav && showRoundNavControls ? (
+            <RoundPhaseNav
+              jogos={jogosDisplayBase}
+              predictionsMap={predictionsMap}
+              hasPalpite={hasPalpite}
+              selectedRodada={effectiveSelectedRodada}
+              onRodada={handleRodadaChange}
+              selectedDate={selectedDate}
+              onDate={setSelectedDate}
+              roundTitle={roundNavTitle}
+              showRoundNav
+              headerOnly
+            />
+          ) : null}
 
           {showBolaoRoundNav ? (
             <BolaoRoundStickyDateProgress
