@@ -278,6 +278,28 @@ async function main() {
 
     await client.query("COMMIT");
 
+    // Recomputa todos os palpites das cotas Skale (ranking alinhado).
+    for (const cota of COTAS) {
+      const predIdsRes = await client.query<{ id: string }>(
+        `SELECT id::text AS id FROM predictions WHERE ticket_id = $1 ORDER BY match_id`,
+        [cota.ticketId],
+      );
+      await client.query("BEGIN");
+      for (const row of predIdsRes.rows) {
+        await recomputePredictionScoreForPrediction(client, row.id);
+      }
+      await client.query("COMMIT");
+      const totals = await pool.query<{ total: number; matches: number }>(
+        `SELECT COALESCE(SUM(points), 0)::int AS total, COUNT(*)::int AS matches
+           FROM prediction_scores WHERE ticket_id = $1`,
+        [cota.ticketId],
+      );
+      console.log(
+        `${cota.label}: ${predIdsRes.rows.length} palpites recomputados → total ${totals.rows[0]?.total ?? 0} pts (${totals.rows[0]?.matches ?? 0} jogos)`,
+      );
+    }
+    console.log("");
+
     await printSkaleRanking(pool, skaleComp, user.id);
     console.log("\nConcluído.");
   } catch (err) {
