@@ -2954,7 +2954,7 @@ function RoundPhaseNav({
   if (headerOnly) {
     if (!showRoundNav || rodadas.length <= 1) return null;
     return (
-      <div className={`mb-2.5 flex flex-col gap-2 ${embedded ? "" : "mb-5"}`}>
+      <div className={`mb-2.5 ${embedded ? "" : "mb-5"}`}>
         <div
           className="flex items-center justify-between rounded-[14px] px-4 py-3"
           style={{
@@ -2989,24 +2989,6 @@ function RoundPhaseNav({
           >
             <ChevronRight className="h-4 w-4 text-white/70" strokeWidth={2.5} />
           </button>
-        </div>
-        <div className="flex gap-2 overflow-x-auto px-0.5 pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {rodadas.map((r) => {
-            const active = r === selectedRodada;
-            return (
-              <button
-                key={r}
-                type="button"
-                onClick={() => onRodada(r)}
-                className={`shrink-0 rounded-[10px] px-4 py-2 text-[13px] font-bold transition-colors ${active
-                    ? "bg-primary text-black"
-                    : "bg-zinc-900 text-white/55 hover:text-white/80"
-                  }`}
-              >
-                {rodadaLabel(r)}
-              </button>
-            );
-          })}
         </div>
       </div>
     );
