@@ -2789,12 +2789,14 @@ function PalpiteDateChipsStrip({
   onDate,
   todayBR,
   dateStripRef,
+  allowAllDays = false,
 }: {
   datas: string[];
   selectedDate: string | null;
-  onDate: (d: string) => void;
+  onDate: (d: string | null) => void;
   todayBR: string;
   dateStripRef: React.RefObject<HTMLDivElement | null>;
+  allowAllDays?: boolean;
 }) {
   if (datas.length === 0) return null;
 
@@ -2803,6 +2805,18 @@ function PalpiteDateChipsStrip({
       ref={dateStripRef}
       className="flex w-full items-center gap-5 overflow-x-auto scroll-smooth px-4 py-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
+      {allowAllDays ? (
+        <button
+          type="button"
+          onClick={() => onDate(null)}
+          className={`shrink-0 whitespace-nowrap rounded-[8px] px-4 py-2.5 text-[18px] leading-none transition-colors active:scale-[0.98] ${selectedDate == null
+              ? "bg-zinc-800 font-bold text-white"
+              : "bg-transparent font-semibold text-zinc-400 hover:text-zinc-300"
+            }`}
+        >
+          Todos
+        </button>
+      ) : null}
       {datas.map((d) => {
         const isSelected = selectedDate === d;
         const label = formatPalpiteDateChipLabel(d, todayBR);
@@ -2811,7 +2825,7 @@ function PalpiteDateChipsStrip({
             key={d}
             type="button"
             data-palpite-date={d}
-            onClick={() => onDate(d)}
+            onClick={() => onDate(allowAllDays && isSelected ? null : d)}
             className={`shrink-0 whitespace-nowrap rounded-[8px] px-4 py-2.5 text-[18px] leading-none transition-colors active:scale-[0.98] ${isSelected
                 ? "bg-zinc-800 font-bold text-white"
                 : "bg-transparent font-semibold text-zinc-400 hover:text-zinc-300"
@@ -2833,13 +2847,15 @@ function BolaoRoundStickyDateProgress({
   selectedDate,
   onDate,
   todayBR,
+  allowAllDays = false,
 }: {
   jogos: Jogo[];
   selectedRodada: number;
   hasPalpite: (matchId: number) => boolean;
   selectedDate: string | null;
-  onDate: (d: string) => void;
+  onDate: (d: string | null) => void;
   todayBR: string;
+  allowAllDays?: boolean;
 }) {
   const dateStripRef = useRef<HTMLDivElement>(null);
   const { datas } = useRoundNavDates(jogos, selectedRodada, hasPalpite);
@@ -2869,6 +2885,7 @@ function BolaoRoundStickyDateProgress({
             onDate={onDate}
             todayBR={todayBR}
             dateStripRef={dateStripRef}
+            allowAllDays={allowAllDays}
           />
         </div>
       ) : null}
@@ -2937,7 +2954,7 @@ function RoundPhaseNav({
   if (headerOnly) {
     if (!showRoundNav || rodadas.length <= 1) return null;
     return (
-      <div className={`mb-2.5 ${embedded ? "" : "mb-5"}`}>
+      <div className={`mb-2.5 flex flex-col gap-2 ${embedded ? "" : "mb-5"}`}>
         <div
           className="flex items-center justify-between rounded-[14px] px-4 py-3"
           style={{
@@ -2972,6 +2989,24 @@ function RoundPhaseNav({
           >
             <ChevronRight className="h-4 w-4 text-white/70" strokeWidth={2.5} />
           </button>
+        </div>
+        <div className="flex gap-2 overflow-x-auto px-0.5 pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {rodadas.map((r) => {
+            const active = r === selectedRodada;
+            return (
+              <button
+                key={r}
+                type="button"
+                onClick={() => onRodada(r)}
+                className={`shrink-0 rounded-[10px] px-4 py-2 text-[13px] font-bold transition-colors ${active
+                    ? "bg-primary text-black"
+                    : "bg-zinc-900 text-white/55 hover:text-white/80"
+                  }`}
+              >
+                {rodadaLabel(r)}
+              </button>
+            );
+          })}
         </div>
       </div>
     );
@@ -3189,6 +3224,7 @@ function PalpitesPageContent({
   }, [bolaoType, initialData?.extraChampionshipId]);
 
   const isSkaleFullCopaPool = initialData?.isSkaleFullCopaPool === true;
+  const isFullCopaPool = bolaoType === "principal" || isSkaleFullCopaPool;
   const isSkaleDailyEditionPool = initialData?.isSkaleDailyEditionPool === true;
   const dailyEditionNumber = initialData?.dailyEditionNumber ?? null;
   const dailyEditionDateSet = useMemo(() => {
@@ -4240,6 +4276,8 @@ function PalpitesPageContent({
   useEffect(() => {
     if (!showBolaoRoundNav) return;
     if (selectedRodada === null) return;
+    // Copa inteira: não pre-seleciona um dia — usuário vê a rodada toda ou filtra manualmente.
+    if (isFullCopaPool) return;
     const jogosNaRodadaAtual = jogosDisplayBase.filter(
       (j) => j.rodada === selectedRodada,
     );
@@ -4516,6 +4554,7 @@ function PalpitesPageContent({
               selectedDate={selectedDate}
               onDate={setSelectedDate}
               todayBR={today}
+              allowAllDays={isFullCopaPool}
             />
           ) : null}
 
