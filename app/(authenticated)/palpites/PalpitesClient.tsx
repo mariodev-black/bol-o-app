@@ -54,7 +54,6 @@ import {
 } from "@/lib/partida-placar";
 import {
   palpiteLockBeforeKickoffMs,
-  palpiteUsesFiveMinuteLock,
   type PredictionBolaoType,
 } from "@/lib/palpites-kickoff-lock";
 import {
@@ -196,26 +195,17 @@ function brDateToUtcMs(dateBR: string): number | null {
   return Date.UTC(year, month - 1, day);
 }
 
-function palpiteLockUiCopy(bolaoType: PredictionBolaoType): {
+function palpiteLockUiCopy(): {
   fechadoJaPassou: string;
   faixaForaPrazo: string;
   rankingBloco: string;
 } {
-  if (palpiteUsesFiveMinuteLock(bolaoType)) {
-    return {
-      fechadoJaPassou: "Fechado: prazo era até 5 min antes do jogo",
-      faixaForaPrazo:
-        "O prazo termina 5 minutos antes do apito. Depois disso não dá para apostar nem alterar. Se você não tiver salvo um palpite antes desse horário, não entra nesta partida.",
-      rankingBloco:
-        "Palpites só até 5 minutos antes do apito: após esse limite e após o início o sistema fecha. Quem não tiver palpite salvo até esse horário não entra na partida.",
-    };
-  }
   return {
-    fechadoJaPassou: "Fechado: prazo era ate 1h antes do jogo",
+    fechadoJaPassou: "Fechado: prazo era até o apito do jogo",
     faixaForaPrazo:
-      "O prazo termina 1 hora antes do apito. Depois disso não dá para apostar. Se você não tiver salvo um palpite antes desse horário, não entra nesta partida.",
+      "O prazo fecha 5 segundos antes do apito. Depois disso não dá para apostar nem alterar. Se você não tiver salvo um palpite antes desse horário, não entra nesta partida.",
     rankingBloco:
-      "Palpites so ate 1h antes do apito: na ultima hora antes do jogo e depois do inicio o sistema fecha. Quem nao tiver palpite salvo ate esse limite nao entra na partida.",
+      "Palpites até 5 segundos antes do apito: após esse limite e com o jogo em andamento o sistema fecha. Quem não tiver palpite salvo a tempo não entra na partida.",
   };
 }
 
@@ -1322,7 +1312,7 @@ function JogoCard({
     return undefined;
   }, [lockAtMs, jogo.kickoffAt, readOnly, jogo.resultCasa, jogo.resultVisitante]);
   const isLockedByTime = lockAtMs != null ? nowMs >= lockAtMs : false;
-  /** Palpite até instantes antes do apito (5 min Copa/Skale/extra; 1h no diário). */
+  /** Palpite até 5 segundos antes do apito (todos os bolões). */
   const matchOpen = isMatchOpenForPalpite(
     palpiteEligibilityFromJogo(jogo),
     bolaoType,
@@ -2390,7 +2380,7 @@ function DesktopSidebar({
   bolaoType: PredictionBolaoType;
   onRankingLinkClick?: () => void;
 }) {
-  const lockCopy = palpiteLockUiCopy(bolaoType);
+  const lockCopy = palpiteLockUiCopy();
   const grupoKey = `grupo-${grupo.toLowerCase()}`;
   let times = tabela ? (tabela[grupoKey] ?? []) : [];
   if (!times.length && tabela?.["grupo-geral"]?.length) {
@@ -2799,12 +2789,14 @@ function PalpiteDateChipsStrip({
   onDate,
   todayBR,
   dateStripRef,
+  allowAllDays = false,
 }: {
   datas: string[];
   selectedDate: string | null;
-  onDate: (d: string) => void;
+  onDate: (d: string | null) => void;
   todayBR: string;
   dateStripRef: React.RefObject<HTMLDivElement | null>;
+  allowAllDays?: boolean;
 }) {
   if (datas.length === 0) return null;
 
@@ -2813,6 +2805,18 @@ function PalpiteDateChipsStrip({
       ref={dateStripRef}
       className="flex w-full items-center gap-5 overflow-x-auto scroll-smooth px-4 py-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
+      {allowAllDays ? (
+        <button
+          type="button"
+          onClick={() => onDate(null)}
+          className={`shrink-0 whitespace-nowrap rounded-[8px] px-4 py-2.5 text-[18px] leading-none transition-colors active:scale-[0.98] ${selectedDate == null
+              ? "bg-zinc-800 font-bold text-white"
+              : "bg-transparent font-semibold text-zinc-400 hover:text-zinc-300"
+            }`}
+        >
+          Todos
+        </button>
+      ) : null}
       {datas.map((d) => {
         const isSelected = selectedDate === d;
         const label = formatPalpiteDateChipLabel(d, todayBR);
@@ -2821,7 +2825,7 @@ function PalpiteDateChipsStrip({
             key={d}
             type="button"
             data-palpite-date={d}
-            onClick={() => onDate(d)}
+            onClick={() => onDate(allowAllDays && isSelected ? null : d)}
             className={`shrink-0 whitespace-nowrap rounded-[8px] px-4 py-2.5 text-[18px] leading-none transition-colors active:scale-[0.98] ${isSelected
                 ? "bg-zinc-800 font-bold text-white"
                 : "bg-transparent font-semibold text-zinc-400 hover:text-zinc-300"
@@ -2843,13 +2847,15 @@ function BolaoRoundStickyDateProgress({
   selectedDate,
   onDate,
   todayBR,
+  allowAllDays = false,
 }: {
   jogos: Jogo[];
   selectedRodada: number;
   hasPalpite: (matchId: number) => boolean;
   selectedDate: string | null;
-  onDate: (d: string) => void;
+  onDate: (d: string | null) => void;
   todayBR: string;
+  allowAllDays?: boolean;
 }) {
   const dateStripRef = useRef<HTMLDivElement>(null);
   const { datas } = useRoundNavDates(jogos, selectedRodada, hasPalpite);
@@ -2879,6 +2885,7 @@ function BolaoRoundStickyDateProgress({
             onDate={onDate}
             todayBR={todayBR}
             dateStripRef={dateStripRef}
+            allowAllDays={allowAllDays}
           />
         </div>
       ) : null}
@@ -3199,6 +3206,7 @@ function PalpitesPageContent({
   }, [bolaoType, initialData?.extraChampionshipId]);
 
   const isSkaleFullCopaPool = initialData?.isSkaleFullCopaPool === true;
+  const isFullCopaPool = bolaoType === "principal" || isSkaleFullCopaPool;
   const isSkaleDailyEditionPool = initialData?.isSkaleDailyEditionPool === true;
   const dailyEditionNumber = initialData?.dailyEditionNumber ?? null;
   const dailyEditionDateSet = useMemo(() => {
@@ -3262,9 +3270,11 @@ function PalpitesPageContent({
 
     function applyRodadaInicial(parsed: Jogo[]) {
       const bt = bolaoTypeRef.current;
+      const skaleFullPool = initialDataRef.current?.isSkaleFullCopaPool === true;
       // Ticket extra por rodada → seleciona a rodada do ticket.
       const ticketRound =
         bt === "extra" &&
+          !skaleFullPool &&
           initialDataRef.current?.extraRoundNumber != null &&
           Number.isFinite(Number(initialDataRef.current.extraRoundNumber)) &&
           Number(initialDataRef.current.extraRoundNumber) > 0
@@ -3279,13 +3289,15 @@ function PalpitesPageContent({
         return;
       }
       const lockIds =
-        bt === "diario" || bt === "extra"
-          ? Object.keys(predictionsMapRef.current)
-            .map(Number)
-            .filter(Number.isFinite)
-          : [];
+        bt === "principal" || skaleFullPool
+          ? []
+          : bt === "diario" || bt === "extra"
+            ? Object.keys(predictionsMapRef.current)
+              .map(Number)
+              .filter(Number.isFinite)
+            : [];
       const extraId =
-        bt === "extra"
+        bt === "extra" && !skaleFullPool
           ? (() => {
             const r = initialDataRef.current?.extraChampionshipId;
             if (r != null && Number.isFinite(Number(r)) && Number(r) > 0) return Number(r);
@@ -3293,12 +3305,12 @@ function PalpitesPageContent({
           })()
           : null;
       const map =
-        bt === "extra" && extraId != null
+        extraId != null
           ? matchDateMapFromJogosWithCompetition(parsed, extraId)
           : matchDateMapFromJogos(parsed);
       const todayDateStr = resolveDiarioPlayableDate(map, {
         lockToMatchIds: lockIds,
-        ...(bt === "extra" && extraId != null ? { competitionId: extraId } : {}),
+        ...(extraId != null ? { competitionId: extraId } : {}),
       });
       const rodadasDispAll = Array.from(
         new Set(parsed.map((j) => j.rodada)),
@@ -3337,8 +3349,10 @@ function PalpitesPageContent({
         const fases = data?.partidas as Record<string, any> | undefined;
         let { jogos: parsed, grupos: letras } = parseAllPartidas(fases);
         const bt = bolaoTypeRef.current;
+        const skaleFullPool = initialDataRef.current?.isSkaleFullCopaPool === true;
         const ticketRound =
           bt === "extra" &&
+          !skaleFullPool &&
           initialDataRef.current?.extraRoundNumber != null &&
           Number.isFinite(Number(initialDataRef.current.extraRoundNumber)) &&
           Number(initialDataRef.current.extraRoundNumber) > 0
@@ -4006,11 +4020,21 @@ function PalpitesPageContent({
     };
   };
 
-  const palpitesFooterMode: PalpitesFooterMode = !hasSavedPalpitesOnScope
-    ? "initial"
-    : palpitesEditing
-      ? "editing"
-      : "edit-locked";
+  const hasNewUnsavedPalpites = useMemo(() => {
+    const now = Date.now();
+    return jogosEscopoSalvar.some((j) => {
+      if (!isJogoEditavelParaPalpite(j, bolaoType, now)) return false;
+      if (predictionsMap[j.id]) return false;
+      return matchNeedsSave(j.id, scoresForMatch(j.id));
+    });
+  }, [jogosEscopoSalvar, bolaoType, matchNeedsSave, draftScores, draftTouchedIds, predictionsMap]);
+
+  const palpitesFooterMode: PalpitesFooterMode =
+    !hasSavedPalpitesOnScope || hasNewUnsavedPalpites
+      ? "initial"
+      : palpitesEditing
+        ? "editing"
+        : "edit-locked";
 
   const palpitesListFooter = showPalpitesFooter ? (
     <PalpitesListFooter
@@ -4106,13 +4130,23 @@ function PalpitesPageContent({
     extraTicketRound,
   ]);
 
-  const rodadasDisponiveis = Array.from(
-    new Set(
-      (hasBoloesFlow ? jogosFiltradosNav : jogosDisplayBase.filter(matchesGroup)).map(
-        (j) => j.rodada,
-      ),
-    ),
-  ).sort((a, b) => a - b);
+  const rodadasDisponiveis = useMemo(() => {
+    const source =
+      hasBoloesFlow && (bolaoType === "principal" || isSkaleFullCopaPool)
+        ? jogosDisplayBase
+        : hasBoloesFlow
+          ? jogosFiltradosNav
+          : jogosDisplayBase.filter(matchesGroup);
+    return Array.from(new Set(source.map((j) => j.rodada))).sort((a, b) => a - b);
+  }, [
+    hasBoloesFlow,
+    bolaoType,
+    isSkaleFullCopaPool,
+    jogosDisplayBase,
+    jogosFiltradosNav,
+    shouldFilterByGroup,
+    grupo,
+  ]);
   const effectiveSelectedRodada =
     extraRoundMode && extraTicketRound != null
       ? extraTicketRound
@@ -4168,6 +4202,11 @@ function PalpitesPageContent({
     ).slice(0, 10),
   };
 
+  const handleRodadaChange = useCallback((rodada: number) => {
+    setSelectedRodada(rodada);
+    setSelectedDate(null);
+  }, []);
+
   const jogosSubtitle = !hasBoloesFlow
     ? "Fase de Grupos"
     : bolaoType === "principal" || isSkaleFullCopaPool
@@ -4219,6 +4258,8 @@ function PalpitesPageContent({
   useEffect(() => {
     if (!showBolaoRoundNav) return;
     if (selectedRodada === null) return;
+    // Copa inteira: não pre-seleciona um dia — usuário vê a rodada toda ou filtra manualmente.
+    if (isFullCopaPool) return;
     const jogosNaRodadaAtual = jogosDisplayBase.filter(
       (j) => j.rodada === selectedRodada,
     );
@@ -4273,7 +4314,7 @@ function PalpitesPageContent({
   });
   const myRankingPos =
     rankingBoardRows.find((row) => row.isMe)?.pos ?? null;
-  const rankingLockBloco = palpiteLockUiCopy(bolaoType).rankingBloco;
+  const rankingLockBloco = palpiteLockUiCopy().rankingBloco;
   const scrollToGroup = (groupKey: string) => {
     setGrupo(groupKey);
     if (typeof window === "undefined") return;
@@ -4472,6 +4513,21 @@ function PalpitesPageContent({
             </div>
           )}
 
+          {showBolaoRoundNav && showRoundNavControls ? (
+            <RoundPhaseNav
+              jogos={jogosDisplayBase}
+              predictionsMap={predictionsMap}
+              hasPalpite={hasPalpite}
+              selectedRodada={effectiveSelectedRodada}
+              onRodada={handleRodadaChange}
+              selectedDate={selectedDate}
+              onDate={setSelectedDate}
+              roundTitle={roundNavTitle}
+              showRoundNav
+              headerOnly
+            />
+          ) : null}
+
           {showBolaoRoundNav ? (
             <BolaoRoundStickyDateProgress
               jogos={jogosDisplayBase}
@@ -4480,6 +4536,7 @@ function PalpitesPageContent({
               selectedDate={selectedDate}
               onDate={setSelectedDate}
               todayBR={today}
+              allowAllDays={isFullCopaPool}
             />
           ) : null}
 

@@ -3,7 +3,7 @@ import {
   type MatchMap,
 } from "@/lib/football-api";
 import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
-import { isSkaleBolaoCompetition } from "@/lib/boloes/skale-config";
+import { isFullCopaMirrorBolao } from "@/lib/boloes/skale-match-resolve";
 import { isSkaleDailyBolaoCompetition } from "@/lib/boloes/skale-daily-config";
 import { resolveEffectiveExtraRoundForTicket } from "@/lib/football/extras-rodada";
 import type { PredictionBolaoType } from "@/lib/palpites-kickoff-lock";
@@ -43,7 +43,7 @@ export async function buildPalpiteSaveContext(
     extraChampionshipId != null &&
     Number.isFinite(extraChampionshipId) &&
     extraChampionshipId > 0 &&
-    !isSkaleBolaoCompetition(extraChampionshipId) &&
+    !isFullCopaMirrorBolao(extraChampionshipId) &&
     !isSkaleDailyBolaoCompetition(extraChampionshipId)
   ) {
     try {

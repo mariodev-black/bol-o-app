@@ -27,12 +27,20 @@ const MONTH_NAMES_PT = [
   "dezembro",
 ] as const;
 
-/** Fase de Grupos — Copa do Mundo 2026 (junho). */
+/** Fase de Grupos — Copa do Mundo 2026 (junho/julho). */
 export const GROUP_STAGE_DAILY_EDITIONS: DailyEdition[] = [
-  { number: 1, phase: "grupos", datesBR: ["16/06/2026", "17/06/2026"] },
-  { number: 2, phase: "grupos", datesBR: ["18/06/2026", "19/06/2026"] },
-  { number: 3, phase: "grupos", datesBR: ["20/06/2026"] },
-  { number: 4, phase: "grupos", datesBR: ["21/06/2026"] },
+  { number: 1,  phase: "grupos", datesBR: ["16/06/2026", "17/06/2026"] },
+  { number: 2,  phase: "grupos", datesBR: ["18/06/2026", "19/06/2026"] },
+  { number: 3,  phase: "grupos", datesBR: ["20/06/2026"] },
+  { number: 4,  phase: "grupos", datesBR: ["21/06/2026"] },
+  { number: 5,  phase: "grupos", datesBR: ["22/06/2026"] },
+  { number: 6,  phase: "grupos", datesBR: ["23/06/2026"] },
+  { number: 7,  phase: "grupos", datesBR: ["24/06/2026"] },
+  { number: 8,  phase: "grupos", datesBR: ["25/06/2026"] },
+  { number: 9,  phase: "grupos", datesBR: ["26/06/2026"] },
+  { number: 10, phase: "grupos", datesBR: ["27/06/2026"] },
+  { number: 11, phase: "grupos", datesBR: ["28/06/2026"] },
+  { number: 12, phase: "grupos", datesBR: ["29/06/2026"] },
 ];
 
 const EDITION_BY_NUMBER = new Map(

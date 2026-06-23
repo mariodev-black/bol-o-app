@@ -1,7 +1,12 @@
 import { readMatchesCache, type CachedMatchRow } from "@/lib/matches-cache";
 import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
+import {
+  getSkaleBolaoSourceCopaCompetitionId,
+  isSkaleBolaoCompetition,
+} from "@/lib/boloes/skale-config";
 import { isAmistososFriendliesCompetition } from "@/lib/football/amistosos-friendlies";
 import { ensureAmistososFriendliesMatchesSeeded } from "@/lib/football/amistosos-friendlies-persistence";
+import { mirrorSkaleBolaoMatchesFromCopa } from "@/lib/football/skale-bolao-sync";
 import { bootstrapCompetitionCacheIfEmpty } from "@/lib/football/sync-orchestrator";
 
 type NestedRounds = Record<string, Array<Record<string, unknown>>>;
@@ -106,6 +111,17 @@ export function buildPartidasFasesFromRows(rows: CachedMatchRow[]): PhaseMap {
 }
 
 /**
+ * Bolão Skale integral: calendário vem da Copa fonte (comp 72), não só do espelho
+ * sintético — evita UI atrasada quando o mirror 90007 não sincronizou ainda.
+ */
+export function partidasCacheSourceCompetitionId(competitionId: number): number {
+  if (isSkaleBolaoCompetition(competitionId)) {
+    return getSkaleBolaoSourceCopaCompetitionId();
+  }
+  return competitionId;
+}
+
+/**
  * Mesmo formato do GET /api/partidas, montado só a partir do Postgres (sem API futebol).
  * Por omissão usa o campeonato principal (alinhado ao default de `/api/partidas`).
  */
@@ -114,17 +130,21 @@ export async function getPartidasFasesFromDb(competitionId?: number): Promise<Ph
     competitionId != null && Number.isFinite(Number(competitionId))
       ? Number(competitionId)
       : getFootballMainCompetitionId();
+  if (isSkaleBolaoCompetition(comp)) {
+    await mirrorSkaleBolaoMatchesFromCopa().catch(() => {});
+  }
+  const sourceComp = partidasCacheSourceCompetitionId(comp);
   let rows = await readMatchesCache();
-  let filtered = rows.filter((r) => Number(r.competition_id) === comp);
+  let filtered = rows.filter((r) => Number(r.competition_id) === sourceComp);
   if (filtered.length === 0 && isAmistososFriendliesCompetition(comp)) {
     await ensureAmistososFriendliesMatchesSeeded().catch(() => {});
     rows = await readMatchesCache();
-    filtered = rows.filter((r) => Number(r.competition_id) === comp);
+    filtered = rows.filter((r) => Number(r.competition_id) === sourceComp);
   }
   if (filtered.length === 0) {
-    await bootstrapCompetitionCacheIfEmpty(comp).catch(() => {});
+    await bootstrapCompetitionCacheIfEmpty(sourceComp).catch(() => {});
     rows = await readMatchesCache();
-    filtered = rows.filter((r) => Number(r.competition_id) === comp);
+    filtered = rows.filter((r) => Number(r.competition_id) === sourceComp);
   }
   return buildPartidasFasesFromRows(filtered);
 }

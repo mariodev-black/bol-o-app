@@ -195,8 +195,8 @@ function LoggedInHome({
       <Header />
 
       <aside
-        className="fixed left-0 top-0 hidden h-screen w-[210px] flex-col lg:flex"
-        style={{ zIndex: 60 }}
+        className="fixed left-0 hidden h-screen w-[210px] flex-col lg:flex"
+        style={{ top: 0, paddingTop: "var(--app-header-height, 80px)", zIndex: 35 }}
       >
         <DesktopSidebar className="flex-1" />
       </aside>
