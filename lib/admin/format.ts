@@ -1,3 +1,11 @@
+import { resolveExtraBolaoDisplayName } from "@/lib/boloes-extra-competition-branding";
+import { isSkaleBolaoCompetition, SKALE_BOLAO_DISPLAY_NAME } from "@/lib/boloes/skale-config";
+import {
+  isSkaleDailyBolaoCompetition,
+  SKALE_DAILY_BOLAO_DISPLAY_NAME,
+} from "@/lib/boloes/skale-daily-config";
+import { isWeekendBolaoCompetition, WEEKEND_BOLAO_DISPLAY_NAME } from "@/lib/boloes/weekend-bolao-config";
+
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
 export function formatAdminBRL(cents: number): string {
@@ -29,7 +37,62 @@ export function formatAdminTicketType(type: string | null | undefined) {
   const normalized = String(type ?? "").toLowerCase();
   if (normalized === "general") return "Principal";
   if (normalized === "daily") return "Diário";
+  if (normalized === "extra") return "Extra";
+  if (normalized === "artilheiros") return "Artilheiros";
   return type || "Não informado";
+}
+
+export type AdminTicketLabelInput = {
+  ticketType: string | null | undefined;
+  extraChampionshipId?: number | null;
+  roundNumber?: number | null;
+  bolaoDefinitionName?: string | null;
+  competitionCachedName?: string | null;
+};
+
+/** Nome amigável da cota para listagens no admin (ex.: Bolão Skale, Brasileirão). */
+export function formatAdminTicketLabel(input: AdminTicketLabelInput): string {
+  const definitionName = input.bolaoDefinitionName?.trim();
+  if (definitionName) return definitionName;
+
+  const type = String(input.ticketType ?? "").toLowerCase();
+  if (type === "general") return "Bolão Principal";
+  if (type === "daily") return "Bolão Diário";
+  if (type === "artilheiros") return "Bolão Artilheiros";
+
+  if (type === "extra") {
+    const championshipId = input.extraChampionshipId;
+    if (championshipId != null && isSkaleBolaoCompetition(championshipId) && !isSkaleDailyBolaoCompetition(championshipId)) {
+      return SKALE_BOLAO_DISPLAY_NAME;
+    }
+    if (championshipId != null && isSkaleDailyBolaoCompetition(championshipId)) {
+      const edition = input.roundNumber;
+      if (edition != null && edition > 0) {
+        return `${SKALE_DAILY_BOLAO_DISPLAY_NAME} #${edition}`;
+      }
+      return SKALE_DAILY_BOLAO_DISPLAY_NAME;
+    }
+    if (championshipId != null && isWeekendBolaoCompetition(championshipId)) {
+      return WEEKEND_BOLAO_DISPLAY_NAME;
+    }
+    if (championshipId != null) {
+      const base = resolveExtraBolaoDisplayName(championshipId, input.competitionCachedName);
+      const round = input.roundNumber;
+      if (round != null && round > 0) {
+        return `${base} · ${formatAdminRodadaLabel(round)}`;
+      }
+      return base;
+    }
+    return "Bolão Extra";
+  }
+
+  return formatAdminTicketType(type);
+}
+
+export function formatAdminTicketShortId(ticketId: string): string {
+  const id = ticketId.trim();
+  if (!id) return "—";
+  return `#${id.slice(0, 8).toUpperCase()}`;
 }
 
 /** Rótulo de rodada para admin (ex.: 17ª Rodada). */
