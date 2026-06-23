@@ -10,7 +10,7 @@ import { getAdminTicketDetail } from "@/lib/admin/sections";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AdminCotaPredictionsTable } from "./AdminCotaPredictionsTable";
+import { AdminCotaPredictionsSection } from "./AdminCotaDetailClient";
 
 function formatPredictionsSent(count: number, total: number) {
   if (total > 0) {
@@ -98,13 +98,7 @@ export default async function AdminCotaDetailPage({
         </section>
       </div>
 
-      <section className="overflow-hidden rounded-[18px] border border-white/8 bg-[#101010]">
-        <div className="border-b border-white/8 px-5 py-4">
-          <h2 className="text-[15px] font-black text-white">Palpites desta cota</h2>
-          <p className="mt-1 text-[12px] font-medium text-white/38">Todos os jogos preenchidos pelo usuário nesta cota.</p>
-        </div>
-        <AdminCotaPredictionsTable predictions={ticket.predictions} />
-      </section>
+      <AdminCotaPredictionsSection ticket={ticket} />
     </>
   );
 }

@@ -8,11 +8,8 @@ import { getFootballMainCompetitionId, parseExtraBolaoChampionshipIds } from "@/
 import { readCompetitionDisplayNamesFromDb } from "@/lib/competition-metadata-cache";
 import { SQL_TICKET_PAID } from "@/lib/admin/ticket-count-sql";
 import { formatAdminTicketLabel } from "@/lib/admin/format";
-import {
-  countMatchesInTicketScope,
-  loadFirstPredictionDateBr,
-  resolveTicketMatchCompetitionIds,
-} from "@/lib/admin/ticket-scope-stats";
+import { listAdminTicketScopePredictions } from "@/lib/admin/ticket-scope-predictions";
+import { getTicketLiveTotals } from "@/lib/predictions/scores-aggregate";
 import { getPool } from "@/lib/db";
 import {
   ADMIN_BOLAO_RANKING_PAGE_SIZE,
@@ -164,8 +161,10 @@ export type AdminTicketListItem = {
 };
 
 export type AdminTicketPredictionItem = {
-  id: string;
+  id: string | null;
   matchId: number;
+  competitionId: number | null;
+  hasPrediction: boolean;
   homeName: string;
   awayName: string;
   homeLogo: string | null;
@@ -173,13 +172,13 @@ export type AdminTicketPredictionItem = {
   dateBR: string | null;
   hourBR: string | null;
   status: string | null;
-  scoreCasa: number;
-  scoreVisitante: number;
+  scoreCasa: number | null;
+  scoreVisitante: number | null;
   resultCasa: number | null;
   resultVisitante: number | null;
   points: number;
-  submittedAt: string;
-  updatedAt: string;
+  submittedAt: string | null;
+  updatedAt: string | null;
 };
 
 export type AdminTicketDetail = AdminTicketListItem & {
@@ -1450,79 +1449,12 @@ export async function getAdminTicketDetail(ticketId: string): Promise<AdminTicke
   const row = rows[0];
   if (!row) return null;
 
-  const ticketScope = {
-    ticketType: row.ticket_type,
-    extraChampionshipId: row.extra_championship_id,
-    roundNumber: row.round_number,
-  };
-  const competitionIds = resolveTicketMatchCompetitionIds(ticketScope);
-  const preferredCompetitionId = competitionIds[0] ?? mainComp;
-  const firstPredictionDateBr = await loadFirstPredictionDateBr(pool, ticketId, competitionIds);
-  const totalMatchesCount = await countMatchesInTicketScope(pool, ticketScope, firstPredictionDateBr);
-  const predictionsCount = Number(row.predictions_count ?? 0);
-  const pendingPredictionsCount = Math.max(totalMatchesCount - predictionsCount, 0);
-
-  const { rows: predictionRows } = await pool.query<{
-    id: string;
-    match_id: number;
-    home_name: string | null;
-    home_logo: string | null;
-    away_name: string | null;
-    away_logo: string | null;
-    date_br: string | null;
-    hour_br: string | null;
-    status: string | null;
-    score_casa: number;
-    score_visitante: number;
-    result_casa: number | null;
-    result_visitante: number | null;
-    points: string | number | null;
-    submitted_at: Date;
-    updated_at: Date;
-  }>(
-    `SELECT DISTINCT ON (p.id)
-       p.id,
-       p.match_id,
-       mc.home_name,
-       mc.home_logo,
-       mc.away_name,
-       mc.away_logo,
-       mc.date_br,
-       mc.hour_br,
-       mc.status,
-       p.score_casa,
-       p.score_visitante,
-       mc.result_casa,
-       mc.result_visitante,
-       CASE
-         WHEN mc.result_casa IS NULL OR mc.result_visitante IS NULL THEN 0
-         WHEN p.score_casa = mc.result_casa AND p.score_visitante = mc.result_visitante THEN 6
-         WHEN (p.score_casa - p.score_visitante = 0 AND mc.result_casa - mc.result_visitante = 0)
-           OR (p.score_casa - p.score_visitante > 0 AND mc.result_casa - mc.result_visitante > 0)
-           OR (p.score_casa - p.score_visitante < 0 AND mc.result_casa - mc.result_visitante < 0)
-         THEN CASE
-           WHEN p.score_casa = mc.result_casa OR p.score_visitante = mc.result_visitante THEN 4
-           ELSE 3
-         END
-         ELSE
-           CASE WHEN p.score_casa = mc.result_casa THEN 1 ELSE 0 END
-           + CASE WHEN p.score_visitante = mc.result_visitante THEN 1 ELSE 0 END
-       END AS points,
-       p.submitted_at,
-       p.updated_at
-     FROM predictions p
-     LEFT JOIN matches_cache mc ON mc.match_id = p.match_id
-       AND mc.competition_id = ANY($2::int[])
-     WHERE p.ticket_id::text = $1::text
-     ORDER BY p.id,
-       CASE WHEN mc.competition_id = $3 THEN 0 ELSE 1 END,
-       p.submitted_at DESC`,
-    [ticketId, competitionIds, preferredCompetitionId]
-  );
-
-  const sortedPredictions = [...predictionRows].sort(
-    (a, b) => b.submitted_at.getTime() - a.submitted_at.getTime(),
-  );
+  const scopeData = await listAdminTicketScopePredictions(ticketId);
+  const liveTotals = await getTicketLiveTotals(ticketId);
+  const predictionsCount = scopeData?.predictionsCount ?? Number(row.predictions_count ?? 0);
+  const totalMatchesCount = scopeData?.totalMatchesCount ?? predictionsCount;
+  const pendingPredictionsCount =
+    scopeData?.pendingPredictionsCount ?? Math.max(totalMatchesCount - predictionsCount, 0);
 
   return {
     id: row.id,
@@ -1542,7 +1474,7 @@ export async function getAdminTicketDetail(ticketId: string): Promise<AdminTicke
     predictionsCount,
     pendingPredictionsCount,
     totalMatchesCount,
-    scorePoints: Number(row.score_points ?? 0),
+    scorePoints: liveTotals.totalPoints,
     rankingPosition: row.ranking_position == null ? null : Number(row.ranking_position),
     lastPredictionAt: row.last_prediction_at ? row.last_prediction_at.toISOString() : null,
     transactionId: row.transaction_id,
@@ -1550,23 +1482,6 @@ export async function getAdminTicketDetail(ticketId: string): Promise<AdminTicke
     transactionStatus: row.transaction_status,
     transactionAmountCents: row.transaction_amount_cents,
     transactionCreatedAt: row.transaction_created_at ? row.transaction_created_at.toISOString() : null,
-    predictions: sortedPredictions.map((prediction) => ({
-      id: prediction.id,
-      matchId: Number(prediction.match_id),
-      homeName: prediction.home_name ?? "Time casa",
-      awayName: prediction.away_name ?? "Time visitante",
-      homeLogo: prediction.home_logo,
-      awayLogo: prediction.away_logo,
-      dateBR: prediction.date_br,
-      hourBR: prediction.hour_br,
-      status: prediction.status,
-      scoreCasa: prediction.score_casa,
-      scoreVisitante: prediction.score_visitante,
-      resultCasa: prediction.result_casa,
-      resultVisitante: prediction.result_visitante,
-      points: Number(prediction.points ?? 0),
-      submittedAt: prediction.submitted_at.toISOString(),
-      updatedAt: prediction.updated_at.toISOString(),
-    })),
+    predictions: scopeData?.items ?? [],
   };
 }
