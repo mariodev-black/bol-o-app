@@ -178,6 +178,8 @@ type TicketCheckoutFlowProps = {
   ticketsHideExtra?: boolean;
   /** Loja `/tickets?bolao=artilheiros`: somente artilheiros. */
   ticketsArtilheirosOnly?: boolean;
+  /** Loja `/tickets-diario`: somente bolão diário (Copa). */
+  ticketsDailyOnly?: boolean;
   /** Pré-seleciona bolão diário Skale (`?bolao=skale-diario`). */
   initialSkaleDaily?: boolean;
 };
@@ -199,29 +201,34 @@ export function TicketCheckoutFlow({
   ticketsPrincipalAndDailyOnly = false,
   ticketsHideExtra = false,
   ticketsArtilheirosOnly = false,
+  ticketsDailyOnly = false,
   initialSkaleDaily = false,
 }: TicketCheckoutFlowProps) {
   const router = useRouter();
-  const showPrincipal = !ticketsExtraOnly && !ticketsArtilheirosOnly;
+  const showPrincipal =
+    !ticketsExtraOnly && !ticketsArtilheirosOnly && !ticketsDailyOnly;
   const showDaily =
     !ticketsHideDaily &&
     !ticketsArtilheirosOnly &&
-    (ticketsPrincipalAndDailyOnly || !ticketsPrincipalOnly);
+    (ticketsDailyOnly || ticketsPrincipalAndDailyOnly || !ticketsPrincipalOnly);
+  const showSkaleDaily = showDaily && !ticketsDailyOnly;
   const showExtra =
     !ticketsPrincipalOnly &&
     !ticketsPrincipalAndDailyOnly &&
     !ticketsHideExtra &&
     !ticketsExtraOnly &&
-    !ticketsArtilheirosOnly;
+    !ticketsArtilheirosOnly &&
+    !ticketsDailyOnly;
   const [artilheirosEnabled, setArtilheirosEnabled] = useState(true);
   const showArtilheiros =
     ticketsArtilheirosOnly ||
     (artilheirosEnabled &&
       !ticketsPrincipalAndDailyOnly &&
       !ticketsExtraOnly &&
-      !ticketsPrincipalOnly);
+      !ticketsPrincipalOnly &&
+      !ticketsDailyOnly);
   const [principalQty, setPrincipalQty] = useState(() => {
-    if (ticketsExtraOnly) return 0;
+    if (ticketsExtraOnly || ticketsDailyOnly) return 0;
     if (ticketsPrincipalOnly) return 1;
     return initialTicketKind === "daily" ||
       initialTicketKind === "extra" ||
@@ -239,7 +246,9 @@ export function TicketCheckoutFlow({
   const [currentDailyEdition, setCurrentDailyEdition] =
     useState<DailyEditionCatalogItem | null>(null);
   const [extraBoloes, setExtraBoloes] = useState<ExtraBolaoOption[]>(() => {
-    if (ticketsPrincipalOnly || ticketsPrincipalAndDailyOnly) return [];
+    if (ticketsPrincipalOnly || ticketsPrincipalAndDailyOnly || ticketsDailyOnly) {
+      return [];
+    }
     const fromServer = filterTicketShopExtraChampionshipIds(
       (serverExtraChampionshipIds ?? []).filter(
         (n) => Number.isFinite(n) && n > 0,
@@ -259,7 +268,9 @@ export function TicketCheckoutFlow({
   const [extraQtyByChampionship, setExtraQtyByChampionship] = useState<
     Record<number, number>
   >(() => {
-    if (ticketsPrincipalOnly || ticketsPrincipalAndDailyOnly) return {};
+    if (ticketsPrincipalOnly || ticketsPrincipalAndDailyOnly || ticketsDailyOnly) {
+      return {};
+    }
     if (
       _initialExtraChampionshipId != null &&
       (ticketsExtraOnly || initialTicketKind === "extra")
@@ -326,6 +337,17 @@ export function TicketCheckoutFlow({
     setExtraQtyByChampionship({});
     setExtraBoloes([]);
   }, [ticketsPrincipalAndDailyOnly]);
+
+  useEffect(() => {
+    if (!ticketsDailyOnly) return;
+    setPrincipalQty(0);
+    setArtilheirosQty(0);
+    setExtraQtyByChampionship({});
+    setExtraBoloes([]);
+    setCatalogBoloes([]);
+    setCatalogQtyById({});
+    setSkaleDailyQtyByEdition({});
+  }, [ticketsDailyOnly]);
 
   const setSkaleDailyEditionQty = useCallback((edition: number, qty: number) => {
     setSkaleDailyQtyByEdition((prev) => ({
@@ -476,7 +498,7 @@ export function TicketCheckoutFlow({
             setDailyQtyByEdition((prev) =>
               Object.keys(prev).length > 0
                 ? prev
-                : { [d.dailyEdition!.number]: initialTicketKind === "daily" ? 1 : 0 },
+                : { [d.dailyEdition!.number]: initialTicketKind === "daily" || ticketsDailyOnly ? 1 : 0 },
             );
           }
         } else if (r.ok) {
@@ -484,7 +506,7 @@ export function TicketCheckoutFlow({
         }
         if (r.ok && d.skaleDailyEdition) {
           setCurrentSkaleDailyEdition(d.skaleDailyEdition);
-          if (showDaily) {
+          if (showSkaleDaily) {
             setSkaleDailyQtyByEdition((prev) =>
               Object.keys(prev).length > 0
                 ? prev
@@ -503,7 +525,12 @@ export function TicketCheckoutFlow({
             ),
           );
         }
-        if (r.ok && Array.isArray(d.catalogBoloes) && d.catalogBoloes.length > 0) {
+        if (
+          r.ok &&
+          Array.isArray(d.catalogBoloes) &&
+          d.catalogBoloes.length > 0 &&
+          !ticketsDailyOnly
+        ) {
           setCatalogBoloes(
             d.catalogBoloes.filter((item) => item.purchaseOpen !== false),
           );
@@ -517,7 +544,7 @@ export function TicketCheckoutFlow({
     return () => {
       cancelled = true;
     };
-  }, [showDaily, showExtra, initialTicketKind, initialSkaleDaily]);
+  }, [showDaily, showSkaleDaily, showExtra, initialTicketKind, initialSkaleDaily, ticketsDailyOnly]);
 
   // SSE — canal primário (funciona em dev; pode não funcionar em serverless multi-instância)
   useEffect(() => {
@@ -1166,7 +1193,7 @@ export function TicketCheckoutFlow({
                   </div>
                 )}
 
-                {showDaily && currentSkaleDailyEdition && (
+                {showSkaleDaily && currentSkaleDailyEdition && (
                   <div className="space-y-3">
                     {(() => {
                       const edition = currentSkaleDailyEdition;
@@ -1521,7 +1548,7 @@ export function TicketCheckoutFlow({
                     );
                   })}
 
-                {catalogBoloes.length > 0
+                {!ticketsDailyOnly && catalogBoloes.length > 0
                   ? catalogBoloes.map((item) => {
                       const qty = catalogQty(item.id);
                       const lineCents = progressiveDiscountTotalCents(

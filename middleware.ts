@@ -12,6 +12,7 @@ const PROTECTED_PREFIXES = [
   "/boloes",
   "/admin",
   "/tickets",
+  "/tickets-diario",
   "/perfil",
   "/ranking",
   "/palpites",
