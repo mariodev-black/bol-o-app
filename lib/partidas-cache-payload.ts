@@ -8,9 +8,46 @@ import { isAmistososFriendliesCompetition } from "@/lib/football/amistosos-frien
 import { ensureAmistososFriendliesMatchesSeeded } from "@/lib/football/amistosos-friendlies-persistence";
 import { mirrorSkaleBolaoMatchesFromCopa } from "@/lib/football/skale-bolao-sync";
 import { bootstrapCompetitionCacheIfEmpty } from "@/lib/football/sync-orchestrator";
+import { pickScoreFromPartidaPayload } from "@/lib/partida-placar";
 
 type NestedRounds = Record<string, Array<Record<string, unknown>>>;
 type PhaseMap = Record<string, NestedRounds | Record<string, NestedRounds>>;
+
+function isFinishedCacheStatus(status: string): boolean {
+  const s = status.trim().toLowerCase();
+  return (
+    s.includes("encerr") ||
+    s.includes("finaliz") ||
+    s.includes("cancel") ||
+    s.includes("adiad") ||
+    s.includes("suspens") ||
+    s.includes("interromp")
+  );
+}
+
+function isLiveProviderStatus(status: string): boolean {
+  const s = status.trim().toLowerCase();
+  if (!s || isFinishedCacheStatus(s)) return false;
+  return (
+    s.includes("vivo") ||
+    s.includes("andament") ||
+    s.includes("intervalo") ||
+    s.includes("em curso") ||
+    s.includes("pausad")
+  );
+}
+
+/** Prefere status ao vivo do payload quando a coluna cache ficou encerrada por engano. */
+function resolvePartidaStatus(row: CachedMatchRow): string {
+  const cacheStatus = String(row.status ?? "").trim();
+  const payloadStatus = String(
+    (row.provider_payload as Record<string, unknown> | null | undefined)?.status ?? "",
+  ).trim();
+  if (isFinishedCacheStatus(cacheStatus) && isLiveProviderStatus(payloadStatus)) {
+    return payloadStatus;
+  }
+  return cacheStatus || payloadStatus || "agendado";
+}
 
 function brDateFromIso(iso: string): string {
   const dt = new Date(iso);
@@ -51,18 +88,17 @@ export function rowToPartidaPayload(row: CachedMatchRow): Record<string, unknown
       : row.kickoff_at
         ? brHourFromIso(row.kickoff_at)
         : "--:--";
-  return {
+  const status = resolvePartidaStatus(row);
+  const payload = row.provider_payload as Record<string, unknown> | null | undefined;
+  const partidaBase: Record<string, unknown> = {
     partida_id: row.match_id,
     competition_id: row.competition_id,
-    status: row.status,
+    status,
     data_realizacao: dateBR,
     hora_realizacao: hourBR,
     data_realizacao_iso: row.kickoff_at,
     placar_mandante: row.result_casa,
     placar_visitante: row.result_visitante,
-    // `rodada` (numero real) vem da coluna `matches_cache.rodada` quando
-    // populada pelo sync v2; caso null para extras legados, o parser do
-    // cliente cai no `round_key` (ex.: "17a-rodada" → 17).
     rodada: row.rodada ?? null,
     round_key: row.round_key ?? null,
     time_mandante: {
@@ -76,6 +112,15 @@ export function rowToPartidaPayload(row: CachedMatchRow): Record<string, unknown
       escudo: row.away_logo,
     },
   };
+  if (payload) {
+    if (payload.cronometro != null) partidaBase.cronometro = payload.cronometro;
+    if (payload.periodo != null) partidaBase.periodo = payload.periodo;
+    const casa = pickScoreFromPartidaPayload({ ...payload, status }, "casa");
+    const visita = pickScoreFromPartidaPayload({ ...payload, status }, "visitante");
+    if (casa != null) partidaBase.placar_mandante = casa;
+    if (visita != null) partidaBase.placar_visitante = visita;
+  }
+  return partidaBase;
 }
 
 export function buildPartidasFasesFromRows(rows: CachedMatchRow[]): PhaseMap {
@@ -134,16 +179,16 @@ export async function getPartidasFasesFromDb(competitionId?: number): Promise<Ph
     await mirrorSkaleBolaoMatchesFromCopa().catch(() => {});
   }
   const sourceComp = partidasCacheSourceCompetitionId(comp);
-  let rows = await readMatchesCache();
+  let rows = await readMatchesCache({ includeProviderPayload: true });
   let filtered = rows.filter((r) => Number(r.competition_id) === sourceComp);
   if (filtered.length === 0 && isAmistososFriendliesCompetition(comp)) {
     await ensureAmistososFriendliesMatchesSeeded().catch(() => {});
-    rows = await readMatchesCache();
+    rows = await readMatchesCache({ includeProviderPayload: true });
     filtered = rows.filter((r) => Number(r.competition_id) === sourceComp);
   }
   if (filtered.length === 0) {
     await bootstrapCompetitionCacheIfEmpty(sourceComp).catch(() => {});
-    rows = await readMatchesCache();
+    rows = await readMatchesCache({ includeProviderPayload: true });
     filtered = rows.filter((r) => Number(r.competition_id) === sourceComp);
   }
   return buildPartidasFasesFromRows(filtered);

@@ -33,19 +33,24 @@ export type CachedMatchRow = {
   rodada: number | null;
   source_updated_at: string;
   synced_at: string;
+  provider_payload?: Record<string, unknown> | null;
 };
 
 function competitionId(): number {
   return getFootballMainCompetitionId();
 }
 
-export async function readMatchesCache(opts?: { competitionIds?: number[] }): Promise<CachedMatchRow[]> {
+export async function readMatchesCache(opts?: {
+  competitionIds?: number[];
+  includeProviderPayload?: boolean;
+}): Promise<CachedMatchRow[]> {
   const pool = getPool();
   const ids =
     opts?.competitionIds != null && opts.competitionIds.length > 0
       ? [...new Set(opts.competitionIds.filter((n) => Number.isFinite(n) && n > 0))]
       : getAllSyncedCompetitionIds();
   if (ids.length === 0) return [];
+  const payloadCol = opts?.includeProviderPayload ? ", provider_payload" : "";
   const { rows } = await pool.query<CachedMatchRow>(
     `SELECT
       competition_id,
@@ -68,6 +73,7 @@ export async function readMatchesCache(opts?: { competitionIds?: number[] }): Pr
       rodada,
       source_updated_at::text,
       synced_at::text
+      ${payloadCol}
      FROM matches_cache
      WHERE competition_id = ANY($1::int[])
      ORDER BY competition_id ASC, match_id ASC`,

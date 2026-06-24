@@ -6,8 +6,12 @@
  *        - kickoff_at >= now() - 5 min  E  kickoff_at <= now() + 5 min (apito iminente),
  *        - OU kickoff_at <= now()  E  now() <= kickoff_at + WORKER_WINDOW_MINUTES (default 180min).
  *      EXCLUI rigorosamente:
- *        - finalizado / encerrado
+ *        - finalizado / encerrado (exceto "resgate" — ver abaixo)
  *        - cancelado / adiado / suspenso / interrompido
+ *
+ *      RESGATE (stale finalizado): partida marcada encerrada no cache mas ainda
+ *      dentro da janela pós-apito, com provider_payload ou placar 0×0 suspeito.
+ *      Cobre admin que grava placar sem atualizar status/payload.
  *
  *   2) Para cada partida selecionada, chama GET /partidas/:id (UNICA chamada por partida por tick).
  *
@@ -54,28 +58,52 @@ const SELECT_ACTIVE_MATCHES_SQL = `
 SELECT competition_id, match_id, status, kickoff_at::text AS kickoff_at
 FROM matches_cache mc
 WHERE
-  -- Nao consulta finalizadas / canceladas / adiadas / suspensas
-  lower(coalesce(status, '')) NOT LIKE '%finaliz%'
-  AND lower(coalesce(status, '')) NOT LIKE '%encerr%'
-  AND lower(coalesce(status, '')) NOT LIKE '%cancel%'
+  lower(coalesce(status, '')) NOT LIKE '%cancel%'
   AND lower(coalesce(status, '')) NOT LIKE '%adiad%'
   AND lower(coalesce(status, '')) NOT LIKE '%suspens%'
   AND lower(coalesce(status, '')) NOT LIKE '%interromp%'
+  AND NOT (mc.competition_id = ANY($4::int[]))
   AND (
-    -- status indica ao vivo / intervalo / pausado
-    lower(coalesce(status, '')) LIKE '%andamento%'
-    OR lower(coalesce(status, '')) LIKE '%ao vivo%'
-    OR lower(coalesce(status, '')) LIKE '%intervalo%'
-    OR lower(coalesce(status, '')) LIKE '%pausad%'
-    OR lower(coalesce(status, '')) LIKE '%em curso%'
-    -- ou apito iminente / dentro da janela de duracao do jogo
+    -- fluxo normal: nao encerrada + ao vivo ou na janela do apito
+    (
+      lower(coalesce(status, '')) NOT LIKE '%finaliz%'
+      AND lower(coalesce(status, '')) NOT LIKE '%encerr%'
+      AND (
+        lower(coalesce(status, '')) LIKE '%andamento%'
+        OR lower(coalesce(status, '')) LIKE '%ao vivo%'
+        OR lower(coalesce(status, '')) LIKE '%intervalo%'
+        OR lower(coalesce(status, '')) LIKE '%pausad%'
+        OR lower(coalesce(status, '')) LIKE '%em curso%'
+        OR (
+          kickoff_at IS NOT NULL
+          AND kickoff_at <= now() + ($1::text || ' minutes')::interval
+          AND kickoff_at >= now() - ($2::text || ' minutes')::interval
+        )
+      )
+    )
     OR (
+      -- resgate: cache diz finalizado mas ainda na janela — reconsulta a API
       kickoff_at IS NOT NULL
-      AND kickoff_at <= now() + ($1::text || ' minutes')::interval
+      AND kickoff_at <= now()
       AND kickoff_at >= now() - ($2::text || ' minutes')::interval
+      AND (
+        lower(coalesce(status, '')) LIKE '%finaliz%'
+        OR lower(coalesce(status, '')) LIKE '%encerr%'
+      )
+      AND (
+        lower(coalesce(mc.provider_payload->>'status', '')) LIKE '%andamento%'
+        OR lower(coalesce(mc.provider_payload->>'status', '')) LIKE '%intervalo%'
+        OR lower(coalesce(mc.provider_payload->>'status', '')) LIKE '%vivo%'
+        OR lower(coalesce(mc.provider_payload->>'status', '')) LIKE '%em curso%'
+        OR (
+          coalesce(result_casa, 0) = 0
+          AND coalesce(result_visitante, 0) = 0
+          AND lower(coalesce(mc.provider_payload->>'status', '')) NOT LIKE '%finaliz%'
+          AND lower(coalesce(mc.provider_payload->>'status', '')) NOT LIKE '%encerr%'
+        )
+      )
     )
   )
-  AND NOT (mc.competition_id = ANY($4::int[]))
 ORDER BY kickoff_at ASC NULLS LAST
 LIMIT $3
 `;
