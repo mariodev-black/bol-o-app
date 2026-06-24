@@ -258,6 +258,9 @@ function isJogoEditavelParaPalpite(
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parseLiveTempoFromPartida(p: any): number | null {
+  const periodo = String(p?.periodo ?? "").toLowerCase();
+  if (periodo.includes("segundo")) return 2;
+  if (periodo.includes("primeiro")) return 1;
   const v = p?.tempo ?? p?.tempo_partida ?? p?.numero_tempo;
   if (v === 1 || v === "1") return 1;
   if (v === 2 || v === "2") return 2;
@@ -285,6 +288,7 @@ function parseLiveMinutoFromPartida(p: any): number | null {
     return null;
   };
   return (
+    tryNum(p?.cronometro) ??
     tryNum(p?.minuto) ??
     tryNum(p?.minute) ??
     tryNum(p?.minuto_jogo) ??
