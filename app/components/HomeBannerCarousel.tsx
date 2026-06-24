@@ -1,49 +1,26 @@
 "use client";
 
-import Image from "next/image";
+import Image, { type StaticImageData } from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import bannerBolao from "@/app/assets/banner-bolao.png";
 import bannerBraMar from "@/app/assets/banner-brasil-marrocos.png";
 import bannerIndique from "@/app/assets/banner-indique-ganhe.png";
-import { usePromotionsHub } from "@/app/shared/PromotionsHubContext";
-import {
-  fetchBrasilMarrocosPlacarPromoStatus,
-  peekBrasilMarrocosPlacarPromoStatus,
-} from "@/app/shared/useBrasilMarrocosPlacarPromoStatus";
-import {
-  mustCompletePromoQuotaPurchase,
-  type BrasilMarrocosPlacarPromoStatus,
-} from "@/lib/promotions/brasil-marrocos-placar-promo-shared";
+import type { HomeBanner } from "@/lib/home-content/types";
 
 /** Banners da home — auto-rotação a cada 5s, slide horizontal, responsivo. */
-type SlideId = "cota" | "palpite" | "indique";
-
-const SLIDES: {
-  id: SlideId;
-  src: typeof bannerBolao;
+type Slide = {
+  id: string;
+  src: StaticImageData | string;
   href: string;
   alt: string;
-}[] = [
-  {
-    id: "cota",
-    src: bannerBolao,
-    href: "/comprar-cotas",
-    alt: "Garanta sua cota no maior bolão da Copa",
-  },
-  {
-    id: "palpite",
-    src: bannerBraMar,
-    href: "/palpites",
-    alt: "Brasil x Marrocos — acerte e ganhe R$1.000 no PIX + camisa oficial",
-  },
-  {
-    id: "indique",
-    src: bannerIndique,
-    href: "/indique",
-    alt: "Indique e ganhe R$12 por indicação paga",
-  },
+};
+
+/** Conteúdo padrão (fallback) quando o admin ainda não cadastrou banners. */
+const FALLBACK_SLIDES: Slide[] = [
+  { id: "cota", src: bannerBolao, href: "/comprar-cotas", alt: "Garanta sua cota no maior bolão da Copa" },
+  { id: "palpite", src: bannerBraMar, href: "/palpites", alt: "Faça seus palpites e dispute o ranking" },
+  { id: "indique", src: bannerIndique, href: "/indique", alt: "Indique e ganhe R$12 por indicação paga" },
 ];
 
 const INTERVAL_MS = 5000;
@@ -55,17 +32,46 @@ export function HomeBannerCarousel({
   fullWidth?: boolean;
   fillHeight?: boolean;
 }) {
-  const router = useRouter();
-  const { openPromotion, getPromotionPrefetch } = usePromotionsHub();
   const [index, setIndex] = useState(0);
+  const [dynamicSlides, setDynamicSlides] = useState<Slide[] | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Busca banners dinâmicos do admin; se não houver nenhum, usa o fallback.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const r = await fetch("/api/public/home-content", { cache: "no-store" });
+        const d = (await r.json()) as { banners?: HomeBanner[] };
+        if (cancelled) return;
+        const usable = (d.banners ?? []).filter((b) => b.imageUrl);
+        if (usable.length > 0) {
+          setDynamicSlides(
+            usable.map((b) => ({
+              id: b.id,
+              src: b.imageUrl as string,
+              href: b.href || "#",
+              alt: b.alt || "",
+            })),
+          );
+        }
+      } catch {
+        /* mantém fallback */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const SLIDES = dynamicSlides ?? FALLBACK_SLIDES;
 
   const startTimer = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
       setIndex((i) => (i + 1) % SLIDES.length);
     }, INTERVAL_MS);
-  }, []);
+  }, [SLIDES.length]);
 
   useEffect(() => {
     startTimer();
@@ -74,43 +80,15 @@ export function HomeBannerCarousel({
     };
   }, [startTimer]);
 
+  // Clampa no render (sem efeito) caso a lista dinâmica encurte a quantidade.
+  const safeIndex = index >= SLIDES.length ? 0 : index;
+
   const goTo = useCallback(
     (i: number) => {
       setIndex(i);
       startTimer();
     },
     [startTimer],
-  );
-
-  const handleCotaClick = useCallback(
-    (e: React.MouseEvent<HTMLAnchorElement>) => {
-      e.preventDefault();
-      void (async () => {
-        let status: BrasilMarrocosPlacarPromoStatus | null =
-          (getPromotionPrefetch("brasil_marrocos_placar") as
-            | BrasilMarrocosPlacarPromoStatus
-            | undefined) ?? peekBrasilMarrocosPlacarPromoStatus();
-
-        if (!status?.enabled) {
-          status = await fetchBrasilMarrocosPlacarPromoStatus();
-        }
-
-        if (status?.promoActivated) {
-          router.push("/boloes");
-          return;
-        }
-        if (status && mustCompletePromoQuotaPurchase(status)) {
-          router.push("/comprar-cotas");
-          return;
-        }
-        if (status?.showOfferModal) {
-          openPromotion("brasil_marrocos_placar");
-          return;
-        }
-        router.push("/comprar-cotas");
-      })();
-    },
-    [getPromotionPrefetch, openPromotion, router],
   );
 
   const touchStartX = useRef<number | null>(null);
@@ -151,24 +129,34 @@ export function HomeBannerCarousel({
         >
           <div
             className={`flex w-full transition-transform duration-500 ease-out ${fillHeight ? "lg:h-full" : ""}`}
-            style={{ transform: `translateX(-${index * 100}%)` }}
+            style={{ transform: `translateX(-${safeIndex * 100}%)` }}
           >
             {SLIDES.map((slide, i) => (
               <Link
                 key={slide.id}
-                href={slide.href}
-                onClick={slide.id === "cota" ? handleCotaClick : undefined}
+                href={slide.href || "#"}
                 className={`block w-full min-w-0 shrink-0 basis-full ${fillHeight ? "lg:h-full" : ""}`}
                 aria-label={slide.alt}
               >
-                <Image
-                  src={slide.src}
-                  alt={slide.alt}
-                  className={`h-auto w-full max-w-full object-contain ${fillHeight ? "lg:h-full lg:object-cover lg:object-center" : ""}`}
-                  priority={i === 0}
-                  sizes="(max-width: 460px) 100vw, (max-width: 1040px) 720px, 1300px"
-                  draggable={false}
-                />
+                {typeof slide.src === "string" ? (
+                  // Banner dinâmico (servido do nosso backend) — <img> simples.
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={slide.src}
+                    alt={slide.alt}
+                    className={`h-auto w-full max-w-full object-contain ${fillHeight ? "lg:h-full lg:object-cover lg:object-center" : ""}`}
+                    draggable={false}
+                  />
+                ) : (
+                  <Image
+                    src={slide.src}
+                    alt={slide.alt}
+                    className={`h-auto w-full max-w-full object-contain ${fillHeight ? "lg:h-full lg:object-cover lg:object-center" : ""}`}
+                    priority={i === 0}
+                    sizes="(max-width: 460px) 100vw, (max-width: 1040px) 720px, 1300px"
+                    draggable={false}
+                  />
+                )}
               </Link>
             ))}
           </div>
@@ -181,7 +169,7 @@ export function HomeBannerCarousel({
                 onClick={() => goTo(i)}
                 aria-label={`Ir para o banner ${i + 1}`}
                 className={`h-1.5 rounded-full transition-all duration-300 ${
-                  i === index ? "w-5 bg-[#B1EB0B]" : "w-1.5 bg-white/40"
+                  i === safeIndex ? "w-5 bg-[#B1EB0B]" : "w-1.5 bg-white/40"
                 }`}
               />
             ))}

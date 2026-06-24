@@ -391,27 +391,36 @@ export function GoogleAuthButton({
 export function AuthPrimaryButton({
   children,
   disabled,
+  loading = false,
   type = "button",
   onClick,
 }: {
   children: ReactNode;
   disabled?: boolean;
+  /** Mostra spinner e bloqueia o clique enquanto a ação está em andamento. */
+  loading?: boolean;
   type?: "button" | "submit";
   onClick?: () => void;
 }) {
-  const enabled = !disabled;
+  const enabled = !disabled && !loading;
   return (
     <button
       type={type}
-      disabled={disabled}
+      disabled={disabled || loading}
       onClick={onClick}
+      aria-busy={loading}
       className={[
-        "flex h-12 w-full items-center justify-center rounded-xl text-[14px] font-black uppercase tracking-wide transition-all",
-        enabled
-          ? "bg-[#B1EB0B] text-[#0E141B] shadow-[0_0_20px_rgba(177,235,11,0.28)] active:scale-[0.99]"
-          : "bg-[#2a3318] text-[#8f9680] cursor-not-allowed",
+        "flex h-12 w-full items-center justify-center gap-2 rounded-xl text-[14px] font-black uppercase tracking-wide transition-all",
+        loading
+          ? "bg-[#B1EB0B] text-[#0E141B] cursor-wait shadow-[0_0_20px_rgba(177,235,11,0.28)]"
+          : enabled
+            ? "bg-[#B1EB0B] text-[#0E141B] shadow-[0_0_20px_rgba(177,235,11,0.28)] active:scale-[0.99]"
+            : "bg-[#2a3318] text-[#8f9680] cursor-not-allowed",
       ].join(" ")}
     >
+      {loading ? (
+        <Loader2 className="size-4 animate-spin" strokeWidth={2.75} aria-hidden />
+      ) : null}
       {children}
     </button>
   );

@@ -1610,6 +1610,118 @@ function JogoCard({
 }
 
 // ── Tabela de classificação ───────────────────────────────────
+/**
+ * Classificação AO VIVO calculada a partir dos próprios jogos (resultados de
+ * `matches_cache`), em vez de depender da tabela externa da API Futebol — que
+ * não existe para competições sintéticas (ex.: Bolão Skale, id 90007) e não
+ * atualiza em tempo real. Conta partidas finalizadas ou em andamento (com
+ * placar). V=3pts, E=1pt, D=0. Ordena por pontos, saldo e gols pró.
+ */
+function computeTabelaFromJogos(jogos: Jogo[]): TabelaGrupos | null {
+  type Acc = {
+    sigla: string;
+    nome: string;
+    escudo: string;
+    jogos: number;
+    vitorias: number;
+    empates: number;
+    derrotas: number;
+    pontos: number;
+    golsPro: number;
+    golsContra: number;
+  };
+  const porGrupo = new Map<string, Map<string, Acc>>();
+  let temAlgumResultado = false;
+
+  const ensure = (grupoKey: string, sigla: string, nome: string, escudo: string): Acc => {
+    let g = porGrupo.get(grupoKey);
+    if (!g) {
+      g = new Map();
+      porGrupo.set(grupoKey, g);
+    }
+    let row = g.get(sigla);
+    if (!row) {
+      row = {
+        sigla,
+        nome,
+        escudo,
+        jogos: 0,
+        vitorias: 0,
+        empates: 0,
+        derrotas: 0,
+        pontos: 0,
+        golsPro: 0,
+        golsContra: 0,
+      };
+      g.set(sigla, row);
+    }
+    return row;
+  };
+
+  for (const j of jogos) {
+    if (j.resultCasa == null || j.resultVisitante == null) continue;
+    const grupoKey = `grupo-${(j.grupo || "geral").toLowerCase()}`;
+    const casa = ensure(grupoKey, j.siglasCasa, j.timeCasa, j.escudoCasa);
+    const visitante = ensure(
+      grupoKey,
+      j.siglasVisitante,
+      j.timeVisitante,
+      j.escudoVisitante,
+    );
+    temAlgumResultado = true;
+    casa.jogos += 1;
+    visitante.jogos += 1;
+    casa.golsPro += j.resultCasa;
+    casa.golsContra += j.resultVisitante;
+    visitante.golsPro += j.resultVisitante;
+    visitante.golsContra += j.resultCasa;
+    if (j.resultCasa > j.resultVisitante) {
+      casa.vitorias += 1;
+      casa.pontos += 3;
+      visitante.derrotas += 1;
+    } else if (j.resultCasa < j.resultVisitante) {
+      visitante.vitorias += 1;
+      visitante.pontos += 3;
+      casa.derrotas += 1;
+    } else {
+      casa.empates += 1;
+      visitante.empates += 1;
+      casa.pontos += 1;
+      visitante.pontos += 1;
+    }
+  }
+
+  if (!temAlgumResultado) return null;
+
+  const out: TabelaGrupos = {};
+  let timeIdSeq = 1;
+  for (const [grupoKey, times] of porGrupo) {
+    const ordered = Array.from(times.values()).sort((a, b) => {
+      if (b.pontos !== a.pontos) return b.pontos - a.pontos;
+      const saldoA = a.golsPro - a.golsContra;
+      const saldoB = b.golsPro - b.golsContra;
+      if (saldoB !== saldoA) return saldoB - saldoA;
+      if (b.golsPro !== a.golsPro) return b.golsPro - a.golsPro;
+      return a.sigla.localeCompare(b.sigla);
+    });
+    out[grupoKey] = ordered.map((t, i) => ({
+      posicao: i + 1,
+      pontos: t.pontos,
+      time: {
+        time_id: timeIdSeq++,
+        nome_popular: t.nome,
+        sigla: t.sigla,
+        escudo: t.escudo,
+      },
+      jogos: t.jogos,
+      vitorias: t.vitorias,
+      empates: t.empates,
+      derrotas: t.derrotas,
+    }));
+  }
+  return out;
+}
+
 function TabelaView({
   grupo,
   tabela,
@@ -2848,6 +2960,7 @@ function BolaoRoundStickyDateProgress({
   onDate,
   todayBR,
   allowAllDays = false,
+  datas: datasOverride,
 }: {
   jogos: Jogo[];
   selectedRodada: number;
@@ -2856,9 +2969,16 @@ function BolaoRoundStickyDateProgress({
   onDate: (d: string | null) => void;
   todayBR: string;
   allowAllDays?: boolean;
+  /** Lista contínua de datas (todas as do bolão); independe da rodada. */
+  datas?: string[];
 }) {
   const dateStripRef = useRef<HTMLDivElement>(null);
-  const { datas } = useRoundNavDates(jogos, selectedRodada, hasPalpite);
+  const { datas: datasDaRodada } = useRoundNavDates(
+    jogos,
+    selectedRodada,
+    hasPalpite,
+  );
+  const datas = datasOverride ?? datasDaRodada;
 
   useEffect(() => {
     if (!selectedDate || !dateStripRef.current) return;
@@ -3206,7 +3326,6 @@ function PalpitesPageContent({
   }, [bolaoType, initialData?.extraChampionshipId]);
 
   const isSkaleFullCopaPool = initialData?.isSkaleFullCopaPool === true;
-  const isFullCopaPool = bolaoType === "principal" || isSkaleFullCopaPool;
   const isSkaleDailyEditionPool = initialData?.isSkaleDailyEditionPool === true;
   const dailyEditionNumber = initialData?.dailyEditionNumber ?? null;
   const dailyEditionDateSet = useMemo(() => {
@@ -3499,6 +3618,10 @@ function PalpitesPageContent({
 
   useEffect(() => {
     if ((bolaoType !== "diario" && bolaoType !== "extra") || jogos.length === 0) return;
+    // Se já há uma data selecionada, a rodada é derivada DELA (handleDateChange /
+    // efeito de init). Não sobrescrever aqui, senão a rodada e a data discordam
+    // (ex.: data de um dia que tem jogos de 2 rodadas) e o filtro zera a lista.
+    if (selectedDate) return;
     const lockIds = Object.keys(predictionsMap).map(Number).filter(Number.isFinite);
     const extraId = bolaoType === "extra" ? resolvedExtraChampionshipId : null;
     const map =
@@ -3515,7 +3638,7 @@ function PalpitesPageContent({
     );
     if (rodadaContem != null)
       setSelectedRodada((prev) => (prev === rodadaContem ? prev : rodadaContem));
-  }, [bolaoType, jogos, predictionsMap, resolvedExtraChampionshipId]);
+  }, [bolaoType, jogos, predictionsMap, resolvedExtraChampionshipId, selectedDate]);
 
   const jogosPlacarSignature = useMemo(
     () =>
@@ -3748,6 +3871,59 @@ function PalpitesPageContent({
     extraRoundMode,
     extraTicketRound,
   ]);
+
+  /**
+   * Barra de datas contínua: a DATA é o filtro principal da tela; fase/grupo é
+   * complementar. `datasGlobais` lista TODAS as datas do escopo do bolão (não só
+   * as da rodada selecionada) e `rodadaPorData` deriva a fase a partir da data.
+   */
+  const datasGlobais = useMemo(
+    () =>
+      Array.from(new Set(jogosDisplayBase.map((j) => j.dataBR)))
+        .filter(Boolean)
+        .sort((a, b) => (brDateToUtcMs(a) ?? 0) - (brDateToUtcMs(b) ?? 0)),
+    [jogosDisplayBase],
+  );
+  const datasGlobaisKey = datasGlobais.join("|");
+  const rodadaPorData = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const d of datasGlobais) {
+      // Rodada predominante do dia (em geral única; mata-mata raramente mistura).
+      const counts = new Map<number, number>();
+      for (const j of jogosDisplayBase) {
+        if (j.dataBR !== d) continue;
+        counts.set(j.rodada, (counts.get(j.rodada) ?? 0) + 1);
+      }
+      let best: number | null = null;
+      let bestN = -1;
+      for (const [r, n] of counts) {
+        if (n > bestN) {
+          best = r;
+          bestN = n;
+        }
+      }
+      if (best != null) map.set(d, best);
+    }
+    return map;
+  }, [datasGlobais, jogosDisplayBase]);
+
+  /**
+   * Classificação ao vivo computada dos jogos. Tem prioridade sobre a tabela
+   * externa (`tabela`), que fica como fallback quando ainda não há resultados.
+   *
+   * SÓ é calculada no CLIENTE (após montar). No SSR e no 1º render de hidratação
+   * mantém-se `null`, evitando hydration mismatch: a ordem da classificação
+   * depende de placares que mudam entre servidor e cliente, e um mismatch fazia
+   * o React descartar e remontar a árvore (a tela "zerava").
+   */
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+  const tabelaComputada = useMemo(
+    () => (hydrated ? computeTabelaFromJogos(jogosDisplayBase) : null),
+    [hydrated, jogosDisplayBase],
+  );
 
   const hasEditableMatches = jogosEscopoVisivel.some((j) =>
     isJogoEditavelParaPalpite(j, bolaoType),
@@ -4202,10 +4378,34 @@ function PalpitesPageContent({
     ).slice(0, 10),
   };
 
-  const handleRodadaChange = useCallback((rodada: number) => {
-    setSelectedRodada(rodada);
-    setSelectedDate(null);
-  }, []);
+  /**
+   * Setas de fase/grupo: muda a rodada e leva a data selecionada para a primeira
+   * data daquela rodada (mantém data e fase coerentes, sem voltar a "Todos").
+   */
+  const handleRodadaChange = useCallback(
+    (rodada: number) => {
+      setSelectedRodada(rodada);
+      const primeiraDataDaRodada = datasGlobais.find(
+        (d) => rodadaPorData.get(d) === rodada,
+      );
+      setSelectedDate(primeiraDataDaRodada ?? null);
+    },
+    [datasGlobais, rodadaPorData],
+  );
+
+  /**
+   * Clique na barra de datas: a data manda — a fase/rodada acompanha a data.
+   */
+  const handleDateChange = useCallback(
+    (d: string | null) => {
+      setSelectedDate(d);
+      if (d != null) {
+        const r = rodadaPorData.get(d);
+        if (r != null) setSelectedRodada(r);
+      }
+    },
+    [rodadaPorData],
+  );
 
   const jogosSubtitle = !hasBoloesFlow
     ? "Fase de Grupos"
@@ -4250,40 +4450,31 @@ function PalpitesPageContent({
       !rodadasDisponiveis.includes(selectedRodada)
     ) {
       setSelectedRodada(rodadasDisponiveis[0] ?? null);
-      setSelectedDate(null);
     }
   }, [rodadasDisponiveis, selectedRodada]);
 
-  const predictionsLoadedOnce = Object.keys(predictionsMap).length > 0;
+  /**
+   * Abre a tela já na DATA ATUAL (ou no dia mais próximo com jogos) e deriva a
+   * fase/rodada a partir dela. Vale para todos os bolões. A barra de datas é
+   * contínua e independente da fase — não há mais estado "Todos".
+   */
   useEffect(() => {
     if (!showBolaoRoundNav) return;
-    if (selectedRodada === null) return;
-    // Copa inteira: não pre-seleciona um dia — usuário vê a rodada toda ou filtra manualmente.
-    if (isFullCopaPool) return;
-    const jogosNaRodadaAtual = jogosDisplayBase.filter(
-      (j) => j.rodada === selectedRodada,
+    if (datasGlobais.length === 0) return;
+    // Já há uma data válida selecionada → respeita a escolha do usuário.
+    if (selectedDate && datasGlobais.includes(selectedDate)) return;
+    // Hoje, se houver jogos; senão a primeira data futura; senão a última passada.
+    const hoje = datasGlobais.includes(today) ? today : null;
+    const proximaFutura = datasGlobais.find(
+      (d) => (brDateToUtcMs(d) ?? 0) >= (brDateToUtcMs(today) ?? 0),
     );
-    const datas = Array.from(new Set(jogosNaRodadaAtual.map((j) => j.dataBR)))
-      .filter(Boolean)
-      .sort((a, b) => (brDateToUtcMs(a) ?? 0) - (brDateToUtcMs(b) ?? 0));
-    if (datas.length === 0) {
-      setSelectedDate(null);
-      return;
-    }
-    if (datas.length === 1) {
-      setSelectedDate(null);
-      return;
-    }
-    // Mantém o dia selecionado se ainda válido; senão o primeiro pendente ou o primeiro dia
-    if (selectedDate && datas.includes(selectedDate)) return;
-    const nextPending = datas.find((d) =>
-      jogosNaRodadaAtual
-        .filter((j) => j.dataBR === d)
-        .some((j) => !predictionsMap[j.id]),
-    );
-    setSelectedDate(nextPending ?? datas[0] ?? null);
+    const alvo = hoje ?? proximaFutura ?? datasGlobais[datasGlobais.length - 1];
+    if (!alvo) return;
+    setSelectedDate(alvo);
+    const r = rodadaPorData.get(alvo);
+    if (r != null) setSelectedRodada(r);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedRodada, predictionsLoadedOnce, showBolaoRoundNav]);
+  }, [showBolaoRoundNav, datasGlobaisKey, today]);
 
   const gruposComJogos = Array.from(
     new Set(jogosDisplayBase.map((j) => j.grupo).filter(Boolean)),
@@ -4453,9 +4644,9 @@ function PalpitesPageContent({
         <p className="text-white/70 text-[17px] mt-1 font-bold">{jogosSubtitle}</p>
       </div>
 
-      <div className="lg:grid lg:grid-cols-[1fr_360px] lg:gap-8 lg:items-start">
+      <div className="lg:grid lg:grid-cols-[minmax(0,760px)_360px] lg:justify-center lg:gap-8 lg:items-start">
         {/* ── COLUNA ESQUERDA ─────────────────────────── */}
-        <div>
+        <div className="min-w-0">
           {/* Mobile: tabs */}
           <div className="mb-5 lg:hidden">
             {readOnlyMode ? (
@@ -4521,7 +4712,7 @@ function PalpitesPageContent({
               selectedRodada={effectiveSelectedRodada}
               onRodada={handleRodadaChange}
               selectedDate={selectedDate}
-              onDate={setSelectedDate}
+              onDate={handleDateChange}
               roundTitle={roundNavTitle}
               showRoundNav
               headerOnly
@@ -4534,9 +4725,10 @@ function PalpitesPageContent({
               selectedRodada={effectiveSelectedRodada}
               hasPalpite={hasPalpite}
               selectedDate={selectedDate}
-              onDate={setSelectedDate}
+              onDate={handleDateChange}
               todayBR={today}
-              allowAllDays={isFullCopaPool}
+              allowAllDays={false}
+              datas={datasGlobais}
             />
           ) : null}
 
@@ -4644,9 +4836,9 @@ function PalpitesPageContent({
             {tab === "tabela" && !readOnlyMode && (
               <TabelaView
                 grupo={grupo}
-                tabela={tabela}
+                tabela={tabelaComputada ?? tabela}
                 onGrupo={setGrupo}
-                loading={loadingTabela}
+                loading={loadingTabela && !tabelaComputada}
               />
             )}
             {showRanking ? (
@@ -4866,7 +5058,7 @@ function PalpitesPageContent({
           <div className="hidden lg:block">
             <DesktopSidebar
               grupo={grupo}
-              tabela={tabela}
+              tabela={tabelaComputada ?? tabela}
               grupos={grupos}
               onGrupo={setGrupo}
               rankingBoardRows={rankingBoardRows}

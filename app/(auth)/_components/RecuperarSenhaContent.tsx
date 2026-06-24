@@ -296,7 +296,7 @@ export function RecuperarSenhaContent() {
             Mesmo e-mail do cadastro. Confira a caixa de entrada e o spam.
           </p>
 
-          <AuthPrimaryButton type="submit" disabled={!emailValid || busy}>
+          <AuthPrimaryButton type="submit" loading={sending} disabled={!emailValid || busy}>
             {sending ? "Enviando..." : "Continuar"}
           </AuthPrimaryButton>
         </div>
@@ -363,7 +363,7 @@ export function RecuperarSenhaContent() {
               }}
               backDisabled={busy}
             >
-              <AuthPrimaryButton type="submit" disabled={!step2Ready || busy}>
+              <AuthPrimaryButton type="submit" loading={verifying} disabled={!step2Ready || busy}>
                 {verifying ? "Verificando..." : "Confirmar código"}
               </AuthPrimaryButton>
             </AuthStepNav>
@@ -415,7 +415,7 @@ export function RecuperarSenhaContent() {
             }}
             backDisabled={busy}
           >
-            <AuthPrimaryButton type="submit" disabled={!step3Ready || busy}>
+            <AuthPrimaryButton type="submit" loading={submitting} disabled={!step3Ready || busy}>
               {submitting ? "Salvando..." : "Redefinir senha"}
             </AuthPrimaryButton>
           </AuthStepNav>
