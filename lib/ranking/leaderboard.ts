@@ -37,7 +37,7 @@ import {
   resolveCurrentExtraRound,
 } from "@/lib/football/extras-rodada";
 import { effectiveExtraRoundForPaidTicket } from "@/lib/ticket-shop-extra-display";
-import { calculatePrizePoolCents } from "@/lib/prizes/distribution";
+import { calculatePrizePoolCents, DAILY_TOP_RANK_COUNT } from "@/lib/prizes/distribution";
 import { clampAvatarIndex } from "@/lib/auth/avatar-index";
 import {
   dedupeLatestPredictions,
@@ -892,7 +892,7 @@ async function buildLeaderboardDiarioUncached(focusTicketId: string): Promise<{ 
     .filter((t) => cohortTicketIdSet.has(t.id))
     .reduce((s, t) => s + t.total_amount_cents, 0);
   const participantCount = sortedTickets.length;
-  const poolCentsApprox = calculatePrizePoolCents(revenueCents);
+  const poolCentsApprox = calculatePrizePoolCents(revenueCents, "daily");
 
   const nextPalpiteLockMs = computeNextPalpiteLockMs(matches, (m) => {
     if (!m.dateBR) return false;
@@ -900,7 +900,7 @@ async function buildLeaderboardDiarioUncached(focusTicketId: string): Promise<{ 
     return editionDates.has(m.dateBR);
   }, palpiteLockBeforeKickoffMs("diario"));
 
-  const approxPremiados = Math.max(1, Math.ceil(participantCount / 10));
+  const approxPremiados = Math.min(DAILY_TOP_RANK_COUNT, Math.max(participantCount > 0 ? 1 : 0, participantCount));
   const hasResultedMatchesInPool = poolHasAnyResultedMatch(cohortPreds, matches, cohortTicketIds, mainComp);
   const hasLiveMatchesInPool = poolHasLiveMatch(
     cohortPreds,

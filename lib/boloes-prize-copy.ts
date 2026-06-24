@@ -56,7 +56,11 @@ export const SHOWCASE_PRIZES: Record<
     first: "R$ 180.000",
     firstPlaceLine: PRINCIPAL_MILHAO_FIRST_PLACE_LINE,
   },
-  diario: { total: "R$ 10.000", first: "R$ 5.000" },
+  diario: {
+    total: "100% arrecadado",
+    first: "R$ 35.000",
+    firstPlaceLine: "Bolão Diário: 100% da arrecadação dividida entre o Top 10 (1º leva 35%).",
+  },
   extra: { total: "R$ 10.000", first: "R$ 1.000" },
   artilheiros: {
     total: "ATÉ 100 PTS",

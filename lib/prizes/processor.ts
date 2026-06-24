@@ -578,7 +578,7 @@ async function processClosure(
     dailyEditionNumber: input.dailyEditionNumber,
   });
   const totalRevenueCents = tickets.reduce((sum, ticket) => sum + Number(ticket.total_amount_cents || 0), 0);
-  const poolCents = calculatePrizePoolCents(totalRevenueCents);
+  const poolCents = calculatePrizePoolCents(totalRevenueCents, input.type);
   if (tickets.length === 0 || poolCents <= 0) return;
 
   const closureId = await insertClosure(client, {
