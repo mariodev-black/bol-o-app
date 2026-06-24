@@ -5,6 +5,10 @@ import { useEffect, useRef, useState } from "react";
 import { Users } from "lucide-react";
 import { getAvatarPresetImage } from "@/lib/user/avatar-presets";
 import type { PredictionBolaoType } from "@/lib/predictions";
+import {
+  isFinishedMatchStatus,
+  isLiveOrInProgressMatchStatus,
+} from "@/lib/palpites-match-open";
 
 const CARD = "#101010";
 const BORDER = "rgba(255,255,255,0.08)";
@@ -53,8 +57,21 @@ function relativeTime(ms: number): string {
   return `há ${Math.floor(d / 7)} sem`;
 }
 
-function hasResult(p: PlayerPalpite): boolean {
-  return p.resultCasa != null && p.resultVisitante != null;
+type PalpitePhase = "live" | "finished" | "pending";
+
+/**
+ * Fase da partida para o badge. Um jogo AO VIVO já tem placar parcial
+ * (ex.: 0×0), então NÃO pode ser tratado como "Deu X×Y" (final). Usamos o
+ * `status` para distinguir andamento de encerrado.
+ */
+function matchPhase(p: PlayerPalpite): PalpitePhase {
+  const status = p.status ?? "";
+  const temPlacar = p.resultCasa != null && p.resultVisitante != null;
+  if (isLiveOrInProgressMatchStatus(status)) return "live";
+  if (isFinishedMatchStatus(status) && temPlacar) return "finished";
+  // Sem status confiável: só considera final se houver placar e não estiver ao vivo.
+  if (!status && temPlacar) return "finished";
+  return "pending";
 }
 
 function Avatar({
@@ -97,11 +114,12 @@ function TeamCrest({ logo, name }: { logo: string | null; name: string }) {
 }
 
 function PalpiteCard({ p }: { p: PlayerPalpite }) {
-  const resulted = hasResult(p);
-  let exact = false;
-  if (resulted) {
-    exact = p.scoreCasa === p.resultCasa && p.scoreVisitante === p.resultVisitante;
-  }
+  const phase = matchPhase(p);
+  // "Cravou" só faz sentido com placar FINAL — nunca durante o jogo.
+  const exact =
+    phase === "finished" &&
+    p.scoreCasa === p.resultCasa &&
+    p.scoreVisitante === p.resultVisitante;
   return (
     <div
       className="rounded-2xl border px-3.5 py-3"
@@ -121,7 +139,20 @@ function PalpiteCard({ p }: { p: PlayerPalpite }) {
             {relativeTime(p.submittedAtMs)}
           </p>
         </div>
-        {resulted ? (
+        {phase === "live" ? (
+          <span
+            className="flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wide"
+            style={{ background: "rgba(255,69,69,0.16)", color: "#ff6b6b" }}
+          >
+            <span className="relative flex size-1.5">
+              <span className="absolute inline-flex size-full animate-ping rounded-full bg-[#ff6b6b] opacity-75" />
+              <span className="relative inline-flex size-1.5 rounded-full bg-[#ff6b6b]" />
+            </span>
+            {p.resultCasa != null && p.resultVisitante != null
+              ? `Ao vivo ${p.resultCasa}×${p.resultVisitante}`
+              : "Ao vivo"}
+          </span>
+        ) : phase === "finished" ? (
           <span
             className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wide"
             style={

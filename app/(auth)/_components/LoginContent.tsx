@@ -209,7 +209,7 @@ export function LoginContent({
       </Link>
 
       <div className="mt-6">
-        <AuthPrimaryButton type="submit" disabled={!canSubmit}>
+        <AuthPrimaryButton type="submit" loading={loading} disabled={!canSubmit}>
           {loading ? "Entrando..." : "Entrar"}
         </AuthPrimaryButton>
       </div>

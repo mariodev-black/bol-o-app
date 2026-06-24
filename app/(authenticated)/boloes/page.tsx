@@ -13,6 +13,7 @@ import {
 import { fetchMatchesMap, type MatchMapEntry } from "@/lib/football-api";
 import { BoloesClient, type BoloesScreenData } from "@/app/(authenticated)/boloes/BoloesClient";
 import { BoloesPurchaseSync } from "@/app/(authenticated)/boloes/_components/BoloesPurchaseSync";
+import { BoloesLoadingSkeleton } from "@/app/(authenticated)/boloes/loading";
 import { getFootballMainCompetitionId, getSoleConfiguredExtraChampionshipId, parseExtraBolaoChampionshipIds } from "@/lib/boloes-extra-config";
 import {
   ensureSkaleBolaoMatchesMirrored,
@@ -294,8 +295,13 @@ function bolaoStatusFromMetrics(
 async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
   const configuredExtraIds = parseExtraBolaoChampionshipIds();
   const mainComp = getFootballMainCompetitionId();
-  await ensureSkaleBolaoMatchesMirrored();
-  await ensureWeekendBolaoMatchesMirrored();
+  // Os dois espelhamentos (Skale/Weekend a partir da Copa) são independentes —
+  // rodam em paralelo. Mantemos o await aqui porque o fetchMatchesMap abaixo
+  // lê o que eles escrevem (read-after-write).
+  await Promise.all([
+    ensureSkaleBolaoMatchesMirrored().catch(() => {}),
+    ensureWeekendBolaoMatchesMirrored().catch(() => {}),
+  ]);
   const preloadCompIds = [
     ...new Set([mainComp, ...configuredExtraIds, ...skaleCompetitionIdsForMatchMap()]),
   ];
@@ -983,28 +989,60 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
   return data;
 }
 
+/**
+ * Carrega os dados (lentos — banco remoto) e renderiza a tela. Fica isolado
+ * num componente async para que a página possa STREAMAR: o shell + skeleton
+ * aparecem na hora e este conteúdo entra quando os dados resolvem.
+ */
+async function BoloesData({
+  userId,
+  ticketsExtraOnly,
+  ticketsHideDaily,
+}: {
+  userId: string;
+  ticketsExtraOnly: boolean;
+  ticketsHideDaily: boolean;
+}) {
+  const data = await loadBoloesData(userId).catch((err) => {
+    console.error("[boloes] failed to load screen data", err);
+    return null;
+  });
+  return (
+    <BoloesClient
+      data={data}
+      ticketsExtraOnly={ticketsExtraOnly}
+      ticketsHideDaily={ticketsHideDaily}
+    />
+  );
+}
+
 export default async function BoloesPage() {
   const token = (await cookies()).get(sessionCookieName())?.value;
   const userId = token ? await verifySessionToken(token).catch(() => null) : null;
   debugBoloes("request", { hasToken: Boolean(token), userId });
-  const data = userId
-    ? await loadBoloesData(userId).catch((err) => {
-        console.error("[boloes] failed to load screen data", err);
-        return null;
-      })
-    : null;
   const { ticketsExtraOnly, ticketsHideDaily } = getTicketShopFlags();
-  if (!userId) debugBoloes("no authenticated user", {});
+  if (!userId) {
+    debugBoloes("no authenticated user", {});
+    return (
+      <BoloesClient
+        data={null}
+        ticketsExtraOnly={ticketsExtraOnly}
+        ticketsHideDaily={ticketsHideDaily}
+      />
+    );
+  }
   return (
     <>
       <Suspense fallback={null}>
         <BoloesPurchaseSync />
       </Suspense>
-      <BoloesClient
-        data={data}
-        ticketsExtraOnly={ticketsExtraOnly}
-        ticketsHideDaily={ticketsHideDaily}
-      />
+      <Suspense fallback={<BoloesLoadingSkeleton />}>
+        <BoloesData
+          userId={userId}
+          ticketsExtraOnly={ticketsExtraOnly}
+          ticketsHideDaily={ticketsHideDaily}
+        />
+      </Suspense>
     </>
   );
 }

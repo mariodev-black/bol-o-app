@@ -447,7 +447,7 @@ export function CadastrarContent({
             }}
             backDisabled={busy}
           >
-            <AuthPrimaryButton type="submit" disabled={busy}>
+            <AuthPrimaryButton type="submit" loading={loading} disabled={busy}>
               {loading ? "Criando conta..." : "Finalizar cadastro"}
             </AuthPrimaryButton>
           </AuthStepNav>
