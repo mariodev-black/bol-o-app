@@ -4,6 +4,7 @@ import {
   SQL_TICKET_PAID_BARE,
   SQL_TICKET_PROMO_BARE,
 } from "@/lib/admin/ticket-count-sql";
+import { formatAdminTicketLabel } from "@/lib/admin/format";
 import { getPool } from "@/lib/db";
 
 export type AdminUserListItem = {
@@ -26,6 +27,7 @@ export type AdminUserListItem = {
 
 export type AdminUserTicketItem = {
   id: string;
+  displayName: string;
   ticketType: string;
   status: string;
   totalAmountCents: number;
@@ -227,6 +229,9 @@ export async function getAdminUserDetail(userId: string): Promise<AdminUserDetai
     pool.query<{
     id: string;
     ticket_type: string;
+    extra_championship_id: number | null;
+    round_number: number | null;
+    bolao_definition_name: string | null;
     status: string;
     total_amount_cents: number;
     predictions_count: string | number;
@@ -236,6 +241,9 @@ export async function getAdminUserDetail(userId: string): Promise<AdminUserDetai
     `SELECT
        t.id,
        t.ticket_type,
+       t.extra_championship_id,
+       t.round_number,
+       bd.display_name AS bolao_definition_name,
        t.status,
        t.total_amount_cents,
        COUNT(p.id) AS predictions_count,
@@ -243,8 +251,10 @@ export async function getAdminUserDetail(userId: string): Promise<AdminUserDetai
        t.created_at
      FROM tickets t
      LEFT JOIN predictions p ON p.ticket_id::text = t.id::text
+     LEFT JOIN bolao_definitions bd ON bd.id = t.bolao_definition_id
      WHERE t.user_id::text = $1::text
-     GROUP BY t.id
+     GROUP BY t.id, t.ticket_type, t.extra_championship_id, t.round_number, bd.display_name,
+              t.status, t.total_amount_cents, t.paid_at, t.created_at
      ORDER BY t.created_at DESC
      LIMIT 80`,
     [userId]
@@ -305,6 +315,12 @@ export async function getAdminUserDetail(userId: string): Promise<AdminUserDetai
     commissionsCents: Number(row.commissions_cents ?? 0),
     tickets: ticketRows.map((ticket) => ({
       id: ticket.id,
+      displayName: formatAdminTicketLabel({
+        ticketType: ticket.ticket_type,
+        extraChampionshipId: ticket.extra_championship_id,
+        roundNumber: ticket.round_number,
+        bolaoDefinitionName: ticket.bolao_definition_name,
+      }),
       ticketType: ticket.ticket_type,
       status: ticket.status,
       totalAmountCents: ticket.total_amount_cents,

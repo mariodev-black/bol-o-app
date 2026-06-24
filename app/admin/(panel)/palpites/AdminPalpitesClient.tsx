@@ -2,20 +2,13 @@
 
 import { AdminTableScroll } from "@/app/admin/_components/AdminTableScroll";
 
-import { formatAdminTicketType } from "@/lib/admin/format";
 import type { AdminPredictionListItem } from "@/lib/admin/sections";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 const PAGE_SIZE = 50;
-
-function normalize(value: string | null | undefined) {
-  return String(value ?? "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
-}
+const SEARCH_DEBOUNCE_MS = 350;
 
 function shortId(id: string) {
   return id.slice(0, 8).toUpperCase();
@@ -64,52 +57,93 @@ function TeamLogo({ src, alt }: { src: string | null; alt: string }) {
   );
 }
 
-export function AdminPalpitesClient({ predictions }: { predictions: AdminPredictionListItem[] }) {
+export function AdminPalpitesClient({
+  initialPredictions,
+}: {
+  initialPredictions: AdminPredictionListItem[];
+}) {
   const [query, setQuery] = useState("");
+  const [predictions, setPredictions] = useState(initialPredictions);
+  const [loading, setLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const searchSeq = useRef(0);
 
-  const filteredPredictions = useMemo(() => {
-    const q = normalize(query);
-    if (!q) return predictions;
-    return predictions.filter((prediction) => {
-      const haystack = [
-        prediction.userName,
-        prediction.userEmail,
-        prediction.ticketId,
-        prediction.homeName,
-        prediction.awayName,
-        prediction.matchId,
-        prediction.bolaoType,
-        prediction.ticketType,
-      ].map((item) => normalize(String(item ?? ""))).join(" ");
-      return haystack.includes(q);
-    });
-  }, [predictions, query]);
-
-  const visiblePredictions = useMemo(
-    () => filteredPredictions.slice(0, visibleCount),
-    [filteredPredictions, visibleCount]
-  );
-  const hasMore = visibleCount < filteredPredictions.length;
+  const trimmedQuery = query.trim();
+  const isSearching = trimmedQuery.length > 0;
 
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
-  }, [query]);
+  }, [query, predictions]);
+
+  useEffect(() => {
+    if (!trimmedQuery) {
+      setSearchError(null);
+      setLoading(false);
+      setPredictions(initialPredictions);
+    }
+  }, [trimmedQuery, initialPredictions]);
+
+  useEffect(() => {
+    if (!trimmedQuery) return;
+
+    const seq = ++searchSeq.current;
+    setLoading(true);
+    setSearchError(null);
+    setPredictions([]);
+
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const params = new URLSearchParams({
+            q: trimmedQuery,
+            limit: "2000",
+          });
+          const response = await fetch(`/api/admin/palpites?${params}`, {
+            credentials: "include",
+          });
+          const data = (await response.json().catch(() => ({}))) as {
+            predictions?: AdminPredictionListItem[];
+            error?: string;
+          };
+          if (seq !== searchSeq.current) return;
+          if (!response.ok) {
+            throw new Error(data.error ?? "Falha na busca");
+          }
+          setPredictions(data.predictions ?? []);
+        } catch (err) {
+          if (seq !== searchSeq.current) return;
+          setSearchError(err instanceof Error ? err.message : "Erro na busca");
+          setPredictions([]);
+        } finally {
+          if (seq === searchSeq.current) setLoading(false);
+        }
+      })();
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [trimmedQuery]);
+
+  const visiblePredictions = useMemo(() => {
+    if (loading && isSearching) return [];
+    return predictions.slice(0, visibleCount);
+  }, [predictions, visibleCount, loading, isSearching]);
+  const hasMore = visibleCount < predictions.length;
 
   useEffect(() => {
     const node = loadMoreRef.current;
-    if (!node || !hasMore) return;
+    if (!node || !hasMore || loading) return;
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (!entry?.isIntersecting) return;
-        setVisibleCount((current) => Math.min(current + PAGE_SIZE, filteredPredictions.length));
+        setVisibleCount((current) => Math.min(current + PAGE_SIZE, predictions.length));
       },
-      { rootMargin: "240px 0px" }
+      { rootMargin: "240px 0px" },
     );
     observer.observe(node);
     return () => observer.disconnect();
-  }, [filteredPredictions.length, hasMore, visibleCount]);
+  }, [predictions.length, hasMore, visibleCount, loading]);
 
   return (
     <>
@@ -122,10 +156,20 @@ export function AdminPalpitesClient({ predictions }: { predictions: AdminPredict
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Nome, email, cota, time ou partida"
+              placeholder="Email, nome, cota, time ou partida"
               className="h-12 w-full rounded-[12px] border border-white/10 bg-black/40 px-4 text-[14px] font-semibold text-white outline-none transition-colors placeholder:text-white/25 focus:border-primary/45"
             />
           </label>
+          <p className="text-[12px] font-medium text-white/38">
+            {loading
+              ? "Buscando no banco..."
+              : isSearching
+                ? `${predictions.length.toLocaleString("pt-BR")} palpite(s) encontrado(s) para “${trimmedQuery}”`
+                : `Exibindo os ${initialPredictions.length} palpites mais recentes. Digite um email para ver todas as cotas do usuário.`}
+          </p>
+          {searchError ? (
+            <p className="text-[12px] font-semibold text-red-300">{searchError}</p>
+          ) : null}
         </div>
       </section>
 
@@ -133,7 +177,7 @@ export function AdminPalpitesClient({ predictions }: { predictions: AdminPredict
         <div className="border-b border-white/8 px-5 py-4">
           <h2 className="text-[15px] font-black text-white">Todos os palpites</h2>
           <p className="mt-1 text-[12px] font-medium text-white/38">
-            Lista completa de palpites enviados, vinculados ao usuário, cota e partida.
+            Lista de palpites enviados, vinculados ao usuário, cota e partida.
           </p>
         </div>
         <AdminTableScroll>
@@ -163,8 +207,8 @@ export function AdminPalpitesClient({ predictions }: { predictions: AdminPredict
                   <td className="px-4 py-4">
                     <Link href={`/admin/cotas/${prediction.ticketId}`} className="block">
                       <p className="font-mono text-[12px] font-black text-white group-hover:text-primary">#{shortId(prediction.ticketId)}</p>
-                      <p className="mt-1 text-[14px] font-bold uppercase text-white/80">
-                        {formatAdminTicketType(prediction.ticketType)}
+                      <p className="mt-1 truncate text-[13px] font-bold text-white/80">
+                        {prediction.ticketLabel}
                       </p>
                     </Link>
                   </td>
@@ -211,13 +255,18 @@ export function AdminPalpitesClient({ predictions }: { predictions: AdminPredict
               ))}
             </tbody>
           </table>
-          {filteredPredictions.length === 0 ? (
+          {!loading && predictions.length === 0 ? (
             <div className="px-5 py-12 text-center">
               <p className="text-[15px] font-black text-white">Nenhum palpite encontrado</p>
               <p className="mt-2 text-[13px] text-white/38">Ajuste a busca para ver outros resultados.</p>
             </div>
           ) : null}
-          {filteredPredictions.length > 0 ? (
+          {loading ? (
+            <div className="px-5 py-12 text-center">
+              <p className="text-[13px] font-bold text-white/45">Carregando palpites...</p>
+            </div>
+          ) : null}
+          {predictions.length > 0 && !loading ? (
             <div ref={loadMoreRef} className="border-t border-white/8 px-5 py-5 text-center">
               <p className="text-[12px] font-bold text-white/38">
                 {hasMore ? `Carregando mais palpites de ${PAGE_SIZE} em ${PAGE_SIZE}...` : "Todos os palpites foram exibidos."}

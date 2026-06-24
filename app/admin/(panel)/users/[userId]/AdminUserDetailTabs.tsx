@@ -7,6 +7,7 @@ import { AdminTableScroll } from "@/app/admin/_components/AdminTableScroll";
 import {
   formatAdminBRL,
   formatAdminDateTime,
+  formatAdminTicketShortId,
   formatAdminTicketType,
   maskAdminCpf,
 } from "@/lib/admin/format";
@@ -434,8 +435,9 @@ export function AdminUserDetailTabs({
                     {visibleTickets.map((ticket) => (
                       <tr key={ticket.id} className="group text-[13px] text-white/72 transition-colors hover:bg-white/2.5">
                         <td className="px-4 py-4">
-                          <Link href={`/admin/cotas/${ticket.id}`} className="block font-mono text-[11px] text-white/80 group-hover:text-primary">
-                            {ticket.id}
+                          <Link href={`/admin/cotas/${ticket.id}`} className="block">
+                            <p className="font-black text-white group-hover:text-primary">{ticket.displayName}</p>
+                            <p className="mt-1 font-mono text-[11px] text-white/35">{formatAdminTicketShortId(ticket.id)}</p>
                           </Link>
                         </td>
                         <td className="px-4 py-4 font-bold uppercase text-white/58">

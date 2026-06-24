@@ -5,7 +5,7 @@ import { AdminPalpitesClient } from "./AdminPalpitesClient";
 export default async function AdminPalpitesPage() {
   const [stats, predictions] = await Promise.all([
     getAdminPredictionStats(),
-    listAdminPredictions(),
+    listAdminPredictions({ limit: 100 }),
   ]);
   const cards = [
     { label: "Palpites enviados", value: stats.predictionsCount.toLocaleString("pt-BR") },
@@ -24,7 +24,7 @@ export default async function AdminPalpitesPage() {
           </article>
         ))}
       </div>
-      <AdminPalpitesClient predictions={predictions} />
+      <AdminPalpitesClient initialPredictions={predictions} />
     </>
   );
 }
