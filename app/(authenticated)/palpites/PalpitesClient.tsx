@@ -3618,6 +3618,10 @@ function PalpitesPageContent({
 
   useEffect(() => {
     if ((bolaoType !== "diario" && bolaoType !== "extra") || jogos.length === 0) return;
+    // Se já há uma data selecionada, a rodada é derivada DELA (handleDateChange /
+    // efeito de init). Não sobrescrever aqui, senão a rodada e a data discordam
+    // (ex.: data de um dia que tem jogos de 2 rodadas) e o filtro zera a lista.
+    if (selectedDate) return;
     const lockIds = Object.keys(predictionsMap).map(Number).filter(Number.isFinite);
     const extraId = bolaoType === "extra" ? resolvedExtraChampionshipId : null;
     const map =
@@ -3634,7 +3638,7 @@ function PalpitesPageContent({
     );
     if (rodadaContem != null)
       setSelectedRodada((prev) => (prev === rodadaContem ? prev : rodadaContem));
-  }, [bolaoType, jogos, predictionsMap, resolvedExtraChampionshipId]);
+  }, [bolaoType, jogos, predictionsMap, resolvedExtraChampionshipId, selectedDate]);
 
   const jogosPlacarSignature = useMemo(
     () =>
@@ -3906,10 +3910,19 @@ function PalpitesPageContent({
   /**
    * Classificação ao vivo computada dos jogos. Tem prioridade sobre a tabela
    * externa (`tabela`), que fica como fallback quando ainda não há resultados.
+   *
+   * SÓ é calculada no CLIENTE (após montar). No SSR e no 1º render de hidratação
+   * mantém-se `null`, evitando hydration mismatch: a ordem da classificação
+   * depende de placares que mudam entre servidor e cliente, e um mismatch fazia
+   * o React descartar e remontar a árvore (a tela "zerava").
    */
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
   const tabelaComputada = useMemo(
-    () => computeTabelaFromJogos(jogosDisplayBase),
-    [jogosDisplayBase],
+    () => (hydrated ? computeTabelaFromJogos(jogosDisplayBase) : null),
+    [hydrated, jogosDisplayBase],
   );
 
   const hasEditableMatches = jogosEscopoVisivel.some((j) =>
@@ -5045,7 +5058,7 @@ function PalpitesPageContent({
           <div className="hidden lg:block">
             <DesktopSidebar
               grupo={grupo}
-              tabela={tabela}
+              tabela={tabelaComputada ?? tabela}
               grupos={grupos}
               onGrupo={setGrupo}
               rankingBoardRows={rankingBoardRows}
