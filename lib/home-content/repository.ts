@@ -112,6 +112,28 @@ export async function deleteHomeBanner(id: string): Promise<boolean> {
   return (rowCount ?? 0) > 0;
 }
 
+/** Aplica uma nova ordem (lista de ids na ordem desejada), numa transação. */
+export async function reorderHomeBanners(orderedIds: string[]): Promise<void> {
+  await ensureHomeContentSchema();
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    for (let i = 0; i < orderedIds.length; i++) {
+      await client.query(
+        `UPDATE home_banners SET sort_order = $2, updated_at = now() WHERE id = $1`,
+        [orderedIds[i], i],
+      );
+    }
+    await client.query("COMMIT");
+  } catch (e) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
 export async function setHomeBannerImage(
   id: string,
   data: Buffer,
@@ -282,6 +304,27 @@ export async function deleteHomeBolaoCard(id: string): Promise<boolean> {
   const pool = getPool();
   const { rowCount } = await pool.query(`DELETE FROM home_bolao_cards WHERE id = $1`, [id]);
   return (rowCount ?? 0) > 0;
+}
+
+export async function reorderHomeBolaoCards(orderedIds: string[]): Promise<void> {
+  await ensureHomeContentSchema();
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    for (let i = 0; i < orderedIds.length; i++) {
+      await client.query(
+        `UPDATE home_bolao_cards SET sort_order = $2, updated_at = now() WHERE id = $1`,
+        [orderedIds[i], i],
+      );
+    }
+    await client.query("COMMIT");
+  } catch (e) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw e;
+  } finally {
+    client.release();
+  }
 }
 
 export async function setHomeBolaoCardImage(

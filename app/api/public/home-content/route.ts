@@ -19,7 +19,8 @@ export async function GET() {
     ]);
     return NextResponse.json(
       { banners, cards },
-      { headers: { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" } },
+      // Cache curto: mudanças do admin aparecem em ~10s ao recarregar a home.
+      { headers: { "Cache-Control": "public, max-age=10, stale-while-revalidate=60" } },
     );
   } catch (e) {
     console.error("[public/home-content]", e);
