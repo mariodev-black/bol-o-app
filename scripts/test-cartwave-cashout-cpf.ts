@@ -23,11 +23,10 @@ import {
   isCartwaveConfigured,
 } from "@/lib/payments/cartwave/config";
 import { pixKeyForCartwave } from "@/lib/payments/cartwave/cashout";
-import {
-  buildCartwaveFailureMessage,
-  readCartwaveHttpFailure,
-} from "@/lib/payments/cartwave/errors";
+import { buildCartwaveFailureMessage, readCartwaveHttpFailure } from "@/lib/payments/cartwave/errors";
 import { cartwaveNormalizeJsonBody, cartwaveSignBody } from "@/lib/payments/cartwave/hmac";
+import { cartwaveFetch } from "@/lib/payments/cartwave/http";
+import { runCartwaveNetworkDiagnostics } from "@/lib/payments/cartwave/network-diagnostics";
 import { minAffiliateWithdrawalCents } from "@/lib/referrals/withdraw";
 
 function onlyDigits(value: string): string {
@@ -76,16 +75,6 @@ function printJson(label: string, value: unknown) {
   console.log(JSON.stringify(value, null, 2));
 }
 
-async function fetchPublicIp(): Promise<string | null> {
-  try {
-    const res = await fetch("https://api.ipify.org?format=json", { signal: AbortSignal.timeout(8000) });
-    const data = (await res.json()) as { ip?: string };
-    return data.ip ?? null;
-  } catch {
-    return null;
-  }
-}
-
 async function testAuth() {
   const baseUrl = cartwaveApiBaseUrl().replace(/\/$/, "");
   const url = `${baseUrl}/v2/finance/auth-token/`;
@@ -94,11 +83,18 @@ async function testAuth() {
     client_secret: cartwaveClientSecret(),
   };
 
-  section("1) AUTH CARTWAVE");
+  section("0) REDE / IPv4 (diagnostico Cartwave)");
+  const network = await runCartwaveNetworkDiagnostics();
+  printJson("NETWORK", network);
+  for (const hint of network.hints) {
+    console.log(`  • ${hint}`);
+  }
+
+  section("1) AUTH CARTWAVE (via cartwaveFetch — IPv4 fixo)");
   printJson("REQUEST URL", { method: "POST", url });
   printJson("REQUEST BODY", body);
 
-  const res = await fetch(url, {
+  const res = await cartwaveFetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -235,7 +231,7 @@ async function testCashout(input: {
     "User-Agent": "bol-o-app/cartwave-test-script",
   });
 
-  const res = await fetch(url, {
+  const res = await cartwaveFetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -280,7 +276,6 @@ async function testCashout(input: {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  const outboundIp = await fetchPublicIp();
 
   section("CARTWAVE — CREDENCIAIS (.env)");
   printJson("ENV", {
@@ -294,7 +289,7 @@ async function main() {
       process.env.CARTWAVE_CASHOUT_PIX_SELF_APPROVE_PATH ??
       "/v2/finance/create-cashout-self-approve",
     CARTWAVE_WEBHOOK_SECRET: process.env.CARTWAVE_WEBHOOK_SECRET ?? "(vazio)",
-    outboundPublicIp: outboundIp,
+    CARTWAVE_OUTBOUND_IPV4: process.env.CARTWAVE_OUTBOUND_IPV4 ?? "(vazio — risco IPv6)",
   });
 
   if (!isCartwaveConfigured()) {
