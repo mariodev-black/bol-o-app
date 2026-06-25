@@ -23,6 +23,8 @@
     "daily:dispatch-prizes": "tsx --tsconfig tsconfig.scripts.json scripts/dispatch-daily-edition-prizes.ts",
     "cartwave:test-cashout": "tsx --tsconfig tsconfig.scripts.json scripts/test-cartwave-cashout-cpf.ts",
     "cartwave:webhook-migration": "tsx --tsconfig tsconfig.scripts.json scripts/run-cartwave-webhook-migration.ts",
+    "cartwave:withdrawal-status-migration": "tsx --tsconfig tsconfig.scripts.json scripts/run-withdrawal-status-migration.ts",
+    "cartwave:repair-withdrawal-status": "tsx --tsconfig tsconfig.scripts.json scripts/repair-withdrawal-cartwave-status.ts",
     "debug:ranking-sql": "tsx --tsconfig tsconfig.scripts.json scripts/debug-ranking-sql.ts",
     "rank:extra-top100": "tsx --tsconfig tsconfig.scripts.json scripts/list-extra-ranking-top100.ts",
     "promo:milhao-gift": "tsx --tsconfig tsconfig.scripts.json scripts/dispatch-extra-round-milhao-gift.ts",

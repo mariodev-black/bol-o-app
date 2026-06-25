@@ -9,6 +9,12 @@ import {
 } from "@/lib/payments/cartwave/webhook-types";
 import { creditWithdrawalBalance } from "@/lib/referrals/withdrawRefund";
 import type { WithdrawalBalanceSource } from "@/lib/referrals/withdrawSource";
+import { ensureWithdrawalStatusConstraint } from "@/lib/referrals/withdrawSchema";
+import {
+  isTerminalWithdrawalStatus,
+  nextCartwaveStatus,
+  nextWithdrawalStatus,
+} from "@/lib/referrals/withdrawStatus";
 
 export type CartwaveWebhookHandleResult = {
   ok: boolean;
@@ -19,6 +25,7 @@ export type CartwaveWebhookHandleResult = {
 };
 
 async function ensureWebhookSchema(client: PoolClient): Promise<void> {
+  await ensureWithdrawalStatusConstraint(client);
   await client.query(`
     ALTER TABLE affiliate_withdrawal_requests
       ADD COLUMN IF NOT EXISTS cartwave_end_to_end text,
@@ -53,6 +60,7 @@ async function findWithdrawalRow(
   amount_cents: number;
   balance_source: string | null;
   status: string;
+  cartwave_status: string | null;
 } | null> {
   const tagId = parseWithdrawalIdFromCartwaveTag(data.tag);
   if (tagId) {
@@ -62,8 +70,9 @@ async function findWithdrawalRow(
       amount_cents: number;
       balance_source: string | null;
       status: string;
+      cartwave_status: string | null;
     }>(
-      `SELECT id, user_id, amount_cents, balance_source, status
+      `SELECT id, user_id, amount_cents, balance_source, status, cartwave_status
        FROM affiliate_withdrawal_requests
        WHERE id = $1::uuid
        LIMIT 1`,
@@ -79,8 +88,9 @@ async function findWithdrawalRow(
       amount_cents: number;
       balance_source: string | null;
       status: string;
+      cartwave_status: string | null;
     }>(
-      `SELECT id, user_id, amount_cents, balance_source, status
+      `SELECT id, user_id, amount_cents, balance_source, status, cartwave_status
        FROM affiliate_withdrawal_requests
        WHERE cartwave_transaction_id = $1
        LIMIT 1`,
@@ -154,9 +164,18 @@ async function applyCashoutEvent(
     endToEnd?: string | null;
     setProcessedAt?: boolean;
   }) => {
+    const nextStatus =
+      extra.status != null
+        ? nextWithdrawalStatus(row.status, extra.status as "processing" | "paid" | "failed" | "refunded")
+        : row.status;
+    const nextCartwave =
+      extra.cartwaveStatus != null
+        ? nextCartwaveStatus(row.cartwave_status, extra.cartwaveStatus)
+        : row.cartwave_status;
+
     await client.query(
       `UPDATE affiliate_withdrawal_requests
-       SET status = COALESCE($2, status),
+       SET status = $2,
            cartwave_transaction_id = COALESCE($3, cartwave_transaction_id),
            cartwave_status = COALESCE($4, cartwave_status),
            cartwave_end_to_end = COALESCE($5, cartwave_end_to_end),
@@ -166,9 +185,9 @@ async function applyCashoutEvent(
        WHERE id = $1::uuid`,
       [
         row.id,
-        extra.status ?? null,
+        nextStatus,
         typeof data.transaction_id === "number" ? data.transaction_id : null,
-        extra.cartwaveStatus ?? data.status ?? null,
+        nextCartwave,
         extra.endToEnd ?? null,
         JSON.stringify({ lastWebhook: fullPayload }),
         JSON.stringify(webhookMeta),
@@ -180,7 +199,7 @@ async function applyCashoutEvent(
   switch (eventType) {
     case "PIX_CASHOUT_CREATED":
       await baseUpdate({
-        status: row.status === "pending" ? "processing" : row.status,
+        status: isTerminalWithdrawalStatus(row.status) ? row.status : "processing",
         cartwaveStatus: data.status ?? "NEW",
       });
       return { ok: true, eventType, action: "updated", withdrawalId: row.id };

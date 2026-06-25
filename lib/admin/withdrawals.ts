@@ -4,6 +4,7 @@ import { isCartwaveConfigured } from "@/lib/payments/cartwave/config";
 import { createCartwavePixCashoutSelfApprove } from "@/lib/payments/cartwave/cashout";
 import type { WithdrawalBalanceSource } from "@/lib/referrals/withdrawSource";
 import { creditWithdrawalBalance } from "@/lib/referrals/withdrawRefund";
+import { ensureWithdrawalStatusConstraint } from "@/lib/referrals/withdrawSchema";
 import { isUuidString } from "@/lib/referrals/withdrawGuards";
 
 export type AdminWithdrawalRow = {
@@ -24,6 +25,7 @@ export type AdminWithdrawalRow = {
 };
 
 async function ensureWithdrawalSchema(client: PoolClient): Promise<void> {
+  await ensureWithdrawalStatusConstraint(client);
   await client.query(`
     ALTER TABLE affiliate_withdrawal_requests
       ADD COLUMN IF NOT EXISTS cartwave_transaction_id bigint,
@@ -199,20 +201,36 @@ export async function approveWithdrawalRequestById(
 
   const client2 = await pool.connect();
   try {
+    await ensureWithdrawalSchema(client2);
     await client2.query("BEGIN");
-    const { rowCount } = await client2.query(
+    const { rows: updated } = await client2.query<{ id: string; status: string }>(
       `UPDATE affiliate_withdrawal_requests
-       SET status = 'processing',
-           cartwave_transaction_id = $2,
-           cartwave_status = $3,
-           cartwave_response = $4::jsonb,
-           processed_at = now()
+       SET status = CASE WHEN status = 'pending' THEN 'processing' ELSE status END,
+           cartwave_transaction_id = COALESCE($2, cartwave_transaction_id),
+           cartwave_status = COALESCE($3, cartwave_status),
+           cartwave_response = COALESCE(cartwave_response, '{}'::jsonb) || $4::jsonb
        WHERE id = $1::uuid
-         AND status = 'pending'`,
+         AND status IN ('pending', 'processing', 'paid')
+       RETURNING id, status`,
       [id, cashout.transactionId, cashout.status, JSON.stringify(cashout.raw)],
     );
-    if (!rowCount) {
+    const saved = updated[0];
+    if (!saved) {
+      const existing = await client2.query<{ status: string; cartwave_transaction_id: number | null }>(
+        `SELECT status, cartwave_transaction_id
+         FROM affiliate_withdrawal_requests
+         WHERE id = $1::uuid`,
+        [id],
+      );
+      const row = existing.rows[0];
       await client2.query("ROLLBACK");
+      if (
+        row &&
+        (row.status === "paid" || row.status === "processing") &&
+        row.cartwave_transaction_id === cashout.transactionId
+      ) {
+        return { ok: true, cartwaveTransactionId: cashout.transactionId };
+      }
       return { ok: false, error: "Solicitacao ja processada por outro admin" };
     }
     await client2.query("COMMIT");
