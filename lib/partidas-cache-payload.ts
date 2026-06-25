@@ -4,50 +4,24 @@ import {
   getSkaleBolaoSourceCopaCompetitionId,
   isSkaleBolaoCompetition,
 } from "@/lib/boloes/skale-config";
+import {
+  isSkaleDailyBolaoCompetition,
+} from "@/lib/boloes/skale-daily-config";
+import {
+  getWeekendBolaoSourceCopaCompetitionId,
+  isWeekendBolaoCompetition,
+} from "@/lib/boloes/weekend-bolao-config";
 import { isAmistososFriendliesCompetition } from "@/lib/football/amistosos-friendlies";
 import { ensureAmistososFriendliesMatchesSeeded } from "@/lib/football/amistosos-friendlies-persistence";
 import { mirrorSkaleBolaoMatchesFromCopa } from "@/lib/football/skale-bolao-sync";
 import { bootstrapCompetitionCacheIfEmpty } from "@/lib/football/sync-orchestrator";
-import { pickScoreFromPartidaPayload } from "@/lib/partida-placar";
+import {
+  resolveMatchScoresFromCacheRow,
+  resolveMatchStatusFromCacheRow,
+} from "@/lib/match-cache-display";
 
 type NestedRounds = Record<string, Array<Record<string, unknown>>>;
 type PhaseMap = Record<string, NestedRounds | Record<string, NestedRounds>>;
-
-function isFinishedCacheStatus(status: string): boolean {
-  const s = status.trim().toLowerCase();
-  return (
-    s.includes("encerr") ||
-    s.includes("finaliz") ||
-    s.includes("cancel") ||
-    s.includes("adiad") ||
-    s.includes("suspens") ||
-    s.includes("interromp")
-  );
-}
-
-function isLiveProviderStatus(status: string): boolean {
-  const s = status.trim().toLowerCase();
-  if (!s || isFinishedCacheStatus(s)) return false;
-  return (
-    s.includes("vivo") ||
-    s.includes("andament") ||
-    s.includes("intervalo") ||
-    s.includes("em curso") ||
-    s.includes("pausad")
-  );
-}
-
-/** Prefere status ao vivo do payload quando a coluna cache ficou encerrada por engano. */
-function resolvePartidaStatus(row: CachedMatchRow): string {
-  const cacheStatus = String(row.status ?? "").trim();
-  const payloadStatus = String(
-    (row.provider_payload as Record<string, unknown> | null | undefined)?.status ?? "",
-  ).trim();
-  if (isFinishedCacheStatus(cacheStatus) && isLiveProviderStatus(payloadStatus)) {
-    return payloadStatus;
-  }
-  return cacheStatus || payloadStatus || "agendado";
-}
 
 function brDateFromIso(iso: string): string {
   const dt = new Date(iso);
@@ -88,8 +62,9 @@ export function rowToPartidaPayload(row: CachedMatchRow): Record<string, unknown
       : row.kickoff_at
         ? brHourFromIso(row.kickoff_at)
         : "--:--";
-  const status = resolvePartidaStatus(row);
+  const status = resolveMatchStatusFromCacheRow(row);
   const payload = row.provider_payload as Record<string, unknown> | null | undefined;
+  const { resultCasa, resultVisitante } = resolveMatchScoresFromCacheRow(row);
   const partidaBase: Record<string, unknown> = {
     partida_id: row.match_id,
     competition_id: row.competition_id,
@@ -97,8 +72,8 @@ export function rowToPartidaPayload(row: CachedMatchRow): Record<string, unknown
     data_realizacao: dateBR,
     hora_realizacao: hourBR,
     data_realizacao_iso: row.kickoff_at,
-    placar_mandante: row.result_casa,
-    placar_visitante: row.result_visitante,
+    placar_mandante: resultCasa,
+    placar_visitante: resultVisitante,
     rodada: row.rodada ?? null,
     round_key: row.round_key ?? null,
     time_mandante: {
@@ -115,10 +90,6 @@ export function rowToPartidaPayload(row: CachedMatchRow): Record<string, unknown
   if (payload) {
     if (payload.cronometro != null) partidaBase.cronometro = payload.cronometro;
     if (payload.periodo != null) partidaBase.periodo = payload.periodo;
-    const casa = pickScoreFromPartidaPayload({ ...payload, status }, "casa");
-    const visita = pickScoreFromPartidaPayload({ ...payload, status }, "visitante");
-    if (casa != null) partidaBase.placar_mandante = casa;
-    if (visita != null) partidaBase.placar_visitante = visita;
   }
   return partidaBase;
 }
@@ -160,8 +131,14 @@ export function buildPartidasFasesFromRows(rows: CachedMatchRow[]): PhaseMap {
  * sintético — evita UI atrasada quando o mirror 90007 não sincronizou ainda.
  */
 export function partidasCacheSourceCompetitionId(competitionId: number): number {
-  if (isSkaleBolaoCompetition(competitionId)) {
+  if (
+    isSkaleBolaoCompetition(competitionId) ||
+    isSkaleDailyBolaoCompetition(competitionId)
+  ) {
     return getSkaleBolaoSourceCopaCompetitionId();
+  }
+  if (isWeekendBolaoCompetition(competitionId)) {
+    return getWeekendBolaoSourceCopaCompetitionId();
   }
   return competitionId;
 }

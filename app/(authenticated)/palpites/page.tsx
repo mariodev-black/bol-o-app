@@ -6,13 +6,19 @@ import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 import { inferBolaoTypeFromTicketId } from "@/lib/ticket-kind-server";
 import { inferBolaoTypeFromTicketPrefix } from "@/lib/ticket-kind-shared";
 import { calcPredictionPoints, listPredictions } from "@/lib/predictions";
-import { fetchMatchesMap, getMatchFromMap } from "@/lib/football-api";
+import { fetchMatchesMap } from "@/lib/football-api";
+import { ensureCompetitionIdsForBolaoExtra } from "@/lib/boloes/match-cache-competition-id";
+import { resolveBolaoMatchFromMap } from "@/lib/boloes/skale-match-resolve";
 import { getPartidasFasesFromDb } from "@/lib/partidas-cache-payload";
 import { getFootballMainCompetitionId, getSoleConfiguredExtraChampionshipId } from "@/lib/boloes-extra-config";
 import { resolveExtraBolaoDisplayName } from "@/lib/boloes-extra-competition-branding";
 import { getPool } from "@/lib/db";
 import { parseKickoffFromPartidaPayload, pickScoreFromPartidaPayload } from "@/lib/partida-placar";
 import { hasOfficialMatchResult } from "@/lib/palpites-match-open";
+import {
+  formatRankingHistoricoLiveLabel,
+  isRankingHistoricoLive,
+} from "@/lib/ranking/historico-display";
 import { pickTabelaGruposForPalpites } from "@/lib/tabela-palpites-normalize";
 import { effectiveExtraRoundForPaidTicket, formatExtraRoundLabel } from "@/lib/ticket-shop-extra-display";
 import { ensureExtraRoundMatchesCached } from "@/lib/football/extras-rodada";
@@ -459,8 +465,12 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
             Number(extraChampionshipId) > 0
               ? Number(extraChampionshipId)
               : mainComp;
+          const ensureIds =
+            bolaoType === "extra"
+              ? ensureCompetitionIdsForBolaoExtra(histComp)
+              : [];
           const [matches, preds] = await Promise.all([
-            fetchMatchesMap(),
+            fetchMatchesMap({ ensureCompetitionIds: ensureIds }),
             listPredictions({ userId, ticketId: tid, bolaoType }),
           ]);
           const predictionsMap = preds.reduce(
@@ -484,7 +494,7 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
               const normalizedMatchId = Number.isFinite(matchId) ? matchId : null;
               const m =
                 normalizedMatchId != null
-                  ? getMatchFromMap(matches, histComp, normalizedMatchId)
+                  ? resolveBolaoMatchFromMap(matches, histComp, normalizedMatchId)
                   : undefined;
               const scored =
                 m != null &&
@@ -508,6 +518,15 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
                 acertos += calc.outcomeHit ? 1 : 0;
                 exatos += calc.exact ? 1 : 0;
               }
+              const matchInput = {
+                matchStatus: m?.status ?? null,
+                kickoffAt: m?.kickoffAt ?? null,
+                jogoData: m?.dateBR,
+                jogoHora: m?.hour,
+                resultadoCasa: m?.resultCasa ?? null,
+                resultadoVisitante: m?.resultVisitante ?? null,
+              };
+              const aoVivo = m ? isRankingHistoricoLive(matchInput) : false;
               return {
                 matchId: normalizedMatchId ?? p.match_id,
                 ticketId: p.ticket_id,
@@ -522,6 +541,10 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
                 resultadoVisitante: m?.resultVisitante ?? null,
                 pontos: calc?.points ?? 0,
                 exact: calc?.exact ?? false,
+                aoVivo,
+                liveLabel: aoVivo ? formatRankingHistoricoLiveLabel(matchInput) : null,
+                matchStatus: m?.status ?? null,
+                kickoffAt: m?.kickoffAt ?? null,
                 submittedAt: p.submitted_at.toISOString(),
                 updatedAt: p.updated_at.toISOString(),
               };

@@ -45,8 +45,8 @@ import {
 } from "@/lib/predictions/score-aggregate";
 import {
   hasOfficialMatchResult,
-  isLiveOrInProgressMatchStatus,
 } from "@/lib/palpites-match-open";
+import { isMatchLiveForDisplay } from "@/lib/palpites-live-display";
 import { isRankingFillerRow } from "@/lib/ranking/ranking-bots";
 import { isStoredAvatarUploadFilename } from "@/lib/user/avatar-filename";
 
@@ -440,32 +440,22 @@ function poolHasLiveMatch(
   competitionId: number,
   now = Date.now(),
 ): boolean {
-  for (const m of poolMatchesForPreds(
+  return poolMatchesForPreds(
     poolPreds,
     matches,
     allowedTicketIds,
     competitionId,
-  )) {
-    if (isLiveOrInProgressMatchStatus(String(m.status ?? ""))) return true;
-    if (
-      hasOfficialMatchResult(
-        {
-          status: m.status,
-          kickoffAt: m.kickoffAt,
-          resultCasa: m.resultCasa,
-          resultVisitante: m.resultVisitante,
-        },
-        now,
-      )
-    ) {
-      continue;
-    }
-    const kickoff = m.kickoffAt ? new Date(m.kickoffAt).getTime() : NaN;
-    if (Number.isFinite(kickoff) && kickoff <= now && !isFinishedStatus(m.status)) {
-      return true;
-    }
-  }
-  return false;
+  ).some((m) =>
+    isMatchLiveForDisplay(
+      {
+        status: m.status,
+        kickoffAt: m.kickoffAt,
+        resultCasa: m.resultCasa,
+        resultVisitante: m.resultVisitante,
+      },
+      now,
+    ),
+  );
 }
 
 export type LeaderboardRow = {
@@ -530,17 +520,19 @@ function poolMatchScoringProgress(
       finished += 1;
       continue;
     }
-    if (isLiveOrInProgressMatchStatus(String(m.status ?? ""))) {
+    if (
+      isMatchLiveForDisplay(
+        {
+          status: m.status,
+          kickoffAt: m.kickoffAt,
+          resultCasa: m.resultCasa,
+          resultVisitante: m.resultVisitante,
+        },
+        now,
+      )
+    ) {
       live += 1;
       continue;
-    }
-    if (hasScore) {
-      live += 1;
-      continue;
-    }
-    const kickoff = m.kickoffAt ? new Date(m.kickoffAt).getTime() : NaN;
-    if (Number.isFinite(kickoff) && kickoff <= now && !isFinishedStatus(m.status)) {
-      live += 1;
     }
   }
   return { total: Math.max(1, total), finished, live };

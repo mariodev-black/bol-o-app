@@ -62,6 +62,13 @@ import {
   isMatchOpenForPalpite,
   palpiteEligibilityFromJogo,
 } from "@/lib/palpites-match-open";
+import {
+  getJogoCardPhase,
+  isMatchLiveForDisplay,
+  kickoffMsFromMatch,
+  palpiteEligibilityFromLiveMatch,
+  type JogoCardPhase,
+} from "@/lib/palpites-live-display";
 import { pickTabelaGruposForPalpites } from "@/lib/tabela-palpites-normalize";
 import {
   LIVE_PARTIDAS_POLL_MS,
@@ -210,38 +217,7 @@ function palpiteLockUiCopy(): {
 }
 
 function kickoffMsFromJogo(jogo: Jogo): number | null {
-  if (!jogo.kickoffAt) return null;
-  const t = new Date(jogo.kickoffAt).getTime();
-  return Number.isFinite(t) ? t : null;
-}
-
-/**
- * Depois deste intervalo desde o apito, não exibimos mais "ao vivo" só com o status da listagem
- * (a API pode ficar em "andamento" e minuto parado — ex.: 2º tempo 63 min com 2h+ de relógio).
- * Default 115 min (alinhado ao MATCH_END_CLOCK no servidor). Ajuste NEXT_PUBLIC_MATCH_DISPLAY_LIVE_MAX_MINUTES.
- */
-const DISPLAY_LIVE_MAX_MS_AFTER_KICKOFF = (() => {
-  const raw = process.env.NEXT_PUBLIC_MATCH_DISPLAY_LIVE_MAX_MINUTES;
-  const n = raw != null && String(raw).trim() !== "" ? Number.parseInt(String(raw).trim(), 10) : 115;
-  if (!Number.isFinite(n)) return 115 * 60_000;
-  return Math.min(240, Math.max(60, n)) * 60_000;
-})();
-
-function isPastDisplayLiveWindow(jogo: Jogo, nowMs: number): boolean {
-  const ko = kickoffMsFromJogo(jogo);
-  if (ko == null) return false;
-  return nowMs > ko + DISPLAY_LIVE_MAX_MS_AFTER_KICKOFF;
-}
-
-/** Partida com apito ja dado e ainda sem encerramento oficial (somente leitura / UX). */
-function isMatchLiveForDisplay(jogo: Jogo, nowMs: number): boolean {
-  const ko = kickoffMsFromJogo(jogo);
-  if (ko == null || nowMs < ko) return false;
-  if (jogo.status === "encerrado") return false;
-  const raw = String(jogo.statusBruto ?? jogo.status ?? "").toLowerCase();
-  if (raw.includes("encerr") || raw.includes("finaliz")) return false;
-  if (isPastDisplayLiveWindow(jogo, nowMs)) return false;
-  return true;
+  return kickoffMsFromMatch(jogo);
 }
 
 /** Aberto para palpite: dentro do prazo, não encerrado e não ao vivo. */
@@ -911,8 +887,6 @@ function formatPontosLabel(n: number): string {
   return `${sign}${n} pt${Math.abs(n) === 1 ? "" : "s"}`;
 }
 
-type JogoCardPhase = "pre" | "live" | "post";
-
 function formatKickoffHourOnly(jogo: Jogo): string {
   const fromHora = safeHourLabel(jogo.hora);
   if (fromHora !== "--:--") return fromHora;
@@ -949,13 +923,6 @@ function formatCountdownCompact(lockAtMs: number | null, nowMs: number): string 
   }
   const secs = Math.max(1, Math.floor(diff / 1000));
   return secs === 1 ? "Falta 1 seg" : `Faltam ${secs} seg`;
-}
-
-function getJogoCardPhase(jogo: Jogo, nowMs: number): JogoCardPhase {
-  const temPlacar = hasOfficialMatchResult(palpiteEligibilityFromJogo(jogo), nowMs);
-  if (isMatchLiveForDisplay(jogo, nowMs)) return "live";
-  if (temPlacar) return "post";
-  return "pre";
 }
 
 function getLiveMinuteBadge(jogo: Jogo, nowMs: number): string {
@@ -1430,8 +1397,9 @@ function JogoCard({
       )
       : [];
 
-  const liveCasa = jogo.resultCasa ?? 0;
-  const liveVisit = jogo.resultVisitante ?? 0;
+  const liveCasa = jogo.resultCasa;
+  const liveVisit = jogo.resultVisitante;
+  const liveScoresReady = liveCasa != null && liveVisit != null;
   const palpiteLocked =
     phase !== "pre" || !canEdit || isLockedByTime || readOnly;
   const palpiteEnviado =
@@ -1472,6 +1440,23 @@ function JogoCard({
       );
     }
     if (phase === "live") {
+      if (!liveScoresReady) {
+        return (
+          <div className="flex items-center justify-center gap-2">
+            <div
+              className="h-[72px] w-[52px] animate-pulse rounded-xl"
+              style={{ background: PALPITE_SCORE_BOX_BG }}
+            />
+            <span className="text-[15px] font-bold text-white/50" aria-hidden>
+              x
+            </span>
+            <div
+              className="h-[72px] w-[52px] animate-pulse rounded-xl"
+              style={{ background: PALPITE_SCORE_BOX_BG }}
+            />
+          </div>
+        );
+      }
       return <PalpiteScoreBoxes casa={liveCasa} visitante={liveVisit} />;
     }
     if (showSteppers) {
@@ -1961,6 +1946,10 @@ type HistoricoRowView = {
   resultadoVisitante: number | null;
   pontos: number;
   exact: boolean;
+  aoVivo?: boolean;
+  liveLabel?: string | null;
+  matchStatus?: string | null;
+  kickoffAt?: string | null;
   submittedAt: string;
   updatedAt: string;
 };
@@ -2354,24 +2343,33 @@ function TicketResumoView({
                         </div>
                         <span
                           className="text-[12px] font-bold uppercase px-2 py-0.5 rounded-full shrink-0"
-                          style={{
-                            background:
-                              item.resultadoCasa != null &&
-                                item.resultadoVisitante != null
-                                ? "rgba(148,163,184,0.12)"
-                                : "rgba(34,197,94,0.12)",
-                            color:
-                              item.resultadoCasa != null &&
-                                item.resultadoVisitante != null
-                                ? "rgba(226,232,240,0.85)"
-                                : "#86EFAC",
-                            border: `1px solid ${item.resultadoCasa != null && item.resultadoVisitante != null ? "rgba(148,163,184,0.25)" : "rgba(34,197,94,0.28)"}`,
-                          }}
+                          style={
+                            item.aoVivo
+                              ? {
+                                  background: "rgba(255,69,69,0.16)",
+                                  color: "#ff6b6b",
+                                  border: "1px solid rgba(255,69,69,0.28)",
+                                }
+                              : item.resultadoCasa != null &&
+                                  item.resultadoVisitante != null
+                                ? {
+                                    background: "rgba(148,163,184,0.12)",
+                                    color: "rgba(226,232,240,0.85)",
+                                    border: "1px solid rgba(148,163,184,0.25)",
+                                  }
+                                : {
+                                    background: "rgba(34,197,94,0.12)",
+                                    color: "#86EFAC",
+                                    border: "1px solid rgba(34,197,94,0.28)",
+                                  }
+                          }
                         >
-                          {item.resultadoCasa != null &&
-                            item.resultadoVisitante != null
-                            ? "Encerrado"
-                            : "Aberto"}
+                          {item.aoVivo
+                            ? item.liveLabel ?? "Ao vivo"
+                            : item.resultadoCasa != null &&
+                                item.resultadoVisitante != null
+                              ? "Encerrado"
+                              : "Aberto"}
                         </span>
                       </div>
 
@@ -2426,9 +2424,10 @@ function TicketResumoView({
                         <div>
                           <span className="text-white/40">Resultado</span>
                           <p className="font-black text-white mt-0.5">
-                            {item.resultadoCasa ?? "-"}{" "}
-                            <span className="text-white/30 font-normal">x</span>{" "}
-                            {item.resultadoVisitante ?? "-"}
+                            {item.aoVivo &&
+                            (item.resultadoCasa == null || item.resultadoVisitante == null)
+                              ? "…"
+                              : `${item.resultadoCasa ?? "-"} x ${item.resultadoVisitante ?? "-"}`}
                           </p>
                         </div>
                         <div className="sm:ml-auto flex items-center gap-2">
@@ -2436,26 +2435,48 @@ function TicketResumoView({
                             className="text-[12px] font-bold px-2 py-0.5 rounded-full"
                             style={{
                               background:
-                                item.pontos > 0
-                                  ? "rgba(34,197,94,0.1)"
-                                  : "rgba(255,255,255,0.06)",
+                                item.aoVivo
+                                  ? "rgba(255,69,69,0.1)"
+                                  : item.pontos > 0
+                                    ? "rgba(34,197,94,0.1)"
+                                    : "rgba(255,255,255,0.06)",
                               color:
-                                item.pontos > 0
-                                  ? "#86EFAC"
-                                  : "rgba(255,255,255,0.45)",
-                              border: `1px solid ${item.pontos > 0 ? "rgba(34,197,94,0.25)" : "rgba(255,255,255,0.1)"}`,
+                                item.aoVivo
+                                  ? "#ff6b6b"
+                                  : item.pontos > 0
+                                    ? "#86EFAC"
+                                    : "rgba(255,255,255,0.45)",
+                              border: `1px solid ${
+                                item.aoVivo
+                                  ? "rgba(255,69,69,0.25)"
+                                  : item.pontos > 0
+                                    ? "rgba(34,197,94,0.25)"
+                                    : "rgba(255,255,255,0.1)"
+                              }`,
                             }}
                           >
-                            {item.exact
-                              ? "Placar exato"
-                              : item.pontos > 0
-                                ? "Acerto parcial"
-                                : "Sem pontos"}
+                            {item.aoVivo
+                              ? "Em andamento"
+                              : item.exact
+                                ? "Placar exato"
+                                : item.pontos > 0
+                                  ? "Acerto parcial"
+                                  : "Sem pontos"}
                           </span>
                           <span
-                            className={`text-[16px] font-black ${item.pontos > 0 ? "text-[#4ADE80]" : "text-white/40"}`}
+                            className={`text-[16px] font-black ${
+                              item.aoVivo
+                                ? "text-[#ff6b6b]"
+                                : item.pontos > 0
+                                  ? "text-[#4ADE80]"
+                                  : "text-white/40"
+                            }`}
                           >
-                            {item.pontos > 0 ? `+${item.pontos} pts` : "0 pts"}
+                            {item.aoVivo
+                              ? "…"
+                              : item.pontos > 0
+                                ? `+${item.pontos} pts`
+                                : "0 pts"}
                           </span>
                         </div>
                       </div>
