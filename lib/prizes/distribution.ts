@@ -5,6 +5,9 @@ export type PrizeAwardAmount = {
 
 export const PRIZE_POOL_BPS = 6000;
 
+/** Bolão diário: 100% da arrecadação das cotas pagas vai ao Top 10. */
+export const DAILY_PRIZE_POOL_BPS = 10_000;
+
 const PERCENT_SCALE = 1_000_000;
 
 type GeneralPrizeBand = {
@@ -34,20 +37,26 @@ const GENERAL_PRIZE_BANDS: GeneralPrizeBand[] = [
 ];
 
 const DAILY_PRIZE_WEIGHTS = [
-  90_000,
-  45_000,
-  25_000,
-  18_000,
-  15_000,
-  12_000,
-  10_000,
-  9_000,
-  8_000,
-  7_400,
+  35,
+  20,
+  12,
+  8,
+  6,
+  5,
+  4,
+  4,
+  3,
+  3,
 ] as const;
+
+export const DAILY_PRIZE_SHARE_PERCENT = DAILY_PRIZE_WEIGHTS;
 
 export function calculatePrizePoolCents(totalRevenueCents: number): number {
   return Math.floor(Math.max(0, Math.trunc(totalRevenueCents)) * PRIZE_POOL_BPS / 10000);
+}
+
+export function calculateDailyPrizePoolCents(totalRevenueCents: number): number {
+  return Math.floor(Math.max(0, Math.trunc(totalRevenueCents)) * DAILY_PRIZE_POOL_BPS / 10000);
 }
 
 function allocateRemainder(amounts: PrizeAwardAmount[], cents: number) {

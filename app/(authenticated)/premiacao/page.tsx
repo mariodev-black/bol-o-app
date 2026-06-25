@@ -64,17 +64,17 @@ function formatBrlCents(cents: number): string {
 /** Valor de exemplo na UI do diário: R$ 100 mil como premiação total do dia (Top 10). */
 const DAILY_POOL_EXAMPLE_DISPLAY = "R$ 100.000";
 
-const DAILY_PRIZE_ROWS: { rank: string; percent: string; example: string }[] = [
-  { rank: "1º lugar", percent: "37,59%", example: "R$ 37.593,10" },
-  { rank: "2º lugar", percent: "18,80%", example: "R$ 18.796,50" },
-  { rank: "3º lugar", percent: "10,44%", example: "R$ 10.443,60" },
-  { rank: "4º lugar", percent: "7,52%", example: "R$ 7.518,80" },
-  { rank: "5º lugar", percent: "6,27%", example: "R$ 6.265,70" },
-  { rank: "6º lugar", percent: "5,01%", example: "R$ 5.012,50" },
-  { rank: "7º lugar", percent: "4,18%", example: "R$ 4.177,40" },
-  { rank: "8º lugar", percent: "3,76%", example: "R$ 3.759,40" },
-  { rank: "9º lugar", percent: "3,34%", example: "R$ 3.341,70" },
-  { rank: "10º lugar", percent: "3,09%", example: "R$ 3.090,20" },
+const DAILY_PRIZE_ROWS: { rank: string; percent: string }[] = [
+  { rank: "1º lugar", percent: "35%" },
+  { rank: "2º lugar", percent: "20%" },
+  { rank: "3º lugar", percent: "12%" },
+  { rank: "4º lugar", percent: "8%" },
+  { rank: "5º lugar", percent: "6%" },
+  { rank: "6º lugar", percent: "5%" },
+  { rank: "7º lugar", percent: "4%" },
+  { rank: "8º lugar", percent: "4%" },
+  { rank: "9º lugar", percent: "3%" },
+  { rank: "10º lugar", percent: "3%" },
 ];
 
 const DAILY_FOOTNOTE =
@@ -348,17 +348,14 @@ function PrizeTableDiario() {
         {DAILY_PRIZE_ROWS.map((row, i) => (
           <div
             key={row.rank}
-            className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-x-1.5 gap-y-0.5 px-3 py-2 sm:gap-x-2 sm:px-4 sm:py-2.5 md:px-5"
+            className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 py-2 sm:gap-3 sm:px-4 sm:py-2.5 md:px-5"
           >
             <RankMedal place={i + 1} />
             <p className="min-w-0 text-[11px] font-black uppercase tracking-wide text-white sm:text-xs md:text-sm">
               {row.rank}
             </p>
-            <p className="text-right text-[11px] font-bold tabular-nums text-white/65 sm:text-xs md:text-sm">
+            <p className="text-right font-helvetica-now-display text-[12px] font-black tabular-nums text-primary sm:text-sm md:text-base">
               {row.percent}
-            </p>
-            <p className="text-right font-helvetica-now-display text-[11px] font-black tabular-nums text-primary sm:text-xs md:text-sm">
-              {row.example}
             </p>
           </div>
         ))}

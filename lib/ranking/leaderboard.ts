@@ -37,7 +37,7 @@ import {
   resolveCurrentExtraRound,
 } from "@/lib/football/extras-rodada";
 import { effectiveExtraRoundForPaidTicket } from "@/lib/ticket-shop-extra-display";
-import { calculatePrizePoolCents } from "@/lib/prizes/distribution";
+import { calculateDailyPrizePoolCents, calculatePrizePoolCents } from "@/lib/prizes/distribution";
 import { clampAvatarIndex } from "@/lib/auth/avatar-index";
 import {
   dedupeLatestPredictions,
@@ -892,7 +892,7 @@ async function buildLeaderboardDiarioUncached(focusTicketId: string): Promise<{ 
     .filter((t) => cohortTicketIdSet.has(t.id))
     .reduce((s, t) => s + t.total_amount_cents, 0);
   const participantCount = sortedTickets.length;
-  const poolCentsApprox = calculatePrizePoolCents(revenueCents);
+  const poolCentsApprox = calculateDailyPrizePoolCents(revenueCents);
 
   const nextPalpiteLockMs = computeNextPalpiteLockMs(matches, (m) => {
     if (!m.dateBR) return false;

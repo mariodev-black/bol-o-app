@@ -121,7 +121,7 @@ function filterActiveBoloes(
   options: { ticketsExtraOnly: boolean },
 ): ActiveBolaoListItem[] {
   return items.filter((item) => {
-    if (item.displayPhase === "finalizado") return false;
+    if (item.displayPhase === "finalizado" && (item.sent ?? 0) <= 0) return false;
     if (options.ticketsExtraOnly && item.type === "principal") return false;
     return true;
   });

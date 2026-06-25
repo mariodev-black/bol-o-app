@@ -59,3 +59,9 @@ export function cartwaveWebhookUrl(): string {
   const base = app || "https://app.bolaodomilhao.com.br";
   return `${base}/api/webhooks/cartwave`;
 }
+
+/** IP local IPv4 para bind nas requisições de saída (o mesmo cadastrado na whitelist Cartwave). */
+export function cartwaveOutboundIpv4(): string | null {
+  const v = env("CARTWAVE_OUTBOUND_IPV4");
+  return v || null;
+}
