@@ -71,11 +71,10 @@ const DAILY_SIMULATION_AWARDS = calculatePrizeAwards(
   "daily",
 );
 
-const DAILY_PRIZE_ROWS: { rank: string; percent: string; example: string }[] =
+const DAILY_PRIZE_ROWS: { rank: string; percent: string }[] =
   DAILY_SIMULATION_AWARDS.map((award) => ({
     rank: `${award.rank}º lugar`,
     percent: DAILY_PRIZE_PERCENT_LABELS[award.rank - 1] ?? "",
-    example: formatBrlCents(award.amountCents),
   }));
 
 const DAILY_FOOTNOTE =
@@ -349,17 +348,14 @@ function PrizeTableDiario() {
         {DAILY_PRIZE_ROWS.map((row, i) => (
           <div
             key={row.rank}
-            className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-x-1.5 gap-y-0.5 px-3 py-2 sm:gap-x-2 sm:px-4 sm:py-2.5 md:px-5"
+            className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 py-2 sm:gap-3 sm:px-4 sm:py-2.5 md:px-5"
           >
             <RankMedal place={i + 1} />
             <p className="min-w-0 text-[11px] font-black uppercase tracking-wide text-white sm:text-xs md:text-sm">
               {row.rank}
             </p>
-            <p className="text-right text-[11px] font-bold tabular-nums text-white/65 sm:text-xs md:text-sm">
+            <p className="text-right font-helvetica-now-display text-[12px] font-black tabular-nums text-primary sm:text-sm md:text-base">
               {row.percent}
-            </p>
-            <p className="text-right font-helvetica-now-display text-[11px] font-black tabular-nums text-primary sm:text-xs md:text-sm">
-              {row.example}
             </p>
           </div>
         ))}

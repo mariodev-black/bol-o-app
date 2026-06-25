@@ -3,11 +3,13 @@ import {
   cartwaveClientId,
   cartwaveClientSecret,
   cartwaveHmacKey,
+  cartwaveOutboundIpv4,
   cartwaveSourceAccountBranch,
   cartwaveSourceAccountNumber,
   isCartwaveConfigured,
 } from "@/lib/payments/cartwave/config";
 import { buildCartwaveFailureMessage, maskSecret, readCartwaveHttpFailure } from "@/lib/payments/cartwave/errors";
+import { cartwaveFetch } from "@/lib/payments/cartwave/http";
 
 export type CartwaveDebugReport = {
   configured: boolean;
@@ -42,10 +44,20 @@ export async function runCartwaveDebugReport(): Promise<CartwaveDebugReport> {
 
   let outboundIp: string | null = null;
   try {
-    const ipRes = await fetch("https://api.ipify.org?format=json", { signal: AbortSignal.timeout(5000) });
+    const ipRes = await cartwaveFetch("https://api4.ipify.org?format=json", {
+      signal: AbortSignal.timeout(5000),
+    });
     const ipData = (await ipRes.json()) as { ip?: string };
     outboundIp = ipData.ip ?? null;
-    if (outboundIp) hints.push(`IP publico desta maquina: ${outboundIp} — envie a Cartwave para whitelist.`);
+    if (outboundIp) {
+      const bind = cartwaveOutboundIpv4();
+      hints.push(
+        `IP publico IPv4 desta maquina (via Cartwave fetch): ${outboundIp}${bind ? ` — bind local ${bind}` : ""}.`,
+      );
+      if (outboundIp.includes(":")) {
+        hints.push("Ainda saindo por IPv6 — defina CARTWAVE_OUTBOUND_IPV4 no .env com o IPv4 fixo whitelisted.");
+      }
+    }
   } catch {
     /* optional */
   }
@@ -86,7 +98,7 @@ export async function runCartwaveDebugReport(): Promise<CartwaveDebugReport> {
   const started = Date.now();
   let res: Response;
   try {
-    res = await fetch(url, {
+    res = await cartwaveFetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -126,7 +138,10 @@ export async function runCartwaveDebugReport(): Promise<CartwaveDebugReport> {
 
   if (failure.cloudfrontBlocked) {
     hints.push(
-      "HTTP 403 com HTML do CloudFront = WAF bloqueou antes da API. Peca a Cartwave para liberar o IP publico deste servidor.",
+      "HTTP 403 com HTML do CloudFront = WAF bloqueou antes da API. Peca a Cartwave para liberar o IP publico IPv4 deste servidor.",
+    );
+    hints.push(
+      "Se a Cartwave reportar IPv6 (ex.: 2605:...), confirme CARTWAVE_OUTBOUND_IPV4 no .env e reinicie o app.",
     );
     hints.push("Auth local (seu PC) tambem pode ser bloqueado — teste pelo servidor de producao.");
     hints.push("Credenciais podem estar corretas; o bloqueio impede validar.");

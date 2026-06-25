@@ -13,11 +13,15 @@ import { getTicketLiveTotals } from "@/lib/predictions/scores-aggregate";
 import { getPool } from "@/lib/db";
 import {
   ADMIN_BOLAO_RANKING_PAGE_SIZE,
+  matchesExtraBolaoScopeRow,
   parseExtraBolaoScopeKey,
   type AdminBolaoRankingRow,
   type AdminBolaoRankingScope,
   type AdminBolaoRankingSummary,
 } from "@/lib/admin/boloes-ranking-types";
+import { countMatchesInTicketScope } from "@/lib/admin/ticket-scope-stats";
+import { isSkaleDailyBolaoCompetition } from "@/lib/boloes/skale-daily-config";
+import { isFullCopaMirrorBolao } from "@/lib/boloes/skale-match-resolve";
 
 export type {
   AdminBolaoRankingRow,
@@ -25,6 +29,25 @@ export type {
   AdminBolaoRankingSummary,
 } from "@/lib/admin/boloes-ranking-types";
 export { ADMIN_BOLAO_RANKING_PAGE_SIZE, parseExtraBolaoScopeKey } from "@/lib/admin/boloes-ranking-types";
+
+function extraBolaoAdminGroupKey(
+  row: Pick<
+    AdminBolaoRankingRow,
+    "ticketType" | "extraChampionshipId" | "bolaoDefinitionId" | "groupRound"
+  >,
+): string | null {
+  if (row.ticketType !== "extra" || row.extraChampionshipId == null) return null;
+  if (row.bolaoDefinitionId) return `def:${row.bolaoDefinitionId}`;
+  const compId = row.extraChampionshipId;
+  if (isFullCopaMirrorBolao(compId)) return `${compId}:copa`;
+  if (isSkaleDailyBolaoCompetition(compId)) {
+    const edition = row.groupRound;
+    if (edition != null && edition > 0) return `${compId}:daily:${edition}`;
+    return null;
+  }
+  if (row.groupRound != null && row.groupRound > 0) return `${compId}:r${row.groupRound}`;
+  return null;
+}
 
 export type AdminAffiliateStats = {
   referredUsersCount: number;
@@ -264,14 +287,7 @@ function resolveAdminBolaoRanking(
   if (scope.type === "extra") {
     const parsed = parseExtraBolaoScopeKey(scope.key);
     if (!parsed) return [];
-    return rankBolaoRows(
-      baseRows.filter(
-        (row) =>
-          row.ticketType === "extra" &&
-          row.extraChampionshipId === parsed.championshipId &&
-          row.groupRound === parsed.rodada,
-      ),
-    );
+    return rankBolaoRows(baseRows.filter((row) => matchesExtraBolaoScopeRow(row, parsed)));
   }
   if (scope.type === "definition") {
     return rankBolaoRows(
@@ -423,10 +439,31 @@ async function loadAdminBolaoBaseRows(): Promise<Omit<AdminBolaoRankingRow, "pos
      ORDER BY t.created_at DESC`,
   );
 
-  return rows.map<Omit<AdminBolaoRankingRow, "position">>((row) => {
+  const fullCopaMatchCounts = new Map<number, number>();
+  async function fullCopaMatchCount(compId: number): Promise<number> {
+    const cached = fullCopaMatchCounts.get(compId);
+    if (cached != null) return cached;
+    const count = await countMatchesInTicketScope(pool, {
+      ticketType: "extra",
+      extraChampionshipId: compId,
+      roundNumber: null,
+    });
+    fullCopaMatchCounts.set(compId, count);
+    return count;
+  }
+
+  const mapped: Omit<AdminBolaoRankingRow, "position">[] = [];
+  for (const row of rows) {
     const predictionsCount = Number(row.predictions_count ?? 0);
-    const totalMatchesCount = Number(row.total_matches_count ?? 0);
-    return {
+    let totalMatchesCount = Number(row.total_matches_count ?? 0);
+    if (
+      row.ticket_type === "extra" &&
+      row.extra_championship_id != null &&
+      isFullCopaMirrorBolao(row.extra_championship_id)
+    ) {
+      totalMatchesCount = await fullCopaMatchCount(row.extra_championship_id);
+    }
+    mapped.push({
       ticketId: row.ticket_id,
       userId: row.user_id,
       userName: row.user_name,
@@ -446,8 +483,9 @@ async function loadAdminBolaoBaseRows(): Promise<Omit<AdminBolaoRankingRow, "pos
       totalMatchesCount,
       paidAt: row.paid_at ? row.paid_at.toISOString() : null,
       createdAt: row.created_at.toISOString(),
-    };
-  });
+    });
+  }
+  return mapped;
 }
 
 export async function getAdminBolaoRankingPage(
@@ -548,13 +586,9 @@ export async function getAdminBoloesDashboardData(
       dailyGroups.set(row.groupDate, group);
       continue;
     }
-    if (
-      row.ticketType === "extra" &&
-      row.extraChampionshipId != null &&
-      row.groupRound != null &&
-      row.groupRound > 0
-    ) {
-      const key = `${row.extraChampionshipId}:r${row.groupRound}`;
+    if (row.ticketType === "extra" && row.extraChampionshipId != null) {
+      const key = extraBolaoAdminGroupKey(row);
+      if (!key) continue;
       const group = extraGroups.get(key) ?? [];
       group.push(row);
       extraGroups.set(key, group);
@@ -591,9 +625,17 @@ export async function getAdminBoloesDashboardData(
   const extraCards = Array.from(extraGroups.entries())
     .map(([key, groupRows]) => {
       const championshipId = groupRows[0]?.extraChampionshipId ?? 0;
-      const rodada = groupRows[0]?.groupRound ?? 0;
+      const parsed = parseExtraBolaoScopeKey(key);
+      const rodada =
+        parsed?.mode === "round"
+          ? parsed.rodada
+          : parsed?.mode === "skale-daily"
+            ? parsed.edition
+            : 0;
       const displayName =
-        resolveExtraBolaoDisplayName(championshipId, competitionLabels[championshipId]);
+        parsed?.mode === "copa"
+          ? resolveExtraBolaoDisplayName(championshipId, competitionLabels[championshipId])
+          : resolveExtraBolaoDisplayName(championshipId, competitionLabels[championshipId]);
       const ranked = rankBolaoRows(groupRows);
       return {
         key,

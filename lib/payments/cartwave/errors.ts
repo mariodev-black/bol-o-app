@@ -32,7 +32,8 @@ export function buildCartwaveFailureMessage(failure: CartwaveHttpFailure, contex
   if (failure.cloudfrontBlocked) {
     return [
       `Cartwave bloqueou a requisicao no CloudFront/WAF (${context}, HTTP 403).`,
-      "A requisicao nao chegou na API — normalmente o IP do servidor precisa ser liberado pela Cartwave.",
+      "A requisicao nao chegou na API — normalmente o IP IPv4 do servidor precisa ser liberado pela Cartwave.",
+      "Se a Cartwave reportar IPv6, configure CARTWAVE_OUTBOUND_IPV4 no .env.",
       failure.cloudFrontPop ? `CloudFront POP: ${failure.cloudFrontPop}.` : "",
       "Rode: npm run cartwave:debug — ou GET /api/admin/cartwave/debug (admin).",
     ]

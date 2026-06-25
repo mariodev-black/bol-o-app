@@ -9,6 +9,7 @@ import {
 } from "@/lib/boloes-extra-competition-branding";
 import { readCompetitionDisplayNamesFromDb } from "@/lib/competition-metadata-cache";
 import { getAdminBolaoRankingPage, parseExtraBolaoScopeKey } from "@/lib/admin/sections";
+import { extraBolaoScopeRodadaNumber } from "@/lib/admin/boloes-ranking-types";
 import { Gift, Target, Ticket, Users } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -21,18 +22,23 @@ export default async function AdminBolaoExtraPage({
   const params = searchParams ? await searchParams : undefined;
   const selectedKey = params?.key?.trim() ?? "";
   const parsed = parseExtraBolaoScopeKey(selectedKey);
-  if (!parsed) notFound();
+  if (!parsed || parsed.mode === "definition") notFound();
 
-  const labels = await readCompetitionDisplayNamesFromDb([parsed.championshipId]).catch(
+  const championshipId = parsed.championshipId;
+  const labels = await readCompetitionDisplayNamesFromDb([championshipId]).catch(
     () => ({} as Record<number, string>),
   );
   const displayName =
-    resolveExtraBolaoDisplayName(parsed.championshipId, labels[parsed.championshipId]);
-  const iconVariant = getExtraBolaoHeroSideVariant(parsed.championshipId, displayName);
+    resolveExtraBolaoDisplayName(championshipId, labels[championshipId]);
+  const iconVariant = getExtraBolaoHeroSideVariant(championshipId, displayName);
 
   const scope = { type: "extra" as const, key: selectedKey };
   const ranking = await getAdminBolaoRankingPage(scope);
   const { summary } = ranking;
+  const scopeLabel =
+    parsed.mode === "copa"
+      ? "Copa integral"
+      : formatAdminRodadaLabel(extraBolaoScopeRodadaNumber(parsed));
 
   return (
     <>
@@ -45,17 +51,19 @@ export default async function AdminBolaoExtraPage({
         </Link>
       </div>
       <AdminPageTitle
-        title={`${formatAdminRodadaLabel(parsed.rodada)} — ${displayName}`}
-        subtitle="Ranking completo desta rodada com scroll infinito."
+        title={`${scopeLabel} — ${displayName}`}
+        subtitle={
+          parsed.mode === "copa"
+            ? "Ranking completo do bolão com scroll infinito."
+            : "Ranking completo desta rodada com scroll infinito."
+        }
       />
 
       <div className="mb-5 flex flex-col gap-4 rounded-[18px] border border-white/8 bg-[#101010] p-5 sm:flex-row sm:items-center">
         <AdminBolaoKindIcon kind="extra" extraVariant={iconVariant} size="lg" />
         <div className="min-w-0 flex-1">
           <AdminBolaoKindBadge kind="extra" />
-          <p className="mt-2 text-[22px] font-black text-white">
-            {formatAdminRodadaLabel(parsed.rodada)}
-          </p>
+          <p className="mt-2 text-[22px] font-black text-white">{scopeLabel}</p>
           <p className="mt-1 text-[13px] font-medium text-white/45">{displayName}</p>
         </div>
         <div className="grid w-full grid-cols-2 gap-2 sm:max-w-md sm:grid-cols-4">

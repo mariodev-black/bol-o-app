@@ -8,6 +8,7 @@ import {
 } from "@/lib/payments/cartwave/config";
 import { buildCartwaveFailureMessage, readCartwaveHttpFailure } from "@/lib/payments/cartwave/errors";
 import { cartwaveNormalizeJsonBody, cartwaveSignBody } from "@/lib/payments/cartwave/hmac";
+import { cartwaveFetch } from "@/lib/payments/cartwave/http";
 
 export type CartwaveCashoutResult = {
   worked: boolean;
@@ -54,7 +55,7 @@ export async function createCartwavePixCashoutSelfApprove(input: {
   const token = await getCartwaveAccessToken();
   const url = `${cartwaveApiBaseUrl()}${cartwaveCashoutPixSelfApprovePath()}`;
 
-  const res = await fetch(url, {
+  const res = await cartwaveFetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

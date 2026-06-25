@@ -4,6 +4,11 @@ import { AdminBolaoKindIcon } from "@/app/admin/(panel)/boloes/_components/Admin
 import { formatAdminRodadaLabel } from "@/lib/admin/format";
 import type { AdminExtraBolaoCard } from "@/lib/admin/sections";
 
+function extraCardScopeLabel(card: AdminExtraBolaoCard): string {
+  if (card.key.endsWith(":copa")) return "Copa integral";
+  return formatAdminRodadaLabel(card.rodada);
+}
+
 function formatCount(n: number): string {
   return n.toLocaleString("pt-BR");
 }
@@ -18,7 +23,7 @@ function ExtraRodadaRow({ card }: { card: AdminExtraBolaoCard }) {
         className="group hidden grid-cols-[minmax(0,1.15fr)_repeat(4,minmax(64px,1fr))_72px] items-center gap-2 border-b border-white/5 px-4 py-3.5 transition-colors last:border-b-0 hover:bg-white/4 sm:grid sm:px-5"
       >
         <p className="min-w-0 text-[14px] font-black text-white">
-          {formatAdminRodadaLabel(card.rodada)}
+          {extraCardScopeLabel(card)}
         </p>
         <p className="text-right text-[14px] font-bold tabular-nums text-white">
           {formatCount(card.ticketsCount)}
@@ -49,13 +54,15 @@ function ExtraRodadaRow({ card }: { card: AdminExtraBolaoCard }) {
           className="flex size-11 shrink-0 flex-col items-center justify-center rounded-xl border border-white/10 bg-white/5"
           aria-hidden
         >
-          <span className="text-[9px] font-black uppercase text-white/40">Rod.</span>
+          <span className="text-[9px] font-black uppercase text-white/40">
+            {card.key.endsWith(":copa") ? "Copa" : "Rod."}
+          </span>
           <span className="text-[15px] font-black leading-none tabular-nums text-primary">
-            {card.rodada}
+            {card.key.endsWith(":copa") ? "∑" : card.rodada}
           </span>
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-[14px] font-black text-white">{formatAdminRodadaLabel(card.rodada)}</p>
+          <p className="text-[14px] font-black text-white">{extraCardScopeLabel(card)}</p>
           <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] font-medium text-white/45">
             <span>{formatCount(card.ticketsCount)} cotas</span>
             <span>{formatCount(card.finishedCount)} fin.</span>

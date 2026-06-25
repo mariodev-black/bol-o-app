@@ -7,6 +7,7 @@ import {
   cartwaveClientId,
   cartwaveClientSecret,
 } from "@/lib/payments/cartwave/config";
+import { cartwaveFetch } from "@/lib/payments/cartwave/http";
 
 type TokenCache = {
   accessToken: string;
@@ -37,7 +38,7 @@ export async function getCartwaveAccessToken(): Promise<string> {
   }
 
   const url = `${cartwaveApiBaseUrl().replace(/\/$/, "")}/v2/finance/auth-token/`;
-  const res = await fetch(url, {
+  const res = await cartwaveFetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

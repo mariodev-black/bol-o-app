@@ -25,6 +25,9 @@ export const DAILY_PRIZE_PERCENT_LABELS = [
   "3%",
 ] as const;
 
+/** Percentuais numéricos (notificações / metadata). */
+export const DAILY_PRIZE_SHARE_PERCENT = [35, 20, 12, 8, 6, 5, 4, 4, 3, 3] as const;
+
 const PERCENT_SCALE = 1_000_000;
 
 type GeneralPrizeBand = {
@@ -86,6 +89,10 @@ export function calculatePrizePoolCents(
 ): number {
   const bps = bolaoType === "daily" ? DAILY_PRIZE_POOL_BPS : PRIZE_POOL_BPS;
   return Math.floor(Math.max(0, Math.trunc(totalRevenueCents)) * bps / 10000);
+}
+
+export function calculateDailyPrizePoolCents(totalRevenueCents: number): number {
+  return calculatePrizePoolCents(totalRevenueCents, "daily");
 }
 
 function allocateRemainder(amounts: PrizeAwardAmount[], cents: number) {
