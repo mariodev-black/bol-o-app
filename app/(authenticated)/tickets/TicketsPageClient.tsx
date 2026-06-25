@@ -9,9 +9,11 @@ import { LpTicketCheckoutFlow } from "./_components/LpTicketCheckoutFlow";
 function TicketsPageContent({
   ticketsPrincipalAndDailyOnly = false,
   ticketsHideExtra = false,
+  ticketsDailyOnly = false,
 }: {
   ticketsPrincipalAndDailyOnly?: boolean;
   ticketsHideExtra?: boolean;
+  ticketsDailyOnly?: boolean;
 }) {
   const search = useSearchParams();
   const lpFlow =
@@ -24,7 +26,7 @@ function TicketsPageContent({
   const initialTicketKind =
     ticketsArtilheirosOnly
       ? "artilheiros"
-      : ticketsPrincipalAndDailyOnly && bolaoRaw === "diario"
+      : ticketsDailyOnly || (ticketsPrincipalAndDailyOnly && bolaoRaw === "diario")
         ? "daily"
         : "general";
 
@@ -37,9 +39,11 @@ function TicketsPageContent({
           key={
             ticketsArtilheirosOnly
               ? "artilheiros"
-              : ticketsPrincipalAndDailyOnly
-                ? "principal-daily"
-                : "full-shop"
+              : ticketsDailyOnly
+                ? "daily-only"
+                : ticketsPrincipalAndDailyOnly
+                  ? "principal-daily"
+                  : "full-shop"
           }
           initialTicketKind={initialTicketKind}
           initialSkaleDaily={initialSkaleDaily}
@@ -48,6 +52,7 @@ function TicketsPageContent({
           }
           ticketsHideExtra={ticketsHideExtra && !ticketsArtilheirosOnly}
           ticketsArtilheirosOnly={ticketsArtilheirosOnly}
+          ticketsDailyOnly={ticketsDailyOnly}
         />
       )}
     </div>
@@ -57,9 +62,11 @@ function TicketsPageContent({
 export function TicketsPageClient({
   ticketsPrincipalAndDailyOnly = false,
   ticketsHideExtra = false,
+  ticketsDailyOnly = false,
 }: {
   ticketsPrincipalAndDailyOnly?: boolean;
   ticketsHideExtra?: boolean;
+  ticketsDailyOnly?: boolean;
 }) {
   return (
     <Suspense
@@ -72,6 +79,7 @@ export function TicketsPageClient({
       <TicketsPageContent
         ticketsPrincipalAndDailyOnly={ticketsPrincipalAndDailyOnly}
         ticketsHideExtra={ticketsHideExtra}
+        ticketsDailyOnly={ticketsDailyOnly}
       />
     </Suspense>
   );

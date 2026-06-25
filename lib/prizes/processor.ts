@@ -30,7 +30,7 @@ function prizesLog(phase: string, fields: Record<string, unknown> = {}): void {
   }
 }
 import { calcPredictionPoints } from "@/lib/predictions";
-import { calculatePrizeAwards, calculateDailyPrizePoolCents, calculatePrizePoolCents } from "@/lib/prizes/distribution";
+import { calculatePrizeAwards, calculatePrizePoolCents } from "@/lib/prizes/distribution";
 
 type BolaoPrizeType = "general" | "daily" | "extra";
 
@@ -578,10 +578,7 @@ async function processClosure(
     dailyEditionNumber: input.dailyEditionNumber,
   });
   const totalRevenueCents = tickets.reduce((sum, ticket) => sum + Number(ticket.total_amount_cents || 0), 0);
-  const poolCents =
-    input.type === "daily"
-      ? calculateDailyPrizePoolCents(totalRevenueCents)
-      : calculatePrizePoolCents(totalRevenueCents);
+  const poolCents = calculatePrizePoolCents(totalRevenueCents, input.type);
   if (tickets.length === 0 || poolCents <= 0) return;
 
   const closureId = await insertClosure(client, {

@@ -36,7 +36,6 @@ export async function adminUpdateMatchResultInCache(input: {
       `UPDATE matches_cache
        SET result_casa = $2,
            result_visitante = $3,
-           status = 'finalizado',
            source_updated_at = now(),
            synced_at = now()
        WHERE match_id = $1

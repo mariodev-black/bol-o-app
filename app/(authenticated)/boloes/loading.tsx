@@ -6,6 +6,11 @@ function SkeletonBlock({ className }: { className: string }) {
 }
 
 export default function BoloesLoading() {
+  return <BoloesLoadingSkeleton />;
+}
+
+/** Mesmo skeleton, reutilizável em <Suspense> dentro da página (streaming). */
+export function BoloesLoadingSkeleton() {
   return (
     <div className="min-h-screen bg-black px-[18px] pb-8 pt-[14px] text-white">
       <div className="mx-auto w-full max-w-[390px] animate-pulse">

@@ -16,7 +16,7 @@ import {
 import { useEffect, useState } from "react";
 import bannerPremiacao from "@/app/assets/banner-presentes.jpeg";
 import iconTrofeu from "@/app/assets/icon-trofeu.png";
-import { calculatePrizeAwards } from "@/lib/prizes/distribution";
+import { calculatePrizeAwards, DAILY_PRIZE_PERCENT_LABELS } from "@/lib/prizes/distribution";
 
 type TabId = "geral" | "diario";
 
@@ -61,24 +61,24 @@ function formatBrlCents(cents: number): string {
   }).format(cents / 100);
 }
 
-/** Valor de exemplo na UI do diário: R$ 100 mil como premiação total do dia (Top 10). */
+/** Valor de exemplo na UI do diário: R$ 100 mil (100% da arrecadação do dia). */
+const DAILY_POOL_EXAMPLE_CENTS = 10_000_000;
 const DAILY_POOL_EXAMPLE_DISPLAY = "R$ 100.000";
 
-const DAILY_PRIZE_ROWS: { rank: string; percent: string }[] = [
-  { rank: "1º lugar", percent: "35%" },
-  { rank: "2º lugar", percent: "20%" },
-  { rank: "3º lugar", percent: "12%" },
-  { rank: "4º lugar", percent: "8%" },
-  { rank: "5º lugar", percent: "6%" },
-  { rank: "6º lugar", percent: "5%" },
-  { rank: "7º lugar", percent: "4%" },
-  { rank: "8º lugar", percent: "4%" },
-  { rank: "9º lugar", percent: "3%" },
-  { rank: "10º lugar", percent: "3%" },
-];
+const DAILY_SIMULATION_AWARDS = calculatePrizeAwards(
+  DAILY_POOL_EXAMPLE_CENTS,
+  DAILY_PRIZE_PERCENT_LABELS.length,
+  "daily",
+);
+
+const DAILY_PRIZE_ROWS: { rank: string; percent: string }[] =
+  DAILY_SIMULATION_AWARDS.map((award) => ({
+    rank: `${award.rank}º lugar`,
+    percent: DAILY_PRIZE_PERCENT_LABELS[award.rank - 1] ?? "",
+  }));
 
 const DAILY_FOOTNOTE =
-  "Exemplo para um dia em que há R$ 100.000 inteiros em premiação no bolão diário, divididos entre o Top 10 nas porcentagens oficiais. Se houver menos de 10 classificados, a sobra é redistribuída entre os vencedores.";
+  "100% da arrecadação das cotas diárias pagas vai para o Top 10. Após o último jogo do dia (com margem de segurança), o ranking é fechado e o saldo é creditado automaticamente na conta. Se houver menos de 10 classificados, a sobra é redistribuída entre os vencedores.";
 
 function RankMedal({ place }: { place: number }) {
   const base =
@@ -340,7 +340,7 @@ function PrizeTableDiario() {
             {DAILY_POOL_EXAMPLE_DISPLAY}
           </p>
           <p className="mt-1.5 text-[12px] font-semibold text-white/80 sm:mt-2 sm:text-[12px]">
-            R$ 100 mil cheios para premiação · Top 10 · só tickets daquele dia
+            100% da arrecadação · Top 10 · creditado após o último jogo do dia
           </p>
         </div>
       </div>

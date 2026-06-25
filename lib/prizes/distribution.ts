@@ -3,10 +3,30 @@ export type PrizeAwardAmount = {
   amountCents: number;
 };
 
+/** Pool do bolão geral e extras com data — 60% da arrecadação. */
 export const PRIZE_POOL_BPS = 6000;
 
-/** Bolão diário: 100% da arrecadação das cotas pagas vai ao Top 10. */
+/** Bolão diário (Copa) — 100% da arrecadação vai para premiação. */
 export const DAILY_PRIZE_POOL_BPS = 10_000;
+
+export const DAILY_TOP_RANK_COUNT = 10;
+
+/** Percentuais fixos do Top 10 diário (ppm; soma = 1.000.000 = 100%). */
+export const DAILY_PRIZE_PERCENT_LABELS = [
+  "35%",
+  "20%",
+  "12%",
+  "8%",
+  "6%",
+  "5%",
+  "4%",
+  "4%",
+  "3%",
+  "3%",
+] as const;
+
+/** Percentuais numéricos (notificações / metadata). */
+export const DAILY_PRIZE_SHARE_PERCENT = [35, 20, 12, 8, 6, 5, 4, 4, 3, 3] as const;
 
 const PERCENT_SCALE = 1_000_000;
 
@@ -36,27 +56,43 @@ const GENERAL_PRIZE_BANDS: GeneralPrizeBand[] = [
   { from: 1001, to: 2506, weightPpm: 80 },
 ];
 
-const DAILY_PRIZE_WEIGHTS = [
-  35,
-  20,
-  12,
-  8,
-  6,
-  5,
-  4,
-  4,
-  3,
-  3,
+const DAILY_PRIZE_WEIGHTS_PPM = [
+  350_000,
+  200_000,
+  120_000,
+  80_000,
+  60_000,
+  50_000,
+  40_000,
+  40_000,
+  30_000,
+  30_000,
 ] as const;
 
-export const DAILY_PRIZE_SHARE_PERCENT = DAILY_PRIZE_WEIGHTS;
+/** Legado — bolões extra por data (mantém pesos anteriores + pool 60%). */
+const EXTRA_PRIZE_WEIGHTS = [
+  90_000,
+  45_000,
+  25_000,
+  18_000,
+  15_000,
+  12_000,
+  10_000,
+  9_000,
+  8_000,
+  7_400,
+] as const;
 
-export function calculatePrizePoolCents(totalRevenueCents: number): number {
-  return Math.floor(Math.max(0, Math.trunc(totalRevenueCents)) * PRIZE_POOL_BPS / 10000);
+export function calculatePrizePoolCents(
+  totalRevenueCents: number,
+  bolaoType: "general" | "daily" | "extra" = "general",
+): number {
+  const bps = bolaoType === "daily" ? DAILY_PRIZE_POOL_BPS : PRIZE_POOL_BPS;
+  return Math.floor(Math.max(0, Math.trunc(totalRevenueCents)) * bps / 10000);
 }
 
 export function calculateDailyPrizePoolCents(totalRevenueCents: number): number {
-  return Math.floor(Math.max(0, Math.trunc(totalRevenueCents)) * DAILY_PRIZE_POOL_BPS / 10000);
+  return calculatePrizePoolCents(totalRevenueCents, "daily");
 }
 
 function allocateRemainder(amounts: PrizeAwardAmount[], cents: number) {
@@ -95,31 +131,66 @@ function allocateProportionalRemainder(amounts: PrizeAwardAmount[], cents: numbe
     });
 }
 
-export function calculatePrizeAwards(
+function calculateTop10WeightedAwards(
   poolCents: number,
   rankedCount: number,
-  bolaoType: "general" | "daily" | "extra" = "general"
+  weights: readonly number[],
 ): PrizeAwardAmount[] {
   const safePool = Math.max(0, Math.trunc(poolCents));
-  const useDailyWeights = bolaoType === "daily" || bolaoType === "extra";
-  const maxRank = useDailyWeights ? DAILY_PRIZE_WEIGHTS.length : 2506;
-  const eligibleCount = Math.max(0, Math.min(maxRank, Math.trunc(rankedCount)));
+  const eligibleCount = Math.max(0, Math.min(weights.length, Math.trunc(rankedCount)));
   if (safePool === 0 || eligibleCount === 0) return [];
 
   const awards: PrizeAwardAmount[] = [];
   let assignedCents = 0;
-
-  if (useDailyWeights) {
-    const totalWeight = DAILY_PRIZE_WEIGHTS.reduce((sum, weight) => sum + weight, 0);
-    for (let idx = 0; idx < eligibleCount; idx += 1) {
-      const rank = idx + 1;
-      const amountCents = Math.floor(safePool * DAILY_PRIZE_WEIGHTS[idx]! / totalWeight);
-      awards.push({ rank, amountCents });
-      assignedCents += amountCents;
-    }
-    allocateProportionalRemainder(awards, safePool - assignedCents);
-    return awards.filter((award) => award.amountCents > 0);
+  const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+  for (let idx = 0; idx < eligibleCount; idx += 1) {
+    const rank = idx + 1;
+    const amountCents = Math.floor(safePool * weights[idx]! / totalWeight);
+    awards.push({ rank, amountCents });
+    assignedCents += amountCents;
   }
+  allocateProportionalRemainder(awards, safePool - assignedCents);
+  return awards.filter((award) => award.amountCents > 0);
+}
+
+function calculateDailyPrizeAwards(poolCents: number, rankedCount: number): PrizeAwardAmount[] {
+  const safePool = Math.max(0, Math.trunc(poolCents));
+  const eligibleCount = Math.max(
+    0,
+    Math.min(DAILY_PRIZE_WEIGHTS_PPM.length, Math.trunc(rankedCount)),
+  );
+  if (safePool === 0 || eligibleCount === 0) return [];
+
+  const awards: PrizeAwardAmount[] = [];
+  let assignedCents = 0;
+  for (let idx = 0; idx < eligibleCount; idx += 1) {
+    const rank = idx + 1;
+    const amountCents = Math.floor(safePool * DAILY_PRIZE_WEIGHTS_PPM[idx]! / PERCENT_SCALE);
+    awards.push({ rank, amountCents });
+    assignedCents += amountCents;
+  }
+  allocateProportionalRemainder(awards, safePool - assignedCents);
+  return awards.filter((award) => award.amountCents > 0);
+}
+
+export function calculatePrizeAwards(
+  poolCents: number,
+  rankedCount: number,
+  bolaoType: "general" | "daily" | "extra" = "general",
+): PrizeAwardAmount[] {
+  if (bolaoType === "daily") {
+    return calculateDailyPrizeAwards(poolCents, rankedCount);
+  }
+  if (bolaoType === "extra") {
+    return calculateTop10WeightedAwards(poolCents, rankedCount, EXTRA_PRIZE_WEIGHTS);
+  }
+
+  const safePool = Math.max(0, Math.trunc(poolCents));
+  const eligibleCount = Math.max(0, Math.min(2506, Math.trunc(rankedCount)));
+  if (safePool === 0 || eligibleCount === 0) return [];
+
+  const awards: PrizeAwardAmount[] = [];
+  let assignedCents = 0;
 
   for (const band of GENERAL_PRIZE_BANDS) {
     for (let rank = band.from; rank <= Math.min(band.to, eligibleCount); rank += 1) {

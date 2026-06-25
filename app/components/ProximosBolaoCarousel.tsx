@@ -9,6 +9,7 @@ import iconCopaBrasil from "@/app/assets/icon-copa-brasil.png";
 import iconBrasileirao from "@/app/assets/icon-brasileirao2.png";
 import iconCopa from "@/app/assets/icon-copa-mundo2.png";
 import type { StaticImageData } from "next/image";
+import type { HomeBolaoCard } from "@/lib/home-content/types";
 
 const GREEN = "#B1EB0B";
 const CARD_BG = "#0d0d0d";
@@ -19,8 +20,8 @@ type BolaoCard = {
   id: string;
   badge: string;
   badgeVariant: "primary" | "muted";
-  /** null = mostra flags BRA x MAR */
-  logo: StaticImageData | null;
+  /** StaticImageData (fallback) ou URL string (dinâmico). null = flags BRA×MAR. */
+  logo: StaticImageData | string | null;
   flagBR?: boolean;
   name: string;
   dateText: string;
@@ -31,20 +32,20 @@ type BolaoCard = {
   href: string;
 };
 
-const CARDS: BolaoCard[] = [
+/** Cards padrão (fallback) quando o admin ainda não cadastrou nenhum. */
+const FALLBACK_CARDS: BolaoCard[] = [
   {
-    id: "brasil-marrocos",
+    id: "copa",
     badge: "MAIS PREMIADO",
     badgeVariant: "primary",
-    logo: null,
-    flagBR: true,
-    name: "BRASIL X MARROCOS",
-    dateText: "SAB, 08/06",
-    timeText: "16:00",
+    logo: iconCopa,
+    name: "COPA DO MUNDO",
+    dateText: "EM BREVE",
+    timeText: "",
     prizeLabel: "R$ 1.000.000",
     prizeUnit: "NO PIX",
     isPrimary: true,
-    href: "/promo-camisa-brasil",
+    href: "/comprar-cotas",
   },
   {
     id: "champions",
@@ -87,6 +88,22 @@ const CARDS: BolaoCard[] = [
   },
 ];
 
+function mapDynamicCard(c: HomeBolaoCard): BolaoCard {
+  return {
+    id: c.id,
+    badge: c.badge ?? "",
+    badgeVariant: c.badgeVariant,
+    logo: c.imageUrl,
+    name: c.name,
+    dateText: c.dateText ?? "",
+    timeText: c.timeText ?? "",
+    prizeLabel: c.prizeLabel ?? "",
+    prizeUnit: c.prizeUnit ?? "",
+    isPrimary: c.isPrimary,
+    href: c.href || "#",
+  };
+}
+
 function BolaoCard({ card }: { card: BolaoCard }) {
   const badgeBg = card.badgeVariant === "primary" ? GREEN : "rgba(255,255,255,0.10)";
   const badgeColor = card.badgeVariant === "primary" ? "#0E141B" : "rgba(255,255,255,0.65)";
@@ -107,9 +124,18 @@ function BolaoCard({ card }: { card: BolaoCard }) {
         {card.badge}
       </div>
 
-      {/* Logo / flags */}
+      {/* Logo */}
       <div className="flex h-[60px] items-center justify-center px-2 pt-2">
-        {card.logo ? (
+        {typeof card.logo === "string" ? (
+          // Logo dinâmico (servido do nosso backend) — <img> simples.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={card.logo}
+            alt=""
+            className="h-[48px] w-auto max-w-[90px] object-contain"
+            draggable={false}
+          />
+        ) : card.logo ? (
           <Image
             src={card.logo}
             alt=""
@@ -119,12 +145,7 @@ function BolaoCard({ card }: { card: BolaoCard }) {
             draggable={false}
           />
         ) : (
-          /* Flags: Brasil × Marrocos */
-          <div className="flex items-center gap-1.5">
-            <Image src={iconCopa} alt="BRA" width={32} height={32} className="size-8 rounded-full object-cover" draggable={false} />
-            <span className="text-[11px] font-bold text-white/50">×</span>
-            <Image src={iconCopa} alt="MAR" width={32} height={32} className="size-8 rounded-full object-cover brightness-75" draggable={false} />
-          </div>
+          <Image src={iconCopa} alt="" width={40} height={40} className="size-10 rounded-full object-cover" draggable={false} />
         )}
       </div>
 
@@ -135,7 +156,7 @@ function BolaoCard({ card }: { card: BolaoCard }) {
         </p>
         {/* Date */}
         <p className="mt-1 text-center text-[10px] font-bold" style={{ color: GREEN }}>
-          {card.dateText} · {card.timeText}
+          {[card.dateText, card.timeText].filter(Boolean).join(" · ")}
         </p>
 
         {/* Divider */}
@@ -170,9 +191,30 @@ function BolaoCard({ card }: { card: BolaoCard }) {
 
 export function ProximosBolaoCarousel({ className = "" }: { className?: string }) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [cards, setCards] = useState<BolaoCard[]>(FALLBACK_CARDS);
   const [canPrev, setCanPrev] = useState(false);
   const [canNext, setCanNext] = useState(true);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Busca cards dinâmicos do admin; se não houver, mantém o fallback.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const r = await fetch("/api/public/home-content", { cache: "no-store" });
+        const d = (await r.json()) as { cards?: HomeBolaoCard[] };
+        if (cancelled) return;
+        if (d.cards && d.cards.length > 0) {
+          setCards(d.cards.map(mapDynamicCard));
+        }
+      } catch {
+        /* mantém fallback */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const updateArrows = useCallback(() => {
     const el = scrollRef.current;
@@ -256,7 +298,7 @@ export function ProximosBolaoCarousel({ className = "" }: { className?: string }
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
         >
-          {CARDS.map((card) => (
+          {cards.map((card) => (
             <BolaoCard key={card.id} card={card} />
           ))}
         </div>
