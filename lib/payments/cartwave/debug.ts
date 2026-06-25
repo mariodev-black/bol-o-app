@@ -10,12 +10,18 @@ import {
 } from "@/lib/payments/cartwave/config";
 import { buildCartwaveFailureMessage, maskSecret, readCartwaveHttpFailure } from "@/lib/payments/cartwave/errors";
 import { cartwaveFetch } from "@/lib/payments/cartwave/http";
+import {
+  runCartwaveNetworkDiagnostics,
+  type CartwaveNetworkDiagnostics,
+} from "@/lib/payments/cartwave/network-diagnostics";
 
 export type CartwaveDebugReport = {
   configured: boolean;
   outboundIp: string | null;
+  network: CartwaveNetworkDiagnostics;
   env: {
     apiBaseUrl: string;
+    outboundIpv4: string | null;
     clientId: string;
     clientSecret: string;
     hmacKey: string;
@@ -41,29 +47,14 @@ export type CartwaveDebugReport = {
 export async function runCartwaveDebugReport(): Promise<CartwaveDebugReport> {
   const baseUrl = cartwaveApiBaseUrl();
   const hints: string[] = [];
+  const network = await runCartwaveNetworkDiagnostics();
+  hints.push(...network.hints);
 
-  let outboundIp: string | null = null;
-  try {
-    const ipRes = await cartwaveFetch("https://api4.ipify.org?format=json", {
-      signal: AbortSignal.timeout(5000),
-    });
-    const ipData = (await ipRes.json()) as { ip?: string };
-    outboundIp = ipData.ip ?? null;
-    if (outboundIp) {
-      const bind = cartwaveOutboundIpv4();
-      hints.push(
-        `IP publico IPv4 desta maquina (via Cartwave fetch): ${outboundIp}${bind ? ` — bind local ${bind}` : ""}.`,
-      );
-      if (outboundIp.includes(":")) {
-        hints.push("Ainda saindo por IPv6 — defina CARTWAVE_OUTBOUND_IPV4 no .env com o IPv4 fixo whitelisted.");
-      }
-    }
-  } catch {
-    /* optional */
-  }
+  const outboundIp = network.cartwaveFetchPublicIp;
 
   const envReport = {
     apiBaseUrl: baseUrl,
+    outboundIpv4: cartwaveOutboundIpv4(),
     clientId: maskSecret(isCartwaveConfigured() ? cartwaveClientId() : process.env.CARTWAVE_CLIENT_ID ?? ""),
     clientSecret: maskSecret(isCartwaveConfigured() ? cartwaveClientSecret() : process.env.CARTWAVE_CLIENT_SECRET ?? ""),
     hmacKey: maskSecret(isCartwaveConfigured() ? cartwaveHmacKey() : process.env.CARTWAVE_HMAC_KEY ?? "", 6),
@@ -77,6 +68,7 @@ export async function runCartwaveDebugReport(): Promise<CartwaveDebugReport> {
     return {
       configured: false,
       outboundIp,
+      network,
       env: envReport,
       auth: {
         url: `${baseUrl.replace(/\/$/, "")}/v2/finance/auth-token/`,
@@ -112,10 +104,15 @@ export async function runCartwaveDebugReport(): Promise<CartwaveDebugReport> {
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Erro de rede";
-    hints.push("Falha de rede ao conectar na Cartwave — verifique DNS/firewall do servidor.");
+    if (msg.includes("CARTWAVE_OUTBOUND_IPV4") || msg.includes("EADDRNOTAVAIL")) {
+      hints.push("Corrija CARTWAVE_OUTBOUND_IPV4 no servidor de producao e reinicie PM2/Docker antes de testar auth.");
+    } else {
+      hints.push("Falha de rede ao conectar na Cartwave — verifique DNS/firewall do servidor.");
+    }
     return {
       configured: true,
       outboundIp,
+      network,
       env: envReport,
       auth: {
         url,
@@ -140,9 +137,11 @@ export async function runCartwaveDebugReport(): Promise<CartwaveDebugReport> {
     hints.push(
       "HTTP 403 com HTML do CloudFront = WAF bloqueou antes da API. Peca a Cartwave para liberar o IP publico IPv4 deste servidor.",
     );
-    hints.push(
-      "Se a Cartwave reportar IPv6 (ex.: 2605:...), confirme CARTWAVE_OUTBOUND_IPV4 no .env e reinicie o app.",
-    );
+    if (network.nativeFetchPublicIp?.includes(":")) {
+      hints.push(
+        `Cartwave provavelmente viu IPv6 (${network.nativeFetchPublicIp}). Confirme CARTWAVE_OUTBOUND_IPV4=${envReport.outboundIpv4 ?? "?"} no servidor e reinicie o app.`,
+      );
+    }
     hints.push("Auth local (seu PC) tambem pode ser bloqueado — teste pelo servidor de producao.");
     hints.push("Credenciais podem estar corretas; o bloqueio impede validar.");
   } else if (failure.status === 400) {
@@ -159,6 +158,7 @@ export async function runCartwaveDebugReport(): Promise<CartwaveDebugReport> {
   return {
     configured: true,
     outboundIp,
+    network,
     env: envReport,
     auth: {
       url,
@@ -172,6 +172,6 @@ export async function runCartwaveDebugReport(): Promise<CartwaveDebugReport> {
       responseHeaders: failure.headers,
       bodyPreview: failure.isJson ? JSON.stringify(failure.parsed) : failure.bodyPreview,
     },
-    hints,
+    hints: [...new Set(hints)],
   };
 }

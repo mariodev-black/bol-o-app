@@ -3,21 +3,65 @@ import http from "node:http";
 import https from "node:https";
 import type { ClientRequest, IncomingMessage } from "node:http";
 import { URL } from "node:url";
-import { cartwaveOutboundIpv4 } from "@/lib/payments/cartwave/config";
+import { cartwaveOutboundIpv4, isCartwaveConfigured } from "@/lib/payments/cartwave/config";
+import { isIpv4AssignedLocally } from "@/lib/payments/cartwave/network-diagnostics";
+
+/** Preferir IPv4 em todo o processo Node (Happy Eyeballs / IPv6-first). */
+dns.setDefaultResultOrder("ipv4first");
 
 let httpsAgent: https.Agent | null = null;
+let httpsAgentBindKey: string | null = null;
+let bindFallbackWarned = false;
+
+function buildHttpsAgent(bindIpv4: string | undefined): https.Agent {
+  return new https.Agent({
+    keepAlive: true,
+    family: 4,
+    localAddress: bindIpv4,
+    lookup(hostname, _options, callback) {
+      dns.lookup(hostname, { family: 4, all: false }, callback);
+    },
+  });
+}
+
+function resolveOutboundBindIpv4(): string | undefined {
+  const configured = cartwaveOutboundIpv4();
+  if (!configured) {
+    if (isCartwaveConfigured() && process.env.NODE_ENV === "production") {
+      throw new Error(
+        "CARTWAVE_OUTBOUND_IPV4 obrigatorio em producao — sem bind as requisicoes saem por IPv6 e sao bloqueadas pelo WAF da Cartwave.",
+      );
+    }
+    return undefined;
+  }
+
+  if (!isIpv4AssignedLocally(configured)) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        `CARTWAVE_OUTBOUND_IPV4=${configured} nao esta atribuido a esta maquina (bind EADDRNOTAVAIL). ` +
+          "Rode npm run cartwave:debug no servidor de producao e confirme o IPv4 fixo whitelisted.",
+      );
+    }
+    if (!bindFallbackWarned) {
+      bindFallbackWarned = true;
+      console.warn(
+        `[cartwave/http] CARTWAVE_OUTBOUND_IPV4=${configured} nao e local — dev: IPv4 sem bind (teste auth no servidor de producao).`,
+      );
+    }
+    return undefined;
+  }
+
+  return configured;
+}
 
 function getHttpsAgent(): https.Agent {
-  if (!httpsAgent) {
-    const localAddress = cartwaveOutboundIpv4() ?? undefined;
-    httpsAgent = new https.Agent({
-      keepAlive: true,
-      localAddress,
-      lookup(hostname, _options, callback) {
-        dns.lookup(hostname, { family: 4, all: false }, callback);
-      },
-    });
+  const bindIpv4 = resolveOutboundBindIpv4();
+  const bindKey = bindIpv4 ?? "__ipv4-no-bind__";
+  if (httpsAgent && httpsAgentBindKey === bindKey) {
+    return httpsAgent;
   }
+  httpsAgent = buildHttpsAgent(bindIpv4);
+  httpsAgentBindKey = bindKey;
   return httpsAgent;
 }
 
@@ -37,6 +81,7 @@ export async function cartwaveFetch(
   const parsed = new URL(url.toString());
   const isHttps = parsed.protocol === "https:";
   const lib = isHttps ? https : http;
+  const bindIpv4 = isHttps ? resolveOutboundBindIpv4() : undefined;
 
   const method = (init.method ?? "GET").toUpperCase();
   const headers = new Headers(init.headers);
@@ -63,6 +108,8 @@ export async function cartwaveFetch(
         path: `${parsed.pathname}${parsed.search}`,
         method,
         headers: Object.fromEntries(headers.entries()),
+        family: 4,
+        localAddress: bindIpv4,
         agent: isHttps ? getHttpsAgent() : undefined,
       },
       async (res) => {
