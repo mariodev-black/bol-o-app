@@ -1,6 +1,6 @@
 import {
   getDailyEdition,
-  isDateInDailyEdition,
+  isMatchInDailyEditionScope,
 } from "@/lib/boloes/daily-editions";
 import {
   inferDailyEditionFromMatchIds,
@@ -134,7 +134,12 @@ export async function validatePalpiteForSave(
       ticketId: ctx.ticketId,
       bolaoType: "extra",
     });
-    if (!isDateInDailyEdition(dateBrDb, skaleDailyEdition)) {
+    if (
+      !isMatchInDailyEditionScope(
+        { dateBR: dateBrDb, hour: match.hour, kickoffAt: match.kickoffAt },
+        skaleDailyEdition,
+      )
+    ) {
       const editionMeta = getDailyEdition(skaleDailyEdition);
       return {
         error: `Ticket: esta partida nao pertence ao Bolao Diario Skale #${skaleDailyEdition} (dias ${editionMeta?.datesBR.join(", ") ?? "?"}).`,
@@ -234,7 +239,12 @@ export async function validatePalpiteForSave(
         };
       }
     } else {
-      if (!isDateInDailyEdition(dateBrDb, edition)) {
+      if (
+        !isMatchInDailyEditionScope(
+          { dateBR: dateBrDb, hour: match.hour, kickoffAt: match.kickoffAt },
+          edition,
+        )
+      ) {
         const editionMeta = getDailyEdition(edition);
         return {
           error: `Ticket: esta partida nao pertence ao ${editionMeta ? `Bolao Diario #${edition}` : "bolao diario"} (dias ${editionMeta?.datesBR.join(", ") ?? "?"}).`,

@@ -48,6 +48,7 @@ import {
   dailyEditionLabel,
   formatDailyEditionDatesLabel,
   getDailyEdition,
+  isMatchInDailyEditionScope,
   paidTicketDailyEditionNumber,
 } from "@/lib/boloes/daily-editions";
 
@@ -573,13 +574,21 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
   ) {
     jogos = jogos.filter((j) => j.rodada === extraRoundNumber);
   }
-  if (bolaoType === "diario" && dailyEditionDates.length > 0) {
-    const editionDateSet = new Set(dailyEditionDates);
-    jogos = jogos.filter((j) => j.dataBR && editionDateSet.has(j.dataBR));
+  if (bolaoType === "diario" && dailyEditionNumber != null) {
+    jogos = jogos.filter((j) =>
+      isMatchInDailyEditionScope(
+        { dateBR: j.dataBR, hora: j.hora, kickoffAt: j.kickoffAt },
+        dailyEditionNumber,
+      ),
+    );
   }
-  if (isSkaleDailyExtra && dailyEditionDates.length > 0) {
-    const editionDateSet = new Set(dailyEditionDates);
-    jogos = jogos.filter((j) => j.dataBR && editionDateSet.has(j.dataBR));
+  if (isSkaleDailyExtra && dailyEditionNumber != null) {
+    jogos = jogos.filter((j) =>
+      isMatchInDailyEditionScope(
+        { dateBR: j.dataBR, hora: j.hora, kickoffAt: j.kickoffAt },
+        dailyEditionNumber,
+      ),
+    );
   }
 
   if (

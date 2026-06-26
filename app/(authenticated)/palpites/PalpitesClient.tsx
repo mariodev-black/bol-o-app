@@ -75,6 +75,10 @@ import {
   partidasUrlWithLiveSync,
 } from "@/lib/football/live-sync-client";
 import { PalpitesViewTabs } from "@/app/(authenticated)/palpites/_components/PalpitesViewTabs";
+import {
+  isMatchInDailyEditionScope,
+  matchDisplayDateBRForDailyEdition,
+} from "@/lib/boloes/daily-editions";
 
 // ── Tipos ────────────────────────────────────────────────────
 type TabView = "jogos" | "tabela" | "ranking" | "resumo" | "jogadores";
@@ -120,6 +124,19 @@ interface Jogo {
   kickoffAt: string | null;
   resultCasa: number | null;
   resultVisitante: number | null;
+}
+
+function jogoDailyEditionInput(j: Jogo) {
+  return { dateBR: j.dataBR, hora: j.hora, kickoffAt: j.kickoffAt };
+}
+
+function jogoInDailyEditionScope(j: Jogo, editionNumber: number): boolean {
+  return isMatchInDailyEditionScope(jogoDailyEditionInput(j), editionNumber);
+}
+
+function jogoDisplayDateBR(j: Jogo, editionNumber: number | null): string {
+  if (editionNumber == null) return j.dataBR;
+  return matchDisplayDateBRForDailyEdition(jogoDailyEditionInput(j), editionNumber);
 }
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -3353,11 +3370,17 @@ function PalpitesPageContent({
   const isSkaleFullCopaPool = initialData?.isSkaleFullCopaPool === true;
   const isSkaleDailyEditionPool = initialData?.isSkaleDailyEditionPool === true;
   const dailyEditionNumber = initialData?.dailyEditionNumber ?? null;
-  const dailyEditionDateSet = useMemo(() => {
-    const dates = initialData?.dailyEditionDates ?? [];
-    return dates.length > 0 ? new Set(dates) : null;
-  }, [initialData?.dailyEditionDates]);
   const dailyEditionDatesLabel = initialData?.dailyEditionDatesLabel ?? null;
+  const dailyEditionPool =
+    (bolaoType === "diario" || isSkaleDailyEditionPool) &&
+    dailyEditionNumber != null;
+  const displayDateBR = useCallback(
+    (j: Jogo) =>
+      dailyEditionPool
+        ? jogoDisplayDateBR(j, dailyEditionNumber)
+        : j.dataBR,
+    [dailyEditionPool, dailyEditionNumber],
+  );
 
   const showPredictionsSkeleton =
     Boolean(ticketId) &&
@@ -3847,11 +3870,8 @@ function PalpitesPageContent({
     if (bolaoType === "principal" || isSkaleFullCopaPool) return true;
     if (extraRoundMode) return j.rodada === extraTicketRound;
     if (!dayScopedMode) return true;
-    if (bolaoType === "diario" && dailyEditionDateSet != null) {
-      return j.dataBR != null && dailyEditionDateSet.has(j.dataBR);
-    }
-    if (isSkaleDailyEditionPool && dailyEditionDateSet != null) {
-      return j.dataBR != null && dailyEditionDateSet.has(j.dataBR);
+    if (dailyEditionPool && dailyEditionNumber != null) {
+      return j.dataBR != null && jogoInDailyEditionScope(j, dailyEditionNumber);
     }
     return j.dataBR === diarioPlayableDate;
   });
@@ -3885,7 +3905,7 @@ function PalpitesPageContent({
       extraRoundMode && extraTicketRound != null ? extraTicketRound : selectedRodada;
     return jogosDisplayBase.filter((j) => {
       if (rodadaScope != null && j.rodada !== rodadaScope) return false;
-      if (selectedDate && j.dataBR !== selectedDate) return false;
+      if (selectedDate && displayDateBR(j) !== selectedDate) return false;
       return true;
     });
   }, [
@@ -3895,6 +3915,7 @@ function PalpitesPageContent({
     selectedDate,
     extraRoundMode,
     extraTicketRound,
+    displayDateBR,
   ]);
 
   /**
@@ -3904,10 +3925,10 @@ function PalpitesPageContent({
    */
   const datasGlobais = useMemo(
     () =>
-      Array.from(new Set(jogosDisplayBase.map((j) => j.dataBR)))
+      Array.from(new Set(jogosDisplayBase.map((j) => displayDateBR(j))))
         .filter(Boolean)
         .sort((a, b) => (brDateToUtcMs(a) ?? 0) - (brDateToUtcMs(b) ?? 0)),
-    [jogosDisplayBase],
+    [jogosDisplayBase, displayDateBR],
   );
   const datasGlobaisKey = datasGlobais.join("|");
   const rodadaPorData = useMemo(() => {
@@ -3916,7 +3937,7 @@ function PalpitesPageContent({
       // Rodada predominante do dia (em geral única; mata-mata raramente mistura).
       const counts = new Map<number, number>();
       for (const j of jogosDisplayBase) {
-        if (j.dataBR !== d) continue;
+        if (displayDateBR(j) !== d) continue;
         counts.set(j.rodada, (counts.get(j.rodada) ?? 0) + 1);
       }
       let best: number | null = null;
@@ -3930,7 +3951,7 @@ function PalpitesPageContent({
       if (best != null) map.set(d, best);
     }
     return map;
-  }, [datasGlobais, jogosDisplayBase]);
+  }, [datasGlobais, jogosDisplayBase, displayDateBR]);
 
   /**
    * Classificação ao vivo computada dos jogos. Tem prioridade sobre a tabela
@@ -4317,7 +4338,7 @@ function PalpitesPageContent({
       extraRoundMode && extraTicketRound != null ? extraTicketRound : selectedRodada;
     return jogosDisplayBase.filter((j) => {
       if (rodadaScope != null && j.rodada !== rodadaScope) return false;
-      if (selectedDate && j.dataBR !== selectedDate) return false;
+      if (selectedDate && displayDateBR(j) !== selectedDate) return false;
       return matchesGroup(j);
     });
   }, [
@@ -4329,6 +4350,7 @@ function PalpitesPageContent({
     shouldFilterByGroup,
     extraRoundMode,
     extraTicketRound,
+    displayDateBR,
   ]);
 
   const rodadasDisponiveis = useMemo(() => {

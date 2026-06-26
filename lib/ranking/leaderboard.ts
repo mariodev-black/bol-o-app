@@ -28,6 +28,7 @@ import { calculateSkalePrizePoolCents } from "@/lib/boloes/skale-prize";
 import { getPool } from "@/lib/db";
 import {
   getDailyEditionDatesSet,
+  isMatchInDailyEditionScope,
   paidTicketDailyEditionNumber,
 } from "@/lib/boloes/daily-editions";
 import { inferDailyEditionFromMatchIds } from "@/lib/boloes/daily-editions-server";
@@ -61,6 +62,20 @@ export function avatarIndexFromDb(v: string | number | null | undefined): number
 
 type MatchMap = Awaited<ReturnType<typeof fetchMatchesMap>>;
 type MatchInfo = NonNullable<ReturnType<MatchMap["get"]>>;
+
+function matchInDailyEditionCohort(
+  mi: MatchInfo,
+  poolEdition: number | null,
+  editionDates: Set<string>,
+): boolean {
+  if (poolEdition != null) {
+    return isMatchInDailyEditionScope(
+      { dateBR: mi.dateBR, hour: mi.hour, kickoffAt: mi.kickoffAt },
+      poolEdition,
+    );
+  }
+  return mi.dateBR != null && editionDates.has(mi.dateBR);
+}
 
 function isFinishedStatus(status: string): boolean {
   const s = String(status || "").toLowerCase();
@@ -830,7 +845,7 @@ async function buildLeaderboardDiarioUncached(focusTicketId: string): Promise<{ 
     if (!allowedDailyIds.has(p.ticket_id) || !cohortTicketIds.has(p.ticket_id)) return false;
     const mi = getMatchFromMap(matches, mainComp, Number(p.match_id));
     if (!mi || Number(mi.competitionId) !== mainComp) return false;
-    return mi.dateBR != null && editionDates.has(mi.dateBR);
+    return matchInDailyEditionCohort(mi, poolEdition, editionDates);
   });
 
   const agg = aggregatePredictions(cohortPreds, matches, cohortTicketIds, mainComp);
@@ -889,7 +904,7 @@ async function buildLeaderboardDiarioUncached(focusTicketId: string): Promise<{ 
   const nextPalpiteLockMs = computeNextPalpiteLockMs(matches, (m) => {
     if (!m.dateBR) return false;
     if (Number(m.competitionId) !== mainComp) return false;
-    return editionDates.has(m.dateBR);
+    return matchInDailyEditionCohort(m, poolEdition, editionDates);
   }, palpiteLockBeforeKickoffMs("diario"));
 
   const approxPremiados = Math.min(DAILY_TOP_RANK_COUNT, Math.max(participantCount > 0 ? 1 : 0, participantCount));
@@ -1005,7 +1020,7 @@ async function buildLeaderboardSkaleDailyUncached(
     if (!allowedIds.has(p.ticket_id) || !cohortTicketIds.has(p.ticket_id)) return false;
     const mi = resolveBolaoMatchFromMap(matches, skaleDailyComp, Number(p.match_id));
     if (!mi) return false;
-    return mi.dateBR != null && editionDates.has(mi.dateBR);
+    return matchInDailyEditionCohort(mi, poolEdition, editionDates);
   });
 
   const agg = aggregatePredictions(
@@ -1076,7 +1091,7 @@ async function buildLeaderboardSkaleDailyUncached(
       ) {
         return false;
       }
-      return editionDates.has(m.dateBR);
+      return matchInDailyEditionCohort(m, poolEdition, editionDates);
     },
     palpiteLockBeforeKickoffMs("extra"),
   );

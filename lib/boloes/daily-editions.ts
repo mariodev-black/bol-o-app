@@ -88,9 +88,136 @@ export function getDailyEditionForDate(dateBR: string): DailyEdition | null {
 }
 
 export function isDateInDailyEdition(dateBR: string, editionNumber: number): boolean {
+  return isMatchInDailyEditionScope({ dateBR }, editionNumber);
+}
+
+/** Até 05:59 BRT — madrugada do dia anterior no bolão diário (ex.: 27/06 00h → edição do dia 26). */
+export const DAILY_EDITION_EARLY_MORNING_END_HOUR = 6;
+
+export type DailyEditionMatchInput = {
+  dateBR?: string | null;
+  hourBR?: string | null;
+  hour?: string | null;
+  hora?: string | null;
+  kickoffAt?: string | null;
+};
+
+export function addOneBrDate(dateBR: string): string | null {
+  const [d, m, y] = dateBR.split("/").map((x) => Number.parseInt(x, 10));
+  if (!d || !m || !y) return null;
+  const base = new Date(Date.UTC(y, m - 1, d));
+  base.setUTCDate(base.getUTCDate() + 1);
+  const dd = String(base.getUTCDate()).padStart(2, "0");
+  const mm = String(base.getUTCMonth() + 1).padStart(2, "0");
+  const yyyy = base.getUTCFullYear();
+  return `${dd}/${mm}/${yyyy}`;
+}
+
+/** Hora local (0–23) em America/Sao_Paulo. */
+export function kickoffHourBRT(input: DailyEditionMatchInput): number | null {
+  if (input.kickoffAt) {
+    const dt = new Date(input.kickoffAt);
+    if (!Number.isNaN(dt.getTime())) {
+      const h = Number.parseInt(
+        new Intl.DateTimeFormat("pt-BR", {
+          timeZone: "America/Sao_Paulo",
+          hour: "numeric",
+          hourCycle: "h23",
+        }).format(dt),
+        10,
+      );
+      if (Number.isFinite(h)) return h;
+    }
+  }
+  const raw = String(input.hourBR ?? input.hour ?? input.hora ?? "").trim();
+  const hh = raw.slice(0, 2);
+  if (!/^\d{2}$/.test(hh)) return null;
+  const h = Number.parseInt(hh, 10);
+  return Number.isFinite(h) && h >= 0 && h <= 23 ? h : null;
+}
+
+export function isEarlyMorningKickoffHour(hour: number): boolean {
+  return hour >= 0 && hour < DAILY_EDITION_EARLY_MORNING_END_HOUR;
+}
+
+function previousEditionLastDate(editionNumber: number): string | null {
+  const prev = getDailyEdition(editionNumber - 1);
+  if (!prev || prev.datesBR.length === 0) return null;
+  return prev.datesBR[prev.datesBR.length - 1] ?? null;
+}
+
+/**
+ * Partida pertence à edição diária — inclui madrugada (00h–05h59) do dia
+ * seguinte ao último dia calendário da edição.
+ */
+export function isMatchInDailyEditionScope(
+  match: DailyEditionMatchInput,
+  editionNumber: number,
+): boolean {
   const edition = getDailyEdition(editionNumber);
   if (!edition) return false;
-  return edition.datesBR.includes(dateBR.trim());
+  const dateBR = match.dateBR?.trim();
+  if (!dateBR) return false;
+  const hour = kickoffHourBRT(match);
+
+  const lastDate = edition.datesBR[edition.datesBR.length - 1]!;
+  const dayAfterLast = addOneBrDate(lastDate);
+  if (
+    dayAfterLast === dateBR &&
+    hour != null &&
+    isEarlyMorningKickoffHour(hour)
+  ) {
+    return true;
+  }
+
+  if (!edition.datesBR.includes(dateBR)) return false;
+
+  const firstDate = edition.datesBR[0]!;
+  const prevLast = previousEditionLastDate(editionNumber);
+  const dayAfterPrev = prevLast ? addOneBrDate(prevLast) : null;
+  if (
+    dateBR === firstDate &&
+    dayAfterPrev === firstDate &&
+    hour != null &&
+    isEarlyMorningKickoffHour(hour)
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+/** Data exibida na UI — madrugada do dia seguinte aparece no último dia da edição. */
+export function matchDisplayDateBRForDailyEdition(
+  match: DailyEditionMatchInput,
+  editionNumber: number,
+): string {
+  const dateBR = match.dateBR?.trim() ?? "";
+  if (!dateBR) return dateBR;
+  const edition = getDailyEdition(editionNumber);
+  if (!edition) return dateBR;
+  const lastDate = edition.datesBR[edition.datesBR.length - 1]!;
+  const dayAfterLast = addOneBrDate(lastDate);
+  const hour = kickoffHourBRT(match);
+  if (
+    dayAfterLast === dateBR &&
+    hour != null &&
+    isEarlyMorningKickoffHour(hour)
+  ) {
+    return lastDate;
+  }
+  return dateBR;
+}
+
+export function isMatchEarlyMorningOfPreviousDay(
+  match: DailyEditionMatchInput,
+  previousDateBR: string,
+): boolean {
+  const next = addOneBrDate(previousDateBR);
+  const dateBR = match.dateBR?.trim();
+  if (!next || dateBR !== next) return false;
+  const hour = kickoffHourBRT(match);
+  return hour != null && isEarlyMorningKickoffHour(hour);
 }
 
 export function getDailyEditionDatesSet(editionNumber: number): ReadonlySet<string> {
