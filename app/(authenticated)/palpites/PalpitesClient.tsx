@@ -3370,16 +3370,20 @@ function PalpitesPageContent({
   const isSkaleFullCopaPool = initialData?.isSkaleFullCopaPool === true;
   const isSkaleDailyEditionPool = initialData?.isSkaleDailyEditionPool === true;
   const dailyEditionNumber = initialData?.dailyEditionNumber ?? null;
+  const dailyEditionDateSet = useMemo(() => {
+    const dates = initialData?.dailyEditionDates ?? [];
+    return dates.length > 0 ? new Set(dates) : null;
+  }, [initialData?.dailyEditionDates]);
   const dailyEditionDatesLabel = initialData?.dailyEditionDatesLabel ?? null;
-  const dailyEditionPool =
-    (bolaoType === "diario" || isSkaleDailyEditionPool) &&
-    dailyEditionNumber != null;
+  /** Madrugada (00h–05h59) só no Bolão Diário oficial — não Skale diário nem Copa inteira. */
+  const isMainDailyEditionPool =
+    bolaoType === "diario" && dailyEditionNumber != null;
   const displayDateBR = useCallback(
     (j: Jogo) =>
-      dailyEditionPool
+      isMainDailyEditionPool
         ? jogoDisplayDateBR(j, dailyEditionNumber)
         : j.dataBR,
-    [dailyEditionPool, dailyEditionNumber],
+    [isMainDailyEditionPool, dailyEditionNumber],
   );
 
   const showPredictionsSkeleton =
@@ -3870,8 +3874,11 @@ function PalpitesPageContent({
     if (bolaoType === "principal" || isSkaleFullCopaPool) return true;
     if (extraRoundMode) return j.rodada === extraTicketRound;
     if (!dayScopedMode) return true;
-    if (dailyEditionPool && dailyEditionNumber != null) {
+    if (isMainDailyEditionPool && dailyEditionNumber != null) {
       return j.dataBR != null && jogoInDailyEditionScope(j, dailyEditionNumber);
+    }
+    if (isSkaleDailyEditionPool && dailyEditionDateSet != null) {
+      return j.dataBR != null && dailyEditionDateSet.has(j.dataBR);
     }
     return j.dataBR === diarioPlayableDate;
   });

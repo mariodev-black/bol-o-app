@@ -584,8 +584,12 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
         const editionMeta =
           editionNum != null ? getDailyEdition(editionNum) : null;
         const editionDates = editionMeta?.datesBR ?? [];
-        const dateMatches = Array.from(matches.values()).filter((match) =>
-          matchInDailyEditionPool(match, editionNum, editionDates, mainComp, safeComp),
+        const dateMatches = Array.from(matches.values()).filter(
+          (match) =>
+            match.dateBR != null &&
+            editionDates.includes(match.dateBR) &&
+            (Number(match.competitionId) === safeComp ||
+              (Number(match.competitionId) || mainComp) === mainComp),
         );
         const closeAt = nextLockMs(
           dateMatches.filter((match) => isOpenMatch(match, PALPITE_LOCK_MS_DIARIO)),

@@ -35,6 +35,7 @@ export function scopeMatchesForBolaoDefinition(
   switch (def.scopeMode) {
     case "daily_dates": {
       if (
+        def.ticketType === "daily" &&
         def.editionNumber != null &&
         isValidDailyEditionNumber(def.editionNumber)
       ) {

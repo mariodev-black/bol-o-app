@@ -1,5 +1,7 @@
 import type { BolaoMatchPhaseInput } from "@/lib/boloes/display-status";
 import {
+  getDailyEdition,
+  getDailyEditionDatesSet,
   isMatchInDailyEditionScope,
   paidTicketDailyEditionNumber,
 } from "@/lib/boloes/daily-editions";
@@ -151,11 +153,9 @@ export function scopeMatchesForPaidTicket(
   if (isSkaleDailyBolaoCompetition(comp)) {
     const edition = paidTicketSkaleDailyEditionNumber(ticket);
     if (edition != null) {
-      return skaleScopeMatchesFromMap(matches, comp).filter((m) =>
-        isMatchInDailyEditionScope(
-          { dateBR: m.dateBR, hour: m.hour, kickoffAt: m.kickoffAt },
-          edition,
-        ),
+      const dates = getDailyEditionDatesSet(edition);
+      return skaleScopeMatchesFromMap(matches, comp).filter(
+        (m) => m.dateBR != null && dates.has(m.dateBR),
       );
     }
   }

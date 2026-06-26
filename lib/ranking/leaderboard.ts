@@ -1020,7 +1020,7 @@ async function buildLeaderboardSkaleDailyUncached(
     if (!allowedIds.has(p.ticket_id) || !cohortTicketIds.has(p.ticket_id)) return false;
     const mi = resolveBolaoMatchFromMap(matches, skaleDailyComp, Number(p.match_id));
     if (!mi) return false;
-    return matchInDailyEditionCohort(mi, poolEdition, editionDates);
+    return mi.dateBR != null && editionDates.has(mi.dateBR);
   });
 
   const agg = aggregatePredictions(
@@ -1091,7 +1091,7 @@ async function buildLeaderboardSkaleDailyUncached(
       ) {
         return false;
       }
-      return matchInDailyEditionCohort(m, poolEdition, editionDates);
+      return editionDates.has(m.dateBR);
     },
     palpiteLockBeforeKickoffMs("extra"),
   );

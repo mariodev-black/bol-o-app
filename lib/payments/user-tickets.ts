@@ -382,7 +382,7 @@ export async function listPaidTicketsForUser(
           const copaId = getSkaleBolaoSourceCopaCompetitionId();
           return om.competitionId === scopeComp || om.competitionId === copaId;
         }
-        if (dailyEdition != null) {
+        if (dailyEdition != null && t.ticketType === "daily") {
           return isMatchInDailyEditionScope(
             {
               dateBR: om.dateBR,
@@ -393,6 +393,9 @@ export async function listPaidTicketsForUser(
             },
             dailyEdition,
           );
+        }
+        if (dailyEditionDates != null) {
+          return om.dateBR != null && dailyEditionDates.has(om.dateBR);
         }
         if (extraRound == null) return om.dateBR === playableDate;
         const m = resolveBolaoMatchFromMap(matchMap, scopeComp, om.matchId);
