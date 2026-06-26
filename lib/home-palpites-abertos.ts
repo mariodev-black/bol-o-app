@@ -4,6 +4,10 @@
  */
 
 import {
+  getDailyEditionForDate,
+  isMatchInDailyEditionScope,
+} from "@/lib/boloes/daily-editions";
+import {
   getFootballMainCompetitionId,
   parseExtraBolaoChampionshipIds,
 } from "@/lib/boloes-extra-config";
@@ -134,8 +138,20 @@ function bolaoBucketForMatch(
   if (comp !== mainComp) return null;
 
   const date = match.data_realizacao?.trim();
+  const edition = getDailyEditionForDate(playableDate);
+  const inDailyEdition =
+    edition != null &&
+    date != null &&
+    isMatchInDailyEditionScope(
+      {
+        dateBR: date,
+        hora: match.hora_realizacao,
+        kickoffAt: match.data_realizacao_iso,
+      },
+      edition.number,
+    );
   if (
-    date === playableDate &&
+    (date === playableDate || inDailyEdition) &&
     isMatchOpenForPalpite(eligibility, "diario", nowMs)
   ) {
     return "diario";

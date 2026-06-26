@@ -2,6 +2,10 @@ import type { BolaoDefinition } from "@/lib/boloes/definitions/types";
 import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
 import { type MatchMap, type MatchMapEntry } from "@/lib/football-api";
 import {
+  isMatchInDailyEditionScope,
+  isValidDailyEditionNumber,
+} from "@/lib/boloes/daily-editions";
+import {
   resolveBolaoMatchFromMap,
   skaleScopeMatchesFromMap,
 } from "@/lib/boloes/skale-match-resolve";
@@ -30,6 +34,20 @@ export function scopeMatchesForBolaoDefinition(
 
   switch (def.scopeMode) {
     case "daily_dates": {
+      if (
+        def.editionNumber != null &&
+        isValidDailyEditionNumber(def.editionNumber)
+      ) {
+        const editionNumber = def.editionNumber;
+        return list.filter(
+          (m) =>
+            m.dateBR != null &&
+            isMatchInDailyEditionScope(
+              { dateBR: m.dateBR, hour: m.hour, kickoffAt: m.kickoffAt },
+              editionNumber,
+            ),
+        );
+      }
       const dateSet = new Set(def.scopeDates);
       return list.filter((m) => m.dateBR != null && dateSet.has(m.dateBR));
     }

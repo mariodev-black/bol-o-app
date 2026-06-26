@@ -11,7 +11,10 @@ import { getAllSyncedCompetitionIds, getFootballMainCompetitionId } from "@/lib/
 import { registerMatchMapMemoryInvalidate } from "@/lib/match-map-cache-invalidator";
 import { parseKickoffFromPartidaPayload } from "@/lib/partida-placar";
 import { readMatchesCache } from "@/lib/matches-cache";
-import { resolveOfficialMatchResults } from "@/lib/palpites-match-open";
+import {
+  resolveMatchScoresFromCacheRow,
+  resolveMatchStatusFromCacheRow,
+} from "@/lib/match-cache-display";
 import type { MatchMap } from "@/lib/match-map-types";
 import { matchMapKey } from "@/lib/match-map-types";
 
@@ -89,16 +92,12 @@ function mapFromCacheRows(rows: Awaited<ReturnType<typeof readMatchesCache>>): M
     const cid = Number(r.competition_id) || getFootballMainCompetitionId();
     const mid = Number(r.match_id);
     const { dateBR, hour } = dateBrHourFromCacheRow(r);
-    const { resultCasa, resultVisitante } = resolveOfficialMatchResults({
-      status: String(r.status || "aberto"),
-      kickoffAt: r.kickoff_at,
-      resultCasa: r.result_casa,
-      resultVisitante: r.result_visitante,
-    });
+    const status = resolveMatchStatusFromCacheRow(r);
+    const { resultCasa, resultVisitante } = resolveMatchScoresFromCacheRow(r);
     out.set(matchMapKey(cid, mid), {
       id: mid,
       kickoffAt: r.kickoff_at,
-      status: String(r.status || "aberto"),
+      status,
       resultCasa,
       resultVisitante,
       home: r.home_sigla || r.home_name || "CASA",
@@ -129,7 +128,10 @@ export async function fetchMatchesMap(opts?: { ensureCompetitionIds?: number[] }
   ) {
     return new Map(matchMapMemoryCache.map);
   }
-  const cachedRows = await readMatchesCache({ competitionIds: scopeIds }).catch(() => []);
+  const cachedRows = await readMatchesCache({
+    competitionIds: scopeIds,
+    includeProviderPayload: true,
+  }).catch(() => []);
   const map = mapFromCacheRows(cachedRows);
   matchMapMemoryCache = { at: Date.now(), map, scopeKey };
   return new Map(map);
@@ -141,6 +143,9 @@ export async function fetchMatchesMap(opts?: { ensureCompetitionIds?: number[] }
  */
 export async function fetchMatchesMapDirectFromDb(): Promise<MatchMap> {
   const { scopeIds } = mergeCompetitionIdsForMatchMap();
-  const cachedRows = await readMatchesCache({ competitionIds: scopeIds }).catch(() => []);
+  const cachedRows = await readMatchesCache({
+    competitionIds: scopeIds,
+    includeProviderPayload: true,
+  }).catch(() => []);
   return new Map(mapFromCacheRows(cachedRows));
 }

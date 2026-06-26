@@ -5,9 +5,10 @@ import { getMatchFromMap, type MatchMap, type MatchMapEntry } from "@/lib/footba
 import { hasOfficialMatchResult } from "@/lib/palpites-match-open";
 import { palpiteLockBeforeKickoffMs } from "@/lib/palpites-kickoff-lock";
 import {
+  getDailyEdition,
+  isMatchInDailyEditionScope,
   type DailyEdition,
   type DailyEditionStatus,
-  getDailyEdition,
   inferDailyEditionFromDates,
 } from "@/lib/boloes/daily-editions";
 
@@ -38,11 +39,17 @@ function matchesForEdition(
   matchMap: MatchMap,
   mainComp: number,
 ): MatchMapEntry[] {
-  const dateSet = new Set(edition.datesBR);
   const out: MatchMapEntry[] = [];
   for (const m of matchMap.values()) {
     if ((Number(m.competitionId) || mainComp) !== mainComp) continue;
-    if (m.dateBR && dateSet.has(m.dateBR)) out.push(m);
+    if (
+      isMatchInDailyEditionScope(
+        { dateBR: m.dateBR, hour: m.hour, kickoffAt: m.kickoffAt },
+        edition.number,
+      )
+    ) {
+      out.push(m);
+    }
   }
   return out;
 }

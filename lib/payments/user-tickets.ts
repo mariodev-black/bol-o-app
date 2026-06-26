@@ -2,6 +2,7 @@ import {
   formatDailyEditionDatesLabel,
   getDailyEdition,
   getDailyEditionDatesSet,
+  isMatchInDailyEditionScope,
   paidTicketDailyEditionNumber,
 } from "@/lib/boloes/daily-editions";
 import { inferDailyEditionFromMatchIds } from "@/lib/boloes/daily-editions-server";
@@ -381,8 +382,17 @@ export async function listPaidTicketsForUser(
           const copaId = getSkaleBolaoSourceCopaCompetitionId();
           return om.competitionId === scopeComp || om.competitionId === copaId;
         }
-        if (dailyEditionDates != null) {
-          return om.dateBR != null && dailyEditionDates.has(om.dateBR);
+        if (dailyEdition != null) {
+          return isMatchInDailyEditionScope(
+            {
+              dateBR: om.dateBR,
+              kickoffAt:
+                om.kickoffAt != null
+                  ? new Date(om.kickoffAt).toISOString()
+                  : null,
+            },
+            dailyEdition,
+          );
         }
         if (extraRound == null) return om.dateBR === playableDate;
         const m = resolveBolaoMatchFromMap(matchMap, scopeComp, om.matchId);

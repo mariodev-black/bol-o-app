@@ -33,6 +33,7 @@ import {
   formatDailyEditionCardSubtitle,
   formatDailyEditionDatesLabel,
   getDailyEdition,
+  isMatchInDailyEditionScope,
   listGroupStageDailyEditions,
   resolveShopDailyEdition,
 } from "@/lib/boloes/daily-editions";
@@ -83,6 +84,29 @@ const PALPITE_LOCK_MS_EXTRA = palpiteLockBeforeKickoffMs("extra");
 
 type MatchMap = Awaited<ReturnType<typeof fetchMatchesMap>>;
 type MatchInfo = MatchMapEntry;
+
+function matchInDailyEditionPool(
+  match: MatchInfo,
+  editionNumber: number | null | undefined,
+  editionDates: string[],
+  mainComp: number,
+  scopeComp?: number,
+): boolean {
+  const comp = Number(match.competitionId) || mainComp;
+  if (scopeComp != null) {
+    if (comp !== scopeComp && comp !== mainComp) return false;
+  } else if (comp !== mainComp) {
+    return false;
+  }
+  if (match.dateBR == null) return false;
+  if (editionNumber != null) {
+    return isMatchInDailyEditionScope(
+      { dateBR: match.dateBR, hour: match.hour, kickoffAt: match.kickoffAt },
+      editionNumber,
+    );
+  }
+  return editionDates.includes(match.dateBR);
+}
 
 type TicketMetrics = {
   sent: number;
@@ -560,12 +584,8 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
         const editionMeta =
           editionNum != null ? getDailyEdition(editionNum) : null;
         const editionDates = editionMeta?.datesBR ?? [];
-        const dateMatches = Array.from(matches.values()).filter(
-          (match) =>
-            match.dateBR != null &&
-            editionDates.includes(match.dateBR) &&
-            (Number(match.competitionId) === safeComp ||
-              (Number(match.competitionId) || mainComp) === mainComp),
+        const dateMatches = Array.from(matches.values()).filter((match) =>
+          matchInDailyEditionPool(match, editionNum, editionDates, mainComp, safeComp),
         );
         const closeAt = nextLockMs(
           dateMatches.filter((match) => isOpenMatch(match, PALPITE_LOCK_MS_DIARIO)),
@@ -696,11 +716,13 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
         ? getDailyEdition(ticket.dailyEditionNumber)
         : null;
     const editionDates = editionMeta?.datesBR ?? [ticket.playDate || playableDate];
-    const dateMatches = Array.from(matches.values()).filter(
-      (match) =>
-        match.dateBR != null &&
-        editionDates.includes(match.dateBR) &&
-        (Number(match.competitionId) || mainComp) === mainComp,
+    const dateMatches = Array.from(matches.values()).filter((match) =>
+      matchInDailyEditionPool(
+        match,
+        ticket.dailyEditionNumber,
+        editionDates,
+        mainComp,
+      ),
     );
     const closeAt = nextLockMs(
       dateMatches.filter((match) => isOpenMatch(match, PALPITE_LOCK_MS_DIARIO)),
@@ -788,11 +810,13 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
               ? getDailyEdition(firstDaily.dailyEditionNumber)
               : null;
           const editionDates = editionMeta?.datesBR ?? [firstDaily.playDate || playableDate];
-          const dateMatches = Array.from(matches.values()).filter(
-            (match) =>
-              match.dateBR != null &&
-              editionDates.includes(match.dateBR) &&
-              (Number(match.competitionId) || mainComp) === mainComp,
+          const dateMatches = Array.from(matches.values()).filter((match) =>
+            matchInDailyEditionPool(
+              match,
+              firstDaily.dailyEditionNumber,
+              editionDates,
+              mainComp,
+            ),
           );
           const closeAt = nextLockMs(
             dateMatches.filter((match) => isOpenMatch(match, PALPITE_LOCK_MS_DIARIO)),
