@@ -1,5 +1,6 @@
 import {
   getDailyEdition,
+  getDailyEditionDatesSet,
   isMatchInDailyEditionScope,
 } from "@/lib/boloes/daily-editions";
 import {
@@ -129,17 +130,13 @@ export async function validatePalpiteForSave(
       : null;
   if (skaleDailyEdition != null && extraChampionshipId != null) {
     const scopeComp = extraChampionshipId;
+    const editionDates = getDailyEditionDatesSet(skaleDailyEdition);
     const ticketPreds = await listPredictions({
       userId: ctx.userId,
       ticketId: ctx.ticketId,
       bolaoType: "extra",
     });
-    if (
-      !isMatchInDailyEditionScope(
-        { dateBR: dateBrDb, hour: match.hour, kickoffAt: match.kickoffAt },
-        skaleDailyEdition,
-      )
-    ) {
+    if (!editionDates.has(dateBrDb)) {
       const editionMeta = getDailyEdition(skaleDailyEdition);
       return {
         error: `Ticket: esta partida nao pertence ao Bolao Diario Skale #${skaleDailyEdition} (dias ${editionMeta?.datesBR.join(", ") ?? "?"}).`,
