@@ -4,6 +4,10 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { BarChart2, CalendarDays } from "lucide-react";
 import { matchKickoffMs, type PalpiteAbertoMatch } from "@/lib/home-palpites-abertos";
+import {
+  resolvePartidaTeamDisplay,
+  teamEscudoFallbackLabel,
+} from "@/lib/partida-team-display";
 
 const GREEN = "#B1EB0B";
 const CARD_BG = "#111111";
@@ -32,18 +36,23 @@ function dayTabLabel(ms: number): string {
 }
 
 function teamName(team: PalpiteAbertoMatch["time_mandante"]): string {
-  return team.nome_popular?.trim() || team.sigla?.trim()?.toUpperCase() || "A definir";
+  const display = resolvePartidaTeamDisplay(team);
+  if (display.isKnockoutSlot) {
+    return display.slotDetail ?? display.nome;
+  }
+  return display.nome;
 }
 
 function TeamFlag({ team }: { team: PalpiteAbertoMatch["time_mandante"] }) {
+  const display = resolvePartidaTeamDisplay(team);
   return (
     <span className="flex size-[22px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-white">
-      {team.escudo ? (
+      {display.escudo ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={team.escudo} alt="" className="size-full object-contain p-0.5" draggable={false} />
+        <img src={display.escudo} alt="" className="size-full object-contain p-0.5" draggable={false} />
       ) : (
         <span className="text-[8px] font-black text-[#0E141B]">
-          {team.sigla?.slice(0, 3).toUpperCase() ?? "?"}
+          {teamEscudoFallbackLabel(team.sigla, team.nome_popular)}
         </span>
       )}
     </span>

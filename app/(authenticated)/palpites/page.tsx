@@ -20,6 +20,10 @@ import {
   isRankingHistoricoLive,
 } from "@/lib/ranking/historico-display";
 import { pickTabelaGruposForPalpites } from "@/lib/tabela-palpites-normalize";
+import {
+  mapPartidaTeamToJogoSide,
+  type PartidaTeamLike,
+} from "@/lib/partida-team-display";
 import { effectiveExtraRoundForPaidTicket, formatExtraRoundLabel } from "@/lib/ticket-shop-extra-display";
 import { ensureExtraRoundMatchesCached } from "@/lib/football/extras-rodada";
 import { extraBolaoCurrentRoundsByChampionship } from "@/lib/ticket-shop-extra-rounds";
@@ -175,7 +179,50 @@ function parseRodadaNumeroFromKey(key: string): number | null {
   return null;
 }
 
-function parsePartidas(faseData: Record<string, any>): PalpitesInitialData["jogos"] {
+function pushJogoFromPartidaPage(
+  jogos: PalpitesInitialData["jogos"],
+  p: Record<string, any>,
+  grupo: string,
+  rodada: number,
+  tabela?: TabelaGrupos | null,
+) {
+  const rawTeamCasa = p.time_mandante as PartidaTeamLike | undefined;
+  const rawTeamVisitante = p.time_visitante as PartidaTeamLike | undefined;
+  const casa = mapPartidaTeamToJogoSide(rawTeamCasa, { tabela });
+  const visitante = mapPartidaTeamToJogoSide(rawTeamVisitante, { tabela });
+  jogos.push({
+    id: p.partida_id,
+    timeCasa: casa.nome,
+    siglasCasa: casa.sigla,
+    escudoCasa: casa.escudo,
+    isKnockoutSlotCasa: casa.isKnockoutSlot,
+    slotDetailCasa: casa.slotDetail,
+    rawTeamCasa,
+    timeVisitante: visitante.nome,
+    siglasVisitante: visitante.sigla,
+    escudoVisitante: visitante.escudo,
+    isKnockoutSlotVisitante: visitante.isKnockoutSlot,
+    slotDetailVisitante: visitante.slotDetail,
+    rawTeamVisitante,
+    data: formatData(p.data_realizacao, p.data_realizacao_iso),
+    dataBR: String(p.data_realizacao ?? ""),
+    hora: safeHourLabel(p.hora_realizacao),
+    statusBruto: String(p.status ?? ""),
+    liveTempo: parseLiveTempoFromPartida(p),
+    liveMinuto: parseLiveMinutoFromPartida(p),
+    status: mapStatus(String(p.status ?? "")),
+    grupo,
+    rodada,
+    kickoffAt: parseKickoffFromPartidaPayload(p),
+    resultCasa: pickScoreFromPartidaPayload(p, "casa"),
+    resultVisitante: pickScoreFromPartidaPayload(p, "visitante"),
+  });
+}
+
+function parsePartidas(
+  faseData: Record<string, any>,
+  tabela?: TabelaGrupos | null,
+): PalpitesInitialData["jogos"] {
   const jogos: PalpitesInitialData["jogos"] = [];
   const grupoKeys = Object.keys(faseData).filter((k) => typeof faseData[k] === "object" && !Array.isArray(faseData[k]));
   const rodadaDiretaKeys = Object.keys(faseData).filter((k) => Array.isArray(faseData[k]));
@@ -184,27 +231,13 @@ function parsePartidas(faseData: Record<string, any>): PalpitesInitialData["jogo
     rodadaDiretaKeys.forEach((rodadaKey, rodadaIndex) => {
       const partidas = faseData[rodadaKey] ?? [];
       for (const p of partidas) {
-        jogos.push({
-          id: p.partida_id,
-          timeCasa: (p.time_mandante?.nome_popular ?? "A DEFINIR").toUpperCase(),
-          siglasCasa: p.time_mandante?.sigla ?? "---",
-          escudoCasa: p.time_mandante?.escudo,
-          timeVisitante: (p.time_visitante?.nome_popular ?? "A DEFINIR").toUpperCase(),
-          siglasVisitante: p.time_visitante?.sigla ?? "---",
-          escudoVisitante: p.time_visitante?.escudo,
-          data: formatData(p.data_realizacao, p.data_realizacao_iso),
-          dataBR: String(p.data_realizacao ?? ""),
-          hora: safeHourLabel(p.hora_realizacao),
-          statusBruto: String(p.status ?? ""),
-          liveTempo: parseLiveTempoFromPartida(p),
-          liveMinuto: parseLiveMinutoFromPartida(p),
-          status: mapStatus(String(p.status ?? "")),
-          grupo: "GERAL",
-          rodada: resolveRodadaNumero(p, rodadaKey, rodadaIndex),
-          kickoffAt: parseKickoffFromPartidaPayload(p),
-          resultCasa: pickScoreFromPartidaPayload(p, "casa"),
-          resultVisitante: pickScoreFromPartidaPayload(p, "visitante"),
-        });
+        pushJogoFromPartidaPage(
+          jogos,
+          p,
+          "GERAL",
+          resolveRodadaNumero(p, rodadaKey, rodadaIndex),
+          tabela,
+        );
       }
     });
   }
@@ -216,45 +249,31 @@ function parsePartidas(faseData: Record<string, any>): PalpitesInitialData["jogo
     rodadaKeys.forEach((rodadaKey, rodadaIndex) => {
       const partidas = grupoData[rodadaKey] ?? [];
       for (const p of partidas) {
-        jogos.push({
-          id: p.partida_id,
-          timeCasa: (p.time_mandante?.nome_popular ?? "A DEFINIR").toUpperCase(),
-          siglasCasa: p.time_mandante?.sigla ?? "---",
-          escudoCasa: p.time_mandante?.escudo,
-          timeVisitante: (p.time_visitante?.nome_popular ?? "A DEFINIR").toUpperCase(),
-          siglasVisitante: p.time_visitante?.sigla ?? "---",
-          escudoVisitante: p.time_visitante?.escudo,
-          data: formatData(p.data_realizacao, p.data_realizacao_iso),
-          dataBR: String(p.data_realizacao ?? ""),
-          hora: safeHourLabel(p.hora_realizacao),
-          statusBruto: String(p.status ?? ""),
-          liveTempo: parseLiveTempoFromPartida(p),
-          liveMinuto: parseLiveMinutoFromPartida(p),
-          status: mapStatus(String(p.status ?? "")),
-          grupo: grupoLetra,
-          rodada: resolveRodadaNumero(p, rodadaKey, rodadaIndex),
-          kickoffAt: parseKickoffFromPartidaPayload(p),
-          resultCasa: pickScoreFromPartidaPayload(p, "casa"),
-          resultVisitante: pickScoreFromPartidaPayload(p, "visitante"),
-        });
+        pushJogoFromPartidaPage(
+          jogos,
+          p,
+          grupoLetra,
+          resolveRodadaNumero(p, rodadaKey, rodadaIndex),
+          tabela,
+        );
       }
     });
   }
   return jogos;
 }
 
-function parseAllPartidas(fases: Record<string, any> | undefined): {
+function parseAllPartidas(
+  fases: Record<string, any> | undefined,
+  tabela?: TabelaGrupos | null,
+): {
   jogos: PalpitesInitialData["jogos"];
   grupos: string[];
 } {
   if (!fases || typeof fases !== "object") return { jogos: [], grupos: [] };
   const phaseValues = Object.values(fases).filter((value) => value && typeof value === "object") as Record<string, any>[];
   const grupos = new Set<string>();
-  // NOTA: o `rodadaOffset` legado (que somava 1 a cada fase) é INCORRETO
-  // quando a `rodada` real já vem do payload — aqui usamos o valor que
-  // `parsePartidas` retornou (já resolvido).
   const jogos = phaseValues.flatMap((faseData) => {
-    return parsePartidas(faseData).map((jogo) => {
+    return parsePartidas(faseData, tabela).map((jogo) => {
       if (jogo.grupo && jogo.grupo !== "GERAL") grupos.add(jogo.grupo);
       return jogo;
     });
@@ -564,7 +583,13 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
   ]);
 
   const partidasOk = fasesResult != null;
-  const parsedPartidas = parseAllPartidas((fasesResult ?? {}) as Record<string, any>);
+  const tabelaGrupos =
+    pickTabelaGruposForPalpites(tabelaPayload) ??
+    (bolaoType === "extra" ? ({ "grupo-geral": [] } as TabelaGrupos) : null);
+  const parsedPartidas = parseAllPartidas(
+    (fasesResult ?? {}) as Record<string, any>,
+    tabelaGrupos,
+  );
   let jogos = parsedPartidas.jogos;
   let grupos = parsedPartidas.grupos;
   if (
@@ -605,15 +630,12 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
     }).catch(() => {});
     const retryFases = await getPartidasFasesFromDb(partidasCompId).catch(() => null);
     if (retryFases != null) {
-      const retryParsed = parseAllPartidas(retryFases as Record<string, any>);
+      const retryParsed = parseAllPartidas(retryFases as Record<string, any>, tabelaGrupos);
       jogos = retryParsed.jogos.filter((j) => j.rodada === extraRoundNumber);
       grupos = retryParsed.grupos;
     }
   }
 
-  const tabelaGrupos =
-    pickTabelaGruposForPalpites(tabelaPayload) ??
-    (bolaoType === "extra" ? ({ "grupo-geral": [] } as TabelaGrupos) : null);
   const tabelaOk =
     bolaoType !== "extra" || isSkaleExtra || isWeekendExtra
       ? tabelaPayload != null
