@@ -21,6 +21,8 @@ export type MatchMapEntry = {
   competitionId: number;
   /** `matches_cache.rodada` — necessário para bolão extra por rodada. */
   rodada: number | null;
+  /** `matches_cache.phase_key` — fase de grupos vs mata-mata. */
+  phaseKey: string | null;
 };
 
 /** Chave `${competition_id}:${partida_id}` — evita colisão de `partida_id` entre campeonatos na API. */

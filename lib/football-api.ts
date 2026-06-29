@@ -113,6 +113,7 @@ function mapFromCacheRows(rows: Awaited<ReturnType<typeof readMatchesCache>>): M
         r.rodada != null && Number.isFinite(Number(r.rodada)) && Number(r.rodada) > 0
           ? Number(r.rodada)
           : null,
+      phaseKey: r.phase_key?.trim() || null,
     });
   }
   return out;

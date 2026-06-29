@@ -8,12 +8,12 @@ import {
   isSkaleDailyBolaoCompetition,
 } from "@/lib/boloes/skale-daily-config";
 import {
-  getWeekendBolaoSourceCopaCompetitionId,
   isWeekendBolaoCompetition,
 } from "@/lib/boloes/weekend-bolao-config";
 import { isAmistososFriendliesCompetition } from "@/lib/football/amistosos-friendlies";
 import { ensureAmistososFriendliesMatchesSeeded } from "@/lib/football/amistosos-friendlies-persistence";
 import { mirrorSkaleBolaoMatchesFromCopa } from "@/lib/football/skale-bolao-sync";
+import { mirrorWeekendBolaoMatchesFromCopa } from "@/lib/football/weekend-bolao-sync";
 import { bootstrapCompetitionCacheIfEmpty } from "@/lib/football/sync-orchestrator";
 import {
   resolveMatchScoresFromCacheRow,
@@ -173,7 +173,7 @@ export function partidasCacheSourceCompetitionId(competitionId: number): number 
     return getSkaleBolaoSourceCopaCompetitionId();
   }
   if (isWeekendBolaoCompetition(competitionId)) {
-    return getWeekendBolaoSourceCopaCompetitionId();
+    return competitionId;
   }
   return competitionId;
 }
@@ -189,6 +189,9 @@ export async function getPartidasFasesFromDb(competitionId?: number): Promise<Ph
       : getFootballMainCompetitionId();
   if (isSkaleBolaoCompetition(comp)) {
     await mirrorSkaleBolaoMatchesFromCopa().catch(() => {});
+  }
+  if (isWeekendBolaoCompetition(comp)) {
+    await mirrorWeekendBolaoMatchesFromCopa().catch(() => {});
   }
   const sourceComp = partidasCacheSourceCompetitionId(comp);
   let rows = await readMatchesCache({ includeProviderPayload: true });
