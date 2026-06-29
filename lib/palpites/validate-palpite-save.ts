@@ -1,3 +1,4 @@
+import { isGroupStageFaseKey } from "@/lib/boloes/palpites-jogos-filter";
 import {
   getDailyEdition,
   getDailyEditionDatesSet,
@@ -236,6 +237,13 @@ export async function validatePalpiteForSave(
         };
       }
     } else {
+      if (!isGroupStageFaseKey(match.phaseKey)) {
+        return {
+          error:
+            "Partida nao pertence a fase de grupos do Bolao Diario. Palpites so sao aceitos em jogos da fase de grupos.",
+          status: 400,
+        };
+      }
       if (
         !isMatchInDailyEditionScope(
           { dateBR: dateBrDb, hour: match.hour, kickoffAt: match.kickoffAt },
