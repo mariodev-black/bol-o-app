@@ -10,6 +10,12 @@ import {
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
+  teamEscudoFallbackLabel,
+  teamSiglaLabel,
+  mapPartidaTeamToJogoSide,
+  type PartidaTeamLike,
+} from "@/lib/partida-team-display";
+import {
   ChevronDown,
   ChevronUp,
   BarChart2,
@@ -109,6 +115,12 @@ interface Jogo {
   timeVisitante: string;
   siglasVisitante: string;
   escudoVisitante: string;
+  isKnockoutSlotCasa?: boolean;
+  isKnockoutSlotVisitante?: boolean;
+  slotDetailCasa?: string | null;
+  slotDetailVisitante?: string | null;
+  rawTeamCasa?: PartidaTeamLike;
+  rawTeamVisitante?: PartidaTeamLike;
   data: string;
   hora: string;
   status: StatusJogo;
@@ -367,6 +379,74 @@ function resolveRodadaNumero(
   return rodadaIndexFallback;
 }
 
+function enrichJogosTeamsFromStandings(
+  jogos: Jogo[],
+  tabela: TabelaGrupos | null | undefined,
+): Jogo[] {
+  if (!tabela) return jogos;
+  return jogos.map((j) => {
+    const casa = mapPartidaTeamToJogoSide(j.rawTeamCasa ?? { sigla: j.siglasCasa, nome_popular: j.timeCasa }, {
+      tabela,
+    });
+    const visitante = mapPartidaTeamToJogoSide(
+      j.rawTeamVisitante ?? { sigla: j.siglasVisitante, nome_popular: j.timeVisitante },
+      { tabela },
+    );
+    return {
+      ...j,
+      timeCasa: casa.nome,
+      siglasCasa: casa.sigla,
+      escudoCasa: casa.escudo,
+      isKnockoutSlotCasa: casa.isKnockoutSlot,
+      slotDetailCasa: casa.slotDetail,
+      timeVisitante: visitante.nome,
+      siglasVisitante: visitante.sigla,
+      escudoVisitante: visitante.escudo,
+      isKnockoutSlotVisitante: visitante.isKnockoutSlot,
+      slotDetailVisitante: visitante.slotDetail,
+    };
+  });
+}
+
+function pushJogoFromPartida(
+  jogos: Jogo[],
+  p: Record<string, any>,
+  grupo: string,
+  rodada: number,
+) {
+  const rawTeamCasa = p.time_mandante as PartidaTeamLike | undefined;
+  const rawTeamVisitante = p.time_visitante as PartidaTeamLike | undefined;
+  const casa = mapPartidaTeamToJogoSide(rawTeamCasa);
+  const visitante = mapPartidaTeamToJogoSide(rawTeamVisitante);
+  jogos.push({
+    id: p.partida_id,
+    timeCasa: casa.nome,
+    siglasCasa: casa.sigla,
+    escudoCasa: casa.escudo,
+    isKnockoutSlotCasa: casa.isKnockoutSlot,
+    slotDetailCasa: casa.slotDetail,
+    rawTeamCasa: rawTeamCasa,
+    timeVisitante: visitante.nome,
+    siglasVisitante: visitante.sigla,
+    escudoVisitante: visitante.escudo,
+    isKnockoutSlotVisitante: visitante.isKnockoutSlot,
+    slotDetailVisitante: visitante.slotDetail,
+    rawTeamVisitante: rawTeamVisitante,
+    data: formatData(p.data_realizacao, p.data_realizacao_iso),
+    dataBR: String(p.data_realizacao ?? ""),
+    hora: safeHourLabel(p.hora_realizacao),
+    statusBruto: String(p.status ?? ""),
+    liveTempo: parseLiveTempoFromPartida(p),
+    liveMinuto: parseLiveMinutoFromPartida(p),
+    status: mapStatus(String(p.status ?? "")),
+    grupo,
+    rodada,
+    kickoffAt: parseKickoffFromPartidaPayload(p),
+    resultCasa: pickScoreFromPartidaPayload(p, "casa"),
+    resultVisitante: pickScoreFromPartidaPayload(p, "visitante"),
+  });
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parsePartidas(faseData: Record<string, any>): Jogo[] {
   const jogos: Jogo[] = [];
@@ -381,27 +461,7 @@ function parsePartidas(faseData: Record<string, any>): Jogo[] {
     rodadaDiretaKeys.forEach((rodadaKey, rodadaIndex) => {
       const partidas = faseData[rodadaKey] ?? [];
       for (const p of partidas) {
-        jogos.push({
-          id: p.partida_id,
-          timeCasa: p.time_mandante.nome_popular.toUpperCase(),
-          siglasCasa: p.time_mandante.sigla,
-          escudoCasa: p.time_mandante.escudo,
-          timeVisitante: p.time_visitante.nome_popular.toUpperCase(),
-          siglasVisitante: p.time_visitante.sigla,
-          escudoVisitante: p.time_visitante.escudo,
-          data: formatData(p.data_realizacao, p.data_realizacao_iso),
-          dataBR: String(p.data_realizacao ?? ""),
-          hora: safeHourLabel(p.hora_realizacao),
-          statusBruto: String(p.status ?? ""),
-          liveTempo: parseLiveTempoFromPartida(p),
-          liveMinuto: parseLiveMinutoFromPartida(p),
-          status: mapStatus(String(p.status ?? "")),
-          grupo: "GERAL",
-          rodada: resolveRodadaNumero(p, rodadaKey, rodadaIndex),
-          kickoffAt: parseKickoffFromPartidaPayload(p),
-          resultCasa: pickScoreFromPartidaPayload(p, "casa"),
-          resultVisitante: pickScoreFromPartidaPayload(p, "visitante"),
-        });
+        pushJogoFromPartida(jogos, p, "GERAL", resolveRodadaNumero(p, rodadaKey, rodadaIndex));
       }
     });
   }
@@ -417,27 +477,12 @@ function parsePartidas(faseData: Record<string, any>): Jogo[] {
       const partidas = grupoData[rodadaKey] ?? [];
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       for (const p of partidas) {
-        jogos.push({
-          id: p.partida_id,
-          timeCasa: p.time_mandante.nome_popular.toUpperCase(),
-          siglasCasa: p.time_mandante.sigla,
-          escudoCasa: p.time_mandante.escudo,
-          timeVisitante: p.time_visitante.nome_popular.toUpperCase(),
-          siglasVisitante: p.time_visitante.sigla,
-          escudoVisitante: p.time_visitante.escudo,
-          data: formatData(p.data_realizacao, p.data_realizacao_iso),
-          dataBR: String(p.data_realizacao ?? ""),
-          hora: safeHourLabel(p.hora_realizacao),
-          statusBruto: String(p.status ?? ""),
-          liveTempo: parseLiveTempoFromPartida(p),
-          liveMinuto: parseLiveMinutoFromPartida(p),
-          status: mapStatus(String(p.status ?? "")),
-          grupo: grupoLetra,
-          rodada: resolveRodadaNumero(p, rodadaKey, rodadaIndex),
-          kickoffAt: parseKickoffFromPartidaPayload(p),
-          resultCasa: pickScoreFromPartidaPayload(p, "casa"),
-          resultVisitante: pickScoreFromPartidaPayload(p, "visitante"),
-        });
+        pushJogoFromPartida(
+          jogos,
+          p,
+          grupoLetra,
+          resolveRodadaNumero(p, rodadaKey, rodadaIndex),
+        );
       }
     });
   }
@@ -496,11 +541,15 @@ function Escudo({
   alt,
   sigla,
   size = "md",
+  isKnockoutSlot = false,
+  escudoFallback,
 }: {
   url: string;
   alt: string;
   sigla?: string;
   size?: "sm" | "md" | "lg";
+  isKnockoutSlot?: boolean;
+  escudoFallback?: string;
 }) {
   const [imgFailed, setImgFailed] = useState(false);
   useEffect(() => {
@@ -514,13 +563,20 @@ function Escudo({
         : "size-[68px] rounded-[14px] p-2.5";
   const img =
     size === "sm" ? "size-10" : size === "lg" ? "size-14" : "size-12";
-  const fallbackLabel = (sigla?.trim() || alt).slice(0, 3).toUpperCase();
+  const fallbackLabel = escudoFallback ?? teamEscudoFallbackLabel(sigla, alt);
   const showImg = Boolean(url?.trim()) && !imgFailed;
 
   return (
     <div
       className={`flex shrink-0 items-center justify-center overflow-hidden ${box}`}
-      style={{ background: "rgba(255,255,255,0.96)" }}
+      style={
+        isKnockoutSlot && !showImg
+          ? {
+              background: "rgba(255,255,255,0.08)",
+              border: "1.5px dashed rgba(255,255,255,0.28)",
+            }
+          : { background: "rgba(255,255,255,0.96)" }
+      }
     >
       {showImg ? (
         // eslint-disable-next-line @next/next/no-img-element
@@ -534,7 +590,7 @@ function Escudo({
         />
       ) : (
         <span
-          className={`font-black uppercase text-[#0E141B] ${size === "lg" ? "text-[15px]" : size === "sm" ? "text-[11px]" : "text-[13px]"}`}
+          className={`font-black uppercase ${isKnockoutSlot ? "text-white/70" : "text-[#0E141B]"} ${size === "lg" ? (isKnockoutSlot ? "text-[13px]" : "text-[15px]") : size === "sm" ? "text-[11px]" : "text-[13px]"}`}
         >
           {fallbackLabel}
         </span>
@@ -1017,16 +1073,37 @@ function PalpiteCardTeamColumn({
   url,
   alt,
   sigla,
+  isKnockoutSlot = false,
+  slotDetail = null,
 }: {
   url: string;
   alt: string;
   sigla?: string;
+  isKnockoutSlot?: boolean;
+  slotDetail?: string | null;
 }) {
-  const label = (sigla?.trim() || alt).slice(0, 3).toUpperCase();
+  const label = isKnockoutSlot ? "A DEFINIR" : teamSiglaLabel(sigla, alt);
+  const escudoFallback = isKnockoutSlot
+    ? teamEscudoFallbackLabel(sigla, alt)
+    : undefined;
   return (
-    <div className="flex min-w-0 flex-col items-center gap-2">
-      <Escudo url={url} alt={alt} sigla={sigla} size="lg" />
-      <p className={PALPITE_CARD_TYPE.teamSigla}>{label}</p>
+    <div className="flex min-w-0 flex-col items-center gap-1.5">
+      <Escudo
+        url={url}
+        alt={alt}
+        sigla={sigla}
+        size="lg"
+        isKnockoutSlot={isKnockoutSlot}
+        escudoFallback={escudoFallback}
+      />
+      <p className={`${PALPITE_CARD_TYPE.teamSigla} max-w-[92px] text-center leading-tight`}>
+        {label}
+      </p>
+      {isKnockoutSlot && slotDetail ? (
+        <p className="max-w-[92px] text-center text-[11px] font-semibold leading-tight text-white/45">
+          {slotDetail}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -1559,6 +1636,8 @@ function JogoCard({
             url={jogo.escudoCasa}
             alt={jogo.timeCasa}
             sigla={jogo.siglasCasa}
+            isKnockoutSlot={jogo.isKnockoutSlotCasa}
+            slotDetail={jogo.slotDetailCasa}
           />
           <div className="flex flex-col items-center justify-center px-1">
             {phase === "post" ? <PalpiteResultadoFinalBadge /> : null}
@@ -1568,6 +1647,8 @@ function JogoCard({
             url={jogo.escudoVisitante}
             alt={jogo.timeVisitante}
             sigla={jogo.siglasVisitante}
+            isKnockoutSlot={jogo.isKnockoutSlotVisitante}
+            slotDetail={jogo.slotDetailVisitante}
           />
         </div>
         {showSeuPalpite && initialPrediction ? (
@@ -1674,34 +1755,42 @@ function computeTabelaFromJogos(jogos: Jogo[]): TabelaGrupos | null {
   for (const j of jogos) {
     if (j.resultCasa == null || j.resultVisitante == null) continue;
     const grupoKey = `grupo-${(j.grupo || "geral").toLowerCase()}`;
-    const casa = ensure(grupoKey, j.siglasCasa, j.timeCasa, j.escudoCasa);
-    const visitante = ensure(
-      grupoKey,
-      j.siglasVisitante,
-      j.timeVisitante,
-      j.escudoVisitante,
-    );
-    temAlgumResultado = true;
-    casa.jogos += 1;
-    visitante.jogos += 1;
-    casa.golsPro += j.resultCasa;
-    casa.golsContra += j.resultVisitante;
-    visitante.golsPro += j.resultVisitante;
-    visitante.golsContra += j.resultCasa;
-    if (j.resultCasa > j.resultVisitante) {
-      casa.vitorias += 1;
-      casa.pontos += 3;
-      visitante.derrotas += 1;
-    } else if (j.resultCasa < j.resultVisitante) {
-      visitante.vitorias += 1;
-      visitante.pontos += 3;
-      casa.derrotas += 1;
-    } else {
-      casa.empates += 1;
-      visitante.empates += 1;
-      casa.pontos += 1;
-      visitante.pontos += 1;
+    if (!j.isKnockoutSlotCasa) {
+      const casa = ensure(grupoKey, j.siglasCasa, j.timeCasa, j.escudoCasa);
+      casa.jogos += 1;
+      casa.golsPro += j.resultCasa;
+      casa.golsContra += j.resultVisitante;
+      if (j.resultCasa > j.resultVisitante) {
+        casa.vitorias += 1;
+        casa.pontos += 3;
+      } else if (j.resultCasa < j.resultVisitante) {
+        casa.derrotas += 1;
+      } else {
+        casa.empates += 1;
+        casa.pontos += 1;
+      }
     }
+    if (!j.isKnockoutSlotVisitante) {
+      const visitante = ensure(
+        grupoKey,
+        j.siglasVisitante,
+        j.timeVisitante,
+        j.escudoVisitante,
+      );
+      visitante.jogos += 1;
+      visitante.golsPro += j.resultVisitante;
+      visitante.golsContra += j.resultCasa;
+      if (j.resultVisitante > j.resultCasa) {
+        visitante.vitorias += 1;
+        visitante.pontos += 3;
+      } else if (j.resultVisitante < j.resultCasa) {
+        visitante.derrotas += 1;
+      } else {
+        visitante.empates += 1;
+        visitante.pontos += 1;
+      }
+    }
+    temAlgumResultado = true;
   }
 
   if (!temAlgumResultado) return null;
@@ -3956,7 +4045,19 @@ function PalpitesPageContent({
   /** Inclui jogos encerrados para o usuário ver placar, pontuação e detalhes do palpite. */
   const jogosBase = jogosOnPlayableDate;
 
-  const jogosDisplayBase = jogosBase;
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+  const tabelaComputada = useMemo(
+    () => (hydrated ? computeTabelaFromJogos(jogosBase) : null),
+    [hydrated, jogosBase],
+  );
+
+  const jogosDisplayBase = useMemo(
+    () => enrichJogosTeamsFromStandings(jogosBase, tabelaComputada ?? tabela),
+    [jogosBase, tabelaComputada, tabela],
+  );
 
   /** Dia/rodada visível nas abas (Ontem/Hoje/…) — o rodapé só reflete este escopo. */
   const jogosEscopoVisivel = useMemo(() => {
@@ -4025,14 +4126,6 @@ function PalpitesPageContent({
    * depende de placares que mudam entre servidor e cliente, e um mismatch fazia
    * o React descartar e remontar a árvore (a tela "zerava").
    */
-  const [hydrated, setHydrated] = useState(false);
-  useEffect(() => {
-    setHydrated(true);
-  }, []);
-  const tabelaComputada = useMemo(
-    () => (hydrated ? computeTabelaFromJogos(jogosDisplayBase) : null),
-    [hydrated, jogosDisplayBase],
-  );
 
   const hasEditableMatches = jogosEscopoVisivel.some((j) =>
     isJogoEditavelParaPalpite(j, bolaoType),

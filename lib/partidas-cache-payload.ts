@@ -19,6 +19,7 @@ import {
   resolveMatchScoresFromCacheRow,
   resolveMatchStatusFromCacheRow,
 } from "@/lib/match-cache-display";
+import { partidaTeamToPayload } from "@/lib/partida-team-display";
 
 type NestedRounds = Record<string, Array<Record<string, unknown>>>;
 type PhaseMap = Record<string, NestedRounds | Record<string, NestedRounds>>;
@@ -37,6 +38,36 @@ function brDateFromIso(iso: string): string {
   const year = parts.find((p) => p.type === "year")?.value ?? "";
   if (!day || !month || !year) return "";
   return `${day}/${month}/${year}`;
+}
+
+function asStr(v: unknown): string | null {
+  if (v == null) return null;
+  const s = String(v).trim();
+  return s === "" ? null : s;
+}
+
+function pickTeamSideFromPayload(
+  payload: Record<string, unknown> | null | undefined,
+  side: "mandante" | "visitante",
+  rowFallback: { nome: string; sigla: string; escudo: string | null },
+): Record<string, unknown> {
+  const key = side === "mandante" ? "time_mandante" : "time_visitante";
+  const fromPayload = payload?.[key];
+  if (fromPayload && typeof fromPayload === "object") {
+    const t = fromPayload as Record<string, unknown>;
+    return {
+      time_id: t.time_id ?? t.id ?? null,
+      nome: asStr(t.nome),
+      nome_popular: asStr(t.nome_popular) ?? asStr(t.nome) ?? rowFallback.nome,
+      sigla: asStr(t.sigla) ?? rowFallback.sigla,
+      escudo: asStr(t.escudo) ?? rowFallback.escudo,
+    };
+  }
+  return {
+    nome_popular: rowFallback.nome,
+    sigla: rowFallback.sigla,
+    escudo: rowFallback.escudo,
+  };
 }
 
 function brHourFromIso(iso: string): string {
@@ -76,16 +107,20 @@ export function rowToPartidaPayload(row: CachedMatchRow): Record<string, unknown
     placar_visitante: resultVisitante,
     rodada: row.rodada ?? null,
     round_key: row.round_key ?? null,
-    time_mandante: {
-      nome_popular: row.home_name,
-      sigla: row.home_sigla,
-      escudo: row.home_logo,
-    },
-    time_visitante: {
-      nome_popular: row.away_name,
-      sigla: row.away_sigla,
-      escudo: row.away_logo,
-    },
+    time_mandante: partidaTeamToPayload(
+      pickTeamSideFromPayload(payload, "mandante", {
+        nome: row.home_name,
+        sigla: row.home_sigla,
+        escudo: row.home_logo,
+      }),
+    ),
+    time_visitante: partidaTeamToPayload(
+      pickTeamSideFromPayload(payload, "visitante", {
+        nome: row.away_name,
+        sigla: row.away_sigla,
+        escudo: row.away_logo,
+      }),
+    ),
   };
   if (payload) {
     if (payload.cronometro != null) partidaBase.cronometro = payload.cronometro;
