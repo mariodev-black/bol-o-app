@@ -80,6 +80,7 @@ import {
   teamEscudoFallbackLabel,
   teamSiglaLabel,
   mapPartidaTeamToJogoSide,
+  formatPalpitesGroupSectionLabel,
   type PartidaTeamLike,
 } from "@/lib/partida-team-display";
 import {
@@ -376,13 +377,17 @@ function enrichJogosTeamsFromStandings(
 ): Jogo[] {
   if (!tabela) return jogos;
   return jogos.map((j) => {
-    const casa = mapPartidaTeamToJogoSide(j.rawTeamCasa ?? { sigla: j.siglasCasa, nome_popular: j.timeCasa }, {
+    const rawCasa = j.rawTeamCasa ?? { sigla: j.siglasCasa, nome_popular: j.timeCasa };
+    const rawVisitante =
+      j.rawTeamVisitante ?? { sigla: j.siglasVisitante, nome_popular: j.timeVisitante };
+    const casa = mapPartidaTeamToJogoSide(rawCasa, {
       tabela,
+      opponentTeam: rawVisitante,
     });
-    const visitante = mapPartidaTeamToJogoSide(
-      j.rawTeamVisitante ?? { sigla: j.siglasVisitante, nome_popular: j.timeVisitante },
-      { tabela },
-    );
+    const visitante = mapPartidaTeamToJogoSide(rawVisitante, {
+      tabela,
+      opponentTeam: rawCasa,
+    });
     return {
       ...j,
       timeCasa: casa.nome,
@@ -640,7 +645,7 @@ function RodadaSectionHeader({
   if (groupKey && !label) {
     return (
       <p className="mb-3 text-[13px] font-bold uppercase tracking-[0.06em] text-primary">
-        Grupo {groupKey}
+        {formatPalpitesGroupSectionLabel(groupKey)}
       </p>
     );
   }
@@ -650,7 +655,7 @@ function RodadaSectionHeader({
       {groupKey ? (
         <>
           <span className="text-white"> — </span>
-          <span className="text-primary">GRUPO {groupKey}</span>
+          <span className="text-primary">{formatPalpitesGroupSectionLabel(groupKey)}</span>
         </>
       ) : null}
     </p>
@@ -1815,6 +1820,8 @@ function computeTabelaFromJogos(jogos: Jogo[]): TabelaGrupos | null {
       vitorias: t.vitorias,
       empates: t.empates,
       derrotas: t.derrotas,
+      golsPro: t.golsPro,
+      golsContra: t.golsContra,
     }));
   }
   return out;
@@ -4088,13 +4095,18 @@ function PalpitesPageContent({
   /** Inclui jogos encerrados para o usuário ver placar, pontuação e detalhes do palpite. */
   const jogosBase = jogosOnPlayableDate;
 
+  const jogosGruposParaTabela = useMemo(
+    () => jogos.filter((j) => (j.faseKey ?? "fase-de-grupos") === "fase-de-grupos"),
+    [jogos],
+  );
+
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
     setHydrated(true);
   }, []);
   const tabelaComputada = useMemo(
-    () => (hydrated ? computeTabelaFromJogos(jogosBase) : null),
-    [hydrated, jogosBase],
+    () => (hydrated ? computeTabelaFromJogos(jogosGruposParaTabela) : null),
+    [hydrated, jogosGruposParaTabela],
   );
 
   const jogosDisplayBase = useMemo(

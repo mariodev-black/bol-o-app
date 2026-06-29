@@ -188,8 +188,11 @@ function pushJogoFromPartidaPage(
 ) {
   const rawTeamCasa = p.time_mandante as PartidaTeamLike | undefined;
   const rawTeamVisitante = p.time_visitante as PartidaTeamLike | undefined;
-  const casa = mapPartidaTeamToJogoSide(rawTeamCasa, { tabela });
-  const visitante = mapPartidaTeamToJogoSide(rawTeamVisitante, { tabela });
+  const casa = mapPartidaTeamToJogoSide(rawTeamCasa, { tabela, opponentTeam: rawTeamVisitante });
+  const visitante = mapPartidaTeamToJogoSide(rawTeamVisitante, {
+    tabela,
+    opponentTeam: rawTeamCasa,
+  });
   jogos.push({
     id: p.partida_id,
     timeCasa: casa.nome,
