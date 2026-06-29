@@ -1,4 +1,8 @@
 import { resolveNationalTeamShieldUrl } from "@/lib/football/national-team-shields";
+import {
+  isGroupStageCompleteForLetter,
+  resolveWc2026ThirdPlaceOpponentGroup,
+} from "@/lib/football/wc2026-third-place-resolve";
 
 export type PartidaTeamLike = {
   time_id?: number | null;
@@ -16,6 +20,8 @@ export type StandingsRowLike = {
   vitorias: number;
   empates: number;
   derrotas: number;
+  golsPro?: number;
+  golsContra?: number;
   time: {
     time_id: number;
     nome_popular: string;
@@ -71,16 +77,16 @@ export function isKnockoutSlotTeam(team: PartidaTeamLike): boolean {
   return parseKnockoutSlotRef(pickRawTeamLabel(team)) != null;
 }
 
-function standingsRowStats(row: StandingsRowLike): {
-  pontos: number;
-  vitorias: number;
-  jogos: number;
-} {
-  return {
-    pontos: row.pontos,
-    vitorias: row.vitorias,
-    jogos: row.jogos,
-  };
+function sortedStandingsRows(rows: StandingsRowLike[]): StandingsRowLike[] {
+  return [...rows].sort((a, b) => {
+    if (b.pontos !== a.pontos) return b.pontos - a.pontos;
+    const saldoA = (a.golsPro ?? 0) - (a.golsContra ?? 0);
+    const saldoB = (b.golsPro ?? 0) - (b.golsContra ?? 0);
+    if (saldoB !== saldoA) return saldoB - saldoA;
+    if ((b.golsPro ?? 0) !== (a.golsPro ?? 0)) return (b.golsPro ?? 0) - (a.golsPro ?? 0);
+    if (b.vitorias !== a.vitorias) return b.vitorias - a.vitorias;
+    return (a.time.sigla ?? "").localeCompare(b.time.sigla ?? "");
+  });
 }
 
 function pickStandingsRow(
@@ -91,15 +97,45 @@ function pickStandingsRow(
   const key = `grupo-${groupLetter.toLowerCase()}`;
   const rows = tabela[key];
   if (!rows?.length) return null;
-  const row = rows.find((r) => r.posicao === position);
+  if (!isGroupStageCompleteForLetter(tabela, groupLetter)) return null;
+  const row = sortedStandingsRows(rows)[position - 1];
   if (!row?.time) return null;
   if (row.jogos <= 0) return null;
   return row;
 }
 
+export function findTeamGroupLetter(
+  team: PartidaTeamLike | null | undefined,
+  tabela: StandingsGruposLike | null | undefined,
+): string | null {
+  if (!team || !tabela) return null;
+  const sigla = (team.sigla ?? team.nome_popular ?? "").trim().toUpperCase();
+  if (!sigla || isKnockoutSlotTeam(team)) return null;
+  for (const letter of "ABCDEFGHIJKL") {
+    const key = `grupo-${letter.toLowerCase()}`;
+    const rows = tabela[key];
+    if (!rows?.length) continue;
+    if (rows.some((r) => (r.time.sigla ?? "").trim().toUpperCase() === sigla)) {
+      return letter;
+    }
+  }
+  return null;
+}
+
+/** Rótulo de seção na tela de palpites (Grupo E, Chave 1, …). */
+export function formatPalpitesGroupSectionLabel(groupKey: string): string {
+  const key = groupKey.trim().toUpperCase();
+  if (/^[A-L]$/.test(key)) return `Grupo ${key}`;
+  const chave = key.match(/^CHAVE-(\d+)$/);
+  if (chave) return `Chave ${chave[1]}`;
+  if (key === "GERAL") return "Jogos";
+  return groupKey;
+}
+
 export function resolveKnockoutSlotFromStandings(
   slot: KnockoutSlotRef,
   tabela: StandingsGruposLike | null | undefined,
+  options?: { winnerGroup?: string | null },
 ): PartidaTeamLike | null {
   if (!tabela || slot.groups.length === 0) return null;
 
@@ -115,26 +151,17 @@ export function resolveKnockoutSlotFromStandings(
   }
 
   if (slot.rank === 3 && slot.groups.length > 1) {
-    const candidates: Array<{ row: StandingsRowLike; stats: ReturnType<typeof standingsRowStats> }> =
-      [];
-    for (const groupLetter of slot.groups) {
-      const row = pickStandingsRow(tabela, groupLetter, 3);
-      if (!row) continue;
-      candidates.push({ row, stats: standingsRowStats(row) });
-    }
-    if (candidates.length === 0) return null;
-    candidates.sort((a, b) => {
-      if (b.stats.pontos !== a.stats.pontos) return b.stats.pontos - a.stats.pontos;
-      if (b.stats.vitorias !== a.stats.vitorias) return b.stats.vitorias - a.stats.vitorias;
-      return b.stats.jogos - a.stats.jogos;
-    });
-    const best = candidates[0]?.row;
-    if (!best) return null;
+    const winnerGroup = options?.winnerGroup?.trim().toUpperCase();
+    if (!winnerGroup) return null;
+    const opponentGroup = resolveWc2026ThirdPlaceOpponentGroup(winnerGroup, tabela);
+    if (!opponentGroup || !slot.groups.includes(opponentGroup)) return null;
+    const row = pickStandingsRow(tabela, opponentGroup, 3);
+    if (!row) return null;
     return {
-      time_id: best.time.time_id,
-      nome_popular: best.time.nome_popular,
-      sigla: best.time.sigla,
-      escudo: best.time.escudo || resolveNationalTeamShieldUrl(best.time.nome_popular),
+      time_id: row.time.time_id,
+      nome_popular: row.time.nome_popular,
+      sigla: row.time.sigla,
+      escudo: row.time.escudo || resolveNationalTeamShieldUrl(row.time.nome_popular),
     };
   }
 
@@ -200,7 +227,10 @@ function formatRealTeam(team: PartidaTeamLike, raw: string): PartidaTeamDisplay 
 
 export function resolvePartidaTeamDisplay(
   team: PartidaTeamLike | null | undefined,
-  options?: { tabela?: StandingsGruposLike | null },
+  options?: {
+    tabela?: StandingsGruposLike | null;
+    opponentTeam?: PartidaTeamLike | null;
+  },
 ): PartidaTeamDisplay {
   if (!team) {
     return {
@@ -217,7 +247,10 @@ export function resolvePartidaTeamDisplay(
   const raw = pickRawTeamLabel(team);
   const slot = parseKnockoutSlotRef(raw);
   if (slot && isKnockoutSlotTeam(team)) {
-    const resolved = resolveKnockoutSlotFromStandings(slot, options?.tabela);
+    const winnerGroup = findTeamGroupLetter(options?.opponentTeam, options?.tabela);
+    const resolved = resolveKnockoutSlotFromStandings(slot, options?.tabela, {
+      winnerGroup,
+    });
     if (resolved) return formatRealTeam(resolved, pickRawTeamLabel(resolved));
     return formatPendingKnockoutSlot(slot);
   }
@@ -270,7 +303,10 @@ export function partidaTeamToPayload(team: PartidaTeamLike | null | undefined): 
 
 export function mapPartidaTeamToJogoSide(
   team: PartidaTeamLike | null | undefined,
-  options?: { tabela?: StandingsGruposLike | null },
+  options?: {
+    tabela?: StandingsGruposLike | null;
+    opponentTeam?: PartidaTeamLike | null;
+  },
 ): {
   nome: string;
   sigla: string;
