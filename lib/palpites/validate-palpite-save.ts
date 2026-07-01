@@ -18,6 +18,7 @@ import {
   paidTicketSkaleDailyEditionNumber,
 } from "@/lib/boloes/skale-daily-config";
 import { getMatchFromMap, resolveKickoffAtIso } from "@/lib/football-api";
+import type { PalpiteSaveContext } from "@/lib/palpites/palpite-save-context";
 import { brToday, resolveDiarioPlayableDate, utcMsForBrDate } from "@/lib/diario-playable-date";
 import {
   getPalpiteRejectReason,
@@ -25,7 +26,8 @@ import {
   isMatchOpenForPalpite,
   palpiteRejectErrorMessage,
 } from "@/lib/palpites-match-open";
-import type { PalpiteSaveContext } from "@/lib/palpites/palpite-save-context";
+import type { BolaoDefinition } from "@/lib/boloes/definitions/types";
+import { matchBelongsToBolaoDefinition } from "@/lib/boloes/definitions/scope";
 import { palpiteLockBeforeKickoffMs } from "@/lib/palpites-kickoff-lock";
 import {
   getPredictionByUserTicketMatch,
@@ -50,7 +52,51 @@ export async function validatePalpiteForSave(
     matchMap,
     mainComp,
     scopedComp,
+    bolaoDefinition,
   } = ctx;
+
+  if (bolaoDefinition) {
+    if (!matchBelongsToBolaoDefinition(bolaoDefinition, matchMap, data.matchId)) {
+      return {
+        error: `Partida fora do escopo do bolão "${bolaoDefinition.displayName}".`,
+        status: 400,
+      };
+    }
+    const match = resolveBolaoMatchFromMap(matchMap, scopedComp, data.matchId);
+    if (!match) {
+      return {
+        error: "Partida nao encontrada no calendario oficial do bolão.",
+        status: 404,
+      };
+    }
+    const dateBrDb = String(match.dateBR || "").trim();
+    if (!dateBrDb) {
+      return {
+        error:
+          "Partida sem data no banco (matches_cache.date_br). Aguarde sincronizacao ou contate suporte.",
+        status: 400,
+      };
+    }
+    const kickoffIso = resolveKickoffAtIso({
+      kickoffAt: match.kickoffAt,
+      dateBR: dateBrDb,
+      hour: match.hour,
+    });
+    const eligibility = {
+      status: match.status,
+      kickoffAt: kickoffIso ?? match.kickoffAt,
+      resultCasa: match.resultCasa,
+      resultVisitante: match.resultVisitante,
+    };
+    if (!isMatchOpenForPalpite(eligibility, bolaoType)) {
+      const reason = getPalpiteRejectReason(eligibility, bolaoType);
+      return {
+        error: palpiteRejectErrorMessage(reason, bolaoType),
+        status: 400,
+      };
+    }
+    return null;
+  }
 
   const match = resolveBolaoMatchFromMap(matchMap, scopedComp, data.matchId);
   if (!match) {

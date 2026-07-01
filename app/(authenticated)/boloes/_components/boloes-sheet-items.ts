@@ -5,6 +5,9 @@ import skaleLogo from "@/app/assets/skale.png";
 import type { ActiveBolaoListItem, BoloesScreenData } from "@/app/(authenticated)/boloes/BoloesClient";
 import { getExtraBolaoHeroSideVariant } from "@/lib/boloes-extra-competition-branding";
 import {
+  resolveBolaoListItemLogoSrc,
+} from "@/app/(authenticated)/boloes/_components/BolaoListItemLogo";
+import {
   extraBolaoIconSrc,
   isExtraBolaoBrandedIcon,
 } from "@/app/shared/extra-bolao-icons";
@@ -41,6 +44,7 @@ function parseExtraTitleParts(title: string): { name: string; round: string | nu
 }
 
 function filterKeyForActive(item: ActiveBolaoListItem): string {
+  if (item.type === "dynamic") return `def:${item.bolaoDefinitionId ?? item.id}`;
   if (item.type === "principal") return "principal";
   if (item.type === "diario") return "diario";
   if (item.type === "artilheiros") return "artilheiros";
@@ -65,6 +69,13 @@ function iconForActive(item: ActiveBolaoListItem): {
   iconSrc: string;
   brandedIcon: boolean;
 } {
+  if (item.type === "dynamic") {
+    const src = resolveBolaoListItemLogoSrc(item);
+    return {
+      iconSrc: typeof src === "string" ? src : src.src,
+      brandedIcon: Boolean(item.resolvedLogoUrl),
+    };
+  }
   if (item.type === "diario") {
     return {
       iconSrc: item.isSkaleDaily ? skaleLogo.src : logoBolaoDiario.src,
@@ -90,7 +101,9 @@ function activeToSheetItem(item: ActiveBolaoListItem): BoloesSheetItem {
   const { name, round } =
     item.type === "extra"
       ? parseExtraTitleParts(item.title)
-      : { name: item.title, round: null };
+      : item.type === "dynamic"
+        ? { name: item.title, round: item.subtitle?.trim() || null }
+        : { name: item.title, round: null };
   const icon = iconForActive(item);
   const position =
     item.position != null ? `${item.position}º no ranking` : null;

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 import { computePalpitesResumo } from "@/lib/palpites/resumo-compute";
-import { buildLeaderboardDiarioForTicket, buildLeaderboardExtraForTicket, buildLeaderboardPrincipal } from "@/lib/ranking/leaderboard";
+import { buildLeaderboardDiarioForTicket, buildLeaderboardExtraForTicket, buildLeaderboardForDefinition, buildLeaderboardPrincipal } from "@/lib/ranking/leaderboard";
 import { buildRankingScopes } from "@/lib/ranking/scopes";
 import { getPool } from "@/lib/db";
 
@@ -47,7 +47,31 @@ export async function GET(request: NextRequest) {
     }
 
     const boardPromise =
-      opt.mode === "principal"
+      opt.mode === "dynamic" && opt.definitionId
+        ? (async () => {
+            const pool = getPool();
+            const { rows: ok } = await pool.query<{ ok: number }>(
+              `SELECT 1 AS ok FROM tickets
+                WHERE bolao_definition_id = $1 AND user_id = $2 AND status = 'paid'
+                LIMIT 1`,
+              [opt.definitionId, userId],
+            );
+            if (!ok[0]) {
+              return {
+                rows: [],
+                meta: {
+                  participantCount: 0,
+                  revenueCents: 0,
+                  poolCentsApprox: 0,
+                  nextPalpiteLockMs: null as number | null,
+                  approxPremiados: 0,
+                  hasResultedMatchesInPool: false,
+                },
+              };
+            }
+            return buildLeaderboardForDefinition(opt.definitionId!);
+          })()
+        : opt.mode === "principal"
         ? buildLeaderboardPrincipal()
         : opt.mode === "extra"
           ? (async () => {

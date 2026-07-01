@@ -1,9 +1,7 @@
 import { AdminPageTitle } from "@/app/admin/_components/AdminShell";
 import { BolaoRankingPanel } from "@/app/admin/(panel)/boloes/_components/BolaoRankingPanel";
 import { getAdminBolaoRankingPage } from "@/lib/admin/sections";
-import type { BolaoDefinitionWithStats } from "@/lib/boloes/definitions/types";
-import { getBolaoDefinitionById } from "@/lib/boloes/definitions/repository";
-import { getBolaoDefinitionStats } from "@/lib/boloes/definitions/stats";
+import { buildSingleAdminBolaoHubItem } from "@/lib/admin/bolao-hub-items";
 import { notFound } from "next/navigation";
 import { AdminBolaoDefinitionDetailClient } from "./AdminBolaoDefinitionDetailClient";
 
@@ -11,9 +9,8 @@ type PageProps = { params: Promise<{ id: string }> };
 
 export default async function AdminBolaoDefinitionDetailPage({ params }: PageProps) {
   const { id } = await params;
-  const [definition, stats, ranking] = await Promise.all([
-    getBolaoDefinitionById(id),
-    getBolaoDefinitionStats(id),
+  const [hubItem, ranking] = await Promise.all([
+    buildSingleAdminBolaoHubItem(id),
     getAdminBolaoRankingPage({ type: "definition", id }).catch(() => ({
       rows: [],
       total: 0,
@@ -27,17 +24,15 @@ export default async function AdminBolaoDefinitionDetailPage({ params }: PagePro
     })),
   ]);
 
-  if (!definition || !stats) notFound();
-
-  const item: BolaoDefinitionWithStats = { ...definition, ...stats };
+  if (!hubItem) notFound();
 
   return (
     <>
       <AdminPageTitle
-        title={definition.displayName}
+        title={hubItem.displayName}
         subtitle="Métricas, ranking ao vivo e configuração."
       />
-      <AdminBolaoDefinitionDetailClient id={id} item={item} />
+      <AdminBolaoDefinitionDetailClient id={id} item={hubItem} />
       <section className="mt-8">
         <h2 className="mb-4 text-[14px] font-black uppercase tracking-[0.14em] text-white/40">
           Ranking deste bolão

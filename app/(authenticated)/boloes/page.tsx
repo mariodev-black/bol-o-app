@@ -62,6 +62,9 @@ import {
   bolaoDisplayStatusMeta,
   computeBolaoDisplayPhase,
 } from "@/lib/boloes/display-status";
+import { buildBolaoCatalogSections } from "@/lib/boloes/definitions/catalog";
+import { enrichBolaoDefinitionCatalog } from "@/lib/boloes/definitions/branding";
+import type { BolaoCatalogSections } from "@/lib/boloes/definitions/types";
 import {
   bolaoPhaseScopeForPaidTicket,
   bolaoPhaseScopeFromPredictions,
@@ -403,6 +406,7 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
     .map((ticket) => ({
       id: ticket.id,
       ticketType: ticket.ticketType as "general" | "daily" | "extra",
+      bolaoDefinitionId: ticket.bolaoDefinitionId,
     }));
   if (nonArtilheiroTickets.length > 0) {
     try {
@@ -477,6 +481,17 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
     .filter((pos): pos is number => pos != null);
   const pending = Array.from(metricsByTicket.values()).reduce((sum, item) => sum + item.available, 0);
   const cotaOrdinalByTicketId = buildCotaOrdinalByTicketId(tickets);
+  const dynamicDefinitions = [
+    ...new Map(
+      tickets
+        .filter((t) => t.bolaoDefinition)
+        .map((t) => [t.bolaoDefinition!.id, t.bolaoDefinition!] as const),
+    ).values(),
+  ];
+  const enrichedDynamic = dynamicDefinitions.length
+    ? await enrichBolaoDefinitionCatalog(dynamicDefinitions)
+    : [];
+  const brandingByDefId = new Map(enrichedDynamic.map((item) => [item.id, item]));
   const hasArtilheirosTickets = tickets.some((ticket) => ticket.ticketType === "artilheiros");
   const artilheiroResults = hasArtilheirosTickets
     ? await listArtilheiroOfficialResults().catch(() => [])
@@ -545,6 +560,63 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
         position: artRank?.position ?? null,
         points: artRank?.points ?? 0,
         participantCount: artilheiroRanking.length,
+      };
+    }
+
+    if (ticket.bolaoDefinitionId && ticket.bolaoDefinition) {
+      const def = ticket.bolaoDefinition;
+      const branding = brandingByDefId.get(def.id);
+      const scopeMatches = scopeMatchesForPaidTicket(ticket, matches, scopeOpts);
+      const { displayPhase, statusLabel } = bolaoStatusFromMetrics(
+        ticket,
+        metrics,
+        matches,
+        predictionMatchIds,
+        scopeOpts,
+      );
+      const closeScopeMatches =
+        displayPhase === "finalizado"
+          ? []
+          : metrics.available === 0 && predictionMatchIds.length > 0
+            ? matchEntriesFromPredictions(ticket, matches, predictionMatchIds)
+            : scopeMatches;
+      const closeAt = nextLockMs(
+        closeScopeMatches.filter((m) => isOpenMatch(m, PALPITE_LOCK_MS_EXTRA)),
+        PALPITE_LOCK_MS_EXTRA,
+      );
+      const legacyStatus =
+        displayPhase === "finalizado"
+          ? "usado"
+          : displayPhase === "pendentes"
+            ? "aguardando"
+            : "ativo";
+      return {
+        id: ticket.id,
+        type: "dynamic",
+        bolaoDefinitionId: def.id,
+        championshipId: def.competitionId,
+        resolvedLogoUrl: branding?.resolvedLogoUrl ?? null,
+        resolvedIconVariant: branding?.resolvedIconVariant ?? "generic",
+        title: def.displayName,
+        subtitle: def.subtitle ?? branding?.datesLabel ?? null,
+        cotaLabel: cotaLabelForTicket(ticket, cotaOrdinalByTicketId),
+        href: `/palpites?${new URLSearchParams({ ticket: ticket.id }).toString()}`,
+        status: legacyStatus as ActiveDailyStatus,
+        displayPhase,
+        statusLabel,
+        sent: metrics.sent,
+        total: metrics.total,
+        progress: metrics.progress,
+        gamesCount: metrics.available,
+        countdownLabel:
+          displayPhase === "finalizado"
+            ? "Encerrado"
+            : displayPhase === "pendentes" && legacyStatus === "aguardando"
+              ? "Início em"
+              : "Fecha em",
+        countdownTargetMs: displayPhase === "finalizado" ? null : closeAt,
+        position: metrics.position,
+        points: metrics.points,
       };
     }
 
@@ -925,6 +997,9 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
       bestPosition: positions.length ? Math.min(...positions) : null,
     },
     active,
+    dynamicCatalog: await buildBolaoCatalogSections().catch(
+      (): BolaoCatalogSections => ({ upcoming: [], available: [], closed: [] }),
+    ),
     upcoming: {
       daily: {
         href: "/tickets?bolao=diario",

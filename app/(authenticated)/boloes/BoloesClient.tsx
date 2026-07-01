@@ -59,6 +59,7 @@ import {
   PrincipalHeroPurchaseCard,
 } from "@/app/(authenticated)/boloes/_components/BoloesVitrineCards";
 import { BoloesBottomSheet } from "@/app/(authenticated)/boloes/_components/BoloesBottomSheet";
+import { DynamicBolaoCatalogSections } from "@/app/(authenticated)/boloes/_components/DynamicBolaoCatalog";
 import { buildBoloesSheetCatalog } from "@/app/(authenticated)/boloes/_components/boloes-sheet-items";
 export type ActivePrincipalBolao = {
   id: string;
@@ -94,7 +95,11 @@ export type ActiveDailyBolao = {
 
 export type ActiveBolaoListItem = {
   id: string;
-  type: "principal" | "diario" | "extra" | "artilheiros";
+  type: "principal" | "diario" | "extra" | "artilheiros" | "dynamic";
+  /** Bolão dinâmico (definição admin). */
+  bolaoDefinitionId?: string;
+  resolvedLogoUrl?: string | null;
+  resolvedIconVariant?: string;
   /** Bolão extra: id do campeonato na API-Futebol. */
   championshipId?: number;
   title: string;
@@ -176,6 +181,7 @@ export type BoloesScreenData = {
       priceLabel: string;
     }>;
   };
+  dynamicCatalog: import("@/lib/boloes/definitions/types").BolaoCatalogSections;
 };
 
 const GREEN = "#B1EB0B";
@@ -197,6 +203,11 @@ const EMPTY_UPCOMING: BoloesScreenData["upcoming"] = {
     closesAtMs: null,
   },
   extras: [],
+};
+const EMPTY_CATALOG: BoloesScreenData["dynamicCatalog"] = {
+  upcoming: [],
+  available: [],
+  closed: [],
 };
 const INK = "#0E141B";
 const SHOWCASE_CARD_BG = "#111111";
@@ -1745,8 +1756,12 @@ export function BoloesClient({
   ticketsHideDaily?: boolean;
 }) {
   const now = useNow();
-  const upcoming = data?.upcoming ?? EMPTY_UPCOMING;
-  const hasTickets = (data?.active?.all.length ?? 0) > 0;
+  const dynamicCatalog = data?.dynamicCatalog ?? EMPTY_CATALOG;
+  const hasDynamicShop =
+    dynamicCatalog.upcoming.length +
+      dynamicCatalog.available.length +
+      dynamicCatalog.closed.length >
+    0;
 
   const summary = data?.summary ?? {
     activeCount: 0,
@@ -1764,24 +1779,10 @@ export function BoloesClient({
     () => allItems.filter((item) => item.displayPhase !== "finalizado"),
     [allItems],
   );
-  const principalActive = useMemo(
-    () =>
-      ticketsExtraOnly
-        ? []
-        : activeItems.filter((item) => item.type === "principal"),
-    [activeItems, ticketsExtraOnly],
+  const activeForShowcase = useMemo(
+    () => sortBoloesByAvailabilityForShowcase(activeItems),
+    [activeItems],
   );
-  const activeNonPrincipal = useMemo(() => {
-    const items = activeItems.filter((item) => item.type !== "principal");
-    return sortBoloesByAvailabilityForShowcase(items);
-  }, [activeItems]);
-  const ticketsHref =
-    upcoming.principal.href ??
-    (ticketsExtraOnly ? "/tickets?bolao=extra" : "/tickets");
-  const principalPriceLabel = upcoming.principal.priceLabel ?? "—";
-  const principalParticipants = data?.participantsByBolao?.principal ?? 0;
-  const showPrincipalHero = !ticketsExtraOnly;
-  const hasPrincipalCota = principalActive.length > 0;
   const [boloesSheetOpen, setBoloesSheetOpen] = useState(false);
 
   const boloesSheetCatalog = useMemo(
@@ -1801,34 +1802,17 @@ export function BoloesClient({
       <div className="mx-auto w-full max-w-[430px] px-4 lg:max-w-5xl lg:px-6">
         <BoloesPageEyebrow />
 
-        {showPrincipalHero ? (
-          <section className="mt-5" aria-label="Bolão principal">
-            {hasPrincipalCota ? (
-              principalActive.length === 1 ? (
-                <PrincipalHeroCard item={principalActive[0]!} now={now} />
-              ) : (
-                <BoloesCarouselShell itemCount={principalActive.length}>
-                  {principalActive.map((item) => (
-                    <PrincipalHeroCard
-                      key={item.id}
-                      item={item}
-                      now={now}
-                      carouselItem
-                    />
-                  ))}
-                </BoloesCarouselShell>
-              )
-            ) : (
-              <PrincipalHeroPurchaseCard
-                href={ticketsHref}
-                priceLabel={principalPriceLabel}
-                participantCount={principalParticipants}
-              />
-            )}
+        {hasDynamicShop ? (
+          <section className="mt-5" aria-label="Bolões disponíveis">
+            <DynamicBolaoCatalogSections
+              upcoming={dynamicCatalog.upcoming}
+              available={dynamicCatalog.available}
+              closed={dynamicCatalog.closed}
+            />
           </section>
         ) : null}
 
-        {activeNonPrincipal.length > 0 ? (
+        {activeForShowcase.length > 0 ? (
           <section className="mt-8" aria-labelledby="boloes-ativos-heading">
             <BoloesSectionHeader
               title="Bolões ativos"
@@ -1841,15 +1825,15 @@ export function BoloesClient({
                 />
               }
             />
-            {activeNonPrincipal.length === 1 ? (
+            {activeForShowcase.length === 1 ? (
               <ActiveBolaoCarouselCard
-                item={activeNonPrincipal[0]!}
+                item={activeForShowcase[0]!}
                 now={now}
                 fullWidth
               />
             ) : (
-              <BoloesCarouselShell itemCount={activeNonPrincipal.length}>
-                {activeNonPrincipal.map((item) => (
+              <BoloesCarouselShell itemCount={activeForShowcase.length}>
+                {activeForShowcase.map((item) => (
                   <ActiveBolaoCarouselCard key={item.id} item={item} now={now} />
                 ))}
               </BoloesCarouselShell>
@@ -1876,10 +1860,6 @@ export function BoloesClient({
               ))}
             </div>
           </section>
-        ) : null}
-
-        {!ticketsExtraOnly && hasPrincipalCota ? (
-          <MilhaoUpsellBanner href={ticketsHref} />
         ) : null}
 
         <BoloesAjudaSection />

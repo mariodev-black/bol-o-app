@@ -16,6 +16,8 @@ export type PalpiteSaveContext = {
   extraChampionshipId: number | null;
   extraRoundNumber: number | null;
   dailyEditionNumber: number | null;
+  bolaoDefinitionId: string | null;
+  bolaoDefinition: import("@/lib/boloes/definitions/types").BolaoDefinition | null;
   matchMap: MatchMap;
   mainComp: number;
   scopedComp: number;
@@ -66,12 +68,14 @@ export async function buildPalpiteSaveContext(
   const matchMap = await fetchMatchesMapDirectFromDb();
   const mainComp = getFootballMainCompetitionId();
   const scopedComp =
-    bolaoType === "extra" &&
-    extraChampionshipId != null &&
-    Number.isFinite(Number(extraChampionshipId)) &&
-    Number(extraChampionshipId) > 0
-      ? Number(extraChampionshipId)
-      : mainComp;
+    meta.bolaoDefinition != null
+      ? meta.bolaoDefinition.competitionId
+      : bolaoType === "extra" &&
+          extraChampionshipId != null &&
+          Number.isFinite(Number(extraChampionshipId)) &&
+          Number(extraChampionshipId) > 0
+        ? Number(extraChampionshipId)
+        : mainComp;
 
   return {
     ok: true,
@@ -82,6 +86,8 @@ export async function buildPalpiteSaveContext(
       extraChampionshipId,
       extraRoundNumber,
       dailyEditionNumber,
+      bolaoDefinitionId: meta.bolaoDefinitionId,
+      bolaoDefinition: meta.bolaoDefinition,
       matchMap,
       mainComp,
       scopedComp,

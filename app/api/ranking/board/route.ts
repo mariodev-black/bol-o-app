@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
-import { buildLeaderboardDiarioForTicket, buildLeaderboardExtraForTicket, buildLeaderboardPrincipal } from "@/lib/ranking/leaderboard";
+import { buildLeaderboardDiarioForTicket, buildLeaderboardExtraForTicket, buildLeaderboardForDefinition, buildLeaderboardPrincipal } from "@/lib/ranking/leaderboard";
 import { getPool } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -67,8 +67,26 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ rows: rowsWithMe, meta }, { headers: NO_STORE });
     }
 
+    const definitionId = request.nextUrl.searchParams.get("definitionId")?.trim() || null;
+    if (mode === "dynamic" && definitionId) {
+      const pool = getPool();
+      const { rows: ok } = await pool.query<{ ok: number }>(
+        `SELECT 1 AS ok FROM tickets
+          WHERE user_id = $1 AND status IN ('paid', 'approved')
+            AND bolao_definition_id = $2::uuid
+          LIMIT 1`,
+        [userId, definitionId],
+      );
+      if (!ok[0]) {
+        return NextResponse.json({ error: "Cota nao encontrada neste bolão" }, { status: 403 });
+      }
+      const { rows, meta } = await buildLeaderboardForDefinition(definitionId);
+      const rowsWithMe = rows.map((r) => ({ ...r, isMe: r.userId === userId }));
+      return NextResponse.json({ rows: rowsWithMe, meta }, { headers: NO_STORE });
+    }
+
     return NextResponse.json(
-      { error: "Use mode=principal ou mode=diario&ticketId= ou mode=extra&ticketId=" },
+      { error: "Use mode=principal, mode=diario&ticketId=, mode=extra&ticketId= ou mode=dynamic&definitionId=" },
       { status: 400 }
     );
   } catch (e) {

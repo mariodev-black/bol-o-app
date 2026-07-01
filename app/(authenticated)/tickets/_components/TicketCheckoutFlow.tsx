@@ -182,6 +182,8 @@ type TicketCheckoutFlowProps = {
   ticketsDailyOnly?: boolean;
   /** Pré-seleciona bolão diário Skale (`?bolao=skale-diario`). */
   initialSkaleDaily?: boolean;
+  /** Pré-seleciona bolão do catálogo admin (`?definitionId=uuid`). */
+  initialDefinitionId?: string;
 };
 
 const MAX_QTY = 20;
@@ -203,16 +205,30 @@ export function TicketCheckoutFlow({
   ticketsArtilheirosOnly = false,
   ticketsDailyOnly = false,
   initialSkaleDaily = false,
+  initialDefinitionId,
 }: TicketCheckoutFlowProps) {
   const router = useRouter();
+  const [catalogBoloes, setCatalogBoloes] = useState<CatalogBolaoItem[]>([]);
+  const dynamicShopOnly =
+    catalogBoloes.length > 0 &&
+    !ticketsDailyOnly &&
+    !ticketsArtilheirosOnly &&
+    !ticketsPrincipalOnly &&
+    !ticketsPrincipalAndDailyOnly &&
+    !ticketsExtraOnly;
   const showPrincipal =
-    !ticketsExtraOnly && !ticketsArtilheirosOnly && !ticketsDailyOnly;
+    !dynamicShopOnly &&
+    !ticketsExtraOnly &&
+    !ticketsArtilheirosOnly &&
+    !ticketsDailyOnly;
   const showDaily =
+    !dynamicShopOnly &&
     !ticketsHideDaily &&
     !ticketsArtilheirosOnly &&
     (ticketsDailyOnly || ticketsPrincipalAndDailyOnly || !ticketsPrincipalOnly);
   const showSkaleDaily = showDaily && !ticketsDailyOnly;
   const showExtra =
+    !dynamicShopOnly &&
     !ticketsPrincipalOnly &&
     !ticketsPrincipalAndDailyOnly &&
     !ticketsHideExtra &&
@@ -284,7 +300,6 @@ export function TicketCheckoutFlow({
   const [skaleDailyQtyByEdition, setSkaleDailyQtyByEdition] = useState<
     Record<number, number>
   >(() => ({}));
-  const [catalogBoloes, setCatalogBoloes] = useState<CatalogBolaoItem[]>([]);
   const [catalogQtyById, setCatalogQtyById] = useState<Record<string, number>>(
     () => ({}),
   );
@@ -531,9 +546,18 @@ export function TicketCheckoutFlow({
           d.catalogBoloes.length > 0 &&
           !ticketsDailyOnly
         ) {
-          setCatalogBoloes(
-            d.catalogBoloes.filter((item) => item.purchaseOpen !== false),
-          );
+          const open = d.catalogBoloes.filter((item) => item.purchaseOpen !== false);
+          setCatalogBoloes(open);
+          if (initialDefinitionId && open.some((item) => item.id === initialDefinitionId)) {
+            setCatalogQtyById((prev) => ({
+              ...prev,
+              [initialDefinitionId]: prev[initialDefinitionId] ?? 1,
+            }));
+            setPrincipalQty(0);
+            setDailyQtyByEdition({});
+            setExtraQtyByChampionship({});
+            setSkaleDailyQtyByEdition({});
+          }
         }
       } catch {
         // fallback nos valores default locais
@@ -544,7 +568,7 @@ export function TicketCheckoutFlow({
     return () => {
       cancelled = true;
     };
-  }, [showDaily, showSkaleDaily, showExtra, initialTicketKind, initialSkaleDaily, ticketsDailyOnly]);
+  }, [showDaily, showSkaleDaily, showExtra, initialTicketKind, initialSkaleDaily, ticketsDailyOnly, initialDefinitionId]);
 
   // SSE — canal primário (funciona em dev; pode não funcionar em serverless multi-instância)
   useEffect(() => {

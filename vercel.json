@@ -88,6 +88,7 @@
     { "path": "/api/cron/email-pix-recovery-copa", "schedule": "0,30 * 14 6 *" },
     { "path": "/api/cron/email-pix-recovery-copa", "schedule": "0,30 * 15 6 *" },
 
-    { "path": "/api/cron/email-crm-flows", "schedule": "5 * * * *" }
+    { "path": "/api/cron/email-crm-flows", "schedule": "5 * * * *" },
+    { "path": "/api/cron/bolao-lifecycle", "schedule": "*/5 * * * *" }
   ]
 }
