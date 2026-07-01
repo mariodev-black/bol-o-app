@@ -33,6 +33,7 @@ import { extraBolaoCurrentRoundsByChampionship } from "@/lib/ticket-shop-extra-r
 import { getBolaoDefinitionsByIds } from "@/lib/boloes/definitions/repository";
 import { ensureBolaoDefinitionsSchema } from "@/lib/boloes/definitions/schema";
 import type { BolaoDefinition } from "@/lib/boloes/definitions/types";
+import { scopeMatchesForPaidTicket } from "@/lib/boloes/ticket-match-scope";
 
 export type PaidTicketRow = {
   id: string;
@@ -301,6 +302,49 @@ export async function listPaidTicketsForUser(
           palpitesCount: picksCount,
           availableGames: Math.max(0, 3 - picksCount),
           dailyStatus: (picksCount >= 3 ? "em_uso" : "disponivel") as "disponivel" | "em_uso",
+        };
+      }
+
+      if (t.bolaoDefinitionId && t.bolaoDefinition) {
+        const def = t.bolaoDefinition;
+        const scoped = scopeMatchesForPaidTicket(t, matchMap);
+        const lockKind =
+          def.ticketType === "general"
+            ? "principal"
+            : def.ticketType === "daily"
+              ? "diario"
+              : "extra";
+        const leadMs = palpiteLockBeforeKickoffMs(lockKind);
+        const predictedIds = new Set<number>(
+          ticketPreds.map((p) => Number(p.match_id)).filter(Number.isFinite),
+        );
+        let availableGames = 0;
+        for (const m of scoped) {
+          if (predictedIds.has(m.id)) continue;
+          const finished = isFinishedStatus(m.status);
+          const kickoff = parseKickoffUtcMs(m.dateBR, m.hour);
+          const lockAt = kickoff != null ? kickoff - leadMs : null;
+          const dateMs = m.dateBR ? utcMsForBrDate(m.dateBR) : null;
+          const stillOpen =
+            lockAt != null ? lockAt > now : (dateMs ?? 0) >= todayMs;
+          if (!finished && stillOpen) availableGames++;
+        }
+        const dailyStatus: NonNullable<PaidTicketRow["dailyStatus"]> =
+          palpitesCount === 0
+            ? "disponivel"
+            : availableGames === 0
+              ? "usado"
+              : "em_uso";
+        const playDate =
+          def.scopeDates[0] ??
+          scoped.find((m) => m.dateBR)?.dateBR ??
+          null;
+        return {
+          ...t,
+          dailyStatus,
+          playDate,
+          availableGames,
+          palpitesCount,
         };
       }
 

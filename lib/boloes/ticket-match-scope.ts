@@ -123,6 +123,10 @@ export function scopeMatchesForPaidTicket(
   const list = Array.from(matches.values());
   const mainComp = getFootballMainCompetitionId();
 
+  if (ticket.bolaoDefinition) {
+    return scopeMatchesForBolaoDefinition(ticket.bolaoDefinition, matches);
+  }
+
   if (ticket.ticketType === "general") {
     return list.filter((m) => (Number(m.competitionId) || mainComp) === mainComp);
   }
@@ -163,10 +167,6 @@ export function scopeMatchesForPaidTicket(
   /** Skale integral (90007): Copa inteira — comportamento legado, antes de definição admin. */
   if (isSkaleBolaoCompetition(comp)) {
     return skaleScopeMatchesFromMap(matches, comp);
-  }
-
-  if (ticket.bolaoDefinition) {
-    return scopeMatchesForBolaoDefinition(ticket.bolaoDefinition, matches);
   }
 
   const round =

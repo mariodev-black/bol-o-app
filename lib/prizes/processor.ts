@@ -271,6 +271,7 @@ async function listTicketsForClosure(
       `SELECT id::text AS id, user_id::text AS user_id, total_amount_cents, paid_at, created_at
        FROM tickets
        WHERE ticket_type = 'general'
+         AND bolao_definition_id IS NULL
          AND NOT COALESCE(is_promo_bonus, false)
          AND status IN ('paid', 'approved')
        ORDER BY paid_at ASC NULLS LAST, created_at ASC`
@@ -288,6 +289,7 @@ async function listTicketsForClosure(
         `SELECT t.id::text AS id, t.user_id::text AS user_id, t.total_amount_cents, t.paid_at, t.created_at
          FROM tickets t
          WHERE t.ticket_type = 'daily'
+           AND t.bolao_definition_id IS NULL
            AND NOT COALESCE(t.is_promo_bonus, false)
            AND t.status IN ('paid', 'approved')
            AND t.round_number = $1
@@ -308,6 +310,7 @@ async function listTicketsForClosure(
      FROM tickets t
      JOIN first_prediction_dates fpd ON fpd.ticket_id::text = t.id::text
      WHERE t.ticket_type = 'daily'
+       AND t.bolao_definition_id IS NULL
        AND NOT COALESCE(t.is_promo_bonus, false)
        AND t.status IN ('paid', 'approved')
        AND fpd.date_br = $1
@@ -327,6 +330,7 @@ async function listTicketsForClosure(
       `SELECT t.id::text AS id, t.user_id::text AS user_id, t.total_amount_cents, t.paid_at, t.created_at
        FROM tickets t
        WHERE t.ticket_type = 'extra'
+         AND t.bolao_definition_id IS NULL
          AND t.extra_championship_id = $2
          AND t.round_number = $1
          AND NOT COALESCE(t.is_promo_bonus, false)
@@ -352,6 +356,7 @@ async function listTicketsForClosure(
      FROM tickets t
      JOIN first_prediction_dates fpd ON fpd.ticket_id::text = t.id::text
      WHERE t.ticket_type = 'extra'
+       AND t.bolao_definition_id IS NULL
        AND NOT COALESCE(t.is_promo_bonus, false)
        AND t.status IN ('paid', 'approved')
        AND fpd.date_br = $1
@@ -370,6 +375,7 @@ async function listSkaleTicketsForClosure(
     `SELECT id::text AS id, user_id::text AS user_id, total_amount_cents, paid_at, created_at
      FROM tickets
      WHERE ticket_type = 'extra'
+       AND bolao_definition_id IS NULL
        AND extra_championship_id = $1
        AND NOT COALESCE(is_promo_bonus, false)
        AND status IN ('paid', 'approved')

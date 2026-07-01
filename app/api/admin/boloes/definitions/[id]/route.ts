@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/admin/require-admin-api";
+import { appendBolaoDefinitionAuditLog } from "@/lib/boloes/definitions/audit-log";
 import {
   deleteBolaoDefinition,
   getBolaoDefinitionById,
@@ -35,6 +36,13 @@ export async function PUT(request: Request, context: RouteContext) {
     if (!updated) {
       return NextResponse.json({ error: "Bolão não encontrado" }, { status: 404 });
     }
+    await appendBolaoDefinitionAuditLog({
+      bolaoDefinitionId: id,
+      action: "updated",
+      actorUserId: auth.admin.id,
+      actorEmail: auth.admin.email,
+      payload: { displayName: updated.displayName },
+    });
     return NextResponse.json({ item: updated });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Falha ao atualizar bolão";
@@ -51,6 +59,12 @@ export async function DELETE(_request: Request, context: RouteContext) {
   try {
     const ok = await deleteBolaoDefinition(id);
     if (!ok) return NextResponse.json({ error: "Bolão não encontrado" }, { status: 404 });
+    await appendBolaoDefinitionAuditLog({
+      bolaoDefinitionId: id,
+      action: "disabled",
+      actorUserId: auth.admin.id,
+      actorEmail: auth.admin.email,
+    });
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("[admin/boloes/definitions/[id]] DELETE", error);

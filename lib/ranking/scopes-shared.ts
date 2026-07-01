@@ -4,7 +4,9 @@ export type RankingScopeStatus = "ativa" | "aguardando" | "encerrado";
 
 export type RankingScopeOption = {
   key: string;
-  mode: "principal" | "diario" | "extra";
+  mode: "principal" | "diario" | "extra" | "dynamic";
+  /** Bolão admin (`bolao_definitions.id`) quando mode === "dynamic". */
+  definitionId: string | null;
   ticketId: string | null;
   /** Texto completo (ex.: listas e acessibilidade). */
   label: string;
@@ -26,6 +28,15 @@ export type RankingScopeOption = {
   roundLabel: string | null;
   palpitesHref: string;
 };
+
+/** Chave usada em `/ranking?default=` para escopo dinâmico ou legado. */
+export function rankingDefaultScopeKey(
+  ticketId: string | null,
+  definitionId?: string | null,
+): string | null {
+  if (definitionId?.trim()) return `def:${definitionId.trim()}`;
+  return ticketId?.trim() || null;
+}
 
 export function palpitesHrefForTicket(ticketId: string | null): string {
   const id = ticketId?.trim();

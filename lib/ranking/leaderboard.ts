@@ -1435,7 +1435,11 @@ export type TicketRankingSnapshot = {
  * Não mistura bolões diferentes num ranking global.
  */
 export async function resolvePaidTicketRankingPositions(
-  tickets: Array<{ id: string; ticketType: "general" | "daily" | "extra" }>,
+  tickets: Array<{
+    id: string;
+    ticketType: "general" | "daily" | "extra";
+    bolaoDefinitionId?: string | null;
+  }>,
   userId: string,
 ): Promise<Map<string, TicketRankingSnapshot>> {
   const out = new Map<string, TicketRankingSnapshot>();
@@ -1454,7 +1458,11 @@ export async function resolvePaidTicketRankingPositions(
 
   for (const ticket of tickets) {
     let rows: LeaderboardRow[];
-    if (ticket.ticketType === "general") {
+    if (ticket.bolaoDefinitionId) {
+      rows = await loadBoard(`def:${ticket.bolaoDefinitionId}`, () =>
+        buildLeaderboardForDefinition(ticket.bolaoDefinitionId!),
+      );
+    } else if (ticket.ticketType === "general") {
       rows = await loadBoard("principal", buildLeaderboardPrincipal);
     } else if (ticket.ticketType === "daily") {
       rows = await loadBoard(`diario:${ticket.id}`, () =>
@@ -1562,4 +1570,66 @@ async function loadUsersMap(userIds: string[]): Promise<Map<string, UserLite>> {
     out.set(r.id, r);
   }
   return out;
+}
+
+/** Ranking de bolão dinâmico (`bolao_definitions`). */
+export async function buildLeaderboardForDefinition(
+  definitionId: string,
+): Promise<{ rows: LeaderboardRow[]; meta: LeaderboardBoardMeta }> {
+  const { getBolaoDefinitionById } = await import("@/lib/boloes/definitions/repository");
+  const { buildDefinitionRanking } = await import("@/lib/boloes/definitions/ranking");
+  const { calculateDefinitionPrizePoolCents } = await import("@/lib/boloes/definitions/prizes");
+  const { scopeMatchesForBolaoDefinition } = await import("@/lib/boloes/definitions/scope");
+  const { isScopedMatchLive } = await import("@/lib/boloes/definitions/settlement");
+  const { getBolaoDefinitionStats } = await import("@/lib/boloes/definitions/stats");
+
+  const def = await getBolaoDefinitionById(definitionId);
+  if (!def) {
+    return { rows: [], meta: emptyMetaForExtra() };
+  }
+
+  const matches = await fetchMatchesMap();
+  const [ranking, stats] = await Promise.all([
+    buildDefinitionRanking(def, matches),
+    getBolaoDefinitionStats(definitionId),
+  ]);
+
+  const users = await loadUsersMap(ranking.map((r) => r.userId));
+  const scoped = scopeMatchesForBolaoDefinition(def, matches);
+  const hasLive = scoped.some((m) => isScopedMatchLive(m));
+  const hasResulted = scoped.some(
+    (m) => m.resultCasa != null && m.resultVisitante != null,
+  );
+  const revenueCents = stats?.revenueCents ?? 0;
+  const poolCents = calculateDefinitionPrizePoolCents(def, revenueCents);
+
+  const rows: LeaderboardRow[] = ranking.map((r) => {
+    const user = users.get(r.userId);
+    return {
+      pos: r.position,
+      ticketId: r.ticketId,
+      userId: r.userId,
+      displayName: displayNameFromUser(user),
+      totalPoints: r.totalPoints,
+      exactCount: r.exactCount,
+      outcomeCount: r.outcomeCount,
+      goalsCount: r.goalsCount,
+      bestStreak: 0,
+      avatarIndex: avatarIndexFromDb(user?.avatar_index),
+      avatarUploadFilename: safeUploadFilename(user?.avatar_upload_filename),
+    };
+  });
+
+  return {
+    rows,
+    meta: {
+      participantCount: stats?.participants ?? rows.length,
+      revenueCents,
+      poolCentsApprox: poolCents,
+      nextPalpiteLockMs: null,
+      approxPremiados: def.prizeTiers.length,
+      hasResultedMatchesInPool: hasResulted,
+      hasLiveMatchesInPool: hasLive,
+    },
+  };
 }

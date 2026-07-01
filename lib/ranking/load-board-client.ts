@@ -8,7 +8,12 @@ import {
 export function rankingBoardApiUrl(
   bolaoType: PredictionBolaoType,
   ticketId: string | null,
+  options?: { definitionId?: string | null },
 ): string | null {
+  const definitionId = options?.definitionId?.trim();
+  if (definitionId) {
+    return `/api/ranking/board?mode=dynamic&definitionId=${encodeURIComponent(definitionId)}`;
+  }
   if (bolaoType === "principal") return "/api/ranking/board?mode=principal";
   if (!ticketId) return null;
   if (bolaoType === "extra") {
@@ -29,8 +34,9 @@ export type RankingBoardLoadResult = {
 export async function fetchRankingBoardClient(
   bolaoType: PredictionBolaoType,
   ticketId: string | null,
+  options?: { definitionId?: string | null },
 ): Promise<RankingBoardLoadResult> {
-  const url = rankingBoardApiUrl(bolaoType, ticketId);
+  const url = rankingBoardApiUrl(bolaoType, ticketId, options);
   if (!url) {
     return {
       rows: [],

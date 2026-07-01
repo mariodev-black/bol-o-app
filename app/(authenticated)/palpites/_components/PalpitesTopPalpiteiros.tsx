@@ -9,6 +9,7 @@ import {
 } from "@/app/components/RankingTrophies";
 import { getAvatarPresetImage } from "@/lib/user/avatar-presets";
 import type { RankingBoardRow } from "@/lib/ranking/board-types";
+import { rankingDefaultScopeKey } from "@/lib/ranking/scopes-shared";
 
 function RankingMedal({ pos, size = 24 }: { pos: number; size?: number }) {
   if (pos === 1) return <TrophyGold size={size} />;
@@ -53,16 +54,19 @@ export function PalpitesTopPalpiteiros({
   rows,
   loading,
   ticketId,
+  bolaoDefinitionId,
   compact,
   onRankingLinkClick,
 }: {
   rows: RankingBoardRow[];
   loading?: boolean;
   ticketId: string | null;
+  bolaoDefinitionId?: string | null;
   compact?: boolean;
   onRankingLinkClick?: () => void;
 }) {
   const top = rows.slice(0, compact ? 3 : 5);
+  const rankingDefault = rankingDefaultScopeKey(ticketId, bolaoDefinitionId);
 
   return (
     <div
@@ -77,7 +81,7 @@ export function PalpitesTopPalpiteiros({
         style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
       >
         <span className="text-[13px] font-bold text-white">Top Palpiteiros</span>
-        {ticketId ? (
+        {rankingDefault ? (
           onRankingLinkClick ? (
             <button
               type="button"
@@ -88,7 +92,7 @@ export function PalpitesTopPalpiteiros({
             </button>
           ) : (
             <Link
-              href={`/ranking?default=${encodeURIComponent(ticketId)}`}
+              href={`/ranking?default=${encodeURIComponent(rankingDefault)}`}
               className="text-[12px] font-semibold text-primary hover:text-primary/85"
             >
               Ver todos

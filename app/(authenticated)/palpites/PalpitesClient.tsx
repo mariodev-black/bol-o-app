@@ -45,6 +45,7 @@ import {
 } from "@/app/shared/MainBolaoPromoContext";
 import { PalpitesTopPalpiteiros } from "@/app/(authenticated)/palpites/_components/PalpitesTopPalpiteiros";
 import { fetchRankingBoardClient } from "@/lib/ranking/load-board-client";
+import { rankingDefaultScopeKey } from "@/lib/ranking/scopes-shared";
 import type { RankingBoardMeta, RankingBoardRow } from "@/lib/ranking/board-types";
 import { calcPredictionPoints } from "./lib/predictionsStorage";
 import { inferBolaoTypeFromTicketPrefix } from "@/lib/ticket-kind";
@@ -2073,6 +2074,8 @@ type HistoricoRowView = {
 export type PalpitesInitialData = {
   ticketId: string | null;
   bolaoType: "principal" | "diario" | "extra";
+  /** Definição admin vinculada à cota (`bolao_definitions.id`). */
+  bolaoDefinitionId?: string | null;
   /** Cota extra grátis (brinde). */
   isPromoBonus?: boolean;
   extraChampionshipId?: number | null;
@@ -2620,6 +2623,7 @@ function DesktopSidebar({
   rankingBoardRows,
   rankingBoardLoading,
   ticketId,
+  bolaoDefinitionId,
   stats,
   bolaoType,
   onRankingLinkClick,
@@ -2631,6 +2635,7 @@ function DesktopSidebar({
   rankingBoardRows: RankingBoardRow[];
   rankingBoardLoading: boolean;
   ticketId: string | null;
+  bolaoDefinitionId?: string | null;
   stats: ResumoStats;
   bolaoType: PredictionBolaoType;
   onRankingLinkClick?: () => void;
@@ -2827,6 +2832,7 @@ function DesktopSidebar({
         rows={rankingBoardRows}
         loading={rankingBoardLoading}
         ticketId={ticketId}
+        bolaoDefinitionId={bolaoDefinitionId}
         compact
         onRankingLinkClick={onRankingLinkClick}
       />
@@ -3395,10 +3401,12 @@ function PalpitesPageContent({
   );
   const openGratisRanking = useCallback(() => {
     if (!ticketId) return;
-    const href = `/ranking?default=${encodeURIComponent(ticketId)}`;
+    const defaultKey = rankingDefaultScopeKey(ticketId, initialData?.bolaoDefinitionId);
+    if (!defaultKey) return;
+    const href = `/ranking?default=${encodeURIComponent(defaultKey)}`;
     router.push(href);
     if (isGratisExtra) requestModal();
-  }, [isGratisExtra, requestModal, router, ticketId]);
+  }, [initialData?.bolaoDefinitionId, isGratisExtra, requestModal, router, ticketId]);
   const [tab, setTab] = useState<TabView>("jogos");
   const [grupo, setGrupo] = useState(initialData?.grupo ?? "");
   const [jogos, setJogos] = useState<Jogo[]>(initialData?.jogos ?? []);
@@ -3896,7 +3904,9 @@ function PalpitesPageContent({
       jogosPlacarSignature === initialPlacarSigRef.current;
     const load = async () => {
       if (!isSsrHydration) setRankingBoardLoading(true);
-      const result = await fetchRankingBoardClient(bolaoType, ticketId);
+      const result = await fetchRankingBoardClient(bolaoType, ticketId, {
+        definitionId: initialDataRef.current?.bolaoDefinitionId ?? null,
+      });
       if (cancelled) return;
       setRankingBoardRows(result.rows);
       setRankingBoardMeta(result.meta);
@@ -5038,6 +5048,7 @@ function PalpitesPageContent({
             {showRanking ? (
               <PalpitesRankingTab
                 ticketId={ticketId}
+                bolaoDefinitionId={initialData?.bolaoDefinitionId}
                 bolaoType={bolaoType}
                 resumoStats={resumoStats}
                 rows={rankingBoardRows}
@@ -5108,6 +5119,7 @@ function PalpitesPageContent({
             ) : showRanking ? (
               <PalpitesRankingTab
                 ticketId={ticketId}
+                bolaoDefinitionId={initialData?.bolaoDefinitionId}
                 bolaoType={bolaoType}
                 resumoStats={resumoStats}
                 rows={rankingBoardRows}
@@ -5250,6 +5262,7 @@ function PalpitesPageContent({
               rankingBoardRows={rankingBoardRows}
               rankingBoardLoading={rankingBoardLoading}
               ticketId={ticketId}
+              bolaoDefinitionId={initialData?.bolaoDefinitionId}
               stats={resumoStats}
               bolaoType={bolaoType}
               onRankingLinkClick={

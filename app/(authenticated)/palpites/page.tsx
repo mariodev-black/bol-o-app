@@ -55,6 +55,9 @@ import {
   getDailyEdition,
   paidTicketDailyEditionNumber,
 } from "@/lib/boloes/daily-editions";
+import { getBolaoDefinitionById } from "@/lib/boloes/definitions/repository";
+import { scopeMatchesForBolaoDefinition } from "@/lib/boloes/definitions/scope";
+import type { BolaoDefinition } from "@/lib/boloes/definitions/types";
 
 const MESES = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
 type StatusJogo = "aberto" | "encerrado";
@@ -316,6 +319,9 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
   let dailyEditionDatesLabel: string | null = null;
   let isSkaleDailyEditionPool = false;
   let isPromoBonus = false;
+  let bolaoDefinitionId: string | null = null;
+  let bolaoDefinition: BolaoDefinition | null = null;
+  let definitionScopeMatchIds: number[] | null = null;
   const tid = ticketId?.trim() ?? "";
   if (tid) {
     const fromPrefix = inferBolaoTypeFromTicketPrefix(tid);
@@ -330,10 +336,12 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
           is_promo_bonus: boolean;
           total_amount_cents: number | null;
           ticket_type: string;
+          bolao_definition_id: string | null;
         }>(
           `SELECT extra_championship_id AS cid, round_number AS rnum, ticket_type,
                   COALESCE(is_promo_bonus, false) AS is_promo_bonus,
-                  COALESCE(total_amount_cents, 0) AS total_amount_cents
+                  COALESCE(total_amount_cents, 0) AS total_amount_cents,
+                  bolao_definition_id
              FROM tickets
             WHERE id::text = $1 AND user_id = $2 AND status = 'paid'
             LIMIT 1`,
@@ -342,6 +350,22 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
       ]);
       if (inferred && inferred !== "artilheiros") bolaoType = inferred;
       const row = ticketRows.rows[0];
+      const defId = row?.bolao_definition_id?.trim() || null;
+      if (defId) {
+        bolaoDefinitionId = defId;
+        bolaoDefinition = await getBolaoDefinitionById(defId).catch(() => null);
+        if (bolaoDefinition) {
+          bolaoType =
+            bolaoDefinition.ticketType === "general"
+              ? "principal"
+              : bolaoDefinition.ticketType === "daily"
+                ? "diario"
+                : "extra";
+          extraChampionshipId = bolaoDefinition.competitionId;
+          extraRoundNumber = null;
+          extraRoundName = null;
+        }
+      }
       isPromoBonus =
         Boolean(row?.is_promo_bonus) ||
         (row?.ticket_type === "extra" && Number(row?.total_amount_cents ?? 0) === 0);
@@ -381,7 +405,7 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
       }
     }
   }
-  if (bolaoType === "extra") {
+  if (bolaoType === "extra" && !bolaoDefinition) {
     if (extraChampionshipId == null || !Number.isFinite(extraChampionshipId) || extraChampionshipId <= 0) {
       const sole = getSoleConfiguredExtraChampionshipId();
       if (sole != null) extraChampionshipId = sole;
@@ -475,16 +499,49 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
     extraRoundNumber != null &&
     extraRoundNumber > 0 &&
     !isAmistososExtra &&
-    !isSkaleExtra
+    !isSkaleExtra &&
+    !bolaoDefinition
   ) {
     await ensureExtraRoundMatchesCached(extraChampionshipId, extraRoundNumber).catch(
       () => {},
     );
   }
 
+  if (bolaoDefinition) {
+    const compIds =
+      bolaoDefinition.competitionIds.length > 0
+        ? bolaoDefinition.competitionIds
+        : [bolaoDefinition.competitionId];
+    const scopeMap = await fetchMatchesMap({ ensureCompetitionIds: compIds }).catch(
+      () => new Map(),
+    );
+    definitionScopeMatchIds = scopeMatchesForBolaoDefinition(bolaoDefinition, scopeMap).map(
+      (m) => m.id,
+    );
+  }
+
+  const definitionCompIds =
+    bolaoDefinition != null
+      ? bolaoDefinition.competitionIds.length > 0
+        ? bolaoDefinition.competitionIds
+        : [bolaoDefinition.competitionId]
+      : null;
+
+  const fasesPromise =
+    definitionCompIds != null && definitionCompIds.length > 1
+      ? (async () => {
+          const merged: Record<string, unknown> = {};
+          for (const compId of definitionCompIds) {
+            const fases = await getPartidasFasesFromDb(compId).catch(() => null);
+            if (fases != null) Object.assign(merged, fases);
+          }
+          return Object.keys(merged).length > 0 ? merged : null;
+        })()
+      : getPartidasFasesFromDb(partidasCompId).catch(() => null);
+
   const [tabelaPayload, fasesResult, predictionsBundle] = await Promise.all([
     readFootballApiCacheJson(standingsCacheKey(tabelaCompId)).catch(() => null),
-    getPartidasFasesFromDb(partidasCompId).catch(() => null),
+    fasesPromise,
     userId && tid
       ? (async () => {
           const histComp =
@@ -494,8 +551,9 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
             Number(extraChampionshipId) > 0
               ? Number(extraChampionshipId)
               : mainComp;
-          const ensureIds =
-            bolaoType === "extra"
+          const ensureIds = bolaoDefinition
+            ? definitionCompIds ?? [bolaoDefinition.competitionId]
+            : bolaoType === "extra"
               ? ensureCompetitionIdsForBolaoExtra(histComp)
               : [];
           const [matches, preds] = await Promise.all([
@@ -610,6 +668,7 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
       bolaoType === "extra" && !isSkaleExtra && !isSkaleDailyExtra && !isWeekendExtra
         ? extraRoundNumber
         : null,
+    definitionScopeMatchIds,
   });
 
   if (
@@ -648,6 +707,7 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
   return {
     ticketId,
     bolaoType,
+    bolaoDefinitionId,
     isPromoBonus,
     extraChampionshipId,
     extraRoundNumber,
@@ -655,11 +715,12 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
     isSkaleFullCopaPool: isSkaleExtra,
     isWeekendEditionPool: isWeekendExtra,
     bolaoHeading:
-      isSkaleDailyExtra && dailyEditionNumber != null
+      bolaoDefinition?.displayName ??
+      (isSkaleDailyExtra && dailyEditionNumber != null
         ? `${skaleDailyEditionLabel(dailyEditionNumber)}${dailyEditionDatesLabel ? ` · ${dailyEditionDatesLabel}` : ""}`
         : bolaoType === "diario" && dailyEditionNumber != null
           ? `${dailyEditionLabel(dailyEditionNumber)}${dailyEditionDatesLabel ? ` · ${dailyEditionDatesLabel}` : ""}`
-          : palpitesBolaoHeading(bolaoType, extraChampionshipId),
+          : palpitesBolaoHeading(bolaoType, extraChampionshipId)),
     isSkaleDailyEditionPool: isSkaleDailyExtra,
     dailyEditionNumber,
     dailyEditionDates,
@@ -679,6 +740,7 @@ function emptyPalpitesInitialData(ticketId: string | null): PalpitesInitialData 
   return {
     ticketId,
     bolaoType: "principal",
+    bolaoDefinitionId: null,
     isPromoBonus: false,
     extraChampionshipId: null,
     extraRoundNumber: null,

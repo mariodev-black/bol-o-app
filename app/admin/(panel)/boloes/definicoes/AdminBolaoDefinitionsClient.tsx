@@ -2,17 +2,10 @@
 
 import { AdminTableScroll } from "@/app/admin/_components/AdminTableScroll";
 import type { BolaoDefinitionWithStats } from "@/lib/boloes/definitions/types";
-import { ticketTypeLabel } from "@/lib/boloes/definitions/presets";
+import { ticketTypeLabel, SCOPE_MODE_LABELS } from "@/lib/boloes/definitions/presets";
 import { Copy, Eye, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-
-const SCOPE_LABELS = {
-  full_competition: "Campeonato inteiro",
-  daily_dates: "Dias selecionados",
-  round: "Rodada fixa",
-  weekend: "Fim de semana",
-} as const;
 
 function formatBRL(cents: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
@@ -196,7 +189,7 @@ export function AdminBolaoDefinitionsClient() {
                       </span>
                     </td>
                     <td className="px-3 py-3 text-white/60">
-                      {SCOPE_LABELS[item.scopeMode]}
+                      {SCOPE_MODE_LABELS[item.scopeMode]}
                     </td>
                     <td className="px-3 py-3 font-bold tabular-nums text-white">
                       {formatBRL(item.unitPriceCents)}

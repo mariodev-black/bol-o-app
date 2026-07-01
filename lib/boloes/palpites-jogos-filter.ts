@@ -23,9 +23,12 @@ export type PalpitesJogosFilterContext = {
   isWeekendEditionPool?: boolean;
   dailyEditionNumber?: number | null;
   extraRoundNumber?: number | null;
+  /** Bolão dinâmico: restringe às partidas do escopo admin. */
+  definitionScopeMatchIds?: number[] | null;
 };
 
 export type PalpiteJogoFilterable = {
+  id?: number;
   dataBR: string;
   hora: string;
   kickoffAt: string | null;
@@ -59,6 +62,11 @@ export function filterPalpitesJogos<T extends PalpiteJogoFilterable>(
   jogos: T[],
   ctx: PalpitesJogosFilterContext,
 ): T[] {
+  if (ctx.definitionScopeMatchIds != null && ctx.definitionScopeMatchIds.length > 0) {
+    const ids = new Set(ctx.definitionScopeMatchIds);
+    return jogos.filter((j) => j.id != null && ids.has(j.id));
+  }
+
   if (isPrincipalOrSkaleFullCopa(ctx)) {
     return jogos;
   }
@@ -108,6 +116,7 @@ export function palpitesFilterFromInitialData(data: {
   isWeekendEditionPool?: boolean;
   dailyEditionNumber?: number | null;
   extraRoundNumber?: number | null;
+  definitionScopeMatchIds?: number[] | null;
 }): PalpitesJogosFilterContext {
   return {
     bolaoType: data.bolaoType,
@@ -116,6 +125,7 @@ export function palpitesFilterFromInitialData(data: {
     isWeekendEditionPool: data.isWeekendEditionPool === true,
     dailyEditionNumber: data.dailyEditionNumber ?? null,
     extraRoundNumber: data.extraRoundNumber ?? null,
+    definitionScopeMatchIds: data.definitionScopeMatchIds ?? null,
   };
 }
 

@@ -29,6 +29,10 @@ import { useMainBolaoPromoModal } from "@/app/shared/MainBolaoPromoContext";
 import { extraBolaoIconSrc } from "@/app/shared/extra-bolao-icons";
 import { getExtraBolaoHeroSideVariant } from "@/lib/boloes-extra-competition-branding";
 import type { ActiveBolaoListItem } from "@/app/(authenticated)/boloes/BoloesClient";
+import {
+  BolaoListItemLogo,
+  resolveBolaoListItemLogoSrc,
+} from "@/app/(authenticated)/boloes/_components/BolaoListItemLogo";
 import { ARTILHEIROS_BOLAO_SUBTITLE, ARTILHEIROS_BOLAO_TITLE } from "@/lib/artilheiros/config";
 import { formatParticipantsShort } from "@/app/(authenticated)/ranking/_components/ranking-scope-ui";
 
@@ -566,16 +570,6 @@ function resolveCta(item: ActiveBolaoListItem, now: number): string {
   return showVerResultados ? "Ver classificação" : "Ver classificação";
 }
 
-function logoForItem(item: ActiveBolaoListItem) {
-  if (item.type === "diario") {
-    return item.isSkaleDaily ? skaleLogo : logoBolaoDiario;
-  }
-  if (item.type === "artilheiros") return iconeBolaoArtilheiro;
-  if (item.type === "principal") return iconCopaMundo;
-  const variant = getExtraBolaoHeroSideVariant(item.championshipId, item.title);
-  return variant === "generic" ? ticketBlue : extraBolaoIconSrc(variant);
-}
-
 function parseExtraTitle(title: string): { name: string; round: string | null } {
   const t = title.trim();
   if (!t.includes(" · ")) return { name: t, round: null };
@@ -588,6 +582,13 @@ function cardTitleParts(item: ActiveBolaoListItem): {
   title: string;
   subtitle: string | null;
 } {
+  if (item.type === "dynamic") {
+    return {
+      eyebrow: item.title,
+      title: item.subtitle?.trim() || item.cotaLabel,
+      subtitle: null,
+    };
+  }
   if (item.type === "principal") {
     return {
       eyebrow: "Bolão do Milhão",
@@ -750,11 +751,12 @@ export function ActiveBolaoCarouselCard({
   fullWidth?: boolean;
 }) {
   const parts = cardTitleParts(item);
-  const logo = logoForItem(item);
   const cta = resolveCta(item, now);
   const isGratisExtra = item.type === "extra" && item.isPromoBonus !== false;
   const subtitleLine =
-    item.type === "extra"
+    item.type === "dynamic"
+      ? item.subtitle?.trim() || null
+      : item.type === "extra"
       ? item.extraRoundLabel?.trim() || parseExtraTitle(item.title).round
       : item.type === "diario" || item.type === "artilheiros"
         ? parts.title
@@ -772,9 +774,8 @@ export function ActiveBolaoCarouselCard({
 
         <div className="flex items-start gap-3 pr-[72px]">
           <div className="flex w-[64px] shrink-0 items-center justify-center min-[360px]:w-[72px]">
-            <Image
-              src={logo}
-              alt=""
+            <BolaoListItemLogo
+              item={item}
               width={72}
               height={72}
               className="h-[58px] w-auto max-w-[64px] object-contain min-[360px]:h-[64px] min-[360px]:max-w-[72px]"
@@ -814,7 +815,6 @@ export function FinishedBolaoChip({
   item: ActiveBolaoListItem;
 }) {
   const parts = cardTitleParts(item);
-  const logo = logoForItem(item);
 
   return (
     <Link
@@ -822,13 +822,12 @@ export function FinishedBolaoChip({
       className="flex w-[min(280px,calc(100vw-3rem))] border-2 border-[#1B1D1C] shrink-0 flex-none snap-start items-center gap-3 rounded-[14px] px-3 py-3 transition-colors hover:border-white/14 active:scale-[0.98]"
       style={{ background: CARD_INNER }}
     >
-      <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-white/[0.04]">
-        <Image
-          src={logo}
-          alt=""
+      <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white/[0.04]">
+        <BolaoListItemLogo
+          item={item}
           width={44}
           height={44}
-          className="h-10 w-auto max-w-[44px] object-contain"
+          className="max-h-10 max-w-[44px] object-contain"
         />
       </div>
       <div className="min-w-0 flex-1">

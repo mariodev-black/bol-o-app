@@ -1,45 +1,38 @@
 "use client";
 
-import { extraBolaoIconSrc } from "@/app/shared/extra-bolao-icons";
 import type {
   AdminCompetitionOption,
   BolaoDefinition,
   BolaoDefinitionInput,
   BolaoPrizeTier,
-  BolaoScopeMode,
 } from "@/lib/boloes/definitions/types";
-import {
-  findKindPreset,
-  getBolaoKindPresets,
-  SCOPE_MODE_LABELS,
-  ticketTypeLabel,
-  type BolaoKindPreset,
-} from "@/lib/boloes/definitions/presets";
 import {
   BolaoCurrencyInput,
   formatCentsBRL,
 } from "@/app/admin/(panel)/boloes/definicoes/_components/BolaoCurrencyInput";
+import {
+  BolaoCompetitionMatchStep,
+  type MatchIdsByCompetition,
+} from "@/app/admin/(panel)/boloes/definicoes/_components/BolaoCompetitionMatchStep";
+import { BolaoDatetimeInput } from "@/app/admin/(panel)/boloes/definicoes/_components/BolaoDatetimeInput";
+import { BolaoImageUpload } from "@/app/admin/(panel)/boloes/definicoes/_components/BolaoImageUpload";
+import {
+  datetimeLocalBrToIso,
+  isoToDatetimeLocalBr,
+} from "@/lib/client/datetime-local-br";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const STEPS = [
-  { id: 1, title: "Campeonato" },
-  { id: 2, title: "Modalidade" },
-  { id: 3, title: "Configuração" },
-  { id: 4, title: "Premiação" },
+  { id: 1, title: "Nome e logo" },
+  { id: 2, title: "Valor da cota" },
+  { id: 3, title: "Campeonatos e jogos" },
+  { id: 4, title: "Detalhes" },
   { id: 5, title: "Publicar" },
 ] as const;
 
-const DEFAULT_TIERS: BolaoPrizeTier[] = [
-  { rank: 1, poolBps: 5000 },
-  { rank: 2, poolBps: 3000 },
-  { rank: 3, poolBps: 2000 },
-];
-
-type MatchRoundOption = { round: number; label: string; matchCount: number };
+const STEP_COUNT = STEPS.length;
 
 type WizardProps = {
   mode: "create" | "edit";
@@ -47,123 +40,90 @@ type WizardProps = {
   initialDefinition?: BolaoDefinition | null;
 };
 
-function CompetitionCard({
-  competition,
-  selected,
-  onSelect,
-}: {
-  competition: AdminCompetitionOption;
-  selected: boolean;
-  onSelect: () => void;
-}) {
-  const logo = competition.logoUrl;
-  const iconSrc = extraBolaoIconSrc(
-    competition.iconVariant as Parameters<typeof extraBolaoIconSrc>[0],
-  );
+function flattenMatchIds(byComp: MatchIdsByCompetition): number[] {
+  return [...new Set(Object.values(byComp).flat())].sort((a, b) => a - b);
+}
 
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className={`relative flex flex-col items-center rounded-[14px] border p-4 text-center transition-all ${
-        selected
-          ? "border-white/25 bg-[#141414] ring-1 ring-white/10"
-          : "border-white/6 bg-[#0a0a0a] hover:border-white/12 hover:bg-[#0e0e0e]"
-      }`}
-    >
-      <div className="mb-3 flex size-14 items-center justify-center rounded-[12px] border border-white/6 bg-[#050505] p-2">
-        {logo ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={logo} alt="" className="max-h-full max-w-full object-contain opacity-90" />
-        ) : (
-          <Image
-            src={iconSrc}
-            alt=""
-            width={48}
-            height={48}
-            className="object-contain opacity-80"
-          />
-        )}
-      </div>
-      <p className="text-[13px] font-bold leading-tight text-white/90">{competition.displayName}</p>
-      <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.1em] text-white/30">
-        #{competition.id}
-      </p>
-    </button>
-  );
+function hydrateMatchIdsByComp(def: BolaoDefinition): MatchIdsByCompetition {
+  const out: MatchIdsByCompetition = {};
+  if (def.scopeConfig.competitions.length > 0) {
+    for (const rule of def.scopeConfig.competitions) {
+      if (rule.matchIds?.length) {
+        out[rule.competitionId] = [...rule.matchIds];
+      }
+    }
+    return out;
+  }
+  const compIds =
+    def.competitionIds.length > 0 ? def.competitionIds : [def.competitionId];
+  if (def.scopeMatchIds.length > 0 && compIds.length === 1) {
+    out[compIds[0]!] = [...def.scopeMatchIds];
+  }
+  return out;
 }
 
 export function BolaoCreateWizard({ mode, definitionId, initialDefinition }: WizardProps) {
-  const router = useRouter();
   const [step, setStep] = useState(1);
+  const [savedDefinitionId, setSavedDefinitionId] = useState<string | undefined>(definitionId);
+  const [saveNotice, setSaveNotice] = useState<string | null>(null);
   const [competitions, setCompetitions] = useState<AdminCompetitionOption[]>([]);
-  const [matchDates, setMatchDates] = useState<string[]>([]);
-  const [matchRounds, setMatchRounds] = useState<MatchRoundOption[]>([]);
   const [loadingMeta, setLoadingMeta] = useState(true);
-  const [scopeMetaLoading, setScopeMetaLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  const [competitionId, setCompetitionId] = useState<number | null>(null);
-  const [kindId, setKindId] = useState<string | null>(null);
-  const [scopeMode, setScopeMode] = useState<BolaoScopeMode | null>(null);
+  const [competitionIds, setCompetitionIds] = useState<number[]>([]);
+  const [matchIdsByCompetition, setMatchIdsByCompetition] = useState<MatchIdsByCompetition>({});
   const [displayName, setDisplayName] = useState("");
   const [subtitle, setSubtitle] = useState("");
-  const [unitPriceCents, setUnitPriceCents] = useState(1000);
-  const [scopeDates, setScopeDates] = useState<string[]>([]);
-  const [roundNumber, setRoundNumber] = useState("");
-  const [editionNumber, setEditionNumber] = useState("");
-  const [prizePoolPercent, setPrizePoolPercent] = useState("60");
-  const [prizeTiers, setPrizeTiers] = useState<BolaoPrizeTier[]>([...DEFAULT_TIERS]);
+  const [description, setDescription] = useState("");
+  const [logoUrl, setLogoUrl] = useState("");
+  const [startsAt, setStartsAt] = useState("");
+  const [endsAt, setEndsAt] = useState("");
+  const [settlementAt, setSettlementAt] = useState("");
+  const [prizeReleaseAt, setPrizeReleaseAt] = useState("");
+  const [maxTicketsPerUser, setMaxTicketsPerUser] = useState("");
+  const [unitPriceCents, setUnitPriceCents] = useState(0);
+  const [prizePoolPercent, setPrizePoolPercent] = useState("");
+  const [prizeTiers, setPrizeTiers] = useState<BolaoPrizeTier[]>([]);
   const [saleEnabled, setSaleEnabled] = useState(false);
-  const [shopVisible, setShopVisible] = useState(true);
+  const [shopVisible, setShopVisible] = useState(false);
 
-  const selectedCompetition = useMemo(
-    () => competitions.find((c) => c.id === competitionId) ?? null,
-    [competitions, competitionId],
+  const competitionId = competitionIds[0] ?? null;
+  const scopeMatchIds = useMemo(
+    () => flattenMatchIds(matchIdsByCompetition),
+    [matchIdsByCompetition],
   );
 
-  const kindPresets = useMemo(
-    () => (selectedCompetition ? getBolaoKindPresets(selectedCompetition) : []),
-    [selectedCompetition],
+  const selectedCompetitions = useMemo(
+    () => competitions.filter((c) => competitionIds.includes(c.id)),
+    [competitions, competitionIds],
   );
 
-  const selectedKind = useMemo(
-    () =>
-      selectedCompetition && kindId
-        ? findKindPreset(selectedCompetition, kindId)
-        : null,
-    [selectedCompetition, kindId],
-  );
+  const hydrateFromDefinition = useCallback((def: BolaoDefinition) => {
+    setCompetitionIds(
+      def.competitionIds.length > 0 ? [...def.competitionIds] : [def.competitionId],
+    );
+    setMatchIdsByCompetition(hydrateMatchIdsByComp(def));
+    setDisplayName(def.displayName);
+    setSubtitle(def.subtitle ?? "");
+    setDescription(def.description ?? "");
+    setLogoUrl(def.logoUrl ?? "");
+    setStartsAt(isoToDatetimeLocalBr(def.startsAt));
+    setEndsAt(isoToDatetimeLocalBr(def.endsAt));
+    setSettlementAt(isoToDatetimeLocalBr(def.settlementAt));
+    setPrizeReleaseAt(isoToDatetimeLocalBr(def.prizeReleaseAt));
+    setMaxTicketsPerUser(
+      def.maxTicketsPerUser != null ? String(def.maxTicketsPerUser) : "",
+    );
+    setUnitPriceCents(def.unitPriceCents);
+    setPrizePoolPercent(String(def.prizePoolBps / 100));
+    setPrizeTiers(def.prizeTiers.length > 0 ? def.prizeTiers : []);
+    setSaleEnabled(def.saleEnabled);
+    setShopVisible(def.shopVisible);
+  }, []);
 
-  const allowedScopeModes = selectedKind?.allowedScopeModes ?? [];
-
-  const hydrateFromDefinition = useCallback(
-    (def: BolaoDefinition, comps: AdminCompetitionOption[]) => {
-      setCompetitionId(def.competitionId);
-      const comp = comps.find((c) => c.id === def.competitionId);
-      if (comp) {
-        const presets = getBolaoKindPresets(comp);
-        const match =
-          presets.find((p) => p.ticketType === def.ticketType) ?? presets[0];
-        if (match) setKindId(match.id);
-      }
-      setScopeMode(def.scopeMode);
-      setDisplayName(def.displayName);
-      setSubtitle(def.subtitle ?? "");
-      setUnitPriceCents(def.unitPriceCents);
-      setScopeDates([...def.scopeDates]);
-      setRoundNumber(def.roundNumber != null ? String(def.roundNumber) : "");
-      setEditionNumber(def.editionNumber != null ? String(def.editionNumber) : "");
-      setPrizePoolPercent(String(def.prizePoolBps / 100));
-      setPrizeTiers(def.prizeTiers.length > 0 ? def.prizeTiers : [...DEFAULT_TIERS]);
-      setSaleEnabled(def.saleEnabled);
-      setShopVisible(def.shopVisible);
-      setStep(3);
-    },
-    [],
-  );
+  const hydratedRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -174,10 +134,10 @@ export function BolaoCreateWizard({ mode, definitionId, initialDefinition }: Wiz
         });
         const d = (await r.json()) as { competitions?: AdminCompetitionOption[] };
         if (cancelled) return;
-        const comps = d.competitions ?? [];
-        setCompetitions(comps);
-        if (mode === "edit" && initialDefinition) {
-          hydrateFromDefinition(initialDefinition, comps);
+        setCompetitions(d.competitions ?? []);
+        if (mode === "edit" && initialDefinition && !hydratedRef.current) {
+          hydrateFromDefinition(initialDefinition);
+          hydratedRef.current = true;
         }
       } catch {
         if (!cancelled) setError("Falha ao carregar campeonatos");
@@ -190,163 +150,88 @@ export function BolaoCreateWizard({ mode, definitionId, initialDefinition }: Wiz
     };
   }, [mode, initialDefinition, hydrateFromDefinition]);
 
-  useEffect(() => {
-    if (!competitionId || step < 3) return;
-    let cancelled = false;
-    setScopeMetaLoading(true);
-    void (async () => {
-      try {
-        const needsDates =
-          scopeMode === "daily_dates" ||
-          allowedScopeModes.includes("daily_dates");
-        const needsRounds =
-          scopeMode === "round" || allowedScopeModes.includes("round");
-
-        const fetches: Promise<void>[] = [];
-
-        if (needsDates) {
-          fetches.push(
-            fetch(
-              `/api/admin/boloes/definitions/competitions?matchDatesFor=${competitionId}`,
-              { credentials: "include" },
-            )
-              .then((r) => r.json())
-              .then((d: { dates?: string[] }) => {
-                if (!cancelled) setMatchDates(d.dates ?? []);
-              }),
-          );
-        }
-
-        if (needsRounds) {
-          fetches.push(
-            fetch(
-              `/api/admin/boloes/definitions/competitions?matchRoundsFor=${competitionId}`,
-              { credentials: "include" },
-            )
-              .then((r) => r.json())
-              .then((d: { rounds?: MatchRoundOption[] }) => {
-                if (!cancelled) setMatchRounds(d.rounds ?? []);
-              }),
-          );
-        }
-
-        await Promise.all(fetches);
-      } catch {
-        if (!cancelled) {
-          setMatchDates([]);
-          setMatchRounds([]);
-        }
-      } finally {
-        if (!cancelled) setScopeMetaLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [competitionId, step, scopeMode, allowedScopeModes]);
-
-  useEffect(() => {
-    if (selectedKind && allowedScopeModes.length === 1 && !scopeMode) {
-      setScopeMode(allowedScopeModes[0]!);
-    }
-  }, [selectedKind, allowedScopeModes, scopeMode]);
-
-  function applyKindPreset(kind: BolaoKindPreset) {
-    setKindId(kind.id);
-    if (!displayName.trim()) setDisplayName(kind.suggestedName);
-    if (!subtitle.trim()) setSubtitle(kind.suggestedSubtitle ?? "");
-    setUnitPriceCents(kind.defaultPriceCents);
-    const defaultScope = kind.allowedScopeModes[0] ?? "round";
-    setScopeMode(defaultScope);
-    setScopeDates([]);
-    setRoundNumber("");
-    setEditionNumber("");
-    if (
-      defaultScope === "round" &&
-      selectedCompetition?.currentRound != null
-    ) {
-      setRoundNumber(String(selectedCompetition.currentRound));
-    }
-  }
-
-  function selectCompetition(id: number) {
-    setCompetitionId(id);
-    setKindId(null);
-    setScopeMode(null);
-    setScopeDates([]);
-    const comp = competitions.find((c) => c.id === id);
-    if (comp) {
-      const presets = getBolaoKindPresets(comp);
-      if (presets.length === 1) applyKindPreset(presets[0]!);
-    }
-  }
-
-  function selectScopeMode(mode: BolaoScopeMode) {
-    setScopeMode(mode);
-    if (mode !== "daily_dates") setScopeDates([]);
-    if (mode !== "round") setRoundNumber("");
-    if (
-      mode === "round" &&
-      !roundNumber &&
-      selectedCompetition?.currentRound != null
-    ) {
-      setRoundNumber(String(selectedCompetition.currentRound));
-    }
-  }
-
-  function toggleDate(date: string) {
-    setScopeDates((prev) => {
-      const set = new Set(prev);
-      if (set.has(date)) set.delete(date);
-      else set.add(date);
-      return [...set].sort();
-    });
-  }
-
   function buildInput(): BolaoDefinitionInput {
-    if (!selectedKind || !competitionId || !scopeMode) {
-      throw new Error("Configuração incompleta");
+    if (competitionIds.length === 0 || competitionId == null) {
+      throw new Error("Selecione ao menos um campeonato");
     }
+    if (scopeMatchIds.length === 0) {
+      throw new Error("Selecione ao menos um jogo");
+    }
+    const poolBps = Math.round(Number(prizePoolPercent) * 100);
     return {
       displayName: displayName.trim(),
       subtitle: subtitle.trim() || null,
-      ticketType: selectedKind.ticketType,
+      description: description.trim() || null,
+      ticketType: "extra",
       competitionId,
-      scopeMode,
-      scopeDates: scopeMode === "daily_dates" ? scopeDates : [],
-      roundNumber:
-        scopeMode === "round" && roundNumber ? Number(roundNumber) : null,
-      editionNumber:
-        selectedKind.showEditionNumber && editionNumber
-          ? Number(editionNumber)
-          : null,
+      competitionIds,
+      scopeMode: "custom_matches",
+      scopeDates: [],
+      scopeMatchIds,
+      scopeConfig: {
+        competitions: competitionIds
+          .map((id) => ({
+            competitionId: id,
+            mode: "custom_matches" as const,
+            matchIds: matchIdsByCompetition[id] ?? [],
+          }))
+          .filter((r) => r.matchIds.length > 0),
+      },
+      roundNumber: null,
+      editionNumber: null,
       unitPriceCents,
       saleEnabled,
       shopVisible,
       enabled: true,
-      prizePoolBps: Math.round(Number(prizePoolPercent) * 100) || 6000,
+      logoUrl: logoUrl.trim() || null,
+      bannerUrl: null,
+      useCompetitionLogo: !logoUrl.trim(),
+      startsAt: datetimeLocalBrToIso(startsAt),
+      endsAt: datetimeLocalBrToIso(endsAt),
+      settlementAt: datetimeLocalBrToIso(settlementAt),
+      prizeReleaseAt: datetimeLocalBrToIso(prizeReleaseAt),
+      maxTicketsPerUser: maxTicketsPerUser ? Number(maxTicketsPerUser) : null,
+      prizePoolBps: poolBps,
       prizeTiers,
     };
   }
 
   function validateStep(targetStep: number): string | null {
-    if (targetStep >= 2 && !competitionId) return "Selecione um campeonato";
-    if (targetStep >= 3 && !kindId) return "Selecione a modalidade do bolão";
-    if (targetStep >= 4) {
+    if (targetStep >= 2) {
       if (!displayName.trim()) return "Informe o nome do bolão";
-      if (unitPriceCents <= 0) return "Informe um preço válido";
-      if (!scopeMode) return "Selecione como definir os jogos";
-      if (scopeMode === "daily_dates" && scopeDates.length === 0) {
-        return "Selecione ao menos um dia";
-      }
-      if (scopeMode === "round" && !roundNumber.trim()) {
-        return "Selecione ou informe a rodada";
+    }
+    if (targetStep >= 3) {
+      if (unitPriceCents <= 0) return "Informe o valor da cota";
+    }
+    if (targetStep >= 4) {
+      if (competitionIds.length === 0) return "Selecione ao menos um campeonato";
+      if (scopeMatchIds.length === 0) return "Selecione ao menos um jogo";
+      const withoutMatches = competitionIds.filter(
+        (id) => !(matchIdsByCompetition[id]?.length ?? 0),
+      );
+      if (withoutMatches.length > 0) {
+        return "Selecione jogos em todos os campeonatos escolhidos";
       }
     }
     if (targetStep >= 5) {
       const pool = Number(prizePoolPercent);
-      if (!Number.isFinite(pool) || pool <= 0 || pool > 100) {
-        return "Pool de premiação deve ser entre 1% e 100%";
+      const hasFixed = prizeTiers.some((t) => (t.amountCents ?? 0) > 0);
+      const hasPoolShare = prizeTiers.some((t) => t.poolBps > 0);
+      if (prizeTiers.length === 0) {
+        return "Adicione ao menos uma colocação na premiação";
+      }
+      if (hasPoolShare) {
+        if (!Number.isFinite(pool) || pool <= 0 || pool > 100) {
+          return "Informe o pool de premiação (entre 1% e 100%)";
+        }
+        const tierTotal = prizeTiers.reduce((sum, t) => sum + t.poolBps, 0);
+        if (tierTotal !== 10000) {
+          return "A soma dos percentuais das colocações deve totalizar 100%";
+        }
+      } else if (!hasFixed) {
+        return "Informe prêmio fixo (R$) ou percentual do pool em cada colocação";
+      } else if (!Number.isFinite(pool) || pool < 0 || pool > 100) {
+        return "Pool inválido (use 0% se todos os prêmios forem fixos)";
       }
     }
     return null;
@@ -359,38 +244,28 @@ export function BolaoCreateWizard({ mode, definitionId, initialDefinition }: Wiz
       return;
     }
     setError(null);
-    if (step === 1 && kindPresets.length === 1 && kindId) {
-      setStep(3);
-      return;
-    }
-    if (step === 1 && kindPresets.length > 1) {
-      setStep(2);
-      return;
-    }
-    setStep((s) => Math.min(5, s + 1));
+    setStep((s) => Math.min(STEP_COUNT, s + 1));
   }
 
   function goBack() {
     setError(null);
-    if (step === 3 && kindPresets.length === 1) {
-      setStep(1);
-      return;
-    }
     setStep((s) => Math.max(1, s - 1));
   }
 
   async function handleSave() {
     setSaving(true);
     setError(null);
+    setSaveNotice(null);
     try {
       const payload = buildInput();
-      const isEdit = mode === "edit" && definitionId;
+      const activeId = savedDefinitionId ?? definitionId;
+      const isUpdate = Boolean(activeId);
       const r = await fetch(
-        isEdit
-          ? `/api/admin/boloes/definitions/${definitionId}`
+        isUpdate
+          ? `/api/admin/boloes/definitions/${activeId}`
           : "/api/admin/boloes/definitions",
         {
-          method: isEdit ? "PUT" : "POST",
+          method: isUpdate ? "PUT" : "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -398,9 +273,10 @@ export function BolaoCreateWizard({ mode, definitionId, initialDefinition }: Wiz
       );
       const d = (await r.json()) as { item?: BolaoDefinition; error?: string };
       if (!r.ok) throw new Error(d.error ?? "Falha ao salvar");
-      const id = d.item?.id ?? definitionId;
-      router.push(id ? `/admin/boloes/definicoes/${id}` : "/admin/boloes/definicoes");
-      router.refresh();
+      const id = d.item?.id ?? activeId;
+      if (id) setSavedDefinitionId(id);
+      setConfirmOpen(false);
+      setSaveNotice("Bolão salvo com sucesso.");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erro ao salvar");
       setConfirmOpen(false);
@@ -409,15 +285,12 @@ export function BolaoCreateWizard({ mode, definitionId, initialDefinition }: Wiz
     }
   }
 
+  function stepHidden(target: number) {
+    return step !== target ? "hidden" : undefined;
+  }
+
   const inputClass =
     "w-full rounded-[12px] border border-white/8 bg-[#080808] px-4 py-3 text-[14px] font-medium text-white outline-none focus:border-white/20";
-
-  const scopePillClass = (active: boolean) =>
-    `rounded-[10px] border px-4 py-2.5 text-[12px] font-bold transition-colors ${
-      active
-        ? "border-white/20 bg-[#1a1a1a] text-white"
-        : "border-white/6 bg-[#0a0a0a] text-white/45 hover:border-white/12 hover:text-white/70"
-    }`;
 
   if (loadingMeta) {
     return (
@@ -431,18 +304,17 @@ export function BolaoCreateWizard({ mode, definitionId, initialDefinition }: Wiz
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Link
-          href="/admin/boloes/definicoes"
+          href="/admin/boloes"
           className="inline-flex items-center gap-1 text-[12px] font-medium text-white/40 hover:text-white/70"
         >
           <ChevronLeft className="size-4" />
-          Voltar ao catálogo
+          Voltar aos bolões
         </Link>
         <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-white/35">
-          {mode === "edit" ? "Editar" : "Novo bolão"} · passo {step}/5
+          {mode === "edit" ? "Editar" : "Novo bolão"} · passo {step}/{STEP_COUNT}
         </span>
       </div>
 
-      {/* Stepper — só texto, sem ícones */}
       <div className="border-b border-white/6 pb-4">
         <div className="flex items-center gap-0 overflow-x-auto">
           {STEPS.map((s, index) => {
@@ -477,380 +349,334 @@ export function BolaoCreateWizard({ mode, definitionId, initialDefinition }: Wiz
         </div>
       </div>
 
+      {saveNotice ? (
+        <div className="rounded-[10px] border border-primary/25 bg-primary/10 px-4 py-3 text-[13px] text-primary">
+          {saveNotice}
+        </div>
+      ) : null}
+
       {error ? (
         <div className="rounded-[10px] border border-red-400/20 bg-red-950/40 px-4 py-3 text-[13px] text-red-200/90">
           {error}
         </div>
       ) : null}
 
-      {step === 1 ? (
-        <section className="rounded-[16px] border border-white/6 bg-[#0c0c0c] p-5 sm:p-6">
-          <h2 className="text-[17px] font-bold text-white">Campeonato</h2>
+      <section
+        className={`rounded-[16px] border border-white/6 bg-[#0c0c0c] p-5 sm:p-6 ${stepHidden(1) ?? ""}`}
+      >
+          <h2 className="text-[17px] font-bold text-white">Nome e logo</h2>
           <p className="mt-1 mb-5 text-[13px] text-white/40">
-            O tipo de cota e as opções de escopo são ajustados automaticamente.
+            Como o bolão aparece na vitrine e na loja.
           </p>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {competitions.map((c) => (
-              <CompetitionCard
-                key={c.id}
-                competition={c}
-                selected={competitionId === c.id}
-                onSelect={() => selectCompetition(c.id)}
+          <div className="grid gap-6">
+            <label className="block space-y-2">
+              <span className="text-[11px] font-medium uppercase tracking-widest text-white/35">
+                Nome do bolão *
+              </span>
+              <input
+                className={inputClass}
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder="Ex.: Bolão Série B — Rodada 12"
+                autoFocus
               />
-            ))}
+            </label>
+            <BolaoImageUpload
+              label="Logo do bolão"
+              hint="JPG, PNG ou WebP · até 8 MB"
+              valueUrl={logoUrl}
+              onChangeUrl={setLogoUrl}
+              previewSize="logo"
+            />
           </div>
         </section>
-      ) : null}
 
-      {step === 2 && selectedCompetition ? (
-        <section className="rounded-[16px] border border-white/6 bg-[#0c0c0c] p-5 sm:p-6">
-          <h2 className="text-[17px] font-bold text-white">Modalidade</h2>
+      <section
+        className={`rounded-[16px] border border-white/6 bg-[#0c0c0c] p-5 sm:p-6 ${stepHidden(2) ?? ""}`}
+      >
+          <h2 className="text-[17px] font-bold text-white">Valor da cota</h2>
           <p className="mt-1 mb-5 text-[13px] text-white/40">
-            {selectedCompetition.displayName}
+            Preço de cada cota do bolão{" "}
+            <span className="text-white/60">{displayName || "—"}</span>.
           </p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {kindPresets.map((kind) => {
-              const selected = kindId === kind.id;
-              return (
-                <button
-                  key={kind.id}
-                  type="button"
-                  onClick={() => applyKindPreset(kind)}
-                  className={`rounded-[12px] border p-4 text-left transition-all ${
-                    selected
-                      ? "border-white/20 bg-[#141414]"
-                      : "border-white/6 bg-[#0a0a0a] hover:border-white/12"
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-[14px] font-bold text-white">{kind.label}</p>
-                    <span className="text-[10px] font-medium uppercase text-white/35">
-                      {ticketTypeLabel(kind.ticketType)}
-                    </span>
-                  </div>
-                  <p className="mt-2 text-[12px] leading-relaxed text-white/45">
-                    {kind.description}
-                  </p>
-                  <p className="mt-3 text-[13px] font-semibold tabular-nums text-white/70">
-                    {formatCentsBRL(kind.defaultPriceCents)} / cota
-                  </p>
-                </button>
-              );
-            })}
+          <div className="grid max-w-md gap-4">
+            <label className="block space-y-2">
+              <span className="text-[11px] font-medium uppercase tracking-widest text-white/35">
+                Preço por cota *
+              </span>
+              <BolaoCurrencyInput
+                valueCents={unitPriceCents}
+                onChangeCents={setUnitPriceCents}
+              />
+              {unitPriceCents > 0 ? (
+                <p className="text-[13px] text-white/50">
+                  Cada cota:{" "}
+                  <span className="font-semibold text-white">
+                    {formatCentsBRL(unitPriceCents)}
+                  </span>
+                </p>
+              ) : null}
+            </label>
+            <label className="block space-y-2">
+              <span className="text-[11px] font-medium uppercase tracking-widest text-white/35">
+                Máx. cotas por usuário
+              </span>
+              <input
+                type="number"
+                min={1}
+                className={inputClass}
+                value={maxTicketsPerUser}
+                onChange={(e) => setMaxTicketsPerUser(e.target.value)}
+                placeholder="Ilimitado"
+              />
+            </label>
           </div>
         </section>
-      ) : null}
 
-      {step === 3 && selectedKind ? (
-        <section className="space-y-4">
+      <section
+        className={`rounded-[16px] border border-white/6 bg-[#0c0c0c] p-5 sm:p-6 ${stepHidden(3) ?? ""}`}
+      >
+          <h2 className="text-[17px] font-bold text-white">Campeonatos e jogos</h2>
+          <p className="mt-1 mb-5 text-[13px] text-white/40">
+            Escolha os campeonatos e, para cada um, marque as partidas que entram no bolão.
+          </p>
+          <BolaoCompetitionMatchStep
+            competitions={competitions}
+            competitionIds={competitionIds}
+            onCompetitionIdsChange={setCompetitionIds}
+            matchIdsByCompetition={matchIdsByCompetition}
+            onMatchIdsByCompetitionChange={setMatchIdsByCompetition}
+          />
+        </section>
+
+      <div className={`space-y-4 ${stepHidden(4) ?? ""}`}>
           <div className="rounded-[16px] border border-white/6 bg-[#0c0c0c] p-5 sm:p-6">
-            <h2 className="text-[17px] font-bold text-white">Nome e preço</h2>
-            <p className="mt-1 mb-5 text-[13px] text-white/40">
-              {selectedKind.label} · {ticketTypeLabel(selectedKind.ticketType)}
-            </p>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <h2 className="text-[17px] font-bold text-white">Textos e datas</h2>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <label className="block space-y-2 sm:col-span-2">
-                <span className="text-[11px] font-medium uppercase tracking-[0.1em] text-white/35">
-                  Nome do bolão
-                </span>
-                <input
-                  className={inputClass}
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="Ex.: Bolão Diário #01"
-                />
-              </label>
-              <label className="block space-y-2 sm:col-span-2">
-                <span className="text-[11px] font-medium uppercase tracking-[0.1em] text-white/35">
+                <span className="text-[11px] font-medium uppercase tracking-widest text-white/35">
                   Subtítulo
                 </span>
                 <input
                   className={inputClass}
                   value={subtitle}
                   onChange={(e) => setSubtitle(e.target.value)}
-                  placeholder="Opcional"
+                  placeholder="Ex.: 12ª Rodada · Brasileirão Série B"
+                />
+              </label>
+              <label className="block space-y-2 sm:col-span-2">
+                <span className="text-[11px] font-medium uppercase tracking-widest text-white/35">
+                  Descrição
+                </span>
+                <textarea
+                  className={`${inputClass} min-h-[88px] resize-y`}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Texto exibido na vitrine"
                 />
               </label>
               <label className="block space-y-2">
-                <span className="text-[11px] font-medium uppercase tracking-[0.1em] text-white/35">
-                  Preço por cota
+                <span className="text-[11px] font-medium uppercase tracking-widest text-white/35">
+                  Início das inscrições
                 </span>
-                <BolaoCurrencyInput
-                  valueCents={unitPriceCents}
-                  onChangeCents={setUnitPriceCents}
+                <BolaoDatetimeInput
+                  value={startsAt}
+                  onChange={setStartsAt}
+                  inputClass={inputClass}
                 />
+                <span className="text-[11px] text-white/30">Horário de Brasília</span>
+              </label>
+              <label className="block space-y-2">
+                <span className="text-[11px] font-medium uppercase tracking-widest text-white/35">
+                  Encerramento
+                </span>
+                <BolaoDatetimeInput
+                  value={endsAt}
+                  onChange={setEndsAt}
+                  inputClass={inputClass}
+                />
+                <span className="text-[11px] text-white/30">Horário de Brasília</span>
+              </label>
+              <label className="block space-y-2">
+                <span className="text-[11px] font-medium uppercase tracking-widest text-white/35">
+                  Apuração (settlement)
+                </span>
+                <BolaoDatetimeInput
+                  value={settlementAt}
+                  onChange={setSettlementAt}
+                  inputClass={inputClass}
+                />
+                <span className="text-[11px] text-white/30">
+                  Opcional — se vazio, apura após o último jogo + prazo.
+                </span>
+              </label>
+              <label className="block space-y-2">
+                <span className="text-[11px] font-medium uppercase tracking-widest text-white/35">
+                  Liberação de prêmios
+                </span>
+                <BolaoDatetimeInput
+                  value={prizeReleaseAt}
+                  onChange={setPrizeReleaseAt}
+                  inputClass={inputClass}
+                />
+                <span className="text-[11px] text-white/30">
+                  Opcional — quando o saldo é creditado aos vencedores.
+                </span>
               </label>
             </div>
           </div>
 
-          {/* Escopo dinâmico */}
-          {allowedScopeModes.length > 1 ? (
-            <div className="rounded-[16px] border border-white/6 bg-[#0c0c0c] p-5 sm:p-6">
-              <h3 className="text-[14px] font-bold text-white">Jogos do bolão</h3>
-              <p className="mt-1 mb-4 text-[12px] text-white/40">
-                Escolha como delimitar as partidas desta cota.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {allowedScopeModes.map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => selectScopeMode(mode)}
-                    className={scopePillClass(scopeMode === mode)}
-                  >
-                    {SCOPE_MODE_LABELS[mode]}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : allowedScopeModes.length === 1 ? (
-            <input type="hidden" value={allowedScopeModes[0]} />
-          ) : null}
-
-          {scopeMode === "daily_dates" ? (
-            <div className="rounded-[16px] border border-white/6 bg-[#0c0c0c] p-5 sm:p-6">
-              <h3 className="text-[14px] font-bold text-white">Selecione os dias</h3>
-              <p className="mt-1 mb-4 text-[12px] text-white/40">
-                Apenas partidas nestas datas entram no bolão e no ranking.
-              </p>
-              {scopeMetaLoading ? (
-                <p className="text-[13px] text-white/40">Carregando datas…</p>
-              ) : matchDates.length === 0 ? (
-                <p className="text-[13px] text-amber-200/70">
-                  Nenhuma partida no cache. Sincronize os jogos primeiro.
-                </p>
-              ) : (
-                <div className="flex flex-wrap gap-2">
-                  {matchDates.map((date) => {
-                    const active = scopeDates.includes(date);
-                    return (
-                      <button
-                        key={date}
-                        type="button"
-                        onClick={() => toggleDate(date)}
-                        className={scopePillClass(active)}
-                      >
-                        {date}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-              {selectedKind.showEditionNumber ? (
-                <label className="mt-4 block max-w-xs space-y-2">
-                  <span className="text-[11px] font-medium uppercase tracking-[0.1em] text-white/35">
-                    Número da edição
-                  </span>
-                  <input
-                    className={inputClass}
-                    value={editionNumber}
-                    onChange={(e) => setEditionNumber(e.target.value)}
-                    placeholder="Ex.: 1"
-                    inputMode="numeric"
-                  />
-                </label>
-              ) : null}
-            </div>
-          ) : null}
-
-          {scopeMode === "round" ? (
-            <div className="rounded-[16px] border border-white/6 bg-[#0c0c0c] p-5 sm:p-6">
-              <h3 className="text-[14px] font-bold text-white">Selecione a rodada</h3>
-              <p className="mt-1 mb-4 text-[12px] text-white/40">
-                O ranking considera só os jogos desta rodada.
-              </p>
-              {scopeMetaLoading ? (
-                <p className="text-[13px] text-white/40">Carregando rodadas…</p>
-              ) : matchRounds.length > 0 ? (
-                <div className="mb-4 flex flex-wrap gap-2">
-                  {matchRounds.map((r) => {
-                    const active = roundNumber === String(r.round);
-                    return (
-                      <button
-                        key={r.round}
-                        type="button"
-                        onClick={() => setRoundNumber(String(r.round))}
-                        className={scopePillClass(active)}
-                      >
-                        {r.label}
-                        <span className="ml-1 text-[10px] font-normal text-white/35">
-                          ({r.matchCount})
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : (
-                <label className="block max-w-xs space-y-2">
-                  <span className="text-[11px] font-medium uppercase tracking-[0.1em] text-white/35">
-                    Número da rodada
-                  </span>
-                  <input
-                    className={inputClass}
-                    value={roundNumber}
-                    onChange={(e) => setRoundNumber(e.target.value)}
-                    placeholder={
-                      selectedCompetition?.currentRound != null
-                        ? String(selectedCompetition.currentRound)
-                        : "Ex.: 18"
-                    }
-                    inputMode="numeric"
-                  />
-                </label>
-              )}
-            </div>
-          ) : null}
-
-          {scopeMode === "full_competition" ? (
-            <div className="rounded-[16px] border border-white/6 bg-[#0c0c0c] px-5 py-4">
-              <p className="text-[13px] text-white/45">
-                Todas as partidas do campeonato entram neste bolão.
-              </p>
-            </div>
-          ) : null}
-
-          {scopeMode === "weekend" ? (
-            <div className="rounded-[16px] border border-white/6 bg-[#0c0c0c] px-5 py-4">
-              <p className="text-[13px] text-white/45">
-                Inclui automaticamente partidas de sábado e domingo.
-              </p>
-            </div>
-          ) : null}
-        </section>
-      ) : null}
-
-      {step === 4 ? (
-        <section className="rounded-[16px] border border-white/6 bg-[#0c0c0c] p-5 sm:p-6">
-          <h2 className="text-[17px] font-bold text-white">Premiação</h2>
-          <p className="mt-1 mb-5 text-[13px] text-white/40">
-            Percentual da arrecadação e divisão por colocação.
-          </p>
-          <label className="mb-5 block max-w-xs space-y-2">
-            <span className="text-[11px] font-medium uppercase tracking-[0.1em] text-white/35">
-              Pool (% da arrecadação)
-            </span>
-            <div className="relative">
-              <input
-                className={inputClass}
-                value={prizePoolPercent}
-                onChange={(e) => setPrizePoolPercent(e.target.value)}
-                inputMode="decimal"
-              />
-              <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-white/30">
-                %
+          <div className="rounded-[16px] border border-white/6 bg-[#0c0c0c] p-5 sm:p-6">
+            <h3 className="text-[14px] font-bold text-white">Premiação</h3>
+            <p className="mt-1 mb-4 text-[12px] text-white/40">
+              Pool (% da arrecadação) e/ou prêmio fixo por colocação.
+            </p>
+            <label className="mb-5 block max-w-xs space-y-2">
+              <span className="text-[11px] font-medium uppercase tracking-widest text-white/35">
+                Pool (% da arrecadação) *
               </span>
-            </div>
-          </label>
-          <div className="space-y-2">
-            {prizeTiers.map((tier, index) => (
-              <div key={index} className="grid grid-cols-[1fr_1fr_auto] gap-2">
+              <div className="relative">
                 <input
                   className={inputClass}
-                  type="number"
-                  min={1}
-                  value={tier.rank}
-                  onChange={(e) => {
-                    const tiers = [...prizeTiers];
-                    tiers[index] = { ...tier, rank: Number(e.target.value) };
-                    setPrizeTiers(tiers);
-                  }}
-                  placeholder="Posição"
+                  value={prizePoolPercent}
+                  onChange={(e) => setPrizePoolPercent(e.target.value)}
+                  inputMode="decimal"
+                  placeholder="Ex.: 60"
                 />
-                <div className="relative">
+                <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-white/30">
+                  %
+                </span>
+              </div>
+            </label>
+            {prizeTiers.length === 0 ? (
+              <p className="mb-3 text-[13px] text-white/35">
+                Nenhuma colocação definida ainda.
+              </p>
+            ) : null}
+            <div className="space-y-2">
+              {prizeTiers.map((tier, index) => (
+                <div key={index} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2">
                   <input
                     className={inputClass}
                     type="number"
-                    min={0}
-                    value={tier.poolBps / 100}
+                    min={1}
+                    value={tier.rank}
                     onChange={(e) => {
+                      const tiers = [...prizeTiers];
+                      tiers[index] = { ...tier, rank: Number(e.target.value) };
+                      setPrizeTiers(tiers);
+                    }}
+                    placeholder="Posição"
+                  />
+                  <div className="relative">
+                    <input
+                      className={inputClass}
+                      type="number"
+                      min={0}
+                      value={tier.poolBps / 100}
+                      onChange={(e) => {
+                        const tiers = [...prizeTiers];
+                        tiers[index] = {
+                          ...tier,
+                          poolBps: Math.round(Number(e.target.value) * 100),
+                        };
+                        setPrizeTiers(tiers);
+                      }}
+                      placeholder="% do pool"
+                    />
+                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-white/30">
+                      %
+                    </span>
+                  </div>
+                  <BolaoCurrencyInput
+                    valueCents={tier.amountCents ?? 0}
+                    onChangeCents={(cents) => {
                       const tiers = [...prizeTiers];
                       tiers[index] = {
                         ...tier,
-                        poolBps: Math.round(Number(e.target.value) * 100),
+                        amountCents: cents > 0 ? cents : undefined,
                       };
                       setPrizeTiers(tiers);
                     }}
-                    placeholder="% do pool"
                   />
-                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-white/30">
-                    %
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setPrizeTiers(prizeTiers.filter((_, i) => i !== index))}
+                    className="rounded-[10px] border border-white/8 px-3 text-white/40 hover:bg-white/5"
+                  >
+                    ×
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setPrizeTiers(prizeTiers.filter((_, i) => i !== index))}
-                  className="rounded-[10px] border border-white/8 px-3 text-white/40 hover:bg-white/5"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={() =>
-                setPrizeTiers([
-                  ...prizeTiers,
-                  { rank: prizeTiers.length + 1, poolBps: 1000 },
-                ])
-              }
-              className="text-[12px] font-medium text-white/50 hover:text-white/70"
-            >
-              + Adicionar colocação
-            </button>
+              ))}
+              <button
+                type="button"
+                onClick={() =>
+                  setPrizeTiers([
+                    ...prizeTiers,
+                    { rank: prizeTiers.length + 1, poolBps: 0 },
+                  ])
+                }
+                className="text-[12px] font-medium text-white/50 hover:text-white/70"
+              >
+                + Adicionar colocação
+              </button>
+            </div>
           </div>
-        </section>
-      ) : null}
+      </div>
 
-      {step === 5 && selectedKind && selectedCompetition ? (
-        <section className="rounded-[16px] border border-white/6 bg-[#0c0c0c] p-5 sm:p-6">
-          <h2 className="text-[17px] font-bold text-white">Revisão</h2>
-          <p className="mt-1 mb-5 text-[13px] text-white/40">
-            Confira antes de {mode === "edit" ? "salvar" : "publicar"}.
-          </p>
-
-          <dl className="grid gap-3 rounded-[12px] border border-white/6 bg-[#080808] p-4 text-[13px] sm:grid-cols-2">
+      <section
+        className={`rounded-[16px] border border-white/6 bg-[#0c0c0c] p-5 sm:p-6 ${stepHidden(5) ?? ""}`}
+      >
+          <h2 className="text-[17px] font-bold text-white">Revisão e publicação</h2>
+          <dl className="mt-5 grid gap-3 rounded-[12px] border border-white/6 bg-[#080808] p-4 text-[13px] sm:grid-cols-2">
             <div>
               <dt className="text-white/35">Nome</dt>
               <dd className="font-medium text-white">{displayName || "—"}</dd>
             </div>
             <div>
-              <dt className="text-white/35">Campeonato</dt>
-              <dd className="font-medium text-white">{selectedCompetition.displayName}</dd>
-            </div>
-            <div>
-              <dt className="text-white/35">Modalidade</dt>
-              <dd className="font-medium text-white">{selectedKind.label}</dd>
-            </div>
-            <div>
-              <dt className="text-white/35">Escopo</dt>
-              <dd className="font-medium text-white">
-                {scopeMode ? SCOPE_MODE_LABELS[scopeMode] : "—"}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-white/35">Preço</dt>
+              <dt className="text-white/35">Valor da cota</dt>
               <dd className="font-semibold tabular-nums text-white">
-                {formatCentsBRL(unitPriceCents)}
+                {unitPriceCents > 0 ? formatCentsBRL(unitPriceCents) : "—"}
               </dd>
+            </div>
+            <div className="sm:col-span-2">
+              <dt className="text-white/35">Campeonatos e jogos</dt>
+              <dd className="mt-1 space-y-1 font-medium text-white">
+                {selectedCompetitions.length === 0 ? (
+                  <span>—</span>
+                ) : (
+                  selectedCompetitions.map((c) => (
+                    <p key={c.id}>
+                      {c.displayName}: {matchIdsByCompetition[c.id]?.length ?? 0} jogo(s)
+                    </p>
+                  ))
+                )}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-white/35">Total de jogos</dt>
+              <dd className="font-medium text-white">{scopeMatchIds.length}</dd>
             </div>
             <div>
               <dt className="text-white/35">Pool prêmios</dt>
-              <dd className="font-medium text-white">{prizePoolPercent}%</dd>
+              <dd className="font-medium text-white">
+                {prizePoolPercent ? `${prizePoolPercent}%` : "—"}
+              </dd>
             </div>
-            {scopeDates.length > 0 ? (
+            {logoUrl ? (
               <div className="sm:col-span-2">
-                <dt className="text-white/35">Dias</dt>
-                <dd className="font-medium text-white">{scopeDates.join(", ")}</dd>
-              </div>
-            ) : null}
-            {scopeMode === "round" && roundNumber ? (
-              <div>
-                <dt className="text-white/35">Rodada</dt>
-                <dd className="font-medium text-white">{roundNumber}ª</dd>
+                <dt className="text-white/35">Logo</dt>
+                <dd className="mt-1">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={logoUrl}
+                    alt=""
+                    className="h-14 w-14 rounded-[8px] border border-white/8 object-contain p-1"
+                  />
+                </dd>
               </div>
             ) : null}
           </dl>
-
           <div className="mt-5 flex flex-wrap gap-4">
             <label className="flex cursor-pointer items-center gap-2 text-[13px] text-white/70">
               <input
@@ -872,7 +698,6 @@ export function BolaoCreateWizard({ mode, definitionId, initialDefinition }: Wiz
             </label>
           </div>
         </section>
-      ) : null}
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/6 pt-4">
         <button
@@ -884,7 +709,7 @@ export function BolaoCreateWizard({ mode, definitionId, initialDefinition }: Wiz
           <ChevronLeft className="size-4" />
           Voltar
         </button>
-        {step < 5 ? (
+        {step < STEP_COUNT ? (
           <button
             type="button"
             onClick={goNext}
@@ -897,7 +722,7 @@ export function BolaoCreateWizard({ mode, definitionId, initialDefinition }: Wiz
           <button
             type="button"
             onClick={() => {
-              const err = validateStep(5);
+              const err = validateStep(STEP_COUNT);
               if (err) {
                 setError(err);
                 return;

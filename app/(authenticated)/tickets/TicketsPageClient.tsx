@@ -23,6 +23,7 @@ function TicketsPageContent({
   const bolaoRaw = search.get("bolao");
   const ticketsArtilheirosOnly = bolaoRaw === "artilheiros";
   const initialSkaleDaily = bolaoRaw === "skale-diario";
+  const initialDefinitionId = search.get("definitionId")?.trim() || undefined;
   const initialTicketKind =
     ticketsArtilheirosOnly
       ? "artilheiros"
@@ -37,15 +38,18 @@ function TicketsPageContent({
       ) : (
         <TicketCheckoutFlow
           key={
-            ticketsArtilheirosOnly
-              ? "artilheiros"
-              : ticketsDailyOnly
-                ? "daily-only"
-                : ticketsPrincipalAndDailyOnly
-                  ? "principal-daily"
-                  : "full-shop"
+            initialDefinitionId
+              ? `def-${initialDefinitionId}`
+              : ticketsArtilheirosOnly
+                ? "artilheiros"
+                : ticketsDailyOnly
+                  ? "daily-only"
+                  : ticketsPrincipalAndDailyOnly
+                    ? "principal-daily"
+                    : "full-shop"
           }
           initialTicketKind={initialTicketKind}
+          initialDefinitionId={initialDefinitionId}
           initialSkaleDaily={initialSkaleDaily}
           ticketsPrincipalAndDailyOnly={
             ticketsPrincipalAndDailyOnly && !ticketsArtilheirosOnly

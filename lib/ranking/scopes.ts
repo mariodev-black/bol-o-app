@@ -48,6 +48,22 @@ function competitionIdsEnsureFromPaidTickets(tickets: PaidTicketRow[]): number[]
   return [...out];
 }
 
+function resolveRequestedRankingScopeKey(
+  requested: string | null | undefined,
+  scopes: RankingScopeOption[],
+): string | null {
+  if (!requested) return null;
+  if (scopes.some((s) => s.key === requested)) return requested;
+  const byTicket = scopes.find((s) => s.ticketId === requested);
+  if (byTicket) return byTicket.key;
+  if (requested.startsWith("def:")) {
+    const defKey = requested.startsWith("def:") ? requested : `def:${requested}`;
+    const byDef = scopes.find((s) => s.key === defKey);
+    if (byDef) return byDef.key;
+  }
+  return null;
+}
+
 function shortId(id: string): string {
   const t = id.trim();
   if (t.length <= 8) return t.toUpperCase();
@@ -70,9 +86,10 @@ export async function buildRankingScopes(
       () => new Map(),
     );
     const tickets = await listPaidTicketsForUser(userId, { matchMap: matches });
-    const general = tickets.filter((t) => t.ticketType === "general");
-    const daily = tickets.filter((t) => t.ticketType === "daily");
-    const extra = tickets.filter((t) => t.ticketType === "extra");
+    const general = tickets.filter((t) => t.ticketType === "general" && !t.bolaoDefinitionId);
+    const daily = tickets.filter((t) => t.ticketType === "daily" && !t.bolaoDefinitionId);
+    const extra = tickets.filter((t) => t.ticketType === "extra" && !t.bolaoDefinitionId);
+    const dynamic = tickets.filter((t) => t.bolaoDefinitionId && t.bolaoDefinition);
 
     if (general.length > 0) {
       const unused = general.some((t) => (t.availableGames ?? 0) > 0);
@@ -89,6 +106,7 @@ export async function buildRankingScopes(
       scopes.push({
         key: "principal",
         mode: "principal",
+        definitionId: null,
         ticketId: generalForPalpites.id,
         label: "Bolão geral — Copa do Mundo 2026",
         meta: `${general.length} cota${general.length === 1 ? "" : "s"} no bolão principal`,
@@ -119,6 +137,7 @@ export async function buildRankingScopes(
       scopes.push({
         key: `diario:${t.id}`,
         mode: "diario",
+        definitionId: null,
         ticketId: t.id,
         label: `${primary} — ${date}`,
         meta: `Cota ${shortId(t.id)}`,
@@ -196,6 +215,7 @@ export async function buildRankingScopes(
       scopes.push({
         key: `extra:${t.id}`,
         mode: "extra",
+        definitionId: null,
         ticketId: t.id,
         label: `${championshipName} — ${date}${ordinalSuffix}`,
         meta: `Cota ${shortId(t.id)}`,
@@ -210,14 +230,37 @@ export async function buildRankingScopes(
         palpitesHref: palpitesHrefForTicket(t.id),
       });
     }
+
+    for (const t of dynamic) {
+      const def = t.bolaoDefinition!;
+      const unused = (t.availableGames ?? 0) > 0;
+      const pendingPalpitesCount = Math.max(0, t.availableGames ?? 0);
+      const palpitesSentCount = Math.max(0, t.palpitesCount ?? 0);
+      scopes.push({
+        key: `def:${def.id}`,
+        mode: "dynamic",
+        definitionId: def.id,
+        ticketId: t.id,
+        label: def.displayName,
+        meta: `Cota ${shortId(t.id)}`,
+        selectPrimary: def.displayName,
+        selectSecondary: def.subtitle ?? `Comp. ${def.competitionId}`,
+        extraChampionshipId: def.competitionId,
+        ...rankingScopeStatusForTicket(t, matches),
+        unusedPalpites: unused,
+        pendingPalpitesCount,
+        palpitesSentCount,
+        roundLabel: def.scopeDates.length > 0 ? def.scopeDates.join(", ") : null,
+        palpitesHref: palpitesHrefForTicket(t.id),
+      });
+    }
   } catch (e) {
     console.error("[ranking/scopes-build]", e);
   }
 
   const defaultKey = scopes[0]?.key ?? null;
   const requested = options?.defaultRequested?.trim();
-  const defaultKeyResolved =
-    requested && scopes.some((s) => s.key === requested) ? requested : defaultKey;
+  const defaultKeyResolved = resolveRequestedRankingScopeKey(requested, scopes) ?? defaultKey;
 
   return {
     scopes,
