@@ -1,4 +1,5 @@
 import { getPool } from "@/lib/db";
+import { applyWalletMovementTx } from "@/lib/wallet/ledger";
 import {
   getReferralProgramConfig,
   rewardCentsForTier,
@@ -78,32 +79,48 @@ export async function recordReferralCommissionIfApplicable(input: {
     : rewardCentsForTier(config, tier as ReferralTierId);
   if (amountCents <= 0) return;
 
-  await pool.query(
-    `WITH inserted AS (
-       INSERT INTO referral_commissions (
+  // Insere a comissão e credita o saldo de afiliado (via ledger) na mesma transação —
+  // o ledger é a única fonte que muda `affiliate_balance_cents`, evitando crédito duplicado.
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const { rows } = await client.query<{ id: string }>(
+      `INSERT INTO referral_commissions (
          referrer_user_id, referred_user_id, transaction_id, amount_cents, tier, commission_index,
          commission_model, cpa_bps, base_amount_cents
        ) VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5, $6, $7, $8, $9)
        ON CONFLICT (transaction_id) DO NOTHING
-       RETURNING referrer_user_id, amount_cents
-     )
-     UPDATE users u
-     SET affiliate_balance_cents = COALESCE(u.affiliate_balance_cents, 0) + inserted.amount_cents,
-         updated_at = now()
-     FROM inserted
-     WHERE u.id::text = inserted.referrer_user_id::text`,
-    [
-      referrerId,
-      input.buyerUserId,
-      input.transactionId,
-      amountCents,
-      tier,
-      commissionIndex,
-      commissionModel,
-      cpaBps,
-      commissionModel === "influencer" ? baseAmountCents : null,
-    ]
-  );
+       RETURNING id`,
+      [
+        referrerId,
+        input.buyerUserId,
+        input.transactionId,
+        amountCents,
+        tier,
+        commissionIndex,
+        commissionModel,
+        cpaBps,
+        commissionModel === "influencer" ? baseAmountCents : null,
+      ]
+    );
+    if (rows[0]) {
+      await applyWalletMovementTx(client, {
+        userId: referrerId,
+        amountCents,
+        type: "commission",
+        idempotencyKey: `commission:${input.transactionId}`,
+        transactionId: input.transactionId,
+        account: "affiliate",
+        metadata: { tier, commissionModel, buyerUserId: input.buyerUserId },
+      });
+    }
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 export type AffiliateBalances = {
@@ -118,16 +135,26 @@ export type AffiliateBalances = {
   walletBalanceCents: number;
   pendingWalletWithdrawalCents: number;
   completedWalletWithdrawalCents: number;
+  /** Saldo TOTAL disponível para saque (afiliado + carteira) — o que o usuário vê. */
+  combinedAvailableCents: number;
+  /** Saques pendentes, qualquer origem. */
+  combinedPendingCents: number;
+  /** Saques já pagos, qualquer origem. */
+  completedCombinedCents: number;
 };
 
 export async function getAffiliateBalances(userId: string): Promise<AffiliateBalances> {
   const pool = getPool();
+  // "combined" é o padrão desde que o saldo virou único (afiliado + carteira num saque só);
+  // 'affiliate'/'wallet' seguem existindo só em solicitações antigas.
   const affiliatePendingFilter = `user_id = $1::uuid AND status IN ('pending', 'processing') AND COALESCE(balance_source, 'affiliate') = 'affiliate'`;
   const affiliateDoneFilter = `user_id = $1::uuid AND status IN ('approved', 'paid') AND COALESCE(balance_source, 'affiliate') = 'affiliate'`;
   const walletPendingFilter = `user_id = $1::uuid AND status IN ('pending', 'processing') AND balance_source = 'wallet'`;
   const walletDoneFilter = `user_id = $1::uuid AND status IN ('approved', 'paid') AND balance_source = 'wallet'`;
+  const combinedPendingFilter = `user_id = $1::uuid AND status IN ('pending', 'processing') AND balance_source = 'combined'`;
+  const combinedDoneFilter = `user_id = $1::uuid AND status IN ('approved', 'paid') AND balance_source = 'combined'`;
 
-  const [earned, pending, done, available, walletRow, pendingWallet, doneWallet] = await Promise.all([
+  const [earned, pending, done, available, walletRow, pendingWallet, doneWallet, pendingCombined, doneCombined] = await Promise.all([
     pool.query<{ s: string }>(
       `SELECT COALESCE(SUM(amount_cents), 0)::text AS s FROM referral_commissions WHERE referrer_user_id = $1::uuid`,
       [userId]
@@ -160,6 +187,14 @@ export async function getAffiliateBalances(userId: string): Promise<AffiliateBal
       `SELECT COALESCE(SUM(amount_cents), 0)::text AS s FROM affiliate_withdrawal_requests WHERE ${walletDoneFilter}`,
       [userId]
     ),
+    pool.query<{ s: string }>(
+      `SELECT COALESCE(SUM(amount_cents), 0)::text AS s FROM affiliate_withdrawal_requests WHERE ${combinedPendingFilter}`,
+      [userId]
+    ),
+    pool.query<{ s: string }>(
+      `SELECT COALESCE(SUM(amount_cents), 0)::text AS s FROM affiliate_withdrawal_requests WHERE ${combinedDoneFilter}`,
+      [userId]
+    ),
   ]);
   const totalEarnedCents = Number.parseInt(earned.rows[0]?.s ?? "0", 10) || 0;
   const pendingWithdrawalCents = Number.parseInt(pending.rows[0]?.s ?? "0", 10) || 0;
@@ -168,6 +203,8 @@ export async function getAffiliateBalances(userId: string): Promise<AffiliateBal
   const walletBalanceCents = Number.parseInt(walletRow.rows[0]?.s ?? "0", 10) || 0;
   const pendingWalletWithdrawalCents = Number.parseInt(pendingWallet.rows[0]?.s ?? "0", 10) || 0;
   const completedWalletWithdrawalCents = Number.parseInt(doneWallet.rows[0]?.s ?? "0", 10) || 0;
+  const pendingCombinedCents = Number.parseInt(pendingCombined.rows[0]?.s ?? "0", 10) || 0;
+  const completedCombinedCents = Number.parseInt(doneCombined.rows[0]?.s ?? "0", 10) || 0;
   return {
     totalEarnedCents,
     pendingWithdrawalCents,
@@ -176,6 +213,9 @@ export async function getAffiliateBalances(userId: string): Promise<AffiliateBal
     walletBalanceCents,
     pendingWalletWithdrawalCents,
     completedWalletWithdrawalCents,
+    combinedAvailableCents: availableCents + walletBalanceCents,
+    combinedPendingCents: pendingWithdrawalCents + pendingWalletWithdrawalCents + pendingCombinedCents,
+    completedCombinedCents: completedWithdrawalCents + completedWalletWithdrawalCents + completedCombinedCents,
   };
 }
 

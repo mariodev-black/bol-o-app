@@ -12,6 +12,7 @@ import { PromotionsGiftButton } from "@/app/shared/PromotionsGiftButton";
 import { useHomeAuthModal } from "@/app/shared/HomeAuthModalContext";
 import { useAuth } from "@/app/shared/AuthContext";
 import { useSidenav } from "@/app/shared/SidenavContext";
+import { WalletBalancePill } from "@/app/shared/WalletBalancePill";
 import { InstallAppBanner } from "@/app/shared/InstallAppBanner";
 import {
   HEADER_MAIN_HEIGHT_DESKTOP_PX,
@@ -244,15 +245,18 @@ export function Header() {
         showInstallBanner={showInstallBanner}
         onDismissInstallBanner={dismissInstallBanner}
       >
-        <div className="grid h-[var(--app-header-main-height,55px)] grid-cols-[40px_1fr_40px] items-center px-4 lg:hidden">
-          <button
-            type="button"
-            className="flex h-9 w-9 items-center justify-start"
-            aria-label="Abrir menu"
-            onClick={openSidenav}
-          >
-            <MenuIcon className="h-5 w-5 text-white" strokeWidth={2.25} />
-          </button>
+        <div className="grid h-[var(--app-header-main-height,55px)] grid-cols-[auto_1fr_auto] items-center gap-2 px-3 lg:hidden">
+          <div className="flex shrink-0 items-center gap-0.5">
+            <button
+              type="button"
+              className="flex h-9 w-9 items-center justify-start"
+              aria-label="Abrir menu"
+              onClick={openSidenav}
+            >
+              <MenuIcon className="h-5 w-5 text-white" strokeWidth={2.25} />
+            </button>
+            <PromotionsGiftButton variant="mobile" />
+          </div>
 
           <Link href="/" className="flex items-center justify-center justify-self-center shrink-0" aria-label="Início">
             <Image
@@ -267,8 +271,8 @@ export function Header() {
             />
           </Link>
 
-          <div className="flex items-center justify-end gap-0.5">
-            <PromotionsGiftButton variant="mobile" />
+          <div className="flex shrink-0 items-center justify-end gap-1">
+            <WalletBalancePill variant="mobile" />
             <NotificationsBell variant="mobile" />
           </div>
         </div>
@@ -304,7 +308,8 @@ export function Header() {
               })}
             </nav>
 
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-2">
+              <WalletBalancePill variant="desktop" />
               <PromotionsGiftButton variant="desktop" />
               <NotificationsBell variant="desktop" />
             </div>

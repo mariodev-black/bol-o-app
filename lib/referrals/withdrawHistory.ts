@@ -43,7 +43,8 @@ export async function listUserWithdrawalHistory(
     amountCents: r.amount_cents,
     pixKeyType: r.pix_key_type,
     pixKey: r.pix_key,
-    balanceSource: r.balance_source === "wallet" ? "wallet" : "affiliate",
+    balanceSource:
+      r.balance_source === "wallet" ? "wallet" : r.balance_source === "combined" ? "combined" : "affiliate",
     status: r.status,
     createdAt: r.created_at.toISOString(),
     processedAt: r.processed_at?.toISOString() ?? null,

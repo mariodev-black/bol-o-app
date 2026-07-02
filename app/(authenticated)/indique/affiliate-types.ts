@@ -27,6 +27,10 @@ export type AffiliateSummary = {
     walletBalanceCents: number;
     pendingWalletWithdrawalCents: number;
     completedWalletWithdrawalCents: number;
+    /** Saldo TOTAL disponível para saque (afiliado + carteira). */
+    combinedAvailableCents: number;
+    combinedPendingCents: number;
+    completedCombinedCents: number;
   };
   pendingSignupReferrals: Array<{ id: string; name: string | null; createdAt: string }>;
   /** Mínimo para solicitar saque (centavos), do servidor. */

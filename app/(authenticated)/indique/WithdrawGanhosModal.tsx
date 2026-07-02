@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2, X } from "lucide-react";
 import type { AffiliateSummary } from "@/app/(authenticated)/indique/affiliate-types";
 import { formatBRLFromCents } from "@/app/(authenticated)/indique/affiliate-types";
-import type { WithdrawalBalanceSource } from "@/lib/referrals/withdrawSource";
 import { invalidateAffiliateSummaryCache } from "@/app/(authenticated)/indique/affiliate-summary-cache";
 import type { AffiliateBalances } from "@/lib/referrals/commissions";
 import { WithdrawConfirmDialog } from "@/app/(authenticated)/saques/WithdrawConfirmDialog";
@@ -38,7 +37,6 @@ export function WithdrawGanhosModal({
   onSuccess,
 }: Props) {
   const [localSummary, setLocalSummary] = useState<AffiliateSummary | null>(summary);
-  const [balanceSource, setBalanceSource] = useState<WithdrawalBalanceSource>("affiliate");
   const [amountStr, setAmountStr] = useState("");
   const [pixKeyType, setPixKeyType] = useState<"cpf" | "email" | "phone" | "random">("cpf");
   const [pixKey, setPixKey] = useState("");
@@ -65,7 +63,6 @@ export function WithdrawGanhosModal({
       setAmountStr("");
       setPixKey("");
       setMessage(null);
-      setBalanceSource("affiliate");
       setConfirmOpen(false);
       setPendingCents(null);
     }
@@ -73,9 +70,8 @@ export function WithdrawGanhosModal({
 
   const affiliateAvail = localSummary?.balances.availableCents ?? 0;
   const walletAvail = localSummary?.balances.walletBalanceCents ?? 0;
-  const available = balanceSource === "affiliate" ? affiliateAvail : walletAvail;
-  const pendingAffiliate = localSummary?.balances.pendingWithdrawalCents ?? 0;
-  const pendingWallet = localSummary?.balances.pendingWalletWithdrawalCents ?? 0;
+  const available = localSummary?.balances.combinedAvailableCents ?? affiliateAvail + walletAvail;
+  const pendingCombined = localSummary?.balances.combinedPendingCents ?? 0;
 
   const parsedCents = useMemo(() => parseMoneyToCents(amountStr), [amountStr]);
 
@@ -112,7 +108,7 @@ export function WithdrawGanhosModal({
       return null;
     }
     if (cents > available) {
-      setMessage({ type: "err", text: "Saldo insuficiente nesta origem." });
+      setMessage({ type: "err", text: "Saldo insuficiente." });
       return null;
     }
     const key = pixKey.trim();
@@ -144,7 +140,6 @@ export function WithdrawGanhosModal({
           amountCents: pendingCents,
           pixKeyType,
           pixKey: pixKey.trim(),
-          balanceSource,
         }),
       });
       const d = (await r.json()) as {
@@ -229,38 +224,18 @@ export function WithdrawGanhosModal({
             </div>
           ) : (
             <>
-              <div className="rounded-xl border border-white/8 p-4 mb-4 space-y-3">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-white/80">Origem do saque</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setBalanceSource("affiliate")}
-                    disabled={submitting}
-                    className={`rounded-xl border px-3 py-3 text-left transition-colors disabled:opacity-50 ${
-                      balanceSource === "affiliate" ? "border-primary bg-primary/10" : "border-white/10 bg-black/20"
-                    }`}
-                  >
-                    <p className="text-[12px] font-bold text-white">Saldo afiliado</p>
-                    <p className="text-lg font-black text-primary mt-0.5">{formatBRLFromCents(affiliateAvail)}</p>
-                    {pendingAffiliate > 0 ? (
-                      <p className="text-[11px] text-white/80 mt-1">Em análise: {formatBRLFromCents(pendingAffiliate)}</p>
-                    ) : null}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setBalanceSource("wallet")}
-                    disabled={submitting}
-                    className={`rounded-xl border px-3 py-3 text-left transition-colors disabled:opacity-50 ${
-                      balanceSource === "wallet" ? "border-primary bg-primary/10" : "border-white/10 bg-black/20"
-                    }`}
-                  >
-                    <p className="text-[12px] font-bold text-white">Saldo conta (bolão / prêmios)</p>
-                    <p className="text-lg font-black text-emerald-300 mt-0.5">{formatBRLFromCents(walletAvail)}</p>
-                    {pendingWallet > 0 ? (
-                      <p className="text-[11px] text-white/80 mt-1">Em análise: {formatBRLFromCents(pendingWallet)}</p>
-                    ) : null}
-                  </button>
-                </div>
+              <div className="rounded-xl border border-white/8 p-4 mb-4 space-y-2">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-white/80">Saldo disponível para saque</p>
+                <p className="text-2xl font-black text-primary">{formatBRLFromCents(available)}</p>
+                {(affiliateAvail > 0 || walletAvail > 0) ? (
+                  <p className="text-[12px] text-white/50">
+                    Inclui {formatBRLFromCents(affiliateAvail)} de comissões de afiliado
+                    {walletAvail > 0 ? ` + ${formatBRLFromCents(walletAvail)} da carteira` : ""}
+                  </p>
+                ) : null}
+                {pendingCombined > 0 ? (
+                  <p className="text-[11px] text-white/80">Em análise: {formatBRLFromCents(pendingCombined)}</p>
+                ) : null}
                 <p className="text-[11px] text-white/30">
                   Mínimo {formatBRLFromCents(minCents)} · máximo {formatBRLFromCents(maxCents)}
                 </p>
@@ -330,7 +305,6 @@ export function WithdrawGanhosModal({
       <WithdrawConfirmDialog
         open={confirmOpen}
         amountCents={pendingCents ?? 0}
-        balanceSource={balanceSource}
         pixKeyType={pixKeyType}
         pixKey={pixKey.trim()}
         submitting={submitting}

@@ -1,4 +1,5 @@
 import type { PoolClient } from "pg";
+import { applyWalletMovementTx } from "@/lib/wallet/ledger";
 import { listGroupStageDailyEditions } from "@/lib/boloes/daily-editions";
 import { getFootballMainCompetitionId, parseExtraBolaoChampionshipIds } from "@/lib/boloes-extra-config";
 import {
@@ -552,12 +553,14 @@ async function creditAward(
      WHERE id = $1`,
     [awardId, tx.rows[0]!.id]
   );
-  await client.query(
-    `UPDATE users
-     SET balance_cents = COALESCE(balance_cents, 0) + $2
-     WHERE id = $1::uuid`,
-    [input.ranking.userId, input.amountCents]
-  );
+  await applyWalletMovementTx(client, {
+    userId: input.ranking.userId,
+    amountCents: input.amountCents,
+    type: "prize",
+    idempotencyKey: externalRef,
+    transactionId: tx.rows[0]!.id,
+    metadata: { source: "prize_processor", closureId: input.closureId, rank: input.rank },
+  });
 }
 
 async function processClosure(

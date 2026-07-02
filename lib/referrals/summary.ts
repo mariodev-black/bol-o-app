@@ -40,6 +40,9 @@ export type AffiliateSummaryPayload = {
     walletBalanceCents: number;
     pendingWalletWithdrawalCents: number;
     completedWalletWithdrawalCents: number;
+    combinedAvailableCents: number;
+    combinedPendingCents: number;
+    completedCombinedCents: number;
   };
   /** Cadastros que ainda não geraram comissão (nenhum ticket pago vinculado). */
   pendingSignupReferrals: ReferredUserSummary[];

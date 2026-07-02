@@ -2,13 +2,11 @@
 
 import { Loader2, X } from "lucide-react";
 import { formatBRLFromCents } from "@/app/(authenticated)/indique/affiliate-types";
-import type { WithdrawalBalanceSource } from "@/lib/referrals/withdrawSource";
-import { balanceSourceLabel, pixKeyTypeLabel } from "./withdraw-ui";
+import { pixKeyTypeLabel } from "./withdraw-ui";
 
 type Props = {
   open: boolean;
   amountCents: number;
-  balanceSource: WithdrawalBalanceSource;
   pixKeyType: string;
   pixKey: string;
   submitting: boolean;
@@ -19,7 +17,6 @@ type Props = {
 export function WithdrawConfirmDialog({
   open,
   amountCents,
-  balanceSource,
   pixKeyType,
   pixKey,
   submitting,
@@ -64,10 +61,6 @@ export function WithdrawConfirmDialog({
           <div className="flex items-center justify-between gap-3">
             <span className="text-[11px] font-black uppercase tracking-wider text-white/40">Valor</span>
             <span className="font-black text-primary">{formatBRLFromCents(amountCents)}</span>
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-[11px] font-black uppercase tracking-wider text-white/40">Origem</span>
-            <span className="font-semibold text-white/75">{balanceSourceLabel(balanceSource)}</span>
           </div>
           <div className="flex items-center justify-between gap-3">
             <span className="text-[11px] font-black uppercase tracking-wider text-white/40">Tipo PIX</span>

@@ -61,7 +61,8 @@ function mapWithdrawalRow(r: {
     amountCents: r.amount_cents,
     pixKeyType: r.pix_key_type,
     pixKey: r.pix_key,
-    balanceSource: r.balance_source === "wallet" ? "wallet" : "affiliate",
+    balanceSource:
+      r.balance_source === "wallet" ? "wallet" : r.balance_source === "combined" ? "combined" : "affiliate",
     status: r.status,
     cartwaveTransactionId: r.cartwave_transaction_id,
     cartwaveStatus: r.cartwave_status,
@@ -277,9 +278,10 @@ export async function rejectWithdrawalRequestById(
       return { ok: false, error: "Solicitacao nao encontrada ou ja processada" };
     }
 
-    const src = row.balance_source === "wallet" ? "wallet" : "affiliate";
+    const src: WithdrawalBalanceSource =
+      row.balance_source === "wallet" ? "wallet" : row.balance_source === "combined" ? "combined" : "affiliate";
     try {
-      await creditWithdrawalBalance(client, row.user_id, src, row.amount_cents);
+      await creditWithdrawalBalance(client, row.user_id, src, row.amount_cents, row.id);
     } catch {
       await client.query("ROLLBACK");
       return { ok: false, error: "Estado de saldo invalido apos estorno" };

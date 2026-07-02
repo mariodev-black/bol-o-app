@@ -11,7 +11,13 @@ import {
 import { resolveDailyEditionStatus } from "@/lib/boloes/daily-editions-server";
 import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
 import { fetchMatchesMap } from "@/lib/football-api";
-import { createDepositTransaction, parseTicketTypeOrThrow } from "@/lib/payments/transactions";
+import {
+  createDepositTransaction,
+  createWalletPurchase,
+  parseTicketTypeOrThrow,
+  type CreateDepositTransactionInput,
+} from "@/lib/payments/transactions";
+import { WalletInsufficientFundsError } from "@/lib/wallet/ledger";
 import { getBrasilMarrocosPlacarPromoStatusForUser } from "@/lib/promotions/brasil-marrocos-placar-promo";
 import { getExtraBolaoUnitCents, getTicketPriceCents } from "@/lib/payments/ticket-config";
 import {
@@ -28,7 +34,7 @@ import {
   readCompetitionDisplayNamesFromDb,
 } from "@/lib/competition-metadata-cache";
 import { applyTicketShopExtraCatalogItem } from "@/lib/ticket-shop-extra-display";
-import { filterTicketShopExtraBoloes } from "@/lib/ticket-shop-flags";
+import { filterTicketShopExtraBoloes, isWalletCheckoutEnabled } from "@/lib/ticket-shop-flags";
 import {
   extraBolaoCurrentRoundsByChampionship,
   type ExtraBolaoRoundInfo,
@@ -115,6 +121,8 @@ const createCartSchema = z
     checkoutPromo: z.enum(["comprar-cotas"]).optional(),
     /** Cotas Bolão dos Artilheiros. */
     artilheirosQuantity: z.number().int().min(0).max(20).optional().default(0),
+    /** Forma de pagamento: `pix` (padrão) ou `wallet` (debita saldo da carteira). */
+    payWith: z.enum(["pix", "wallet"]).optional().default("pix"),
   })
   .strict();
 
@@ -123,6 +131,8 @@ const createLegacySchema = z
     ticketType: z.enum(["general", "daily", "extra", "artilheiros"]),
     quantity: z.number().int().min(1).max(20).default(1),
     extraChampionshipId: z.number().int().positive().optional(),
+    /** Forma de pagamento: `pix` (padrão) ou `wallet` (debita saldo da carteira). */
+    payWith: z.enum(["pix", "wallet"]).optional().default("pix"),
   })
   .strict();
 
@@ -172,6 +182,7 @@ export async function GET() {
       artilheiros: getArtilheirosTicketPriceCents(),
     },
     artilheirosEnabled: isArtilheirosBolaoEnabled(),
+    walletCheckoutEnabled: isWalletCheckoutEnabled(),
     dailyEdition,
     skaleDailyEdition,
     skaleDailyEditions,
@@ -208,6 +219,25 @@ export async function POST(request: NextRequest) {
   }
   if (!userId) return NextResponse.json({ error: "Nao autenticado" }, { status: 401 });
 
+  /** Despacha a compra: PIX (padrão) ou débito de saldo (quando a flag está ligada). */
+  const finalize = async (
+    input: CreateDepositTransactionInput,
+    payWith: "pix" | "wallet",
+  ): Promise<NextResponse> => {
+    if (payWith === "wallet") {
+      if (!isWalletCheckoutEnabled()) {
+        return NextResponse.json(
+          { error: "Pagamento com saldo indisponível no momento." },
+          { status: 403 },
+        );
+      }
+      const purchase = await createWalletPurchase(input);
+      return NextResponse.json({ purchase }, { status: 201 });
+    }
+    const transaction = await createDepositTransaction(input);
+    return NextResponse.json({ transaction }, { status: 201 });
+  };
+
   let json: unknown;
   try {
     json = await request.json();
@@ -242,6 +272,7 @@ export async function POST(request: NextRequest) {
         definitionsById,
         checkoutPromo,
         artilheirosQuantity,
+        payWith,
       } = parsed.data;
       const extra = extraByChampionship ?? {};
       const exQ = Math.max(0, Math.min(20, extraQuantity ?? 0));
@@ -309,17 +340,19 @@ export async function POST(request: NextRequest) {
           );
         }
       }
-      const transaction = await createDepositTransaction({
-        userId,
-        generalQty: generalQuantity,
-        dailyByEdition: dailyByEdition ?? {},
-        skaleDailyByEdition: skaleDailyByEdition ?? {},
-        artilheirosQuantity: artQ,
-        ...(exQ > 0 ? { extraQuantity: exQ } : { extraByChampionship: extra }),
-        ...(checkoutPromo ? { checkoutPromo } : {}),
-        ...(catalogTotal > 0 ? { definitionsById: definitionsById ?? {} } : {}),
-      });
-      return NextResponse.json({ transaction }, { status: 201 });
+      return finalize(
+        {
+          userId,
+          generalQty: generalQuantity,
+          dailyByEdition: dailyByEdition ?? {},
+          skaleDailyByEdition: skaleDailyByEdition ?? {},
+          artilheirosQuantity: artQ,
+          ...(exQ > 0 ? { extraQuantity: exQ } : { extraByChampionship: extra }),
+          ...(checkoutPromo ? { checkoutPromo } : {}),
+          ...(catalogTotal > 0 ? { definitionsById: definitionsById ?? {} } : {}),
+        },
+        payWith,
+      );
     }
 
     const parsed = createLegacySchema.safeParse(json);
@@ -329,18 +362,21 @@ export async function POST(request: NextRequest) {
 
     const ticketType = parseTicketTypeOrThrow(parsed.data.ticketType);
     const quantity = parsed.data.quantity;
+    const payWith = parsed.data.payWith;
     if (ticketType === "extra") {
       const cid = parsed.data.extraChampionshipId;
       if (cid == null || !parseExtraBolaoChampionshipIds().includes(cid)) {
         return NextResponse.json({ error: "extraChampionshipId invalido para bolao extra" }, { status: 400 });
       }
-      const transaction = await createDepositTransaction({
-        userId,
-        ticketType: "extra",
-        quantity,
-        extraChampionshipId: cid,
-      });
-      return NextResponse.json({ transaction }, { status: 201 });
+      return finalize(
+        {
+          userId,
+          ticketType: "extra",
+          quantity,
+          extraChampionshipId: cid,
+        },
+        payWith,
+      );
     }
 
     if (ticketType === "artilheiros") {
@@ -350,21 +386,36 @@ export async function POST(request: NextRequest) {
           { status: 403 },
         );
       }
-      const transaction = await createDepositTransaction({
-        userId,
-        ticketType: "artilheiros",
-        quantity,
-      });
-      return NextResponse.json({ transaction }, { status: 201 });
+      return finalize(
+        {
+          userId,
+          ticketType: "artilheiros",
+          quantity,
+        },
+        payWith,
+      );
     }
 
-    const transaction = await createDepositTransaction({
-      userId,
-      ticketType,
-      quantity,
-    });
-    return NextResponse.json({ transaction }, { status: 201 });
+    return finalize(
+      {
+        userId,
+        ticketType,
+        quantity,
+      },
+      payWith,
+    );
   } catch (e) {
+    if (e instanceof WalletInsufficientFundsError) {
+      return NextResponse.json(
+        {
+          error: "Saldo insuficiente para concluir a compra.",
+          code: e.code,
+          availableCents: e.availableCents,
+          requestedCents: e.requestedCents,
+        },
+        { status: 402 },
+      );
+    }
     const db = responseForDbError(e);
     if (db) return NextResponse.json({ error: db.error }, { status: db.status });
     const message = e instanceof Error ? e.message : "Nao foi possivel criar a transacao";
