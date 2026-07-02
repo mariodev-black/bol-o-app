@@ -6,14 +6,25 @@ import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 import { inferBolaoTypeFromTicketId } from "@/lib/ticket-kind-server";
 import { inferBolaoTypeFromTicketPrefix } from "@/lib/ticket-kind-shared";
 import { calcPredictionPoints, listPredictions } from "@/lib/predictions";
-import { fetchMatchesMap, getMatchFromMap } from "@/lib/football-api";
+import { fetchMatchesMap } from "@/lib/football-api";
+import { ensureCompetitionIdsForBolaoExtra } from "@/lib/boloes/match-cache-competition-id";
+import { resolveBolaoMatchFromMap } from "@/lib/boloes/skale-match-resolve";
 import { getPartidasFasesFromDb } from "@/lib/partidas-cache-payload";
 import { getFootballMainCompetitionId, getSoleConfiguredExtraChampionshipId } from "@/lib/boloes-extra-config";
 import { resolveExtraBolaoDisplayName } from "@/lib/boloes-extra-competition-branding";
 import { getPool } from "@/lib/db";
 import { parseKickoffFromPartidaPayload, pickScoreFromPartidaPayload } from "@/lib/partida-placar";
 import { hasOfficialMatchResult } from "@/lib/palpites-match-open";
+import {
+  formatRankingHistoricoLiveLabel,
+  isRankingHistoricoLive,
+} from "@/lib/ranking/historico-display";
 import { pickTabelaGruposForPalpites } from "@/lib/tabela-palpites-normalize";
+import {
+  mapPartidaTeamToJogoSide,
+  type PartidaTeamLike,
+} from "@/lib/partida-team-display";
+import { filterPalpitesJogos } from "@/lib/boloes/palpites-jogos-filter";
 import { effectiveExtraRoundForPaidTicket, formatExtraRoundLabel } from "@/lib/ticket-shop-extra-display";
 import { ensureExtraRoundMatchesCached } from "@/lib/football/extras-rodada";
 import { extraBolaoCurrentRoundsByChampionship } from "@/lib/ticket-shop-extra-rounds";
@@ -44,6 +55,9 @@ import {
   getDailyEdition,
   paidTicketDailyEditionNumber,
 } from "@/lib/boloes/daily-editions";
+import { getBolaoDefinitionById } from "@/lib/boloes/definitions/repository";
+import { scopeMatchesForBolaoDefinition } from "@/lib/boloes/definitions/scope";
+import type { BolaoDefinition } from "@/lib/boloes/definitions/types";
 
 const MESES = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
 type StatusJogo = "aberto" | "encerrado";
@@ -167,7 +181,56 @@ function parseRodadaNumeroFromKey(key: string): number | null {
   return null;
 }
 
-function parsePartidas(faseData: Record<string, any>): PalpitesInitialData["jogos"] {
+function pushJogoFromPartidaPage(
+  jogos: PalpitesInitialData["jogos"],
+  p: Record<string, any>,
+  grupo: string,
+  rodada: number,
+  faseKey: string,
+  tabela?: TabelaGrupos | null,
+) {
+  const rawTeamCasa = p.time_mandante as PartidaTeamLike | undefined;
+  const rawTeamVisitante = p.time_visitante as PartidaTeamLike | undefined;
+  const casa = mapPartidaTeamToJogoSide(rawTeamCasa, { tabela, opponentTeam: rawTeamVisitante });
+  const visitante = mapPartidaTeamToJogoSide(rawTeamVisitante, {
+    tabela,
+    opponentTeam: rawTeamCasa,
+  });
+  jogos.push({
+    id: p.partida_id,
+    timeCasa: casa.nome,
+    siglasCasa: casa.sigla,
+    escudoCasa: casa.escudo,
+    isKnockoutSlotCasa: casa.isKnockoutSlot,
+    slotDetailCasa: casa.slotDetail,
+    rawTeamCasa,
+    timeVisitante: visitante.nome,
+    siglasVisitante: visitante.sigla,
+    escudoVisitante: visitante.escudo,
+    isKnockoutSlotVisitante: visitante.isKnockoutSlot,
+    slotDetailVisitante: visitante.slotDetail,
+    rawTeamVisitante,
+    data: formatData(p.data_realizacao, p.data_realizacao_iso),
+    dataBR: String(p.data_realizacao ?? ""),
+    hora: safeHourLabel(p.hora_realizacao),
+    statusBruto: String(p.status ?? ""),
+    liveTempo: parseLiveTempoFromPartida(p),
+    liveMinuto: parseLiveMinutoFromPartida(p),
+    status: mapStatus(String(p.status ?? "")),
+    grupo,
+    rodada,
+    kickoffAt: parseKickoffFromPartidaPayload(p),
+    resultCasa: pickScoreFromPartidaPayload(p, "casa"),
+    resultVisitante: pickScoreFromPartidaPayload(p, "visitante"),
+    faseKey,
+  });
+}
+
+function parsePartidas(
+  faseData: Record<string, any>,
+  faseKey: string,
+  tabela?: TabelaGrupos | null,
+): PalpitesInitialData["jogos"] {
   const jogos: PalpitesInitialData["jogos"] = [];
   const grupoKeys = Object.keys(faseData).filter((k) => typeof faseData[k] === "object" && !Array.isArray(faseData[k]));
   const rodadaDiretaKeys = Object.keys(faseData).filter((k) => Array.isArray(faseData[k]));
@@ -176,27 +239,14 @@ function parsePartidas(faseData: Record<string, any>): PalpitesInitialData["jogo
     rodadaDiretaKeys.forEach((rodadaKey, rodadaIndex) => {
       const partidas = faseData[rodadaKey] ?? [];
       for (const p of partidas) {
-        jogos.push({
-          id: p.partida_id,
-          timeCasa: (p.time_mandante?.nome_popular ?? "A DEFINIR").toUpperCase(),
-          siglasCasa: p.time_mandante?.sigla ?? "---",
-          escudoCasa: p.time_mandante?.escudo,
-          timeVisitante: (p.time_visitante?.nome_popular ?? "A DEFINIR").toUpperCase(),
-          siglasVisitante: p.time_visitante?.sigla ?? "---",
-          escudoVisitante: p.time_visitante?.escudo,
-          data: formatData(p.data_realizacao, p.data_realizacao_iso),
-          dataBR: String(p.data_realizacao ?? ""),
-          hora: safeHourLabel(p.hora_realizacao),
-          statusBruto: String(p.status ?? ""),
-          liveTempo: parseLiveTempoFromPartida(p),
-          liveMinuto: parseLiveMinutoFromPartida(p),
-          status: mapStatus(String(p.status ?? "")),
-          grupo: "GERAL",
-          rodada: resolveRodadaNumero(p, rodadaKey, rodadaIndex),
-          kickoffAt: parseKickoffFromPartidaPayload(p),
-          resultCasa: pickScoreFromPartidaPayload(p, "casa"),
-          resultVisitante: pickScoreFromPartidaPayload(p, "visitante"),
-        });
+        pushJogoFromPartidaPage(
+          jogos,
+          p,
+          "GERAL",
+          resolveRodadaNumero(p, rodadaKey, rodadaIndex),
+          faseKey,
+          tabela,
+        );
       }
     });
   }
@@ -208,49 +258,37 @@ function parsePartidas(faseData: Record<string, any>): PalpitesInitialData["jogo
     rodadaKeys.forEach((rodadaKey, rodadaIndex) => {
       const partidas = grupoData[rodadaKey] ?? [];
       for (const p of partidas) {
-        jogos.push({
-          id: p.partida_id,
-          timeCasa: (p.time_mandante?.nome_popular ?? "A DEFINIR").toUpperCase(),
-          siglasCasa: p.time_mandante?.sigla ?? "---",
-          escudoCasa: p.time_mandante?.escudo,
-          timeVisitante: (p.time_visitante?.nome_popular ?? "A DEFINIR").toUpperCase(),
-          siglasVisitante: p.time_visitante?.sigla ?? "---",
-          escudoVisitante: p.time_visitante?.escudo,
-          data: formatData(p.data_realizacao, p.data_realizacao_iso),
-          dataBR: String(p.data_realizacao ?? ""),
-          hora: safeHourLabel(p.hora_realizacao),
-          statusBruto: String(p.status ?? ""),
-          liveTempo: parseLiveTempoFromPartida(p),
-          liveMinuto: parseLiveMinutoFromPartida(p),
-          status: mapStatus(String(p.status ?? "")),
-          grupo: grupoLetra,
-          rodada: resolveRodadaNumero(p, rodadaKey, rodadaIndex),
-          kickoffAt: parseKickoffFromPartidaPayload(p),
-          resultCasa: pickScoreFromPartidaPayload(p, "casa"),
-          resultVisitante: pickScoreFromPartidaPayload(p, "visitante"),
-        });
+        pushJogoFromPartidaPage(
+          jogos,
+          p,
+          grupoLetra,
+          resolveRodadaNumero(p, rodadaKey, rodadaIndex),
+          faseKey,
+          tabela,
+        );
       }
     });
   }
   return jogos;
 }
 
-function parseAllPartidas(fases: Record<string, any> | undefined): {
+function parseAllPartidas(
+  fases: Record<string, any> | undefined,
+  tabela?: TabelaGrupos | null,
+): {
   jogos: PalpitesInitialData["jogos"];
   grupos: string[];
 } {
   if (!fases || typeof fases !== "object") return { jogos: [], grupos: [] };
-  const phaseValues = Object.values(fases).filter((value) => value && typeof value === "object") as Record<string, any>[];
   const grupos = new Set<string>();
-  // NOTA: o `rodadaOffset` legado (que somava 1 a cada fase) é INCORRETO
-  // quando a `rodada` real já vem do payload — aqui usamos o valor que
-  // `parsePartidas` retornou (já resolvido).
-  const jogos = phaseValues.flatMap((faseData) => {
-    return parsePartidas(faseData).map((jogo) => {
+  const jogos: PalpitesInitialData["jogos"] = [];
+  for (const [phaseKey, faseData] of Object.entries(fases)) {
+    if (!faseData || typeof faseData !== "object") continue;
+    for (const jogo of parsePartidas(faseData as Record<string, any>, phaseKey, tabela)) {
       if (jogo.grupo && jogo.grupo !== "GERAL") grupos.add(jogo.grupo);
-      return jogo;
-    });
-  });
+      jogos.push(jogo);
+    }
+  }
   return { jogos, grupos: Array.from(grupos).sort() };
 }
 
@@ -281,6 +319,9 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
   let dailyEditionDatesLabel: string | null = null;
   let isSkaleDailyEditionPool = false;
   let isPromoBonus = false;
+  let bolaoDefinitionId: string | null = null;
+  let bolaoDefinition: BolaoDefinition | null = null;
+  let definitionScopeMatchIds: number[] | null = null;
   const tid = ticketId?.trim() ?? "";
   if (tid) {
     const fromPrefix = inferBolaoTypeFromTicketPrefix(tid);
@@ -295,10 +336,12 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
           is_promo_bonus: boolean;
           total_amount_cents: number | null;
           ticket_type: string;
+          bolao_definition_id: string | null;
         }>(
           `SELECT extra_championship_id AS cid, round_number AS rnum, ticket_type,
                   COALESCE(is_promo_bonus, false) AS is_promo_bonus,
-                  COALESCE(total_amount_cents, 0) AS total_amount_cents
+                  COALESCE(total_amount_cents, 0) AS total_amount_cents,
+                  bolao_definition_id
              FROM tickets
             WHERE id::text = $1 AND user_id = $2 AND status = 'paid'
             LIMIT 1`,
@@ -307,6 +350,22 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
       ]);
       if (inferred && inferred !== "artilheiros") bolaoType = inferred;
       const row = ticketRows.rows[0];
+      const defId = row?.bolao_definition_id?.trim() || null;
+      if (defId) {
+        bolaoDefinitionId = defId;
+        bolaoDefinition = await getBolaoDefinitionById(defId).catch(() => null);
+        if (bolaoDefinition) {
+          bolaoType =
+            bolaoDefinition.ticketType === "general"
+              ? "principal"
+              : bolaoDefinition.ticketType === "daily"
+                ? "diario"
+                : "extra";
+          extraChampionshipId = bolaoDefinition.competitionId;
+          extraRoundNumber = null;
+          extraRoundName = null;
+        }
+      }
       isPromoBonus =
         Boolean(row?.is_promo_bonus) ||
         (row?.ticket_type === "extra" && Number(row?.total_amount_cents ?? 0) === 0);
@@ -346,7 +405,7 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
       }
     }
   }
-  if (bolaoType === "extra") {
+  if (bolaoType === "extra" && !bolaoDefinition) {
     if (extraChampionshipId == null || !Number.isFinite(extraChampionshipId) || extraChampionshipId <= 0) {
       const sole = getSoleConfiguredExtraChampionshipId();
       if (sole != null) extraChampionshipId = sole;
@@ -440,16 +499,49 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
     extraRoundNumber != null &&
     extraRoundNumber > 0 &&
     !isAmistososExtra &&
-    !isSkaleExtra
+    !isSkaleExtra &&
+    !bolaoDefinition
   ) {
     await ensureExtraRoundMatchesCached(extraChampionshipId, extraRoundNumber).catch(
       () => {},
     );
   }
 
+  if (bolaoDefinition) {
+    const compIds =
+      bolaoDefinition.competitionIds.length > 0
+        ? bolaoDefinition.competitionIds
+        : [bolaoDefinition.competitionId];
+    const scopeMap = await fetchMatchesMap({ ensureCompetitionIds: compIds }).catch(
+      () => new Map(),
+    );
+    definitionScopeMatchIds = scopeMatchesForBolaoDefinition(bolaoDefinition, scopeMap).map(
+      (m) => m.id,
+    );
+  }
+
+  const definitionCompIds =
+    bolaoDefinition != null
+      ? bolaoDefinition.competitionIds.length > 0
+        ? bolaoDefinition.competitionIds
+        : [bolaoDefinition.competitionId]
+      : null;
+
+  const fasesPromise =
+    definitionCompIds != null && definitionCompIds.length > 1
+      ? (async () => {
+          const merged: Record<string, unknown> = {};
+          for (const compId of definitionCompIds) {
+            const fases = await getPartidasFasesFromDb(compId).catch(() => null);
+            if (fases != null) Object.assign(merged, fases);
+          }
+          return Object.keys(merged).length > 0 ? merged : null;
+        })()
+      : getPartidasFasesFromDb(partidasCompId).catch(() => null);
+
   const [tabelaPayload, fasesResult, predictionsBundle] = await Promise.all([
     readFootballApiCacheJson(standingsCacheKey(tabelaCompId)).catch(() => null),
-    getPartidasFasesFromDb(partidasCompId).catch(() => null),
+    fasesPromise,
     userId && tid
       ? (async () => {
           const histComp =
@@ -459,8 +551,13 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
             Number(extraChampionshipId) > 0
               ? Number(extraChampionshipId)
               : mainComp;
+          const ensureIds = bolaoDefinition
+            ? definitionCompIds ?? [bolaoDefinition.competitionId]
+            : bolaoType === "extra"
+              ? ensureCompetitionIdsForBolaoExtra(histComp)
+              : [];
           const [matches, preds] = await Promise.all([
-            fetchMatchesMap(),
+            fetchMatchesMap({ ensureCompetitionIds: ensureIds }),
             listPredictions({ userId, ticketId: tid, bolaoType }),
           ]);
           const predictionsMap = preds.reduce(
@@ -484,7 +581,7 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
               const normalizedMatchId = Number.isFinite(matchId) ? matchId : null;
               const m =
                 normalizedMatchId != null
-                  ? getMatchFromMap(matches, histComp, normalizedMatchId)
+                  ? resolveBolaoMatchFromMap(matches, histComp, normalizedMatchId)
                   : undefined;
               const scored =
                 m != null &&
@@ -508,6 +605,15 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
                 acertos += calc.outcomeHit ? 1 : 0;
                 exatos += calc.exact ? 1 : 0;
               }
+              const matchInput = {
+                matchStatus: m?.status ?? null,
+                kickoffAt: m?.kickoffAt ?? null,
+                jogoData: m?.dateBR,
+                jogoHora: m?.hour,
+                resultadoCasa: m?.resultCasa ?? null,
+                resultadoVisitante: m?.resultVisitante ?? null,
+              };
+              const aoVivo = m ? isRankingHistoricoLive(matchInput) : false;
               return {
                 matchId: normalizedMatchId ?? p.match_id,
                 ticketId: p.ticket_id,
@@ -522,6 +628,10 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
                 resultadoVisitante: m?.resultVisitante ?? null,
                 pontos: calc?.points ?? 0,
                 exact: calc?.exact ?? false,
+                aoVivo,
+                liveLabel: aoVivo ? formatRankingHistoricoLiveLabel(matchInput) : null,
+                matchStatus: m?.status ?? null,
+                kickoffAt: m?.kickoffAt ?? null,
                 submittedAt: p.submitted_at.toISOString(),
                 updatedAt: p.updated_at.toISOString(),
               };
@@ -539,25 +649,27 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
   ]);
 
   const partidasOk = fasesResult != null;
-  const parsedPartidas = parseAllPartidas((fasesResult ?? {}) as Record<string, any>);
+  const tabelaGrupos =
+    pickTabelaGruposForPalpites(tabelaPayload) ??
+    (bolaoType === "extra" ? ({ "grupo-geral": [] } as TabelaGrupos) : null);
+  const parsedPartidas = parseAllPartidas(
+    (fasesResult ?? {}) as Record<string, any>,
+    tabelaGrupos,
+  );
   let jogos = parsedPartidas.jogos;
   let grupos = parsedPartidas.grupos;
-  if (
-    bolaoType === "extra" &&
-    !isSkaleExtra &&
-    extraRoundNumber != null &&
-    extraRoundNumber > 0
-  ) {
-    jogos = jogos.filter((j) => j.rodada === extraRoundNumber);
-  }
-  if (bolaoType === "diario" && dailyEditionDates.length > 0) {
-    const editionDateSet = new Set(dailyEditionDates);
-    jogos = jogos.filter((j) => j.dataBR && editionDateSet.has(j.dataBR));
-  }
-  if (isSkaleDailyExtra && dailyEditionDates.length > 0) {
-    const editionDateSet = new Set(dailyEditionDates);
-    jogos = jogos.filter((j) => j.dataBR && editionDateSet.has(j.dataBR));
-  }
+  jogos = filterPalpitesJogos(jogos, {
+    bolaoType,
+    isSkaleFullCopaPool: isSkaleExtra,
+    isSkaleDailyEditionPool: isSkaleDailyExtra,
+    isWeekendEditionPool: isWeekendExtra,
+    dailyEditionNumber,
+    extraRoundNumber:
+      bolaoType === "extra" && !isSkaleExtra && !isSkaleDailyExtra && !isWeekendExtra
+        ? extraRoundNumber
+        : null,
+    definitionScopeMatchIds,
+  });
 
   if (
     bolaoType === "extra" &&
@@ -574,15 +686,19 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
     }).catch(() => {});
     const retryFases = await getPartidasFasesFromDb(partidasCompId).catch(() => null);
     if (retryFases != null) {
-      const retryParsed = parseAllPartidas(retryFases as Record<string, any>);
-      jogos = retryParsed.jogos.filter((j) => j.rodada === extraRoundNumber);
+      const retryParsed = parseAllPartidas(retryFases as Record<string, any>, tabelaGrupos);
+      jogos = filterPalpitesJogos(retryParsed.jogos, {
+        bolaoType,
+        isSkaleFullCopaPool: false,
+        isSkaleDailyEditionPool: isSkaleDailyExtra,
+        isWeekendEditionPool: isWeekendExtra,
+        dailyEditionNumber,
+        extraRoundNumber,
+      });
       grupos = retryParsed.grupos;
     }
   }
 
-  const tabelaGrupos =
-    pickTabelaGruposForPalpites(tabelaPayload) ??
-    (bolaoType === "extra" ? ({ "grupo-geral": [] } as TabelaGrupos) : null);
   const tabelaOk =
     bolaoType !== "extra" || isSkaleExtra || isWeekendExtra
       ? tabelaPayload != null
@@ -591,17 +707,20 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
   return {
     ticketId,
     bolaoType,
+    bolaoDefinitionId,
     isPromoBonus,
     extraChampionshipId,
     extraRoundNumber,
     extraRoundName,
-    isSkaleFullCopaPool: isSkaleExtra || isWeekendExtra,
+    isSkaleFullCopaPool: isSkaleExtra,
+    isWeekendEditionPool: isWeekendExtra,
     bolaoHeading:
-      isSkaleDailyExtra && dailyEditionNumber != null
+      bolaoDefinition?.displayName ??
+      (isSkaleDailyExtra && dailyEditionNumber != null
         ? `${skaleDailyEditionLabel(dailyEditionNumber)}${dailyEditionDatesLabel ? ` · ${dailyEditionDatesLabel}` : ""}`
         : bolaoType === "diario" && dailyEditionNumber != null
           ? `${dailyEditionLabel(dailyEditionNumber)}${dailyEditionDatesLabel ? ` · ${dailyEditionDatesLabel}` : ""}`
-          : palpitesBolaoHeading(bolaoType, extraChampionshipId),
+          : palpitesBolaoHeading(bolaoType, extraChampionshipId)),
     isSkaleDailyEditionPool: isSkaleDailyExtra,
     dailyEditionNumber,
     dailyEditionDates,
@@ -621,11 +740,13 @@ function emptyPalpitesInitialData(ticketId: string | null): PalpitesInitialData 
   return {
     ticketId,
     bolaoType: "principal",
+    bolaoDefinitionId: null,
     isPromoBonus: false,
     extraChampionshipId: null,
     extraRoundNumber: null,
     extraRoundName: null,
     isSkaleFullCopaPool: false,
+    isWeekendEditionPool: false,
     isSkaleDailyEditionPool: false,
     bolaoHeading: "Palpites",
     dailyEditionNumber: null,

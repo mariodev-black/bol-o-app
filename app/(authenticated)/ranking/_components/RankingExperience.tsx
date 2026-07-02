@@ -124,15 +124,22 @@ export function RankingExperience() {
       resumoQ.set("bolaoType", "extra");
       resumoQ.set("ticketId", scope.ticketId);
     }
+    if (scope.mode === "dynamic" && scope.ticketId) {
+      resumoQ.set("ticketId", scope.ticketId);
+    }
     return resumoQ;
   };
 
-  const boardUrlForScope = (scope: RankingScopeOption) =>
-    scope.mode === "principal"
-      ? "/api/ranking/board?mode=principal"
-      : scope.mode === "extra"
-        ? `/api/ranking/board?mode=extra&ticketId=${encodeURIComponent(scope.ticketId ?? "")}`
-        : `/api/ranking/board?mode=diario&ticketId=${encodeURIComponent(scope.ticketId ?? "")}`;
+  const boardUrlForScope = (scope: RankingScopeOption) => {
+    if (scope.mode === "dynamic" && scope.definitionId) {
+      return `/api/ranking/board?mode=dynamic&definitionId=${encodeURIComponent(scope.definitionId)}`;
+    }
+    if (scope.mode === "principal") return "/api/ranking/board?mode=principal";
+    if (scope.mode === "extra") {
+      return `/api/ranking/board?mode=extra&ticketId=${encodeURIComponent(scope.ticketId ?? "")}`;
+    }
+    return `/api/ranking/board?mode=diario&ticketId=${encodeURIComponent(scope.ticketId ?? "")}`;
+  };
 
   const loadBoard = useCallback(async (scope: RankingScopeOption) => {
     const cacheKey = scope.key;

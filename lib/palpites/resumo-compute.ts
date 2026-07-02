@@ -1,8 +1,8 @@
 import { fetchMatchesMap } from "@/lib/football-api";
+import { ensureCompetitionIdsForBolaoExtra } from "@/lib/boloes/match-cache-competition-id";
 import {
   ensureSkaleBolaoMatchesMirrored,
   resolveBolaoMatchFromMap,
-  skaleCompetitionIdsForMatchMap,
 } from "@/lib/boloes/skale-match-resolve";
 import { listPredictions } from "@/lib/predictions";
 import { dedupeLatestPredictions, scorePredictionAgainstMatch } from "@/lib/predictions/score-aggregate";
@@ -53,7 +53,15 @@ export async function computePalpitesResumo(
     listPredictions({ userId, bolaoType, ticketId }),
     (async () => {
       await ensureSkaleBolaoMatchesMirrored();
-      return fetchMatchesMap({ ensureCompetitionIds: skaleCompetitionIdsForMatchMap() });
+      const ensureIds = new Set<number>([getFootballMainCompetitionId()]);
+      if (ticketId) {
+        const extraMap = await fetchExtraChampionshipIdByTicketIds([ticketId]);
+        const cid = extraMap.get(ticketId);
+        if (cid != null && Number.isFinite(cid) && cid > 0) {
+          for (const id of ensureCompetitionIdsForBolaoExtra(cid)) ensureIds.add(id);
+        }
+      }
+      return fetchMatchesMap({ ensureCompetitionIds: [...ensureIds] });
     })(),
   ]);
 

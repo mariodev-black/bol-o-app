@@ -6,7 +6,7 @@ export default function AdminBolaoCreatePage() {
     <>
       <AdminPageTitle
         title="Criar bolão"
-        subtitle="Assistente passo a passo — campeonato, modalidade, preço, premiação e publicação."
+        subtitle="Nome e logo → valor → campeonatos e jogos → detalhes → publicar."
       />
       <BolaoCreateWizard mode="create" />
     </>

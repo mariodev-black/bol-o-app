@@ -18,6 +18,8 @@ export type PalpitesClassificacaoRow = {
   vitorias: number;
   empates: number;
   derrotas: number;
+  golsPro?: number;
+  golsContra?: number;
 };
 
 function normalizeRow(raw: unknown): PalpitesClassificacaoRow | null {
@@ -41,6 +43,8 @@ function normalizeRow(raw: unknown): PalpitesClassificacaoRow | null {
     vitorias: Number(item.vitorias) || 0,
     empates: Number(item.empates) || 0,
     derrotas: Number(item.derrotas) || 0,
+    golsPro: Number(item.gols_pro ?? item.golsPro) || 0,
+    golsContra: Number(item.gols_contra ?? item.golsContra) || 0,
   };
 }
 

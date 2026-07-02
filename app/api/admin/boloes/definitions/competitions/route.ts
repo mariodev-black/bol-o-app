@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/admin/require-admin-api";
-import { listAdminCompetitionOptions } from "@/lib/boloes/definitions/branding";
+import { listAdminCompetitionOptions } from "@/lib/boloes/definitions/admin-competitions";
 import { listMatchDatesForCompetition, listMatchRoundsForCompetition } from "@/lib/boloes/definitions/repository";
 
 export async function GET(request: Request) {

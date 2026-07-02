@@ -5,10 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Users } from "lucide-react";
 import { getAvatarPresetImage } from "@/lib/user/avatar-presets";
 import type { PredictionBolaoType } from "@/lib/predictions";
-import {
-  isFinishedMatchStatus,
-  isLiveOrInProgressMatchStatus,
-} from "@/lib/palpites-match-open";
+import { getJogoCardPhase } from "@/lib/palpites-live-display";
 
 const CARD = "#101010";
 const BORDER = "rgba(255,255,255,0.08)";
@@ -28,6 +25,7 @@ type PlayerPalpite = {
   awayLogo: string | null;
   dateBR: string | null;
   hour: string | null;
+  kickoffAt: string | null;
   status: string | null;
   resultCasa: number | null;
   resultVisitante: number | null;
@@ -59,18 +57,17 @@ function relativeTime(ms: number): string {
 
 type PalpitePhase = "live" | "finished" | "pending";
 
-/**
- * Fase da partida para o badge. Um jogo AO VIVO já tem placar parcial
- * (ex.: 0×0), então NÃO pode ser tratado como "Deu X×Y" (final). Usamos o
- * `status` para distinguir andamento de encerrado.
- */
 function matchPhase(p: PlayerPalpite): PalpitePhase {
-  const status = p.status ?? "";
-  const temPlacar = p.resultCasa != null && p.resultVisitante != null;
-  if (isLiveOrInProgressMatchStatus(status)) return "live";
-  if (isFinishedMatchStatus(status) && temPlacar) return "finished";
-  // Sem status confiável: só considera final se houver placar e não estiver ao vivo.
-  if (!status && temPlacar) return "finished";
+  const phase = getJogoCardPhase(
+    {
+      status: p.status,
+      kickoffAt: p.kickoffAt,
+      resultCasa: p.resultCasa,
+      resultVisitante: p.resultVisitante,
+    },
+  );
+  if (phase === "live") return "live";
+  if (phase === "post") return "finished";
   return "pending";
 }
 

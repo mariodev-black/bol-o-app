@@ -5,7 +5,7 @@
  */
 
 import { getPool } from "@/lib/db";
-import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
+import { matchesCacheCompetitionIdForBolao } from "@/lib/boloes/match-cache-competition-id";
 import { clampAvatarIndex } from "@/lib/auth/avatar-index";
 import { isStoredAvatarUploadFilename } from "@/lib/user/avatar-filename";
 
@@ -23,6 +23,7 @@ export type PlayerPalpiteRow = {
   awayLogo: string | null;
   dateBR: string | null;
   hour: string | null;
+  kickoffAt: string | null;
   status: string | null;
   resultCasa: number | null;
   resultVisitante: number | null;
@@ -47,6 +48,7 @@ type DbRow = {
   away_logo: string | null;
   date_br: string | null;
   hour_br: string | null;
+  kickoff_at: string | null;
   status: string | null;
   result_casa: number | null;
   result_visitante: number | null;
@@ -91,21 +93,17 @@ export async function listRecentPlayerPalpites(opts: {
   limit?: number;
 }): Promise<PlayerPalpiteRow[]> {
   const limit = Math.min(200, Math.max(1, opts.limit ?? 80));
-  const mainComp = getFootballMainCompetitionId();
-
-  let matchComp: number;
-  if (opts.bolaoType === "extra") {
-    const cid = Number(opts.extraChampionshipId);
-    if (!Number.isFinite(cid) || cid <= 0) return [];
-    matchComp = cid;
-  } else {
-    matchComp = mainComp;
-  }
+  const matchComp = matchesCacheCompetitionIdForBolao(
+    opts.bolaoType,
+    opts.extraChampionshipId,
+  );
 
   const params: unknown[] = [opts.bolaoType, matchComp];
   let extraScope = "";
   if (opts.bolaoType === "extra") {
-    params.push(matchComp);
+    const cid = Number(opts.extraChampionshipId);
+    if (!Number.isFinite(cid) || cid <= 0) return [];
+    params.push(cid);
     extraScope = `AND t.extra_championship_id = $${params.length}`;
   }
   params.push(limit);
@@ -129,6 +127,7 @@ export async function listRecentPlayerPalpites(opts: {
         m.away_logo           AS away_logo,
         m.date_br             AS date_br,
         m.hour_br             AS hour_br,
+        m.kickoff_at::text    AS kickoff_at,
         m.status              AS status,
         m.result_casa         AS result_casa,
         m.result_visitante    AS result_visitante,
@@ -166,6 +165,7 @@ export async function listRecentPlayerPalpites(opts: {
     awayLogo: r.away_logo,
     dateBR: r.date_br,
     hour: r.hour_br,
+    kickoffAt: r.kickoff_at,
     status: r.status,
     resultCasa: r.result_casa,
     resultVisitante: r.result_visitante,

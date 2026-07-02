@@ -501,6 +501,46 @@ export async function getAdminBolaoRankingPage(
     100,
     Math.max(1, pagination.limit ?? ADMIN_BOLAO_RANKING_PAGE_SIZE),
   );
+
+  if (scope.type === "definition") {
+    const { getBolaoDefinitionById } = await import("@/lib/boloes/definitions/repository");
+    const { buildDefinitionRanking } = await import("@/lib/boloes/definitions/ranking");
+    const { fetchMatchesMap } = await import("@/lib/football-api");
+    const def = await getBolaoDefinitionById(scope.id);
+    if (!def) {
+      return { rows: [], total: 0, summary: summarizeBolaoRanking([]) };
+    }
+    const matches = await fetchMatchesMap();
+    const scoped = await buildDefinitionRanking(def, matches);
+    const ranked: AdminBolaoRankingRow[] = scoped.map((row) => ({
+      position: row.position,
+      ticketId: row.ticketId,
+      userId: row.userId,
+      userName: row.userName,
+      userEmail: row.userEmail,
+      ticketType: def.ticketType,
+      extraChampionshipId: def.competitionId,
+      bolaoDefinitionId: def.id,
+      isPromoBonus: false,
+      groupDate: null,
+      groupRound: def.roundNumber,
+      scorePoints: row.totalPoints,
+      exactCount: row.exactCount,
+      outcomeCount: row.outcomeCount,
+      goalsCount: row.goalsCount,
+      predictionsCount: row.predictionsCount,
+      pendingPredictionsCount: 0,
+      totalMatchesCount: 0,
+      paidAt: null,
+      createdAt: new Date().toISOString(),
+    }));
+    return {
+      rows: ranked.slice(offset, offset + limit),
+      total: ranked.length,
+      summary: summarizeBolaoRanking(ranked),
+    };
+  }
+
   const baseRows = await loadAdminBolaoBaseRows();
   const ranked = resolveAdminBolaoRanking(scope, baseRows);
   return {

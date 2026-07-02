@@ -20,6 +20,17 @@
 import type { PoolClient } from "pg";
 import { calcPredictionPoints } from "@/lib/predictions";
 import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
+import { skaleMirrorCompetitionIdsSqlList } from "@/lib/boloes/match-cache-competition-id";
+import { getSkaleBolaoSourceCopaCompetitionId } from "@/lib/boloes/skale-config";
+import {
+  getWeekendBolaoCompetitionId,
+  getWeekendBolaoSourceCopaCompetitionId,
+} from "@/lib/boloes/weekend-bolao-config";
+import type { CachedMatchRow } from "@/lib/matches-cache";
+import {
+  resolveMatchScoresFromCacheRow,
+  resolveMatchStatusFromCacheRow,
+} from "@/lib/match-cache-display";
 
 type PredictionForRecompute = {
   prediction_id: string;
@@ -29,9 +40,11 @@ type PredictionForRecompute = {
   match_id: number;
   score_casa: number;
   score_visitante: number;
-  match_status: string | null;
+  match_status_raw: string | null;
   result_casa: number | null;
   result_visitante: number | null;
+  kickoff_at: string | null;
+  provider_payload: Record<string, unknown> | null;
 };
 
 const RECOMPUTE_UPSERT_SQL = `
@@ -57,6 +70,16 @@ ON CONFLICT (prediction_id) DO UPDATE SET
 
 const COLS_PER_ROW = 12;
 
+function hasMatchCacheSnapshot(row: PredictionForRecompute): boolean {
+  return (
+    row.match_status_raw != null ||
+    row.result_casa != null ||
+    row.result_visitante != null ||
+    row.kickoff_at != null ||
+    (row.provider_payload != null && Object.keys(row.provider_payload).length > 0)
+  );
+}
+
 /**
  * Recomputa `prediction_scores` para os `match_id` informados. Usa o `client`
  * recebido (mesma transação do caller — atomicidade).
@@ -72,6 +95,10 @@ export async function recomputePredictionScoresForMatches(
   if (uniqueIds.length === 0) return { updated: 0, matchesTouched: [] };
 
   const mainComp = getFootballMainCompetitionId();
+  const copaSource = getSkaleBolaoSourceCopaCompetitionId();
+  const skaleMirrorIds = skaleMirrorCompetitionIdsSqlList();
+  const weekendId = getWeekendBolaoCompetitionId();
+  const weekendSource = getWeekendBolaoSourceCopaCompetitionId();
 
   const { rows } = await client.query<PredictionForRecompute>(
     `SELECT
@@ -82,32 +109,58 @@ export async function recomputePredictionScoresForMatches(
        p.match_id                AS match_id,
        p.score_casa              AS score_casa,
        p.score_visitante         AS score_visitante,
-       lower(coalesce(mc.status,'')) AS match_status,
-       mc.result_casa            AS result_casa,
-       mc.result_visitante       AS result_visitante
+       COALESCE(mc_src.status, mc_fb.status) AS match_status_raw,
+       COALESCE(mc_src.result_casa, mc_fb.result_casa) AS result_casa,
+       COALESCE(mc_src.result_visitante, mc_fb.result_visitante) AS result_visitante,
+       COALESCE(mc_src.kickoff_at, mc_fb.kickoff_at)::text AS kickoff_at,
+       COALESCE(mc_src.provider_payload, mc_fb.provider_payload) AS provider_payload
      FROM predictions p
-     LEFT JOIN tickets t ON t.id::text = p.ticket_id
-     LEFT JOIN matches_cache mc ON mc.match_id = p.match_id
-       AND mc.competition_id = CASE
+     LEFT JOIN tickets t ON t.id::text = p.ticket_id::text
+     LEFT JOIN matches_cache mc_src ON mc_src.match_id = p.match_id
+       AND mc_src.competition_id = CASE
+         WHEN p.bolao_type = 'extra'
+           AND t.extra_championship_id = ANY($3::int[])
+           THEN $4::int
+         WHEN p.bolao_type = 'extra'
+           AND t.extra_championship_id = $5::int
+           THEN $6::int
          WHEN p.bolao_type = 'extra' THEN t.extra_championship_id
          ELSE $2::int
        END
+     LEFT JOIN matches_cache mc_fb ON mc_fb.match_id = p.match_id
+       AND p.bolao_type = 'extra'
+       AND (
+         t.extra_championship_id = ANY($3::int[])
+         OR t.extra_championship_id = $5::int
+       )
+       AND mc_fb.competition_id = t.extra_championship_id
      WHERE p.match_id = ANY($1::bigint[])`,
-    [uniqueIds, mainComp],
+    [uniqueIds, mainComp, skaleMirrorIds, copaSource, weekendId, weekendSource],
   );
 
   if (rows.length === 0) return { updated: 0, matchesTouched: [] };
 
-  // Se ainda não temos placar oficial, score = 0 (palpite não pontua).
-  // Quando o placar vier, o próximo tick do worker dispara novo recompute.
   const values: string[] = [];
   const params: unknown[] = [];
   let p = 1;
   const touched = new Set<number>();
+  let updated = 0;
+
   for (const row of rows) {
-    const hasResult = row.result_casa != null && row.result_visitante != null;
+    if (!hasMatchCacheSnapshot(row)) continue;
+
+    const cacheRow = {
+      status: row.match_status_raw ?? "",
+      result_casa: row.result_casa,
+      result_visitante: row.result_visitante,
+      kickoff_at: row.kickoff_at,
+      provider_payload: row.provider_payload,
+    } as CachedMatchRow;
+    const status = resolveMatchStatusFromCacheRow(cacheRow);
+    const { resultCasa, resultVisitante } = resolveMatchScoresFromCacheRow(cacheRow);
+    const hasResult = resultCasa != null && resultVisitante != null;
     const calc = hasResult
-      ? calcPredictionPoints(row.score_casa, row.score_visitante, row.result_casa as number, row.result_visitante as number)
+      ? calcPredictionPoints(row.score_casa, row.score_visitante, resultCasa, resultVisitante)
       : { points: 0, exact: false, outcomeHit: false, goalsHitCount: 0 };
 
     const placeholders: string[] = [];
@@ -123,16 +176,19 @@ export async function recomputePredictionScoresForMatches(
       calc.exact,
       calc.outcomeHit,
       calc.goalsHitCount,
-      row.match_status,
-      row.result_casa,
-      row.result_visitante,
+      status,
+      hasResult ? resultCasa : null,
+      hasResult ? resultVisitante : null,
     );
     touched.add(Number(row.match_id));
+    updated += 1;
   }
+
+  if (values.length === 0) return { updated: 0, matchesTouched: [] };
 
   await client.query(RECOMPUTE_UPSERT_SQL.replace("%VALUES%", values.join(", ")), params);
 
-  return { updated: rows.length, matchesTouched: [...touched] };
+  return { updated, matchesTouched: [...touched] };
 }
 
 /**

@@ -228,7 +228,7 @@ export function scopeGlyphForMode(
         aria-hidden
       />
     );
-  if (mode === "extra") {
+  if (mode === "extra" || mode === "dynamic") {
     const variant = getExtraBolaoHeroSideVariant(
       extraChampionshipId,
       extraSelectPrimary,

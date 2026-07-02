@@ -4,50 +4,25 @@ import {
   getSkaleBolaoSourceCopaCompetitionId,
   isSkaleBolaoCompetition,
 } from "@/lib/boloes/skale-config";
+import {
+  isSkaleDailyBolaoCompetition,
+} from "@/lib/boloes/skale-daily-config";
+import {
+  isWeekendBolaoCompetition,
+} from "@/lib/boloes/weekend-bolao-config";
 import { isAmistososFriendliesCompetition } from "@/lib/football/amistosos-friendlies";
 import { ensureAmistososFriendliesMatchesSeeded } from "@/lib/football/amistosos-friendlies-persistence";
 import { mirrorSkaleBolaoMatchesFromCopa } from "@/lib/football/skale-bolao-sync";
+import { mirrorWeekendBolaoMatchesFromCopa } from "@/lib/football/weekend-bolao-sync";
 import { bootstrapCompetitionCacheIfEmpty } from "@/lib/football/sync-orchestrator";
-import { pickScoreFromPartidaPayload } from "@/lib/partida-placar";
+import {
+  resolveMatchScoresFromCacheRow,
+  resolveMatchStatusFromCacheRow,
+} from "@/lib/match-cache-display";
+import { partidaTeamToPayload } from "@/lib/partida-team-display";
 
 type NestedRounds = Record<string, Array<Record<string, unknown>>>;
 type PhaseMap = Record<string, NestedRounds | Record<string, NestedRounds>>;
-
-function isFinishedCacheStatus(status: string): boolean {
-  const s = status.trim().toLowerCase();
-  return (
-    s.includes("encerr") ||
-    s.includes("finaliz") ||
-    s.includes("cancel") ||
-    s.includes("adiad") ||
-    s.includes("suspens") ||
-    s.includes("interromp")
-  );
-}
-
-function isLiveProviderStatus(status: string): boolean {
-  const s = status.trim().toLowerCase();
-  if (!s || isFinishedCacheStatus(s)) return false;
-  return (
-    s.includes("vivo") ||
-    s.includes("andament") ||
-    s.includes("intervalo") ||
-    s.includes("em curso") ||
-    s.includes("pausad")
-  );
-}
-
-/** Prefere status ao vivo do payload quando a coluna cache ficou encerrada por engano. */
-function resolvePartidaStatus(row: CachedMatchRow): string {
-  const cacheStatus = String(row.status ?? "").trim();
-  const payloadStatus = String(
-    (row.provider_payload as Record<string, unknown> | null | undefined)?.status ?? "",
-  ).trim();
-  if (isFinishedCacheStatus(cacheStatus) && isLiveProviderStatus(payloadStatus)) {
-    return payloadStatus;
-  }
-  return cacheStatus || payloadStatus || "agendado";
-}
 
 function brDateFromIso(iso: string): string {
   const dt = new Date(iso);
@@ -63,6 +38,36 @@ function brDateFromIso(iso: string): string {
   const year = parts.find((p) => p.type === "year")?.value ?? "";
   if (!day || !month || !year) return "";
   return `${day}/${month}/${year}`;
+}
+
+function asStr(v: unknown): string | null {
+  if (v == null) return null;
+  const s = String(v).trim();
+  return s === "" ? null : s;
+}
+
+function pickTeamSideFromPayload(
+  payload: Record<string, unknown> | null | undefined,
+  side: "mandante" | "visitante",
+  rowFallback: { nome: string; sigla: string; escudo: string | null },
+): Record<string, unknown> {
+  const key = side === "mandante" ? "time_mandante" : "time_visitante";
+  const fromPayload = payload?.[key];
+  if (fromPayload && typeof fromPayload === "object") {
+    const t = fromPayload as Record<string, unknown>;
+    return {
+      time_id: t.time_id ?? t.id ?? null,
+      nome: asStr(t.nome),
+      nome_popular: asStr(t.nome_popular) ?? asStr(t.nome) ?? rowFallback.nome,
+      sigla: asStr(t.sigla) ?? rowFallback.sigla,
+      escudo: asStr(t.escudo) ?? rowFallback.escudo,
+    };
+  }
+  return {
+    nome_popular: rowFallback.nome,
+    sigla: rowFallback.sigla,
+    escudo: rowFallback.escudo,
+  };
 }
 
 function brHourFromIso(iso: string): string {
@@ -88,8 +93,9 @@ export function rowToPartidaPayload(row: CachedMatchRow): Record<string, unknown
       : row.kickoff_at
         ? brHourFromIso(row.kickoff_at)
         : "--:--";
-  const status = resolvePartidaStatus(row);
+  const status = resolveMatchStatusFromCacheRow(row);
   const payload = row.provider_payload as Record<string, unknown> | null | undefined;
+  const { resultCasa, resultVisitante } = resolveMatchScoresFromCacheRow(row);
   const partidaBase: Record<string, unknown> = {
     partida_id: row.match_id,
     competition_id: row.competition_id,
@@ -97,28 +103,28 @@ export function rowToPartidaPayload(row: CachedMatchRow): Record<string, unknown
     data_realizacao: dateBR,
     hora_realizacao: hourBR,
     data_realizacao_iso: row.kickoff_at,
-    placar_mandante: row.result_casa,
-    placar_visitante: row.result_visitante,
+    placar_mandante: resultCasa,
+    placar_visitante: resultVisitante,
     rodada: row.rodada ?? null,
     round_key: row.round_key ?? null,
-    time_mandante: {
-      nome_popular: row.home_name,
-      sigla: row.home_sigla,
-      escudo: row.home_logo,
-    },
-    time_visitante: {
-      nome_popular: row.away_name,
-      sigla: row.away_sigla,
-      escudo: row.away_logo,
-    },
+    time_mandante: partidaTeamToPayload(
+      pickTeamSideFromPayload(payload, "mandante", {
+        nome: row.home_name,
+        sigla: row.home_sigla,
+        escudo: row.home_logo,
+      }),
+    ),
+    time_visitante: partidaTeamToPayload(
+      pickTeamSideFromPayload(payload, "visitante", {
+        nome: row.away_name,
+        sigla: row.away_sigla,
+        escudo: row.away_logo,
+      }),
+    ),
   };
   if (payload) {
     if (payload.cronometro != null) partidaBase.cronometro = payload.cronometro;
     if (payload.periodo != null) partidaBase.periodo = payload.periodo;
-    const casa = pickScoreFromPartidaPayload({ ...payload, status }, "casa");
-    const visita = pickScoreFromPartidaPayload({ ...payload, status }, "visitante");
-    if (casa != null) partidaBase.placar_mandante = casa;
-    if (visita != null) partidaBase.placar_visitante = visita;
   }
   return partidaBase;
 }
@@ -160,8 +166,14 @@ export function buildPartidasFasesFromRows(rows: CachedMatchRow[]): PhaseMap {
  * sintético — evita UI atrasada quando o mirror 90007 não sincronizou ainda.
  */
 export function partidasCacheSourceCompetitionId(competitionId: number): number {
-  if (isSkaleBolaoCompetition(competitionId)) {
+  if (
+    isSkaleBolaoCompetition(competitionId) ||
+    isSkaleDailyBolaoCompetition(competitionId)
+  ) {
     return getSkaleBolaoSourceCopaCompetitionId();
+  }
+  if (isWeekendBolaoCompetition(competitionId)) {
+    return competitionId;
   }
   return competitionId;
 }
@@ -177,6 +189,9 @@ export async function getPartidasFasesFromDb(competitionId?: number): Promise<Ph
       : getFootballMainCompetitionId();
   if (isSkaleBolaoCompetition(comp)) {
     await mirrorSkaleBolaoMatchesFromCopa().catch(() => {});
+  }
+  if (isWeekendBolaoCompetition(comp)) {
+    await mirrorWeekendBolaoMatchesFromCopa().catch(() => {});
   }
   const sourceComp = partidasCacheSourceCompetitionId(comp);
   let rows = await readMatchesCache({ includeProviderPayload: true });

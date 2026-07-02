@@ -1,6 +1,8 @@
+import { isGroupStageFaseKey } from "@/lib/boloes/palpites-jogos-filter";
 import {
   getDailyEdition,
-  isDateInDailyEdition,
+  getDailyEditionDatesSet,
+  isMatchInDailyEditionScope,
 } from "@/lib/boloes/daily-editions";
 import {
   inferDailyEditionFromMatchIds,
@@ -16,6 +18,7 @@ import {
   paidTicketSkaleDailyEditionNumber,
 } from "@/lib/boloes/skale-daily-config";
 import { getMatchFromMap, resolveKickoffAtIso } from "@/lib/football-api";
+import type { PalpiteSaveContext } from "@/lib/palpites/palpite-save-context";
 import { brToday, resolveDiarioPlayableDate, utcMsForBrDate } from "@/lib/diario-playable-date";
 import {
   getPalpiteRejectReason,
@@ -23,7 +26,8 @@ import {
   isMatchOpenForPalpite,
   palpiteRejectErrorMessage,
 } from "@/lib/palpites-match-open";
-import type { PalpiteSaveContext } from "@/lib/palpites/palpite-save-context";
+import type { BolaoDefinition } from "@/lib/boloes/definitions/types";
+import { matchBelongsToBolaoDefinition } from "@/lib/boloes/definitions/scope";
 import { palpiteLockBeforeKickoffMs } from "@/lib/palpites-kickoff-lock";
 import {
   getPredictionByUserTicketMatch,
@@ -48,7 +52,51 @@ export async function validatePalpiteForSave(
     matchMap,
     mainComp,
     scopedComp,
+    bolaoDefinition,
   } = ctx;
+
+  if (bolaoDefinition) {
+    if (!matchBelongsToBolaoDefinition(bolaoDefinition, matchMap, data.matchId)) {
+      return {
+        error: `Partida fora do escopo do bolão "${bolaoDefinition.displayName}".`,
+        status: 400,
+      };
+    }
+    const match = resolveBolaoMatchFromMap(matchMap, scopedComp, data.matchId);
+    if (!match) {
+      return {
+        error: "Partida nao encontrada no calendario oficial do bolão.",
+        status: 404,
+      };
+    }
+    const dateBrDb = String(match.dateBR || "").trim();
+    if (!dateBrDb) {
+      return {
+        error:
+          "Partida sem data no banco (matches_cache.date_br). Aguarde sincronizacao ou contate suporte.",
+        status: 400,
+      };
+    }
+    const kickoffIso = resolveKickoffAtIso({
+      kickoffAt: match.kickoffAt,
+      dateBR: dateBrDb,
+      hour: match.hour,
+    });
+    const eligibility = {
+      status: match.status,
+      kickoffAt: kickoffIso ?? match.kickoffAt,
+      resultCasa: match.resultCasa,
+      resultVisitante: match.resultVisitante,
+    };
+    if (!isMatchOpenForPalpite(eligibility, bolaoType)) {
+      const reason = getPalpiteRejectReason(eligibility, bolaoType);
+      return {
+        error: palpiteRejectErrorMessage(reason, bolaoType),
+        status: 400,
+      };
+    }
+    return null;
+  }
 
   const match = resolveBolaoMatchFromMap(matchMap, scopedComp, data.matchId);
   if (!match) {
@@ -129,12 +177,13 @@ export async function validatePalpiteForSave(
       : null;
   if (skaleDailyEdition != null && extraChampionshipId != null) {
     const scopeComp = extraChampionshipId;
+    const editionDates = getDailyEditionDatesSet(skaleDailyEdition);
     const ticketPreds = await listPredictions({
       userId: ctx.userId,
       ticketId: ctx.ticketId,
       bolaoType: "extra",
     });
-    if (!isDateInDailyEdition(dateBrDb, skaleDailyEdition)) {
+    if (!editionDates.has(dateBrDb)) {
       const editionMeta = getDailyEdition(skaleDailyEdition);
       return {
         error: `Ticket: esta partida nao pertence ao Bolao Diario Skale #${skaleDailyEdition} (dias ${editionMeta?.datesBR.join(", ") ?? "?"}).`,
@@ -234,7 +283,19 @@ export async function validatePalpiteForSave(
         };
       }
     } else {
-      if (!isDateInDailyEdition(dateBrDb, edition)) {
+      if (!isGroupStageFaseKey(match.phaseKey)) {
+        return {
+          error:
+            "Partida nao pertence a fase de grupos do Bolao Diario. Palpites so sao aceitos em jogos da fase de grupos.",
+          status: 400,
+        };
+      }
+      if (
+        !isMatchInDailyEditionScope(
+          { dateBR: dateBrDb, hour: match.hour, kickoffAt: match.kickoffAt },
+          edition,
+        )
+      ) {
         const editionMeta = getDailyEdition(edition);
         return {
           error: `Ticket: esta partida nao pertence ao ${editionMeta ? `Bolao Diario #${edition}` : "bolao diario"} (dias ${editionMeta?.datesBR.join(", ") ?? "?"}).`,

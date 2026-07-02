@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 import { fetchMatchesMap } from "@/lib/football-api";
-import { resolveBolaoMatchFromMap, ensureSkaleBolaoMatchesMirrored, skaleCompetitionIdsForMatchMap } from "@/lib/boloes/skale-match-resolve";
+import { ensureCompetitionIdsForBolaoExtra } from "@/lib/boloes/match-cache-competition-id";
+import { resolveBolaoMatchFromMap, ensureSkaleBolaoMatchesMirrored } from "@/lib/boloes/skale-match-resolve";
 import { calcPredictionPoints, listPredictions, type PredictionBolaoType } from "@/lib/predictions";
 import {
   formatRankingHistoricoLiveLabel,
@@ -50,10 +51,27 @@ export async function GET(request: NextRequest) {
     bolaoType = undefined;
   }
   const limit = Math.min(100, Math.max(1, Number.parseInt(request.nextUrl.searchParams.get("limit") ?? "20", 10) || 20));
+  const mainComp = getFootballMainCompetitionId();
   const predsRaw = await listPredictions({ userId, bolaoType, ticketId });
+  const extraMap = await fetchExtraChampionshipIdByTicketIds(
+    [...new Set(predsRaw.filter((p) => p.bolao_type === "extra").map((p) => p.ticket_id))],
+  );
   await ensureSkaleBolaoMatchesMirrored();
+  const ensureIds = new Set<number>([mainComp]);
+  if (bolaoType === "extra") {
+    for (const cid of extraMap.values()) {
+      if (cid != null && Number.isFinite(cid) && cid > 0) {
+        for (const id of ensureCompetitionIdsForBolaoExtra(cid)) ensureIds.add(id);
+      }
+    }
+    const cidParam = request.nextUrl.searchParams.get("championshipId");
+    const cidFromQuery = cidParam != null ? Number(cidParam) : NaN;
+    if (Number.isFinite(cidFromQuery) && cidFromQuery > 0) {
+      for (const id of ensureCompetitionIdsForBolaoExtra(cidFromQuery)) ensureIds.add(id);
+    }
+  }
   const matches = await fetchMatchesMap({
-    ensureCompetitionIds: skaleCompetitionIdsForMatchMap(),
+    ensureCompetitionIds: [...ensureIds],
   });
 
   let preds = predsRaw;
@@ -63,10 +81,6 @@ export async function GET(request: NextRequest) {
       preds = filterPredictionsForExtraTicketRound(preds, roundScope, matches);
     }
   }
-  const mainComp = getFootballMainCompetitionId();
-  const extraMap = await fetchExtraChampionshipIdByTicketIds(
-    [...new Set(preds.filter((p) => p.bolao_type === "extra").map((p) => p.ticket_id))],
-  );
 
   const rows = preds
     .map((p) => {

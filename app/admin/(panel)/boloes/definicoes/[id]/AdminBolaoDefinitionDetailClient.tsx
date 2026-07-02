@@ -1,9 +1,14 @@
 "use client";
 
 import { formatCentsBRL } from "@/app/admin/(panel)/boloes/definicoes/_components/BolaoCurrencyInput";
-import { ticketTypeLabel } from "@/lib/boloes/definitions/presets";
-import type { BolaoDefinitionWithStats } from "@/lib/boloes/definitions/types";
+import {
+  adminBolaoStatusLabel,
+  ADMIN_BOLAO_STATUS_STYLES,
+} from "@/lib/boloes/definitions/lifecycle-labels";
+import type { AdminBolaoHubItem } from "@/lib/boloes/definitions/types";
 import { extraBolaoIconSrc } from "@/app/shared/extra-bolao-icons";
+import type { ExtraBolaoIconVariant } from "@/app/shared/extra-bolao-icons";
+import { calculateDefinitionPrizePoolCents } from "@/lib/boloes/definitions/prizes";
 import { Pencil } from "lucide-react";
 import Link from "next/link";
 
@@ -12,23 +17,25 @@ export function AdminBolaoDefinitionDetailClient({
   item,
 }: {
   id: string;
-  item: BolaoDefinitionWithStats;
+  item: AdminBolaoHubItem;
 }) {
   const logoSrc =
-    item.logoUrl ??
+    item.resolvedLogoUrl ??
     extraBolaoIconSrc(
-      (item.logoVariant ?? "generic") as Parameters<typeof extraBolaoIconSrc>[0],
+      (item.resolvedIconVariant || "generic") as ExtraBolaoIconVariant,
     ).src;
-  const prizePoolCents = Math.floor((item.revenueCents * item.prizePoolBps) / 10000);
+  const status = item.computedStatus;
+  const prizePoolCents = calculateDefinitionPrizePoolCents(item, item.revenueCents);
+  const operatorCents = Math.max(0, item.revenueCents - prizePoolCents);
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Link
-          href="/admin/boloes/definicoes"
+          href="/admin/boloes"
           className="text-[12px] font-bold uppercase tracking-[0.12em] text-white/45 hover:text-primary"
         >
-          ← Voltar ao catálogo
+          ← Voltar aos bolões
         </Link>
         <Link
           href={`/admin/boloes/definicoes/${id}/edit`}
@@ -41,17 +48,26 @@ export function AdminBolaoDefinitionDetailClient({
 
       <div className="rounded-[16px] border border-white/8 bg-[#101010] p-5">
         <div className="flex flex-wrap items-start gap-4">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={logoSrc}
-            alt=""
-            className="h-16 w-16 rounded-xl border border-white/10 bg-white/5 object-contain p-1"
-          />
+          <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-[#0a0a0a]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={logoSrc}
+              alt=""
+              className="max-h-full max-w-full object-contain p-1.5"
+            />
+          </div>
           <div className="min-w-0 flex-1">
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <span
+                className={`inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide ${ADMIN_BOLAO_STATUS_STYLES[status]}`}
+              >
+                {adminBolaoStatusLabel(status)}
+              </span>
+            </div>
             <h2 className="text-[20px] font-black text-white">{item.displayName}</h2>
             <p className="mt-1 text-[13px] text-white/45">{item.subtitle ?? item.slug}</p>
             <p className="mt-2 text-[12px] text-white/35">
-              {ticketTypeLabel(item.ticketType)} · #{item.competitionId} · {item.scopeMode}
+              {item.competitionDisplayName || `#${item.competitionId}`} · {item.matchCount} jogo(s)
             </p>
           </div>
           <div className="text-right">
@@ -87,11 +103,45 @@ export function AdminBolaoDefinitionDetailClient({
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-[14px] border border-white/8 bg-[#0d0d0d] p-4">
           <h3 className="text-[12px] font-black uppercase tracking-[0.14em] text-white/40">
-            Premiação estimada
+            Faturamento
+          </h3>
+          <dl className="mt-3 space-y-2.5 text-[13px]">
+            <div className="flex justify-between gap-4">
+              <dt className="text-white/55">Receita confirmada</dt>
+              <dd className="font-bold tabular-nums text-primary">
+                {formatCentsBRL(item.revenueCents)}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-white/55">Cotas pagas</dt>
+              <dd className="font-bold tabular-nums text-white">{item.ticketsPaid}</dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-white/55">Cotas pendentes</dt>
+              <dd className="font-bold tabular-nums text-white">{item.ticketsPending}</dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-white/55">Pool de premiação ({item.prizePoolBps / 100}%)</dt>
+              <dd className="font-bold tabular-nums text-white">
+                {formatCentsBRL(prizePoolCents)}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-4 border-t border-white/6 pt-2">
+              <dt className="text-white/55">Margem operacional</dt>
+              <dd className="font-bold tabular-nums text-white/80">
+                {formatCentsBRL(operatorCents)}
+              </dd>
+            </div>
+          </dl>
+        </div>
+
+        <div className="rounded-[14px] border border-white/8 bg-[#0d0d0d] p-4">
+          <h3 className="text-[12px] font-black uppercase tracking-[0.14em] text-white/40">
+            Distribuição do pool
           </h3>
           <p className="mt-2 text-[13px] text-white/60">
-            Pool: {item.prizePoolBps / 100}% ={" "}
-            <span className="font-bold text-primary">{formatCentsBRL(prizePoolCents)}</span>
+            Com base na receita confirmada de{" "}
+            <span className="font-bold text-white">{formatCentsBRL(item.revenueCents)}</span>
           </p>
           <ul className="mt-3 space-y-2">
             {item.prizeTiers.map((tier) => (

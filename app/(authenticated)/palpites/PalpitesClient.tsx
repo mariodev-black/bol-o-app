@@ -10,6 +10,12 @@ import {
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
+  filterPalpitesJogos,
+  matchDisplayDateBRForPalpites,
+  palpitesFilterFromInitialData,
+  resolvePalpitesPollCompetitionId,
+} from "@/lib/boloes/palpites-jogos-filter";
+import {
   ChevronDown,
   ChevronUp,
   BarChart2,
@@ -39,6 +45,7 @@ import {
 } from "@/app/shared/MainBolaoPromoContext";
 import { PalpitesTopPalpiteiros } from "@/app/(authenticated)/palpites/_components/PalpitesTopPalpiteiros";
 import { fetchRankingBoardClient } from "@/lib/ranking/load-board-client";
+import { rankingDefaultScopeKey } from "@/lib/ranking/scopes-shared";
 import type { RankingBoardMeta, RankingBoardRow } from "@/lib/ranking/board-types";
 import { calcPredictionPoints } from "./lib/predictionsStorage";
 import { inferBolaoTypeFromTicketPrefix } from "@/lib/ticket-kind";
@@ -62,7 +69,21 @@ import {
   isMatchOpenForPalpite,
   palpiteEligibilityFromJogo,
 } from "@/lib/palpites-match-open";
+import {
+  getJogoCardPhase,
+  isMatchLiveForDisplay,
+  kickoffMsFromMatch,
+  palpiteEligibilityFromLiveMatch,
+  type JogoCardPhase,
+} from "@/lib/palpites-live-display";
 import { pickTabelaGruposForPalpites } from "@/lib/tabela-palpites-normalize";
+import {
+  teamEscudoFallbackLabel,
+  teamSiglaLabel,
+  mapPartidaTeamToJogoSide,
+  formatPalpitesGroupSectionLabel,
+  type PartidaTeamLike,
+} from "@/lib/partida-team-display";
 import {
   LIVE_PARTIDAS_POLL_MS,
   partidasUrlWithLiveSync,
@@ -98,6 +119,12 @@ interface Jogo {
   timeVisitante: string;
   siglasVisitante: string;
   escudoVisitante: string;
+  isKnockoutSlotCasa?: boolean;
+  isKnockoutSlotVisitante?: boolean;
+  slotDetailCasa?: string | null;
+  slotDetailVisitante?: string | null;
+  rawTeamCasa?: PartidaTeamLike;
+  rawTeamVisitante?: PartidaTeamLike;
   data: string;
   hora: string;
   status: StatusJogo;
@@ -113,6 +140,8 @@ interface Jogo {
   kickoffAt: string | null;
   resultCasa: number | null;
   resultVisitante: number | null;
+  /** Fase do campeonato (`fase-de-grupos`, `segunda-fase`, …). */
+  faseKey?: string;
 }
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -210,38 +239,7 @@ function palpiteLockUiCopy(): {
 }
 
 function kickoffMsFromJogo(jogo: Jogo): number | null {
-  if (!jogo.kickoffAt) return null;
-  const t = new Date(jogo.kickoffAt).getTime();
-  return Number.isFinite(t) ? t : null;
-}
-
-/**
- * Depois deste intervalo desde o apito, não exibimos mais "ao vivo" só com o status da listagem
- * (a API pode ficar em "andamento" e minuto parado — ex.: 2º tempo 63 min com 2h+ de relógio).
- * Default 115 min (alinhado ao MATCH_END_CLOCK no servidor). Ajuste NEXT_PUBLIC_MATCH_DISPLAY_LIVE_MAX_MINUTES.
- */
-const DISPLAY_LIVE_MAX_MS_AFTER_KICKOFF = (() => {
-  const raw = process.env.NEXT_PUBLIC_MATCH_DISPLAY_LIVE_MAX_MINUTES;
-  const n = raw != null && String(raw).trim() !== "" ? Number.parseInt(String(raw).trim(), 10) : 115;
-  if (!Number.isFinite(n)) return 115 * 60_000;
-  return Math.min(240, Math.max(60, n)) * 60_000;
-})();
-
-function isPastDisplayLiveWindow(jogo: Jogo, nowMs: number): boolean {
-  const ko = kickoffMsFromJogo(jogo);
-  if (ko == null) return false;
-  return nowMs > ko + DISPLAY_LIVE_MAX_MS_AFTER_KICKOFF;
-}
-
-/** Partida com apito ja dado e ainda sem encerramento oficial (somente leitura / UX). */
-function isMatchLiveForDisplay(jogo: Jogo, nowMs: number): boolean {
-  const ko = kickoffMsFromJogo(jogo);
-  if (ko == null || nowMs < ko) return false;
-  if (jogo.status === "encerrado") return false;
-  const raw = String(jogo.statusBruto ?? jogo.status ?? "").toLowerCase();
-  if (raw.includes("encerr") || raw.includes("finaliz")) return false;
-  if (isPastDisplayLiveWindow(jogo, nowMs)) return false;
-  return true;
+  return kickoffMsFromMatch(jogo);
 }
 
 /** Aberto para palpite: dentro do prazo, não encerrado e não ao vivo. */
@@ -374,8 +372,82 @@ function resolveRodadaNumero(
   return rodadaIndexFallback;
 }
 
+function enrichJogosTeamsFromStandings(
+  jogos: Jogo[],
+  tabela: TabelaGrupos | null | undefined,
+): Jogo[] {
+  if (!tabela) return jogos;
+  return jogos.map((j) => {
+    const rawCasa = j.rawTeamCasa ?? { sigla: j.siglasCasa, nome_popular: j.timeCasa };
+    const rawVisitante =
+      j.rawTeamVisitante ?? { sigla: j.siglasVisitante, nome_popular: j.timeVisitante };
+    const casa = mapPartidaTeamToJogoSide(rawCasa, {
+      tabela,
+      opponentTeam: rawVisitante,
+    });
+    const visitante = mapPartidaTeamToJogoSide(rawVisitante, {
+      tabela,
+      opponentTeam: rawCasa,
+    });
+    return {
+      ...j,
+      timeCasa: casa.nome,
+      siglasCasa: casa.sigla,
+      escudoCasa: casa.escudo,
+      isKnockoutSlotCasa: casa.isKnockoutSlot,
+      slotDetailCasa: casa.slotDetail,
+      timeVisitante: visitante.nome,
+      siglasVisitante: visitante.sigla,
+      escudoVisitante: visitante.escudo,
+      isKnockoutSlotVisitante: visitante.isKnockoutSlot,
+      slotDetailVisitante: visitante.slotDetail,
+    };
+  });
+}
+
+function pushJogoFromPartida(
+  jogos: Jogo[],
+  p: Record<string, any>,
+  grupo: string,
+  rodada: number,
+  faseKey: string,
+) {
+  const rawTeamCasa = p.time_mandante as PartidaTeamLike | undefined;
+  const rawTeamVisitante = p.time_visitante as PartidaTeamLike | undefined;
+  const casa = mapPartidaTeamToJogoSide(rawTeamCasa);
+  const visitante = mapPartidaTeamToJogoSide(rawTeamVisitante);
+  jogos.push({
+    id: p.partida_id,
+    timeCasa: casa.nome,
+    siglasCasa: casa.sigla,
+    escudoCasa: casa.escudo,
+    isKnockoutSlotCasa: casa.isKnockoutSlot,
+    slotDetailCasa: casa.slotDetail,
+    rawTeamCasa: rawTeamCasa,
+    timeVisitante: visitante.nome,
+    siglasVisitante: visitante.sigla,
+    escudoVisitante: visitante.escudo,
+    isKnockoutSlotVisitante: visitante.isKnockoutSlot,
+    slotDetailVisitante: visitante.slotDetail,
+    rawTeamVisitante: rawTeamVisitante,
+    data: formatData(p.data_realizacao, p.data_realizacao_iso),
+    dataBR: String(p.data_realizacao ?? ""),
+    hora: safeHourLabel(p.hora_realizacao),
+    statusBruto: String(p.status ?? ""),
+    liveTempo: parseLiveTempoFromPartida(p),
+    liveMinuto: parseLiveMinutoFromPartida(p),
+    status: mapStatus(String(p.status ?? "")),
+    grupo,
+    rodada,
+    kickoffAt: parseKickoffFromPartidaPayload(p),
+    resultCasa: pickScoreFromPartidaPayload(p, "casa"),
+    resultVisitante: pickScoreFromPartidaPayload(p, "visitante"),
+    faseKey,
+  });
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function parsePartidas(faseData: Record<string, any>): Jogo[] {
+function parsePartidas(faseData: Record<string, any>, faseKey: string): Jogo[] {
   const jogos: Jogo[] = [];
   const grupoKeys = Object.keys(faseData).filter(
     (k) => typeof faseData[k] === "object" && !Array.isArray(faseData[k]),
@@ -388,27 +460,13 @@ function parsePartidas(faseData: Record<string, any>): Jogo[] {
     rodadaDiretaKeys.forEach((rodadaKey, rodadaIndex) => {
       const partidas = faseData[rodadaKey] ?? [];
       for (const p of partidas) {
-        jogos.push({
-          id: p.partida_id,
-          timeCasa: p.time_mandante.nome_popular.toUpperCase(),
-          siglasCasa: p.time_mandante.sigla,
-          escudoCasa: p.time_mandante.escudo,
-          timeVisitante: p.time_visitante.nome_popular.toUpperCase(),
-          siglasVisitante: p.time_visitante.sigla,
-          escudoVisitante: p.time_visitante.escudo,
-          data: formatData(p.data_realizacao, p.data_realizacao_iso),
-          dataBR: String(p.data_realizacao ?? ""),
-          hora: safeHourLabel(p.hora_realizacao),
-          statusBruto: String(p.status ?? ""),
-          liveTempo: parseLiveTempoFromPartida(p),
-          liveMinuto: parseLiveMinutoFromPartida(p),
-          status: mapStatus(String(p.status ?? "")),
-          grupo: "GERAL",
-          rodada: resolveRodadaNumero(p, rodadaKey, rodadaIndex),
-          kickoffAt: parseKickoffFromPartidaPayload(p),
-          resultCasa: pickScoreFromPartidaPayload(p, "casa"),
-          resultVisitante: pickScoreFromPartidaPayload(p, "visitante"),
-        });
+        pushJogoFromPartida(
+          jogos,
+          p,
+          "GERAL",
+          resolveRodadaNumero(p, rodadaKey, rodadaIndex),
+          faseKey,
+        );
       }
     });
   }
@@ -422,29 +480,14 @@ function parsePartidas(faseData: Record<string, any>): Jogo[] {
 
     rodadaKeys.forEach((rodadaKey, rodadaIndex) => {
       const partidas = grupoData[rodadaKey] ?? [];
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       for (const p of partidas) {
-        jogos.push({
-          id: p.partida_id,
-          timeCasa: p.time_mandante.nome_popular.toUpperCase(),
-          siglasCasa: p.time_mandante.sigla,
-          escudoCasa: p.time_mandante.escudo,
-          timeVisitante: p.time_visitante.nome_popular.toUpperCase(),
-          siglasVisitante: p.time_visitante.sigla,
-          escudoVisitante: p.time_visitante.escudo,
-          data: formatData(p.data_realizacao, p.data_realizacao_iso),
-          dataBR: String(p.data_realizacao ?? ""),
-          hora: safeHourLabel(p.hora_realizacao),
-          statusBruto: String(p.status ?? ""),
-          liveTempo: parseLiveTempoFromPartida(p),
-          liveMinuto: parseLiveMinutoFromPartida(p),
-          status: mapStatus(String(p.status ?? "")),
-          grupo: grupoLetra,
-          rodada: resolveRodadaNumero(p, rodadaKey, rodadaIndex),
-          kickoffAt: parseKickoffFromPartidaPayload(p),
-          resultCasa: pickScoreFromPartidaPayload(p, "casa"),
-          resultVisitante: pickScoreFromPartidaPayload(p, "visitante"),
-        });
+        pushJogoFromPartida(
+          jogos,
+          p,
+          grupoLetra,
+          resolveRodadaNumero(p, rodadaKey, rodadaIndex),
+          faseKey,
+        );
       }
     });
   }
@@ -457,18 +500,15 @@ function parseAllPartidas(fases: Record<string, any> | undefined): {
   grupos: string[];
 } {
   if (!fases || typeof fases !== "object") return { jogos: [], grupos: [] };
-  const phaseValues = Object.values(fases).filter(
-    (value) => value && typeof value === "object",
-  ) as Record<string, any>[];
   const grupos = new Set<string>();
-  // `resolveRodadaNumero` já devolve o número REAL da rodada — não somamos
-  // mais um offset por fase (que era um hack para o índice ordinal).
-  const jogos = phaseValues.flatMap((faseData) => {
-    return parsePartidas(faseData).map((jogo) => {
+  const jogos: Jogo[] = [];
+  for (const [phaseKey, faseData] of Object.entries(fases)) {
+    if (!faseData || typeof faseData !== "object") continue;
+    for (const jogo of parsePartidas(faseData as Record<string, any>, phaseKey)) {
       if (jogo.grupo && jogo.grupo !== "GERAL") grupos.add(jogo.grupo);
-      return jogo;
-    });
-  });
+      jogos.push(jogo);
+    }
+  }
   return { jogos, grupos: Array.from(grupos).sort() };
 }
 
@@ -503,11 +543,15 @@ function Escudo({
   alt,
   sigla,
   size = "md",
+  isKnockoutSlot = false,
+  escudoFallback,
 }: {
   url: string;
   alt: string;
   sigla?: string;
   size?: "sm" | "md" | "lg";
+  isKnockoutSlot?: boolean;
+  escudoFallback?: string;
 }) {
   const [imgFailed, setImgFailed] = useState(false);
   useEffect(() => {
@@ -521,13 +565,20 @@ function Escudo({
         : "size-[68px] rounded-[14px] p-2.5";
   const img =
     size === "sm" ? "size-10" : size === "lg" ? "size-14" : "size-12";
-  const fallbackLabel = (sigla?.trim() || alt).slice(0, 3).toUpperCase();
+  const fallbackLabel = escudoFallback ?? teamEscudoFallbackLabel(sigla, alt);
   const showImg = Boolean(url?.trim()) && !imgFailed;
 
   return (
     <div
       className={`flex shrink-0 items-center justify-center overflow-hidden ${box}`}
-      style={{ background: "rgba(255,255,255,0.96)" }}
+      style={
+        isKnockoutSlot && !showImg
+          ? {
+              background: "rgba(255,255,255,0.08)",
+              border: "1.5px dashed rgba(255,255,255,0.28)",
+            }
+          : { background: "rgba(255,255,255,0.96)" }
+      }
     >
       {showImg ? (
         // eslint-disable-next-line @next/next/no-img-element
@@ -541,7 +592,7 @@ function Escudo({
         />
       ) : (
         <span
-          className={`font-black uppercase text-[#0E141B] ${size === "lg" ? "text-[15px]" : size === "sm" ? "text-[11px]" : "text-[13px]"}`}
+          className={`font-black uppercase ${isKnockoutSlot ? "text-white/70" : "text-[#0E141B]"} ${size === "lg" ? (isKnockoutSlot ? "text-[13px]" : "text-[15px]") : size === "sm" ? "text-[11px]" : "text-[13px]"}`}
         >
           {fallbackLabel}
         </span>
@@ -589,16 +640,23 @@ function RodadaSectionHeader({
   label,
   groupKey,
 }: {
-  label: string;
+  label?: string;
   groupKey?: string;
 }) {
+  if (groupKey && !label) {
+    return (
+      <p className="mb-3 text-[13px] font-bold uppercase tracking-[0.06em] text-primary">
+        {formatPalpitesGroupSectionLabel(groupKey)}
+      </p>
+    );
+  }
   return (
     <p className="mb-3 text-[13px] font-bold uppercase tracking-[0.06em]">
       <span className="text-white">{label}</span>
       {groupKey ? (
         <>
           <span className="text-white"> — </span>
-          <span className="text-primary">GRUPO {groupKey}</span>
+          <span className="text-primary">{formatPalpitesGroupSectionLabel(groupKey)}</span>
         </>
       ) : null}
     </p>
@@ -911,8 +969,6 @@ function formatPontosLabel(n: number): string {
   return `${sign}${n} pt${Math.abs(n) === 1 ? "" : "s"}`;
 }
 
-type JogoCardPhase = "pre" | "live" | "post";
-
 function formatKickoffHourOnly(jogo: Jogo): string {
   const fromHora = safeHourLabel(jogo.hora);
   if (fromHora !== "--:--") return fromHora;
@@ -949,13 +1005,6 @@ function formatCountdownCompact(lockAtMs: number | null, nowMs: number): string 
   }
   const secs = Math.max(1, Math.floor(diff / 1000));
   return secs === 1 ? "Falta 1 seg" : `Faltam ${secs} seg`;
-}
-
-function getJogoCardPhase(jogo: Jogo, nowMs: number): JogoCardPhase {
-  const temPlacar = hasOfficialMatchResult(palpiteEligibilityFromJogo(jogo), nowMs);
-  if (isMatchLiveForDisplay(jogo, nowMs)) return "live";
-  if (temPlacar) return "post";
-  return "pre";
 }
 
 function getLiveMinuteBadge(jogo: Jogo, nowMs: number): string {
@@ -1026,16 +1075,37 @@ function PalpiteCardTeamColumn({
   url,
   alt,
   sigla,
+  isKnockoutSlot = false,
+  slotDetail = null,
 }: {
   url: string;
   alt: string;
   sigla?: string;
+  isKnockoutSlot?: boolean;
+  slotDetail?: string | null;
 }) {
-  const label = (sigla?.trim() || alt).slice(0, 3).toUpperCase();
+  const label = isKnockoutSlot ? "A DEFINIR" : teamSiglaLabel(sigla, alt);
+  const escudoFallback = isKnockoutSlot
+    ? teamEscudoFallbackLabel(sigla, alt)
+    : undefined;
   return (
-    <div className="flex min-w-0 flex-col items-center gap-2">
-      <Escudo url={url} alt={alt} sigla={sigla} size="lg" />
-      <p className={PALPITE_CARD_TYPE.teamSigla}>{label}</p>
+    <div className="flex min-w-0 flex-col items-center gap-1.5">
+      <Escudo
+        url={url}
+        alt={alt}
+        sigla={sigla}
+        size="lg"
+        isKnockoutSlot={isKnockoutSlot}
+        escudoFallback={escudoFallback}
+      />
+      <p className={`${PALPITE_CARD_TYPE.teamSigla} max-w-[92px] text-center leading-tight`}>
+        {label}
+      </p>
+      {isKnockoutSlot && slotDetail ? (
+        <p className="max-w-[92px] text-center text-[11px] font-semibold leading-tight text-white/45">
+          {slotDetail}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -1430,8 +1500,9 @@ function JogoCard({
       )
       : [];
 
-  const liveCasa = jogo.resultCasa ?? 0;
-  const liveVisit = jogo.resultVisitante ?? 0;
+  const liveCasa = jogo.resultCasa;
+  const liveVisit = jogo.resultVisitante;
+  const liveScoresReady = liveCasa != null && liveVisit != null;
   const palpiteLocked =
     phase !== "pre" || !canEdit || isLockedByTime || readOnly;
   const palpiteEnviado =
@@ -1472,6 +1543,23 @@ function JogoCard({
       );
     }
     if (phase === "live") {
+      if (!liveScoresReady) {
+        return (
+          <div className="flex items-center justify-center gap-2">
+            <div
+              className="h-[72px] w-[52px] animate-pulse rounded-xl"
+              style={{ background: PALPITE_SCORE_BOX_BG }}
+            />
+            <span className="text-[15px] font-bold text-white/50" aria-hidden>
+              x
+            </span>
+            <div
+              className="h-[72px] w-[52px] animate-pulse rounded-xl"
+              style={{ background: PALPITE_SCORE_BOX_BG }}
+            />
+          </div>
+        );
+      }
       return <PalpiteScoreBoxes casa={liveCasa} visitante={liveVisit} />;
     }
     if (showSteppers) {
@@ -1550,6 +1638,8 @@ function JogoCard({
             url={jogo.escudoCasa}
             alt={jogo.timeCasa}
             sigla={jogo.siglasCasa}
+            isKnockoutSlot={jogo.isKnockoutSlotCasa}
+            slotDetail={jogo.slotDetailCasa}
           />
           <div className="flex flex-col items-center justify-center px-1">
             {phase === "post" ? <PalpiteResultadoFinalBadge /> : null}
@@ -1559,6 +1649,8 @@ function JogoCard({
             url={jogo.escudoVisitante}
             alt={jogo.timeVisitante}
             sigla={jogo.siglasVisitante}
+            isKnockoutSlot={jogo.isKnockoutSlotVisitante}
+            slotDetail={jogo.slotDetailVisitante}
           />
         </div>
         {showSeuPalpite && initialPrediction ? (
@@ -1665,34 +1757,42 @@ function computeTabelaFromJogos(jogos: Jogo[]): TabelaGrupos | null {
   for (const j of jogos) {
     if (j.resultCasa == null || j.resultVisitante == null) continue;
     const grupoKey = `grupo-${(j.grupo || "geral").toLowerCase()}`;
-    const casa = ensure(grupoKey, j.siglasCasa, j.timeCasa, j.escudoCasa);
-    const visitante = ensure(
-      grupoKey,
-      j.siglasVisitante,
-      j.timeVisitante,
-      j.escudoVisitante,
-    );
-    temAlgumResultado = true;
-    casa.jogos += 1;
-    visitante.jogos += 1;
-    casa.golsPro += j.resultCasa;
-    casa.golsContra += j.resultVisitante;
-    visitante.golsPro += j.resultVisitante;
-    visitante.golsContra += j.resultCasa;
-    if (j.resultCasa > j.resultVisitante) {
-      casa.vitorias += 1;
-      casa.pontos += 3;
-      visitante.derrotas += 1;
-    } else if (j.resultCasa < j.resultVisitante) {
-      visitante.vitorias += 1;
-      visitante.pontos += 3;
-      casa.derrotas += 1;
-    } else {
-      casa.empates += 1;
-      visitante.empates += 1;
-      casa.pontos += 1;
-      visitante.pontos += 1;
+    if (!j.isKnockoutSlotCasa) {
+      const casa = ensure(grupoKey, j.siglasCasa, j.timeCasa, j.escudoCasa);
+      casa.jogos += 1;
+      casa.golsPro += j.resultCasa;
+      casa.golsContra += j.resultVisitante;
+      if (j.resultCasa > j.resultVisitante) {
+        casa.vitorias += 1;
+        casa.pontos += 3;
+      } else if (j.resultCasa < j.resultVisitante) {
+        casa.derrotas += 1;
+      } else {
+        casa.empates += 1;
+        casa.pontos += 1;
+      }
     }
+    if (!j.isKnockoutSlotVisitante) {
+      const visitante = ensure(
+        grupoKey,
+        j.siglasVisitante,
+        j.timeVisitante,
+        j.escudoVisitante,
+      );
+      visitante.jogos += 1;
+      visitante.golsPro += j.resultVisitante;
+      visitante.golsContra += j.resultCasa;
+      if (j.resultVisitante > j.resultCasa) {
+        visitante.vitorias += 1;
+        visitante.pontos += 3;
+      } else if (j.resultVisitante < j.resultCasa) {
+        visitante.derrotas += 1;
+      } else {
+        visitante.empates += 1;
+        visitante.pontos += 1;
+      }
+    }
+    temAlgumResultado = true;
   }
 
   if (!temAlgumResultado) return null;
@@ -1721,6 +1821,8 @@ function computeTabelaFromJogos(jogos: Jogo[]): TabelaGrupos | null {
       vitorias: t.vitorias,
       empates: t.empates,
       derrotas: t.derrotas,
+      golsPro: t.golsPro,
+      golsContra: t.golsContra,
     }));
   }
   return out;
@@ -1961,6 +2063,10 @@ type HistoricoRowView = {
   resultadoVisitante: number | null;
   pontos: number;
   exact: boolean;
+  aoVivo?: boolean;
+  liveLabel?: string | null;
+  matchStatus?: string | null;
+  kickoffAt?: string | null;
   submittedAt: string;
   updatedAt: string;
 };
@@ -1968,6 +2074,8 @@ type HistoricoRowView = {
 export type PalpitesInitialData = {
   ticketId: string | null;
   bolaoType: "principal" | "diario" | "extra";
+  /** Definição admin vinculada à cota (`bolao_definitions.id`). */
+  bolaoDefinitionId?: string | null;
   /** Cota extra grátis (brinde). */
   isPromoBonus?: boolean;
   extraChampionshipId?: number | null;
@@ -1992,6 +2100,8 @@ export type PalpitesInitialData = {
   dailyEditionDatesLabel?: string | null;
   /** Bolão da Skale: palpites em todos os jogos da Copa (igual cota principal). */
   isSkaleFullCopaPool?: boolean;
+  /** Bolão FDS: só jogos de sábado e domingo da rodada atual. */
+  isWeekendEditionPool?: boolean;
   /** Bolão Diário Skale: mesmas edições/dias do diário Copa (comp 90009). */
   isSkaleDailyEditionPool?: boolean;
   /** Título do bolão na página (SSR). */
@@ -2354,24 +2464,33 @@ function TicketResumoView({
                         </div>
                         <span
                           className="text-[12px] font-bold uppercase px-2 py-0.5 rounded-full shrink-0"
-                          style={{
-                            background:
-                              item.resultadoCasa != null &&
-                                item.resultadoVisitante != null
-                                ? "rgba(148,163,184,0.12)"
-                                : "rgba(34,197,94,0.12)",
-                            color:
-                              item.resultadoCasa != null &&
-                                item.resultadoVisitante != null
-                                ? "rgba(226,232,240,0.85)"
-                                : "#86EFAC",
-                            border: `1px solid ${item.resultadoCasa != null && item.resultadoVisitante != null ? "rgba(148,163,184,0.25)" : "rgba(34,197,94,0.28)"}`,
-                          }}
+                          style={
+                            item.aoVivo
+                              ? {
+                                  background: "rgba(255,69,69,0.16)",
+                                  color: "#ff6b6b",
+                                  border: "1px solid rgba(255,69,69,0.28)",
+                                }
+                              : item.resultadoCasa != null &&
+                                  item.resultadoVisitante != null
+                                ? {
+                                    background: "rgba(148,163,184,0.12)",
+                                    color: "rgba(226,232,240,0.85)",
+                                    border: "1px solid rgba(148,163,184,0.25)",
+                                  }
+                                : {
+                                    background: "rgba(34,197,94,0.12)",
+                                    color: "#86EFAC",
+                                    border: "1px solid rgba(34,197,94,0.28)",
+                                  }
+                          }
                         >
-                          {item.resultadoCasa != null &&
-                            item.resultadoVisitante != null
-                            ? "Encerrado"
-                            : "Aberto"}
+                          {item.aoVivo
+                            ? item.liveLabel ?? "Ao vivo"
+                            : item.resultadoCasa != null &&
+                                item.resultadoVisitante != null
+                              ? "Encerrado"
+                              : "Aberto"}
                         </span>
                       </div>
 
@@ -2426,9 +2545,10 @@ function TicketResumoView({
                         <div>
                           <span className="text-white/40">Resultado</span>
                           <p className="font-black text-white mt-0.5">
-                            {item.resultadoCasa ?? "-"}{" "}
-                            <span className="text-white/30 font-normal">x</span>{" "}
-                            {item.resultadoVisitante ?? "-"}
+                            {item.aoVivo &&
+                            (item.resultadoCasa == null || item.resultadoVisitante == null)
+                              ? "…"
+                              : `${item.resultadoCasa ?? "-"} x ${item.resultadoVisitante ?? "-"}`}
                           </p>
                         </div>
                         <div className="sm:ml-auto flex items-center gap-2">
@@ -2436,26 +2556,48 @@ function TicketResumoView({
                             className="text-[12px] font-bold px-2 py-0.5 rounded-full"
                             style={{
                               background:
-                                item.pontos > 0
-                                  ? "rgba(34,197,94,0.1)"
-                                  : "rgba(255,255,255,0.06)",
+                                item.aoVivo
+                                  ? "rgba(255,69,69,0.1)"
+                                  : item.pontos > 0
+                                    ? "rgba(34,197,94,0.1)"
+                                    : "rgba(255,255,255,0.06)",
                               color:
-                                item.pontos > 0
-                                  ? "#86EFAC"
-                                  : "rgba(255,255,255,0.45)",
-                              border: `1px solid ${item.pontos > 0 ? "rgba(34,197,94,0.25)" : "rgba(255,255,255,0.1)"}`,
+                                item.aoVivo
+                                  ? "#ff6b6b"
+                                  : item.pontos > 0
+                                    ? "#86EFAC"
+                                    : "rgba(255,255,255,0.45)",
+                              border: `1px solid ${
+                                item.aoVivo
+                                  ? "rgba(255,69,69,0.25)"
+                                  : item.pontos > 0
+                                    ? "rgba(34,197,94,0.25)"
+                                    : "rgba(255,255,255,0.1)"
+                              }`,
                             }}
                           >
-                            {item.exact
-                              ? "Placar exato"
-                              : item.pontos > 0
-                                ? "Acerto parcial"
-                                : "Sem pontos"}
+                            {item.aoVivo
+                              ? "Em andamento"
+                              : item.exact
+                                ? "Placar exato"
+                                : item.pontos > 0
+                                  ? "Acerto parcial"
+                                  : "Sem pontos"}
                           </span>
                           <span
-                            className={`text-[16px] font-black ${item.pontos > 0 ? "text-[#4ADE80]" : "text-white/40"}`}
+                            className={`text-[16px] font-black ${
+                              item.aoVivo
+                                ? "text-[#ff6b6b]"
+                                : item.pontos > 0
+                                  ? "text-[#4ADE80]"
+                                  : "text-white/40"
+                            }`}
                           >
-                            {item.pontos > 0 ? `+${item.pontos} pts` : "0 pts"}
+                            {item.aoVivo
+                              ? "…"
+                              : item.pontos > 0
+                                ? `+${item.pontos} pts`
+                                : "0 pts"}
                           </span>
                         </div>
                       </div>
@@ -2481,6 +2623,7 @@ function DesktopSidebar({
   rankingBoardRows,
   rankingBoardLoading,
   ticketId,
+  bolaoDefinitionId,
   stats,
   bolaoType,
   onRankingLinkClick,
@@ -2492,6 +2635,7 @@ function DesktopSidebar({
   rankingBoardRows: RankingBoardRow[];
   rankingBoardLoading: boolean;
   ticketId: string | null;
+  bolaoDefinitionId?: string | null;
   stats: ResumoStats;
   bolaoType: PredictionBolaoType;
   onRankingLinkClick?: () => void;
@@ -2688,6 +2832,7 @@ function DesktopSidebar({
         rows={rankingBoardRows}
         loading={rankingBoardLoading}
         ticketId={ticketId}
+        bolaoDefinitionId={bolaoDefinitionId}
         compact
         onRankingLinkClick={onRankingLinkClick}
       />
@@ -2760,6 +2905,48 @@ function sortedRoundDates(jogos: Jogo[], rodada: number): string[] {
     .sort((a, b) => (brDateToUtcMs(a) ?? 0) - (brDateToUtcMs(b) ?? 0));
 }
 
+function pickInitialBolaoDate(
+  jogos: Jogo[],
+  matchDate: (j: Jogo) => string = (j) => j.dataBR,
+): string | null {
+  const dates = Array.from(new Set(jogos.map((j) => matchDate(j)).filter(Boolean))).sort(
+    (a, b) => (brDateToUtcMs(a) ?? 0) - (brDateToUtcMs(b) ?? 0),
+  );
+  if (dates.length === 0) return null;
+  const today = todayBR();
+  if (dates.includes(today)) return today;
+  const proxima = dates.find((d) => (brDateToUtcMs(d) ?? 0) >= (brDateToUtcMs(today) ?? 0));
+  return proxima ?? dates[dates.length - 1] ?? null;
+}
+
+function isDayComplete(
+  jogos: Jogo[],
+  dateBR: string,
+  predictionsMap: Record<number, { scoreCasa: number; scoreVisitante: number }>,
+  matchDate: (j: Jogo) => string = (j) => j.dataBR,
+): boolean {
+  const dayGames = jogos.filter((j) => matchDate(j) === dateBR);
+  return (
+    dayGames.length > 0 &&
+    dayGames.every((j) => Boolean(predictionsMap[j.id]))
+  );
+}
+
+function pickNextDateAfterDayComplete(
+  allDates: string[],
+  currentDate: string,
+  jogos: Jogo[],
+  predictionsMap: Record<number, { scoreCasa: number; scoreVisitante: number }>,
+  matchDate: (j: Jogo) => string = (j) => j.dataBR,
+): string | null {
+  if (!isDayComplete(jogos, currentDate, predictionsMap, matchDate)) {
+    return currentDate;
+  }
+  const idx = allDates.indexOf(currentDate);
+  if (idx < 0 || idx >= allDates.length - 1) return null;
+  return allDates[idx + 1] ?? null;
+}
+
 function isRoundDayComplete(
   jogos: Jogo[],
   rodada: number,
@@ -2808,19 +2995,32 @@ function pickNextDateInRound(
   return currentDate ?? datas[0] ?? null;
 }
 
+function sortJogosByKickoff(jogos: Jogo[]): Jogo[] {
+  return [...jogos].sort((a, b) => {
+    const ka = a.kickoffAt ? Date.parse(a.kickoffAt) : Number.POSITIVE_INFINITY;
+    const kb = b.kickoffAt ? Date.parse(b.kickoffAt) : Number.POSITIVE_INFINITY;
+    if (Number.isFinite(ka) && Number.isFinite(kb) && ka !== kb) return ka - kb;
+    return a.id - b.id;
+  });
+}
+
 // ── Barra de progresso da rodada ───────────────────────────────
 function RoundProgressBar({
   jogos,
   selectedRodada,
   hasPalpite,
+  scopeByDateOnly = false,
 }: {
   jogos: Jogo[];
   selectedRodada: number;
   hasPalpite: (matchId: number) => boolean;
+  /** Copa inteira: progresso do dia selecionado (sem filtrar por rodada/fase). */
+  scopeByDateOnly?: boolean;
 }) {
   const jogosNaRodada = useMemo(
-    () => jogos.filter((j) => j.rodada === selectedRodada),
-    [jogos, selectedRodada],
+    () =>
+      scopeByDateOnly ? jogos : jogos.filter((j) => j.rodada === selectedRodada),
+    [jogos, selectedRodada, scopeByDateOnly],
   );
   const totalJogos = jogosNaRodada.length;
   const jogosPalpitados = jogosNaRodada.filter((j) => hasPalpite(j.id)).length;
@@ -2905,14 +3105,12 @@ function PalpiteDateChipsStrip({
   onDate,
   todayBR,
   dateStripRef,
-  allowAllDays = false,
 }: {
   datas: string[];
   selectedDate: string | null;
-  onDate: (d: string | null) => void;
+  onDate: (d: string) => void;
   todayBR: string;
   dateStripRef: React.RefObject<HTMLDivElement | null>;
-  allowAllDays?: boolean;
 }) {
   if (datas.length === 0) return null;
 
@@ -2921,18 +3119,6 @@ function PalpiteDateChipsStrip({
       ref={dateStripRef}
       className="flex w-full items-center gap-5 overflow-x-auto scroll-smooth px-4 py-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
-      {allowAllDays ? (
-        <button
-          type="button"
-          onClick={() => onDate(null)}
-          className={`shrink-0 whitespace-nowrap rounded-[8px] px-4 py-2.5 text-[18px] leading-none transition-colors active:scale-[0.98] ${selectedDate == null
-              ? "bg-zinc-800 font-bold text-white"
-              : "bg-transparent font-semibold text-zinc-400 hover:text-zinc-300"
-            }`}
-        >
-          Todos
-        </button>
-      ) : null}
       {datas.map((d) => {
         const isSelected = selectedDate === d;
         const label = formatPalpiteDateChipLabel(d, todayBR);
@@ -2941,7 +3127,7 @@ function PalpiteDateChipsStrip({
             key={d}
             type="button"
             data-palpite-date={d}
-            onClick={() => onDate(allowAllDays && isSelected ? null : d)}
+            onClick={() => onDate(d)}
             className={`shrink-0 whitespace-nowrap rounded-[8px] px-4 py-2.5 text-[18px] leading-none transition-colors active:scale-[0.98] ${isSelected
                 ? "bg-zinc-800 font-bold text-white"
                 : "bg-transparent font-semibold text-zinc-400 hover:text-zinc-300"
@@ -2963,18 +3149,20 @@ function BolaoRoundStickyDateProgress({
   selectedDate,
   onDate,
   todayBR,
-  allowAllDays = false,
   datas: datasOverride,
+  scopeByDateOnly = false,
+  progressJogos,
 }: {
   jogos: Jogo[];
   selectedRodada: number;
   hasPalpite: (matchId: number) => boolean;
   selectedDate: string | null;
-  onDate: (d: string | null) => void;
+  onDate: (d: string) => void;
   todayBR: string;
-  allowAllDays?: boolean;
   /** Lista contínua de datas (todas as do bolão); independe da rodada. */
   datas?: string[];
+  scopeByDateOnly?: boolean;
+  progressJogos?: Jogo[];
 }) {
   const dateStripRef = useRef<HTMLDivElement>(null);
   const { datas: datasDaRodada } = useRoundNavDates(
@@ -3009,15 +3197,15 @@ function BolaoRoundStickyDateProgress({
             onDate={onDate}
             todayBR={todayBR}
             dateStripRef={dateStripRef}
-            allowAllDays={allowAllDays}
           />
         </div>
       ) : null}
       <div className="bg-black px-4">
         <RoundProgressBar
-          jogos={jogos}
+          jogos={progressJogos ?? jogos}
           selectedRodada={selectedRodada}
           hasPalpite={hasPalpite}
+          scopeByDateOnly={scopeByDateOnly}
         />
       </div>
     </div>
@@ -3213,10 +3401,12 @@ function PalpitesPageContent({
   );
   const openGratisRanking = useCallback(() => {
     if (!ticketId) return;
-    const href = `/ranking?default=${encodeURIComponent(ticketId)}`;
+    const defaultKey = rankingDefaultScopeKey(ticketId, initialData?.bolaoDefinitionId);
+    if (!defaultKey) return;
+    const href = `/ranking?default=${encodeURIComponent(defaultKey)}`;
     router.push(href);
     if (isGratisExtra) requestModal();
-  }, [isGratisExtra, requestModal, router, ticketId]);
+  }, [initialData?.bolaoDefinitionId, isGratisExtra, requestModal, router, ticketId]);
   const [tab, setTab] = useState<TabView>("jogos");
   const [grupo, setGrupo] = useState(initialData?.grupo ?? "");
   const [jogos, setJogos] = useState<Jogo[]>(initialData?.jogos ?? []);
@@ -3320,7 +3510,20 @@ function PalpitesPageContent({
       null
     );
   });
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(() => {
+    if (!initialData?.ticketId || !initialData.jogos?.length) return null;
+    const filterCtx = palpitesFilterFromInitialData({
+      bolaoType: initialData.bolaoType,
+      isSkaleFullCopaPool: initialData.isSkaleFullCopaPool,
+      isSkaleDailyEditionPool: initialData.isSkaleDailyEditionPool,
+      isWeekendEditionPool: initialData.isWeekendEditionPool,
+      dailyEditionNumber: initialData.dailyEditionNumber,
+      extraRoundNumber: initialData.extraRoundNumber,
+    });
+    return pickInitialBolaoDate(initialData.jogos, (j) =>
+      matchDisplayDateBRForPalpites(j, filterCtx),
+    );
+  });
 
   const resolvedExtraChampionshipId = useMemo(() => {
     if (bolaoType !== "extra") return null;
@@ -3330,13 +3533,46 @@ function PalpitesPageContent({
   }, [bolaoType, initialData?.extraChampionshipId]);
 
   const isSkaleFullCopaPool = initialData?.isSkaleFullCopaPool === true;
+  const isWeekendEditionPool = initialData?.isWeekendEditionPool === true;
   const isSkaleDailyEditionPool = initialData?.isSkaleDailyEditionPool === true;
+  /** Bolão principal ou Skale Copa inteira — navegação só por dia. */
+  const isFullCopaBolaoPool =
+    bolaoType === "principal" || isSkaleFullCopaPool;
   const dailyEditionNumber = initialData?.dailyEditionNumber ?? null;
-  const dailyEditionDateSet = useMemo(() => {
-    const dates = initialData?.dailyEditionDates ?? [];
-    return dates.length > 0 ? new Set(dates) : null;
-  }, [initialData?.dailyEditionDates]);
   const dailyEditionDatesLabel = initialData?.dailyEditionDatesLabel ?? null;
+  /** Madrugada (00h–05h59) só no Bolão Diário oficial — não Skale diário nem Copa inteira. */
+  const isMainDailyEditionPool =
+    bolaoType === "diario" && dailyEditionNumber != null;
+  const extraTicketRound =
+    bolaoType === "extra" &&
+      initialData?.extraRoundNumber != null &&
+      Number.isFinite(Number(initialData.extraRoundNumber)) &&
+      Number(initialData.extraRoundNumber) > 0
+      ? Number(initialData.extraRoundNumber)
+      : null;
+  const palpitesFilterCtx = useMemo(
+    () =>
+      palpitesFilterFromInitialData({
+        bolaoType,
+        isSkaleFullCopaPool,
+        isSkaleDailyEditionPool,
+        isWeekendEditionPool,
+        dailyEditionNumber,
+        extraRoundNumber: extraTicketRound,
+      }),
+    [
+      bolaoType,
+      isSkaleFullCopaPool,
+      isSkaleDailyEditionPool,
+      isWeekendEditionPool,
+      dailyEditionNumber,
+      extraTicketRound,
+    ],
+  );
+  const displayDateBR = useCallback(
+    (j: Jogo) => matchDisplayDateBRForPalpites(j, palpitesFilterCtx),
+    [palpitesFilterCtx],
+  );
 
   const showPredictionsSkeleton =
     Boolean(ticketId) &&
@@ -3450,17 +3686,16 @@ function PalpitesPageContent({
 
     async function tick() {
       try {
-        const id =
-          bolaoTypeRef.current === "extra"
-            ? (() => {
-              const r = initialDataRef.current?.extraChampionshipId;
-              if (r != null && Number.isFinite(Number(r)) && Number(r) > 0) return Number(r);
-              return getSoleConfiguredExtraChampionshipId();
-            })()
-            : null;
+        const init = initialDataRef.current;
+        const bt = init?.bolaoType ?? bolaoTypeRef.current;
+        const pollCompId = resolvePalpitesPollCompetitionId({
+          bolaoType: bt,
+          isSkaleFullCopaPool: init?.isSkaleFullCopaPool === true,
+          extraChampionshipId: init?.extraChampionshipId,
+        });
         const partidasUrl =
-          bolaoTypeRef.current === "extra" && id != null
-            ? partidasUrlWithLiveSync("/api/partidas", { competitionId: id })
+          pollCompId != null
+            ? partidasUrlWithLiveSync("/api/partidas", { competitionId: pollCompId })
             : partidasUrlWithLiveSync("/api/partidas");
         const r = await fetch(partidasUrl, { cache: "no-store" });
         const data = await r.json().catch(() => null);
@@ -3471,19 +3706,25 @@ function PalpitesPageContent({
         }
         const fases = data?.partidas as Record<string, any> | undefined;
         let { jogos: parsed, grupos: letras } = parseAllPartidas(fases);
-        const bt = bolaoTypeRef.current;
-        const skaleFullPool = initialDataRef.current?.isSkaleFullCopaPool === true;
-        const ticketRound =
-          bt === "extra" &&
-          !skaleFullPool &&
-          initialDataRef.current?.extraRoundNumber != null &&
-          Number.isFinite(Number(initialDataRef.current.extraRoundNumber)) &&
-          Number(initialDataRef.current.extraRoundNumber) > 0
-            ? Number(initialDataRef.current.extraRoundNumber)
-            : null;
-        if (ticketRound != null) {
-          parsed = parsed.filter((j) => j.rodada === ticketRound);
-        }
+        parsed = filterPalpitesJogos(
+          parsed,
+          palpitesFilterFromInitialData({
+            bolaoType: bt,
+            isSkaleFullCopaPool: init?.isSkaleFullCopaPool === true,
+            isSkaleDailyEditionPool: init?.isSkaleDailyEditionPool === true,
+            isWeekendEditionPool: init?.isWeekendEditionPool === true,
+            dailyEditionNumber: init?.dailyEditionNumber ?? null,
+            extraRoundNumber:
+              bt === "extra" &&
+              init?.isSkaleFullCopaPool !== true &&
+              init?.isSkaleDailyEditionPool !== true &&
+              init?.isWeekendEditionPool !== true &&
+              init?.extraRoundNumber != null &&
+              Number(init.extraRoundNumber) > 0
+                ? Number(init.extraRoundNumber)
+                : null,
+          }),
+        );
         if (parsed.length === 0) {
           setJogos([]);
           setGrupos([]);
@@ -3663,7 +3904,9 @@ function PalpitesPageContent({
       jogosPlacarSignature === initialPlacarSigRef.current;
     const load = async () => {
       if (!isSsrHydration) setRankingBoardLoading(true);
-      const result = await fetchRankingBoardClient(bolaoType, ticketId);
+      const result = await fetchRankingBoardClient(bolaoType, ticketId, {
+        definitionId: initialDataRef.current?.bolaoDefinitionId ?? null,
+      });
       if (cancelled) return;
       setRankingBoardRows(result.rows);
       setRankingBoardMeta(result.meta);
@@ -3783,29 +4026,20 @@ function PalpitesPageContent({
   const dailyLike =
     bolaoType === "diario" ||
     isSkaleDailyEditionPool ||
-    (bolaoType === "extra" && !isSkaleFullCopaPool && !isSkaleDailyEditionPool);
+    isWeekendEditionPool ||
+    (bolaoType === "extra" && !isSkaleFullCopaPool && !isSkaleDailyEditionPool && !isWeekendEditionPool);
   const extraPlayCompId = bolaoType === "extra" ? resolvedExtraChampionshipId : null;
-  /**
-   * Quando o ticket extra é "por rodada" (`tickets.round_number`), o bolão é
-   * **a rodada inteira** — não filtramos por dia. Caso `null` (extras legados),
-   * mantemos o comportamento "extra ≈ diário" (apenas o dia jogável).
-   */
-  const extraTicketRound =
-    bolaoType === "extra" &&
-      initialData?.extraRoundNumber != null &&
-      Number.isFinite(Number(initialData.extraRoundNumber)) &&
-      Number(initialData.extraRoundNumber) > 0
-      ? Number(initialData.extraRoundNumber)
-      : null;
   const extraRoundMode =
     bolaoType === "extra" &&
     !isSkaleFullCopaPool &&
     !isSkaleDailyEditionPool &&
+    !isWeekendEditionPool &&
     extraTicketRound != null;
   /** "Dia‐jogavel" só faz sentido em diario e em extras legados (sem rodada). */
   const dayScopedMode =
     bolaoType === "diario" ||
     isSkaleDailyEditionPool ||
+    isWeekendEditionPool ||
     (bolaoType === "extra" && !extraRoundMode && !isSkaleFullCopaPool);
 
   const lockIdsForDailyLike = dailyLike
@@ -3821,19 +4055,35 @@ function PalpitesPageContent({
     lockToMatchIds: lockIdsForDailyLike,
     ...(extraPlayCompId != null ? { competitionId: extraPlayCompId } : {}),
   });
-  // Em "extra por rodada", o escopo é toda a rodada (não o dia).
-  const jogosOnPlayableDate = jogos.filter((j) => {
-    if (bolaoType === "principal" || isSkaleFullCopaPool) return true;
-    if (extraRoundMode) return j.rodada === extraTicketRound;
-    if (!dayScopedMode) return true;
-    if (bolaoType === "diario" && dailyEditionDateSet != null) {
-      return j.dataBR != null && dailyEditionDateSet.has(j.dataBR);
+  const jogosBolaoScoped = useMemo(
+    () => filterPalpitesJogos(jogos, palpitesFilterCtx),
+    [jogos, palpitesFilterCtx],
+  );
+
+  // Escopo base já filtrado por bolão; extras legados ainda restringem ao dia jogável.
+  const jogosOnPlayableDate = useMemo(() => {
+    if (bolaoType === "principal" || isSkaleFullCopaPool) return jogosBolaoScoped;
+    if (extraRoundMode) return jogosBolaoScoped;
+    if (!dayScopedMode) return jogosBolaoScoped;
+    if (
+      isMainDailyEditionPool ||
+      isSkaleDailyEditionPool ||
+      isWeekendEditionPool
+    ) {
+      return jogosBolaoScoped;
     }
-    if (isSkaleDailyEditionPool && dailyEditionDateSet != null) {
-      return j.dataBR != null && dailyEditionDateSet.has(j.dataBR);
-    }
-    return j.dataBR === diarioPlayableDate;
-  });
+    return jogosBolaoScoped.filter((j) => j.dataBR === diarioPlayableDate);
+  }, [
+    bolaoType,
+    isSkaleFullCopaPool,
+    extraRoundMode,
+    dayScopedMode,
+    isMainDailyEditionPool,
+    isSkaleDailyEditionPool,
+    isWeekendEditionPool,
+    jogosBolaoScoped,
+    diarioPlayableDate,
+  ]);
   const nowMs = Date.now();
   const diarioLockedMode =
     dailyLike &&
@@ -3855,7 +4105,24 @@ function PalpitesPageContent({
   /** Inclui jogos encerrados para o usuário ver placar, pontuação e detalhes do palpite. */
   const jogosBase = jogosOnPlayableDate;
 
-  const jogosDisplayBase = jogosBase;
+  const jogosGruposParaTabela = useMemo(
+    () => jogos.filter((j) => (j.faseKey ?? "fase-de-grupos") === "fase-de-grupos"),
+    [jogos],
+  );
+
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+  const tabelaComputada = useMemo(
+    () => (hydrated ? computeTabelaFromJogos(jogosGruposParaTabela) : null),
+    [hydrated, jogosGruposParaTabela],
+  );
+
+  const jogosDisplayBase = useMemo(
+    () => enrichJogosTeamsFromStandings(jogosBase, tabelaComputada ?? tabela),
+    [jogosBase, tabelaComputada, tabela],
+  );
 
   /** Dia/rodada visível nas abas (Ontem/Hoje/…) — o rodapé só reflete este escopo. */
   const jogosEscopoVisivel = useMemo(() => {
@@ -3863,8 +4130,10 @@ function PalpitesPageContent({
     const rodadaScope =
       extraRoundMode && extraTicketRound != null ? extraTicketRound : selectedRodada;
     return jogosDisplayBase.filter((j) => {
-      if (rodadaScope != null && j.rodada !== rodadaScope) return false;
-      if (selectedDate && j.dataBR !== selectedDate) return false;
+      if (!isFullCopaBolaoPool && rodadaScope != null && j.rodada !== rodadaScope) {
+        return false;
+      }
+      if (selectedDate && displayDateBR(j) !== selectedDate) return false;
       return true;
     });
   }, [
@@ -3874,6 +4143,8 @@ function PalpitesPageContent({
     selectedDate,
     extraRoundMode,
     extraTicketRound,
+    displayDateBR,
+    isFullCopaBolaoPool,
   ]);
 
   /**
@@ -3883,10 +4154,10 @@ function PalpitesPageContent({
    */
   const datasGlobais = useMemo(
     () =>
-      Array.from(new Set(jogosDisplayBase.map((j) => j.dataBR)))
+      Array.from(new Set(jogosDisplayBase.map((j) => displayDateBR(j))))
         .filter(Boolean)
         .sort((a, b) => (brDateToUtcMs(a) ?? 0) - (brDateToUtcMs(b) ?? 0)),
-    [jogosDisplayBase],
+    [jogosDisplayBase, displayDateBR],
   );
   const datasGlobaisKey = datasGlobais.join("|");
   const rodadaPorData = useMemo(() => {
@@ -3895,7 +4166,7 @@ function PalpitesPageContent({
       // Rodada predominante do dia (em geral única; mata-mata raramente mistura).
       const counts = new Map<number, number>();
       for (const j of jogosDisplayBase) {
-        if (j.dataBR !== d) continue;
+        if (displayDateBR(j) !== d) continue;
         counts.set(j.rodada, (counts.get(j.rodada) ?? 0) + 1);
       }
       let best: number | null = null;
@@ -3909,7 +4180,7 @@ function PalpitesPageContent({
       if (best != null) map.set(d, best);
     }
     return map;
-  }, [datasGlobais, jogosDisplayBase]);
+  }, [datasGlobais, jogosDisplayBase, displayDateBR]);
 
   /**
    * Classificação ao vivo computada dos jogos. Tem prioridade sobre a tabela
@@ -3920,14 +4191,6 @@ function PalpitesPageContent({
    * depende de placares que mudam entre servidor e cliente, e um mismatch fazia
    * o React descartar e remontar a árvore (a tela "zerava").
    */
-  const [hydrated, setHydrated] = useState(false);
-  useEffect(() => {
-    setHydrated(true);
-  }, []);
-  const tabelaComputada = useMemo(
-    () => (hydrated ? computeTabelaFromJogos(jogosDisplayBase) : null),
-    [hydrated, jogosDisplayBase],
-  );
 
   const hasEditableMatches = jogosEscopoVisivel.some((j) =>
     isJogoEditavelParaPalpite(j, bolaoType),
@@ -3945,12 +4208,13 @@ function PalpitesPageContent({
     Boolean(ticketId) &&
     showJogos &&
     Boolean(selectedDate) &&
-    selectedRodada != null;
+    (isFullCopaBolaoPool || selectedRodada != null);
 
   const jogosEscopoSalvar = useMemo(() => {
-    if (hasBoloesFlow) return jogosEscopoVisivel;
-    return jogosDisplayBase;
-  }, [hasBoloesFlow, jogosEscopoVisivel, jogosDisplayBase]);
+    if (!hasBoloesFlow) return jogosDisplayBase;
+    if (!selectedDate) return [];
+    return jogosEscopoVisivel;
+  }, [hasBoloesFlow, jogosEscopoVisivel, jogosDisplayBase, selectedDate]);
 
   /** Palpites já salvos no dia/escopo visível (não no ticket inteiro). */
   const hasSavedPalpitesOnScope = useMemo(
@@ -3969,8 +4233,6 @@ function PalpitesPageContent({
   useEffect(() => {
     setPalpitesEditing(false);
     setSaveAllError(null);
-    draftDirtyRef.current.clear();
-    setDraftTouchedIds({});
   }, [selectedDate, selectedRodada]);
 
   const cancelPalpitesEdit = () => {
@@ -4066,32 +4328,50 @@ function PalpitesPageContent({
           palpites: prev.palpites + newPalpitesCount,
         }));
       }
-      for (const jogo of toSave) {
-        draftDirtyRef.current.delete(jogo.id);
-      }
+      setDraftScores((prev) => {
+        const next = { ...prev };
+        for (const p of data.predictions) {
+          draftDirtyRef.current.delete(p.matchId);
+          next[p.matchId] = {
+            scoreCasa: p.scoreCasa,
+            scoreVisitante: p.scoreVisitante,
+          };
+        }
+        return next;
+      });
       setDraftTouchedIds((prev) => {
         const next = { ...prev };
-        for (const jogo of toSave) delete next[jogo.id];
+        for (const p of data.predictions) delete next[p.matchId];
         return next;
       });
       setPalpitesEditing(false);
       showPalpiteToast(toSave.length > 1 ? "Palpites salvos!" : "Palpite salvo!");
-      if (
-        filterPalpitesByDay &&
-        selectedDate &&
-        isRoundDayComplete(
-          jogosDisplayBase,
-          rodadaAtualSalvar,
-          selectedDate,
-          predictionsAfter,
-        )
-      ) {
-        const nextDate = pickNextDateInRound(
-          jogosDisplayBase,
-          rodadaAtualSalvar,
-          selectedDate,
-          predictionsAfter,
-        );
+      if (filterPalpitesByDay && selectedDate) {
+        let nextDate: string | null = null;
+        if (isFullCopaBolaoPool) {
+          nextDate = pickNextDateAfterDayComplete(
+            datasGlobais,
+            selectedDate,
+            jogosDisplayBase,
+            predictionsAfter,
+            displayDateBR,
+          );
+        } else if (
+          selectedRodada != null &&
+          isRoundDayComplete(
+            jogosDisplayBase,
+            rodadaAtualSalvar,
+            selectedDate,
+            predictionsAfter,
+          )
+        ) {
+          nextDate = pickNextDateInRound(
+            jogosDisplayBase,
+            rodadaAtualSalvar,
+            selectedDate,
+            predictionsAfter,
+          );
+        }
         if (nextDate && nextDate !== selectedDate) {
           setSelectedDate(nextDate);
         }
@@ -4169,10 +4449,20 @@ function PalpitesPageContent({
       if (isNew) {
         setResumoStats((prev) => ({ ...prev, palpites: prev.palpites + 1 }));
       }
-      draftDirtyRef.current.delete(matchId);
+      setDraftScores((prev) => {
+        const next = { ...prev };
+        for (const p of data.predictions) {
+          draftDirtyRef.current.delete(p.matchId);
+          next[p.matchId] = {
+            scoreCasa: p.scoreCasa,
+            scoreVisitante: p.scoreVisitante,
+          };
+        }
+        return next;
+      });
       setDraftTouchedIds((prev) => {
         const next = { ...prev };
-        delete next[matchId];
+        for (const p of data.predictions) delete next[p.matchId];
         return next;
       });
       showPalpiteToast("Palpite salvo!");
@@ -4195,22 +4485,16 @@ function PalpitesPageContent({
       onScoresChange: canChangeOnCard
         ? (s: JogoCardScores) => handleScoresChange(jogo.id, s)
         : undefined,
+      onSavePalpite: canChangeOnCard
+        ? () => void saveSinglePalpite(jogo.id)
+        : undefined,
       savingPalpite: savingMatchId === jogo.id,
       savePalpiteError: saveMatchErrors[jogo.id] ?? null,
     };
   };
 
-  const hasNewUnsavedPalpites = useMemo(() => {
-    const now = Date.now();
-    return jogosEscopoSalvar.some((j) => {
-      if (!isJogoEditavelParaPalpite(j, bolaoType, now)) return false;
-      if (predictionsMap[j.id]) return false;
-      return matchNeedsSave(j.id, scoresForMatch(j.id));
-    });
-  }, [jogosEscopoSalvar, bolaoType, matchNeedsSave, draftScores, draftTouchedIds, predictionsMap]);
-
   const palpitesFooterMode: PalpitesFooterMode =
-    !hasSavedPalpitesOnScope || hasNewUnsavedPalpites
+    !hasSavedPalpitesOnScope || hasPalpitesToSave
       ? "initial"
       : palpitesEditing
         ? "editing"
@@ -4254,49 +4538,16 @@ function PalpitesPageContent({
   })();
 
   const showBolaoRoundNav = hasBoloesFlow && showJogos;
-  const showRoundNavControls =
-    (bolaoType === "principal" || isSkaleFullCopaPool) && rodadasNoEscopo.length > 1;
-
-  const roundNavTitle = (() => {
-    if (bolaoType === "principal" || isSkaleFullCopaPool) {
-      return `Fase de Grupos — ${selectedRodada ?? rodadasNoEscopo[0] ?? 1}`;
-    }
-    if (extraRoundMode) {
-      return extraRoundLabel ?? `${extraTicketRound ?? selectedRodada ?? 1}ª Rodada`;
-    }
-    if (bolaoType === "diario") {
-      if (dailyEditionNumber != null) {
-        const d = selectedDate ?? diarioPlayableDate;
-        const pill = d ? parseDatePill(d) : null;
-        const editionHead = `Bolão Diário #${dailyEditionNumber}`;
-        if (pill) return `${editionHead} · ${pill.dia} ${pill.mes}`;
-        if (dailyEditionDatesLabel) return `${editionHead} · ${dailyEditionDatesLabel}`;
-        return editionHead;
-      }
-      const d = selectedDate ?? diarioPlayableDate;
-      const pill = d ? parseDatePill(d) : null;
-      if (pill) return `Jogos do dia · ${pill.dia} ${pill.mes}`;
-      return "Jogos do dia";
-    }
-    if (isSkaleDailyEditionPool && dailyEditionNumber != null) {
-      const d = selectedDate ?? diarioPlayableDate;
-      const pill = d ? parseDatePill(d) : null;
-      const editionHead = `Bolão Diário Skale #${dailyEditionNumber}`;
-      if (pill) return `${editionHead} · ${pill.dia} ${pill.mes}`;
-      if (dailyEditionDatesLabel) return `${editionHead} · ${dailyEditionDatesLabel}`;
-      return editionHead;
-    }
-    if (selectedRodada != null) return rodadaLabel(selectedRodada);
-    return "Rodada";
-  })();
 
   const jogosFiltradosNav = useMemo(() => {
     if (!hasBoloesFlow) return jogosDisplayBase.filter(matchesGroup);
     const rodadaScope =
       extraRoundMode && extraTicketRound != null ? extraTicketRound : selectedRodada;
     return jogosDisplayBase.filter((j) => {
-      if (rodadaScope != null && j.rodada !== rodadaScope) return false;
-      if (selectedDate && j.dataBR !== selectedDate) return false;
+      if (!isFullCopaBolaoPool && rodadaScope != null && j.rodada !== rodadaScope) {
+        return false;
+      }
+      if (selectedDate && displayDateBR(j) !== selectedDate) return false;
       return matchesGroup(j);
     });
   }, [
@@ -4308,6 +4559,8 @@ function PalpitesPageContent({
     shouldFilterByGroup,
     extraRoundMode,
     extraTicketRound,
+    displayDateBR,
+    isFullCopaBolaoPool,
   ]);
 
   const rodadasDisponiveis = useMemo(() => {
@@ -4359,7 +4612,25 @@ function PalpitesPageContent({
     };
   });
   const showGroupedByGroup =
-    hasBoloesFlow && (bolaoType === "principal" || isSkaleFullCopaPool);
+    hasBoloesFlow && isFullCopaBolaoPool;
+
+  const jogosPorGrupoNoDia = useMemo(() => {
+    if (!isFullCopaBolaoPool) return [];
+    const groups = Array.from(
+      new Set(jogosFiltradosNav.map((j) => j.grupo).filter(Boolean)),
+    ).sort();
+    return groups.map((groupKey) => ({
+      groupKey,
+      jogos: sortJogosByKickoff(
+        jogosFiltradosNav.filter((j) => j.grupo === groupKey),
+      ),
+    }));
+  }, [isFullCopaBolaoPool, jogosFiltradosNav]);
+
+  const jogosListaVazia = isFullCopaBolaoPool
+    ? jogosFiltradosNav.length === 0
+    : jogosPorRodada.length === 0;
+
   const debugInfo = {
     ticketId,
     bolaoType,
@@ -4383,32 +4654,17 @@ function PalpitesPageContent({
   };
 
   /**
-   * Setas de fase/grupo: muda a rodada e leva a data selecionada para a primeira
-   * data daquela rodada (mantém data e fase coerentes, sem voltar a "Todos").
-   */
-  const handleRodadaChange = useCallback(
-    (rodada: number) => {
-      setSelectedRodada(rodada);
-      const primeiraDataDaRodada = datasGlobais.find(
-        (d) => rodadaPorData.get(d) === rodada,
-      );
-      setSelectedDate(primeiraDataDaRodada ?? null);
-    },
-    [datasGlobais, rodadaPorData],
-  );
-
-  /**
-   * Clique na barra de datas: a data manda — a fase/rodada acompanha a data.
+   * Clique na barra de datas: a data manda — a fase/rodada acompanha a data (exceto Copa inteira).
    */
   const handleDateChange = useCallback(
-    (d: string | null) => {
+    (d: string) => {
       setSelectedDate(d);
-      if (d != null) {
+      if (!isFullCopaBolaoPool) {
         const r = rodadaPorData.get(d);
         if (r != null) setSelectedRodada(r);
       }
     },
-    [rodadaPorData],
+    [rodadaPorData, isFullCopaBolaoPool],
   );
 
   const jogosSubtitle = !hasBoloesFlow
@@ -4475,55 +4731,16 @@ function PalpitesPageContent({
     const alvo = hoje ?? proximaFutura ?? datasGlobais[datasGlobais.length - 1];
     if (!alvo) return;
     setSelectedDate(alvo);
-    const r = rodadaPorData.get(alvo);
-    if (r != null) setSelectedRodada(r);
+    if (!isFullCopaBolaoPool) {
+      const r = rodadaPorData.get(alvo);
+      if (r != null) setSelectedRodada(r);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showBolaoRoundNav, datasGlobaisKey, today]);
+  }, [showBolaoRoundNav, datasGlobaisKey, today, isFullCopaBolaoPool]);
 
-  const gruposComJogos = Array.from(
-    new Set(jogosDisplayBase.map((j) => j.grupo).filter(Boolean)),
-  ).sort();
-  const jogosFiltradosParaGrupos = showGroupedByGroup
-    ? jogosFiltradosNav
-    : jogosDisplayBase;
-  const gruposComJogosFiltrados = Array.from(
-    new Set(jogosFiltradosParaGrupos.map((j) => j.grupo).filter(Boolean)),
-  ).sort();
-  const jogosPorGrupoRodada = gruposComJogosFiltrados.map((groupKey) => {
-    const rodadasDoGrupo = Array.from(
-      new Set(
-        jogosFiltradosParaGrupos
-          .filter((j) => j.grupo === groupKey)
-          .map((j) => j.rodada),
-      ),
-    ).sort((a, b) => a - b);
-    return {
-      groupKey,
-      rodadas: rodadasDoGrupo.map((idx) => ({
-        label: rodadaLabel(idx),
-        jogos: jogosFiltradosParaGrupos.filter(
-          (j) => j.grupo === groupKey && j.rodada === idx,
-        ),
-      })),
-    };
-  });
   const myRankingPos =
     rankingBoardRows.find((row) => row.isMe)?.pos ?? null;
   const rankingLockBloco = palpiteLockUiCopy().rankingBloco;
-  const scrollToGroup = (groupKey: string) => {
-    setGrupo(groupKey);
-    if (typeof window === "undefined") return;
-    const targetId = window.matchMedia("(min-width: 1024px)").matches
-      ? `desk-group-${groupKey}`
-      : `mob-group-${groupKey}`;
-    const el = document.getElementById(targetId);
-    if (!el) return;
-    // small delay so render happens first when filtering by date/round
-    setTimeout(
-      () => el.scrollIntoView({ behavior: "smooth", block: "start" }),
-      60,
-    );
-  };
   const jogosById = useMemo(
     () =>
       jogos.reduce(
@@ -4708,21 +4925,6 @@ function PalpitesPageContent({
             </div>
           )}
 
-          {showBolaoRoundNav && showRoundNavControls ? (
-            <RoundPhaseNav
-              jogos={jogosDisplayBase}
-              predictionsMap={predictionsMap}
-              hasPalpite={hasPalpite}
-              selectedRodada={effectiveSelectedRodada}
-              onRodada={handleRodadaChange}
-              selectedDate={selectedDate}
-              onDate={handleDateChange}
-              roundTitle={roundNavTitle}
-              showRoundNav
-              headerOnly
-            />
-          ) : null}
-
           {showBolaoRoundNav ? (
             <BolaoRoundStickyDateProgress
               jogos={jogosDisplayBase}
@@ -4731,8 +4933,9 @@ function PalpitesPageContent({
               selectedDate={selectedDate}
               onDate={handleDateChange}
               todayBR={today}
-              allowAllDays={false}
               datas={datasGlobais}
+              scopeByDateOnly={isFullCopaBolaoPool}
+              progressJogos={isFullCopaBolaoPool ? jogosFiltradosNav : undefined}
             />
           ) : null}
 
@@ -4758,7 +4961,7 @@ function PalpitesPageContent({
                     <CardSkeleton />
                     <CardSkeleton />
                   </>
-                ) : jogosPorRodada.length === 0 ? (
+                ) : jogosListaVazia ? (
                   <div className="flex flex-col items-center py-16">
                     {showPalpitesDebug ? (
                       <details className="mb-4 w-full max-w-md rounded-xl border border-primary/20 bg-primary/5 p-3 text-left text-[11px] text-white/70">
@@ -4782,36 +4985,33 @@ function PalpitesPageContent({
                           : hasBoloesFlow
                             ? dailyLike
                               ? "Nenhuma partida para este bolão no momento. Use ?debugPalpites=1 para diagnóstico."
-                              : "Nenhum jogo disponível hoje"
+                              : isFullCopaBolaoPool
+                                ? "Nenhum jogo neste dia"
+                                : "Nenhum jogo disponível hoje"
                             : "Nenhum jogo neste grupo"}
                     </p>
                   </div>
                 ) : showGroupedByGroup ? (
-                  jogosPorGrupoRodada.map(({ groupKey, rodadas }) => (
+                  jogosPorGrupoNoDia.map(({ groupKey, jogos: gJogos }) => (
                     <div
                       key={`group-${groupKey}`}
                       id={`mob-group-${groupKey}`}
                       className="scroll-mt-28"
                     >
-                      {rodadas.map(({ label, jogos: rJogos }) => (
-                        <div key={`${groupKey}-${label}`}>
-
-                          <RodadaSectionHeader label={label} groupKey={groupKey} />
-                          {rJogos.map((jogo) => (
-                            <JogoCard
-                              key={jogo.id}
-                              jogo={jogo}
-                              readOnly={readOnlyMode}
-                              scores={scoresForMatch(jogo.id)}
-                              {...buildJogoCardEditProps(jogo)}
-                              initialPrediction={
-                                predictionsMap[jogo.id] ?? null
-                              }
-                              predictionsLoading={loadingPredictions}
-                              bolaoType={bolaoType}
-                            />
-                          ))}
-                        </div>
+                      <RodadaSectionHeader groupKey={groupKey} />
+                      {gJogos.map((jogo) => (
+                        <JogoCard
+                          key={jogo.id}
+                          jogo={jogo}
+                          readOnly={readOnlyMode}
+                          scores={scoresForMatch(jogo.id)}
+                          {...buildJogoCardEditProps(jogo)}
+                          initialPrediction={
+                            predictionsMap[jogo.id] ?? null
+                          }
+                          predictionsLoading={loadingPredictions}
+                          bolaoType={bolaoType}
+                        />
                       ))}
                     </div>
                   ))
@@ -4848,6 +5048,7 @@ function PalpitesPageContent({
             {showRanking ? (
               <PalpitesRankingTab
                 ticketId={ticketId}
+                bolaoDefinitionId={initialData?.bolaoDefinitionId}
                 bolaoType={bolaoType}
                 resumoStats={resumoStats}
                 rows={rankingBoardRows}
@@ -4918,6 +5119,7 @@ function PalpitesPageContent({
             ) : showRanking ? (
               <PalpitesRankingTab
                 ticketId={ticketId}
+                bolaoDefinitionId={initialData?.bolaoDefinitionId}
                 bolaoType={bolaoType}
                 resumoStats={resumoStats}
                 rows={rankingBoardRows}
@@ -4947,7 +5149,7 @@ function PalpitesPageContent({
                 <CardSkeleton />
                 <CardSkeleton />
               </div>
-            ) : jogosPorRodada.length === 0 ? (
+            ) : jogosListaVazia ? (
               <div className="flex flex-col items-center py-16">
                 {showPalpitesDebug ? (
                   <details className="mb-4 w-full rounded-xl border border-primary/20 bg-primary/5 p-3 text-left text-[11px] text-white/70">
@@ -4971,53 +5173,45 @@ function PalpitesPageContent({
                       : hasBoloesFlow
                         ? dailyLike
                           ? "Nenhuma partida para este bolão no momento. Use ?debugPalpites=1 para diagnóstico."
-                          : "Nenhum jogo disponível hoje"
+                          : isFullCopaBolaoPool
+                            ? "Nenhum jogo neste dia"
+                            : "Nenhum jogo disponível hoje"
                         : "Nenhum jogo neste grupo"}
                 </p>
               </div>
             ) : showGroupedByGroup ? (
-              jogosPorGrupoRodada.map(({ groupKey, rodadas }) => (
+              jogosPorGrupoNoDia.map(({ groupKey, jogos: gJogos }) => (
                 <div
                   key={`desk-group-${groupKey}`}
                   id={`desk-group-${groupKey}`}
                   className="mb-6 scroll-mt-28"
                 >
-                  {rodadas.map(({ label, jogos: rJogos }) => (
-                    <div key={`desk-${groupKey}-${label}`} className="mb-5">
-                      <div className="flex items-center gap-3 mb-4">
-                        <span
-                          className="text-[11px] font-bold tracking-widest uppercase shrink-0"
-                          style={{ color: "rgba(255,255,255,0.45)" }}
-                        >
-                          {label}
-                        </span>
-                        <span
-                          className="text-[11px] font-bold tracking-widest uppercase shrink-0"
-                          style={{ color: "rgba(177,235,11,0.55)" }}
-                        >
-                          · Grupo {groupKey}
-                        </span>
-                        <div
-                          className="flex-1 h-px"
-                          style={{ background: "rgba(255,255,255,0.06)" }}
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        {rJogos.map((jogo) => (
-                          <JogoCard
-                            key={jogo.id}
-                            jogo={jogo}
-                            readOnly={readOnlyMode}
-                            scores={scoresForMatch(jogo.id)}
-                            {...buildJogoCardEditProps(jogo)}
-                            initialPrediction={predictionsMap[jogo.id] ?? null}
-                            predictionsLoading={loadingPredictions}
-                            bolaoType={bolaoType}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  ))}
+                  <div className="flex items-center gap-3 mb-4">
+                    <span
+                      className="text-[11px] font-bold tracking-widest uppercase shrink-0"
+                      style={{ color: "rgba(177,235,11,0.55)" }}
+                    >
+                      Grupo {groupKey}
+                    </span>
+                    <div
+                      className="flex-1 h-px"
+                      style={{ background: "rgba(255,255,255,0.06)" }}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    {gJogos.map((jogo) => (
+                      <JogoCard
+                        key={jogo.id}
+                        jogo={jogo}
+                        readOnly={readOnlyMode}
+                        scores={scoresForMatch(jogo.id)}
+                        {...buildJogoCardEditProps(jogo)}
+                        initialPrediction={predictionsMap[jogo.id] ?? null}
+                        predictionsLoading={loadingPredictions}
+                        bolaoType={bolaoType}
+                      />
+                    ))}
+                  </div>
                 </div>
               ))
             ) : (
@@ -5068,6 +5262,7 @@ function PalpitesPageContent({
               rankingBoardRows={rankingBoardRows}
               rankingBoardLoading={rankingBoardLoading}
               ticketId={ticketId}
+              bolaoDefinitionId={initialData?.bolaoDefinitionId}
               stats={resumoStats}
               bolaoType={bolaoType}
               onRankingLinkClick={

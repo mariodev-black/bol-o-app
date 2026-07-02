@@ -28,6 +28,7 @@ import { calculateSkalePrizePoolCents } from "@/lib/boloes/skale-prize";
 import { getPool } from "@/lib/db";
 import {
   getDailyEditionDatesSet,
+  isMatchInDailyEditionScope,
   paidTicketDailyEditionNumber,
 } from "@/lib/boloes/daily-editions";
 import { inferDailyEditionFromMatchIds } from "@/lib/boloes/daily-editions-server";
@@ -45,8 +46,8 @@ import {
 } from "@/lib/predictions/score-aggregate";
 import {
   hasOfficialMatchResult,
-  isLiveOrInProgressMatchStatus,
 } from "@/lib/palpites-match-open";
+import { isMatchLiveForDisplay } from "@/lib/palpites-live-display";
 import { isRankingFillerRow } from "@/lib/ranking/ranking-bots";
 import { isStoredAvatarUploadFilename } from "@/lib/user/avatar-filename";
 
@@ -61,6 +62,20 @@ export function avatarIndexFromDb(v: string | number | null | undefined): number
 
 type MatchMap = Awaited<ReturnType<typeof fetchMatchesMap>>;
 type MatchInfo = NonNullable<ReturnType<MatchMap["get"]>>;
+
+function matchInDailyEditionCohort(
+  mi: MatchInfo,
+  poolEdition: number | null,
+  editionDates: Set<string>,
+): boolean {
+  if (poolEdition != null) {
+    return isMatchInDailyEditionScope(
+      { dateBR: mi.dateBR, hour: mi.hour, kickoffAt: mi.kickoffAt },
+      poolEdition,
+    );
+  }
+  return mi.dateBR != null && editionDates.has(mi.dateBR);
+}
 
 function isFinishedStatus(status: string): boolean {
   const s = String(status || "").toLowerCase();
@@ -440,32 +455,22 @@ function poolHasLiveMatch(
   competitionId: number,
   now = Date.now(),
 ): boolean {
-  for (const m of poolMatchesForPreds(
+  return poolMatchesForPreds(
     poolPreds,
     matches,
     allowedTicketIds,
     competitionId,
-  )) {
-    if (isLiveOrInProgressMatchStatus(String(m.status ?? ""))) return true;
-    if (
-      hasOfficialMatchResult(
-        {
-          status: m.status,
-          kickoffAt: m.kickoffAt,
-          resultCasa: m.resultCasa,
-          resultVisitante: m.resultVisitante,
-        },
-        now,
-      )
-    ) {
-      continue;
-    }
-    const kickoff = m.kickoffAt ? new Date(m.kickoffAt).getTime() : NaN;
-    if (Number.isFinite(kickoff) && kickoff <= now && !isFinishedStatus(m.status)) {
-      return true;
-    }
-  }
-  return false;
+  ).some((m) =>
+    isMatchLiveForDisplay(
+      {
+        status: m.status,
+        kickoffAt: m.kickoffAt,
+        resultCasa: m.resultCasa,
+        resultVisitante: m.resultVisitante,
+      },
+      now,
+    ),
+  );
 }
 
 export type LeaderboardRow = {
@@ -530,17 +535,19 @@ function poolMatchScoringProgress(
       finished += 1;
       continue;
     }
-    if (isLiveOrInProgressMatchStatus(String(m.status ?? ""))) {
+    if (
+      isMatchLiveForDisplay(
+        {
+          status: m.status,
+          kickoffAt: m.kickoffAt,
+          resultCasa: m.resultCasa,
+          resultVisitante: m.resultVisitante,
+        },
+        now,
+      )
+    ) {
       live += 1;
       continue;
-    }
-    if (hasScore) {
-      live += 1;
-      continue;
-    }
-    const kickoff = m.kickoffAt ? new Date(m.kickoffAt).getTime() : NaN;
-    if (Number.isFinite(kickoff) && kickoff <= now && !isFinishedStatus(m.status)) {
-      live += 1;
     }
   }
   return { total: Math.max(1, total), finished, live };
@@ -838,7 +845,7 @@ async function buildLeaderboardDiarioUncached(focusTicketId: string): Promise<{ 
     if (!allowedDailyIds.has(p.ticket_id) || !cohortTicketIds.has(p.ticket_id)) return false;
     const mi = getMatchFromMap(matches, mainComp, Number(p.match_id));
     if (!mi || Number(mi.competitionId) !== mainComp) return false;
-    return mi.dateBR != null && editionDates.has(mi.dateBR);
+    return matchInDailyEditionCohort(mi, poolEdition, editionDates);
   });
 
   const agg = aggregatePredictions(cohortPreds, matches, cohortTicketIds, mainComp);
@@ -897,7 +904,7 @@ async function buildLeaderboardDiarioUncached(focusTicketId: string): Promise<{ 
   const nextPalpiteLockMs = computeNextPalpiteLockMs(matches, (m) => {
     if (!m.dateBR) return false;
     if (Number(m.competitionId) !== mainComp) return false;
-    return editionDates.has(m.dateBR);
+    return matchInDailyEditionCohort(m, poolEdition, editionDates);
   }, palpiteLockBeforeKickoffMs("diario"));
 
   const approxPremiados = Math.min(DAILY_TOP_RANK_COUNT, Math.max(participantCount > 0 ? 1 : 0, participantCount));
@@ -1428,7 +1435,11 @@ export type TicketRankingSnapshot = {
  * Não mistura bolões diferentes num ranking global.
  */
 export async function resolvePaidTicketRankingPositions(
-  tickets: Array<{ id: string; ticketType: "general" | "daily" | "extra" }>,
+  tickets: Array<{
+    id: string;
+    ticketType: "general" | "daily" | "extra";
+    bolaoDefinitionId?: string | null;
+  }>,
   userId: string,
 ): Promise<Map<string, TicketRankingSnapshot>> {
   const out = new Map<string, TicketRankingSnapshot>();
@@ -1447,7 +1458,11 @@ export async function resolvePaidTicketRankingPositions(
 
   for (const ticket of tickets) {
     let rows: LeaderboardRow[];
-    if (ticket.ticketType === "general") {
+    if (ticket.bolaoDefinitionId) {
+      rows = await loadBoard(`def:${ticket.bolaoDefinitionId}`, () =>
+        buildLeaderboardForDefinition(ticket.bolaoDefinitionId!),
+      );
+    } else if (ticket.ticketType === "general") {
       rows = await loadBoard("principal", buildLeaderboardPrincipal);
     } else if (ticket.ticketType === "daily") {
       rows = await loadBoard(`diario:${ticket.id}`, () =>
@@ -1555,4 +1570,66 @@ async function loadUsersMap(userIds: string[]): Promise<Map<string, UserLite>> {
     out.set(r.id, r);
   }
   return out;
+}
+
+/** Ranking de bolão dinâmico (`bolao_definitions`). */
+export async function buildLeaderboardForDefinition(
+  definitionId: string,
+): Promise<{ rows: LeaderboardRow[]; meta: LeaderboardBoardMeta }> {
+  const { getBolaoDefinitionById } = await import("@/lib/boloes/definitions/repository");
+  const { buildDefinitionRanking } = await import("@/lib/boloes/definitions/ranking");
+  const { calculateDefinitionPrizePoolCents } = await import("@/lib/boloes/definitions/prizes");
+  const { scopeMatchesForBolaoDefinition } = await import("@/lib/boloes/definitions/scope");
+  const { isScopedMatchLive } = await import("@/lib/boloes/definitions/settlement");
+  const { getBolaoDefinitionStats } = await import("@/lib/boloes/definitions/stats");
+
+  const def = await getBolaoDefinitionById(definitionId);
+  if (!def) {
+    return { rows: [], meta: emptyMetaForExtra() };
+  }
+
+  const matches = await fetchMatchesMap();
+  const [ranking, stats] = await Promise.all([
+    buildDefinitionRanking(def, matches),
+    getBolaoDefinitionStats(definitionId),
+  ]);
+
+  const users = await loadUsersMap(ranking.map((r) => r.userId));
+  const scoped = scopeMatchesForBolaoDefinition(def, matches);
+  const hasLive = scoped.some((m) => isScopedMatchLive(m));
+  const hasResulted = scoped.some(
+    (m) => m.resultCasa != null && m.resultVisitante != null,
+  );
+  const revenueCents = stats?.revenueCents ?? 0;
+  const poolCents = calculateDefinitionPrizePoolCents(def, revenueCents);
+
+  const rows: LeaderboardRow[] = ranking.map((r) => {
+    const user = users.get(r.userId);
+    return {
+      pos: r.position,
+      ticketId: r.ticketId,
+      userId: r.userId,
+      displayName: displayNameFromUser(user),
+      totalPoints: r.totalPoints,
+      exactCount: r.exactCount,
+      outcomeCount: r.outcomeCount,
+      goalsCount: r.goalsCount,
+      bestStreak: 0,
+      avatarIndex: avatarIndexFromDb(user?.avatar_index),
+      avatarUploadFilename: safeUploadFilename(user?.avatar_upload_filename),
+    };
+  });
+
+  return {
+    rows,
+    meta: {
+      participantCount: stats?.participants ?? rows.length,
+      revenueCents,
+      poolCentsApprox: poolCents,
+      nextPalpiteLockMs: null,
+      approxPremiados: def.prizeTiers.length,
+      hasResultedMatchesInPool: hasResulted,
+      hasLiveMatchesInPool: hasLive,
+    },
+  };
 }

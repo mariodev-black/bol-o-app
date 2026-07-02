@@ -33,6 +33,7 @@ import {
   formatDailyEditionCardSubtitle,
   formatDailyEditionDatesLabel,
   getDailyEdition,
+  isMatchInDailyEditionScope,
   listGroupStageDailyEditions,
   resolveShopDailyEdition,
 } from "@/lib/boloes/daily-editions";
@@ -61,6 +62,9 @@ import {
   bolaoDisplayStatusMeta,
   computeBolaoDisplayPhase,
 } from "@/lib/boloes/display-status";
+import { buildBolaoCatalogSections } from "@/lib/boloes/definitions/catalog";
+import { enrichBolaoDefinitionCatalog } from "@/lib/boloes/definitions/branding";
+import type { BolaoCatalogSections } from "@/lib/boloes/definitions/types";
 import {
   bolaoPhaseScopeForPaidTicket,
   bolaoPhaseScopeFromPredictions,
@@ -83,6 +87,29 @@ const PALPITE_LOCK_MS_EXTRA = palpiteLockBeforeKickoffMs("extra");
 
 type MatchMap = Awaited<ReturnType<typeof fetchMatchesMap>>;
 type MatchInfo = MatchMapEntry;
+
+function matchInDailyEditionPool(
+  match: MatchInfo,
+  editionNumber: number | null | undefined,
+  editionDates: string[],
+  mainComp: number,
+  scopeComp?: number,
+): boolean {
+  const comp = Number(match.competitionId) || mainComp;
+  if (scopeComp != null) {
+    if (comp !== scopeComp && comp !== mainComp) return false;
+  } else if (comp !== mainComp) {
+    return false;
+  }
+  if (match.dateBR == null) return false;
+  if (editionNumber != null) {
+    return isMatchInDailyEditionScope(
+      { dateBR: match.dateBR, hour: match.hour, kickoffAt: match.kickoffAt },
+      editionNumber,
+    );
+  }
+  return editionDates.includes(match.dateBR);
+}
 
 type TicketMetrics = {
   sent: number;
@@ -379,6 +406,7 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
     .map((ticket) => ({
       id: ticket.id,
       ticketType: ticket.ticketType as "general" | "daily" | "extra",
+      bolaoDefinitionId: ticket.bolaoDefinitionId,
     }));
   if (nonArtilheiroTickets.length > 0) {
     try {
@@ -453,6 +481,17 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
     .filter((pos): pos is number => pos != null);
   const pending = Array.from(metricsByTicket.values()).reduce((sum, item) => sum + item.available, 0);
   const cotaOrdinalByTicketId = buildCotaOrdinalByTicketId(tickets);
+  const dynamicDefinitions = [
+    ...new Map(
+      tickets
+        .filter((t) => t.bolaoDefinition)
+        .map((t) => [t.bolaoDefinition!.id, t.bolaoDefinition!] as const),
+    ).values(),
+  ];
+  const enrichedDynamic = dynamicDefinitions.length
+    ? await enrichBolaoDefinitionCatalog(dynamicDefinitions)
+    : [];
+  const brandingByDefId = new Map(enrichedDynamic.map((item) => [item.id, item]));
   const hasArtilheirosTickets = tickets.some((ticket) => ticket.ticketType === "artilheiros");
   const artilheiroResults = hasArtilheirosTickets
     ? await listArtilheiroOfficialResults().catch(() => [])
@@ -521,6 +560,63 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
         position: artRank?.position ?? null,
         points: artRank?.points ?? 0,
         participantCount: artilheiroRanking.length,
+      };
+    }
+
+    if (ticket.bolaoDefinitionId && ticket.bolaoDefinition) {
+      const def = ticket.bolaoDefinition;
+      const branding = brandingByDefId.get(def.id);
+      const scopeMatches = scopeMatchesForPaidTicket(ticket, matches, scopeOpts);
+      const { displayPhase, statusLabel } = bolaoStatusFromMetrics(
+        ticket,
+        metrics,
+        matches,
+        predictionMatchIds,
+        scopeOpts,
+      );
+      const closeScopeMatches =
+        displayPhase === "finalizado"
+          ? []
+          : metrics.available === 0 && predictionMatchIds.length > 0
+            ? matchEntriesFromPredictions(ticket, matches, predictionMatchIds)
+            : scopeMatches;
+      const closeAt = nextLockMs(
+        closeScopeMatches.filter((m) => isOpenMatch(m, PALPITE_LOCK_MS_EXTRA)),
+        PALPITE_LOCK_MS_EXTRA,
+      );
+      const legacyStatus =
+        displayPhase === "finalizado"
+          ? "usado"
+          : displayPhase === "pendentes"
+            ? "aguardando"
+            : "ativo";
+      return {
+        id: ticket.id,
+        type: "dynamic",
+        bolaoDefinitionId: def.id,
+        championshipId: def.competitionId,
+        resolvedLogoUrl: branding?.resolvedLogoUrl ?? null,
+        resolvedIconVariant: branding?.resolvedIconVariant ?? "generic",
+        title: def.displayName,
+        subtitle: def.subtitle ?? branding?.datesLabel ?? null,
+        cotaLabel: cotaLabelForTicket(ticket, cotaOrdinalByTicketId),
+        href: `/palpites?${new URLSearchParams({ ticket: ticket.id }).toString()}`,
+        status: legacyStatus as ActiveDailyStatus,
+        displayPhase,
+        statusLabel,
+        sent: metrics.sent,
+        total: metrics.total,
+        progress: metrics.progress,
+        gamesCount: metrics.available,
+        countdownLabel:
+          displayPhase === "finalizado"
+            ? "Encerrado"
+            : displayPhase === "pendentes" && legacyStatus === "aguardando"
+              ? "Início em"
+              : "Fecha em",
+        countdownTargetMs: displayPhase === "finalizado" ? null : closeAt,
+        position: metrics.position,
+        points: metrics.points,
       };
     }
 
@@ -696,11 +792,13 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
         ? getDailyEdition(ticket.dailyEditionNumber)
         : null;
     const editionDates = editionMeta?.datesBR ?? [ticket.playDate || playableDate];
-    const dateMatches = Array.from(matches.values()).filter(
-      (match) =>
-        match.dateBR != null &&
-        editionDates.includes(match.dateBR) &&
-        (Number(match.competitionId) || mainComp) === mainComp,
+    const dateMatches = Array.from(matches.values()).filter((match) =>
+      matchInDailyEditionPool(
+        match,
+        ticket.dailyEditionNumber,
+        editionDates,
+        mainComp,
+      ),
     );
     const closeAt = nextLockMs(
       dateMatches.filter((match) => isOpenMatch(match, PALPITE_LOCK_MS_DIARIO)),
@@ -788,11 +886,13 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
               ? getDailyEdition(firstDaily.dailyEditionNumber)
               : null;
           const editionDates = editionMeta?.datesBR ?? [firstDaily.playDate || playableDate];
-          const dateMatches = Array.from(matches.values()).filter(
-            (match) =>
-              match.dateBR != null &&
-              editionDates.includes(match.dateBR) &&
-              (Number(match.competitionId) || mainComp) === mainComp,
+          const dateMatches = Array.from(matches.values()).filter((match) =>
+            matchInDailyEditionPool(
+              match,
+              firstDaily.dailyEditionNumber,
+              editionDates,
+              mainComp,
+            ),
           );
           const closeAt = nextLockMs(
             dateMatches.filter((match) => isOpenMatch(match, PALPITE_LOCK_MS_DIARIO)),
@@ -897,6 +997,9 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
       bestPosition: positions.length ? Math.min(...positions) : null,
     },
     active,
+    dynamicCatalog: await buildBolaoCatalogSections().catch(
+      (): BolaoCatalogSections => ({ upcoming: [], available: [], closed: [] }),
+    ),
     upcoming: {
       daily: {
         href: "/tickets?bolao=diario",

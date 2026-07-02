@@ -26,6 +26,8 @@ export const SCOPE_MODE_LABELS: Record<BolaoScopeMode, string> = {
   daily_dates: "Dias selecionados",
   round: "Por rodada",
   weekend: "Fim de semana",
+  custom_matches: "Jogos selecionados",
+  multi_competition: "Multi-campeonato",
 };
 
 /** Modalidade disponível após escolher o campeonato. */

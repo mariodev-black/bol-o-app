@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/admin/require-admin-api";
+import { appendBolaoDefinitionAuditLog } from "@/lib/boloes/definitions/audit-log";
 import {
   createBolaoDefinition,
   listBolaoDefinitions,
@@ -31,6 +32,13 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json()) as BolaoDefinitionInput;
     const created = await createBolaoDefinition(body);
+    await appendBolaoDefinitionAuditLog({
+      bolaoDefinitionId: created.id,
+      action: "created",
+      actorUserId: auth.admin.id,
+      actorEmail: auth.admin.email,
+      payload: { displayName: created.displayName, slug: created.slug },
+    });
     return NextResponse.json({ item: created }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Falha ao criar bolão";

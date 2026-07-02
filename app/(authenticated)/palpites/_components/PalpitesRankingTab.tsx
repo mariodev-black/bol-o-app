@@ -13,6 +13,7 @@ import type { PredictionBolaoType } from "@/lib/predictions";
 import type { RankingBoardMeta, RankingBoardRow } from "@/lib/ranking/board-types";
 import type { RankingHistoricoRow } from "@/lib/ranking/historico-types";
 import { partidasUrlWithLiveSync } from "@/lib/football/live-sync-client";
+import { rankingDefaultScopeKey } from "@/lib/ranking/scopes-shared";
 
 type ResumoStats = {
   palpites: number;
@@ -53,6 +54,7 @@ function MyStatsFooter({ stats }: { stats: ResumoStats }) {
 
 export function PalpitesRankingTab({
   ticketId,
+  bolaoDefinitionId,
   bolaoType,
   resumoStats,
   rows,
@@ -64,6 +66,7 @@ export function PalpitesRankingTab({
   liveRefreshKey,
 }: {
   ticketId: string | null;
+  bolaoDefinitionId?: string | null;
   bolaoType: PredictionBolaoType;
   resumoStats: ResumoStats;
   rows: RankingBoardRow[];
@@ -76,6 +79,7 @@ export function PalpitesRankingTab({
   /** Muda quando placares ao vivo atualizam (ex.: signature de partidas). */
   liveRefreshKey?: string;
 }) {
+  const rankingDefault = rankingDefaultScopeKey(ticketId, bolaoDefinitionId);
   const [matchResults, setMatchResults] = useState<RankingHistoricoRow[]>([]);
   const [loadingMatches, setLoadingMatches] = useState(false);
   const [tick, setTick] = useState(0);
@@ -88,7 +92,9 @@ export function PalpitesRankingTab({
 
   useEffect(() => {
     const historicoQ = new URLSearchParams();
-    if (bolaoType === "principal") historicoQ.set("bolaoType", "principal");
+    if (bolaoDefinitionId && ticketId) {
+      historicoQ.set("ticketId", ticketId);
+    } else if (bolaoType === "principal") historicoQ.set("bolaoType", "principal");
     if (bolaoType === "diario" && ticketId) {
       historicoQ.set("bolaoType", "diario");
       historicoQ.set("ticketId", ticketId);
@@ -201,7 +207,7 @@ export function PalpitesRankingTab({
         <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-white/50">
           {participants.toLocaleString("pt-BR")} participantes
         </p>
-        {ticketId ? (
+        {rankingDefault ? (
           onRankingLinkClick ? (
             <button
               type="button"
@@ -213,7 +219,7 @@ export function PalpitesRankingTab({
             </button>
           ) : (
             <Link
-              href={`/ranking?default=${encodeURIComponent(ticketId)}`}
+              href={`/ranking?default=${encodeURIComponent(rankingDefault)}`}
               className="inline-flex items-center gap-0.5 text-[13px] font-bold text-primary hover:text-primary/85"
             >
               Ranking completo

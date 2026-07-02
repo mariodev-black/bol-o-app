@@ -1,6 +1,8 @@
 import type { BolaoMatchPhaseInput } from "@/lib/boloes/display-status";
 import {
+  getDailyEdition,
   getDailyEditionDatesSet,
+  isMatchInDailyEditionScope,
   paidTicketDailyEditionNumber,
 } from "@/lib/boloes/daily-editions";
 import { isSkaleBolaoCompetition } from "@/lib/boloes/skale-config";
@@ -121,6 +123,10 @@ export function scopeMatchesForPaidTicket(
   const list = Array.from(matches.values());
   const mainComp = getFootballMainCompetitionId();
 
+  if (ticket.bolaoDefinition) {
+    return scopeMatchesForBolaoDefinition(ticket.bolaoDefinition, matches);
+  }
+
   if (ticket.ticketType === "general") {
     return list.filter((m) => (Number(m.competitionId) || mainComp) === mainComp);
   }
@@ -128,12 +134,12 @@ export function scopeMatchesForPaidTicket(
   if (ticket.ticketType === "daily") {
     const edition = paidTicketDailyEditionNumber(ticket);
     if (edition != null) {
-      const dateSet = getDailyEditionDatesSet(edition);
       return list.filter(
         (m) =>
-          m.dateBR != null &&
-          dateSet.has(m.dateBR) &&
-          (Number(m.competitionId) || mainComp) === mainComp,
+          isMatchInDailyEditionScope(
+            { dateBR: m.dateBR, hour: m.hour, kickoffAt: m.kickoffAt },
+            edition,
+          ) && (Number(m.competitionId) || mainComp) === mainComp,
       );
     }
     const date =
@@ -151,9 +157,9 @@ export function scopeMatchesForPaidTicket(
   if (isSkaleDailyBolaoCompetition(comp)) {
     const edition = paidTicketSkaleDailyEditionNumber(ticket);
     if (edition != null) {
-      const dateSet = getDailyEditionDatesSet(edition);
+      const dates = getDailyEditionDatesSet(edition);
       return skaleScopeMatchesFromMap(matches, comp).filter(
-        (m) => m.dateBR != null && dateSet.has(m.dateBR),
+        (m) => m.dateBR != null && dates.has(m.dateBR),
       );
     }
   }
@@ -161,10 +167,6 @@ export function scopeMatchesForPaidTicket(
   /** Skale integral (90007): Copa inteira — comportamento legado, antes de definição admin. */
   if (isSkaleBolaoCompetition(comp)) {
     return skaleScopeMatchesFromMap(matches, comp);
-  }
-
-  if (ticket.bolaoDefinition) {
-    return scopeMatchesForBolaoDefinition(ticket.bolaoDefinition, matches);
   }
 
   const round =
