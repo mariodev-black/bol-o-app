@@ -1,5 +1,3 @@
-import type { WithdrawalBalanceSource } from "@/lib/referrals/withdrawSource";
-
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function intEnv(name: string, fallback: number): number {
@@ -88,14 +86,3 @@ export function assertWithdrawalAmountBounds(amountCents: number, minCents: numb
   }
 }
 
-export function assertBalanceCoversWithdrawal(
-  balanceSource: WithdrawalBalanceSource,
-  balanceCents: number,
-  affiliateBalanceCents: number,
-  amountCents: number
-): void {
-  const available = balanceSource === "wallet" ? balanceCents : affiliateBalanceCents;
-  if (available < amountCents) {
-    throw new Error("Saldo insuficiente para este valor");
-  }
-}

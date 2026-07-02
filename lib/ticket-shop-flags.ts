@@ -23,6 +23,15 @@ export function getTicketShopFlags(): TicketShopFlags {
   return { ticketsExtraOnly, ticketsHideDaily };
 }
 
+/**
+ * Quando `WALLET_CHECKOUT_ENABLED=1`, o checkout passa a debitar o saldo da
+ * carteira em vez de gerar PIX por compra. Default OFF — checkout segue idêntico
+ * ao atual (PIX direto), então o deploy não muda o funil até ser ligado.
+ */
+export function isWalletCheckoutEnabled(): boolean {
+  return parseEnvBool(process.env.WALLET_CHECKOUT_ENABLED);
+}
+
 /** Loja `/tickets` — Premier e Skale têm checkout dedicado. */
 export function filterTicketShopExtraChampionshipIds(ids: number[]): number[] {
   return ids.filter(

@@ -13,6 +13,7 @@ import {
   Target,
   Trophy,
   Users,
+  Wallet,
 } from "lucide-react";
 import type { StaticImageData } from "next/image";
 import iconBrasileirao from "@/app/assets/icon-brasileirao2.png";
@@ -48,6 +49,12 @@ const NAV_ITEMS: NavItem[] = [
     label: "Ranking",
     Icon: BarChart2,
     matchFn: (p) => p.startsWith("/ranking"),
+  },
+  {
+    href: "/carteira",
+    label: "Carteira",
+    Icon: Wallet,
+    matchFn: (p) => p.startsWith("/carteira"),
   },
   {
     href: "/indique",

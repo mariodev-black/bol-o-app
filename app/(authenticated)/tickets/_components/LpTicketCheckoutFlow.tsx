@@ -17,6 +17,7 @@ import {
   type TicketPixExtraLine,
 } from "./pix/TicketPixGeneratedScreen";
 import { TicketPixGeneratingPanel } from "./pix/TicketPixGeneratingPanel";
+import { WalletPurchaseConfirmModal } from "./WalletPurchaseConfirmModal";
 import {
   PIX_CHECKOUT_TOTAL_SEC,
   PIX_CHECKOUT_WINDOW_MS,
@@ -83,6 +84,8 @@ const LP_QTY_OPTIONS = [1, 2, 3, 5] as const;
 export function LpTicketCheckoutFlow() {
   const router = useRouter();
   const [step, setStep] = useState<FlowStep>("shop");
+  const [walletCheckout, setWalletCheckout] = useState(false);
+  const [walletConfirmOpen, setWalletConfirmOpen] = useState(false);
   const [selectedQty, setSelectedQty] = useState<(typeof LP_QTY_OPTIONS)[number]>(2);
 
   const [prices, setPrices] = useState({
@@ -125,6 +128,7 @@ export function LpTicketCheckoutFlow() {
         });
         const d = (await r.json()) as {
           prices?: { general: number; extra?: number };
+          walletCheckoutEnabled?: boolean;
           extraBoloes?: Array<{
             championshipId: number;
             unitCents: number;
@@ -139,6 +143,9 @@ export function LpTicketCheckoutFlow() {
             general: d.prices.general,
             extra: d.prices.extra ?? DEFAULT_EXTRA_CENTS,
           });
+        }
+        if (r.ok && typeof d.walletCheckoutEnabled === "boolean") {
+          setWalletCheckout(d.walletCheckoutEnabled);
         }
         if (r.ok && Array.isArray(d.extraBoloes) && d.extraBoloes.length > 0) {
           setExtraBoloes(
@@ -230,12 +237,42 @@ export function LpTicketCheckoutFlow() {
             generalQuantity: lpGeneralQty,
             dailyQuantity: 0,
             extraByChampionship: lpExtraByChampionship,
+            ...(walletCheckout ? { payWith: "wallet" as const } : {}),
           }),
         });
         const d = (await r.json()) as {
           error?: string;
+          code?: string;
           transaction?: DepositTransaction;
+          purchase?: { transactionId: string; amountCents: number; ticketIds: string[]; balanceCents: number };
         };
+
+        if (walletCheckout) {
+          if (r.status === 402 || d.code === "WALLET_INSUFFICIENT_FUNDS") {
+            setError("Saldo insuficiente. Adicione saldo na carteira para concluir a compra.");
+            setStep("shop");
+            return;
+          }
+          if (!r.ok || !d.purchase) {
+            setError(d.error ?? "Não foi possível concluir a compra.");
+            setStep("shop");
+            return;
+          }
+          const extraMap = Object.fromEntries(
+            selectedExtrasForQty.map((b) => [b.championshipId, 1] as const),
+          );
+          appendTicketsFromPurchase(lpGeneralQty, 0, extraMap);
+          const q = new URLSearchParams({
+            tx: d.purchase.transactionId,
+            principal: String(lpGeneralQty),
+            diario: "0",
+          });
+          const extraTotal = Object.values(extraMap).reduce((s, n) => s + n, 0);
+          if (extraTotal > 0) q.set("extra", String(extraTotal));
+          router.replace(`/tickets/obrigado?${q.toString()}`);
+          return;
+        }
+
         if (!r.ok || !d.transaction?.pixQrcode) {
           setError(d.error ?? "Nao foi possivel gerar o PIX.");
           setStep("shop");
@@ -254,7 +291,7 @@ export function LpTicketCheckoutFlow() {
         setStep("shop");
       }
     })();
-  }, [lpGeneralQty, lpExtraByChampionship, selectedExtrasForQty]);
+  }, [lpGeneralQty, lpExtraByChampionship, selectedExtrasForQty, walletCheckout, router]);
 
   const goBackFromPix = useCallback(() => {
     setStep("shop");
@@ -603,11 +640,30 @@ export function LpTicketCheckoutFlow() {
 
           <button
             type="button"
-            onClick={goGenerate}
+            onClick={walletCheckout ? () => setWalletConfirmOpen(true) : goGenerate}
             className="mt-4 flex h-[56px] w-full items-center justify-center rounded-[14px] bg-primary px-5 text-[16px] font-black uppercase tracking-[0.04em] text-[#0E141B] shadow-[0_4px_32px_rgba(177,235,11,0.55)] transition-[transform,filter] hover:brightness-105 active:scale-[0.98]"
           >
-            FINALIZAR COMPRA
+            {walletCheckout ? "PAGAR COM SALDO" : "FINALIZAR COMPRA"}
           </button>
+
+          <WalletPurchaseConfirmModal
+            open={walletConfirmOpen}
+            onClose={() => setWalletConfirmOpen(false)}
+            onConfirm={() => {
+              setWalletConfirmOpen(false);
+              goGenerate();
+            }}
+            totalCents={totalCents}
+            totalQty={selectedQty}
+            items={[
+              { label: "Bolão Geral", cents: principalLineCents },
+              ...selectedExtrasForQty.map((b) => ({
+                label: b.displayName ?? "Bolão extra",
+                cents: b.unitCents,
+              })),
+            ]}
+            submitting={false}
+          />
 
           {error && (
             <p className="mt-3 text-center text-[12px] font-semibold text-red-300">

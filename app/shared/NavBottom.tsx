@@ -21,6 +21,7 @@ import {
   Trophy,
   User,
   Users,
+  Wallet,
   X,
 } from "lucide-react";
 import { cn } from "@/app/lib/utils";
@@ -45,7 +46,7 @@ type BottomItem = {
 
 const BOTTOM_ITEMS_PROFILE: BottomItem[] = [
   { label: "INÍCIO", ariaLabel: "Início", href: "/", icon: Home },
-  { label: "INDICAR", ariaLabel: "Afiliado — indique e ganhe", href: "/indique", icon: Share2 },
+  { label: "CARTEIRA", ariaLabel: "Carteira — saldo e movimentações", href: "/carteira", icon: Wallet },
   { label: "PALPITAR", ariaLabel: "Palpitar nos jogos", href: "/boloes", icon: Target },
   { label: "COMPRAR", ariaLabel: "Comprar cota", href: "/tickets", icon: Ticket },
   { label: "RANKING", ariaLabel: "Ranking", href: "/ranking", icon: BarChart3 },
@@ -92,6 +93,7 @@ const MENU_SECTIONS: MenuSection[] = [
     title: "MINHA CONTA",
     items: [
       { label: "Minha Conta", href: "/perfil", icon: User, subtitle: "Perfil" },
+      { label: "Carteira", href: "/carteira", icon: Wallet, subtitle: "Saldo e movimentações" },
       { label: "Baixar aplicativo", href: "/instalar-app", icon: Smartphone, subtitle: "PWA no celular" },
       { label: "Adquirir Ticket", href: "/tickets", icon: Ticket, subtitle: "Comprar cota" },
     ],

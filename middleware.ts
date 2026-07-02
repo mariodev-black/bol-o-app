@@ -20,6 +20,7 @@ const PROTECTED_PREFIXES = [
   "/meus-palpites",
   "/dashboard",
   "/deposito",
+  "/carteira",
   "/saques",
   "/privacidade",
   "/indique",

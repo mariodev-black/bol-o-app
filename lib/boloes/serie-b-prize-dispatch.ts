@@ -5,6 +5,7 @@
  */
 
 import type { PoolClient } from "pg";
+import { applyWalletMovementTx } from "@/lib/wallet/ledger";
 import { getSerieBExtraChampionshipId } from "@/lib/football/amistosos-friendlies";
 import { fetchMatchesMapDirectFromDb } from "@/lib/football-api";
 import { getMatchFromMap } from "@/lib/match-map-types";
@@ -299,10 +300,14 @@ async function creditWinnerBalance(
     `UPDATE prize_awards SET transaction_id = $2 WHERE id = $1`,
     [awardId, tx.rows[0]!.id],
   );
-  await client.query(
-    `UPDATE users SET balance_cents = COALESCE(balance_cents, 0) + $2 WHERE id = $1::uuid`,
-    [input.winner.userId, input.amountCents],
-  );
+  await applyWalletMovementTx(client, {
+    userId: input.winner.userId,
+    amountCents: input.amountCents,
+    type: "prize",
+    idempotencyKey: externalRef,
+    transactionId: tx.rows[0]!.id,
+    metadata: { source: "serie_b_prize", closureId: input.closureId, position: input.winner.position },
+  });
   return true;
 }
 

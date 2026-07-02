@@ -361,10 +361,16 @@ export function AdminAffiliatesClient({ data }: { data: AdminAffiliateDashboardD
                             "rounded-full border px-3 py-1 text-[11px] font-black uppercase",
                             row.balanceSource === "wallet"
                               ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-200"
-                              : "border-primary/25 bg-primary/10 text-primary",
+                              : row.balanceSource === "combined"
+                                ? "border-sky-400/30 bg-sky-400/10 text-sky-200"
+                                : "border-primary/25 bg-primary/10 text-primary",
                           ].join(" ")}
                         >
-                          {row.balanceSource === "wallet" ? "Conta" : "Afiliado"}
+                          {row.balanceSource === "wallet"
+                            ? "Conta"
+                            : row.balanceSource === "combined"
+                              ? "Saldo"
+                              : "Afiliado"}
                         </span>
                       </td>
                       <td className="px-4 py-4 font-black text-primary">{formatAdminBRL(row.amountCents)}</td>

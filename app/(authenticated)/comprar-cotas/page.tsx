@@ -12,6 +12,7 @@ import {
   PIX_CHECKOUT_WINDOW_MS,
 } from "@/app/(authenticated)/tickets/_components/pix/ticket-pix-ui-constants";
 import { appendTicketsFromPurchase } from "@/app/(authenticated)/tickets/lib/ownedTicketsStorage";
+import { WalletPurchaseConfirmModal } from "@/app/(authenticated)/tickets/_components/WalletPurchaseConfirmModal";
 import BolaoLogo from "@/app/assets/logo.png";
 import {
   getComprarCotasBundleOptions,
@@ -355,6 +356,8 @@ export default function ComprarCotasPage() {
   const router = useRouter();
   const { status, loading } = useBrasilMarrocosPlacarPromoStatus();
   const [step, setStep] = useState<FlowStep>("shop");
+  const [walletCheckout, setWalletCheckout] = useState(false);
+  const [walletConfirmOpen, setWalletConfirmOpen] = useState(false);
   const [selected, setSelected] = useState<OptionId>(2);
 
   const [transactionId, setTransactionId] = useState<string | null>(null);
@@ -369,6 +372,25 @@ export default function ComprarCotasPage() {
   const purchasedQtyRef = useRef(1);
 
   const selectedOption = OPTIONS.find((o) => o.id === selected)!;
+
+  // Lê a flag de checkout com carteira.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch("/api/deposits/transactions", { credentials: "include" });
+        const d = (await r.json()) as { walletCheckoutEnabled?: boolean };
+        if (!cancelled && r.ok && typeof d.walletCheckoutEnabled === "boolean") {
+          setWalletCheckout(d.walletCheckoutEnabled);
+        }
+      } catch {
+        /* mantém PIX */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const canShowCheckout =
     status != null && mustCompletePromoQuotaPurchase(status);
@@ -497,12 +519,37 @@ export default function ComprarCotasPage() {
             dailyQuantity: 0,
             extraByChampionship: {},
             checkoutPromo: "comprar-cotas",
+            ...(walletCheckout ? { payWith: "wallet" as const } : {}),
           }),
         });
         const d = (await r.json()) as {
           error?: string;
+          code?: string;
           transaction?: DepositTransaction;
+          purchase?: { transactionId: string };
         };
+
+        if (walletCheckout) {
+          if (r.status === 402 || d.code === "WALLET_INSUFFICIENT_FUNDS") {
+            setError("Saldo insuficiente. Adicione saldo na carteira para concluir a compra.");
+            setStep("shop");
+            return;
+          }
+          if (!r.ok || !d.purchase) {
+            setError(d.error ?? "Não foi possível concluir a compra.");
+            setStep("shop");
+            return;
+          }
+          appendTicketsFromPurchase(selectedOption.qty, 0, {});
+          const q = new URLSearchParams({
+            tx: d.purchase.transactionId,
+            principal: String(selectedOption.qty),
+            diario: "0",
+          });
+          router.replace(`/tickets/obrigado?${q.toString()}`);
+          return;
+        }
+
         if (!r.ok || !d.transaction?.pixQrcode) {
           setError(d.error ?? "Não foi possível gerar o PIX.");
           setStep("shop");
@@ -517,7 +564,7 @@ export default function ComprarCotasPage() {
         setStep("shop");
       }
     })();
-  }, [selectedOption.qty]);
+  }, [selectedOption.qty, walletCheckout, router]);
 
   const goBack = useCallback(() => {
     setStep("shop");
@@ -613,11 +660,25 @@ export default function ComprarCotasPage() {
   }
 
   return (
-    <ShopScreen
-      selected={selected}
-      onSelect={setSelected}
-      onContinue={goGenerate}
-      error={error}
-    />
+    <>
+      <ShopScreen
+        selected={selected}
+        onSelect={setSelected}
+        onContinue={walletCheckout ? () => setWalletConfirmOpen(true) : goGenerate}
+        error={error}
+      />
+      <WalletPurchaseConfirmModal
+        open={walletConfirmOpen}
+        onClose={() => setWalletConfirmOpen(false)}
+        onConfirm={() => {
+          setWalletConfirmOpen(false);
+          goGenerate();
+        }}
+        totalCents={selectedOption.priceCents}
+        totalQty={selectedOption.qty}
+        items={[{ label: "Cota — Bolão Principal", qty: selectedOption.qty, cents: selectedOption.priceCents }]}
+        submitting={false}
+      />
+    </>
   );
 }

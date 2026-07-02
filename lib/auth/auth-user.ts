@@ -11,6 +11,8 @@ export type AuthUser = {
   avatarUploadFilename: string | null;
   /** Código de indicação deste usuário (para compartilhar). */
   referralCode: string;
+  /** Saldo da carteira em centavos. */
+  balanceCents: number;
   /** Contas Google sem CPF ainda: `false` até completar o cadastro no modal. */
   profileComplete: boolean;
   /** Funil Skale ativo — bloqueia promoções e rotas até comprar cota. */

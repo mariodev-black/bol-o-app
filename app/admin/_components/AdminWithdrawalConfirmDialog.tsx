@@ -71,7 +71,9 @@ export function AdminWithdrawalConfirmDialog({
           </div>
           <div className="flex items-center justify-between gap-4">
             <span className="text-[11px] font-black uppercase tracking-[0.14em] text-white/45">Origem</span>
-            <span className="font-bold text-white/80">{row.balanceSource === "wallet" ? "Conta" : "Afiliado"}</span>
+            <span className="font-bold text-white/80">
+              {row.balanceSource === "wallet" ? "Conta" : row.balanceSource === "combined" ? "Saldo" : "Afiliado"}
+            </span>
           </div>
           <div className="flex items-start justify-between gap-4">
             <span className="text-[11px] font-black uppercase tracking-[0.14em] text-white/45">PIX</span>

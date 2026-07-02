@@ -36,6 +36,7 @@ function normalizeSessionUser(u: AuthUser): AuthUser {
   return {
     ...u,
     referralCode: u.referralCode ?? "",
+    balanceCents: Number.isFinite(Number(u.balanceCents)) ? Number(u.balanceCents) : 0,
     avatarIndex: clampAvatarIndex(Number(u.avatarIndex)),
     avatarUploadFilename: raw && isStoredAvatarUploadFilename(raw) ? raw : null,
     profileComplete: typeof u.profileComplete === "boolean" ? u.profileComplete : true,
