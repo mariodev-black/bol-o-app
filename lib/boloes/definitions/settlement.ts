@@ -1,4 +1,5 @@
 import type { BolaoDefinition } from "@/lib/boloes/definitions/types";
+import { matchRegulationWindowMs, prizeDailyGraceAfterLastKickoffMinutes } from "@/lib/football/match-regulation-window";
 import { type MatchMapEntry } from "@/lib/football-api";
 
 const LIVE_STATUSES = new Set([
@@ -41,18 +42,12 @@ export function isScopedMatchFinished(match: MatchMapEntry): boolean {
   );
 }
 
-export function isScopedMatchLive(match: MatchMapEntry): boolean {
+export function isScopedMatchLive(match: MatchMapEntry, nowMs = Date.now()): boolean {
   const s = String(match.status ?? "").toLowerCase();
-  return LIVE_STATUSES.has(s);
-}
-
-function prizeDailyGraceAfterLastKickoffMinutes(): number {
-  const n = Number.parseInt(
-    (process.env.PRIZE_DAILY_GRACE_AFTER_LAST_KICKOFF_MINUTES || "180").trim(),
-    10,
-  );
-  if (!Number.isFinite(n)) return 180;
-  return Math.min(600, Math.max(0, n));
+  if (!LIVE_STATUSES.has(s)) return false;
+  const kickoff = parseKickoffMs(match);
+  if (kickoff == null || nowMs < kickoff) return false;
+  return nowMs <= kickoff + matchRegulationWindowMs();
 }
 
 function prizeGeneralGraceHoursAfterLastKickoff(): number {

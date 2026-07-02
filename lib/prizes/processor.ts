@@ -19,6 +19,7 @@ import {
   isWeekendBolaoCompetition,
 } from "@/lib/boloes/weekend-bolao-config";
 import { getPool } from "@/lib/db";
+import { prizeDailyGraceAfterLastKickoffMinutes } from "@/lib/football/match-regulation-window";
 
 /** Log estruturado simples: `[prizes] {"t":"ISO","phase":"...","source":"..."}`. */
 function prizesLog(phase: string, fields: Record<string, unknown> = {}): void {
@@ -96,13 +97,6 @@ function lastKickoffMs(matches: MatchRow[]): number | null {
     if (Number.isFinite(t) && t > maxMs) maxMs = t;
   }
   return maxMs > 0 ? maxMs : null;
-}
-
-/** Minutos apos o apito do ultimo jogo do dia (DD/MM/AAAA) para fechar o bolao diario. Default 180 = 3h. */
-function prizeDailyGraceAfterLastKickoffMinutes(): number {
-  const n = Number.parseInt((process.env.PRIZE_DAILY_GRACE_AFTER_LAST_KICKOFF_MINUTES || "180").trim(), 10);
-  if (!Number.isFinite(n)) return 180;
-  return Math.min(600, Math.max(0, n));
 }
 
 /** Horas apos o apito do ultimo jogo da competicao (max kickoff no cache) para fechar o bolao geral. Default 36h. */
