@@ -45,7 +45,7 @@ import {
   filterTicketShopExtraChampionshipIds,
 } from "@/lib/ticket-shop-flags";
 import { appendTicketsFromPurchase } from "../lib/ownedTicketsStorage";
-import { AppScreenLoading } from "@/app/shared/AppScreenLoading";
+import { TicketShopSkeleton } from "./TicketShopSkeleton";
 import { TicketPixGeneratedScreen } from "./pix/TicketPixGeneratedScreen";
 import { WalletPurchaseConfirmModal } from "./WalletPurchaseConfirmModal";
 import { TicketPixGeneratingPanel } from "./pix/TicketPixGeneratingPanel";
@@ -244,15 +244,7 @@ export function TicketCheckoutFlow({
       !ticketsExtraOnly &&
       !ticketsPrincipalOnly &&
       !ticketsDailyOnly);
-  const [principalQty, setPrincipalQty] = useState(() => {
-    if (ticketsExtraOnly || ticketsDailyOnly) return 0;
-    if (ticketsPrincipalOnly) return 1;
-    return initialTicketKind === "daily" ||
-      initialTicketKind === "extra" ||
-      initialTicketKind === "artilheiros"
-      ? 0
-      : 1;
-  });
+  const [principalQty, setPrincipalQty] = useState(0);
   const [artilheirosQty, setArtilheirosQty] = useState(() => {
     if (ticketsArtilheirosOnly || initialTicketKind === "artilheiros") return 1;
     return 0;
@@ -1035,11 +1027,7 @@ export function TicketCheckoutFlow({
     <>
       {step === "shop" ? (
         !catalogReady ? (
-          <AppScreenLoading
-            variant="app-shell"
-            message="Carregando bolões e valores..."
-            className="w-full flex-1"
-          />
+          <TicketShopSkeleton />
         ) : (
           <div className="min-h-screen w-full bg-black pb-10">
             <div className="relative w-full overflow-hidden rounded-b-[22px]">

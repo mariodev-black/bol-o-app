@@ -11,7 +11,7 @@ import {
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import bannerCheckoutLp from "@/app/assets/banner-chekout-v2.png";
-import { AppScreenLoading } from "@/app/shared/AppScreenLoading";
+import { TicketShopSkeleton } from "./TicketShopSkeleton";
 import {
   TicketPixGeneratedScreen,
   type TicketPixExtraLine,
@@ -463,11 +463,7 @@ export function LpTicketCheckoutFlow() {
   }
 
   return !catalogReady ? (
-    <AppScreenLoading
-      variant="app-shell"
-      message="Carregando valores..."
-      className="w-full flex-1"
-    />
+    <TicketShopSkeleton />
   ) : (
     <div className="min-h-screen w-full bg-black pb-10">
       <div className="relative w-full overflow-hidden rounded-b-[22px]">

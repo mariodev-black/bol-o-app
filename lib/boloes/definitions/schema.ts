@@ -1,14 +1,36 @@
 import type { PoolClient } from "pg";
 import { getPool } from "@/lib/db";
 
-let ensured = false;
+let ensuredPromise: Promise<void> | null = null;
 
-export async function ensureBolaoDefinitionsSchema(client?: PoolClient): Promise<void> {
-  if (ensured && !client) return;
+/**
+ * Chamadores concorrentes (várias buscas em paralelo no cold start) devem
+ * compartilhar a MESMA execução — sem isso, todos viam "ainda não rodou" ao
+ * mesmo tempo e disparavam o DDL em paralelo, brigando por DROP/ADD do mesmo
+ * CONSTRAINT (um vencia, o outro quebrava com "already exists" e nunca
+ * marcava como pronto, then re-rodava esse DDL caro em toda request futura).
+ */
+export function ensureBolaoDefinitionsSchema(client?: PoolClient): Promise<void> {
+  if (client) return ensureBolaoDefinitionsSchemaOnce(client);
+  if (!ensuredPromise) {
+    ensuredPromise = ensureBolaoDefinitionsSchemaOnce().catch((err) => {
+      ensuredPromise = null;
+      throw err;
+    });
+  }
+  return ensuredPromise;
+}
+
+async function ensureBolaoDefinitionsSchemaOnce(client?: PoolClient): Promise<void> {
   const pool = getPool();
   const c = client ?? (await pool.connect());
   const release = !client;
   try {
+    // Trava rápido em vez de enfileirar atrás de outra sessão segurando lock
+    // nessas tabelas (bolao_definitions/tickets recebem tráfego real) — sem
+    // isso, um DDL como ADD CONSTRAINT pode ficar preso por dezenas de
+    // segundos esperando ACCESS EXCLUSIVE, travando a página inteira.
+    await c.query(`SET lock_timeout = '3000ms'`);
     await c.query(`CREATE EXTENSION IF NOT EXISTS pgcrypto`);
     await c.query(`
       CREATE TABLE IF NOT EXISTS bolao_definitions (
@@ -137,8 +159,10 @@ export async function ensureBolaoDefinitionsSchema(client?: PoolClient): Promise
         ON tickets (bolao_definition_id)
         WHERE bolao_definition_id IS NOT NULL
     `);
-    ensured = true;
   } finally {
-    if (release) c.release();
+    if (release) {
+      await c.query(`SET lock_timeout = DEFAULT`).catch(() => {});
+      c.release();
+    }
   }
 }

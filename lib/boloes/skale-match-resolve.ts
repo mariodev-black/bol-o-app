@@ -89,9 +89,22 @@ export function isMatchInSkaleBolaoPool(
   return false;
 }
 
-/** Garante espelho Skale integral + diário antes de contar jogos ou pontuar. */
-export async function ensureSkaleBolaoMatchesMirrored(): Promise<void> {
-  await mirrorAllSkaleBolaoMatchesFromCopa().catch(() => {});
+let skaleEnsured: Promise<void> | null = null;
+/**
+ * Garante espelho Skale integral + diário ao menos uma vez por processo
+ * (idempotente, mesmo padrão de `ensureWeekendBolaoMatchesMirrored`). O
+ * placar/status sempre vem da Copa (fonte) em `resolveBolaoMatchFromMap` —
+ * o espelho só precisa existir uma vez para expor os `match_id`.
+ */
+export function ensureSkaleBolaoMatchesMirrored(): Promise<void> {
+  if (!skaleEnsured) {
+    skaleEnsured = mirrorAllSkaleBolaoMatchesFromCopa()
+      .then(() => undefined)
+      .catch(() => {
+        skaleEnsured = null;
+      });
+  }
+  return skaleEnsured;
 }
 
 export async function ensureSkaleDailyBolaoMatchesMirrored(): Promise<void> {

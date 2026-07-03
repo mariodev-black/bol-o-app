@@ -21,6 +21,7 @@ const PROTECTED_PREFIXES = [
   "/dashboard",
   "/deposito",
   "/carteira",
+  "/esportes",
   "/saques",
   "/privacidade",
   "/indique",

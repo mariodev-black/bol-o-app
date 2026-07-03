@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { resolveExtraBolaoDisplayName } from "@/lib/boloes-extra-competition-branding";
 import { getPool } from "@/lib/db";
 import { fetchFootballApiV1 } from "@/lib/football-api-fetch";
@@ -58,13 +59,27 @@ async function fetchCompetitionJsonFromApi(competitionId: number): Promise<unkno
   return res.json().catch(() => null);
 }
 
-/** Lê só do banco (rápido). */
+/** Lê só do banco (rápido). Não varia por usuário — mesmo cache pra todo mundo. */
 export async function readCompetitionDisplayNamesFromDb(
   competitionIds: number[]
 ): Promise<Record<number, string>> {
-  const uniq = [...new Set(competitionIds.filter((n) => Number.isFinite(n) && n > 0))];
+  const uniq = [...new Set(competitionIds.filter((n) => Number.isFinite(n) && n > 0))].sort(
+    (a, b) => a - b,
+  );
+  if (uniq.length === 0) return {};
+
+  const getCached = unstable_cache(
+    () => readCompetitionDisplayNamesFromDbUncached(uniq),
+    ["competition-display-names", uniq.join(",")],
+    { revalidate: 15, tags: ["competition-meta"] },
+  );
+  return getCached();
+}
+
+async function readCompetitionDisplayNamesFromDbUncached(
+  uniq: number[],
+): Promise<Record<number, string>> {
   const out: Record<number, string> = {};
-  if (uniq.length === 0) return out;
   const keys = uniq.map(competitionMetadataCacheKey);
   const pool = getPool();
   const { rows } = await pool.query<{ cache_key: string; payload: unknown }>(
