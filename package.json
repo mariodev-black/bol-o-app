@@ -27,6 +27,7 @@
     "serie-b:prizes": "tsx --tsconfig tsconfig.scripts.json scripts/credit-serie-b-prizes.ts",
     "cartwave:debug": "tsx --tsconfig tsconfig.scripts.json scripts/debug-cartwave-auth.ts",
     "daily:dispatch-prizes": "tsx --tsconfig tsconfig.scripts.json scripts/dispatch-daily-edition-prizes.ts",
+    "match:fix-bel-sen": "tsx --tsconfig tsconfig.scripts.json scripts/fix-bel-sen-regulation-score.ts",
     "cartwave:test-cashout": "tsx --tsconfig tsconfig.scripts.json scripts/test-cartwave-cashout-cpf.ts",
     "cartwave:webhook-migration": "tsx --tsconfig tsconfig.scripts.json scripts/run-cartwave-webhook-migration.ts",
     "cartwave:withdrawal-status-migration": "tsx --tsconfig tsconfig.scripts.json scripts/run-withdrawal-status-migration.ts",

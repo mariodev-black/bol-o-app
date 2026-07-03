@@ -3,6 +3,7 @@ import {
   isFinishedMatchStatus,
   isLiveOrInProgressMatchStatus,
 } from "@/lib/palpites-match-open";
+import { matchRegulationWindowMs } from "@/lib/football/match-regulation-window";
 
 export type BolaoDisplayPhase = "pendentes" | "enviados" | "disputa" | "finalizado";
 
@@ -51,17 +52,7 @@ export function bolaoDisplayBadgeText(phase: BolaoDisplayPhase): string {
 }
 
 function matchEndClockMs(): number {
-  const raw =
-    (typeof process !== "undefined"
-      ? process.env.MATCH_END_CLOCK_AFTER_KICKOFF_MINUTES
-      : undefined) ??
-    (typeof process !== "undefined"
-      ? process.env.NEXT_PUBLIC_MATCH_END_CLOCK_AFTER_KICKOFF_MINUTES
-      : undefined) ??
-    "115";
-  const n = Number.parseInt(String(raw).trim(), 10);
-  const minutes = Number.isFinite(n) ? Math.min(300, Math.max(45, n)) : 115;
-  return minutes * 60_000;
+  return matchRegulationWindowMs();
 }
 
 /**
@@ -75,7 +66,11 @@ export function isBolaoMatchFinished(
   const status = String(match.status ?? "");
   if (isFinishedMatchStatus(status)) return true;
 
-  if (isLiveOrInProgressMatchStatus(status)) return false;
+  if (isLiveOrInProgressMatchStatus(status)) {
+    const kickoff = bolaoMatchKickoffMs(match);
+    if (kickoff != null && nowMs >= kickoff + matchEndClockMs()) return true;
+    return false;
+  }
 
   const kickoff = bolaoMatchKickoffMs(match);
   if (kickoff == null) {
@@ -131,7 +126,11 @@ export function isBolaoScopeRoundComplete(
 
   for (const m of scope) {
     const status = String(m.status ?? "");
-    if (isLiveOrInProgressMatchStatus(status)) return false;
+    if (isLiveOrInProgressMatchStatus(status)) {
+      const kickoff = bolaoMatchKickoffMs(m);
+      if (kickoff == null || nowMs < kickoff + matchEndClockMs()) return false;
+      continue;
+    }
 
     const kickoff = bolaoMatchKickoffMs(m);
     if (
@@ -187,9 +186,12 @@ export function computeBolaoDisplayPhase(input: {
   const anyInPlay = scope.some((m) => {
     if (isBolaoMatchFinished(m, now)) return false;
     const status = String(m.status ?? "");
-    if (isLiveOrInProgressMatchStatus(status)) return true;
+    if (isLiveOrInProgressMatchStatus(status)) {
+      const kickoff = bolaoMatchKickoffMs(m);
+      return kickoff != null && kickoff <= now && now < kickoff + matchEndClockMs();
+    }
     const kickoff = bolaoMatchKickoffMs(m);
-    return kickoff != null && kickoff <= now;
+    return kickoff != null && kickoff <= now && now < kickoff + matchEndClockMs();
   });
 
   if (anyInPlay) {

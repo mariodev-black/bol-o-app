@@ -4,7 +4,7 @@
  *   1) Le matches_cache e seleciona partidas que DEVERIAM estar ao vivo:
  *        - status ja indica ao vivo / em andamento / intervalo / pausado, OU
  *        - kickoff_at >= now() - 5 min  E  kickoff_at <= now() + 5 min (apito iminente),
- *        - OU kickoff_at <= now()  E  now() <= kickoff_at + WORKER_WINDOW_MINUTES (default 180min).
+ *        - OU kickoff_at <= now()  E  now() <= kickoff_at + WORKER_WINDOW_MINUTES (default 90min).
  *      EXCLUI rigorosamente:
  *        - finalizado / encerrado (exceto "resgate" — ver abaixo)
  *        - cancelado / adiado / suspenso / interrompido
@@ -25,6 +25,7 @@
  */
 
 import { getPool } from "@/lib/db";
+import { realtimeWorkerWindowMinutes } from "@/lib/football/match-regulation-window";
 import { getFootballApiSyncExcludedCompetitionIds } from "@/lib/football/amistosos-friendlies-config";
 import {
   ADVISORY_LOCK_FOOTBALL_REALTIME_TICK,
@@ -39,9 +40,9 @@ function intEnv(name: string, fallback: number, min = 1, max = 1_000_000): numbe
   return Math.min(max, Math.max(min, raw));
 }
 
-/** Tamanho da janela depois do apito que mantemos consultando — default 180 min. */
+/** Tamanho da janela depois do apito — tempo regulamentar (default 90 min). */
 function workerWindowMinutes(): number {
-  return intEnv("REALTIME_WORKER_WINDOW_MINUTES", 180, 30, 360);
+  return realtimeWorkerWindowMinutes();
 }
 
 /** Margem antes do apito (proximas partidas) — default 5 min. */
@@ -63,11 +64,19 @@ WHERE
   AND lower(coalesce(status, '')) NOT LIKE '%suspens%'
   AND lower(coalesce(status, '')) NOT LIKE '%interromp%'
   AND NOT (mc.competition_id = ANY($4::int[]))
+  AND kickoff_at IS NOT NULL
   AND (
-    -- fluxo normal: nao encerrada + ao vivo ou na janela do apito
+    -- apito iminente (pre-jogo)
     (
-      lower(coalesce(status, '')) NOT LIKE '%finaliz%'
+      kickoff_at <= now() + ($1::text || ' minutes')::interval
+      AND kickoff_at >= now() - ($1::text || ' minutes')::interval
+      AND lower(coalesce(status, '')) NOT LIKE '%finaliz%'
       AND lower(coalesce(status, '')) NOT LIKE '%encerr%'
+    )
+    OR (
+      -- durante os 90 min regulamentares após o apito
+      kickoff_at <= now()
+      AND kickoff_at >= now() - ($2::text || ' minutes')::interval
       AND (
         lower(coalesce(status, '')) LIKE '%andamento%'
         OR lower(coalesce(status, '')) LIKE '%ao vivo%'
@@ -75,16 +84,14 @@ WHERE
         OR lower(coalesce(status, '')) LIKE '%pausad%'
         OR lower(coalesce(status, '')) LIKE '%em curso%'
         OR (
-          kickoff_at IS NOT NULL
-          AND kickoff_at <= now() + ($1::text || ' minutes')::interval
-          AND kickoff_at >= now() - ($2::text || ' minutes')::interval
+          lower(coalesce(status, '')) NOT LIKE '%finaliz%'
+          AND lower(coalesce(status, '')) NOT LIKE '%encerr%'
         )
       )
     )
     OR (
-      -- resgate: cache diz finalizado mas ainda na janela — reconsulta a API
-      kickoff_at IS NOT NULL
-      AND kickoff_at <= now()
+      -- resgate: cache diz finalizado mas ainda na janela de 90 min
+      kickoff_at <= now()
       AND kickoff_at >= now() - ($2::text || ' minutes')::interval
       AND (
         lower(coalesce(status, '')) LIKE '%finaliz%'
