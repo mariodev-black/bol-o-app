@@ -1,4 +1,5 @@
 import type { PoolClient } from "pg";
+import { applyWalletMovementTx } from "@/lib/wallet/ledger";
 import { listGroupStageDailyEditions } from "@/lib/boloes/daily-editions";
 import { getFootballMainCompetitionId, parseExtraBolaoChampionshipIds } from "@/lib/boloes-extra-config";
 import {
@@ -19,6 +20,7 @@ import {
   isWeekendBolaoCompetition,
 } from "@/lib/boloes/weekend-bolao-config";
 import { getPool } from "@/lib/db";
+import { prizeDailyGraceAfterLastKickoffMinutes } from "@/lib/football/match-regulation-window";
 
 /** Log estruturado simples: `[prizes] {"t":"ISO","phase":"...","source":"..."}`. */
 function prizesLog(phase: string, fields: Record<string, unknown> = {}): void {
@@ -96,13 +98,6 @@ function lastKickoffMs(matches: MatchRow[]): number | null {
     if (Number.isFinite(t) && t > maxMs) maxMs = t;
   }
   return maxMs > 0 ? maxMs : null;
-}
-
-/** Minutos apos o apito do ultimo jogo do dia (DD/MM/AAAA) para fechar o bolao diario. Default 180 = 3h. */
-function prizeDailyGraceAfterLastKickoffMinutes(): number {
-  const n = Number.parseInt((process.env.PRIZE_DAILY_GRACE_AFTER_LAST_KICKOFF_MINUTES || "180").trim(), 10);
-  if (!Number.isFinite(n)) return 180;
-  return Math.min(600, Math.max(0, n));
 }
 
 /** Horas apos o apito do ultimo jogo da competicao (max kickoff no cache) para fechar o bolao geral. Default 36h. */
@@ -558,12 +553,14 @@ async function creditAward(
      WHERE id = $1`,
     [awardId, tx.rows[0]!.id]
   );
-  await client.query(
-    `UPDATE users
-     SET balance_cents = COALESCE(balance_cents, 0) + $2
-     WHERE id = $1::uuid`,
-    [input.ranking.userId, input.amountCents]
-  );
+  await applyWalletMovementTx(client, {
+    userId: input.ranking.userId,
+    amountCents: input.amountCents,
+    type: "prize",
+    idempotencyKey: externalRef,
+    transactionId: tx.rows[0]!.id,
+    metadata: { source: "prize_processor", closureId: input.closureId, rank: input.rank },
+  });
 }
 
 async function processClosure(

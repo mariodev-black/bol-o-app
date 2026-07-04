@@ -11,6 +11,7 @@ import type {
   BolaoDefinitionInput,
   BolaoLifecycleStatus,
 } from "@/lib/boloes/definitions/types";
+import { isUnresolvedPlaceholderTeam } from "@/lib/partida-team-display";
 
 function definitionInsertParams(data: ReturnType<typeof normalizeBolaoDefinitionInput>) {
   return [
@@ -332,14 +333,18 @@ export async function listMatchesForAdminPicker(opts: {
     away_sigla: string;
     home_logo: string | null;
     away_logo: string | null;
+    home_team_id: number | null;
+    away_team_id: number | null;
     rodada: number | null;
+    phase_key: string | null;
+    fase_nome: string | null;
     status: string;
     nome_popular: string | null;
   }>(
     `SELECT m.match_id, m.competition_id, m.date_br, m.hour_br,
             m.home_name, m.home_sigla, m.away_name, m.away_sigla,
-            m.home_logo, m.away_logo,
-            m.rodada, m.status, c.nome_popular
+            m.home_logo, m.away_logo, m.home_team_id, m.away_team_id,
+            m.rodada, m.phase_key, m.fase_nome, m.status, c.nome_popular
        FROM matches_cache m
        LEFT JOIN championships_cache c ON c.competition_id = m.competition_id
       WHERE ${where}
@@ -347,21 +352,102 @@ export async function listMatchesForAdminPicker(opts: {
       LIMIT $${params.length}`,
     params,
   );
-  return rows.map((r) => ({
-    matchId: Number(r.match_id),
-    competitionId: Number(r.competition_id),
-    competitionName: r.nome_popular?.trim() || `Campeonato ${r.competition_id}`,
-    dateBR: r.date_br,
-    hour: r.hour_br?.slice(0, 5) ?? "--:--",
-    homeName: r.home_name,
-    homeSigla: r.home_sigla,
-    homeLogo: r.home_logo?.trim() ? r.home_logo.trim() : null,
-    awayName: r.away_name,
-    awaySigla: r.away_sigla,
-    awayLogo: r.away_logo?.trim() ? r.away_logo.trim() : null,
-    rodada: r.rodada != null ? Number(r.rodada) : null,
-    status: r.status,
-  }));
+  return rows.map((r) => {
+    const home = resolveAdminPickerSide(
+      r.home_team_id,
+      r.home_name,
+      r.home_sigla,
+      r.home_logo,
+    );
+    const away = resolveAdminPickerSide(
+      r.away_team_id,
+      r.away_name,
+      r.away_sigla,
+      r.away_logo,
+    );
+    return {
+      matchId: Number(r.match_id),
+      competitionId: Number(r.competition_id),
+      competitionName: r.nome_popular?.trim() || `Campeonato ${r.competition_id}`,
+      dateBR: r.date_br,
+      hour: r.hour_br?.slice(0, 5) ?? "--:--",
+      homeName: home.name,
+      homeSigla: home.sigla,
+      homeLogo: home.logo,
+      awayName: away.name,
+      awaySigla: away.sigla,
+      awayLogo: away.logo,
+      rodada: r.rodada != null ? Number(r.rodada) : null,
+      phaseKey: r.phase_key?.trim() || null,
+      phaseLabel: resolvePhaseLabel(r.phase_key, r.fase_nome),
+      status: r.status,
+    };
+  });
+}
+
+/**
+ * Normaliza um lado do confronto para o seletor do admin:
+ *   - Time real: mantém sigla/escudo da API.
+ *   - Vaga não resolvida ("Venc. Segunda fase 4", "A ou B", "1º A"): mostra o
+ *     texto descritivo como nome (útil pro admin) e sigla curta "A DEF" sem
+ *     escudo, em vez de estourar o layout com o texto longo como sigla.
+ */
+function resolveAdminPickerSide(
+  teamId: number | null,
+  name: string | null,
+  sigla: string | null,
+  logo: string | null,
+): { name: string; sigla: string; logo: string | null } {
+  const cleanLogo = logo?.trim() ? logo.trim() : null;
+  const unresolved = isUnresolvedPlaceholderTeam({
+    time_id: teamId,
+    nome_popular: name,
+    sigla,
+    escudo: cleanLogo,
+  });
+  if (unresolved) {
+    return {
+      name: (name?.trim() || sigla?.trim() || "A definir"),
+      sigla: "A DEF",
+      logo: null,
+    };
+  }
+  return {
+    name: name?.trim() || sigla?.trim() || "A definir",
+    sigla: sigla?.trim() || name?.trim() || "?",
+    logo: cleanLogo,
+  };
+}
+
+const PHASE_LABELS: Record<string, string> = {
+  "fase-de-grupos": "Fase de grupos",
+  "primeira-fase": "Primeira fase",
+  "segunda-fase": "Segunda fase",
+  "trigesima-segunda-de-final": "32 avos de final",
+  "dezesseis-avos-de-final": "16 avos de final",
+  "oitavas-de-final": "Oitavas de final",
+  "quartas-de-final": "Quartas de final",
+  "semi-final": "Semifinal",
+  "semifinal": "Semifinal",
+  "disputa-3o-lugar": "Disputa do 3º lugar",
+  "terceiro-lugar": "Disputa do 3º lugar",
+  final: "Final",
+};
+
+function resolvePhaseLabel(
+  phaseKey: string | null,
+  faseNome: string | null,
+): string | null {
+  const key = phaseKey?.trim().toLowerCase();
+  if (key && PHASE_LABELS[key]) return PHASE_LABELS[key];
+  const nome = faseNome?.trim();
+  if (nome) return nome;
+  if (!key) return null;
+  // fallback: "oitavas-de-final" → "Oitavas De Final"
+  return key
+    .split("-")
+    .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w))
+    .join(" ");
 }
 
 export async function countPaidTicketsForDefinition(definitionId: string): Promise<number> {

@@ -1123,6 +1123,18 @@ async function buildLeaderboardSkaleDailyUncached(
   return finalizeLeaderboardDisplay(rows, meta);
 }
 
+function buildLeaderboardSkale(): Promise<{
+  rows: LeaderboardRow[];
+  meta: LeaderboardBoardMeta;
+}> {
+  const getCached = unstable_cache(
+    async () => buildLeaderboardSkaleUncached(),
+    ["leaderboard", "skale"],
+    { revalidate: RANKING_REVALIDATE_SEC, tags: ["leaderboard"] },
+  );
+  return getCached();
+}
+
 async function buildLeaderboardSkaleUncached(): Promise<{
   rows: LeaderboardRow[];
   meta: LeaderboardBoardMeta;
@@ -1238,7 +1250,7 @@ export async function buildLeaderboardExtraForTicket(
   }
 
   if (isSkaleBolaoCompetition(extraComp)) {
-    return buildLeaderboardSkaleUncached();
+    return buildLeaderboardSkale();
   }
 
   const [matches, paidExtra, allExtra] = await Promise.all([
@@ -1443,37 +1455,55 @@ export async function resolvePaidTicketRankingPositions(
   userId: string,
 ): Promise<Map<string, TicketRankingSnapshot>> {
   const out = new Map<string, TicketRankingSnapshot>();
-  const boardCache = new Map<string, LeaderboardRow[]>();
 
-  const loadBoard = async (
-    cacheKey: string,
-    loader: () => Promise<{ rows: LeaderboardRow[] }>,
-  ): Promise<LeaderboardRow[]> => {
-    const cached = boardCache.get(cacheKey);
-    if (cached) return cached;
-    const { rows } = await loader();
-    boardCache.set(cacheKey, rows);
-    return rows;
+  const keyAndLoader = (
+    ticket: (typeof tickets)[number],
+  ): { key: string; loader: () => Promise<{ rows: LeaderboardRow[] }> } => {
+    if (ticket.bolaoDefinitionId) {
+      return {
+        key: `def:${ticket.bolaoDefinitionId}`,
+        loader: () => buildLeaderboardForDefinition(ticket.bolaoDefinitionId!),
+      };
+    }
+    if (ticket.ticketType === "general") {
+      return { key: "principal", loader: buildLeaderboardPrincipal };
+    }
+    if (ticket.ticketType === "daily") {
+      return {
+        key: `diario:${ticket.id}`,
+        loader: () => buildLeaderboardDiarioForTicket(ticket.id),
+      };
+    }
+    return { key: `extra:${ticket.id}`, loader: () => buildLeaderboardExtraForTicket(ticket.id) };
   };
 
+  // Cada board (por definição/bolão) é único, mas vários tickets do mesmo
+  // usuário podem apontar para o mesmo board — resolve as boards distintas
+  // EM PARALELO em vez de um ticket de cada vez (essa era a causa de
+  // `/boloes` demorar dezenas de segundos com muitos tickets/definições).
+  const keyByTicketId = new Map<string, string>();
+  const uniqueLoaders = new Map<string, () => Promise<{ rows: LeaderboardRow[] }>>();
   for (const ticket of tickets) {
-    let rows: LeaderboardRow[];
-    if (ticket.bolaoDefinitionId) {
-      rows = await loadBoard(`def:${ticket.bolaoDefinitionId}`, () =>
-        buildLeaderboardForDefinition(ticket.bolaoDefinitionId!),
-      );
-    } else if (ticket.ticketType === "general") {
-      rows = await loadBoard("principal", buildLeaderboardPrincipal);
-    } else if (ticket.ticketType === "daily") {
-      rows = await loadBoard(`diario:${ticket.id}`, () =>
-        buildLeaderboardDiarioForTicket(ticket.id),
-      );
-    } else {
-      rows = await loadBoard(`extra:${ticket.id}`, () =>
-        buildLeaderboardExtraForTicket(ticket.id),
-      );
-    }
+    const { key, loader } = keyAndLoader(ticket);
+    keyByTicketId.set(ticket.id, key);
+    if (!uniqueLoaders.has(key)) uniqueLoaders.set(key, loader);
+  }
 
+  const boardCache = new Map<string, LeaderboardRow[]>();
+  await Promise.all(
+    [...uniqueLoaders.entries()].map(async ([key, loader]) => {
+      try {
+        const { rows } = await loader();
+        boardCache.set(key, rows);
+      } catch (error) {
+        console.error(`[ranking] failed to build board "${key}"`, error);
+        boardCache.set(key, []);
+      }
+    }),
+  );
+
+  for (const ticket of tickets) {
+    const rows = boardCache.get(keyByTicketId.get(ticket.id)!) ?? [];
     const row =
       rows.find((r) => r.ticketId === ticket.id) ??
       rows.find((r) => r.userId === userId && !r.isFiller);
@@ -1574,6 +1604,17 @@ async function loadUsersMap(userIds: string[]): Promise<Map<string, UserLite>> {
 
 /** Ranking de bolão dinâmico (`bolao_definitions`). */
 export async function buildLeaderboardForDefinition(
+  definitionId: string,
+): Promise<{ rows: LeaderboardRow[]; meta: LeaderboardBoardMeta }> {
+  const getCached = unstable_cache(
+    async () => buildLeaderboardForDefinitionUncached(definitionId),
+    ["leaderboard", "definition", definitionId],
+    { revalidate: RANKING_REVALIDATE_SEC, tags: ["leaderboard"] },
+  );
+  return getCached();
+}
+
+async function buildLeaderboardForDefinitionUncached(
   definitionId: string,
 ): Promise<{ rows: LeaderboardRow[]; meta: LeaderboardBoardMeta }> {
   const { getBolaoDefinitionById } = await import("@/lib/boloes/definitions/repository");

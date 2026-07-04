@@ -14,7 +14,6 @@ const bodySchema = z.object({
     .max(maxWithdrawalCentsPerRequest(), "Valor acima do limite permitido"),
   pixKeyType: z.enum(["cpf", "email", "phone", "random"]),
   pixKey: z.string().trim().min(3).max(200),
-  balanceSource: z.enum(["affiliate", "wallet"]).optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -45,7 +44,6 @@ export async function POST(request: NextRequest) {
       amountCents: parsed.data.amountCents,
       pixKeyType: parsed.data.pixKeyType,
       pixKey: parsed.data.pixKey,
-      balanceSource: parsed.data.balanceSource,
     });
     return NextResponse.json({
       ok: true,

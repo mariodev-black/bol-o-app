@@ -27,7 +27,6 @@ import {
   formatExtraRoundLabel,
 } from "@/lib/ticket-shop-extra-display";
 import { readCompetitionDisplayNamesFromDb } from "@/lib/competition-metadata-cache";
-import { resolvePaidTicketRankingPositions } from "@/lib/ranking/leaderboard";
 import {
   dailyEditionCardTitle,
   formatDailyEditionCardSubtitle,
@@ -52,7 +51,7 @@ import {
   ARTILHEIROS_BOLAO_TITLE,
 } from "@/lib/artilheiros/config";
 import { isArtilheiroResultApplied, listArtilheiroOfficialResults } from "@/lib/artilheiros/results";
-import { buildArtilheiroRanking, countArtilheirosParticipants } from "@/lib/artilheiros/ranking";
+import { countArtilheirosParticipants } from "@/lib/artilheiros/ranking";
 import {
   getArtilheirosTicketPriceCents,
   isArtilheirosBolaoEnabled,
@@ -319,22 +318,49 @@ function bolaoStatusFromMetrics(
   };
 }
 
+function perfLog(label: string, t0: number) {
+  if (parseEnvBool(process.env.DEBUG_BOLAOES_PERF)) {
+    console.log(`[boloes/perf] ${label}: ${Date.now() - t0}ms`);
+  }
+}
+
 async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
+  const tAll = Date.now();
   const configuredExtraIds = parseExtraBolaoChampionshipIds();
   const mainComp = getFootballMainCompetitionId();
   // Os dois espelhamentos (Skale/Weekend a partir da Copa) são independentes —
   // rodam em paralelo. Mantemos o await aqui porque o fetchMatchesMap abaixo
   // lê o que eles escrevem (read-after-write).
+  const tMirror = Date.now();
   await Promise.all([
     ensureSkaleBolaoMatchesMirrored().catch(() => {}),
     ensureWeekendBolaoMatchesMirrored().catch(() => {}),
   ]);
+  perfLog("mirror sync", tMirror);
   const preloadCompIds = [
     ...new Set([mainComp, ...configuredExtraIds, ...skaleCompetitionIdsForMatchMap()]),
   ];
-  const matchesPromise = fetchMatchesMap({ ensureCompetitionIds: preloadCompIds }).catch(
-    () => new Map(),
-  );
+  const tMatches0 = Date.now();
+  const matchesPromise = fetchMatchesMap({ ensureCompetitionIds: preloadCompIds })
+    .then((m) => {
+      perfLog("fetchMatchesMap", tMatches0);
+      return m;
+    })
+    .catch(() => new Map());
+  // Não depende de tickets/predictions do usuário — dispara já, em paralelo
+  // com o Promise.all abaixo, em vez de esperar tudo terminar (só é lido lá
+  // embaixo, ao montar `data`).
+  const tCatalog0 = Date.now();
+  const dynamicCatalogPromise = buildBolaoCatalogSections()
+    .then((r) => {
+      perfLog("buildBolaoCatalogSections", tCatalog0);
+      return r;
+    })
+    .catch((): BolaoCatalogSections => {
+      perfLog("buildBolaoCatalogSections FAILED", tCatalog0);
+      return { upcoming: [], available: [], closed: [] };
+    });
+  const tBatch0 = Date.now();
   const [
     matches,
     tickets,
@@ -345,23 +371,64 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
     extraRounds,
   ] = await Promise.all([
     matchesPromise,
-    matchesPromise.then((m) => listPaidTicketsForUser(userId, { matchMap: m })),
-    listPredictions({ userId }).catch(() => []),
-    readCompetitionDisplayNamesFromDb(configuredExtraIds)
-      .then((fromDb) => {
-        const out: Record<number, string> = {};
-        for (const id of configuredExtraIds) {
-          out[id] = fromDb[id] ?? resolveExtraBolaoDisplayName(id, null);
-        }
-        return out;
-      })
-      .catch(() => ({}) as Record<number, string>),
-    countParticipantsByBolaoType().catch(() => ({ principal: 0, diario: 0, extra: 0 })),
-    countArtilheirosParticipants().catch(() => 0),
-    extraBolaoCurrentRoundsByChampionship(configuredExtraIds).catch(
-      () => ({}) as Record<number, ExtraBolaoRoundInfo>,
-    ),
+    matchesPromise.then((m) => {
+      const t = Date.now();
+      return listPaidTicketsForUser(userId, { matchMap: m }).then((r) => {
+        perfLog("listPaidTicketsForUser", t);
+        return r;
+      });
+    }),
+    (() => {
+      const t = Date.now();
+      return listPredictions({ userId })
+        .then((r) => {
+          perfLog("listPredictions", t);
+          return r;
+        })
+        .catch(() => []);
+    })(),
+    (() => {
+      const t = Date.now();
+      return readCompetitionDisplayNamesFromDb(configuredExtraIds)
+        .then((fromDb) => {
+          perfLog("readCompetitionDisplayNamesFromDb", t);
+          const out: Record<number, string> = {};
+          for (const id of configuredExtraIds) {
+            out[id] = fromDb[id] ?? resolveExtraBolaoDisplayName(id, null);
+          }
+          return out;
+        })
+        .catch(() => ({}) as Record<number, string>);
+    })(),
+    (() => {
+      const t = Date.now();
+      return countParticipantsByBolaoType()
+        .then((r) => {
+          perfLog("countParticipantsByBolaoType", t);
+          return r;
+        })
+        .catch(() => ({ principal: 0, diario: 0, extra: 0 }));
+    })(),
+    (() => {
+      const t = Date.now();
+      return countArtilheirosParticipants()
+        .then((r) => {
+          perfLog("countArtilheirosParticipants", t);
+          return r;
+        })
+        .catch(() => 0);
+    })(),
+    (() => {
+      const t = Date.now();
+      return extraBolaoCurrentRoundsByChampionship(configuredExtraIds)
+        .then((r) => {
+          perfLog("extraBolaoCurrentRoundsByChampionship", t);
+          return r;
+        })
+        .catch(() => ({}) as Record<number, ExtraBolaoRoundInfo>);
+    })(),
   ]);
+  perfLog("main Promise.all (batch)", tBatch0);
 
   /** Cada cota mantém `tickets.round_number` — não avança rodada na vitrine. */
   const effectiveExtraRoundByTicketId = new Map<string, number>();
@@ -400,28 +467,12 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
     }))
   );
 
+  // As posições de ranking por cota exigem materializar o board inteiro de cada
+  // bolão (todos os usuários/palpites) — caro e não crítico para o first paint.
+  // Renderizamos a página instantaneamente com posição vazia e hidratamos via
+  // GET /api/boloes/ticket-positions no client (BoloesClient), fora do caminho
+  // crítico do SSR. Isso tira dezenas de segundos do carregamento de /boloes.
   const ranking = new Map<string, { pos: number | null; points: number }>();
-  const nonArtilheiroTickets = tickets
-    .filter((t) => t.ticketType !== "artilheiros")
-    .map((ticket) => ({
-      id: ticket.id,
-      ticketType: ticket.ticketType as "general" | "daily" | "extra",
-      bolaoDefinitionId: ticket.bolaoDefinitionId,
-    }));
-  if (nonArtilheiroTickets.length > 0) {
-    try {
-      const scoped = await resolvePaidTicketRankingPositions(nonArtilheiroTickets, userId);
-      for (const ticket of nonArtilheiroTickets) {
-        const scopedRow = scoped.get(ticket.id);
-        ranking.set(ticket.id, {
-          pos: scopedRow?.position ?? null,
-          points: scopedRow?.points ?? 0,
-        });
-      }
-    } catch (error) {
-      console.error("[boloes] failed to resolve scoped ranking positions", error);
-    }
-  }
   const predictionsByTicket = new Map<string, PredictionRow[]>();
   for (const prediction of userPredictions) {
     const arr = predictionsByTicket.get(prediction.ticket_id) ?? [];
@@ -488,22 +539,22 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
         .map((t) => [t.bolaoDefinition!.id, t.bolaoDefinition!] as const),
     ).values(),
   ];
+  const tEnrich = Date.now();
   const enrichedDynamic = dynamicDefinitions.length
     ? await enrichBolaoDefinitionCatalog(dynamicDefinitions)
     : [];
+  perfLog("enrichBolaoDefinitionCatalog (tickets)", tEnrich);
   const brandingByDefId = new Map(enrichedDynamic.map((item) => [item.id, item]));
   const hasArtilheirosTickets = tickets.some((ticket) => ticket.ticketType === "artilheiros");
+  const tArtResults = Date.now();
   const artilheiroResults = hasArtilheirosTickets
     ? await listArtilheiroOfficialResults().catch(() => [])
     : [];
+  perfLog("listArtilheiroOfficialResults", tArtResults);
   const artilheiroResultsApplied = isArtilheiroResultApplied(artilheiroResults);
-  const artilheiroRanking =
-    hasArtilheirosTickets && artilheiroResultsApplied
-      ? await buildArtilheiroRanking(5000).catch(() => [])
-      : [];
-  const artilheiroRankByTicket = new Map(
-    artilheiroRanking.map((r) => [r.ticketId, { position: r.position, points: r.totalPoints }]),
-  );
+  // Ranking de artilheiros é pesado (todos os tickets) — posições vêm do client
+  // via GET /api/boloes/ticket-positions. Aqui mantemos só o estado finalizado.
+  const artilheiroRankByTicket = new Map<string, { position: number | null; points: number }>();
   const allActive = tickets.map((ticket): BoloesScreenData["active"]["all"][number] => {
     const scopeOpts = scopeOptsForTicket(ticket, effectiveExtraRoundByTicketId);
     const metrics = metricsByTicket.get(ticket.id) ?? {
@@ -559,7 +610,7 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
         countdownTargetMs: null,
         position: artRank?.position ?? null,
         points: artRank?.points ?? 0,
-        participantCount: artilheiroRanking.length,
+        participantCount: artilheirosParticipants,
       };
     }
 
@@ -997,9 +1048,7 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
       bestPosition: positions.length ? Math.min(...positions) : null,
     },
     active,
-    dynamicCatalog: await buildBolaoCatalogSections().catch(
-      (): BolaoCatalogSections => ({ upcoming: [], available: [], closed: [] }),
-    ),
+    dynamicCatalog: await dynamicCatalogPromise,
     upcoming: {
       daily: {
         href: "/tickets?bolao=diario",
@@ -1089,6 +1138,7 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
     upcoming: data.upcoming,
   });
 
+  perfLog("TOTAL loadBoloesData", tAll);
   return data;
 }
 

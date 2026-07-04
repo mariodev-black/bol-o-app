@@ -1,10 +1,11 @@
+import { unstable_cache } from "next/cache";
 import { enrichBolaoDefinitionCatalog } from "@/lib/boloes/definitions/branding";
 import {
   buildLifecycleContext,
   computeBolaoLifecycleStatus,
   isBolaoPurchaseOpen,
 } from "@/lib/boloes/definitions/lifecycle";
-import { getBolaoDefinitionStats } from "@/lib/boloes/definitions/stats";
+import { loadStatsMap } from "@/lib/boloes/definitions/stats";
 import { listBolaoDefinitionsForShop } from "@/lib/boloes/definitions/repository";
 import { scopeMatchesForBolaoDefinition } from "@/lib/boloes/definitions/scope";
 import type {
@@ -18,7 +19,19 @@ import { loadPrizeReleasedDefinitionIds } from "@/lib/boloes/definitions/prize-r
 import { CLOSED_BOLAO_STATUSES } from "@/lib/boloes/definitions/lifecycle-labels";
 import { estimatePrizePoolLabel } from "@/lib/boloes/definitions/prizes";
 
+/** Vitrine de bolões — igual pra todo mundo, não depende de usuário. */
+const CATALOG_REVALIDATE_SEC = 15;
+
 export async function buildBolaoCatalogSections(): Promise<BolaoCatalogSections> {
+  const getCached = unstable_cache(
+    buildBolaoCatalogSectionsUncached,
+    ["boloes", "catalog-sections"],
+    { revalidate: CATALOG_REVALIDATE_SEC, tags: ["catalog"] },
+  );
+  return getCached();
+}
+
+async function buildBolaoCatalogSectionsUncached(): Promise<BolaoCatalogSections> {
   const definitions = await listBolaoDefinitionsForShop();
   if (definitions.length === 0) {
     return { upcoming: [], available: [], closed: [] };
@@ -28,7 +41,7 @@ export async function buildBolaoCatalogSections(): Promise<BolaoCatalogSections>
   const enriched = await enrichBolaoDefinitionCatalog(definitions);
   const prizeReleased = await loadPrizeReleasedDefinitionIds(definitions.map((d) => d.id));
   const pool = getPool();
-  const [participantRows, statsRows] = await Promise.all([
+  const [participantRows, statsByDef] = await Promise.all([
     pool.query<{ bolao_definition_id: string; count: string }>(
       `SELECT bolao_definition_id, COUNT(DISTINCT user_id)::int AS count
          FROM tickets
@@ -37,12 +50,11 @@ export async function buildBolaoCatalogSections(): Promise<BolaoCatalogSections>
         GROUP BY bolao_definition_id`,
       [definitions.map((d) => d.id)],
     ),
-    Promise.all(definitions.map((d) => getBolaoDefinitionStats(d.id))),
+    loadStatsMap(),
   ]);
   const participantsByDef = new Map(
     participantRows.rows.map((r) => [r.bolao_definition_id, Number(r.count) || 0]),
   );
-  const statsByDef = new Map(definitions.map((d, i) => [d.id, statsRows[i]!]));
 
   const nowMs = Date.now();
   const items: BolaoDefinitionCatalogItem[] = [];

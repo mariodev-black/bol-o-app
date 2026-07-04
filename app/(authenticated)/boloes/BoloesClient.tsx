@@ -16,7 +16,6 @@ import {
   Target,
   Ticket,
   Trophy,
-  Zap,
 } from "lucide-react";
 import iconBrasileirao from "@/app/assets/icon-brasileirao.png";
 import iconPremierLeague from "@/app/assets/icon-premier-league.png";
@@ -52,15 +51,14 @@ import {
   ActiveBolaoCarouselCard,
   BoloesCarouselShell,
   BoloesPageEyebrow,
-  BoloesSectionHeader,
   FinishedBolaoChip,
   MilhaoUpsellBanner,
   PrincipalHeroCard,
   PrincipalHeroPurchaseCard,
 } from "@/app/(authenticated)/boloes/_components/BoloesVitrineCards";
 import { BoloesBottomSheet } from "@/app/(authenticated)/boloes/_components/BoloesBottomSheet";
-import { DynamicBolaoCatalogSections } from "@/app/(authenticated)/boloes/_components/DynamicBolaoCatalog";
 import { buildBoloesSheetCatalog } from "@/app/(authenticated)/boloes/_components/boloes-sheet-items";
+import { UpcomingBolaoCard } from "@/app/components/UpcomingBolaoCard";
 export type ActivePrincipalBolao = {
   id: string;
   title: string;
@@ -1741,6 +1739,59 @@ function NoTicketsState({
   );
 }
 
+type BoloesFilterTab = "disponiveis" | "meus" | "andamento" | "finalizadas";
+
+const BOLOES_FILTER_TABS: { key: BoloesFilterTab; label: string }[] = [
+  { key: "disponiveis", label: "Disponíveis" },
+  { key: "meus", label: "Meus Bolões" },
+  { key: "andamento", label: "Em andamento" },
+  { key: "finalizadas", label: "Finalizadas" },
+];
+
+function BoloesFilterTabs({
+  active,
+  onChange,
+}: {
+  active: BoloesFilterTab;
+  onChange: (tab: BoloesFilterTab) => void;
+}) {
+  return (
+    <div
+      className="mt-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      role="tablist"
+      aria-label="Filtrar bolões"
+    >
+      {BOLOES_FILTER_TABS.map((tab) => {
+        const isActive = tab.key === active;
+        return (
+          <button
+            key={tab.key}
+            type="button"
+            role="tab"
+            aria-selected={isActive}
+            onClick={() => onChange(tab.key)}
+            className={`shrink-0 rounded-full px-3.5 py-2 text-[12px] font-black uppercase tracking-wide transition-colors ${
+              isActive
+                ? "bg-primary text-[#0E141B]"
+                : "border border-white/12 bg-white/[0.04] text-white/60"
+            }`}
+          >
+            {tab.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function BoloesFilterEmptyState({ text }: { text: string }) {
+  return (
+    <div className="mt-5 rounded-[14px] border border-white/8 bg-[#0d0d0d] px-4 py-8 text-center text-[13px] font-medium text-white/50">
+      {text}
+    </div>
+  );
+}
+
 /* ─────────────────────────────────────────────────────
    Componente principal
    ───────────────────────────────────────────────────── */
@@ -1757,20 +1808,62 @@ export function BoloesClient({
 }) {
   const now = useNow();
   const dynamicCatalog = data?.dynamicCatalog ?? EMPTY_CATALOG;
-  const hasDynamicShop =
-    dynamicCatalog.upcoming.length +
-      dynamicCatalog.available.length +
-      dynamicCatalog.closed.length >
-    0;
 
   const summary = data?.summary ?? {
     activeCount: 0,
     pendingPredictions: 0,
     bestPosition: null,
   };
+
+  // Posições de ranking são carregadas sob demanda (fora do SSR) para que a
+  // página apareça instantaneamente. Enquanto não chegam, os cards mostram "--".
+  const [positions, setPositions] = useState<
+    Record<string, { position: number | null; points: number }>
+  >({});
+  const [hydratedBestPosition, setHydratedBestPosition] = useState<number | null>(
+    null,
+  );
+  const hasTickets = (data?.active?.all?.length ?? 0) > 0;
+
+  useEffect(() => {
+    if (!hasTickets) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const resp = await fetch("/api/boloes/ticket-positions", {
+          credentials: "include",
+          cache: "no-store",
+        });
+        if (!resp.ok) return;
+        const json = (await resp.json()) as {
+          positions?: Record<string, { position: number | null; points: number }>;
+          bestPosition?: number | null;
+        };
+        if (cancelled) return;
+        setPositions(json.positions ?? {});
+        setHydratedBestPosition(json.bestPosition ?? null);
+      } catch {
+        /* mantém "--" — não bloqueia a página */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [hasTickets]);
+
+  const resolvedBestPosition = hydratedBestPosition ?? summary.bestPosition;
   const bestPosition =
-    summary.bestPosition == null ? "--" : `#${summary.bestPosition}`;
-  const allItems = data?.active?.all ?? [];
+    resolvedBestPosition == null ? "--" : `#${resolvedBestPosition}`;
+  const rawItems = data?.active?.all ?? [];
+  const allItems = useMemo(
+    () =>
+      rawItems.map((item) => {
+        const p = positions[item.id];
+        if (!p) return item;
+        return { ...item, position: p.position, points: p.points };
+      }),
+    [rawItems, positions],
+  );
   const finishedItems = useMemo(
     () => allItems.filter((item) => item.displayPhase === "finalizado"),
     [allItems],
@@ -1797,69 +1890,117 @@ export function BoloesClient({
   const openBoloesSheet = useCallback(() => setBoloesSheetOpen(true), []);
   const closeBoloesSheet = useCallback(() => setBoloesSheetOpen(false), []);
 
+  const catalogOpenForSale = useMemo(
+    () => [...dynamicCatalog.upcoming, ...dynamicCatalog.available],
+    [dynamicCatalog],
+  );
+  const catalogLive = useMemo(
+    () => dynamicCatalog.available.filter((item) => item.lifecycleStatus === "ao_vivo"),
+    [dynamicCatalog],
+  );
+  const ticketsLive = useMemo(
+    () => activeForShowcase.filter((item) => item.displayPhase === "disputa"),
+    [activeForShowcase],
+  );
+
+  const [activeTab, setActiveTab] = useState<BoloesFilterTab>("disponiveis");
+
   return (
     <div className="min-h-screen overflow-x-hidden bg-black pb-10 text-white">
       <div className="mx-auto w-full max-w-[430px] px-4 lg:max-w-5xl lg:px-6">
         <BoloesPageEyebrow />
 
-        {hasDynamicShop ? (
-          <section className="mt-5" aria-label="Bolões disponíveis">
-            <DynamicBolaoCatalogSections
-              upcoming={dynamicCatalog.upcoming}
-              available={dynamicCatalog.available}
-              closed={dynamicCatalog.closed}
-            />
-          </section>
-        ) : null}
+        <BoloesFilterTabs active={activeTab} onChange={setActiveTab} />
 
-        {activeForShowcase.length > 0 ? (
-          <section className="mt-8" aria-labelledby="boloes-ativos-heading">
-            <BoloesSectionHeader
-              title="Bolões ativos"
-              onVerTodos={openBoloesSheet}
-              icon={
-                <Zap
-                  className="size-4 shrink-0 text-white"
-                  strokeWidth={2.35}
-                  aria-hidden
-                />
-              }
-            />
-            {activeForShowcase.length === 1 ? (
-              <ActiveBolaoCarouselCard
-                item={activeForShowcase[0]!}
-                now={now}
-                fullWidth
-              />
-            ) : (
-              <BoloesCarouselShell itemCount={activeForShowcase.length}>
-                {activeForShowcase.map((item) => (
-                  <ActiveBolaoCarouselCard key={item.id} item={item} now={now} />
+        {activeTab === "disponiveis" ? (
+          catalogOpenForSale.length > 0 ? (
+            <section className="mt-5" aria-label="Bolões disponíveis">
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                {catalogOpenForSale.map((item) => (
+                  <UpcomingBolaoCard key={item.id} item={item} />
                 ))}
-              </BoloesCarouselShell>
-            )}
-          </section>
+              </div>
+            </section>
+          ) : (
+            <BoloesFilterEmptyState text="Nenhum bolão disponível no momento." />
+          )
         ) : null}
 
-
-        {finishedItems.length > 0 ? (
-          <section className="mt-8" aria-labelledby="boloes-finalizados-heading">
-            <BoloesSectionHeader
-              title="Bolões finalizados"
-              icon={
-                <Trophy
-                  className="size-4 shrink-0 text-[#fff]"
-                  strokeWidth={2.35}
-                  aria-hidden
+        {activeTab === "meus" ? (
+          activeForShowcase.length > 0 ? (
+            <section className="mt-5" aria-labelledby="boloes-ativos-heading">
+              <div className="mb-3 flex items-center justify-end">
+                <button
+                  type="button"
+                  onClick={openBoloesSheet}
+                  className="text-[12px] font-black uppercase tracking-wide text-primary"
+                >
+                  Ver todos
+                </button>
+              </div>
+              {activeForShowcase.length === 1 ? (
+                <ActiveBolaoCarouselCard
+                  item={activeForShowcase[0]!}
+                  now={now}
+                  fullWidth
                 />
-              }
-            />
-            <div className="flex snap-x snap-mandatory gap-2.5 overflow-x-auto overscroll-x-contain px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {finishedItems.map((item) => (
-                <FinishedBolaoChip key={item.id} item={item} />
-              ))}
-            </div>
-          </section>
+              ) : (
+                <BoloesCarouselShell itemCount={activeForShowcase.length}>
+                  {activeForShowcase.map((item) => (
+                    <ActiveBolaoCarouselCard key={item.id} item={item} now={now} />
+                  ))}
+                </BoloesCarouselShell>
+              )}
+            </section>
+          ) : (
+            <BoloesFilterEmptyState text="Você ainda não tem cota em nenhum bolão." />
+          )
+        ) : null}
+
+        {activeTab === "andamento" ? (
+          catalogLive.length > 0 || ticketsLive.length > 0 ? (
+            <section className="mt-5 space-y-6" aria-label="Bolões em andamento">
+              {catalogLive.length > 0 ? (
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                  {catalogLive.map((item) => (
+                    <UpcomingBolaoCard key={item.id} item={item} />
+                  ))}
+                </div>
+              ) : null}
+              {ticketsLive.length > 0 ? (
+                <BoloesCarouselShell itemCount={ticketsLive.length}>
+                  {ticketsLive.map((item) => (
+                    <ActiveBolaoCarouselCard key={item.id} item={item} now={now} />
+                  ))}
+                </BoloesCarouselShell>
+              ) : null}
+            </section>
+          ) : (
+            <BoloesFilterEmptyState text="Nenhum bolão em andamento agora." />
+          )
+        ) : null}
+
+        {activeTab === "finalizadas" ? (
+          dynamicCatalog.closed.length > 0 || finishedItems.length > 0 ? (
+            <section className="mt-5 space-y-6" aria-labelledby="boloes-finalizados-heading">
+              {dynamicCatalog.closed.length > 0 ? (
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                  {dynamicCatalog.closed.map((item) => (
+                    <UpcomingBolaoCard key={item.id} item={item} />
+                  ))}
+                </div>
+              ) : null}
+              {finishedItems.length > 0 ? (
+                <div className="flex snap-x snap-mandatory gap-2.5 overflow-x-auto overscroll-x-contain px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  {finishedItems.map((item) => (
+                    <FinishedBolaoChip key={item.id} item={item} />
+                  ))}
+                </div>
+              ) : null}
+            </section>
+          ) : (
+            <BoloesFilterEmptyState text="Nenhum bolão finalizado ainda." />
+          )
         ) : null}
 
         <BoloesAjudaSection />

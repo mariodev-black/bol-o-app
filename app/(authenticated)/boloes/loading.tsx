@@ -1,8 +1,53 @@
-const CARD = "#111111";
-const BORDER = "rgba(255,255,255,0.06)";
+const CARD = "#0d0d0d";
+const BORDER = "rgba(255,255,255,0.08)";
 
 function SkeletonBlock({ className }: { className: string }) {
   return <div className={`rounded bg-white/10 ${className}`} />;
+}
+
+/** Espelha a forma real de `UpcomingBolaoCard` (badge + logo + título + stats + box de premiação + CTA). */
+function BolaoCardSkeleton() {
+  return (
+    <div className="flex flex-col overflow-hidden rounded-[16px] border" style={{ borderColor: BORDER, background: CARD }}>
+      <div className="flex justify-center pt-4">
+        <SkeletonBlock className="h-[22px] w-20 rounded-full" />
+      </div>
+
+      <div className="flex flex-col items-center px-4 pt-3">
+        <SkeletonBlock className="h-14 w-14 rounded-full" />
+        <SkeletonBlock className="mt-2.5 h-4 w-32" />
+        <SkeletonBlock className="mt-1.5 h-3 w-20" />
+      </div>
+
+      <div className="mt-3.5 flex items-start gap-2 border-t px-3 py-3" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="min-w-0 flex-1 text-center">
+            <SkeletonBlock className="mx-auto size-4 rounded-full" />
+            <SkeletonBlock className="mx-auto mt-2 h-2.5 w-12" />
+            <SkeletonBlock className="mx-auto mt-1.5 h-3.5 w-10" />
+          </div>
+        ))}
+      </div>
+
+      <div className="mx-3 mb-3 rounded-[12px] border p-3 text-center" style={{ borderColor: "rgba(255,255,255,0.06)", background: "rgba(0,0,0,0.3)" }}>
+        <SkeletonBlock className="mx-auto h-2.5 w-24" />
+        <SkeletonBlock className="mx-auto mt-2 h-6 w-20" />
+        <SkeletonBlock className="mx-auto mt-3 h-10 w-full rounded-[10px]" />
+      </div>
+    </div>
+  );
+}
+
+function CardSection({ titleWidth }: { titleWidth: string }) {
+  return (
+    <section className="space-y-3">
+      <SkeletonBlock className={`h-2.5 ${titleWidth}`} />
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+        <BolaoCardSkeleton />
+        <BolaoCardSkeleton />
+      </div>
+    </section>
+  );
 }
 
 export default function BoloesLoading() {
@@ -12,66 +57,17 @@ export default function BoloesLoading() {
 /** Mesmo skeleton, reutilizável em <Suspense> dentro da página (streaming). */
 export function BoloesLoadingSkeleton() {
   return (
-    <div className="min-h-screen bg-black px-[18px] pb-8 pt-[14px] text-white">
-      <div className="mx-auto w-full max-w-[390px] animate-pulse">
-        <header className="flex flex-col items-center text-center">
-          <SkeletonBlock className="h-2.5 w-20" />
-          <SkeletonBlock className="mt-3 h-7 w-44" />
-          <SkeletonBlock className="mt-4 h-3 w-72" />
-          <SkeletonBlock className="mt-2 h-3 w-56" />
+    <div className="min-h-screen bg-black pb-10 text-white">
+      <div className="mx-auto w-full max-w-[430px] px-4 animate-pulse">
+        <header className="flex items-center gap-2 pt-1">
+          <SkeletonBlock className="size-4" />
+          <SkeletonBlock className="h-3 w-36" />
         </header>
 
-        <section className="mt-[47px] grid grid-cols-3 gap-[7px]">
-          {[0, 1, 2].map((item) => (
-            <div key={item} className="h-[121px] rounded-[13px] border p-3" style={{ background: CARD, borderColor: BORDER }}>
-              <SkeletonBlock className="mx-auto mt-2 size-[25px]" />
-              <SkeletonBlock className="mx-auto mt-4 h-3 w-14" />
-              <SkeletonBlock className="mx-auto mt-2 h-6 w-8" />
-              <SkeletonBlock className="mx-auto mt-3 h-2.5 w-16" />
-            </div>
-          ))}
-        </section>
-
-        <div className="my-[26px] h-px bg-white/6" />
-
-        <section>
-          <div className="mb-[26px] flex items-center justify-between">
-            <SkeletonBlock className="h-5 w-36" />
-            <SkeletonBlock className="h-3 w-14" />
-          </div>
-          <div className="h-[220px] rounded-[15px] border" style={{ background: "#0F0F0F", borderColor: BORDER }}>
-            <div className="grid h-1/2 grid-cols-[58px_minmax(0,1fr)_72px]">
-              <div className="border-r p-3" style={{ borderColor: BORDER }}><SkeletonBlock className="mt-6 size-9" /></div>
-              <div className="p-3"><SkeletonBlock className="h-3 w-36" /><SkeletonBlock className="mt-3 h-3 w-20" /><SkeletonBlock className="mt-5 h-2 w-full" /></div>
-              <div className="border-l p-3" style={{ borderColor: BORDER }}><SkeletonBlock className="mt-7 h-4 w-10" /></div>
-            </div>
-            <div className="h-px bg-white/6" />
-            <div className="grid h-1/2 grid-cols-[58px_minmax(0,1fr)_72px]">
-              <div className="border-r p-3" style={{ borderColor: BORDER }}><SkeletonBlock className="mt-6 size-9" /></div>
-              <div className="p-3"><SkeletonBlock className="h-3 w-28" /><SkeletonBlock className="mt-3 h-3 w-20" /><SkeletonBlock className="mt-5 h-3 w-32" /></div>
-              <div className="border-l p-3" style={{ borderColor: BORDER }}><SkeletonBlock className="mt-7 h-4 w-10" /></div>
-            </div>
-          </div>
-        </section>
-
-        <section className="mt-[55px]">
-          <div className="mb-[26px] flex items-center justify-between">
-            <SkeletonBlock className="h-5 w-48" />
-            <SkeletonBlock className="h-3 w-14" />
-          </div>
-          <div className="grid grid-cols-2 gap-[18px]">
-            {[0, 1].map((item) => (
-              <div key={item} className="h-[255px] rounded-[14px] border p-4" style={{ background: CARD, borderColor: BORDER }}>
-                <SkeletonBlock className="h-5 w-full" />
-                <SkeletonBlock className="mx-auto mt-5 size-9" />
-                <SkeletonBlock className="mx-auto mt-5 h-3 w-24" />
-                <SkeletonBlock className="mx-auto mt-4 h-3 w-20" />
-                <SkeletonBlock className="mx-auto mt-8 h-4 w-20" />
-                <SkeletonBlock className="mt-5 h-8 w-full" />
-              </div>
-            ))}
-          </div>
-        </section>
+        <div className="mt-5 space-y-6">
+          <CardSection titleWidth="w-32" />
+          <CardSection titleWidth="w-28" />
+        </div>
       </div>
     </div>
   );

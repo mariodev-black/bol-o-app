@@ -4890,7 +4890,6 @@ function PalpitesPageContent({
               <PalpitesViewTabs
                 items={[
                   { key: "jogos", label: "Jogos" },
-                  { key: "tabela", label: "Tabela" },
                   { key: "ranking", label: "Ranking" },
                   { key: "jogadores", label: "Jogadores" },
                 ]}
@@ -5299,7 +5298,6 @@ function PalpitesPageShell() {
         <PalpitesViewTabs
           items={[
             { key: "jogos", label: "Jogos" },
-            { key: "tabela", label: "Tabela" },
             { key: "ranking", label: "Ranking" },
           ]}
           value="jogos"

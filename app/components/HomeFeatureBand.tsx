@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Gift, ShieldCheck, Trophy, Zap } from "lucide-react";
+import { Gift } from "lucide-react";
 
 const GREEN = "#B1EB0B";
 const CARD_BG = "#0d0d0d";
@@ -24,27 +24,6 @@ const ITEMS: BandItem[] = [
     title: "Palpite Brasil x Marrocos",
     description: "Concorra à camisa oficial + R$ 1.000 no PIX",
     cta: { label: "PARTICIPAR", href: "/promo-camisa-brasil" },
-  },
-  {
-    icon: ShieldCheck,
-    iconColor: "#4ADE80",
-    eyebrow: "100% SEGURO",
-    title: "100% Seguro",
-    description: "Seus dados e pagamentos protegidos com segurança.",
-  },
-  {
-    icon: Trophy,
-    iconColor: "#FACC15",
-    eyebrow: "LÍDER EM BOLÕES",
-    title: "Líder em Bolões",
-    description: "Mais de 1 milhão de usuários em todo o Brasil.",
-  },
-  {
-    icon: Zap,
-    iconColor: "#60A5FA",
-    eyebrow: "PAGAMENTO RÁPIDO",
-    title: "Pagamento Rápido",
-    description: "Prêmios pagos via PIX em até 1 hora.",
   },
 ];
 
@@ -83,11 +62,11 @@ export function HomeFeatureBand({
   promoEnabled?: boolean;
   className?: string;
 }) {
-  const items = promoEnabled ? ITEMS : ITEMS.slice(1);
+  if (!promoEnabled) return null;
   return (
     <section className={`${className}`} aria-label="Destaques">
       <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
-        {items.map((item) => (
+        {ITEMS.map((item) => (
           <BandCard key={item.eyebrow} item={item} />
         ))}
       </div>

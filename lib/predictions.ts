@@ -1,5 +1,9 @@
+import { unstable_cache } from "next/cache";
 import { getPool } from "@/lib/db";
 import type { PredictionBolaoType } from "./palpites-kickoff-lock";
+
+/** Contagens globais (não variam por usuário) — todo mundo compartilha o mesmo cache. */
+const GLOBAL_COUNTS_REVALIDATE_SEC = 15;
 
 export { calcPredictionPoints } from "@/lib/predictions/calc-points";
 export type { PredictionBolaoType } from "./palpites-kickoff-lock";
@@ -215,6 +219,17 @@ export async function listPredictionsForGlobalRanking(): Promise<PredictionRanki
 
 /** Participantes por bolão (tickets distintos com palpite). */
 export async function countParticipantsByBolaoType(): Promise<
+  Record<"principal" | "diario" | "extra", number>
+> {
+  const getCached = unstable_cache(
+    countParticipantsByBolaoTypeUncached,
+    ["counts", "participants-by-bolao-type"],
+    { revalidate: GLOBAL_COUNTS_REVALIDATE_SEC, tags: ["counts"] },
+  );
+  return getCached();
+}
+
+async function countParticipantsByBolaoTypeUncached(): Promise<
   Record<"principal" | "diario" | "extra", number>
 > {
   const pool = getPool();

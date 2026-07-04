@@ -33,7 +33,9 @@ export function pixKeyTypeLabel(type: string): string {
 }
 
 export function balanceSourceLabel(source: UserWithdrawalHistoryItem["balanceSource"]): string {
-  return source === "wallet" ? "Conta" : "Afiliado";
+  if (source === "wallet") return "Conta";
+  if (source === "affiliate") return "Afiliado";
+  return "Saldo"; // "combined" — saque unificado (afiliado + conta), o padrão atual
 }
 
 export type WithdrawStatusMeta = {

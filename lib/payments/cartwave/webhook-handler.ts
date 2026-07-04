@@ -120,8 +120,9 @@ async function refundWithdrawalIfNeeded(
 
   await client.query(`SELECT id FROM users WHERE id = $1::uuid FOR UPDATE`, [row.user_id]);
 
-  const src: WithdrawalBalanceSource = row.balance_source === "wallet" ? "wallet" : "affiliate";
-  await creditWithdrawalBalance(client, row.user_id, src, row.amount_cents);
+  const src: WithdrawalBalanceSource =
+    row.balance_source === "wallet" ? "wallet" : row.balance_source === "combined" ? "combined" : "affiliate";
+  await creditWithdrawalBalance(client, row.user_id, src, row.amount_cents, row.id);
 
   await client.query(
     `UPDATE affiliate_withdrawal_requests

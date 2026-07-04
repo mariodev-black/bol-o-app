@@ -7,7 +7,7 @@ import { deleteUserAvatarFile, newRandomAvatarFilename, assertAvatarUploadBuffer
 import { fetchPictureAsBuffer } from "@/lib/google/fetch-picture-as-buffer";
 
 const U =
-  "id, email, cpf, password_hash, name, nickname, phone, avatar_url, avatar_index, avatar_upload_filename, google_sub, email_verified_at, referral_code, referred_by_user_id";
+  "id, email, cpf, password_hash, name, nickname, phone, avatar_url, avatar_index, avatar_upload_filename, google_sub, email_verified_at, referral_code, referred_by_user_id, balance_cents, affiliate_balance_cents";
 
 export type PublicUser = {
   id: string;
@@ -21,6 +21,8 @@ export type PublicUser = {
   /** Basename estável (UUID + ext.); bytes em `avatar_upload_data` ou legado em `public/avataruploads/`. */
   avatarUploadFilename: string | null;
   referralCode: string;
+  /** Saldo TOTAL disponível em centavos (carteira + afiliado somados) — usado para comprar e sacar. */
+  balanceCents: number;
   /**
    * Contas Google (`google_sub`) precisam informar CPF no app; contas só senha seguem como completas.
    */
@@ -42,6 +44,8 @@ type UserRow = {
   email_verified_at: Date | null;
   referral_code: string | null;
   referred_by_user_id: string | null;
+  balance_cents: string | number | null;
+  affiliate_balance_cents: string | number | null;
 };
 
 function rowAvatarIndex(row: UserRow): number {
@@ -77,8 +81,18 @@ function toPublic(row: UserRow): PublicUser {
     avatarIndex: rowAvatarIndex(row),
     avatarUploadFilename: rowAvatarUploadFilename(row),
     referralCode: row.referral_code ?? "",
+    balanceCents: rowNumeric(row.balance_cents) + rowNumeric(row.affiliate_balance_cents),
     profileComplete: computeProfileComplete(row),
   };
+}
+
+function rowNumeric(v: string | number | null): number {
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string" && v.trim() !== "") {
+    const n = parseInt(v, 10);
+    if (!Number.isNaN(n)) return n;
+  }
+  return 0;
 }
 
 export async function findUserById(id: string): Promise<PublicUser | null> {

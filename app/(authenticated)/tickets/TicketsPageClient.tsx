@@ -2,7 +2,7 @@
 
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { AppScreenLoading } from "@/app/shared/AppScreenLoading";
+import { TicketShopSkeleton } from "./_components/TicketShopSkeleton";
 import { TicketCheckoutFlow } from "./_components/TicketCheckoutFlow";
 import { LpTicketCheckoutFlow } from "./_components/LpTicketCheckoutFlow";
 
@@ -73,13 +73,7 @@ export function TicketsPageClient({
   ticketsDailyOnly?: boolean;
 }) {
   return (
-    <Suspense
-      fallback={
-        <div className="flex min-h-screen w-full flex-col bg-black">
-          <AppScreenLoading variant="app-shell" message="Carregando..." className="flex-1" />
-        </div>
-      }
-    >
+    <Suspense fallback={<TicketShopSkeleton />}>
       <TicketsPageContent
         ticketsPrincipalAndDailyOnly={ticketsPrincipalAndDailyOnly}
         ticketsHideExtra={ticketsHideExtra}

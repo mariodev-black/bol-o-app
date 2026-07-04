@@ -21,6 +21,7 @@ import {
   Trophy,
   User,
   Users,
+  Wallet,
   X,
 } from "lucide-react";
 import { cn } from "@/app/lib/utils";
@@ -35,20 +36,27 @@ import {
 import { useSidenav } from "@/app/shared/SidenavContext";
 import { isAppHostClient, isMarketingHostClient } from "@/lib/site-hosts-client";
 import logo from "@/app/assets/logo.svg";
+import {
+  BottomNavBilhetesIcon,
+  BottomNavBoloesIcon,
+  BottomNavEsportesIcon,
+  BottomNavHomeIcon,
+} from "@/app/shared/bottom-nav-icons";
+
+type BottomNavIcon = LucideIcon | React.ComponentType<{ className?: string }>;
 
 type BottomItem = {
   label: string;
   ariaLabel: string;
   href: string;
-  icon: LucideIcon;
+  icon: BottomNavIcon;
 };
 
 const BOTTOM_ITEMS_PROFILE: BottomItem[] = [
-  { label: "INÍCIO", ariaLabel: "Início", href: "/", icon: Home },
-  { label: "INDICAR", ariaLabel: "Afiliado — indique e ganhe", href: "/indique", icon: Share2 },
-  { label: "PALPITAR", ariaLabel: "Palpitar nos jogos", href: "/boloes", icon: Target },
-  { label: "COMPRAR", ariaLabel: "Comprar cota", href: "/tickets", icon: Ticket },
-  { label: "RANKING", ariaLabel: "Ranking", href: "/ranking", icon: BarChart3 },
+  { label: "INÍCIO", ariaLabel: "Início", href: "/", icon: BottomNavHomeIcon },
+  { label: "BOLÕES", ariaLabel: "Bolões disponíveis", href: "/boloes", icon: BottomNavBoloesIcon },
+  { label: "ESPORTES", ariaLabel: "Esportes — em breve", href: "/esportes", icon: BottomNavEsportesIcon },
+  { label: "BILHETES", ariaLabel: "Seus bilhetes e cotas", href: "/tickets", icon: BottomNavBilhetesIcon },
 ];
 
 const BOTTOM_ITEMS_PUBLIC: BottomItem[] = [
@@ -84,6 +92,7 @@ const MENU_SECTIONS: MenuSection[] = [
       { label: "Página inicial", href: "/", icon: Home, subtitle: "Início" },
       { label: "Meus Bolões", href: "/boloes", icon: Trophy, subtitle: "Cotas e palpites" },
       { label: "Meus Palpites", href: "/meus-palpites", icon: BarChart2, subtitle: "Histórico e ranking" },
+      { label: "Ranking", href: "/ranking", icon: BarChart3, subtitle: "Classificação geral" },
       { label: "Palpites da Galera", href: "/palpites-jogadores", icon: Users, subtitle: "Palpites dos outros jogadores" },
       { label: "Comprar", href: "/tickets", icon: Ticket, subtitle: "Comprar cota" },
     ],
@@ -92,6 +101,7 @@ const MENU_SECTIONS: MenuSection[] = [
     title: "MINHA CONTA",
     items: [
       { label: "Minha Conta", href: "/perfil", icon: User, subtitle: "Perfil" },
+      { label: "Carteira", href: "/carteira", icon: Wallet, subtitle: "Saldo e movimentações" },
       { label: "Baixar aplicativo", href: "/instalar-app", icon: Smartphone, subtitle: "PWA no celular" },
       { label: "Adquirir Ticket", href: "/tickets", icon: Ticket, subtitle: "Comprar cota" },
     ],
@@ -149,38 +159,23 @@ function BottomNavLink({
       onPointerEnter={() => onPrefetch(item.href)}
       onFocus={() => onPrefetch(item.href)}
       className={cn(
-        "relative flex min-h-14 min-w-0 flex-1 flex-col items-center justify-end self-stretch outline-none",
+        "relative flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center gap-1 self-stretch py-2.5 outline-none",
         "transition-transform active:scale-95",
         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary/50",
-        active ? "z-30" : "z-0",
       )}
     >
-      {active ? (
-        <span
-          className={cn(
-            "absolute bottom-full left-1/2 z-30 flex size-[4.5rem] -translate-x-1/2 flex-col items-center justify-center gap-0.5",
-            "mb-[-3rem] rounded-full bg-primary text-primary-foreground",
-            "shadow-[0_0_28px_rgba(177,235,11,0.55)]",
-          )}
-        >
-          <Icon className="size-6 shrink-0" strokeWidth={2.35} aria-hidden />
-          <span className="max-w-[4.25rem] truncate text-center text-[10px] font-extrabold uppercase leading-none tracking-widest">
-            {item.label}
-          </span>
-        </span>
-      ) : null}
-
+      <Icon
+        className={cn("size-[22px] shrink-0", active ? "text-primary" : "text-zinc-300")}
+        strokeWidth={active ? 2.3 : 2}
+        aria-hidden
+      />
       <span
         className={cn(
-          "flex flex-col items-center justify-center gap-1 py-2.5",
-          active ? "pointer-events-none invisible" : "text-zinc-300",
+          "max-w-[4.5rem] truncate text-center text-[9px] font-extrabold uppercase leading-none tracking-widest min-[360px]:text-[10px]",
+          active ? "text-primary" : "text-zinc-300",
         )}
-        aria-hidden={active}
       >
-        <Icon className="size-[22px] shrink-0" strokeWidth={2} aria-hidden />
-        <span className="max-w-[4.5rem] truncate text-center text-[9px] font-extrabold uppercase leading-none tracking-widest min-[360px]:text-[10px]">
-          {item.label}
-        </span>
+        {item.label}
       </span>
     </Link>
   );
@@ -204,26 +199,24 @@ function BottomNavigation({
       className="pointer-events-none fixed inset-x-0 bottom-0 z-[70] isolate overflow-visible md:hidden"
       aria-label="Navegação inferior"
     >
-      <div className="pointer-events-auto w-full overflow-visible">
-        <div className="overflow-visible pt-9">
-          <div
-            className={cn(
-              "relative flex min-h-14 items-end justify-around overflow-visible ",
-              "border border-white/[0.08] bg-black",
-              "shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_-16px_48px_rgba(0,0,0,0.85)]",
-            )}
-          >
-            {items.map((item) => (
-              <BottomNavLink
-                key={item.href + item.label}
-                item={item}
-                currentPath={currentPath}
-                active={isActive(item.href)}
-                onNavigate={onNavigate}
-                onPrefetch={onPrefetch}
-              />
-            ))}
-          </div>
+      <div className="pointer-events-auto w-full">
+        <div
+          className={cn(
+            "relative flex min-h-14 items-center justify-around",
+            "border border-white/[0.08] bg-black",
+            "shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_-16px_48px_rgba(0,0,0,0.85)]",
+          )}
+        >
+          {items.map((item) => (
+            <BottomNavLink
+              key={item.href + item.label}
+              item={item}
+              currentPath={currentPath}
+              active={isActive(item.href)}
+              onNavigate={onNavigate}
+              onPrefetch={onPrefetch}
+            />
+          ))}
         </div>
       </div>
     </nav>

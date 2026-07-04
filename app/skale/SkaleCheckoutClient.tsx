@@ -14,6 +14,7 @@ import {
   PIX_CHECKOUT_WINDOW_MS,
 } from "@/app/(authenticated)/tickets/_components/pix/ticket-pix-ui-constants";
 import { appendTicketsFromPurchase } from "@/app/(authenticated)/tickets/lib/ownedTicketsStorage";
+import { WalletPurchaseConfirmModal } from "@/app/(authenticated)/tickets/_components/WalletPurchaseConfirmModal";
 import { SKALE_PRIZE_RULES_COPY } from "@/lib/boloes/skale-prize";
 
 const QTY_OPTIONS = [1, 2, 3, 5] as const;
@@ -58,6 +59,8 @@ export function SkaleCheckoutClient({
   const { user, refresh } = useAuth();
   const skaleFunnelLocked = user?.skaleFunnelLocked === true;
   const [step, setStep] = useState<FlowStep>("shop");
+  const [walletCheckout, setWalletCheckout] = useState(false);
+  const [walletConfirmOpen, setWalletConfirmOpen] = useState(false);
   const [selectedQty, setSelectedQty] = useState<(typeof QTY_OPTIONS)[number]>(1);
   const [transactionId, setTransactionId] = useState<string | null>(null);
   const [pixPayload, setPixPayload] = useState("");
@@ -70,6 +73,25 @@ export function SkaleCheckoutClient({
   const purchaseQtyRef = useRef(1);
 
   const totalCents = unitCents * selectedQty;
+
+  // Lê a flag de checkout com carteira.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch("/api/deposits/transactions", { credentials: "include" });
+        const d = (await r.json()) as { walletCheckoutEnabled?: boolean };
+        if (!cancelled && r.ok && typeof d.walletCheckoutEnabled === "boolean") {
+          setWalletCheckout(d.walletCheckoutEnabled);
+        }
+      } catch {
+        /* mantém PIX */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (step !== "pix") return;
@@ -115,12 +137,47 @@ export function SkaleCheckoutClient({
             ticketType: "extra",
             quantity: selectedQty,
             extraChampionshipId: championshipId,
+            ...(walletCheckout ? { payWith: "wallet" as const } : {}),
           }),
         });
         const d = (await r.json()) as {
           error?: string;
+          code?: string;
           transaction?: DepositTransaction;
+          purchase?: { transactionId: string; ticketIds: string[] };
         };
+
+        if (walletCheckout) {
+          if (r.status === 402 || d.code === "WALLET_INSUFFICIENT_FUNDS") {
+            setError("Saldo insuficiente. Adicione saldo na carteira para concluir a compra.");
+            setStep("shop");
+            return;
+          }
+          if (!r.ok || !d.purchase) {
+            setError(d.error ?? "Não foi possível concluir a compra.");
+            setStep("shop");
+            return;
+          }
+          appendTicketsFromPurchase(0, 0, { [championshipId]: selectedQty });
+          void fetch("/api/skale/funnel-complete", { method: "POST", credentials: "include" })
+            .then(() => refresh())
+            .catch(() => undefined);
+          const ticketId = d.purchase.ticketIds[0];
+          if (ticketId) {
+            router.replace(`/palpites?ticket=${ticketId}`);
+          } else {
+            const q = new URLSearchParams({
+              tx: d.purchase.transactionId,
+              principal: "0",
+              diario: "0",
+              extra: String(selectedQty),
+              skale: "1",
+            });
+            router.replace(`/tickets/obrigado?${q.toString()}`);
+          }
+          return;
+        }
+
         if (!r.ok || !d.transaction?.pixQrcode) {
           const raw = d.error ?? "Não foi possível gerar o PIX.";
           const friendly =
@@ -141,7 +198,7 @@ export function SkaleCheckoutClient({
         setStep("shop");
       }
     })();
-  }, [championshipId, selectedQty]);
+  }, [championshipId, selectedQty, walletCheckout, router, refresh]);
 
   const goBackFromPix = useCallback(() => {
     setStep("shop");
@@ -364,14 +421,29 @@ export function SkaleCheckoutClient({
 
         <button
           type="button"
-          onClick={() => void goGenerate()}
+          onClick={walletCheckout ? () => setWalletConfirmOpen(true) : () => void goGenerate()}
           className="mt-8 flex w-full items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-4 text-[15px] font-black uppercase tracking-[0.06em] text-primary-foreground transition-opacity hover:opacity-90"
         >
-          Comprar cota
+          {walletCheckout ? "Pagar com saldo" : "Comprar cota"}
           <ArrowRight className="size-5" strokeWidth={2.5} />
         </button>
 
-        <p className="mt-5 text-center text-[14px] text-white/35">Pagamento via PIX</p>
+        <p className="mt-5 text-center text-[14px] text-white/35">
+          {walletCheckout ? "Pagamento com saldo da carteira" : "Pagamento via PIX"}
+        </p>
+
+        <WalletPurchaseConfirmModal
+          open={walletConfirmOpen}
+          onClose={() => setWalletConfirmOpen(false)}
+          onConfirm={() => {
+            setWalletConfirmOpen(false);
+            void goGenerate();
+          }}
+          totalCents={totalCents}
+          totalQty={selectedQty}
+          items={[{ label: displayName, qty: selectedQty, cents: totalCents }]}
+          submitting={false}
+        />
       </div>
     </div>
   );

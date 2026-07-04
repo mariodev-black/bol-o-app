@@ -45,8 +45,9 @@ import {
   filterTicketShopExtraChampionshipIds,
 } from "@/lib/ticket-shop-flags";
 import { appendTicketsFromPurchase } from "../lib/ownedTicketsStorage";
-import { AppScreenLoading } from "@/app/shared/AppScreenLoading";
+import { TicketShopSkeleton } from "./TicketShopSkeleton";
 import { TicketPixGeneratedScreen } from "./pix/TicketPixGeneratedScreen";
+import { WalletPurchaseConfirmModal } from "./WalletPurchaseConfirmModal";
 import { TicketPixGeneratingPanel } from "./pix/TicketPixGeneratingPanel";
 import {
   PIX_CHECKOUT_TOTAL_SEC,
@@ -243,15 +244,7 @@ export function TicketCheckoutFlow({
       !ticketsExtraOnly &&
       !ticketsPrincipalOnly &&
       !ticketsDailyOnly);
-  const [principalQty, setPrincipalQty] = useState(() => {
-    if (ticketsExtraOnly || ticketsDailyOnly) return 0;
-    if (ticketsPrincipalOnly) return 1;
-    return initialTicketKind === "daily" ||
-      initialTicketKind === "extra" ||
-      initialTicketKind === "artilheiros"
-      ? 0
-      : 1;
-  });
+  const [principalQty, setPrincipalQty] = useState(0);
   const [artilheirosQty, setArtilheirosQty] = useState(() => {
     if (ticketsArtilheirosOnly || initialTicketKind === "artilheiros") return 1;
     return 0;
@@ -311,6 +304,9 @@ export function TicketCheckoutFlow({
     artilheiros: DEFAULT_ARTILHEIROS_CENTS,
   });
   const [step, setStep] = useState<FlowStep>("shop");
+  /** Quando true (flag WALLET_CHECKOUT_ENABLED), o checkout debita o saldo em vez de gerar PIX. */
+  const [walletCheckout, setWalletCheckout] = useState(false);
+  const [walletConfirmOpen, setWalletConfirmOpen] = useState(false);
   const [transactionId, setTransactionId] = useState<string | null>(null);
   const [pixPayload, setPixPayload] = useState("");
   const [pixDeadline, setPixDeadline] = useState<number | null>(null);
@@ -483,6 +479,7 @@ export function TicketCheckoutFlow({
             artilheiros?: number;
           };
           artilheirosEnabled?: boolean;
+          walletCheckoutEnabled?: boolean;
           dailyEdition?: DailyEditionCatalogItem | null;
           skaleDailyEdition?: DailyEditionCatalogItem | null;
           extraBoloes?: Array<{
@@ -506,6 +503,9 @@ export function TicketCheckoutFlow({
         }
         if (r.ok && typeof d.artilheirosEnabled === "boolean") {
           setArtilheirosEnabled(d.artilheirosEnabled);
+        }
+        if (r.ok && typeof d.walletCheckoutEnabled === "boolean") {
+          setWalletCheckout(d.walletCheckoutEnabled);
         }
         if (r.ok && d.dailyEdition) {
           setCurrentDailyEdition(d.dailyEdition);
@@ -798,6 +798,30 @@ export function TicketCheckoutFlow({
       },
     ];
   }, [currentDailyEdition, dailyEditionQty, prices.daily]);
+  // Itens reais do pedido para o modal de confirmação (pagar com saldo).
+  const walletItems = [
+    ...(principalQty > 0
+      ? [{ label: "Bolão Geral", qty: principalQty, cents: principalLineCents }]
+      : []),
+    ...dailyPixLines.map((l) => ({
+      label: l.displayLabel ?? "Bolão Diário",
+      qty: l.qty,
+      cents: l.lineCents,
+    })),
+    ...(skaleDailyTotalQty > 0
+      ? [{ label: "Bolão Diário Skale", qty: skaleDailyTotalQty, cents: skaleDiarioLineCents }]
+      : []),
+    ...(extraTotalQty > 0
+      ? [{ label: `Bolões extras (${extraTotalQty})`, qty: extraTotalQty, cents: extraLinesCents }]
+      : []),
+    ...(showArtilheiros && artilheirosQty > 0
+      ? [{ label: "Bolão Artilheiros", qty: artilheirosQty, cents: artilheirosLineCents }]
+      : []),
+    ...(catalogTotalQty > 0
+      ? [{ label: `Bolões do catálogo (${catalogTotalQty})`, qty: catalogTotalQty, cents: catalogLinesCents }]
+      : []),
+  ];
+
   const secondsLeft =
     step === "pix" && pixDeadline != null
       ? Math.max(0, Math.ceil((pixDeadline - now) / 1000))
@@ -822,6 +846,7 @@ export function TicketCheckoutFlow({
           body: JSON.stringify({
             generalQuantity: principalQty,
             dailyQuantity: 0,
+            ...(walletCheckout ? { payWith: "wallet" as const } : {}),
             dailyByEdition:
               showDaily && currentDailyEdition
                 ? Object.fromEntries(
@@ -875,8 +900,40 @@ export function TicketCheckoutFlow({
         });
         const d = (await r.json()) as {
           error?: string;
+          code?: string;
           transaction?: DepositTransaction;
+          purchase?: { transactionId: string; amountCents: number; ticketIds: string[]; balanceCents: number };
         };
+
+        // Checkout com saldo da carteira (flag ligada): sem PIX, débito imediato.
+        if (walletCheckout) {
+          if (r.status === 402 || d.code === "WALLET_INSUFFICIENT_FUNDS") {
+            setError("Saldo insuficiente. Adicione saldo na carteira para concluir a compra.");
+            setStep("shop");
+            return;
+          }
+          if (!r.ok || !d.purchase) {
+            setError(d.error ?? "Não foi possível concluir a compra.");
+            setStep("shop");
+            return;
+          }
+          const extraMap = Object.fromEntries(
+            extraBoloes
+              .map((b) => [b.championshipId, extraQty(b.championshipId)] as const)
+              .filter(([, q]) => q > 0),
+          );
+          appendTicketsFromPurchase(principalQty, dailyTotalQty, extraMap);
+          const q = new URLSearchParams({
+            tx: d.purchase.transactionId,
+            principal: String(principalQty),
+            diario: String(dailyTotalQty),
+          });
+          const extraTotal = Object.values(extraMap).reduce((s, n) => s + n, 0);
+          if (extraTotal > 0) q.set("extra", String(extraTotal));
+          router.replace(`/tickets/obrigado?${q.toString()}`);
+          return;
+        }
+
         if (!r.ok || !d.transaction || !d.transaction.pixQrcode) {
           setError(d.error ?? "Nao foi possivel gerar o PIX.");
           setStep("shop");
@@ -908,6 +965,9 @@ export function TicketCheckoutFlow({
     extraQty,
     showArtilheiros,
     artilheirosQty,
+    walletCheckout,
+    router,
+    appendTicketsFromPurchase,
   ]);
 
   const copyPix = useCallback(() => {
@@ -967,11 +1027,7 @@ export function TicketCheckoutFlow({
     <>
       {step === "shop" ? (
         !catalogReady ? (
-          <AppScreenLoading
-            variant="app-shell"
-            message="Carregando bolões e valores..."
-            className="w-full flex-1"
-          />
+          <TicketShopSkeleton />
         ) : (
           <div className="min-h-screen w-full bg-black pb-10">
             <div className="relative w-full overflow-hidden rounded-b-[22px]">
@@ -1808,13 +1864,28 @@ export function TicketCheckoutFlow({
                 <button
                   type="button"
                   disabled={!hasSelection}
-                  onClick={goGenerate}
+                  onClick={walletCheckout ? () => setWalletConfirmOpen(true) : goGenerate}
                   className="mt-4 flex h-[56px] w-full items-center justify-center gap-3 rounded-[14px] bg-primary px-5 text-[16px] font-black uppercase tracking-[0.04em] text-[#0E141B] shadow-[0_4px_32px_rgba(177,235,11,0.55)] transition-[transform,filter] hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 sm:text-[14px]"
                 >
                   <Wallet className="size-5 shrink-0" strokeWidth={2.2} />
-                  <span>Finalizar compra · {formatBRL(totalCents)}</span>
+                  <span>
+                    {walletCheckout ? "Pagar com saldo" : "Finalizar compra"} · {formatBRL(totalCents)}
+                  </span>
                   <ArrowRight className="size-5 shrink-0" strokeWidth={2.8} />
                 </button>
+
+                <WalletPurchaseConfirmModal
+                  open={walletConfirmOpen}
+                  onClose={() => setWalletConfirmOpen(false)}
+                  onConfirm={() => {
+                    setWalletConfirmOpen(false);
+                    goGenerate();
+                  }}
+                  totalCents={totalCents}
+                  totalQty={totalQty}
+                  items={walletItems}
+                  submitting={false}
+                />
               </div>
 
               {/* ── Confiança ───────────────────────────────────── */}

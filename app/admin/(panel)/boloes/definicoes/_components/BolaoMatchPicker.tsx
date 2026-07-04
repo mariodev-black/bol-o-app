@@ -78,6 +78,33 @@ function formatDateLabel(dateBR: string): string {
   return `${wd} · ${dateBR}`;
 }
 
+/** Ordem de bracket para fases de mata-mata (após a fase de grupos). */
+const PHASE_ORDER = [
+  "fase-de-grupos",
+  "primeira-fase",
+  "segunda-fase",
+  "trigesima-segunda-de-final",
+  "dezesseis-avos-de-final",
+  "oitavas-de-final",
+  "quartas-de-final",
+  "semi-final",
+  "semifinal",
+  "disputa-3o-lugar",
+  "terceiro-lugar",
+  "final",
+];
+
+/**
+ * Chave de agrupamento "por rodada/fase". Jogos de pontos-corridos têm `rodada`
+ * (`r:<n>`); mata-mata não tem `rodada`, então agrupamos por fase (`p:<slug>`).
+ * Sem isso, os jogos eliminatórios sumiam do filtro "Por rodada".
+ */
+function matchGroupKey(m: AdminMatchPickerItem): string | null {
+  if (m.rodada != null && m.rodada > 0) return `r:${m.rodada}`;
+  if (m.phaseKey) return `p:${m.phaseKey}`;
+  return null;
+}
+
 function selectionState(
   ids: number[],
   selected: Set<number>,
@@ -196,7 +223,7 @@ export function BolaoMatchPicker({
   const [search, setSearch] = useState("");
   const [filterMode, setFilterMode] = useState<FilterMode>("days");
   const [activeDays, setActiveDays] = useState<string[]>([]);
-  const [activeRounds, setActiveRounds] = useState<number[]>([]);
+  const [activeRounds, setActiveRounds] = useState<string[]>([]);
   const [collapsedDays, setCollapsedDays] = useState<Set<string>>(new Set());
   const loadedKeyRef = useRef<string | null>(null);
 
@@ -279,20 +306,39 @@ export function BolaoMatchPicker({
   }, [matches]);
 
   const roundsMeta = useMemo(() => {
-    const map = new Map<number, AdminMatchPickerItem[]>();
+    const map = new Map<
+      string,
+      { key: string; label: string; sort: number; items: AdminMatchPickerItem[] }
+    >();
     for (const m of matches) {
-      if (m.rodada == null || m.rodada <= 0) continue;
-      const list = map.get(m.rodada) ?? [];
-      list.push(m);
-      map.set(m.rodada, list);
+      const key = matchGroupKey(m);
+      if (!key) continue;
+      let entry = map.get(key);
+      if (!entry) {
+        if (key.startsWith("r:")) {
+          const n = Number(key.slice(2));
+          entry = { key, label: `${n}ª rodada`, sort: n, items: [] };
+        } else {
+          const phaseKey = key.slice(2);
+          const idx = PHASE_ORDER.indexOf(phaseKey);
+          entry = {
+            key,
+            label: m.phaseLabel ?? phaseKey,
+            sort: 1000 + (idx < 0 ? 900 : idx),
+            items: [],
+          };
+        }
+        map.set(key, entry);
+      }
+      entry.items.push(m);
     }
-    return [...map.entries()]
-      .sort(([a], [b]) => a - b)
-      .map(([round, items]) => ({
-        round,
-        label: `${round}ª rodada`,
-        items,
-        ids: items.map((i) => i.matchId),
+    return [...map.values()]
+      .sort((a, b) => a.sort - b.sort)
+      .map((e) => ({
+        key: e.key,
+        label: e.label,
+        items: e.items,
+        ids: e.items.map((i) => i.matchId),
       }));
   }, [matches]);
 
@@ -304,7 +350,10 @@ export function BolaoMatchPicker({
     }
     if (filterMode === "rounds" && activeRounds.length > 0) {
       const set = new Set(activeRounds);
-      list = list.filter((m) => m.rodada != null && set.has(m.rodada));
+      list = list.filter((m) => {
+        const key = matchGroupKey(m);
+        return key != null && set.has(key);
+      });
     }
     const q = search.trim().toLowerCase();
     if (!q) return list;
@@ -357,9 +406,9 @@ export function BolaoMatchPicker({
     );
   }
 
-  function toggleRoundFilter(round: number) {
+  function toggleRoundFilter(key: string) {
     setActiveRounds((prev) =>
-      prev.includes(round) ? prev.filter((r) => r !== round) : [...prev, round],
+      prev.includes(key) ? prev.filter((r) => r !== key) : [...prev, key],
     );
   }
 
@@ -436,7 +485,7 @@ export function BolaoMatchPicker({
             setActiveDays([]);
           }}
           icon={<Trophy className="size-3.5" />}
-          label="Por rodada"
+          label="Rodada / fase"
         />
         <ModeTab
           active={filterMode === "all"}
@@ -518,7 +567,7 @@ export function BolaoMatchPicker({
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
             <p className="text-[11px] font-bold uppercase tracking-widest text-white/35">
-              Rodadas
+              Rodadas / fases
               {activeRounds.length > 0 ? ` (${activeRounds.length} filtro)` : ""}
             </p>
             {activeRounds.length > 0 ? (
@@ -534,11 +583,11 @@ export function BolaoMatchPicker({
           <div className="flex flex-wrap gap-2">
             {roundsMeta.map((round) => {
               const sel = selectionState(round.ids, selected);
-              const filtered = activeRounds.includes(round.round);
+              const filtered = activeRounds.includes(round.key);
               const hasFilter = activeRounds.length > 0;
               return (
                 <div
-                  key={round.round}
+                  key={round.key}
                   className={`overflow-hidden rounded-[10px] border ${
                     hasFilter && filtered
                       ? "border-primary/40 bg-primary/5"
@@ -549,7 +598,7 @@ export function BolaoMatchPicker({
                 >
                   <button
                     type="button"
-                    onClick={() => toggleRoundFilter(round.round)}
+                    onClick={() => toggleRoundFilter(round.key)}
                     className="px-3 py-2 text-left"
                   >
                     <p className="text-[12px] font-bold text-white">{round.label}</p>
@@ -573,7 +622,7 @@ export function BolaoMatchPicker({
 
       {filterMode === "rounds" && roundsMeta.length === 0 && !loading ? (
         <p className="rounded-[10px] border border-amber-400/20 bg-amber-950/20 px-3 py-2 text-[12px] text-amber-200/80">
-          Sem rodadas cadastradas — use o modo <strong>Por dia</strong> ou <strong>Lista completa</strong>.
+          Sem rodadas/fases cadastradas — use o modo <strong>Por dia</strong> ou <strong>Lista completa</strong>.
         </p>
       ) : null}
 

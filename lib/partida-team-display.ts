@@ -77,6 +77,32 @@ export function isKnockoutSlotTeam(team: PartidaTeamLike): boolean {
   return parseKnockoutSlotRef(pickRawTeamLabel(team)) != null;
 }
 
+/**
+ * Rótulos textuais que a API entrega para confrontos de mata-mata ainda não
+ * resolvidos: "Venc. Segunda fase 4", "Perdedor …", "Argentina ou Cabo Verde".
+ * Sem detectá-los, `formatRealTeam` mostraria uma sigla enganosa ("VEN", "ARG")
+ * com um escudo genérico. Aqui tratamos como vaga "a definir".
+ */
+function isUnresolvedTextualLabel(raw: string): boolean {
+  const s = raw.trim();
+  if (!s) return true;
+  const low = s.toLowerCase();
+  if (low === "a definir" || low === "---" || low === "?") return true;
+  if (/^(venc\.?|vencedor|perd\.?|perdedor)\b/.test(low)) return true;
+  if (/\bou\b/.test(low)) return true; // "Time A ou Time B"
+  return false;
+}
+
+/** Time sem `time_id`/escudo e com rótulo de vaga textual ("Venc. …", "A ou B"). */
+export function isUnresolvedPlaceholderTeam(team: PartidaTeamLike): boolean {
+  const timeId = team.time_id ?? team.id;
+  if (timeId != null && Number.isFinite(Number(timeId)) && Number(timeId) > 0) {
+    return false;
+  }
+  if (team.escudo?.trim()) return false;
+  return isUnresolvedTextualLabel(pickRawTeamLabel(team));
+}
+
 function sortedStandingsRows(rows: StandingsRowLike[]): StandingsRowLike[] {
   return [...rows].sort((a, b) => {
     if (b.pontos !== a.pontos) return b.pontos - a.pontos;
@@ -206,6 +232,21 @@ function formatPendingKnockoutSlot(slot: KnockoutSlotRef): PartidaTeamDisplay {
   };
 }
 
+function formatPendingTextualSlot(raw: string): PartidaTeamDisplay {
+  const s = raw.trim();
+  // "Time A ou Time B" é informativo (mostra os candidatos); "Venc. …" é jargão.
+  const slotDetail = /\bou\b/.test(s.toLowerCase()) ? s : null;
+  return {
+    nome: "A DEFINIR",
+    sigla: "A DEFINIR",
+    escudo: null,
+    escudoFallback: "?",
+    siglaLabel: "A DEFINIR",
+    slotDetail,
+    isKnockoutSlot: true,
+  };
+}
+
 function formatRealTeam(team: PartidaTeamLike, raw: string): PartidaTeamDisplay {
   const escudo =
     team.escudo?.trim() ||
@@ -253,6 +294,10 @@ export function resolvePartidaTeamDisplay(
     });
     if (resolved) return formatRealTeam(resolved, pickRawTeamLabel(resolved));
     return formatPendingKnockoutSlot(slot);
+  }
+
+  if (isUnresolvedPlaceholderTeam(team)) {
+    return formatPendingTextualSlot(raw);
   }
 
   return formatRealTeam(team, raw);

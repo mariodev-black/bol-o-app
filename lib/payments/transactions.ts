@@ -6,6 +6,7 @@ import {
   normalizeGatewayStatus,
 } from "@/lib/payments/gateway";
 import { createSkalePixTransaction } from "@/lib/payments/skalepayments";
+import { applyWalletMovement, applyCombinedDebitTx } from "@/lib/wallet/ledger";
 import { normalizeDailyByEditionInput } from "@/lib/boloes/daily-editions";
 import { isDailyEditionPurchaseOpen } from "@/lib/boloes/daily-editions-server";
 import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
@@ -186,23 +187,15 @@ function resolvePurchaseQuantities(input: CreateDepositTransactionInput): {
   };
 }
 
-export async function createDepositTransaction(input: CreateDepositTransactionInput): Promise<DepositTransactionView> {
-  const pool = getPool();
-  const billingUser = await findBillingUserById(input.userId);
-  if (!billingUser) throw new Error("Usuario nao encontrado");
-  if (!billingUser.name || billingUser.name.trim().length < 2) {
-    throw new Error("Nome do usuario incompleto para pagamento");
-  }
-  if (!billingUser.cpf || billingUser.cpf.replace(/\D/g, "").length !== 11) {
-    throw new Error("CPF do usuario invalido para pagamento");
-  }
-  if (!billingUser.phone || billingUser.phone.replace(/\D/g, "").length < 10) {
-    throw new Error("Telefone do usuario invalido para pagamento");
-  }
-  if (!billingUser.email || !billingUser.email.includes("@")) {
-    throw new Error("E-mail do usuario invalido para pagamento");
-  }
-
+/**
+ * Resolve as linhas de cota + valor total a partir do input do carrinho,
+ * aplicando todas as validações de janela de compra (diário, skale diário,
+ * definições do catálogo). Compartilhado entre o checkout PIX e a compra com
+ * saldo — garante precificação e regras idênticas nos dois caminhos.
+ */
+async function resolvePurchaseLines(
+  input: CreateDepositTransactionInput
+): Promise<{ lines: ReturnType<typeof buildPurchaseTicketLines>; amountCents: number }> {
   const { generalQty, dailyByEdition, skaleDailyByEdition, extraPurchase, artilheirosQty } =
     resolvePurchaseQuantities(input);
   let lines =
@@ -293,9 +286,15 @@ export async function createDepositTransaction(input: CreateDepositTransactionIn
     throw new Error("Valor do pedido invalido");
   }
 
-  const primaryTicketType = lines[0]!.ticketType;
-  const paymentExternalRef = `ticket_${randomUUID()}`;
+  return { lines, amountCents };
+}
 
+/** Monta os arrays para o INSERT de tickets (mesma lógica de round_number do checkout PIX). */
+function buildTicketRows(
+  lines: ReturnType<typeof buildPurchaseTicketLines>,
+  userId: string,
+  externalRefBase: string,
+) {
   const userIds: string[] = [];
   const ticketTypes: string[] = [];
   const extraIds: Array<number | null> = [];
@@ -306,7 +305,7 @@ export async function createDepositTransaction(input: CreateDepositTransactionIn
   const externalRefs: string[] = [];
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]!;
-    userIds.push(input.userId);
+    userIds.push(userId);
     ticketTypes.push(line.ticketType);
     const extraId = line.ticketType === "extra" ? line.extraChampionshipId ?? null : null;
     extraIds.push(extraId);
@@ -322,8 +321,43 @@ export async function createDepositTransaction(input: CreateDepositTransactionIn
     bolaoDefinitionIds.push(line.bolaoDefinitionId ?? null);
     unitPrices.push(line.unitCents);
     totalAmounts.push(line.unitCents);
-    externalRefs.push(`${paymentExternalRef}:p${i}`);
+    externalRefs.push(`${externalRefBase}:p${i}`);
   }
+  return { userIds, ticketTypes, extraIds, roundNumbers, bolaoDefinitionIds, unitPrices, totalAmounts, externalRefs };
+}
+
+export async function createDepositTransaction(input: CreateDepositTransactionInput): Promise<DepositTransactionView> {
+  const pool = getPool();
+  const billingUser = await findBillingUserById(input.userId);
+  if (!billingUser) throw new Error("Usuario nao encontrado");
+  if (!billingUser.name || billingUser.name.trim().length < 2) {
+    throw new Error("Nome do usuario incompleto para pagamento");
+  }
+  if (!billingUser.cpf || billingUser.cpf.replace(/\D/g, "").length !== 11) {
+    throw new Error("CPF do usuario invalido para pagamento");
+  }
+  if (!billingUser.phone || billingUser.phone.replace(/\D/g, "").length < 10) {
+    throw new Error("Telefone do usuario invalido para pagamento");
+  }
+  if (!billingUser.email || !billingUser.email.includes("@")) {
+    throw new Error("E-mail do usuario invalido para pagamento");
+  }
+
+  const { lines, amountCents } = await resolvePurchaseLines(input);
+
+  const primaryTicketType = lines[0]!.ticketType;
+  const paymentExternalRef = `ticket_${randomUUID()}`;
+
+  const {
+    userIds,
+    ticketTypes,
+    extraIds,
+    roundNumbers,
+    bolaoDefinitionIds,
+    unitPrices,
+    totalAmounts,
+    externalRefs,
+  } = buildTicketRows(lines, input.userId, paymentExternalRef);
   // Checkout normal nunca cria cota gratuita aqui — brindes vão por
   // `claimExtraGiftForUser` (vide `lib/promotions/extra-gift.ts`).
   const ticketInsert = await pool.query<{ id: string }>(
@@ -442,6 +476,107 @@ export async function createDepositTransaction(input: CreateDepositTransactionIn
   }
 }
 
+export type WalletPurchaseResult = {
+  transactionId: string;
+  amountCents: number;
+  ticketIds: string[];
+  balanceCents: number;
+};
+
+/**
+ * Compra paga com SALDO da carteira (sem PIX). Numa única transação:
+ * debita o ledger (lança WalletInsufficientFundsError se faltar saldo) e cria
+ * os tickets já como `paid`. Reaproveita a mesma precificação/validação do
+ * checkout PIX via `resolvePurchaseLines`. A comissão de afiliado é registrada
+ * aqui (no gasto), já que o depósito não gera comissão.
+ */
+export async function createWalletPurchase(
+  input: CreateDepositTransactionInput
+): Promise<WalletPurchaseResult> {
+  const { lines, amountCents } = await resolvePurchaseLines(input);
+  const purchaseId = randomUUID();
+  const externalRef = `wallet_purchase_${purchaseId}`;
+  const rows = buildTicketRows(lines, input.userId, externalRef);
+
+  const pool = getPool();
+  const client = await pool.connect();
+  let balanceCents = 0;
+  let ticketIds: string[] = [];
+  try {
+    await client.query("BEGIN");
+
+    // 1) Transação interna paga via carteira (ticket_id setado depois).
+    await client.query(
+      `INSERT INTO transactions (
+         id, user_id, ticket_id, ticket_type, provider, status, amount_cents, payment_method, external_ref, purpose, raw_request
+       ) VALUES ($1::uuid, $2::uuid, NULL, $3::ticket_type_enum, 'wallet', 'paid', $4, 'wallet', $5, 'wallet_purchase', '{}'::jsonb)`,
+      [purchaseId, input.userId, lines[0]!.ticketType, amountCents, externalRef]
+    );
+
+    // 2) Debita o saldo TOTAL (afiliado primeiro) ANTES de criar tickets —
+    // lança se faltar → ROLLBACK limpa tudo.
+    const movement = await applyCombinedDebitTx(client, {
+      userId: input.userId,
+      amountCents,
+      type: "purchase",
+      idempotencyKeyBase: `purchase:${purchaseId}`,
+      transactionId: purchaseId,
+      metadata: { source: "wallet_purchase", ticketCount: lines.length },
+    });
+    balanceCents = movement.totalBalanceCents;
+
+    // 3) Tickets já pagos, vinculados à transação.
+    const ticketInsert = await client.query<{ id: string }>(
+      `INSERT INTO tickets (
+         user_id, ticket_type, extra_championship_id, round_number, bolao_definition_id,
+         unit_price_cents, quantity, total_amount_cents, is_promo_bonus, status, external_ref, transaction_id, paid_at
+       )
+       SELECT u, tt, e, rn, bd, up, 1, ta, false, 'paid', er, $9::uuid, now()
+       FROM UNNEST(
+         $1::uuid[], $2::ticket_type_enum[], $3::int[], $4::int[], $5::uuid[], $6::int[], $7::int[], $8::text[]
+       ) AS t(u, tt, e, rn, bd, up, ta, er)
+       RETURNING id`,
+      [
+        rows.userIds,
+        rows.ticketTypes,
+        rows.extraIds,
+        rows.roundNumbers,
+        rows.bolaoDefinitionIds,
+        rows.unitPrices,
+        rows.totalAmounts,
+        rows.externalRefs,
+        purchaseId,
+      ]
+    );
+    ticketIds = ticketInsert.rows.map((r) => r.id);
+
+    // 4) Vincula a transação ao primeiro ticket (igual ao fluxo PIX).
+    await client.query(`UPDATE transactions SET ticket_id = $2 WHERE id = $1`, [
+      purchaseId,
+      ticketIds[0],
+    ]);
+
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+
+  // Pós-commit: comissão de afiliado (lê a transação já confirmada).
+  try {
+    await recordReferralCommissionIfApplicable({
+      buyerUserId: input.userId,
+      transactionId: purchaseId,
+    });
+  } catch (e) {
+    console.error("[referral] commission on wallet purchase", e);
+  }
+
+  return { transactionId: purchaseId, amountCents, ticketIds, balanceCents };
+}
+
 export async function getDepositTransactionById(userId: string, id: string): Promise<DepositTransactionView | null> {
   const pool = getPool();
   const { rows } = await pool.query<{
@@ -479,7 +614,7 @@ export async function updateTransactionStatusByProviderId(input: {
   const pixEnd2EndId = input.pixEnd2EndId?.trim() || null;
   const pixQrcode = input.pixQrcode?.trim() || null;
 
-  const updateTx = await pool.query<{ id: string; user_id: string; ticket_id: string; external_ref: string; previous_status: string; status: string; pix_qrcode: string | null; provider_transaction_id: string }>(
+  const updateTx = await pool.query<{ id: string; user_id: string; ticket_id: string | null; external_ref: string; previous_status: string; status: string; pix_qrcode: string | null; provider_transaction_id: string; amount_cents: number; purpose: string }>(
     `WITH matched AS (
        SELECT id, status AS previous_status
        FROM transactions
@@ -501,7 +636,7 @@ export async function updateTransactionStatusByProviderId(input: {
          updated_at = now()
      FROM matched
      WHERE t.id = matched.id
-     RETURNING t.id, t.user_id, t.ticket_id, t.external_ref, matched.previous_status, t.status, t.pix_qrcode, t.provider_transaction_id`,
+     RETURNING t.id, t.user_id, t.ticket_id, t.external_ref, matched.previous_status, t.status, t.pix_qrcode, t.provider_transaction_id, t.amount_cents, t.purpose`,
     [
       providerTransactionId,
       safeStatus,
@@ -512,7 +647,7 @@ export async function updateTransactionStatusByProviderId(input: {
   );
 
   const row = updateTx.rows[0];
-  if (!row?.ticket_id) {
+  if (!row?.id) {
     console.error("[payment/webhook] transaction not found", {
       providerTransactionId,
       pixEnd2EndId,
@@ -559,27 +694,44 @@ export async function updateTransactionStatusByProviderId(input: {
   });
 
   if (incomingIsPaid && !wasAlreadyPaid) {
-    try {
-      await recordReferralCommissionIfApplicable({
-        buyerUserId: row.user_id,
-        transactionId: row.id,
-      });
-    } catch (e) {
-      console.error("[referral] commission on paid transaction", e);
-    }
-    try {
-      const { rows: generalTicketRows } = await pool.query<{ id: string }>(
-        `SELECT id FROM tickets
-         WHERE transaction_id = $1 AND ticket_type = 'general'
-         LIMIT 1`,
-        [row.id],
-      );
-      if (generalTicketRows.length > 0) {
-        await validateBrasilMarrocosPlacarPromoSubmission(row.user_id);
-        invalidatePromoHubCache(row.user_id);
+    if (row.purpose === "wallet_deposit") {
+      // Depósito de saldo: credita a carteira (idempotente pelo id da transação).
+      // Não gera comissão de afiliado — isso acontece na compra (gasto do saldo).
+      try {
+        await applyWalletMovement({
+          userId: row.user_id,
+          amountCents: row.amount_cents,
+          type: "deposit_pix",
+          idempotencyKey: `deposit:${row.id}`,
+          transactionId: row.id,
+          metadata: { source: "wallet_deposit_pix", externalRef: row.external_ref },
+        });
+      } catch (e) {
+        console.error("[wallet] credit on paid deposit", e);
       }
-    } catch (e) {
-      console.error("[promo] validate brasil-marrocos on paid transaction", e);
+    } else {
+      try {
+        await recordReferralCommissionIfApplicable({
+          buyerUserId: row.user_id,
+          transactionId: row.id,
+        });
+      } catch (e) {
+        console.error("[referral] commission on paid transaction", e);
+      }
+      try {
+        const { rows: generalTicketRows } = await pool.query<{ id: string }>(
+          `SELECT id FROM tickets
+           WHERE transaction_id = $1 AND ticket_type = 'general'
+           LIMIT 1`,
+          [row.id],
+        );
+        if (generalTicketRows.length > 0) {
+          await validateBrasilMarrocosPlacarPromoSubmission(row.user_id);
+          invalidatePromoHubCache(row.user_id);
+        }
+      } catch (e) {
+        console.error("[promo] validate brasil-marrocos on paid transaction", e);
+      }
     }
     try {
       await postPaymentApprovedWebhookIfConfigured({

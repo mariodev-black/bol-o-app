@@ -1,4 +1,10 @@
 import {
+  isPastMatchRegulationWindow,
+  isWithinMatchRegulationWindow,
+  matchRegulationMinutes,
+  matchRegulationWindowMs,
+} from "@/lib/football/match-regulation-window";
+import {
   hasOfficialMatchResult,
   isFinishedMatchStatus,
   isLiveOrInProgressMatchStatus,
@@ -16,14 +22,10 @@ export type LiveDisplayMatch = {
 
 export type JogoCardPhase = "pre" | "live" | "post";
 
+export { matchRegulationMinutes, matchRegulationWindowMs };
+
 export function displayLiveMaxMsAfterKickoff(): number {
-  const raw = process.env.NEXT_PUBLIC_MATCH_DISPLAY_LIVE_MAX_MINUTES;
-  const n =
-    raw != null && String(raw).trim() !== ""
-      ? Number.parseInt(String(raw).trim(), 10)
-      : 115;
-  if (!Number.isFinite(n)) return 115 * 60_000;
-  return Math.min(240, Math.max(60, n)) * 60_000;
+  return matchRegulationWindowMs();
 }
 
 export function kickoffMsFromMatch(match: LiveDisplayMatch): number | null {
@@ -37,26 +39,25 @@ export function matchStatusRaw(match: LiveDisplayMatch): string {
 }
 
 export function isPastDisplayLiveWindow(match: LiveDisplayMatch, nowMs: number): boolean {
-  const ko = kickoffMsFromMatch(match);
-  if (ko == null) return false;
-  return nowMs > ko + displayLiveMaxMsAfterKickoff();
+  return isPastMatchRegulationWindow(match.kickoffAt, nowMs);
 }
 
 /**
- * Partida ao vivo na UI — alinhado ao fluxo antigo:
- * 1) status da API (andamento, intervalo, …) manda, sem teto de 115 min;
- * 2) fallback por apito + janela quando a listagem não traz status ao vivo.
+ * Partida ao vivo na UI — somente dentro dos 90 min regulamentares após o apito.
+ * Status da API só vale se ainda estiver na janela; após 90 min, deixa de ser ao vivo.
  */
 export function isMatchLiveForDisplay(match: LiveDisplayMatch, nowMs = Date.now()): boolean {
   const raw = matchStatusRaw(match);
   const mapped = String(match.status ?? "").toLowerCase();
 
   if (mapped === "encerrado" || isFinishedMatchStatus(raw)) return false;
-  if (isLiveOrInProgressMatchStatus(raw)) return true;
 
   const ko = kickoffMsFromMatch(match);
   if (ko == null || nowMs < ko) return false;
-  if (isPastDisplayLiveWindow(match, nowMs)) return false;
+  if (!isWithinMatchRegulationWindow(match.kickoffAt, nowMs)) return false;
+
+  if (isLiveOrInProgressMatchStatus(raw)) return true;
+
   return true;
 }
 
@@ -83,7 +84,7 @@ export function getJogoCardPhase(match: LiveDisplayMatch, nowMs = Date.now()): J
     if (encerrado) return "post";
   }
 
-  if (encerrado) return "post";
+  if (encerrado || isPastDisplayLiveWindow(match, nowMs)) return "post";
   return "pre";
 }
 

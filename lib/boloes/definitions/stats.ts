@@ -36,7 +36,7 @@ const STATS_SELECT = `
   ) ps ON ps.bolao_definition_id = bd.id
 `;
 
-async function loadStatsMap(): Promise<Map<string, BolaoDefinitionStats>> {
+export async function loadStatsMap(): Promise<Map<string, BolaoDefinitionStats>> {
   const pool = getPool();
   const { rows } = await pool.query<{
     bolao_definition_id: string;

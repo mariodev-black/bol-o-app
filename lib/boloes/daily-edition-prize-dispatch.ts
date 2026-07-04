@@ -3,6 +3,7 @@
  */
 
 import type { PoolClient } from "pg";
+import { applyWalletMovementTx } from "@/lib/wallet/ledger";
 import {
   dailyEditionCardTitle,
   dailyEditionClosureKey,
@@ -375,10 +376,14 @@ async function creditWinnerBalance(
     awardId,
     tx.rows[0]!.id,
   ]);
-  await client.query(
-    `UPDATE users SET balance_cents = COALESCE(balance_cents, 0) + $2 WHERE id = $1::uuid`,
-    [input.winner.userId, input.amountCents],
-  );
+  await applyWalletMovementTx(client, {
+    userId: input.winner.userId,
+    amountCents: input.amountCents,
+    type: "prize",
+    idempotencyKey: externalRef,
+    transactionId: tx.rows[0]!.id,
+    metadata: { source: "daily_edition_prize", closureId: input.closureId, position: input.position },
+  });
   return true;
 }
 

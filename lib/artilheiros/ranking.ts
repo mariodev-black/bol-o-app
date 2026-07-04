@@ -1,5 +1,9 @@
+import { unstable_cache } from "next/cache";
 import { getPool } from "@/lib/db";
 import { clampAvatarIndex } from "@/lib/auth/avatar-index";
+
+/** Ranking/contagem globais (não variam por usuário) — mesmo cache pra todo mundo. */
+const ARTILHEIROS_CACHE_REVALIDATE_SEC = 15;
 
 export type ArtilheiroRankingRow = {
   ticketId: string;
@@ -15,6 +19,15 @@ export type ArtilheiroRankingRow = {
 };
 
 export async function buildArtilheiroRanking(limit = 100): Promise<ArtilheiroRankingRow[]> {
+  const getCached = unstable_cache(
+    () => buildArtilheiroRankingUncached(limit),
+    ["artilheiros", "ranking", String(limit)],
+    { revalidate: ARTILHEIROS_CACHE_REVALIDATE_SEC, tags: ["artilheiros"] },
+  );
+  return getCached();
+}
+
+async function buildArtilheiroRankingUncached(limit: number): Promise<ArtilheiroRankingRow[]> {
   const pool = getPool();
   const { rows } = await pool.query<{
     ticket_id: string;
@@ -80,6 +93,15 @@ export async function buildArtilheiroRanking(limit = 100): Promise<ArtilheiroRan
 }
 
 export async function countArtilheirosParticipants(): Promise<number> {
+  const getCached = unstable_cache(
+    countArtilheirosParticipantsUncached,
+    ["artilheiros", "count"],
+    { revalidate: ARTILHEIROS_CACHE_REVALIDATE_SEC, tags: ["artilheiros"] },
+  );
+  return getCached();
+}
+
+async function countArtilheirosParticipantsUncached(): Promise<number> {
   const pool = getPool();
   const { rows } = await pool.query<{ n: number }>(
     `SELECT COUNT(*)::int AS n
