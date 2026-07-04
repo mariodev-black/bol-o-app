@@ -303,7 +303,10 @@ function palpitesBolaoHeading(
   return "Copa do Mundo 2026";
 }
 
-async function buildInitialData(ticketId: string | null): Promise<PalpitesInitialData> {
+async function buildInitialData(
+  ticketId: string | null,
+  preInferred: "principal" | "diario" | "extra" | "artilheiros" | null = null,
+): Promise<PalpitesInitialData> {
   const c = await cookies();
 
   const token = c.get(sessionCookieName())?.value;
@@ -328,26 +331,35 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
     if (fromPrefix) bolaoType = fromPrefix;
     if (userId) {
       const pool = getPool();
-      const [inferred, ticketRows] = await Promise.all([
-        inferBolaoTypeFromTicketId(tid),
-        pool.query<{
-          cid: number | null;
-          rnum: number | null;
-          is_promo_bonus: boolean;
-          total_amount_cents: number | null;
-          ticket_type: string;
-          bolao_definition_id: string | null;
-        }>(
-          `SELECT extra_championship_id AS cid, round_number AS rnum, ticket_type,
-                  COALESCE(is_promo_bonus, false) AS is_promo_bonus,
-                  COALESCE(total_amount_cents, 0) AS total_amount_cents,
-                  bolao_definition_id
-             FROM tickets
-            WHERE id::text = $1 AND user_id = $2 AND status = 'paid'
-            LIMIT 1`,
-          [tid, userId],
-        ),
-      ]);
+      const ticketRows = await pool.query<{
+        cid: number | null;
+        rnum: number | null;
+        is_promo_bonus: boolean;
+        total_amount_cents: number | null;
+        ticket_type: string;
+        bolao_definition_id: string | null;
+      }>(
+        `SELECT extra_championship_id AS cid, round_number AS rnum, ticket_type,
+                COALESCE(is_promo_bonus, false) AS is_promo_bonus,
+                COALESCE(total_amount_cents, 0) AS total_amount_cents,
+                bolao_definition_id
+           FROM tickets
+          WHERE id::text = $1 AND user_id = $2 AND status = 'paid'
+          LIMIT 1`,
+        [tid, userId],
+      );
+      // Reusa o tipo já inferido em PalpitesPage; se não veio, deriva do row.
+      const inferred: "principal" | "diario" | "extra" | "artilheiros" | null =
+        preInferred ??
+        (ticketRows.rows[0]?.ticket_type === "general"
+          ? "principal"
+          : ticketRows.rows[0]?.ticket_type === "daily"
+            ? "diario"
+            : ticketRows.rows[0]?.ticket_type === "extra"
+              ? "extra"
+              : ticketRows.rows[0]?.ticket_type === "artilheiros"
+                ? "artilheiros"
+                : null);
       if (inferred && inferred !== "artilheiros") bolaoType = inferred;
       const row = ticketRows.rows[0];
       const defId = row?.bolao_definition_id?.trim() || null;
@@ -530,9 +542,15 @@ async function buildInitialData(ticketId: string | null): Promise<PalpitesInitia
   const fasesPromise =
     definitionCompIds != null && definitionCompIds.length > 1
       ? (async () => {
+          // Cada competição é lida em paralelo (antes era sequencial — somava a
+          // latência de N leituras de banco no caminho crítico).
+          const results = await Promise.all(
+            definitionCompIds.map((compId) =>
+              getPartidasFasesFromDb(compId).catch(() => null),
+            ),
+          );
           const merged: Record<string, unknown> = {};
-          for (const compId of definitionCompIds) {
-            const fases = await getPartidasFasesFromDb(compId).catch(() => null);
+          for (const fases of results) {
             if (fases != null) Object.assign(merged, fases);
           }
           return Object.keys(merged).length > 0 ? merged : null;
@@ -769,16 +787,19 @@ export default async function PalpitesPage(props: { searchParams?: Promise<{ tic
       ? await (props.searchParams as Promise<{ ticket?: string }>)
       : (props.searchParams as { ticket?: string } | undefined);
   const ticketId = searchParams?.ticket?.trim() || null;
+  // Inferido uma única vez aqui e repassado ao buildInitialData (antes era uma
+  // segunda query idêntica no caminho crítico).
+  let preInferred: "principal" | "diario" | "extra" | "artilheiros" | null = null;
   if (ticketId) {
-    const inferred = await inferBolaoTypeFromTicketId(ticketId);
-    if (inferred === "artilheiros") {
+    preInferred = await inferBolaoTypeFromTicketId(ticketId);
+    if (preInferred === "artilheiros") {
       redirect(`/palpites/artilheiros?ticket=${encodeURIComponent(ticketId)}`);
     }
   }
 
   const initialData = await runSafeServerPage(
     "palpites-build",
-    () => buildInitialData(ticketId),
+    () => buildInitialData(ticketId, preInferred),
     emptyPalpitesInitialData(ticketId),
   );
   return <PalpitesClient initialData={initialData} />;

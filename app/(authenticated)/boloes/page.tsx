@@ -27,7 +27,6 @@ import {
   formatExtraRoundLabel,
 } from "@/lib/ticket-shop-extra-display";
 import { readCompetitionDisplayNamesFromDb } from "@/lib/competition-metadata-cache";
-import { resolvePaidTicketRankingPositions } from "@/lib/ranking/leaderboard";
 import {
   dailyEditionCardTitle,
   formatDailyEditionCardSubtitle,
@@ -52,7 +51,7 @@ import {
   ARTILHEIROS_BOLAO_TITLE,
 } from "@/lib/artilheiros/config";
 import { isArtilheiroResultApplied, listArtilheiroOfficialResults } from "@/lib/artilheiros/results";
-import { buildArtilheiroRanking, countArtilheirosParticipants } from "@/lib/artilheiros/ranking";
+import { countArtilheirosParticipants } from "@/lib/artilheiros/ranking";
 import {
   getArtilheirosTicketPriceCents,
   isArtilheirosBolaoEnabled,
@@ -468,30 +467,12 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
     }))
   );
 
+  // As posições de ranking por cota exigem materializar o board inteiro de cada
+  // bolão (todos os usuários/palpites) — caro e não crítico para o first paint.
+  // Renderizamos a página instantaneamente com posição vazia e hidratamos via
+  // GET /api/boloes/ticket-positions no client (BoloesClient), fora do caminho
+  // crítico do SSR. Isso tira dezenas de segundos do carregamento de /boloes.
   const ranking = new Map<string, { pos: number | null; points: number }>();
-  const nonArtilheiroTickets = tickets
-    .filter((t) => t.ticketType !== "artilheiros")
-    .map((ticket) => ({
-      id: ticket.id,
-      ticketType: ticket.ticketType as "general" | "daily" | "extra",
-      bolaoDefinitionId: ticket.bolaoDefinitionId,
-    }));
-  if (nonArtilheiroTickets.length > 0) {
-    const tRanking = Date.now();
-    try {
-      const scoped = await resolvePaidTicketRankingPositions(nonArtilheiroTickets, userId);
-      perfLog("resolvePaidTicketRankingPositions", tRanking);
-      for (const ticket of nonArtilheiroTickets) {
-        const scopedRow = scoped.get(ticket.id);
-        ranking.set(ticket.id, {
-          pos: scopedRow?.position ?? null,
-          points: scopedRow?.points ?? 0,
-        });
-      }
-    } catch (error) {
-      console.error("[boloes] failed to resolve scoped ranking positions", error);
-    }
-  }
   const predictionsByTicket = new Map<string, PredictionRow[]>();
   for (const prediction of userPredictions) {
     const arr = predictionsByTicket.get(prediction.ticket_id) ?? [];
@@ -571,15 +552,9 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
     : [];
   perfLog("listArtilheiroOfficialResults", tArtResults);
   const artilheiroResultsApplied = isArtilheiroResultApplied(artilheiroResults);
-  const tArtRanking = Date.now();
-  const artilheiroRanking =
-    hasArtilheirosTickets && artilheiroResultsApplied
-      ? await buildArtilheiroRanking(5000).catch(() => [])
-      : [];
-  perfLog("buildArtilheiroRanking", tArtRanking);
-  const artilheiroRankByTicket = new Map(
-    artilheiroRanking.map((r) => [r.ticketId, { position: r.position, points: r.totalPoints }]),
-  );
+  // Ranking de artilheiros é pesado (todos os tickets) — posições vêm do client
+  // via GET /api/boloes/ticket-positions. Aqui mantemos só o estado finalizado.
+  const artilheiroRankByTicket = new Map<string, { position: number | null; points: number }>();
   const allActive = tickets.map((ticket): BoloesScreenData["active"]["all"][number] => {
     const scopeOpts = scopeOptsForTicket(ticket, effectiveExtraRoundByTicketId);
     const metrics = metricsByTicket.get(ticket.id) ?? {
@@ -635,7 +610,7 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
         countdownTargetMs: null,
         position: artRank?.position ?? null,
         points: artRank?.points ?? 0,
-        participantCount: artilheiroRanking.length,
+        participantCount: artilheirosParticipants,
       };
     }
 

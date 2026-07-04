@@ -219,6 +219,14 @@ type PrevSnapshot = {
   penaltis_casa: number | null;
   penaltis_visitante: number | null;
   kickoff_at: string | null;
+  home_name: string | null;
+  home_sigla: string | null;
+  home_logo: string | null;
+  home_team_id: number | null;
+  away_name: string | null;
+  away_sigla: string | null;
+  away_logo: string | null;
+  away_team_id: number | null;
 };
 
 function normStatus(s: string | null | undefined): string {
@@ -245,6 +253,51 @@ function scoredFieldsChanged(prev: PrevSnapshot, next: ProviderMatchV2): boolean
   if (next.disputaPenalti != null && next.disputaPenalti !== prev.disputa_penalti) return true;
   if (next.penaltisCasa != null && next.penaltisCasa !== prev.penaltis_casa) return true;
   if (next.penaltisVisitante != null && next.penaltisVisitante !== prev.penaltis_visitante) return true;
+  return false;
+}
+
+/** Rótulos que a API entrega quando o confronto ainda não foi resolvido. */
+function isUnresolvedTeamLabel(value: string | null | undefined): boolean {
+  const s = String(value ?? "").trim();
+  if (!s || s === "---") return true;
+  const low = s.toLowerCase();
+  return (
+    low === "a definir" ||
+    low.startsWith("venc") || // "Venc. Segunda fase 4"
+    low.startsWith("perd") || // "Perdedor ..."
+    low.includes(" ou ") || // "Colômbia ou Gana"
+    /^\d+[°ºoa]\s*[a-z]*$/i.test(s) // slots de grupo "1º A", "2ºB"
+  );
+}
+
+/**
+ * Detecta a RESOLUÇÃO do confronto (placeholder → time real) e correções de
+ * escudo/sigla vindas da API. Sem isso, uma partida `agendado` que troca
+ * "Venc. Segunda fase 4" por "Marrocos" nunca seria regravada (o diff só
+ * olhava status/placar) — congelando o chaveamento até o apito inicial.
+ *
+ * Regra defensiva: só considera mudança quando o valor NOVO é um time real,
+ * evitando regravar um placeholder por cima de um time já resolvido.
+ */
+function teamDisplayChanged(prev: PrevSnapshot, next: ProviderMatchV2): boolean {
+  const nextHomeReal = next.homeTeamId != null || !isUnresolvedTeamLabel(next.homeName);
+  const nextAwayReal = next.awayTeamId != null || !isUnresolvedTeamLabel(next.awayName);
+
+  const differs = (a: string | null, b: string | null): boolean =>
+    (a ?? "").trim() !== (b ?? "").trim();
+
+  if (nextHomeReal) {
+    if (next.homeTeamId != null && next.homeTeamId !== prev.home_team_id) return true;
+    if (differs(prev.home_name, next.homeName)) return true;
+    if (differs(prev.home_sigla, next.homeSigla)) return true;
+    if (next.homeLogo != null && differs(prev.home_logo, next.homeLogo)) return true;
+  }
+  if (nextAwayReal) {
+    if (next.awayTeamId != null && next.awayTeamId !== prev.away_team_id) return true;
+    if (differs(prev.away_name, next.awayName)) return true;
+    if (differs(prev.away_sigla, next.awaySigla)) return true;
+    if (next.awayLogo != null && differs(prev.away_logo, next.awayLogo)) return true;
+  }
   return false;
 }
 
@@ -310,9 +363,19 @@ export async function persistMatchesV2(
       penaltis_casa: number | null;
       penaltis_visitante: number | null;
       kickoff_at: string | null;
+      home_name: string | null;
+      home_sigla: string | null;
+      home_logo: string | null;
+      home_team_id: number | null;
+      away_name: string | null;
+      away_sigla: string | null;
+      away_logo: string | null;
+      away_team_id: number | null;
     }>(
       `SELECT competition_id, match_id, status, result_casa, result_visitante,
-              disputa_penalti, penaltis_casa, penaltis_visitante, kickoff_at::text AS kickoff_at
+              disputa_penalti, penaltis_casa, penaltis_visitante, kickoff_at::text AS kickoff_at,
+              home_name, home_sigla, home_logo, home_team_id,
+              away_name, away_sigla, away_logo, away_team_id
          FROM matches_cache
         WHERE (competition_id, match_id) IN (
           SELECT unnest($1::int[]), unnest($2::bigint[])
@@ -329,13 +392,22 @@ export async function persistMatchesV2(
         penaltis_casa: r.penaltis_casa,
         penaltis_visitante: r.penaltis_visitante,
         kickoff_at: r.kickoff_at,
+        home_name: r.home_name,
+        home_sigla: r.home_sigla,
+        home_logo: r.home_logo,
+        home_team_id: r.home_team_id,
+        away_name: r.away_name,
+        away_sigla: r.away_sigla,
+        away_logo: r.away_logo,
+        away_team_id: r.away_team_id,
       });
     }
 
     // ---- 2) Particiona em "precisa upsert" vs "tudo igual" ----
-    // Regra: UPSERT só se a partida é NOVA ou se mudou algum campo de pontuação.
-    // Metadado isolado (slug/escudo/fase) entra no próximo full sync diário sem
-    // gerar UPDATE no Postgres em todo tick.
+    // Regra: UPSERT quando a partida é NOVA, mudou algum campo de pontuação OU
+    // o confronto foi resolvido (placeholder → time real / correção de escudo).
+    // Só a mudança de PONTUAÇÃO dispara recompute/cascata — a resolução de
+    // chaveamento apenas regrava metadados (times/escudos), sem recomputar.
     const toUpsert: ProviderMatchV2[] = [];
     for (const m of unique) {
       const key = matchDedupeKey(m);
@@ -352,12 +424,16 @@ export async function persistMatchesV2(
         }
         continue;
       }
-      if (scoredFieldsChanged(prev, m)) {
+      const scored = scoredFieldsChanged(prev, m);
+      const teamsResolved = teamDisplayChanged(prev, m);
+      if (scored || teamsResolved) {
         toUpsert.push(m);
         writtenMatchIds.push(m.matchId);
-        scoredChangedIds.push(m.matchId);
-        if (placarFieldsChanged(prev, m)) {
-          placarChangedIds.push(m.matchId);
+        if (scored) {
+          scoredChangedIds.push(m.matchId);
+          if (placarFieldsChanged(prev, m)) {
+            placarChangedIds.push(m.matchId);
+          }
         }
       } else {
         unchanged += 1;

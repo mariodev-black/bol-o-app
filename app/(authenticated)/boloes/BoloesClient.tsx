@@ -1814,9 +1814,56 @@ export function BoloesClient({
     pendingPredictions: 0,
     bestPosition: null,
   };
+
+  // Posições de ranking são carregadas sob demanda (fora do SSR) para que a
+  // página apareça instantaneamente. Enquanto não chegam, os cards mostram "--".
+  const [positions, setPositions] = useState<
+    Record<string, { position: number | null; points: number }>
+  >({});
+  const [hydratedBestPosition, setHydratedBestPosition] = useState<number | null>(
+    null,
+  );
+  const hasTickets = (data?.active?.all?.length ?? 0) > 0;
+
+  useEffect(() => {
+    if (!hasTickets) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const resp = await fetch("/api/boloes/ticket-positions", {
+          credentials: "include",
+          cache: "no-store",
+        });
+        if (!resp.ok) return;
+        const json = (await resp.json()) as {
+          positions?: Record<string, { position: number | null; points: number }>;
+          bestPosition?: number | null;
+        };
+        if (cancelled) return;
+        setPositions(json.positions ?? {});
+        setHydratedBestPosition(json.bestPosition ?? null);
+      } catch {
+        /* mantém "--" — não bloqueia a página */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [hasTickets]);
+
+  const resolvedBestPosition = hydratedBestPosition ?? summary.bestPosition;
   const bestPosition =
-    summary.bestPosition == null ? "--" : `#${summary.bestPosition}`;
-  const allItems = data?.active?.all ?? [];
+    resolvedBestPosition == null ? "--" : `#${resolvedBestPosition}`;
+  const rawItems = data?.active?.all ?? [];
+  const allItems = useMemo(
+    () =>
+      rawItems.map((item) => {
+        const p = positions[item.id];
+        if (!p) return item;
+        return { ...item, position: p.position, points: p.points };
+      }),
+    [rawItems, positions],
+  );
   const finishedItems = useMemo(
     () => allItems.filter((item) => item.displayPhase === "finalizado"),
     [allItems],

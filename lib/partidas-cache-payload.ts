@@ -194,17 +194,19 @@ export async function getPartidasFasesFromDb(competitionId?: number): Promise<Ph
     await mirrorWeekendBolaoMatchesFromCopa().catch(() => {});
   }
   const sourceComp = partidasCacheSourceCompetitionId(comp);
-  let rows = await readMatchesCache({ includeProviderPayload: true });
-  let filtered = rows.filter((r) => Number(r.competition_id) === sourceComp);
+  // Filtra a competição direto no SQL (WHERE competition_id = ANY) em vez de ler
+  // TODA a `matches_cache` com provider_payload (JSON grande) e descartar em JS.
+  // Isso reduz drasticamente I/O e memória no caminho crítico de /palpites.
+  const readSourceRows = () =>
+    readMatchesCache({ competitionIds: [sourceComp], includeProviderPayload: true });
+  let filtered = await readSourceRows();
   if (filtered.length === 0 && isAmistososFriendliesCompetition(comp)) {
     await ensureAmistososFriendliesMatchesSeeded().catch(() => {});
-    rows = await readMatchesCache({ includeProviderPayload: true });
-    filtered = rows.filter((r) => Number(r.competition_id) === sourceComp);
+    filtered = await readSourceRows();
   }
   if (filtered.length === 0) {
     await bootstrapCompetitionCacheIfEmpty(sourceComp).catch(() => {});
-    rows = await readMatchesCache({ includeProviderPayload: true });
-    filtered = rows.filter((r) => Number(r.competition_id) === sourceComp);
+    filtered = await readSourceRows();
   }
   return buildPartidasFasesFromRows(filtered);
 }

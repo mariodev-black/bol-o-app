@@ -12,6 +12,27 @@ import {
 
 export const runtime = "nodejs";
 
+/**
+ * As rotinas de "garantir/limpar" notificações (welcome, promo, prune de
+ * duplicadas) fazem várias escritas no banco. O feed é pollado com frequência,
+ * então rodar isso em toda requisição saturava o pool de conexões e deixava a
+ * app inteira lenta. Passamos a rodar essas rotinas no máximo uma vez a cada
+ * `MAINTENANCE_TTL_MS` por usuário (em memória, por processo Node).
+ */
+const MAINTENANCE_TTL_MS = 5 * 60 * 1000;
+declare global {
+  // eslint-disable-next-line no-var
+  var __notifMaintenanceAt: Map<string, number> | undefined;
+}
+function shouldRunMaintenance(userId: string): boolean {
+  const store = (globalThis.__notifMaintenanceAt ??= new Map<string, number>());
+  const last = store.get(userId) ?? 0;
+  const now = Date.now();
+  if (now - last < MAINTENANCE_TTL_MS) return false;
+  store.set(userId, now);
+  return true;
+}
+
 export async function GET(request: NextRequest) {
   const userId = await notificationsAuthUserId(request);
   if (!userId) {
@@ -33,15 +54,17 @@ export async function GET(request: NextRequest) {
   const offset = (page - 1) * perPage;
 
   try {
-    const user = await findUserById(userId);
-    if (user) {
-      await pruneDuplicateNotifications(userId);
-      await ensureWelcomeNotification(userId, user.name);
-      const createdAt = await findUserCreatedAt(userId);
-      if (createdAt) {
-        await ensureBolaoPromoNotification(userId, createdAt, user.name);
+    if (shouldRunMaintenance(userId)) {
+      const user = await findUserById(userId);
+      if (user) {
+        await pruneDuplicateNotifications(userId);
+        await ensureWelcomeNotification(userId, user.name);
+        const createdAt = await findUserCreatedAt(userId);
+        if (createdAt) {
+          await ensureBolaoPromoNotification(userId, createdAt, user.name);
+        }
+        await pruneDuplicateNotifications(userId);
       }
-      await pruneDuplicateNotifications(userId);
     }
 
     const [{ items, total }, unreadCount] = await Promise.all([

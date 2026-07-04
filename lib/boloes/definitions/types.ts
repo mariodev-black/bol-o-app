@@ -187,6 +187,10 @@ export type AdminMatchPickerItem = {
   awaySigla: string;
   awayLogo: string | null;
   rodada: number | null;
+  /** Slug da fase (ex.: "fase-de-grupos", "oitavas-de-final") — mata-mata não tem `rodada`. */
+  phaseKey: string | null;
+  /** Rótulo humano da fase (ex.: "Oitavas de final"). */
+  phaseLabel: string | null;
   status: string;
 };
 
