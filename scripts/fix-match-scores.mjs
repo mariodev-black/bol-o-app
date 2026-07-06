@@ -54,7 +54,17 @@ for (const matchId of matchIds) {
   const status = String(p.status ?? "finalizado");
   const payload = JSON.stringify(p);
 
-  for (const compId of [72, 90007]) {
+  const { rows: comps } = await pool.query(
+    `SELECT DISTINCT competition_id FROM matches_cache WHERE match_id = $1`,
+    [matchId],
+  );
+  const compIds = comps.map((r) => r.competition_id);
+  if (compIds.length === 0) {
+    console.warn(`#${matchId} não encontrado em matches_cache`);
+    continue;
+  }
+
+  for (const compId of compIds) {
     const r = await pool.query(
       `UPDATE matches_cache
           SET status = $3,

@@ -171,16 +171,18 @@ export async function repairFinishedMatchScores(opts?: {
 
   const persisted = await persistMatchesV2(updates, {
     cascadeSource: "finished-score-repair",
-    runCascadingClosures: true,
+    // Fechamento de prêmios pode travar em bolões grandes; placar + prediction_scores
+    // já são gravados dentro de persistMatchesV2. Revalidate do ranking segue na cascata.
+    runCascadingClosures: false,
   });
 
   const mainId = getFootballMainCompetitionId();
   if (updates.some((m) => Number(m.competitionId) === mainId)) {
     try {
-      const { mirrorSkaleBolaoMatchesFromCopa } = await import(
+      const { mirrorAllSkaleBolaoMatchesFromCopa } = await import(
         "@/lib/football/skale-bolao-sync"
       );
-      await mirrorSkaleBolaoMatchesFromCopa();
+      await mirrorAllSkaleBolaoMatchesFromCopa();
     } catch (err) {
       console.warn("[finished-score-repair] mirror Skale:", err);
     }
@@ -192,6 +194,89 @@ export async function repairFinishedMatchScores(opts?: {
     persisted: persisted.written,
     scoredChangedIds: persisted.scoredChangedIds,
     predictionScoresUpdated: persisted.predictionScoresUpdated,
+    ms: Date.now() - t0,
+  };
+}
+
+export type RegulationScoreRepairResult = {
+  candidates: number;
+  repaired: number;
+  matchIds: number[];
+  predictionScoresUpdated: number;
+  ms: number;
+};
+
+/**
+ * Corrige placares gravados com gols de prorrogação.
+ * O bolão pontua apenas 1º e 2º tempo (+ acréscimos).
+ */
+export async function repairRegulationTimeScores(opts?: {
+  lookbackDays?: number;
+}): Promise<RegulationScoreRepairResult> {
+  const t0 = Date.now();
+  const pool = getPool();
+  const lookbackDays = opts?.lookbackDays ?? repairLookbackDays();
+  const mainId = getFootballMainCompetitionId();
+
+  const { rows } = await pool.query<{
+    match_id: number;
+    result_casa: number | null;
+    result_visitante: number | null;
+    provider_payload: Record<string, unknown> | null;
+  }>(
+    `SELECT match_id, result_casa, result_visitante, provider_payload
+       FROM matches_cache
+      WHERE competition_id = $1
+        AND kickoff_at >= now() - ($2::text || ' days')::interval
+        AND lower(coalesce(status, '')) LIKE '%finaliz%'
+        AND provider_payload::text ILIKE '%prorrogação%'`,
+    [mainId, String(lookbackDays)],
+  );
+
+  const { countRegulationGoalsFromPartidaPayload } = await import("@/lib/partida-placar");
+  const { applyRegulationMatchResultAndRecompute } = await import(
+    "@/lib/admin/regulation-match-result-update"
+  );
+
+  const repairedIds: number[] = [];
+  let predictionScoresUpdated = 0;
+
+  for (const row of rows) {
+    const regulation = countRegulationGoalsFromPartidaPayload(row.provider_payload);
+    if (!regulation) continue;
+    const curCasa = row.result_casa;
+    const curVis = row.result_visitante;
+    if (curCasa === regulation.casa && curVis === regulation.visita) continue;
+
+    try {
+      const result = await applyRegulationMatchResultAndRecompute({
+        matchId: Number(row.match_id),
+        resultCasa: regulation.casa,
+        resultVisitante: regulation.visita,
+      });
+      repairedIds.push(Number(row.match_id));
+      predictionScoresUpdated += result.predictionsUpdated;
+    } catch (err) {
+      console.warn(`[regulation-score-repair] partida ${row.match_id}:`, err);
+    }
+  }
+
+  if (repairedIds.length > 0) {
+    try {
+      const { mirrorAllSkaleBolaoMatchesFromCopa } = await import(
+        "@/lib/football/skale-bolao-sync"
+      );
+      await mirrorAllSkaleBolaoMatchesFromCopa();
+    } catch (err) {
+      console.warn("[regulation-score-repair] mirror Skale:", err);
+    }
+  }
+
+  return {
+    candidates: rows.length,
+    repaired: repairedIds.length,
+    matchIds: repairedIds,
+    predictionScoresUpdated,
     ms: Date.now() - t0,
   };
 }

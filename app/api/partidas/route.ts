@@ -5,7 +5,8 @@ import {
 } from "@/lib/boloes-extra-config";
 import { readMatchesCache } from "@/lib/matches-cache";
 import { isSkaleBolaoCompetition } from "@/lib/boloes/skale-config";
-import { mirrorSkaleBolaoMatchesFromCopa } from "@/lib/football/skale-bolao-sync";
+import { mirrorAllSkaleBolaoMatchesFromCopa } from "@/lib/football/skale-bolao-sync";
+import { isSkaleDailyBolaoCompetition } from "@/lib/boloes/skale-daily-config";
 import {
   buildPartidasFasesFromRows,
   partidasCacheSourceCompetitionId,
@@ -54,8 +55,8 @@ export async function GET(request: NextRequest) {
       raw != null && String(raw).trim() !== "" && Number.isFinite(Number(raw))
         ? Number(raw)
         : getFootballMainCompetitionId();
-    if (!allSynced && isSkaleBolaoCompetition(comp)) {
-      await mirrorSkaleBolaoMatchesFromCopa().catch(() => {});
+    if (!allSynced && (isSkaleBolaoCompetition(comp) || isSkaleDailyBolaoCompetition(comp))) {
+      await mirrorAllSkaleBolaoMatchesFromCopa().catch(() => {});
     }
     const competitionIds = allSynced
       ? getAllSyncedCompetitionIds()

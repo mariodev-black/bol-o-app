@@ -1,5 +1,5 @@
 import { unstable_cache } from "next/cache";
-import { fetchMatchesMap, getMatchFromMap, matchMapKey } from "@/lib/football-api";
+import { fetchMatchesMap, fetchMatchesMapDirectFromDb, getMatchFromMap, matchMapKey } from "@/lib/football-api";
 import {
   ensureSkaleBolaoMatchesMirrored,
   isMatchInSkaleBolaoPool,
@@ -307,6 +307,8 @@ function paidTicketRevenueCents(t: PaidTicketRow): number {
   const qty = Number(t.quantity ?? 1);
   return unit > 0 && qty > 0 ? unit * qty : 0;
 }
+
+export type LeaderboardBuildOpts = { fresh?: boolean };
 
 type LoadPaidTicketsOpts = {
   /** Cotas grátis (brinde) entram no ranking extra, mas não na receita do prêmio. */
@@ -1123,10 +1125,11 @@ async function buildLeaderboardSkaleDailyUncached(
   return finalizeLeaderboardDisplay(rows, meta);
 }
 
-function buildLeaderboardSkale(): Promise<{
+function buildLeaderboardSkale(opts?: LeaderboardBuildOpts): Promise<{
   rows: LeaderboardRow[];
   meta: LeaderboardBoardMeta;
 }> {
+  if (opts?.fresh) return buildLeaderboardSkaleUncached({ fresh: true });
   const getCached = unstable_cache(
     async () => buildLeaderboardSkaleUncached(),
     ["leaderboard", "skale"],
@@ -1135,17 +1138,21 @@ function buildLeaderboardSkale(): Promise<{
   return getCached();
 }
 
-async function buildLeaderboardSkaleUncached(): Promise<{
+async function buildLeaderboardSkaleUncached(opts?: LeaderboardBuildOpts): Promise<{
   rows: LeaderboardRow[];
   meta: LeaderboardBoardMeta;
 }> {
   const skaleComp = getSkaleBolaoCompetitionId();
   await ensureSkaleBolaoMatchesMirrored();
   const copaId = getSkaleBolaoSourceCopaCompetitionId();
+  const loadMatches = opts?.fresh
+    ? () => fetchMatchesMapDirectFromDb()
+    : () =>
+        fetchMatchesMap({
+          ensureCompetitionIds: [skaleComp, copaId],
+        });
   const [matches, paidTickets, preds] = await Promise.all([
-    fetchMatchesMap({
-      ensureCompetitionIds: [skaleComp, copaId],
-    }).catch(() => new Map<string, MatchInfo>()),
+    loadMatches().catch(() => new Map<string, MatchInfo>()),
     loadPaidTickets("extra", skaleComp, { includePromoBonus: false }),
     listPredictionsAggregateByExtraCompetition(skaleComp),
   ]);
@@ -1227,7 +1234,8 @@ async function buildLeaderboardSkaleUncached(): Promise<{
 }
 
 export async function buildLeaderboardExtraForTicket(
-  focusTicketId: string
+  focusTicketId: string,
+  opts?: LeaderboardBuildOpts,
 ): Promise<{ rows: LeaderboardRow[]; meta: LeaderboardBoardMeta }> {
   const pool = getPool();
   const { rows: ticketCheck } = await pool.query<{
@@ -1250,11 +1258,13 @@ export async function buildLeaderboardExtraForTicket(
   }
 
   if (isSkaleBolaoCompetition(extraComp)) {
-    return buildLeaderboardSkale();
+    return buildLeaderboardSkale(opts);
   }
 
   const [matches, paidExtra, allExtra] = await Promise.all([
-    fetchMatchesMap().catch(() => new Map<string, MatchInfo>()),
+    (opts?.fresh ? fetchMatchesMapDirectFromDb() : fetchMatchesMap()).catch(
+      () => new Map<string, MatchInfo>(),
+    ),
     loadPaidTickets("extra", extraComp, { includePromoBonus: true }),
     listPredictionsAggregateByBolao("extra"),
   ]);
@@ -1268,6 +1278,10 @@ export async function buildLeaderboardExtraForTicket(
   );
   if (poolRodada == null || poolRodada <= 0) {
     return { rows: [], meta: emptyMetaForExtra() };
+  }
+
+  if (opts?.fresh) {
+    return buildLeaderboardExtraForCompRoundUncached(extraComp, poolRodada, opts);
   }
 
   const getCached = unstable_cache(
@@ -1292,13 +1306,16 @@ function emptyMetaForExtra(): LeaderboardBoardMeta {
 async function buildLeaderboardExtraForCompRoundUncached(
   extraComp: number,
   poolRodada: number,
+  opts?: LeaderboardBuildOpts,
 ): Promise<{ rows: LeaderboardRow[]; meta: LeaderboardBoardMeta }> {
   if (extraComp <= 0 || poolRodada <= 0) {
     return { rows: [], meta: emptyMetaForExtra() };
   }
 
   const [matches, paidExtra, allExtra, roundMatches] = await Promise.all([
-    fetchMatchesMap().catch(() => new Map<string, MatchInfo>()),
+    (opts?.fresh ? fetchMatchesMapDirectFromDb() : fetchMatchesMap()).catch(
+      () => new Map<string, MatchInfo>(),
+    ),
     loadPaidTickets("extra", extraComp, { includePromoBonus: true }),
     listPredictionsAggregateByExtraCompetition(extraComp),
     listMatchesForExtraRound(extraComp, poolRodada),

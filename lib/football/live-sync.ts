@@ -5,7 +5,7 @@ export { LIVE_PARTIDAS_POLL_MS, partidasUrlWithLiveSync } from "@/lib/football/l
 let lastTriggeredAt = 0;
 
 /** Evita rajadas quando vários clientes disparam liveSync ao mesmo tempo. */
-export function shouldTriggerLiveSync(minGapMs = 45_000): boolean {
+export function shouldTriggerLiveSync(minGapMs = 55_000): boolean {
   const now = Date.now();
   if (now - lastTriggeredAt < minGapMs) return false;
   lastTriggeredAt = now;

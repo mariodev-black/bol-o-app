@@ -28,7 +28,7 @@ async function main() {
   });
   const client = await pool.connect();
   try {
-    const ids = [32342, 32344, 32343, 32379];
+    const ids = [32342, 32344, 32343, 32379, 32387];
     const r = await recomputePredictionScoresForMatches(client, ids);
     console.log("recomputed:", r);
   } finally {

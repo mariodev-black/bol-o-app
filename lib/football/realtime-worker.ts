@@ -55,6 +55,11 @@ function workerMaxPerTick(): number {
   return intEnv("REALTIME_WORKER_MAX_PER_TICK", 20, 1, 200);
 }
 
+/** Minutos após o apito para resgatar cache travado em andamento/agendado. */
+function workerStaleAfterMinutes(): number {
+  return intEnv("REALTIME_WORKER_STALE_AFTER_MINUTES", 105, 90, 240);
+}
+
 const SELECT_ACTIVE_MATCHES_SQL = `
 SELECT competition_id, match_id, status, kickoff_at::text AS kickoff_at
 FROM matches_cache mc
@@ -108,6 +113,19 @@ WHERE
           AND lower(coalesce(mc.provider_payload->>'status', '')) NOT LIKE '%finaliz%'
           AND lower(coalesce(mc.provider_payload->>'status', '')) NOT LIKE '%encerr%'
         )
+      )
+    )
+    OR (
+      -- pós-jogo: cache travado em andamento/agendado depois da janela de 90 min
+      kickoff_at <= now() - ($5::text || ' minutes')::interval
+      AND kickoff_at >= now() - interval '7 days'
+      AND (
+        lower(coalesce(status, '')) LIKE '%andamento%'
+        OR lower(coalesce(status, '')) LIKE '%intervalo%'
+        OR lower(coalesce(status, '')) LIKE '%vivo%'
+        OR lower(coalesce(status, '')) LIKE '%em curso%'
+        OR lower(coalesce(status, '')) LIKE '%agendado%'
+        OR lower(coalesce(status, '')) LIKE '%pre%jogo%'
       )
     )
   )
@@ -170,6 +188,7 @@ async function runRealtimeTickUnlocked(): Promise<RealtimeTickResult> {
 
   const windowMin = workerWindowMinutes();
   const preMin = workerPreKickoffMinutes();
+  const staleMin = workerStaleAfterMinutes();
   const cap = workerMaxPerTick();
 
   const excludedCompetitions = getFootballApiSyncExcludedCompetitionIds();
@@ -178,6 +197,7 @@ async function runRealtimeTickUnlocked(): Promise<RealtimeTickResult> {
     String(windowMin),
     cap,
     excludedCompetitions,
+    String(staleMin),
   ]);
 
   if (rows.length === 0) {
@@ -228,10 +248,10 @@ async function runRealtimeTickUnlocked(): Promise<RealtimeTickResult> {
   const copaId = Number(process.env.FOOTBALL_COMPETITION_ID || "72") || 72;
   if (updates.some((m) => Number(m.competitionId) === copaId)) {
     try {
-      const { mirrorSkaleBolaoMatchesFromCopa } = await import(
+      const { mirrorAllSkaleBolaoMatchesFromCopa } = await import(
         "@/lib/football/skale-bolao-sync"
       );
-      await mirrorSkaleBolaoMatchesFromCopa();
+      await mirrorAllSkaleBolaoMatchesFromCopa();
     } catch (err) {
       console.warn("[realtime-worker] mirror Skale bolão:", err);
     }

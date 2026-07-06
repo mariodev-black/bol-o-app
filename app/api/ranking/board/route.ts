@@ -25,6 +25,8 @@ export async function GET(request: NextRequest) {
 
   const mode = request.nextUrl.searchParams.get("mode")?.trim();
   const ticketId = request.nextUrl.searchParams.get("ticketId")?.trim() || null;
+  const fresh = request.nextUrl.searchParams.get("fresh") === "1";
+  const boardOpts = fresh ? { fresh: true as const } : undefined;
 
   try {
     if (mode === "principal") {
@@ -59,7 +61,7 @@ export async function GET(request: NextRequest) {
       if (!ok[0]) {
         return NextResponse.json({ error: "Cota nao encontrada" }, { status: 403 });
       }
-      const { rows, meta } = await buildLeaderboardExtraForTicket(ticketId);
+      const { rows, meta } = await buildLeaderboardExtraForTicket(ticketId, boardOpts);
       const rowsWithMe = rows.map((r) => ({
         ...r,
         isMe: r.ticketId === ticketId,

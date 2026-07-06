@@ -1,4 +1,5 @@
 export const LIVE_PARTIDAS_POLL_MS = 60_000;
+export const LIVE_RANKING_POLL_MS = 60_000;
 
 export function partidasUrlWithLiveSync(
   basePath: string,

@@ -86,6 +86,7 @@ import {
 } from "@/lib/partida-team-display";
 import {
   LIVE_PARTIDAS_POLL_MS,
+  LIVE_RANKING_POLL_MS,
   partidasUrlWithLiveSync,
 } from "@/lib/football/live-sync-client";
 import { PalpitesViewTabs } from "@/app/(authenticated)/palpites/_components/PalpitesViewTabs";
@@ -3897,8 +3898,17 @@ function PalpitesPageContent({
     [jogos],
   );
 
+  const hasLiveJogos = useMemo(
+    () => jogos.some((j) => isMatchLiveForDisplay(j, Date.now())),
+    [jogos, jogosPlacarSignature],
+  );
+
+  const rankingLiveActive =
+    hasLiveJogos || rankingBoardMeta?.hasLiveMatchesInPool === true;
+
   useEffect(() => {
     let cancelled = false;
+    let intervalId: ReturnType<typeof setInterval> | undefined;
     const isSsrHydration =
       ssrTicketHydrated &&
       jogosPlacarSignature === initialPlacarSigRef.current;
@@ -3906,6 +3916,7 @@ function PalpitesPageContent({
       if (!isSsrHydration) setRankingBoardLoading(true);
       const result = await fetchRankingBoardClient(bolaoType, ticketId, {
         definitionId: initialDataRef.current?.bolaoDefinitionId ?? null,
+        fresh: rankingLiveActive,
       });
       if (cancelled) return;
       setRankingBoardRows(result.rows);
@@ -3921,8 +3932,12 @@ function PalpitesPageContent({
       } else {
         timeoutId = setTimeout(() => void load(), 80);
       }
+      if (rankingLiveActive) {
+        intervalId = setInterval(() => void load(), LIVE_RANKING_POLL_MS);
+      }
       return () => {
         cancelled = true;
+        if (intervalId != null) clearInterval(intervalId);
         if (idleId != null && typeof cancelIdleCallback === "function") {
           cancelIdleCallback(idleId);
         }
@@ -3930,10 +3945,20 @@ function PalpitesPageContent({
       };
     }
     void load();
+    if (rankingLiveActive) {
+      intervalId = setInterval(() => void load(), LIVE_RANKING_POLL_MS);
+    }
     return () => {
       cancelled = true;
+      if (intervalId != null) clearInterval(intervalId);
     };
-  }, [bolaoType, ticketId, jogosPlacarSignature, ssrTicketHydrated]);
+  }, [
+    bolaoType,
+    ticketId,
+    jogosPlacarSignature,
+    ssrTicketHydrated,
+    rankingLiveActive,
+  ]);
 
   useEffect(() => {
     if (!ticketId) return;
