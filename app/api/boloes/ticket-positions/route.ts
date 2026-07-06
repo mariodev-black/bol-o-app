@@ -8,7 +8,11 @@ import { isArtilheiroResultApplied, listArtilheiroOfficialResults } from "@/lib/
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type TicketPosition = { position: number | null; points: number };
+type TicketPosition = {
+  position: number | null;
+  points: number;
+  prizeReceivedCents: number;
+};
 
 /**
  * Posições de ranking por cota — carregado sob demanda pelo client (`/boloes`),
@@ -36,6 +40,22 @@ export async function GET(request: Request) {
     );
 
     const positions: Record<string, TicketPosition> = {};
+
+    const ticketIds = rows.map((r) => r.id);
+    const prizeByTicket = new Map<string, number>();
+    if (ticketIds.length > 0) {
+      const { rows: prizeRows } = await pool.query<{ ticket_id: string; total: string }>(
+        `SELECT ticket_id, COALESCE(SUM(amount_cents), 0)::int AS total
+           FROM prize_awards
+          WHERE user_id = $1::uuid
+            AND ticket_id = ANY($2::text[])
+          GROUP BY ticket_id`,
+        [userId, ticketIds],
+      );
+      for (const row of prizeRows) {
+        prizeByTicket.set(row.ticket_id, Number(row.total) || 0);
+      }
+    }
 
     const scopedTickets = rows
       .filter((r) => r.ticket_type !== "artilheiros")
@@ -68,6 +88,7 @@ export async function GET(request: Request) {
         positions[ticket.id] = {
           position: row?.position ?? null,
           points: row?.points ?? 0,
+          prizeReceivedCents: prizeByTicket.get(ticket.id) ?? 0,
         };
       }
     }
@@ -81,6 +102,7 @@ export async function GET(request: Request) {
         positions[ticketId] = {
           position: row?.position ?? null,
           points: row?.totalPoints ?? 0,
+          prizeReceivedCents: prizeByTicket.get(ticketId) ?? 0,
         };
       }
     }

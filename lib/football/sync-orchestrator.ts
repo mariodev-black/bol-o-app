@@ -103,10 +103,20 @@ export async function syncPrincipal(): Promise<SyncCompetitionResult> {
   });
 
   try {
-    const { mirrorSkaleBolaoMatchesFromCopa } = await import(
+    const { repairFinishedMatchScores, repairRegulationTimeScores } = await import(
+      "@/lib/football/finished-score-repair"
+    );
+    await repairFinishedMatchScores();
+    await repairRegulationTimeScores();
+  } catch (err) {
+    console.warn("[syncPrincipal] finished-score-repair:", err);
+  }
+
+  try {
+    const { mirrorAllSkaleBolaoMatchesFromCopa } = await import(
       "@/lib/football/skale-bolao-sync"
     );
-    await mirrorSkaleBolaoMatchesFromCopa();
+    await mirrorAllSkaleBolaoMatchesFromCopa();
   } catch (err) {
     console.warn("[syncPrincipal] mirror Skale bolão:", err);
   }
@@ -391,10 +401,10 @@ export async function bootstrapCompetitionCacheIfEmpty(
         console.warn("[bootstrapCompetitionCache] copa antes do espelho Skale:", err);
       });
     }
-    const { mirrorSkaleBolaoMatchesFromCopa } = await import(
+    const { mirrorAllSkaleBolaoMatchesFromCopa } = await import(
       "@/lib/football/skale-bolao-sync"
     );
-    await mirrorSkaleBolaoMatchesFromCopa().catch((err) => {
+    await mirrorAllSkaleBolaoMatchesFromCopa().catch((err) => {
       console.warn("[bootstrapCompetitionCache] espelho Skale:", err);
     });
     return { ran: true, reason: "skale-mirror" };

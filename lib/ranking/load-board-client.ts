@@ -8,19 +8,20 @@ import {
 export function rankingBoardApiUrl(
   bolaoType: PredictionBolaoType,
   ticketId: string | null,
-  options?: { definitionId?: string | null },
+  options?: { definitionId?: string | null; fresh?: boolean },
 ): string | null {
   const definitionId = options?.definitionId?.trim();
+  const freshQs = options?.fresh ? "&fresh=1" : "";
   if (definitionId) {
-    return `/api/ranking/board?mode=dynamic&definitionId=${encodeURIComponent(definitionId)}`;
+    return `/api/ranking/board?mode=dynamic&definitionId=${encodeURIComponent(definitionId)}${freshQs}`;
   }
-  if (bolaoType === "principal") return "/api/ranking/board?mode=principal";
+  if (bolaoType === "principal") return `/api/ranking/board?mode=principal${freshQs}`;
   if (!ticketId) return null;
   if (bolaoType === "extra") {
-    return `/api/ranking/board?mode=extra&ticketId=${encodeURIComponent(ticketId)}`;
+    return `/api/ranking/board?mode=extra&ticketId=${encodeURIComponent(ticketId)}${freshQs}`;
   }
   if (bolaoType === "diario") {
-    return `/api/ranking/board?mode=diario&ticketId=${encodeURIComponent(ticketId)}`;
+    return `/api/ranking/board?mode=diario&ticketId=${encodeURIComponent(ticketId)}${freshQs}`;
   }
   return null;
 }
@@ -34,7 +35,7 @@ export type RankingBoardLoadResult = {
 export async function fetchRankingBoardClient(
   bolaoType: PredictionBolaoType,
   ticketId: string | null,
-  options?: { definitionId?: string | null },
+  options?: { definitionId?: string | null; fresh?: boolean },
 ): Promise<RankingBoardLoadResult> {
   const url = rankingBoardApiUrl(bolaoType, ticketId, options);
   if (!url) {
