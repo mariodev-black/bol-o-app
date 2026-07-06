@@ -103,6 +103,15 @@ export async function syncPrincipal(): Promise<SyncCompetitionResult> {
   });
 
   try {
+    const { repairFinishedMatchScores } = await import(
+      "@/lib/football/finished-score-repair"
+    );
+    await repairFinishedMatchScores();
+  } catch (err) {
+    console.warn("[syncPrincipal] finished-score-repair:", err);
+  }
+
+  try {
     const { mirrorSkaleBolaoMatchesFromCopa } = await import(
       "@/lib/football/skale-bolao-sync"
     );
