@@ -1,11 +1,27 @@
 "use client";
 
 import Link from "next/link";
-import { Activity, ChevronRight, Clock, Radio, Trophy, Users } from "lucide-react";
+import {
+  Activity,
+  CheckCircle2,
+  ChevronRight,
+  Clock,
+  LineChart,
+  Radio,
+  Trophy,
+  Users,
+} from "lucide-react";
 import type { BolaoDefinitionCatalogItem } from "@/lib/boloes/definitions/types";
+import { isClosedBolaoStatus } from "@/lib/boloes/definitions/lifecycle-labels";
+import { formatBrlFromCents, formatPositionOrdinal } from "@/lib/boloes/format-prize-brl";
 import { extraBolaoIconSrc, type ExtraBolaoIconVariant } from "@/app/shared/extra-bolao-icons";
 
 const GREEN = "#B1EB0B";
+
+export type UpcomingBolaoCardUserStats = {
+  position: number | null;
+  prizeReceivedCents: number;
+};
 
 /** Rótulo de rodada/fase — usa roundNumber quando existir, senão cai para subtitle/datesLabel. */
 function phaseLabel(item: BolaoDefinitionCatalogItem): string | null {
@@ -17,7 +33,15 @@ function statusBadge(status: BolaoDefinitionCatalogItem["lifecycleStatus"]): {
   label: string;
   className: string;
   live?: boolean;
+  fullWidth?: boolean;
 } {
+  if (isClosedBolaoStatus(status)) {
+    return {
+      label: "Encerrado",
+      className: "bg-white/8 text-white/55",
+      fullWidth: true,
+    };
+  }
   switch (status) {
     case "programado":
       return { label: "Em breve", className: "bg-primary/15 text-primary" };
@@ -26,7 +50,7 @@ function statusBadge(status: BolaoDefinitionCatalogItem["lifecycleStatus"]): {
     case "ao_vivo":
       return { label: "Ao vivo", className: "bg-red-500/15 text-red-300", live: true };
     default:
-      return { label: "Encerrado", className: "bg-white/8 text-white/50" };
+      return { label: "Encerrado", className: "bg-white/8 text-white/50", fullWidth: true };
   }
 }
 
@@ -56,36 +80,54 @@ function StatBlock({
 export function UpcomingBolaoCard({
   item,
   className = "",
+  userStats,
+  resultHref,
 }: {
   item: BolaoDefinitionCatalogItem;
   className?: string;
+  userStats?: UpcomingBolaoCardUserStats;
+  /** Link do botão de resultado (ex.: palpites da cota). */
+  resultHref?: string;
 }) {
   const logoSrc =
     item.resolvedLogoUrl ??
     extraBolaoIconSrc((item.resolvedIconVariant || "generic") as ExtraBolaoIconVariant).src;
   const phase = phaseLabel(item);
   const prizeText = item.estimatedPrizeLabel ?? "A definir";
-  const href = `/tickets?definitionId=${encodeURIComponent(item.id)}`;
+  const defaultHref = `/tickets?definitionId=${encodeURIComponent(item.id)}`;
+  const href = resultHref ?? defaultHref;
   const badge = statusBadge(item.lifecycleStatus);
+  const closed = isClosedBolaoStatus(item.lifecycleStatus);
+  const positionLabel = formatPositionOrdinal(userStats?.position);
+  const prizeReceivedLabel = formatBrlFromCents(userStats?.prizeReceivedCents ?? 0);
 
   return (
     <article
       className={`flex flex-col overflow-hidden rounded-[16px] border border-white/8 bg-[#0d0d0d] ${className}`}
     >
-      <div className="flex justify-center pt-4">
-        <span
-          className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wide ${badge.className}`}
+      {badge.fullWidth ? (
+        <div
+          className={`flex w-full items-center justify-center gap-1.5 py-2.5 text-[10px] font-black uppercase tracking-[0.14em] ${badge.className}`}
         >
-          {badge.live ? (
-            <Radio className="size-3 animate-pulse" strokeWidth={2.5} aria-hidden />
-          ) : (
-            <Clock className="size-3" strokeWidth={2.5} aria-hidden />
-          )}
+          <CheckCircle2 className="size-3.5" strokeWidth={2.5} aria-hidden />
           {badge.label}
-        </span>
-      </div>
+        </div>
+      ) : (
+        <div className="flex justify-center pt-4">
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wide ${badge.className}`}
+          >
+            {badge.live ? (
+              <Radio className="size-3 animate-pulse" strokeWidth={2.5} aria-hidden />
+            ) : (
+              <Clock className="size-3" strokeWidth={2.5} aria-hidden />
+            )}
+            {badge.label}
+          </span>
+        </div>
+      )}
 
-      <div className="flex flex-col items-center px-4 pt-3">
+      <div className={`flex flex-col items-center px-4 ${badge.fullWidth ? "pt-3" : "pt-3"}`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={logoSrc} alt="" className="h-14 w-auto max-w-[88px] object-contain" draggable={false} />
         <h3 className="mt-2.5 text-center text-[16px] font-black uppercase leading-tight text-white">
@@ -98,18 +140,47 @@ export function UpcomingBolaoCard({
         ) : null}
       </div>
 
-      <div className="mt-3.5 flex items-start gap-2 border-t border-white/6 px-3 py-3">
-        <StatBlock icon={Users} label="Participantes" value={item.participantCount.toLocaleString("pt-BR")} />
-        <StatBlock icon={Trophy} label="Premiação" value={prizeText} />
-        <StatBlock icon={Activity} label="Partidas" value={`${item.matchCount} jogos`} />
+      <div
+        className={`mt-3.5 flex items-start gap-2 border-t border-white/6 px-3 py-3 ${closed ? "justify-center" : ""}`}
+      >
+        {closed ? (
+          <>
+            <StatBlock icon={LineChart} label="Sua posição" value={positionLabel} />
+            <StatBlock icon={Trophy} label="Prêmio" value={prizeText} />
+          </>
+        ) : (
+          <>
+            <StatBlock
+              icon={Users}
+              label="Participantes"
+              value={item.participantCount.toLocaleString("pt-BR")}
+            />
+            <StatBlock icon={Trophy} label="Premiação" value={prizeText} />
+            <StatBlock icon={Activity} label="Partidas" value={`${item.matchCount} jogos`} />
+          </>
+        )}
       </div>
 
       <div className="mx-3 mb-3 rounded-[12px] border border-white/6 bg-black/30 px-3 py-3 text-center">
-        <p className="text-[10px] font-bold uppercase tracking-wide text-white/40">Premiação estimada</p>
-        <p className="mt-1 text-[22px] font-black leading-none text-primary">{prizeText}</p>
-        {item.estimatedPrizeLabel ? <p className="mt-1 text-[10px] font-semibold text-white/40">NO PIX</p> : null}
+        <p className="text-[10px] font-bold uppercase tracking-wide text-white/40">
+          {closed ? "Prêmio recebido" : "Premiação estimada"}
+        </p>
+        <p className="mt-1 text-[22px] font-black leading-none text-primary">
+          {closed ? prizeReceivedLabel : prizeText}
+        </p>
+        {!closed && item.estimatedPrizeLabel ? (
+          <p className="mt-1 text-[10px] font-semibold text-white/40">NO PIX</p>
+        ) : null}
 
-        {item.purchaseOpen ? (
+        {closed ? (
+          <Link
+            href={href}
+            className="mt-3 flex h-10 w-full items-center justify-center gap-1.5 rounded-[10px] bg-primary text-[13px] font-black uppercase tracking-wide text-[#0E141B] transition active:scale-[0.98]"
+          >
+            Ver resultado
+            <ChevronRight className="size-4" strokeWidth={2.6} aria-hidden />
+          </Link>
+        ) : item.purchaseOpen ? (
           <Link
             href={href}
             className="mt-3 flex h-10 w-full items-center justify-center gap-1.5 rounded-[10px] bg-primary text-[13px] font-black uppercase tracking-wide text-[#0E141B] transition active:scale-[0.98]"

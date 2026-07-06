@@ -51,14 +51,15 @@ import {
   ActiveBolaoCarouselCard,
   BoloesCarouselShell,
   BoloesPageEyebrow,
-  FinishedBolaoChip,
   MilhaoUpsellBanner,
   PrincipalHeroCard,
   PrincipalHeroPurchaseCard,
 } from "@/app/(authenticated)/boloes/_components/BoloesVitrineCards";
 import { BoloesBottomSheet } from "@/app/(authenticated)/boloes/_components/BoloesBottomSheet";
 import { buildBoloesSheetCatalog } from "@/app/(authenticated)/boloes/_components/boloes-sheet-items";
-import { UpcomingBolaoCard } from "@/app/components/UpcomingBolaoCard";
+import { UpcomingBolaoCard, type UpcomingBolaoCardUserStats } from "@/app/components/UpcomingBolaoCard";
+import { catalogItemFromFinishedActive } from "@/app/(authenticated)/boloes/_components/closed-bolao-card-utils";
+import type { BolaoDefinitionCatalogItem } from "@/lib/boloes/definitions/types";
 export type ActivePrincipalBolao = {
   id: string;
   title: string;
@@ -1739,13 +1740,12 @@ function NoTicketsState({
   );
 }
 
-type BoloesFilterTab = "disponiveis" | "meus" | "andamento" | "finalizadas";
+type BoloesFilterTab = "disponiveis" | "meus" | "encerrados";
 
 const BOLOES_FILTER_TABS: { key: BoloesFilterTab; label: string }[] = [
   { key: "disponiveis", label: "Disponíveis" },
   { key: "meus", label: "Meus Bolões" },
-  { key: "andamento", label: "Em andamento" },
-  { key: "finalizadas", label: "Finalizadas" },
+  { key: "encerrados", label: "Encerrados" },
 ];
 
 function BoloesFilterTabs({
@@ -1818,7 +1818,7 @@ export function BoloesClient({
   // Posições de ranking são carregadas sob demanda (fora do SSR) para que a
   // página apareça instantaneamente. Enquanto não chegam, os cards mostram "--".
   const [positions, setPositions] = useState<
-    Record<string, { position: number | null; points: number }>
+    Record<string, { position: number | null; points: number; prizeReceivedCents?: number }>
   >({});
   const [hydratedBestPosition, setHydratedBestPosition] = useState<number | null>(
     null,
@@ -1836,7 +1836,10 @@ export function BoloesClient({
         });
         if (!resp.ok) return;
         const json = (await resp.json()) as {
-          positions?: Record<string, { position: number | null; points: number }>;
+          positions?: Record<
+            string,
+            { position: number | null; points: number; prizeReceivedCents?: number }
+          >;
           bestPosition?: number | null;
         };
         if (cancelled) return;
@@ -1894,14 +1897,55 @@ export function BoloesClient({
     () => [...dynamicCatalog.upcoming, ...dynamicCatalog.available],
     [dynamicCatalog],
   );
-  const catalogLive = useMemo(
-    () => dynamicCatalog.available.filter((item) => item.lifecycleStatus === "ao_vivo"),
-    [dynamicCatalog],
-  );
-  const ticketsLive = useMemo(
-    () => activeForShowcase.filter((item) => item.displayPhase === "disputa"),
-    [activeForShowcase],
-  );
+
+  const closedBolaoCards = useMemo(() => {
+    const entries: Array<{
+      key: string;
+      item: BolaoDefinitionCatalogItem;
+      userStats: UpcomingBolaoCardUserStats;
+      resultHref?: string;
+    }> = [];
+
+    const ticketByDefinitionId = new Map<string, ActiveBolaoListItem>();
+    for (const ticket of finishedItems) {
+      if (ticket.bolaoDefinitionId) {
+        ticketByDefinitionId.set(ticket.bolaoDefinitionId, ticket);
+      }
+    }
+
+    const usedTicketIds = new Set<string>();
+
+    for (const catalogItem of dynamicCatalog.closed) {
+      const ticket = ticketByDefinitionId.get(catalogItem.id);
+      if (ticket) usedTicketIds.add(ticket.id);
+      const p = ticket ? positions[ticket.id] : undefined;
+      entries.push({
+        key: catalogItem.id,
+        item: catalogItem,
+        userStats: {
+          position: p?.position ?? ticket?.position ?? null,
+          prizeReceivedCents: p?.prizeReceivedCents ?? 0,
+        },
+        resultHref: ticket?.href,
+      });
+    }
+
+    for (const ticket of finishedItems) {
+      if (usedTicketIds.has(ticket.id)) continue;
+      const p = positions[ticket.id];
+      entries.push({
+        key: ticket.id,
+        item: catalogItemFromFinishedActive(ticket),
+        userStats: {
+          position: p?.position ?? ticket.position,
+          prizeReceivedCents: p?.prizeReceivedCents ?? 0,
+        },
+        resultHref: ticket.href,
+      });
+    }
+
+    return entries;
+  }, [dynamicCatalog.closed, finishedItems, positions]);
 
   const [activeTab, setActiveTab] = useState<BoloesFilterTab>("disponiveis");
 
@@ -1957,49 +2001,22 @@ export function BoloesClient({
           )
         ) : null}
 
-        {activeTab === "andamento" ? (
-          catalogLive.length > 0 || ticketsLive.length > 0 ? (
-            <section className="mt-5 space-y-6" aria-label="Bolões em andamento">
-              {catalogLive.length > 0 ? (
-                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                  {catalogLive.map((item) => (
-                    <UpcomingBolaoCard key={item.id} item={item} />
-                  ))}
-                </div>
-              ) : null}
-              {ticketsLive.length > 0 ? (
-                <BoloesCarouselShell itemCount={ticketsLive.length}>
-                  {ticketsLive.map((item) => (
-                    <ActiveBolaoCarouselCard key={item.id} item={item} now={now} />
-                  ))}
-                </BoloesCarouselShell>
-              ) : null}
+        {activeTab === "encerrados" ? (
+          closedBolaoCards.length > 0 ? (
+            <section className="mt-5" aria-labelledby="boloes-finalizados-heading">
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                {closedBolaoCards.map((entry) => (
+                  <UpcomingBolaoCard
+                    key={entry.key}
+                    item={entry.item}
+                    userStats={entry.userStats}
+                    resultHref={entry.resultHref}
+                  />
+                ))}
+              </div>
             </section>
           ) : (
-            <BoloesFilterEmptyState text="Nenhum bolão em andamento agora." />
-          )
-        ) : null}
-
-        {activeTab === "finalizadas" ? (
-          dynamicCatalog.closed.length > 0 || finishedItems.length > 0 ? (
-            <section className="mt-5 space-y-6" aria-labelledby="boloes-finalizados-heading">
-              {dynamicCatalog.closed.length > 0 ? (
-                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                  {dynamicCatalog.closed.map((item) => (
-                    <UpcomingBolaoCard key={item.id} item={item} />
-                  ))}
-                </div>
-              ) : null}
-              {finishedItems.length > 0 ? (
-                <div className="flex snap-x snap-mandatory gap-2.5 overflow-x-auto overscroll-x-contain px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                  {finishedItems.map((item) => (
-                    <FinishedBolaoChip key={item.id} item={item} />
-                  ))}
-                </div>
-              ) : null}
-            </section>
-          ) : (
-            <BoloesFilterEmptyState text="Nenhum bolão finalizado ainda." />
+            <BoloesFilterEmptyState text="Nenhum bolão encerrado ainda." />
           )
         ) : null}
 
