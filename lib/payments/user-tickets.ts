@@ -153,7 +153,9 @@ export async function listPaidTicketsForUser(
           isSkaleDailyBolaoCompetition(Number(r.extra_championship_id))),
     );
     if (hasSkaleTicket) {
-      await ensureSkaleBolaoMatchesMirrored();
+      // Não bloquear telas de leitura. O cron/realtime mantém o espelho; se
+      // estiver atrasado, a resolução cai para a competição fonte da Copa.
+      void ensureSkaleBolaoMatchesMirrored().catch(() => {});
     }
 
     const extraCompIds = [

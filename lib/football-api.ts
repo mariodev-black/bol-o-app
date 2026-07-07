@@ -131,7 +131,7 @@ export async function fetchMatchesMap(opts?: { ensureCompetitionIds?: number[] }
   }
   const cachedRows = await readMatchesCache({
     competitionIds: scopeIds,
-    includeProviderPayload: true,
+    includeProviderPayload: false,
   }).catch(() => []);
   const map = mapFromCacheRows(cachedRows);
   matchMapMemoryCache = { at: Date.now(), map, scopeKey };

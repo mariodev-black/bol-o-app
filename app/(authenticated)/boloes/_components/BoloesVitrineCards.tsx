@@ -880,16 +880,6 @@ export function MilhaoUpsellBanner({ href }: { href: string }) {
   );
 }
 
-export function BoloesPageEyebrow() {
-  return (
-    <header className="flex items-center gap-2 pt-1">
-      <Target className="size-4 shrink-0 text-white" strokeWidth={2.4} aria-hidden />
-      <p className="text-[12px] font-black uppercase tracking-[0.22em] text-white">
-        Rumo ao Milhão
-      </p>
-    </header>
-  );
-}
 
 export function BoloesSectionHeader({
   title,

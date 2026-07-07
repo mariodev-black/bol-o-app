@@ -142,7 +142,6 @@ function LoggedInHome({
 
   useEffect(() => {
     let cancelled = false;
-    let intervalId: ReturnType<typeof setInterval> | undefined;
 
     async function loadPalpitesAbertos(liveSync = false) {
       if (
@@ -180,10 +179,10 @@ function LoggedInHome({
     }
 
     void loadPalpitesAbertos(true);
-    intervalId = setInterval(() => void loadPalpitesAbertos(true), LIVE_PARTIDAS_POLL_MS);
+    const intervalId = setInterval(() => void loadPalpitesAbertos(true), LIVE_PARTIDAS_POLL_MS);
     return () => {
       cancelled = true;
-      if (intervalId) clearInterval(intervalId);
+      clearInterval(intervalId);
     };
   }, []);
 
@@ -208,7 +207,7 @@ function LoggedInHome({
               <HomeBannerCarousel fullWidth fillHeight />
             </div>
             <div className="mt-4 min-w-0 overflow-hidden lg:mt-0 lg:flex-1">
-              <ProximosBolaoCarousel />
+              <ProximosBolaoCarousel fallbackItems={outrosBoloes} />
             </div>
           </div>
 
@@ -255,13 +254,13 @@ function LoggedInHome({
             onScoring={() => setScoringExplainerOpen(true)}
           />
 
-          <div className="lg:hidden">
+          {/* <div className="lg:hidden">
             <HomeClassificacaoCtaSection className="mt-6" />
             <HomeComoFuncionaPontuacaoSection
               className="mt-5"
               onVerMaisPontuacao={() => setScoringExplainerOpen(true)}
             />
-          </div>
+          </div> */}
 
           <HomeTrustBand className="mt-6 hidden lg:block" />
         </div>

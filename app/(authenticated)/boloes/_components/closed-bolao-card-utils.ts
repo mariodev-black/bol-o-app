@@ -45,8 +45,16 @@ function displayNameForActive(item: ActiveBolaoListItem): string {
   return item.title;
 }
 
-/** Converte cota encerrada (legado) no shape mínimo do card padrão v2. */
-export function catalogItemFromFinishedActive(
+function lifecycleStatusForActive(
+  item: ActiveBolaoListItem,
+): BolaoDefinitionCatalogItem["lifecycleStatus"] {
+  if (item.displayPhase === "finalizado") return "encerrado";
+  if (item.displayPhase === "disputa") return "ao_vivo";
+  return "aberto";
+}
+
+/** Converte cota/bolão legado no shape mínimo do card padrão v2. */
+export function catalogItemFromActiveBolao(
   item: ActiveBolaoListItem,
 ): BolaoDefinitionCatalogItem {
   const logoSrc = resolveBolaoListItemLogoSrc(item);
@@ -84,7 +92,7 @@ export function catalogItemFromFinishedActive(
     settlementAt: null,
     prizeReleaseAt: null,
     maxTicketsPerUser: null,
-    lifecycleStatus: "encerrado",
+    lifecycleStatus: lifecycleStatusForActive(item),
     metadata: {},
     enabled: true,
     createdAt: "",
@@ -100,8 +108,20 @@ export function catalogItemFromFinishedActive(
     participantCount: item.participantCount ?? 0,
     matchCount: item.gamesCount ?? item.total ?? 0,
     remainingMatches: 0,
-    purchaseOpen: false,
+    purchaseOpen: item.displayPhase !== "finalizado",
     countdownToStartMs: null,
     countdownToEndMs: null,
+  };
+}
+
+/** Compatibilidade: encerrados usam o mesmo conversor base. */
+export function catalogItemFromFinishedActive(
+  item: ActiveBolaoListItem,
+): BolaoDefinitionCatalogItem {
+  return {
+    ...catalogItemFromActiveBolao(item),
+    lifecycleStatus: "encerrado",
+    purchaseOpen: false,
+    remainingMatches: 0,
   };
 }

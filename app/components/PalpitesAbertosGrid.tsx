@@ -171,13 +171,7 @@ export function PalpitesAbertosGrid({
         >
           PRÓXIMAS PARTIDAS
         </h2>
-        <Link
-          href="/palpites"
-          className="shrink-0 text-[13px] font-black uppercase tracking-wide transition-opacity hover:opacity-90"
-          style={{ color: GREEN }}
-        >
-          VER TODOS &gt;
-        </Link>
+
       </div>
 
       {loading ? (

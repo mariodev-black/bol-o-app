@@ -2,18 +2,98 @@
 
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { BolaoDefinitionCatalogItem } from "@/lib/boloes/definitions/types";
 import { UpcomingBolaoCard } from "@/app/components/UpcomingBolaoCard";
+import type { OutrosBolaoGridItem } from "@/lib/boloes-outros-grid";
+import { getExtraBolaoHeroSideVariant } from "@/lib/boloes-extra-competition-branding";
+import { extraBolaoIconSrc } from "@/app/shared/extra-bolao-icons";
+import { isWeekendBolaoCompetition } from "@/lib/boloes/weekend-bolao-config";
 
 const GREEN = "#B1EB0B";
 const INTERVAL_MS = 4500;
-const CARD_W = "w-[min(300px,calc(100vw-3rem))] shrink-0 flex-none";
+const CARD_W =
+  "w-[min(260px,calc((100vw-2.25rem)*0.62))] min-w-[218px] shrink-0 flex-none lg:w-[260px]";
 
-export function ProximosBolaoCarousel({ className = "" }: { className?: string }) {
+type CarouselCatalogItem = BolaoDefinitionCatalogItem & { actionHref?: string };
+
+function fallbackBolaoItem(item: OutrosBolaoGridItem): CarouselCatalogItem {
+  const variant = getExtraBolaoHeroSideVariant(item.championshipId, item.label);
+  const logo = extraBolaoIconSrc(variant);
+  const href = isWeekendBolaoCompetition(item.championshipId)
+    ? "/copa-fds"
+    : `/tickets?bolao=extra&championshipId=${item.championshipId}`;
+
+  return {
+    id: `mock-${item.championshipId}`,
+    slug: `mock-${item.championshipId}`,
+    displayName: item.label,
+    subtitle: "Rodada aberta",
+    description: null,
+    ticketType: "extra",
+    competitionId: item.championshipId,
+    competitionIds: [item.championshipId],
+    scopeMode: "round",
+    scopeDates: [],
+    scopeMatchIds: [],
+    scopeConfig: { competitions: [] },
+    roundNumber: null,
+    editionNumber: null,
+    unitPriceCents: 0,
+    saleEnabled: true,
+    shopVisible: true,
+    sortOrder: 0,
+    logoUrl: null,
+    bannerUrl: null,
+    logoVariant: variant,
+    useCompetitionLogo: false,
+    prizePoolBps: 0,
+    prizeTiers: [],
+    scoringConfig: {},
+    startsAt: null,
+    endsAt: null,
+    settlementAt: null,
+    prizeReleaseAt: null,
+    maxTicketsPerUser: null,
+    lifecycleStatus: "programado",
+    metadata: {},
+    enabled: true,
+    createdAt: "",
+    updatedAt: "",
+    competitionDisplayName: item.label,
+    competitionDisplayNames: [item.label],
+    resolvedLogoUrl: "src" in logo ? logo.src : null,
+    resolvedBannerUrl: null,
+    resolvedIconVariant: variant,
+    datesLabel: "Rodada aberta",
+    priceLabel: "—",
+    estimatedPrizeLabel: "R$ 10.000",
+    participantCount: item.participants,
+    matchCount: 8,
+    remainingMatches: 8,
+    purchaseOpen: true,
+    countdownToStartMs: null,
+    countdownToEndMs: null,
+    actionHref: href,
+  };
+}
+
+export function ProximosBolaoCarousel({
+  className = "",
+  fallbackItems = [],
+}: {
+  className?: string;
+  fallbackItems?: OutrosBolaoGridItem[];
+}) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [items, setItems] = useState<BolaoDefinitionCatalogItem[]>([]);
-  const [loaded, setLoaded] = useState(false);
+  const fallbackCatalogItems = useMemo(
+    () => fallbackItems.map(fallbackBolaoItem),
+    [fallbackItems],
+  );
+  const [items, setItems] = useState<CarouselCatalogItem[]>(() =>
+    fallbackItems.map(fallbackBolaoItem),
+  );
+  const [loaded, setLoaded] = useState(fallbackCatalogItems.length > 0);
   const [canPrev, setCanPrev] = useState(false);
   const [canNext, setCanNext] = useState(true);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -23,12 +103,16 @@ export function ProximosBolaoCarousel({ className = "" }: { className?: string }
     let cancelled = false;
     void (async () => {
       try {
-        const r = await fetch("/api/boloes/catalog?section=upcoming", { cache: "no-store" });
-        const d = (await r.json()) as { items?: BolaoDefinitionCatalogItem[] };
+        const r = await fetch("/api/boloes/catalog", { cache: "no-store" });
+        const d = (await r.json()) as {
+          upcoming?: BolaoDefinitionCatalogItem[];
+          available?: BolaoDefinitionCatalogItem[];
+        };
         if (cancelled) return;
-        setItems(d.items ?? []);
+        const remote = (d.upcoming?.length ? d.upcoming : d.available) ?? [];
+        if (remote.length) setItems(remote);
       } catch {
-        /* mantém vazio — seção fica oculta */
+        /* mantém fallback instantâneo */
       } finally {
         if (!cancelled) setLoaded(true);
       }
@@ -36,7 +120,7 @@ export function ProximosBolaoCarousel({ className = "" }: { className?: string }
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [fallbackCatalogItems]);
 
   const updateArrows = useCallback(() => {
     const el = scrollRef.current;
@@ -45,11 +129,17 @@ export function ProximosBolaoCarousel({ className = "" }: { className?: string }
     setCanNext(el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
   }, []);
 
+  useEffect(() => {
+    const id = window.requestAnimationFrame(updateArrows);
+    return () => window.cancelAnimationFrame(id);
+  }, [items.length, updateArrows]);
+
   const scrollCards = useCallback((dir: 1 | -1) => {
     const el = scrollRef.current;
     if (!el) return;
     const firstCard = el.querySelector("[data-card]") as HTMLElement | null;
-    const cardW = firstCard ? firstCard.offsetWidth : el.clientWidth;
+    const gap = Number.parseFloat(window.getComputedStyle(el).columnGap || "0") || 0;
+    const cardW = firstCard ? firstCard.offsetWidth + gap : el.clientWidth;
     el.scrollBy({ left: dir * cardW, behavior: "smooth" });
     if (timerRef.current) {
       clearInterval(timerRef.current);
@@ -68,7 +158,11 @@ export function ProximosBolaoCarousel({ className = "" }: { className?: string }
         el.scrollTo({ left: 0, behavior: "smooth" });
       } else {
         const firstCard = el.querySelector("[data-card]") as HTMLElement | null;
-        el.scrollBy({ left: firstCard?.offsetWidth ?? el.clientWidth, behavior: "smooth" });
+        const gap = Number.parseFloat(window.getComputedStyle(el).columnGap || "0") || 0;
+        el.scrollBy({
+          left: (firstCard?.offsetWidth ?? el.clientWidth) + gap,
+          behavior: "smooth",
+        });
       }
     }, INTERVAL_MS);
     return () => {
@@ -124,7 +218,7 @@ export function ProximosBolaoCarousel({ className = "" }: { className?: string }
         >
           {items.map((item) => (
             <div key={item.id} data-card className={CARD_W} style={{ scrollSnapAlign: "center" }}>
-              <UpcomingBolaoCard item={item} />
+              <UpcomingBolaoCard item={item} href={item.actionHref} />
             </div>
           ))}
         </div>
