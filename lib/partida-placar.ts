@@ -146,10 +146,9 @@ export function pickScoreFromPartidaPayload(p: any, side: "casa" | "visitante"):
     isExtraTimeMatchStatus(status) || partidaHasExtraTimeGoals(p);
   const regulation = countRegulationGoalsFromPartidaPayload(p);
 
-  if (
-    regulation != null &&
-    (isFinishedMatchStatus(status) || inExtraTime)
-  ) {
+  // Só recalcula pelos gols quando houve prorrogação — em jogos normais o array
+  // `gols` da API costuma vir vazio/incompleto e zeraria o placar (ex.: 2×1 → 0×0).
+  if (regulation != null && inExtraTime) {
     const resultCasa = regulation.casa;
     const resultVisitante = regulation.visita;
     if (
