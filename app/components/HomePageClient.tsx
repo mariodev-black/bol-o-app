@@ -234,16 +234,6 @@ function LoggedInHome({
             </div>
 
             <div className="mt-5 min-w-0 lg:mt-0">
-              {outrosBoloes.length > 0 ? (
-                <OutrosBoloesGrid
-                  items={outrosBoloes}
-                  title="PRINCIPAIS BOLÕES"
-                  className="mt-0"
-                />
-              ) : null}
-            </div>
-
-            <div className="mt-5 min-w-0 lg:mt-0">
               <HomeRankingTop5 />
               <QuemEstaNoBolaoSection className="mt-5" />
             </div>

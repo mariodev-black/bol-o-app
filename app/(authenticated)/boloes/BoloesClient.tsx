@@ -51,6 +51,7 @@ import { ScoringExplainerModal } from "@/app/shared/ScoringExplainerModal";
 
 import { BoloesBottomSheet } from "@/app/(authenticated)/boloes/_components/BoloesBottomSheet";
 import { buildBoloesSheetCatalog } from "@/app/(authenticated)/boloes/_components/boloes-sheet-items";
+import { BolaoPurchaseModal } from "@/app/components/BolaoPurchaseModal";
 import { UpcomingBolaoCard, type UpcomingBolaoCardUserStats } from "@/app/components/UpcomingBolaoCard";
 import {
   catalogItemFromActiveBolao,
@@ -214,6 +215,15 @@ const SHOWCASE_CARD_BG = "#111111";
 const BOLOES_SLIDER_CARD_W =
   "w-[min(260px,calc((100vw-2.25rem)*0.62))] min-w-[218px] shrink-0 flex-none lg:w-[260px]";
 
+function parsePriceLabelCents(label: string | null | undefined): number {
+  const normalized = String(label ?? "")
+    .replace(/[^\d,.-]/g, "")
+    .replace(/\./g, "")
+    .replace(",", ".");
+  const value = Number.parseFloat(normalized);
+  return Number.isFinite(value) && value > 0 ? Math.round(value * 100) : 0;
+}
+
 function legacyCatalogBase(input: {
   id: string;
   displayName: string;
@@ -221,6 +231,7 @@ function legacyCatalogBase(input: {
   ticketType: "general" | "daily" | "extra";
   competitionId: number;
   logoVariant: string;
+  priceLabel: string;
   prizeLabel: string | null;
   participantCount: number;
   matchCount: number;
@@ -241,7 +252,7 @@ function legacyCatalogBase(input: {
     scopeConfig: { competitions: [] },
     roundNumber: null,
     editionNumber: null,
-    unitPriceCents: 0,
+    unitPriceCents: parsePriceLabelCents(input.priceLabel),
     saleEnabled: input.purchaseOpen,
     shopVisible: true,
     sortOrder: 0,
@@ -268,7 +279,7 @@ function legacyCatalogBase(input: {
     resolvedBannerUrl: null,
     resolvedIconVariant: input.logoVariant,
     datesLabel: input.subtitle,
-    priceLabel: "—",
+    priceLabel: input.priceLabel,
     estimatedPrizeLabel: input.prizeLabel,
     participantCount: input.participantCount,
     matchCount: input.matchCount,
@@ -298,6 +309,7 @@ function legacyAvailableCatalogItems(
         ticketType: "general",
         competitionId: 0,
         logoVariant: "copa_mundo",
+        priceLabel: upcoming.principal.priceLabel,
         prizeLabel: SHOWCASE_PRIZES.principal?.total ?? "+ de R$ 1 milhão",
         participantCount: data.participantsByBolao.principal,
         matchCount: 104,
@@ -317,6 +329,7 @@ function legacyAvailableCatalogItems(
         ticketType: "daily",
         competitionId: 0,
         logoVariant: "daily",
+        priceLabel: upcoming.daily.priceLabel,
         prizeLabel: SHOWCASE_PRIZES.diario?.total ?? "A definir",
         participantCount: data.participantsByBolao.diario,
         matchCount: upcoming.daily.gamesCount,
@@ -336,6 +349,7 @@ function legacyAvailableCatalogItems(
         ticketType: "extra",
         competitionId: getSkaleDailyBolaoCompetitionId(),
         logoVariant: "skale",
+        priceLabel: upcoming.skaleDaily.priceLabel,
         prizeLabel: SHOWCASE_PRIZES.diario?.total ?? "A definir",
         participantCount: data.participantsByBolao.extra,
         matchCount: upcoming.skaleDaily.gamesCount,
@@ -355,6 +369,7 @@ function legacyAvailableCatalogItems(
         ticketType: "extra",
         competitionId: ex.championshipId,
         logoVariant: getExtraBolaoHeroSideVariant(ex.championshipId, ex.title),
+        priceLabel: ex.priceLabel,
         prizeLabel: SHOWCASE_PRIZES.extra?.total ?? "A definir",
         participantCount: data.participantsByBolao.extra,
         matchCount: ex.gamesCount,
@@ -374,6 +389,7 @@ function legacyAvailableCatalogItems(
         ticketType: "extra",
         competitionId: 0,
         logoVariant: "artilheiros",
+        priceLabel: upcoming.artilheiros.priceLabel,
         prizeLabel: SHOWCASE_PRIZES.artilheiros?.total ?? "A definir",
         participantCount: upcoming.artilheiros.participantCount,
         matchCount: 3,
@@ -1944,6 +1960,20 @@ function BoloesFilterEmptyState({ text }: { text: string }) {
   );
 }
 
+function BoloesTabLoadingState() {
+  return (
+    <div className="mt-5 flex min-h-[220px] flex-col items-center justify-center rounded-[18px] border border-white/8 bg-[#0d0d0d] px-4 text-center">
+      <div className="size-10 animate-spin rounded-full border-4 border-primary/20 border-t-primary" aria-hidden />
+      <p className="mt-4 text-[12px] font-black uppercase tracking-[0.18em] text-primary">
+        Carregando bolão
+      </p>
+      <p className="mt-1 text-[12px] font-semibold text-white/42">
+        Buscando os status corretos desta aba
+      </p>
+    </div>
+  );
+}
+
 function BoloesTabSectionTitle({
   title,
 }: {
@@ -1969,9 +1999,11 @@ type BoloesCardSliderEntry = {
 function BoloesCardSlider({
   entries,
   ariaLabel,
+  onPurchaseClick,
 }: {
   entries: BoloesCardSliderEntry[];
   ariaLabel: string;
+  onPurchaseClick?: (item: BolaoDefinitionCatalogItem) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canPrev, setCanPrev] = useState(false);
@@ -2042,6 +2074,7 @@ function BoloesCardSlider({
               href={entry.href}
               userStats={entry.userStats}
               resultHref={entry.resultHref}
+              onCtaClick={onPurchaseClick}
             />
           </div>
         ))}
@@ -2070,7 +2103,7 @@ function splitBoloesIntoTwoSliders<T>(items: T[]): [T[], T[]] {
    Componente principal
    ───────────────────────────────────────────────────── */
 export function BoloesClient({
-  data,
+  data: initialData,
   ticketsExtraOnly = false,
   ticketsHideDaily = false,
 }: {
@@ -2080,6 +2113,57 @@ export function BoloesClient({
   /** Alinhado a `TICKETS_HIDE_DAILY`: oculta vitrine/compra do dia; cotas já compradas continuam visíveis. */
   ticketsHideDaily?: boolean;
 }) {
+  const [data, setData] = useState(initialData);
+  const [activeTab, setActiveTab] = useState<BoloesFilterTab>("disponiveis");
+  const [personalDataLoaded, setPersonalDataLoaded] = useState(false);
+  const [personalDataLoading, setPersonalDataLoading] = useState(false);
+  const loadPersonalData = useCallback(async () => {
+    if (personalDataLoaded || personalDataLoading) return;
+    setPersonalDataLoading(true);
+    try {
+      const resp = await fetch("/api/boloes/screen", {
+        credentials: "include",
+        cache: "no-store",
+      });
+      if (!resp.ok) {
+        setPersonalDataLoaded(true);
+        return;
+      }
+      const json = (await resp.json()) as { data?: BoloesScreenData | null };
+      if (json.data) setData(json.data);
+      setPersonalDataLoaded(true);
+    } catch {
+      /* mantém o snapshot rápido e mostra estado vazio se falhar */
+    } finally {
+      setPersonalDataLoading(false);
+    }
+  }, [personalDataLoaded, personalDataLoading]);
+
+  useEffect(() => {
+    if (activeTab === "disponiveis") return;
+    void loadPersonalData();
+  }, [activeTab, loadPersonalData]);
+
+  useEffect(() => {
+    if (personalDataLoaded) return;
+    const start = () => void loadPersonalData();
+    const idleWindow = typeof window !== "undefined"
+      ? (window as Window & typeof globalThis & {
+          requestIdleCallback?: (
+            callback: IdleRequestCallback,
+            options?: IdleRequestOptions,
+          ) => number;
+          cancelIdleCallback?: (handle: number) => void;
+        })
+      : null;
+    if (idleWindow?.requestIdleCallback) {
+      const id = idleWindow.requestIdleCallback(start, { timeout: 2500 });
+      return () => idleWindow.cancelIdleCallback?.(id);
+    }
+    const id = setTimeout(start, 1800);
+    return () => clearTimeout(id);
+  }, [loadPersonalData, personalDataLoaded]);
+
   const [dynamicCatalog, setDynamicCatalog] = useState(
     data?.dynamicCatalog ?? EMPTY_CATALOG,
   );
@@ -2289,7 +2373,7 @@ export function BoloesClient({
     return entries;
   }, [dynamicCatalog.closed, finishedItems, positions]);
 
-  const [activeTab, setActiveTab] = useState<BoloesFilterTab>("disponiveis");
+  const [purchaseItem, setPurchaseItem] = useState<BolaoDefinitionCatalogItem | null>(null);
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-black pb-10 text-white">
@@ -2308,6 +2392,7 @@ export function BoloesClient({
                       key={`disponiveis-${idx}`}
                       entries={row}
                       ariaLabel={`Bolões disponíveis ${idx + 1}`}
+                      onPurchaseClick={setPurchaseItem}
                     />
                   ) : null,
                 )}
@@ -2319,7 +2404,9 @@ export function BoloesClient({
         ) : null}
 
         {activeTab === "meus" ? (
-          activeForShowcase.length > 0 ? (
+          !personalDataLoaded ? (
+            <BoloesTabLoadingState />
+          ) : activeForShowcase.length > 0 ? (
             <section className="mt-5" aria-labelledby="boloes-ativos-heading">
               <BoloesTabSectionTitle title="Meus bolões"/>
               <BoloesCardSlider
@@ -2333,7 +2420,9 @@ export function BoloesClient({
         ) : null}
 
         {activeTab === "encerrados" ? (
-          closedBolaoCards.length > 0 ? (
+          !personalDataLoaded ? (
+            <BoloesTabLoadingState />
+          ) : closedBolaoCards.length > 0 ? (
             <section className="mt-5" aria-labelledby="boloes-finalizados-heading">
               <BoloesTabSectionTitle title="Bolões encerrados"/>
               <BoloesCardSlider
@@ -2354,6 +2443,11 @@ export function BoloesClient({
         onClose={closeBoloesSheet}
         items={boloesSheetCatalog.items}
         championships={boloesSheetCatalog.championships}
+      />
+      <BolaoPurchaseModal
+        item={purchaseItem}
+        open={purchaseItem != null}
+        onClose={() => setPurchaseItem(null)}
       />
     </div>
   );

@@ -12,7 +12,6 @@ import {
 import { fetchMatchesMap, type MatchMapEntry } from "@/lib/football-api";
 import { BoloesClient, type BoloesScreenData } from "@/app/(authenticated)/boloes/BoloesClient";
 import { BoloesPurchaseSync } from "@/app/(authenticated)/boloes/_components/BoloesPurchaseSync";
-import { BoloesLoadingSkeleton } from "@/app/(authenticated)/boloes/loading";
 import { getFootballMainCompetitionId, getSoleConfiguredExtraChampionshipId, parseExtraBolaoChampionshipIds } from "@/lib/boloes-extra-config";
 import { skaleCompetitionIdsForMatchMap } from "@/lib/boloes/skale-match-resolve";
 import { resolveExtraBolaoDisplayName } from "@/lib/boloes-extra-competition-branding";
@@ -310,7 +309,7 @@ function perfLog(label: string, t0: number) {
   }
 }
 
-async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
+export async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
   const tAll = Date.now();
   const configuredExtraIds = parseExtraBolaoChampionshipIds();
   const mainComp = getFootballMainCompetitionId();
@@ -1066,30 +1065,72 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
   return data;
 }
 
-/**
- * Carrega os dados personalizados fora do primeiro paint. Enquanto resolve,
- * a rota streama um loader mínimo em vez de skeleton pesado.
- */
-async function BoloesData({
-  userId,
-  ticketsExtraOnly,
-  ticketsHideDaily,
-}: {
-  userId: string;
-  ticketsExtraOnly: boolean;
-  ticketsHideDaily: boolean;
-}) {
-  const data = await loadBoloesData(userId).catch((err) => {
-    console.error("[boloes] failed to load screen data", err);
-    return null;
-  });
-  return (
-    <BoloesClient
-      data={data}
-      ticketsExtraOnly={ticketsExtraOnly}
-      ticketsHideDaily={ticketsHideDaily}
-    />
-  );
+function buildFastBoloesData(): BoloesScreenData {
+  const configuredExtraIds = parseExtraBolaoChampionshipIds();
+  return {
+    participantsByBolao: {
+      principal: 0,
+      diario: 0,
+      extra: 0,
+      artilheiros: 0,
+    },
+    summary: {
+      activeCount: 0,
+      pendingPredictions: 0,
+      bestPosition: null,
+    },
+    active: {
+      principal: null,
+      diario: null,
+      all: [],
+    },
+    dynamicCatalog: { upcoming: [], available: [], closed: [] },
+    upcoming: {
+      daily: {
+        href: "/tickets?bolao=diario",
+        gamesCount: 0,
+        closesAtMs: null,
+        priceLabel: formatBRL(getTicketPriceCents("daily")),
+      },
+      ...(isSkaleDailyBolaoEnabled()
+        ? {
+            skaleDaily: {
+              href: "/tickets?bolao=skale-diario",
+              gamesCount: 0,
+              closesAtMs: null,
+              priceLabel: formatBRL(getSkaleDailyBolaoUnitCents()),
+            },
+          }
+        : {}),
+      principal: {
+        href: "/tickets",
+        priceLabel: formatBRL(getTicketPriceCents("general")),
+        closesAtMs: null,
+      },
+      ...(isArtilheirosBolaoEnabled()
+        ? {
+            artilheiros: {
+              href: "/tickets?bolao=artilheiros",
+              priceLabel: formatBRL(getArtilheirosTicketPriceCents()),
+              participantCount: 0,
+            },
+          }
+        : {}),
+      extras: configuredExtraIds
+        .filter((championshipId) => !isSkaleDailyBolaoCompetition(championshipId))
+        .map((championshipId) => {
+          const title = resolveExtraBolaoDisplayName(championshipId, null);
+          return {
+            championshipId,
+            title,
+            href: `/tickets?bolao=extra&championshipId=${championshipId}`,
+            gamesCount: 0,
+            closesAtMs: null,
+            priceLabel: formatBRL(getExtraBolaoUnitCents()),
+          };
+        }),
+    },
+  };
 }
 
 export default async function BoloesPage() {
@@ -1107,18 +1148,17 @@ export default async function BoloesPage() {
       />
     );
   }
+  const fastData = buildFastBoloesData();
   return (
     <>
       <Suspense fallback={null}>
         <BoloesPurchaseSync />
       </Suspense>
-      <Suspense fallback={<BoloesLoadingSkeleton />}>
-        <BoloesData
-          userId={userId}
-          ticketsExtraOnly={ticketsExtraOnly}
-          ticketsHideDaily={ticketsHideDaily}
-        />
-      </Suspense>
+      <BoloesClient
+        data={fastData}
+        ticketsExtraOnly={ticketsExtraOnly}
+        ticketsHideDaily={ticketsHideDaily}
+      />
     </>
   );
 }

@@ -98,6 +98,7 @@ export function UpcomingBolaoCard({
   userStats,
   resultHref,
   href: hrefOverride,
+  onCtaClick,
 }: {
   item: BolaoDefinitionCatalogItem;
   className?: string;
@@ -106,6 +107,8 @@ export function UpcomingBolaoCard({
   resultHref?: string;
   /** Link explícito do CTA quando o item não é uma definição dinâmica. */
   href?: string;
+  /** Intercepta o CTA de compra sem transformar cards de ranking/resultado. */
+  onCtaClick?: (item: BolaoDefinitionCatalogItem) => void;
 }) {
   const logoSrc =
     item.resolvedLogoUrl ??
@@ -195,13 +198,24 @@ export function UpcomingBolaoCard({
           {closed ? prizeReceivedLabel : prizeText}
         </p>
 
-        <Link
-          href={href}
-          className={`mt-2 flex h-[34px] w-full items-center justify-center gap-1.5 rounded-[6px] text-[13px] font-black uppercase tracking-[0.02em] transition active:scale-[0.98] ${ctaClass}`}
-        >
-          {ctaLabel}
-          <ChevronRight className="size-3.5" strokeWidth={2.8} aria-hidden />
-        </Link>
+        {onCtaClick && !owned && !closed ? (
+          <button
+            type="button"
+            onClick={() => onCtaClick(item)}
+            className={`mt-2 flex h-[34px] w-full items-center justify-center gap-1.5 rounded-[6px] text-[13px] font-black uppercase tracking-[0.02em] transition active:scale-[0.98] ${ctaClass}`}
+          >
+            {ctaLabel}
+            <ChevronRight className="size-3.5" strokeWidth={2.8} aria-hidden />
+          </button>
+        ) : (
+          <Link
+            href={href}
+            className={`mt-2 flex h-[34px] w-full items-center justify-center gap-1.5 rounded-[6px] text-[13px] font-black uppercase tracking-[0.02em] transition active:scale-[0.98] ${ctaClass}`}
+          >
+            {ctaLabel}
+            <ChevronRight className="size-3.5" strokeWidth={2.8} aria-hidden />
+          </Link>
+        )}
       </div>
     </article>
   );

@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { BolaoDefinitionCatalogItem } from "@/lib/boloes/definitions/types";
 import { UpcomingBolaoCard } from "@/app/components/UpcomingBolaoCard";
+import { BolaoPurchaseModal } from "@/app/components/BolaoPurchaseModal";
 import type { OutrosBolaoGridItem } from "@/lib/boloes-outros-grid";
 import { getExtraBolaoHeroSideVariant } from "@/lib/boloes-extra-competition-branding";
 import { extraBolaoIconSrc } from "@/app/shared/extra-bolao-icons";
@@ -20,6 +21,7 @@ type CarouselCatalogItem = BolaoDefinitionCatalogItem & { actionHref?: string };
 function fallbackBolaoItem(item: OutrosBolaoGridItem): CarouselCatalogItem {
   const variant = getExtraBolaoHeroSideVariant(item.championshipId, item.label);
   const logo = extraBolaoIconSrc(variant);
+  const unitPriceCents = variant === "skale" ? 50_000 : 1_000;
   const href = isWeekendBolaoCompetition(item.championshipId)
     ? "/copa-fds"
     : `/tickets?bolao=extra&championshipId=${item.championshipId}`;
@@ -39,7 +41,7 @@ function fallbackBolaoItem(item: OutrosBolaoGridItem): CarouselCatalogItem {
     scopeConfig: { competitions: [] },
     roundNumber: null,
     editionNumber: null,
-    unitPriceCents: 0,
+    unitPriceCents,
     saleEnabled: true,
     shopVisible: true,
     sortOrder: 0,
@@ -66,7 +68,7 @@ function fallbackBolaoItem(item: OutrosBolaoGridItem): CarouselCatalogItem {
     resolvedBannerUrl: null,
     resolvedIconVariant: variant,
     datesLabel: "Rodada aberta",
-    priceLabel: "—",
+    priceLabel: unitPriceCents === 50_000 ? "R$ 500,00" : "R$ 10,00",
     estimatedPrizeLabel: "R$ 10.000",
     participantCount: item.participants,
     matchCount: 8,
@@ -96,6 +98,7 @@ export function ProximosBolaoCarousel({
   const [loaded, setLoaded] = useState(fallbackCatalogItems.length > 0);
   const [canPrev, setCanPrev] = useState(false);
   const [canNext, setCanNext] = useState(true);
+  const [purchaseItem, setPurchaseItem] = useState<BolaoDefinitionCatalogItem | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Bolões que ainda não começaram (lifecycleStatus === 'programado'), do motor v2.
@@ -218,7 +221,11 @@ export function ProximosBolaoCarousel({
         >
           {items.map((item) => (
             <div key={item.id} data-card className={CARD_W} style={{ scrollSnapAlign: "center" }}>
-              <UpcomingBolaoCard item={item} href={item.actionHref} />
+              <UpcomingBolaoCard
+                item={item}
+                href={item.actionHref}
+                onCtaClick={setPurchaseItem}
+              />
             </div>
           ))}
         </div>
@@ -234,6 +241,11 @@ export function ProximosBolaoCarousel({
           </button>
         )}
       </div>
+      <BolaoPurchaseModal
+        item={purchaseItem}
+        open={purchaseItem != null}
+        onClose={() => setPurchaseItem(null)}
+      />
     </section>
   );
 }
