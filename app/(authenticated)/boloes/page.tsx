@@ -351,7 +351,7 @@ export async function loadBoloesData(userId: string): Promise<BoloesScreenData> 
   const participantsByBolao = { principal: 0, diario: 0, extra: 0 };
   const artilheirosParticipants = 0;
   const competitionLabels: Record<number, string> = {};
-  const extraRounds: Record<number, { roundNumber: number }> = {};
+  const extraRounds: Record<number, { roundNumber: number; roundLabel: string }> = {};
 
   /** Cada cota mantém `tickets.round_number` — não avança rodada na vitrine. */
   const effectiveExtraRoundByTicketId = new Map<string, number>();

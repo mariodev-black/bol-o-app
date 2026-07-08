@@ -7,13 +7,13 @@ import { getEmailLogoUrl } from "@/lib/email/config";
 export const EMAIL_LOGO_INLINE_ID = "bolao-logo";
 
 const LOGO_CANDIDATES = [
-  "public/email/logo-email.png",
-  "public/email/logo.png",
+  "logo-email.png",
+  "logo.png",
 ] as const;
 
 export function getEmailLogoFilePath(): string | null {
-  for (const rel of LOGO_CANDIDATES) {
-    const filePath = join(process.cwd(), rel);
+  for (const fileName of LOGO_CANDIDATES) {
+    const filePath = join(process.cwd(), "public", "email", fileName);
     if (existsSync(filePath)) return filePath;
   }
   return null;
