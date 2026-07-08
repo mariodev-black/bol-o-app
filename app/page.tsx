@@ -2,10 +2,6 @@ import type { Metadata } from "next";
 import { HomePageClient } from "@/app/components/HomePageClient";
 import { buildPageMetadata } from "@/lib/seo/config";
 import { HomePageJsonLd } from "@/lib/seo/json-ld";
-import {
-  getOutrosBoloesGridItems,
-  type OutrosBolaoGridItem,
-} from "@/lib/boloes-outros-grid";
 import type { PalpiteAbertoMatch } from "@/lib/home-palpites-abertos";
 import { loadHomePalpitesAbertosFromCache } from "@/lib/home-palpites-abertos.server";
 import { isBrasilMarrocosPlacarPromoEnabled } from "@/lib/promotions/brasil-marrocos-placar-promo";
@@ -21,14 +17,12 @@ export default async function HomePage() {
   const palpites = await loadHomePalpitesAbertosFromCache(15).catch(
     () => [] as PalpiteAbertoMatch[],
   );
-  const outrosBoloes: OutrosBolaoGridItem[] = getOutrosBoloesGridItems();
   const palpitesAbertos = palpites;
 
   return (
     <>
       <HomePageJsonLd />
       <HomePageClient
-        outrosBoloes={outrosBoloes}
         palpitesAbertos={palpitesAbertos}
         brasilMarrocosPlacarPromoEnabled={isBrasilMarrocosPlacarPromoEnabled()}
       />

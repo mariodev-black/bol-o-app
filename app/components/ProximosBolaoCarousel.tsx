@@ -2,14 +2,10 @@
 
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { BolaoDefinitionCatalogItem } from "@/lib/boloes/definitions/types";
 import { UpcomingBolaoCard } from "@/app/components/UpcomingBolaoCard";
 import { BolaoPurchaseModal } from "@/app/components/BolaoPurchaseModal";
-import type { OutrosBolaoGridItem } from "@/lib/boloes-outros-grid";
-import { getExtraBolaoHeroSideVariant } from "@/lib/boloes-extra-competition-branding";
-import { extraBolaoIconSrc } from "@/app/shared/extra-bolao-icons";
-import { isWeekendBolaoCompetition } from "@/lib/boloes/weekend-bolao-config";
 
 const GREEN = "#B1EB0B";
 const INTERVAL_MS = 4500;
@@ -18,90 +14,19 @@ const CARD_W =
 
 type CarouselCatalogItem = BolaoDefinitionCatalogItem & { actionHref?: string };
 
-function fallbackBolaoItem(item: OutrosBolaoGridItem): CarouselCatalogItem {
-  const variant = getExtraBolaoHeroSideVariant(item.championshipId, item.label);
-  const logo = extraBolaoIconSrc(variant);
-  const unitPriceCents = variant === "skale" ? 50_000 : 1_000;
-  const href = isWeekendBolaoCompetition(item.championshipId)
-    ? "/copa-fds"
-    : `/tickets?bolao=extra&championshipId=${item.championshipId}`;
-
-  return {
-    id: `mock-${item.championshipId}`,
-    slug: `mock-${item.championshipId}`,
-    displayName: item.label,
-    subtitle: "Rodada aberta",
-    description: null,
-    ticketType: "extra",
-    competitionId: item.championshipId,
-    competitionIds: [item.championshipId],
-    scopeMode: "round",
-    scopeDates: [],
-    scopeMatchIds: [],
-    scopeConfig: { competitions: [] },
-    roundNumber: null,
-    editionNumber: null,
-    unitPriceCents,
-    saleEnabled: true,
-    shopVisible: true,
-    sortOrder: 0,
-    logoUrl: null,
-    bannerUrl: null,
-    logoVariant: variant,
-    useCompetitionLogo: false,
-    prizePoolBps: 0,
-    prizeTiers: [],
-    scoringConfig: {},
-    startsAt: null,
-    endsAt: null,
-    settlementAt: null,
-    prizeReleaseAt: null,
-    maxTicketsPerUser: null,
-    lifecycleStatus: "programado",
-    metadata: {},
-    enabled: true,
-    createdAt: "",
-    updatedAt: "",
-    competitionDisplayName: item.label,
-    competitionDisplayNames: [item.label],
-    resolvedLogoUrl: "src" in logo ? logo.src : null,
-    resolvedBannerUrl: null,
-    resolvedIconVariant: variant,
-    datesLabel: "Rodada aberta",
-    priceLabel: unitPriceCents === 50_000 ? "R$ 500,00" : "R$ 10,00",
-    estimatedPrizeLabel: "R$ 10.000",
-    participantCount: item.participants,
-    matchCount: 8,
-    remainingMatches: 8,
-    purchaseOpen: true,
-    countdownToStartMs: null,
-    countdownToEndMs: null,
-    actionHref: href,
-  };
-}
-
 export function ProximosBolaoCarousel({
   className = "",
-  fallbackItems = [],
 }: {
   className?: string;
-  fallbackItems?: OutrosBolaoGridItem[];
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const fallbackCatalogItems = useMemo(
-    () => fallbackItems.map(fallbackBolaoItem),
-    [fallbackItems],
-  );
-  const [items, setItems] = useState<CarouselCatalogItem[]>(() =>
-    fallbackItems.map(fallbackBolaoItem),
-  );
-  const [loaded, setLoaded] = useState(fallbackCatalogItems.length > 0);
+  const [items, setItems] = useState<CarouselCatalogItem[]>([]);
   const [canPrev, setCanPrev] = useState(false);
   const [canNext, setCanNext] = useState(true);
   const [purchaseItem, setPurchaseItem] = useState<BolaoDefinitionCatalogItem | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Bolões que ainda não começaram (lifecycleStatus === 'programado'), do motor v2.
+  // Só exibe bolões reais do catálogo dinâmico; sem fallback/mock na home.
   useEffect(() => {
     let cancelled = false;
     void (async () => {
@@ -112,18 +37,16 @@ export function ProximosBolaoCarousel({
           available?: BolaoDefinitionCatalogItem[];
         };
         if (cancelled) return;
-        const remote = (d.upcoming?.length ? d.upcoming : d.available) ?? [];
-        if (remote.length) setItems(remote);
+        const remote = [...(d.upcoming ?? []), ...(d.available ?? [])];
+        setItems(remote);
       } catch {
-        /* mantém fallback instantâneo */
-      } finally {
-        if (!cancelled) setLoaded(true);
+        if (!cancelled) setItems([]);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [fallbackCatalogItems]);
+  }, []);
 
   const updateArrows = useCallback(() => {
     const el = scrollRef.current;
@@ -180,8 +103,7 @@ export function ProximosBolaoCarousel({
   const onTouchMove = (e: React.TouchEvent) => { if (touchStartX.current == null) return; touchDeltaX.current = (e.touches[0]?.clientX ?? 0) - touchStartX.current; };
   const onTouchEnd = () => { const d = touchDeltaX.current; touchStartX.current = null; if (Math.abs(d) >= 40) scrollCards(d < 0 ? 1 : -1); };
 
-  // Sem bolões futuros no momento: não fabrica dado, só oculta a seção.
-  if (loaded && items.length === 0) return null;
+  if (items.length === 0) return null;
 
   return (
     <section className={className} aria-label="Próximos Bolões">

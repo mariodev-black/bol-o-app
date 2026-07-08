@@ -192,7 +192,7 @@ export function UpcomingBolaoCard({
 
       <div className="mt-auto px-3 pb-3 pt-4 text-center">
         <p className="text-[10px] font-black uppercase tracking-[0.08em] text-white/52">
-          {closed ? "Prêmio recebido" : owned ? "Prêmio estimado" : "Prêmio garantido"}
+          {closed ? "Prêmio recebido" : owned ? "Prêmio estimado" : "Prêmio estimado"}
         </p>
         <p className="mt-1.5 text-[24px] font-black leading-none tracking-[-0.02em] text-primary">
           {closed ? prizeReceivedLabel : prizeText}

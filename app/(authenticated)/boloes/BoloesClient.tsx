@@ -34,7 +34,6 @@ import {
 } from "@/lib/boloes/display-status";
 import { listGroupStageDailyEditions } from "@/lib/boloes/daily-editions";
 import {
-  getSkaleDailyBolaoCompetitionId,
   isSkaleDailyBolaoEnabled,
 } from "@/lib/boloes/skale-daily-config";
 import skaleLogo from "@/app/assets/skale.png";
@@ -61,7 +60,6 @@ import type {
   BolaoCatalogSections,
   BolaoDefinitionCatalogItem,
 } from "@/lib/boloes/definitions/types";
-import { ARTILHEIROS_BOLAO_SUBTITLE, ARTILHEIROS_BOLAO_TITLE } from "@/lib/artilheiros/config";
 export type ActivePrincipalBolao = {
   id: string;
   title: string;
@@ -214,192 +212,6 @@ const INK = "#0E141B";
 const SHOWCASE_CARD_BG = "#111111";
 const BOLOES_SLIDER_CARD_W =
   "w-[min(260px,calc((100vw-2.25rem)*0.62))] min-w-[218px] shrink-0 flex-none lg:w-[260px]";
-
-function parsePriceLabelCents(label: string | null | undefined): number {
-  const normalized = String(label ?? "")
-    .replace(/[^\d,.-]/g, "")
-    .replace(/\./g, "")
-    .replace(",", ".");
-  const value = Number.parseFloat(normalized);
-  return Number.isFinite(value) && value > 0 ? Math.round(value * 100) : 0;
-}
-
-function legacyCatalogBase(input: {
-  id: string;
-  displayName: string;
-  subtitle: string | null;
-  ticketType: "general" | "daily" | "extra";
-  competitionId: number;
-  logoVariant: string;
-  priceLabel: string;
-  prizeLabel: string | null;
-  participantCount: number;
-  matchCount: number;
-  purchaseOpen: boolean;
-}): BolaoDefinitionCatalogItem {
-  return {
-    id: input.id,
-    slug: input.id,
-    displayName: input.displayName,
-    subtitle: input.subtitle,
-    description: null,
-    ticketType: input.ticketType,
-    competitionId: input.competitionId,
-    competitionIds: input.competitionId > 0 ? [input.competitionId] : [],
-    scopeMode: "full_competition",
-    scopeDates: [],
-    scopeMatchIds: [],
-    scopeConfig: { competitions: [] },
-    roundNumber: null,
-    editionNumber: null,
-    unitPriceCents: parsePriceLabelCents(input.priceLabel),
-    saleEnabled: input.purchaseOpen,
-    shopVisible: true,
-    sortOrder: 0,
-    logoUrl: null,
-    bannerUrl: null,
-    logoVariant: input.logoVariant,
-    useCompetitionLogo: false,
-    prizePoolBps: 0,
-    prizeTiers: [],
-    scoringConfig: {},
-    startsAt: null,
-    endsAt: null,
-    settlementAt: null,
-    prizeReleaseAt: null,
-    maxTicketsPerUser: null,
-    lifecycleStatus: "programado",
-    metadata: {},
-    enabled: true,
-    createdAt: "",
-    updatedAt: "",
-    competitionDisplayName: input.displayName,
-    competitionDisplayNames: [input.displayName],
-    resolvedLogoUrl: null,
-    resolvedBannerUrl: null,
-    resolvedIconVariant: input.logoVariant,
-    datesLabel: input.subtitle,
-    priceLabel: input.priceLabel,
-    estimatedPrizeLabel: input.prizeLabel,
-    participantCount: input.participantCount,
-    matchCount: input.matchCount,
-    remainingMatches: input.matchCount,
-    purchaseOpen: input.purchaseOpen,
-    countdownToStartMs: null,
-    countdownToEndMs: null,
-  };
-}
-
-function legacyAvailableCatalogItems(
-  data: BoloesScreenData | null,
-  options: { ticketsExtraOnly: boolean; ticketsHideDaily: boolean },
-): Array<{ key: string; item: BolaoDefinitionCatalogItem; href: string }> {
-  if (!data) return [];
-  const upcoming = data.upcoming;
-  const out: Array<{ key: string; item: BolaoDefinitionCatalogItem; href: string }> = [];
-
-  if (!options.ticketsExtraOnly) {
-    out.push({
-      key: "legacy-principal",
-      href: upcoming.principal.href,
-      item: legacyCatalogBase({
-        id: "legacy-principal",
-        displayName: "Bolão do Milhão",
-        subtitle: "Copa do Mundo 2026",
-        ticketType: "general",
-        competitionId: 0,
-        logoVariant: "copa_mundo",
-        priceLabel: upcoming.principal.priceLabel,
-        prizeLabel: SHOWCASE_PRIZES.principal?.total ?? "+ de R$ 1 milhão",
-        participantCount: data.participantsByBolao.principal,
-        matchCount: 104,
-        purchaseOpen: true,
-      }),
-    });
-  }
-
-  if (!options.ticketsHideDaily && !options.ticketsExtraOnly) {
-    out.push({
-      key: "legacy-daily",
-      href: upcoming.daily.href,
-      item: legacyCatalogBase({
-        id: "legacy-daily",
-        displayName: "Bolão Diário",
-        subtitle: `${upcoming.daily.gamesCount || 0} jogos`,
-        ticketType: "daily",
-        competitionId: 0,
-        logoVariant: "daily",
-        priceLabel: upcoming.daily.priceLabel,
-        prizeLabel: SHOWCASE_PRIZES.diario?.total ?? "A definir",
-        participantCount: data.participantsByBolao.diario,
-        matchCount: upcoming.daily.gamesCount,
-        purchaseOpen: upcoming.daily.gamesCount > 0,
-      }),
-    });
-  }
-
-  if (upcoming.skaleDaily) {
-    out.push({
-      key: "legacy-skale-daily",
-      href: upcoming.skaleDaily.href,
-      item: legacyCatalogBase({
-        id: "legacy-skale-daily",
-        displayName: "Bolão Diário Skale",
-        subtitle: `${upcoming.skaleDaily.gamesCount || 0} jogos`,
-        ticketType: "extra",
-        competitionId: getSkaleDailyBolaoCompetitionId(),
-        logoVariant: "skale",
-        priceLabel: upcoming.skaleDaily.priceLabel,
-        prizeLabel: SHOWCASE_PRIZES.diario?.total ?? "A definir",
-        participantCount: data.participantsByBolao.extra,
-        matchCount: upcoming.skaleDaily.gamesCount,
-        purchaseOpen: upcoming.skaleDaily.gamesCount > 0,
-      }),
-    });
-  }
-
-  for (const ex of upcoming.extras) {
-    out.push({
-      key: `legacy-extra-${ex.championshipId}`,
-      href: ex.href,
-      item: legacyCatalogBase({
-        id: `legacy-extra-${ex.championshipId}`,
-        displayName: ex.title,
-        subtitle: `${ex.gamesCount || 0} jogos`,
-        ticketType: "extra",
-        competitionId: ex.championshipId,
-        logoVariant: getExtraBolaoHeroSideVariant(ex.championshipId, ex.title),
-        priceLabel: ex.priceLabel,
-        prizeLabel: SHOWCASE_PRIZES.extra?.total ?? "A definir",
-        participantCount: data.participantsByBolao.extra,
-        matchCount: ex.gamesCount,
-        purchaseOpen: true,
-      }),
-    });
-  }
-
-  if (upcoming.artilheiros) {
-    out.push({
-      key: "legacy-artilheiros",
-      href: upcoming.artilheiros.href,
-      item: legacyCatalogBase({
-        id: "legacy-artilheiros",
-        displayName: ARTILHEIROS_BOLAO_TITLE,
-        subtitle: ARTILHEIROS_BOLAO_SUBTITLE,
-        ticketType: "extra",
-        competitionId: 0,
-        logoVariant: "artilheiros",
-        priceLabel: upcoming.artilheiros.priceLabel,
-        prizeLabel: SHOWCASE_PRIZES.artilheiros?.total ?? "A definir",
-        participantCount: upcoming.artilheiros.participantCount,
-        matchCount: 3,
-        purchaseOpen: true,
-      }),
-    });
-  }
-
-  return out;
-}
 
 /** Rótulos do header como na referência (CAMPEONATO / BRASILEIRO). */
 function showcaseHeaderParts(
@@ -2289,22 +2101,11 @@ export function BoloesClient({
   const closeBoloesSheet = useCallback(() => setBoloesSheetOpen(false), []);
 
   const catalogOpenForSale = useMemo(() => {
-    const entries: Array<{ key: string; item: BolaoDefinitionCatalogItem; href?: string }> = [
-      ...dynamicCatalog.upcoming.map((item) => ({ key: item.id, item })),
-      ...dynamicCatalog.available.map((item) => ({ key: item.id, item })),
-    ];
-    const seen = new Set(entries.map((entry) => entry.item.id));
-    for (const entry of legacyAvailableCatalogItems(data, {
-      ticketsExtraOnly,
-      ticketsHideDaily,
-    })) {
-      const dedupeKey = entry.item.id;
-      if (seen.has(dedupeKey)) continue;
-      seen.add(dedupeKey);
-      entries.push(entry);
-    }
-    return entries;
-  }, [data, dynamicCatalog, ticketsExtraOnly, ticketsHideDaily]);
+    return [...dynamicCatalog.upcoming, ...dynamicCatalog.available].map((item) => ({
+      key: item.id,
+      item,
+    }));
+  }, [dynamicCatalog]);
   const availableSliderRows = useMemo(
     () => splitBoloesIntoTwoSliders(catalogOpenForSale),
     [catalogOpenForSale],

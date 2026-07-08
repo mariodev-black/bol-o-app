@@ -19,7 +19,6 @@ import {
   type BrasilMarrocosPlacarPromoStatus,
 } from "@/lib/promotions/brasil-marrocos-placar-promo-shared";
 import { BRASIL_MARROCOS_PLACAR_FRIENDS_GOAL } from "@/lib/promotions/brasil-marrocos-guest-flow";
-import { OutrosBoloesGrid } from "@/app/(authenticated)/boloes/_components/OutrosBoloesGrid";
 import { QuemEstaNoBolaoSection } from "@/app/components/QuemEstaNoBolaoSection";
 import { PalpitesAbertosGrid } from "@/app/components/PalpitesAbertosGrid";
 import { PalpitesAbertosTable } from "@/app/components/PalpitesAbertosTable";
@@ -36,7 +35,6 @@ import {
   collectPalpitesAbertosFromPartidasPayload,
   pickPalpitesAbertosForHome,
 } from "@/lib/home-palpites-abertos";
-import type { OutrosBolaoGridItem } from "@/lib/boloes-outros-grid";
 import {
   LIVE_PARTIDAS_POLL_MS,
   partidasUrlWithLiveSync,
@@ -119,11 +117,9 @@ function PromoBrasilMarrocosHomeCard() {
 }
 
 function LoggedInHome({
-  outrosBoloes,
   palpitesAbertos: initialPalpitesAbertos,
   promoEnabled = false,
 }: {
-  outrosBoloes: OutrosBolaoGridItem[];
   palpitesAbertos: PalpiteAbertoMatch[];
   promoEnabled?: boolean;
 }) {
@@ -207,7 +203,7 @@ function LoggedInHome({
               <HomeBannerCarousel fullWidth fillHeight />
             </div>
             <div className="mt-4 min-w-0 overflow-hidden lg:mt-0 lg:flex-1">
-              <ProximosBolaoCarousel fallbackItems={outrosBoloes} />
+              <ProximosBolaoCarousel />
             </div>
           </div>
 
@@ -268,18 +264,15 @@ function LoggedInHome({
 }
 
 export function HomePageClient({
-  outrosBoloes = [],
   palpitesAbertos = [],
   brasilMarrocosPlacarPromoEnabled = false,
 }: {
-  outrosBoloes?: OutrosBolaoGridItem[];
   palpitesAbertos?: PalpiteAbertoMatch[];
   brasilMarrocosPlacarPromoEnabled?: boolean;
 }) {
   return (
     <>
       <LoggedInHome
-        outrosBoloes={outrosBoloes}
         palpitesAbertos={palpitesAbertos}
         promoEnabled={brasilMarrocosPlacarPromoEnabled}
       />
