@@ -2346,7 +2346,7 @@ export function BoloesClient({
           )
         ) : null}
 
-        <BoloesAjudaSection />
+        {activeTab === "meus" ? <BoloesAjudaSection /> : null}
       </div>
 
       <BoloesBottomSheet

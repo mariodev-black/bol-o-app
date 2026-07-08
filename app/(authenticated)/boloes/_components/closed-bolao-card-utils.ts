@@ -1,8 +1,25 @@
+import type { StaticImageData } from "next/image";
 import type { ActiveBolaoListItem } from "@/app/(authenticated)/boloes/BoloesClient";
 import { resolveBolaoListItemLogoSrc } from "@/app/(authenticated)/boloes/_components/BolaoListItemLogo";
 import { ARTILHEIROS_BOLAO_SUBTITLE, ARTILHEIROS_BOLAO_TITLE } from "@/lib/artilheiros/config";
+import { getExtraBolaoHeroSideVariant } from "@/lib/boloes-extra-competition-branding";
 import { SHOWCASE_PRIZES } from "@/lib/boloes-prize-copy";
 import type { BolaoDefinitionCatalogItem } from "@/lib/boloes/definitions/types";
+
+function logoUrlFromResolved(src: string | StaticImageData): string {
+  return typeof src === "string" ? src : src.src;
+}
+
+function resolvedIconVariantForActive(item: ActiveBolaoListItem): string {
+  if (item.resolvedIconVariant?.trim()) return item.resolvedIconVariant;
+  if (item.type === "artilheiros") return "artilheiros";
+  if (item.type === "principal") return "copa_mundo";
+  if (item.type === "diario") return item.isSkaleDaily ? "skale" : "daily";
+  if (item.type === "extra") {
+    return getExtraBolaoHeroSideVariant(item.championshipId, item.title);
+  }
+  return "generic";
+}
 
 function parseExtraTitle(title: string): { name: string; round: string | null } {
   const t = title.trim();
@@ -58,6 +75,8 @@ export function catalogItemFromActiveBolao(
   item: ActiveBolaoListItem,
 ): BolaoDefinitionCatalogItem {
   const logoSrc = resolveBolaoListItemLogoSrc(item);
+  const resolvedLogoUrl = logoUrlFromResolved(logoSrc);
+  const resolvedIconVariant = resolvedIconVariantForActive(item);
   const displayName = displayNameForActive(item);
   const phase = phaseLabelForActive(item);
 
@@ -80,9 +99,9 @@ export function catalogItemFromActiveBolao(
     saleEnabled: false,
     shopVisible: false,
     sortOrder: 0,
-    logoUrl: typeof logoSrc === "string" ? logoSrc : null,
+    logoUrl: resolvedLogoUrl,
     bannerUrl: null,
-    logoVariant: item.resolvedIconVariant ?? null,
+    logoVariant: resolvedIconVariant,
     useCompetitionLogo: false,
     prizePoolBps: 0,
     prizeTiers: [],
@@ -99,9 +118,9 @@ export function catalogItemFromActiveBolao(
     updatedAt: "",
     competitionDisplayName: displayName,
     competitionDisplayNames: [displayName],
-    resolvedLogoUrl: typeof logoSrc === "string" ? logoSrc : null,
+    resolvedLogoUrl,
     resolvedBannerUrl: null,
-    resolvedIconVariant: item.resolvedIconVariant ?? "generic",
+    resolvedIconVariant,
     datesLabel: phase,
     priceLabel: "—",
     estimatedPrizeLabel: prizePoolLabelForActive(item),

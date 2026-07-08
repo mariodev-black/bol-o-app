@@ -21,7 +21,6 @@ import {
   extraBolaoTitleForPaidTicket,
   formatExtraRoundLabel,
 } from "@/lib/ticket-shop-extra-display";
-import { readCompetitionDisplayNamesFromDb } from "@/lib/competition-metadata-cache";
 import {
   dailyEditionCardTitle,
   formatDailyEditionCardSubtitle,
@@ -62,10 +61,6 @@ import {
   scopeMatchesForPaidTicket,
   type ScopeMatchesForPaidTicketOpts,
 } from "@/lib/boloes/ticket-match-scope";
-import {
-  extraBolaoCurrentRoundsByChampionship,
-  type ExtraBolaoRoundInfo,
-} from "@/lib/ticket-shop-extra-rounds";
 
 export const dynamic = "force-dynamic";
 
@@ -334,8 +329,6 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
     matches,
     tickets,
     userPredictions,
-    competitionLabels,
-    extraRounds,
   ] = await Promise.all([
     matchesPromise,
     matchesPromise.then((m) => {
@@ -354,32 +347,12 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
         })
         .catch(() => []);
     })(),
-    (() => {
-      const t = Date.now();
-      return readCompetitionDisplayNamesFromDb(configuredExtraIds)
-        .then((fromDb) => {
-          perfLog("readCompetitionDisplayNamesFromDb", t);
-          const out: Record<number, string> = {};
-          for (const id of configuredExtraIds) {
-            out[id] = fromDb[id] ?? resolveExtraBolaoDisplayName(id, null);
-          }
-          return out;
-        })
-        .catch(() => ({}) as Record<number, string>);
-    })(),
-    (() => {
-      const t = Date.now();
-      return extraBolaoCurrentRoundsByChampionship(configuredExtraIds)
-        .then((r) => {
-          perfLog("extraBolaoCurrentRoundsByChampionship", t);
-          return r;
-        })
-        .catch(() => ({}) as Record<number, ExtraBolaoRoundInfo>);
-    })(),
   ]);
   perfLog("main Promise.all (batch)", tBatch0);
   const participantsByBolao = { principal: 0, diario: 0, extra: 0 };
   const artilheirosParticipants = 0;
+  const competitionLabels: Record<number, string> = {};
+  const extraRounds: Record<number, { roundNumber: number }> = {};
 
   /** Cada cota mantém `tickets.round_number` — não avança rodada na vitrine. */
   const effectiveExtraRoundByTicketId = new Map<string, number>();
@@ -1094,9 +1067,8 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
 }
 
 /**
- * Carrega os dados (lentos — banco remoto) e renderiza a tela. Fica isolado
- * num componente async para que a página possa STREAMAR: o shell + skeleton
- * aparecem na hora e este conteúdo entra quando os dados resolvem.
+ * Carrega os dados personalizados fora do primeiro paint. Enquanto resolve,
+ * a rota streama um loader mínimo em vez de skeleton pesado.
  */
 async function BoloesData({
   userId,
