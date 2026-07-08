@@ -10,8 +10,6 @@ import {
   SportVoleiIcon,
 } from "@/app/shared/sport-category-icons";
 
-const GREEN = "#B1EB0B";
-
 /**
  * Mockup visual da tela de Esportes (apostas com odds — fase 2, ainda sujeita
  * a validação jurídica/regulatória). Dados 100% ilustrativos: não existe
@@ -389,6 +387,7 @@ function BetSlipModal({
 }
 
 export default function EsportesPage() {
+  const [sportsUnderConstruction] = useState(true);
   const [sport, setSport] = useState<SportKey>("futebol");
   const [filter, setFilter] = useState<Filter>("Hoje");
   const [favorites, setFavorites] = useState<Set<string>>(
@@ -448,6 +447,61 @@ export default function EsportesPage() {
       return next;
     });
   };
+
+  if (sportsUnderConstruction) {
+    return (
+      <div className="relative mx-auto flex min-h-screen w-full max-w-[430px] flex-col justify-center overflow-hidden bg-black px-5 pb-24 pt-10 text-white">
+        <div
+          className="pointer-events-none absolute inset-0 opacity-35"
+          style={{
+            background:
+              "radial-gradient(ellipse 80% 48% at 50% -10%, rgba(177,235,11,0.24), transparent 60%), radial-gradient(ellipse 70% 42% at 100% 100%, rgba(54,255,181,0.12), transparent 58%)",
+          }}
+          aria-hidden
+        />
+
+        <div className="relative z-10 flex flex-col items-center text-center">
+          <div className="flex size-20 items-center justify-center rounded-[24px] border border-primary/25 bg-primary/10">
+            <BottomNavEsportesIcon className="size-11 text-primary" />
+          </div>
+
+          <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/4 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-primary">
+            Em construção
+          </div>
+
+          <h1 className="mt-4 text-[34px] font-black uppercase leading-[0.98] tracking-[-0.06em]">
+            Esportes em <span className="text-primary">breve</span>
+          </h1>
+
+          <p className="mt-3 max-w-[320px] text-[14px] font-medium leading-relaxed text-white/58">
+            Estamos preparando a área de esportes com mercados, bilhetes e
+            acompanhamento em tempo real.
+          </p>
+
+          <div className="mt-7 w-full rounded-[22px] border border-white/10 bg-[#0d0d0d] p-4 text-left">
+            <div className="space-y-3">
+              <div className="rounded-2xl border border-white/8 bg-white/3 p-4">
+                <p className="text-[13px] font-black uppercase tracking-wide text-white">
+                  Bilhetes esportivos
+                </p>
+                <p className="mt-1 text-[12px] font-medium leading-relaxed text-white/45">
+                  Em breve você poderá acompanhar seus bilhetes e seleções nesta área.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-white/8 bg-white/3 p-4">
+                <p className="text-[13px] font-black uppercase tracking-wide text-white">
+                  Experiência segura
+                </p>
+                <p className="mt-1 text-[12px] font-medium leading-relaxed text-white/45">
+                  O recurso será liberado somente após validação completa do fluxo.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto flex w-full max-w-lg flex-1 flex-col px-4 py-6 pb-28 sm:px-6 md:max-w-2xl md:py-8">

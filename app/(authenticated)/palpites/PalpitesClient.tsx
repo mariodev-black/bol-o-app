@@ -799,7 +799,7 @@ function PalpitesListFooter({
   const primaryBtn =
     "flex min-h-[52px] flex-1 items-center justify-center gap-2 rounded-xl bg-primary text-base font-black uppercase tracking-wide text-[#0E141B] transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-[#1A1A1A] disabled:text-white/25 disabled:shadow-none";
   const primaryShadow =
-    disabled || loading ? "none" : "0 0 20px rgba(177,235,11,0.28)";
+    disabled || loading ? "none" : "none";
 
   return (
     <div className="mt-6 space-y-3">

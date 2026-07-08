@@ -7,6 +7,7 @@ import {
   ArrowRight,
   CalendarDays,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   ClipboardList,
   Clock,
@@ -33,7 +34,6 @@ import {
 } from "@/lib/boloes/display-status";
 import { listGroupStageDailyEditions } from "@/lib/boloes/daily-editions";
 import {
-  getSkaleDailyBolaoUnitCents,
   isSkaleDailyBolaoEnabled,
 } from "@/lib/boloes/skale-daily-config";
 import skaleLogo from "@/app/assets/skale.png";
@@ -47,19 +47,19 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RankingPalpitesStepsModal } from "@/app/(authenticated)/ranking/_components/RankingPalpitesStepsModal";
 import { useMainBolaoPromoModal } from "@/app/shared/MainBolaoPromoContext";
 import { ScoringExplainerModal } from "@/app/shared/ScoringExplainerModal";
-import {
-  ActiveBolaoCarouselCard,
-  BoloesCarouselShell,
-  BoloesPageEyebrow,
-  MilhaoUpsellBanner,
-  PrincipalHeroCard,
-  PrincipalHeroPurchaseCard,
-} from "@/app/(authenticated)/boloes/_components/BoloesVitrineCards";
+
 import { BoloesBottomSheet } from "@/app/(authenticated)/boloes/_components/BoloesBottomSheet";
 import { buildBoloesSheetCatalog } from "@/app/(authenticated)/boloes/_components/boloes-sheet-items";
+import { BolaoPurchaseModal } from "@/app/components/BolaoPurchaseModal";
 import { UpcomingBolaoCard, type UpcomingBolaoCardUserStats } from "@/app/components/UpcomingBolaoCard";
-import { catalogItemFromFinishedActive } from "@/app/(authenticated)/boloes/_components/closed-bolao-card-utils";
-import type { BolaoDefinitionCatalogItem } from "@/lib/boloes/definitions/types";
+import {
+  catalogItemFromActiveBolao,
+  catalogItemFromFinishedActive,
+} from "@/app/(authenticated)/boloes/_components/closed-bolao-card-utils";
+import type {
+  BolaoCatalogSections,
+  BolaoDefinitionCatalogItem,
+} from "@/lib/boloes/definitions/types";
 export type ActivePrincipalBolao = {
   id: string;
   title: string;
@@ -210,6 +210,8 @@ const EMPTY_CATALOG: BoloesScreenData["dynamicCatalog"] = {
 };
 const INK = "#0E141B";
 const SHOWCASE_CARD_BG = "#111111";
+const BOLOES_SLIDER_CARD_W =
+  "w-[min(260px,calc((100vw-2.25rem)*0.62))] min-w-[218px] shrink-0 flex-none lg:w-[260px]";
 
 /** Rótulos do header como na referência (CAMPEONATO / BRASILEIRO). */
 function showcaseHeaderParts(
@@ -245,28 +247,6 @@ function showcaseHeaderParts(
     };
   }
   return { category: "Campeonato", title: t || "Extra" };
-}
-
-/**
- * Hook de relógio para countdowns. O valor inicial é `0` (sentinel "ainda não
- * hidratou") em vez de `Date.now()` — isso é fundamental para evitar hydration
- * mismatch: o SSR e o primeiro render do client produzem o MESMO HTML
- * (`--`), e só depois do mount o relógio entra em ação.
- *
- * Consumidores devem tratar `now === 0` como "placeholder" — `formatCountdown`
- * e `lockHasPassed` abaixo fazem isso. Outros consumers que comparem `now`
- * diretamente precisam considerar esse contrato.
- */
-function useNow(intervalMs = 1000) {
-  const [now, setNow] = useState(0);
-
-  useEffect(() => {
-    setNow(Date.now());
-    const interval = window.setInterval(() => setNow(Date.now()), intervalMs);
-    return () => window.clearInterval(interval);
-  }, [intervalMs]);
-
-  return now;
 }
 
 /** Contagem até início/fechamento — texto curto (dias → horas → minutos). */
@@ -1757,7 +1737,7 @@ function BoloesFilterTabs({
 }) {
   return (
     <div
-      className="mt-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="mt-4 w-full justify-between flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       role="tablist"
       aria-label="Filtrar bolões"
     >
@@ -1770,7 +1750,7 @@ function BoloesFilterTabs({
             role="tab"
             aria-selected={isActive}
             onClick={() => onChange(tab.key)}
-            className={`shrink-0 rounded-full px-3.5 py-2 text-[12px] font-black uppercase tracking-wide transition-colors ${
+            className={`w-full rounded-[5px] px-3.5 py-2 text-[13px] font-black uppercase tracking-wide transition-colors ${
               isActive
                 ? "bg-primary text-[#0E141B]"
                 : "border border-white/12 bg-white/[0.04] text-white/60"
@@ -1792,11 +1772,150 @@ function BoloesFilterEmptyState({ text }: { text: string }) {
   );
 }
 
+function BoloesTabLoadingState() {
+  return (
+    <div className="mt-5 flex min-h-[220px] flex-col items-center justify-center rounded-[18px] border border-white/8 bg-[#0d0d0d] px-4 text-center">
+      <div className="size-10 animate-spin rounded-full border-4 border-primary/20 border-t-primary" aria-hidden />
+      <p className="mt-4 text-[12px] font-black uppercase tracking-[0.18em] text-primary">
+        Carregando bolão
+      </p>
+      <p className="mt-1 text-[12px] font-semibold text-white/42">
+        Buscando os status corretos desta aba
+      </p>
+    </div>
+  );
+}
+
+function BoloesTabSectionTitle({
+  title,
+}: {
+  title: string;
+}) {
+  return (
+    <div className="mb-3 flex items-center justify-between gap-3">
+      <h2 className="text-[15px] font-black uppercase tracking-[0.04em] text-white">
+        {title}
+      </h2>
+    </div>
+  );
+}
+
+type BoloesCardSliderEntry = {
+  key: string;
+  item: BolaoDefinitionCatalogItem;
+  href?: string;
+  userStats?: UpcomingBolaoCardUserStats;
+  resultHref?: string;
+};
+
+function BoloesCardSlider({
+  entries,
+  ariaLabel,
+  onPurchaseClick,
+}: {
+  entries: BoloesCardSliderEntry[];
+  ariaLabel: string;
+  onPurchaseClick?: (item: BolaoDefinitionCatalogItem) => void;
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [canPrev, setCanPrev] = useState(false);
+  const [canNext, setCanNext] = useState(entries.length > 1);
+
+  const updateArrows = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setCanPrev(el.scrollLeft > 4);
+    setCanNext(entries.length > 1 && el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
+  }, [entries.length]);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTo({ left: 0 });
+    const id = requestAnimationFrame(updateArrows);
+    return () => cancelAnimationFrame(id);
+  }, [entries.length, updateArrows]);
+
+  const scrollCards = useCallback((dir: 1 | -1) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const firstCard = el.querySelector("[data-bolao-card]") as HTMLElement | null;
+    const gap = Number.parseFloat(getComputedStyle(el).columnGap || "0") || 0;
+    const cardW = firstCard ? firstCard.offsetWidth + gap : el.clientWidth;
+    const currentIndex = Math.round(el.scrollLeft / cardW);
+    const maxIndex = Math.max(0, entries.length - 1);
+    const nextIndex = Math.min(maxIndex, Math.max(0, currentIndex + dir));
+    el.scrollTo({ left: nextIndex * cardW, behavior: "smooth" });
+    window.setTimeout(updateArrows, 280);
+  }, [entries.length, updateArrows]);
+
+  if (entries.length === 0) return null;
+
+  return (
+    <div className="relative">
+      {canPrev ? (
+        <button
+          type="button"
+          onClick={() => scrollCards(-1)}
+          className="absolute left-1 top-1/2 z-10 flex size-7 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/80 shadow-md backdrop-blur-sm transition hover:bg-black"
+          aria-label="Anterior"
+        >
+          <ChevronLeft className="size-4 text-white" strokeWidth={2.5} />
+        </button>
+      ) : null}
+
+      <div
+        ref={scrollRef}
+        className="flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain scroll-smooth pb-2 pr-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        style={{
+          scrollSnapType: "x mandatory",
+          msOverflowStyle: "none",
+          scrollPaddingInline: "0px",
+        }}
+        aria-label={ariaLabel}
+        onScroll={updateArrows}
+      >
+        {entries.map((entry) => (
+          <div
+            key={entry.key}
+            data-bolao-card
+            className={`${BOLOES_SLIDER_CARD_W} snap-start`}
+            style={{ scrollSnapAlign: "start" }}
+          >
+            <UpcomingBolaoCard
+              item={entry.item}
+              href={entry.href}
+              userStats={entry.userStats}
+              resultHref={entry.resultHref}
+              onCtaClick={onPurchaseClick}
+            />
+          </div>
+        ))}
+      </div>
+
+      {canNext ? (
+        <button
+          type="button"
+          onClick={() => scrollCards(1)}
+          className="absolute right-1 top-1/2 z-10 flex size-7 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/80 shadow-md backdrop-blur-sm transition hover:bg-black"
+          aria-label="Próximo"
+        >
+          <ChevronRight className="size-4 text-white" strokeWidth={2.5} />
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function splitBoloesIntoTwoSliders<T>(items: T[]): [T[], T[]] {
+  const midpoint = Math.ceil(items.length / 2);
+  return [items.slice(0, midpoint), items.slice(midpoint)];
+}
+
 /* ─────────────────────────────────────────────────────
    Componente principal
    ───────────────────────────────────────────────────── */
 export function BoloesClient({
-  data,
+  data: initialData,
   ticketsExtraOnly = false,
   ticketsHideDaily = false,
 }: {
@@ -1806,8 +1925,96 @@ export function BoloesClient({
   /** Alinhado a `TICKETS_HIDE_DAILY`: oculta vitrine/compra do dia; cotas já compradas continuam visíveis. */
   ticketsHideDaily?: boolean;
 }) {
-  const now = useNow();
-  const dynamicCatalog = data?.dynamicCatalog ?? EMPTY_CATALOG;
+  const [data, setData] = useState(initialData);
+  const [activeTab, setActiveTab] = useState<BoloesFilterTab>("disponiveis");
+  const [personalDataLoaded, setPersonalDataLoaded] = useState(false);
+  const [personalDataLoading, setPersonalDataLoading] = useState(false);
+  const loadPersonalData = useCallback(async () => {
+    if (personalDataLoaded || personalDataLoading) return;
+    setPersonalDataLoading(true);
+    try {
+      const resp = await fetch("/api/boloes/screen", {
+        credentials: "include",
+        cache: "no-store",
+      });
+      if (!resp.ok) {
+        setPersonalDataLoaded(true);
+        return;
+      }
+      const json = (await resp.json()) as { data?: BoloesScreenData | null };
+      if (json.data) setData(json.data);
+      setPersonalDataLoaded(true);
+    } catch {
+      /* mantém o snapshot rápido e mostra estado vazio se falhar */
+    } finally {
+      setPersonalDataLoading(false);
+    }
+  }, [personalDataLoaded, personalDataLoading]);
+
+  useEffect(() => {
+    if (activeTab === "disponiveis") return;
+    void loadPersonalData();
+  }, [activeTab, loadPersonalData]);
+
+  useEffect(() => {
+    if (personalDataLoaded) return;
+    const start = () => void loadPersonalData();
+    const idleWindow = typeof window !== "undefined"
+      ? (window as Window & typeof globalThis & {
+          requestIdleCallback?: (
+            callback: IdleRequestCallback,
+            options?: IdleRequestOptions,
+          ) => number;
+          cancelIdleCallback?: (handle: number) => void;
+        })
+      : null;
+    if (idleWindow?.requestIdleCallback) {
+      const id = idleWindow.requestIdleCallback(start, { timeout: 2500 });
+      return () => idleWindow.cancelIdleCallback?.(id);
+    }
+    const id = setTimeout(start, 1800);
+    return () => clearTimeout(id);
+  }, [loadPersonalData, personalDataLoaded]);
+
+  const [dynamicCatalog, setDynamicCatalog] = useState(
+    data?.dynamicCatalog ?? EMPTY_CATALOG,
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadCatalog = async () => {
+      try {
+        const resp = await fetch("/api/boloes/catalog", { cache: "no-store" });
+        if (!resp.ok) return;
+        const json = (await resp.json()) as BolaoCatalogSections;
+        if (!cancelled) setDynamicCatalog(json);
+      } catch {
+        /* catálogo legado já deixa a tela útil imediatamente */
+      }
+    };
+    const start = () => void loadCatalog();
+    const idleWindow = typeof window !== "undefined"
+      ? (window as Window & typeof globalThis & {
+          requestIdleCallback?: (
+            callback: IdleRequestCallback,
+            options?: IdleRequestOptions,
+          ) => number;
+          cancelIdleCallback?: (handle: number) => void;
+        })
+      : null;
+    if (idleWindow?.requestIdleCallback) {
+      const id = idleWindow.requestIdleCallback(start, { timeout: 1200 });
+      return () => {
+        cancelled = true;
+        idleWindow.cancelIdleCallback?.(id);
+      };
+    }
+    const id = setTimeout(start, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(id);
+    };
+  }, []);
 
   const summary = data?.summary ?? {
     activeCount: 0,
@@ -1893,9 +2100,29 @@ export function BoloesClient({
   const openBoloesSheet = useCallback(() => setBoloesSheetOpen(true), []);
   const closeBoloesSheet = useCallback(() => setBoloesSheetOpen(false), []);
 
-  const catalogOpenForSale = useMemo(
-    () => [...dynamicCatalog.upcoming, ...dynamicCatalog.available],
-    [dynamicCatalog],
+  const catalogOpenForSale = useMemo(() => {
+    return [...dynamicCatalog.upcoming, ...dynamicCatalog.available].map((item) => ({
+      key: item.id,
+      item,
+    }));
+  }, [dynamicCatalog]);
+  const availableSliderRows = useMemo(
+    () => splitBoloesIntoTwoSliders(catalogOpenForSale),
+    [catalogOpenForSale],
+  );
+  const activeBolaoSliderEntries = useMemo<BoloesCardSliderEntry[]>(
+    () =>
+      activeForShowcase.map((item) => ({
+        key: item.id,
+        item: catalogItemFromActiveBolao(item),
+        userStats: {
+          position: item.position,
+          points: item.points,
+          prizeReceivedCents: 0,
+        },
+        href: item.href,
+      })),
+    [activeForShowcase],
   );
 
   const closedBolaoCards = useMemo(() => {
@@ -1947,22 +2174,29 @@ export function BoloesClient({
     return entries;
   }, [dynamicCatalog.closed, finishedItems, positions]);
 
-  const [activeTab, setActiveTab] = useState<BoloesFilterTab>("disponiveis");
+  const [purchaseItem, setPurchaseItem] = useState<BolaoDefinitionCatalogItem | null>(null);
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-black pb-10 text-white">
       <div className="mx-auto w-full max-w-[430px] px-4 lg:max-w-5xl lg:px-6">
-        <BoloesPageEyebrow />
 
         <BoloesFilterTabs active={activeTab} onChange={setActiveTab} />
 
         {activeTab === "disponiveis" ? (
           catalogOpenForSale.length > 0 ? (
             <section className="mt-5" aria-label="Bolões disponíveis">
-              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                {catalogOpenForSale.map((item) => (
-                  <UpcomingBolaoCard key={item.id} item={item} />
-                ))}
+              <BoloesTabSectionTitle title="Bolões disponíveis" />
+              <div className="space-y-5">
+                {availableSliderRows.map((row, idx) =>
+                  row.length > 0 ? (
+                    <BoloesCardSlider
+                      key={`disponiveis-${idx}`}
+                      entries={row}
+                      ariaLabel={`Bolões disponíveis ${idx + 1}`}
+                      onPurchaseClick={setPurchaseItem}
+                    />
+                  ) : null,
+                )}
               </div>
             </section>
           ) : (
@@ -1971,30 +2205,15 @@ export function BoloesClient({
         ) : null}
 
         {activeTab === "meus" ? (
-          activeForShowcase.length > 0 ? (
+          !personalDataLoaded ? (
+            <BoloesTabLoadingState />
+          ) : activeForShowcase.length > 0 ? (
             <section className="mt-5" aria-labelledby="boloes-ativos-heading">
-              <div className="mb-3 flex items-center justify-end">
-                <button
-                  type="button"
-                  onClick={openBoloesSheet}
-                  className="text-[12px] font-black uppercase tracking-wide text-primary"
-                >
-                  Ver todos
-                </button>
-              </div>
-              {activeForShowcase.length === 1 ? (
-                <ActiveBolaoCarouselCard
-                  item={activeForShowcase[0]!}
-                  now={now}
-                  fullWidth
-                />
-              ) : (
-                <BoloesCarouselShell itemCount={activeForShowcase.length}>
-                  {activeForShowcase.map((item) => (
-                    <ActiveBolaoCarouselCard key={item.id} item={item} now={now} />
-                  ))}
-                </BoloesCarouselShell>
-              )}
+              <BoloesTabSectionTitle title="Meus bolões"/>
+              <BoloesCardSlider
+                entries={activeBolaoSliderEntries}
+                ariaLabel="Meus bolões"
+              />
             </section>
           ) : (
             <BoloesFilterEmptyState text="Você ainda não tem cota em nenhum bolão." />
@@ -2002,25 +2221,22 @@ export function BoloesClient({
         ) : null}
 
         {activeTab === "encerrados" ? (
-          closedBolaoCards.length > 0 ? (
+          !personalDataLoaded ? (
+            <BoloesTabLoadingState />
+          ) : closedBolaoCards.length > 0 ? (
             <section className="mt-5" aria-labelledby="boloes-finalizados-heading">
-              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                {closedBolaoCards.map((entry) => (
-                  <UpcomingBolaoCard
-                    key={entry.key}
-                    item={entry.item}
-                    userStats={entry.userStats}
-                    resultHref={entry.resultHref}
-                  />
-                ))}
-              </div>
+              <BoloesTabSectionTitle title="Bolões encerrados"/>
+              <BoloesCardSlider
+                entries={closedBolaoCards}
+                ariaLabel="Bolões encerrados"
+              />
             </section>
           ) : (
             <BoloesFilterEmptyState text="Nenhum bolão encerrado ainda." />
           )
         ) : null}
 
-        <BoloesAjudaSection />
+        {activeTab === "meus" ? <BoloesAjudaSection /> : null}
       </div>
 
       <BoloesBottomSheet
@@ -2028,6 +2244,11 @@ export function BoloesClient({
         onClose={closeBoloesSheet}
         items={boloesSheetCatalog.items}
         championships={boloesSheetCatalog.championships}
+      />
+      <BolaoPurchaseModal
+        item={purchaseItem}
+        open={purchaseItem != null}
+        onClose={() => setPurchaseItem(null)}
       />
     </div>
   );

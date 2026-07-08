@@ -2,12 +2,6 @@ import type { Metadata } from "next";
 import { HomePageClient } from "@/app/components/HomePageClient";
 import { buildPageMetadata } from "@/lib/seo/config";
 import { HomePageJsonLd } from "@/lib/seo/json-ld";
-import {
-  getOutrosBoloesChampionshipIds,
-  getOutrosBoloesGridItems,
-  type OutrosBolaoGridItem,
-} from "@/lib/boloes-outros-grid";
-import { countParticipantsByExtraChampionshipIds } from "@/lib/predictions";
 import type { PalpiteAbertoMatch } from "@/lib/home-palpites-abertos";
 import { loadHomePalpitesAbertosFromCache } from "@/lib/home-palpites-abertos.server";
 import { isBrasilMarrocosPlacarPromoEnabled } from "@/lib/promotions/brasil-marrocos-placar-promo";
@@ -20,23 +14,15 @@ export const metadata: Metadata = buildPageMetadata({
 });
 
 export default async function HomePage() {
-  const ids = getOutrosBoloesChampionshipIds();
-  const [counts, palpites] = await Promise.all([
-    countParticipantsByExtraChampionshipIds(ids).catch(
-      () => ({} as Record<number, number>),
-    ),
-    loadHomePalpitesAbertosFromCache(15).catch(
-      () => [] as PalpiteAbertoMatch[],
-    ),
-  ]);
-  const outrosBoloes: OutrosBolaoGridItem[] = getOutrosBoloesGridItems(counts);
+  const palpites = await loadHomePalpitesAbertosFromCache(15).catch(
+    () => [] as PalpiteAbertoMatch[],
+  );
   const palpitesAbertos = palpites;
 
   return (
     <>
       <HomePageJsonLd />
       <HomePageClient
-        outrosBoloes={outrosBoloes}
         palpitesAbertos={palpitesAbertos}
         brasilMarrocosPlacarPromoEnabled={isBrasilMarrocosPlacarPromoEnabled()}
       />

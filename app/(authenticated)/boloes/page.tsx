@@ -5,7 +5,6 @@ import { sessionCookieName, verifySessionToken } from "@/lib/auth/session";
 import { listPaidTicketsForUser, type PaidTicketRow } from "@/lib/payments/user-tickets";
 import { getExtraBolaoUnitCents, getTicketPriceCents } from "@/lib/payments/ticket-config";
 import {
-  countParticipantsByBolaoType,
   listPredictions,
   palpiteLockBeforeKickoffMs,
   type PredictionRow,
@@ -13,24 +12,17 @@ import {
 import { fetchMatchesMap, type MatchMapEntry } from "@/lib/football-api";
 import { BoloesClient, type BoloesScreenData } from "@/app/(authenticated)/boloes/BoloesClient";
 import { BoloesPurchaseSync } from "@/app/(authenticated)/boloes/_components/BoloesPurchaseSync";
-import { BoloesLoadingSkeleton } from "@/app/(authenticated)/boloes/loading";
 import { getFootballMainCompetitionId, getSoleConfiguredExtraChampionshipId, parseExtraBolaoChampionshipIds } from "@/lib/boloes-extra-config";
-import {
-  ensureSkaleBolaoMatchesMirrored,
-  skaleCompetitionIdsForMatchMap,
-} from "@/lib/boloes/skale-match-resolve";
-import { ensureWeekendBolaoMatchesMirrored } from "@/lib/football/weekend-bolao-sync";
+import { skaleCompetitionIdsForMatchMap } from "@/lib/boloes/skale-match-resolve";
 import { resolveExtraBolaoDisplayName } from "@/lib/boloes-extra-competition-branding";
 import {
   effectiveExtraRoundForPaidTicket,
   extraBolaoTitleForPaidTicket,
   formatExtraRoundLabel,
 } from "@/lib/ticket-shop-extra-display";
-import { readCompetitionDisplayNamesFromDb } from "@/lib/competition-metadata-cache";
 import {
   dailyEditionCardTitle,
   formatDailyEditionCardSubtitle,
-  formatDailyEditionDatesLabel,
   getDailyEdition,
   isMatchInDailyEditionScope,
   listGroupStageDailyEditions,
@@ -51,7 +43,6 @@ import {
   ARTILHEIROS_BOLAO_TITLE,
 } from "@/lib/artilheiros/config";
 import { isArtilheiroResultApplied, listArtilheiroOfficialResults } from "@/lib/artilheiros/results";
-import { countArtilheirosParticipants } from "@/lib/artilheiros/ranking";
 import {
   getArtilheirosTicketPriceCents,
   isArtilheirosBolaoEnabled,
@@ -61,9 +52,7 @@ import {
   bolaoDisplayStatusMeta,
   computeBolaoDisplayPhase,
 } from "@/lib/boloes/display-status";
-import { buildBolaoCatalogSections } from "@/lib/boloes/definitions/catalog";
 import { enrichBolaoDefinitionCatalog } from "@/lib/boloes/definitions/branding";
-import type { BolaoCatalogSections } from "@/lib/boloes/definitions/types";
 import {
   bolaoPhaseScopeForPaidTicket,
   bolaoPhaseScopeFromPredictions,
@@ -71,10 +60,6 @@ import {
   scopeMatchesForPaidTicket,
   type ScopeMatchesForPaidTicketOpts,
 } from "@/lib/boloes/ticket-match-scope";
-import {
-  extraBolaoCurrentRoundsByChampionship,
-  type ExtraBolaoRoundInfo,
-} from "@/lib/ticket-shop-extra-rounds";
 
 export const dynamic = "force-dynamic";
 
@@ -324,19 +309,10 @@ function perfLog(label: string, t0: number) {
   }
 }
 
-async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
+export async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
   const tAll = Date.now();
   const configuredExtraIds = parseExtraBolaoChampionshipIds();
   const mainComp = getFootballMainCompetitionId();
-  // Os dois espelhamentos (Skale/Weekend a partir da Copa) são independentes —
-  // rodam em paralelo. Mantemos o await aqui porque o fetchMatchesMap abaixo
-  // lê o que eles escrevem (read-after-write).
-  const tMirror = Date.now();
-  await Promise.all([
-    ensureSkaleBolaoMatchesMirrored().catch(() => {}),
-    ensureWeekendBolaoMatchesMirrored().catch(() => {}),
-  ]);
-  perfLog("mirror sync", tMirror);
   const preloadCompIds = [
     ...new Set([mainComp, ...configuredExtraIds, ...skaleCompetitionIdsForMatchMap()]),
   ];
@@ -347,28 +323,11 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
       return m;
     })
     .catch(() => new Map());
-  // Não depende de tickets/predictions do usuário — dispara já, em paralelo
-  // com o Promise.all abaixo, em vez de esperar tudo terminar (só é lido lá
-  // embaixo, ao montar `data`).
-  const tCatalog0 = Date.now();
-  const dynamicCatalogPromise = buildBolaoCatalogSections()
-    .then((r) => {
-      perfLog("buildBolaoCatalogSections", tCatalog0);
-      return r;
-    })
-    .catch((): BolaoCatalogSections => {
-      perfLog("buildBolaoCatalogSections FAILED", tCatalog0);
-      return { upcoming: [], available: [], closed: [] };
-    });
   const tBatch0 = Date.now();
   const [
     matches,
     tickets,
     userPredictions,
-    competitionLabels,
-    participantsByBolao,
-    artilheirosParticipants,
-    extraRounds,
   ] = await Promise.all([
     matchesPromise,
     matchesPromise.then((m) => {
@@ -387,48 +346,12 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
         })
         .catch(() => []);
     })(),
-    (() => {
-      const t = Date.now();
-      return readCompetitionDisplayNamesFromDb(configuredExtraIds)
-        .then((fromDb) => {
-          perfLog("readCompetitionDisplayNamesFromDb", t);
-          const out: Record<number, string> = {};
-          for (const id of configuredExtraIds) {
-            out[id] = fromDb[id] ?? resolveExtraBolaoDisplayName(id, null);
-          }
-          return out;
-        })
-        .catch(() => ({}) as Record<number, string>);
-    })(),
-    (() => {
-      const t = Date.now();
-      return countParticipantsByBolaoType()
-        .then((r) => {
-          perfLog("countParticipantsByBolaoType", t);
-          return r;
-        })
-        .catch(() => ({ principal: 0, diario: 0, extra: 0 }));
-    })(),
-    (() => {
-      const t = Date.now();
-      return countArtilheirosParticipants()
-        .then((r) => {
-          perfLog("countArtilheirosParticipants", t);
-          return r;
-        })
-        .catch(() => 0);
-    })(),
-    (() => {
-      const t = Date.now();
-      return extraBolaoCurrentRoundsByChampionship(configuredExtraIds)
-        .then((r) => {
-          perfLog("extraBolaoCurrentRoundsByChampionship", t);
-          return r;
-        })
-        .catch(() => ({}) as Record<number, ExtraBolaoRoundInfo>);
-    })(),
   ]);
   perfLog("main Promise.all (batch)", tBatch0);
+  const participantsByBolao = { principal: 0, diario: 0, extra: 0 };
+  const artilheirosParticipants = 0;
+  const competitionLabels: Record<number, string> = {};
+  const extraRounds: Record<number, { roundNumber: number }> = {};
 
   /** Cada cota mantém `tickets.round_number` — não avança rodada na vitrine. */
   const effectiveExtraRoundByTicketId = new Map<string, number>();
@@ -1048,7 +971,7 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
       bestPosition: positions.length ? Math.min(...positions) : null,
     },
     active,
-    dynamicCatalog: await dynamicCatalogPromise,
+    dynamicCatalog: { upcoming: [], available: [], closed: [] },
     upcoming: {
       daily: {
         href: "/tickets?bolao=diario",
@@ -1142,31 +1065,72 @@ async function loadBoloesData(userId: string): Promise<BoloesScreenData> {
   return data;
 }
 
-/**
- * Carrega os dados (lentos — banco remoto) e renderiza a tela. Fica isolado
- * num componente async para que a página possa STREAMAR: o shell + skeleton
- * aparecem na hora e este conteúdo entra quando os dados resolvem.
- */
-async function BoloesData({
-  userId,
-  ticketsExtraOnly,
-  ticketsHideDaily,
-}: {
-  userId: string;
-  ticketsExtraOnly: boolean;
-  ticketsHideDaily: boolean;
-}) {
-  const data = await loadBoloesData(userId).catch((err) => {
-    console.error("[boloes] failed to load screen data", err);
-    return null;
-  });
-  return (
-    <BoloesClient
-      data={data}
-      ticketsExtraOnly={ticketsExtraOnly}
-      ticketsHideDaily={ticketsHideDaily}
-    />
-  );
+function buildFastBoloesData(): BoloesScreenData {
+  const configuredExtraIds = parseExtraBolaoChampionshipIds();
+  return {
+    participantsByBolao: {
+      principal: 0,
+      diario: 0,
+      extra: 0,
+      artilheiros: 0,
+    },
+    summary: {
+      activeCount: 0,
+      pendingPredictions: 0,
+      bestPosition: null,
+    },
+    active: {
+      principal: null,
+      diario: null,
+      all: [],
+    },
+    dynamicCatalog: { upcoming: [], available: [], closed: [] },
+    upcoming: {
+      daily: {
+        href: "/tickets?bolao=diario",
+        gamesCount: 0,
+        closesAtMs: null,
+        priceLabel: formatBRL(getTicketPriceCents("daily")),
+      },
+      ...(isSkaleDailyBolaoEnabled()
+        ? {
+            skaleDaily: {
+              href: "/tickets?bolao=skale-diario",
+              gamesCount: 0,
+              closesAtMs: null,
+              priceLabel: formatBRL(getSkaleDailyBolaoUnitCents()),
+            },
+          }
+        : {}),
+      principal: {
+        href: "/tickets",
+        priceLabel: formatBRL(getTicketPriceCents("general")),
+        closesAtMs: null,
+      },
+      ...(isArtilheirosBolaoEnabled()
+        ? {
+            artilheiros: {
+              href: "/tickets?bolao=artilheiros",
+              priceLabel: formatBRL(getArtilheirosTicketPriceCents()),
+              participantCount: 0,
+            },
+          }
+        : {}),
+      extras: configuredExtraIds
+        .filter((championshipId) => !isSkaleDailyBolaoCompetition(championshipId))
+        .map((championshipId) => {
+          const title = resolveExtraBolaoDisplayName(championshipId, null);
+          return {
+            championshipId,
+            title,
+            href: `/tickets?bolao=extra&championshipId=${championshipId}`,
+            gamesCount: 0,
+            closesAtMs: null,
+            priceLabel: formatBRL(getExtraBolaoUnitCents()),
+          };
+        }),
+    },
+  };
 }
 
 export default async function BoloesPage() {
@@ -1184,18 +1148,17 @@ export default async function BoloesPage() {
       />
     );
   }
+  const fastData = buildFastBoloesData();
   return (
     <>
       <Suspense fallback={null}>
         <BoloesPurchaseSync />
       </Suspense>
-      <Suspense fallback={<BoloesLoadingSkeleton />}>
-        <BoloesData
-          userId={userId}
-          ticketsExtraOnly={ticketsExtraOnly}
-          ticketsHideDaily={ticketsHideDaily}
-        />
-      </Suspense>
+      <BoloesClient
+        data={fastData}
+        ticketsExtraOnly={ticketsExtraOnly}
+        ticketsHideDaily={ticketsHideDaily}
+      />
     </>
   );
 }

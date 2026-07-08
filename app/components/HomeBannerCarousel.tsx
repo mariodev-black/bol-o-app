@@ -116,7 +116,7 @@ export function HomeBannerCarousel({
       className={`w-full min-w-0 max-w-full overflow-hidden ${fillHeight ? "lg:h-full" : ""}`}
     >
       <div
-        className={`mx-auto w-full min-w-0 max-w-[460px] px-3.5 ${
+        className={`mx-auto w-full min-w-0 max-w-[460px]${
           fullWidth ? "lg:max-w-none lg:px-0" : "lg:max-w-[720px]"
         } ${fillHeight ? "lg:h-full" : ""}`}
       >

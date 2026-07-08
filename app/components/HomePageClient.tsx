@@ -19,7 +19,6 @@ import {
   type BrasilMarrocosPlacarPromoStatus,
 } from "@/lib/promotions/brasil-marrocos-placar-promo-shared";
 import { BRASIL_MARROCOS_PLACAR_FRIENDS_GOAL } from "@/lib/promotions/brasil-marrocos-guest-flow";
-import { OutrosBoloesGrid } from "@/app/(authenticated)/boloes/_components/OutrosBoloesGrid";
 import { QuemEstaNoBolaoSection } from "@/app/components/QuemEstaNoBolaoSection";
 import { PalpitesAbertosGrid } from "@/app/components/PalpitesAbertosGrid";
 import { PalpitesAbertosTable } from "@/app/components/PalpitesAbertosTable";
@@ -36,7 +35,6 @@ import {
   collectPalpitesAbertosFromPartidasPayload,
   pickPalpitesAbertosForHome,
 } from "@/lib/home-palpites-abertos";
-import type { OutrosBolaoGridItem } from "@/lib/boloes-outros-grid";
 import {
   LIVE_PARTIDAS_POLL_MS,
   partidasUrlWithLiveSync,
@@ -119,11 +117,9 @@ function PromoBrasilMarrocosHomeCard() {
 }
 
 function LoggedInHome({
-  outrosBoloes,
   palpitesAbertos: initialPalpitesAbertos,
   promoEnabled = false,
 }: {
-  outrosBoloes: OutrosBolaoGridItem[];
   palpitesAbertos: PalpiteAbertoMatch[];
   promoEnabled?: boolean;
 }) {
@@ -142,7 +138,6 @@ function LoggedInHome({
 
   useEffect(() => {
     let cancelled = false;
-    let intervalId: ReturnType<typeof setInterval> | undefined;
 
     async function loadPalpitesAbertos(liveSync = false) {
       if (
@@ -180,10 +175,10 @@ function LoggedInHome({
     }
 
     void loadPalpitesAbertos(true);
-    intervalId = setInterval(() => void loadPalpitesAbertos(true), LIVE_PARTIDAS_POLL_MS);
+    const intervalId = setInterval(() => void loadPalpitesAbertos(true), LIVE_PARTIDAS_POLL_MS);
     return () => {
       cancelled = true;
-      if (intervalId) clearInterval(intervalId);
+      clearInterval(intervalId);
     };
   }, []);
 
@@ -235,16 +230,6 @@ function LoggedInHome({
             </div>
 
             <div className="mt-5 min-w-0 lg:mt-0">
-              {outrosBoloes.length > 0 ? (
-                <OutrosBoloesGrid
-                  items={outrosBoloes}
-                  title="PRINCIPAIS BOLÕES"
-                  className="mt-0"
-                />
-              ) : null}
-            </div>
-
-            <div className="mt-5 min-w-0 lg:mt-0">
               <HomeRankingTop5 />
               <QuemEstaNoBolaoSection className="mt-5" />
             </div>
@@ -255,13 +240,13 @@ function LoggedInHome({
             onScoring={() => setScoringExplainerOpen(true)}
           />
 
-          <div className="lg:hidden">
+          {/* <div className="lg:hidden">
             <HomeClassificacaoCtaSection className="mt-6" />
             <HomeComoFuncionaPontuacaoSection
               className="mt-5"
               onVerMaisPontuacao={() => setScoringExplainerOpen(true)}
             />
-          </div>
+          </div> */}
 
           <HomeTrustBand className="mt-6 hidden lg:block" />
         </div>
@@ -279,18 +264,15 @@ function LoggedInHome({
 }
 
 export function HomePageClient({
-  outrosBoloes = [],
   palpitesAbertos = [],
   brasilMarrocosPlacarPromoEnabled = false,
 }: {
-  outrosBoloes?: OutrosBolaoGridItem[];
   palpitesAbertos?: PalpiteAbertoMatch[];
   brasilMarrocosPlacarPromoEnabled?: boolean;
 }) {
   return (
     <>
       <LoggedInHome
-        outrosBoloes={outrosBoloes}
         palpitesAbertos={palpitesAbertos}
         promoEnabled={brasilMarrocosPlacarPromoEnabled}
       />

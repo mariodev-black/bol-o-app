@@ -1,8 +1,25 @@
+import type { StaticImageData } from "next/image";
 import type { ActiveBolaoListItem } from "@/app/(authenticated)/boloes/BoloesClient";
 import { resolveBolaoListItemLogoSrc } from "@/app/(authenticated)/boloes/_components/BolaoListItemLogo";
 import { ARTILHEIROS_BOLAO_SUBTITLE, ARTILHEIROS_BOLAO_TITLE } from "@/lib/artilheiros/config";
+import { getExtraBolaoHeroSideVariant } from "@/lib/boloes-extra-competition-branding";
 import { SHOWCASE_PRIZES } from "@/lib/boloes-prize-copy";
 import type { BolaoDefinitionCatalogItem } from "@/lib/boloes/definitions/types";
+
+function logoUrlFromResolved(src: string | StaticImageData): string {
+  return typeof src === "string" ? src : src.src;
+}
+
+function resolvedIconVariantForActive(item: ActiveBolaoListItem): string {
+  if (item.resolvedIconVariant?.trim()) return item.resolvedIconVariant;
+  if (item.type === "artilheiros") return "artilheiros";
+  if (item.type === "principal") return "copa_mundo";
+  if (item.type === "diario") return item.isSkaleDaily ? "skale" : "daily";
+  if (item.type === "extra") {
+    return getExtraBolaoHeroSideVariant(item.championshipId, item.title);
+  }
+  return "generic";
+}
 
 function parseExtraTitle(title: string): { name: string; round: string | null } {
   const t = title.trim();
@@ -45,11 +62,21 @@ function displayNameForActive(item: ActiveBolaoListItem): string {
   return item.title;
 }
 
-/** Converte cota encerrada (legado) no shape mínimo do card padrão v2. */
-export function catalogItemFromFinishedActive(
+function lifecycleStatusForActive(
+  item: ActiveBolaoListItem,
+): BolaoDefinitionCatalogItem["lifecycleStatus"] {
+  if (item.displayPhase === "finalizado") return "encerrado";
+  if (item.displayPhase === "disputa") return "ao_vivo";
+  return "aberto";
+}
+
+/** Converte cota/bolão legado no shape mínimo do card padrão v2. */
+export function catalogItemFromActiveBolao(
   item: ActiveBolaoListItem,
 ): BolaoDefinitionCatalogItem {
   const logoSrc = resolveBolaoListItemLogoSrc(item);
+  const resolvedLogoUrl = logoUrlFromResolved(logoSrc);
+  const resolvedIconVariant = resolvedIconVariantForActive(item);
   const displayName = displayNameForActive(item);
   const phase = phaseLabelForActive(item);
 
@@ -72,9 +99,9 @@ export function catalogItemFromFinishedActive(
     saleEnabled: false,
     shopVisible: false,
     sortOrder: 0,
-    logoUrl: typeof logoSrc === "string" ? logoSrc : null,
+    logoUrl: resolvedLogoUrl,
     bannerUrl: null,
-    logoVariant: item.resolvedIconVariant ?? null,
+    logoVariant: resolvedIconVariant,
     useCompetitionLogo: false,
     prizePoolBps: 0,
     prizeTiers: [],
@@ -84,24 +111,36 @@ export function catalogItemFromFinishedActive(
     settlementAt: null,
     prizeReleaseAt: null,
     maxTicketsPerUser: null,
-    lifecycleStatus: "encerrado",
+    lifecycleStatus: lifecycleStatusForActive(item),
     metadata: {},
     enabled: true,
     createdAt: "",
     updatedAt: "",
     competitionDisplayName: displayName,
     competitionDisplayNames: [displayName],
-    resolvedLogoUrl: typeof logoSrc === "string" ? logoSrc : null,
+    resolvedLogoUrl,
     resolvedBannerUrl: null,
-    resolvedIconVariant: item.resolvedIconVariant ?? "generic",
+    resolvedIconVariant,
     datesLabel: phase,
     priceLabel: "—",
     estimatedPrizeLabel: prizePoolLabelForActive(item),
     participantCount: item.participantCount ?? 0,
     matchCount: item.gamesCount ?? item.total ?? 0,
     remainingMatches: 0,
-    purchaseOpen: false,
+    purchaseOpen: item.displayPhase !== "finalizado",
     countdownToStartMs: null,
     countdownToEndMs: null,
+  };
+}
+
+/** Compatibilidade: encerrados usam o mesmo conversor base. */
+export function catalogItemFromFinishedActive(
+  item: ActiveBolaoListItem,
+): BolaoDefinitionCatalogItem {
+  return {
+    ...catalogItemFromActiveBolao(item),
+    lifecycleStatus: "encerrado",
+    purchaseOpen: false,
+    remainingMatches: 0,
   };
 }

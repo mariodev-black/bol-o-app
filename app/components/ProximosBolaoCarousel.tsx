@@ -5,32 +5,42 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { BolaoDefinitionCatalogItem } from "@/lib/boloes/definitions/types";
 import { UpcomingBolaoCard } from "@/app/components/UpcomingBolaoCard";
+import { BolaoPurchaseModal } from "@/app/components/BolaoPurchaseModal";
 
 const GREEN = "#B1EB0B";
 const INTERVAL_MS = 4500;
-const CARD_W = "w-[min(300px,calc(100vw-3rem))] shrink-0 flex-none";
+const CARD_W =
+  "w-[min(260px,calc((100vw-2.25rem)*0.62))] min-w-[218px] shrink-0 flex-none lg:w-[260px]";
 
-export function ProximosBolaoCarousel({ className = "" }: { className?: string }) {
+type CarouselCatalogItem = BolaoDefinitionCatalogItem & { actionHref?: string };
+
+export function ProximosBolaoCarousel({
+  className = "",
+}: {
+  className?: string;
+}) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [items, setItems] = useState<BolaoDefinitionCatalogItem[]>([]);
-  const [loaded, setLoaded] = useState(false);
+  const [items, setItems] = useState<CarouselCatalogItem[]>([]);
   const [canPrev, setCanPrev] = useState(false);
   const [canNext, setCanNext] = useState(true);
+  const [purchaseItem, setPurchaseItem] = useState<BolaoDefinitionCatalogItem | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Bolões que ainda não começaram (lifecycleStatus === 'programado'), do motor v2.
+  // Só exibe bolões reais do catálogo dinâmico; sem fallback/mock na home.
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       try {
-        const r = await fetch("/api/boloes/catalog?section=upcoming", { cache: "no-store" });
-        const d = (await r.json()) as { items?: BolaoDefinitionCatalogItem[] };
+        const r = await fetch("/api/boloes/catalog", { cache: "no-store" });
+        const d = (await r.json()) as {
+          upcoming?: BolaoDefinitionCatalogItem[];
+          available?: BolaoDefinitionCatalogItem[];
+        };
         if (cancelled) return;
-        setItems(d.items ?? []);
+        const remote = [...(d.upcoming ?? []), ...(d.available ?? [])];
+        setItems(remote);
       } catch {
-        /* mantém vazio — seção fica oculta */
-      } finally {
-        if (!cancelled) setLoaded(true);
+        if (!cancelled) setItems([]);
       }
     })();
     return () => {
@@ -45,11 +55,17 @@ export function ProximosBolaoCarousel({ className = "" }: { className?: string }
     setCanNext(el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
   }, []);
 
+  useEffect(() => {
+    const id = window.requestAnimationFrame(updateArrows);
+    return () => window.cancelAnimationFrame(id);
+  }, [items.length, updateArrows]);
+
   const scrollCards = useCallback((dir: 1 | -1) => {
     const el = scrollRef.current;
     if (!el) return;
     const firstCard = el.querySelector("[data-card]") as HTMLElement | null;
-    const cardW = firstCard ? firstCard.offsetWidth : el.clientWidth;
+    const gap = Number.parseFloat(window.getComputedStyle(el).columnGap || "0") || 0;
+    const cardW = firstCard ? firstCard.offsetWidth + gap : el.clientWidth;
     el.scrollBy({ left: dir * cardW, behavior: "smooth" });
     if (timerRef.current) {
       clearInterval(timerRef.current);
@@ -68,7 +84,11 @@ export function ProximosBolaoCarousel({ className = "" }: { className?: string }
         el.scrollTo({ left: 0, behavior: "smooth" });
       } else {
         const firstCard = el.querySelector("[data-card]") as HTMLElement | null;
-        el.scrollBy({ left: firstCard?.offsetWidth ?? el.clientWidth, behavior: "smooth" });
+        const gap = Number.parseFloat(window.getComputedStyle(el).columnGap || "0") || 0;
+        el.scrollBy({
+          left: (firstCard?.offsetWidth ?? el.clientWidth) + gap,
+          behavior: "smooth",
+        });
       }
     }, INTERVAL_MS);
     return () => {
@@ -83,8 +103,7 @@ export function ProximosBolaoCarousel({ className = "" }: { className?: string }
   const onTouchMove = (e: React.TouchEvent) => { if (touchStartX.current == null) return; touchDeltaX.current = (e.touches[0]?.clientX ?? 0) - touchStartX.current; };
   const onTouchEnd = () => { const d = touchDeltaX.current; touchStartX.current = null; if (Math.abs(d) >= 40) scrollCards(d < 0 ? 1 : -1); };
 
-  // Sem bolões futuros no momento: não fabrica dado, só oculta a seção.
-  if (loaded && items.length === 0) return null;
+  if (items.length === 0) return null;
 
   return (
     <section className={className} aria-label="Próximos Bolões">
@@ -124,7 +143,11 @@ export function ProximosBolaoCarousel({ className = "" }: { className?: string }
         >
           {items.map((item) => (
             <div key={item.id} data-card className={CARD_W} style={{ scrollSnapAlign: "center" }}>
-              <UpcomingBolaoCard item={item} />
+              <UpcomingBolaoCard
+                item={item}
+                href={item.actionHref}
+                onCtaClick={setPurchaseItem}
+              />
             </div>
           ))}
         </div>
@@ -140,6 +163,11 @@ export function ProximosBolaoCarousel({ className = "" }: { className?: string }
           </button>
         )}
       </div>
+      <BolaoPurchaseModal
+        item={purchaseItem}
+        open={purchaseItem != null}
+        onClose={() => setPurchaseItem(null)}
+      />
     </section>
   );
 }
