@@ -4,7 +4,7 @@ import {
   isBolaoMatchFinished,
   type BolaoDisplayPhase,
 } from "@/lib/boloes/display-status";
-import { bolaoPhaseScopeForPaidTicket } from "@/lib/boloes/ticket-match-scope";
+import { bolaoPhaseScopeForPaidTicket, isFullCompetitionPaidTicket } from "@/lib/boloes/ticket-match-scope";
 import type { MatchMap } from "@/lib/football-api";
 import type { PaidTicketRow } from "@/lib/payments/user-tickets";
 import type { RankingScopeStatus } from "@/lib/ranking/scopes-shared";
@@ -25,6 +25,7 @@ export function bolaoDisplayPhaseForTicket(
     available,
     scopeMatches: scope,
     dailyStatus: ticket.dailyStatus ?? null,
+    fullCompetition: isFullCompetitionPaidTicket(ticket),
   });
 }
 

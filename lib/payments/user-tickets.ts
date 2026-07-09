@@ -18,7 +18,7 @@ import {
   resolveBolaoMatchFromMap,
   skaleCompetitionIdsForMatchMap,
 } from "@/lib/boloes/skale-match-resolve";
-import { isBolaoScopeRoundComplete } from "@/lib/boloes/display-status";
+import { isBolaoScopeRoundComplete, hasScheduledFutureKickoff } from "@/lib/boloes/display-status";
 import {
   bolaoPhaseScopeForPaidTicket,
   bolaoPhaseScopeFromPredictions,
@@ -381,10 +381,14 @@ export async function listPaidTicketsForUser(
           (acc, m) => (predictedIds.has(m.matchId) ? acc : acc + 1),
           0,
         );
+        const predMatchIds = ticketPreds.map((p) => Number(p.match_id));
+        const phaseScope = bolaoPhaseScopeForPaidTicket(t, matchMap, predMatchIds);
+        const roundDone = isBolaoScopeRoundComplete(phaseScope, now);
+        const hasFutureGames = hasScheduledFutureKickoff(phaseScope, now);
         const dailyStatus: NonNullable<PaidTicketRow["dailyStatus"]> =
           palpitesCount === 0
             ? "disponivel"
-            : availableGames === 0
+            : !hasFutureGames && roundDone
               ? "usado"
               : "em_uso";
         return {

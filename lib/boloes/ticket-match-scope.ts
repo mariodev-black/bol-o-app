@@ -114,6 +114,19 @@ export type ScopeMatchesForPaidTicketOpts = {
   extraRoundNumber?: number | null;
 };
 
+/** Principal e Skale integral (Copa inteira) — o bolão só encerra com o campeonato. */
+export function isFullCompetitionPaidTicket(ticket: PaidTicketRow): boolean {
+  if (ticket.ticketType === "general") return true;
+  if (ticket.bolaoDefinition?.scopeMode === "full_competition") return true;
+  if (ticket.ticketType === "extra") {
+    const comp = Number(ticket.extraChampionshipId);
+    if (isSkaleBolaoCompetition(comp) && !isSkaleDailyBolaoCompetition(comp)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /** Partidas que definem prazo, progresso e fase do bolão desta cota. */
 export function scopeMatchesForPaidTicket(
   ticket: PaidTicketRow,

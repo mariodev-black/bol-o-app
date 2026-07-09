@@ -56,6 +56,7 @@ import { enrichBolaoDefinitionCatalog } from "@/lib/boloes/definitions/branding"
 import {
   bolaoPhaseScopeForPaidTicket,
   bolaoPhaseScopeFromPredictions,
+  isFullCompetitionPaidTicket,
   matchEntriesFromPredictions,
   scopeMatchesForPaidTicket,
   type ScopeMatchesForPaidTicketOpts,
@@ -295,6 +296,7 @@ function bolaoStatusFromMetrics(
     ),
     predictionScopeMatches,
     dailyStatus: ticket.dailyStatus ?? null,
+    fullCompetition: isFullCompetitionPaidTicket(ticket),
   });
   const meta = bolaoDisplayStatusMeta(displayPhase);
   return {

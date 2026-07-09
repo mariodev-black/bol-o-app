@@ -118,6 +118,18 @@ export function bolaoMatchKickoffMs(
  * Bolão/rodada só finaliza quando **todos** os jogos do escopo acabaram
  * (inclui partidas futuras ainda agendadas na rodada).
  */
+/** Ainda há partida agendada no escopo (Copa/principal não encerrou). */
+export function hasScheduledFutureKickoff(
+  scope: BolaoMatchPhaseInput[],
+  nowMs = Date.now(),
+): boolean {
+  for (const match of scope) {
+    const kickoff = bolaoMatchKickoffMs(match);
+    if (kickoff != null && kickoff > nowMs) return true;
+  }
+  return false;
+}
+
 export function isBolaoScopeRoundComplete(
   scope: BolaoMatchPhaseInput[],
   nowMs = Date.now(),
@@ -160,21 +172,28 @@ export function computeBolaoDisplayPhase(input: {
   /** Partidas em que o usuário já palpitou (cota sem jogos em aberto). */
   predictionScopeMatches?: BolaoMatchPhaseInput[];
   dailyStatus?: "disponivel" | "em_uso" | "usado" | null;
+  /** Principal / Skale integral — não finaliza entre rodadas da Copa. */
+  fullCompetition?: boolean;
   now?: number;
 }): BolaoDisplayPhase {
   const now = input.now ?? Date.now();
   const scope = input.scopeMatches;
   const predScope = input.predictionScopeMatches ?? [];
+  const fullCompetition = input.fullCompetition === true;
+  const tournamentStillRunning =
+    fullCompetition && hasScheduledFutureKickoff(scope, now);
 
-  if (input.dailyStatus === "usado") {
+  if (input.dailyStatus === "usado" && !tournamentStillRunning) {
     return "finalizado";
   }
 
-  if (isBolaoScopeRoundComplete(scope, now)) {
+  if (!tournamentStillRunning && isBolaoScopeRoundComplete(scope, now)) {
     return "finalizado";
   }
 
   if (
+    !tournamentStillRunning &&
+    !fullCompetition &&
     input.sent > 0 &&
     input.available === 0 &&
     predScope.length > 0 &&
