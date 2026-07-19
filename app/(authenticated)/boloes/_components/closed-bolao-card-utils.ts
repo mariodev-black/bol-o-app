@@ -3,7 +3,8 @@ import type { ActiveBolaoListItem } from "@/app/(authenticated)/boloes/BoloesCli
 import { resolveBolaoListItemLogoSrc } from "@/app/(authenticated)/boloes/_components/BolaoListItemLogo";
 import { ARTILHEIROS_BOLAO_SUBTITLE, ARTILHEIROS_BOLAO_TITLE } from "@/lib/artilheiros/config";
 import { getExtraBolaoHeroSideVariant } from "@/lib/boloes-extra-competition-branding";
-import { SHOWCASE_PRIZES } from "@/lib/boloes-prize-copy";
+import { SHOWCASE_FULL_COMPETITION_PHASE_LABEL, SHOWCASE_FULL_COMPETITION_PRIZE_TOTAL, SHOWCASE_PRIZES } from "@/lib/boloes-prize-copy";
+import { isSkaleBolaoCompetition } from "@/lib/boloes/skale-config";
 import type { BolaoDefinitionCatalogItem } from "@/lib/boloes/definitions/types";
 
 function logoUrlFromResolved(src: string | StaticImageData): string {
@@ -28,13 +29,22 @@ function parseExtraTitle(title: string): { name: string; round: string | null } 
   return { name: (name ?? t).trim(), round: round?.trim() || null };
 }
 
+function isFullCompetitionActiveItem(item: ActiveBolaoListItem): boolean {
+  if (item.type === "principal") return true;
+  return item.type === "extra" && isSkaleBolaoCompetition(item.championshipId);
+}
+
 function prizePoolLabelForActive(item: ActiveBolaoListItem): string {
   if (item.type === "dynamic") return "A definir";
+  if (isFullCompetitionActiveItem(item)) return SHOWCASE_FULL_COMPETITION_PRIZE_TOTAL;
   return SHOWCASE_PRIZES[item.type]?.total ?? "A definir";
 }
 
 function phaseLabelForActive(item: ActiveBolaoListItem): string | null {
   if (item.type === "extra") {
+    if (isSkaleBolaoCompetition(item.championshipId)) {
+      return item.extraRoundLabel?.trim() || SHOWCASE_FULL_COMPETITION_PHASE_LABEL;
+    }
     return item.extraRoundLabel?.trim() || parseExtraTitle(item.title).round;
   }
   if (item.type === "diario") {
@@ -43,7 +53,7 @@ function phaseLabelForActive(item: ActiveBolaoListItem): string | null {
   if (item.type === "artilheiros") {
     return item.subtitle?.trim() || ARTILHEIROS_BOLAO_SUBTITLE;
   }
-  if (item.type === "principal") return "Copa do Mundo 2026";
+  if (item.type === "principal") return SHOWCASE_FULL_COMPETITION_PHASE_LABEL;
   if (item.type === "dynamic") return item.subtitle?.trim() || null;
   return null;
 }
