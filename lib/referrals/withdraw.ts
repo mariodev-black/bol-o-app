@@ -7,6 +7,7 @@ import {
   assertValidWithdrawalUserId,
   assertWithdrawalAmountBounds,
 } from "@/lib/referrals/withdrawGuards";
+import { ensureWithdrawalBalanceSourceConstraint } from "@/lib/referrals/withdrawSchema";
 
 export type { WithdrawalBalanceSource } from "@/lib/referrals/withdrawSource";
 
@@ -44,6 +45,9 @@ export async function createAffiliateWithdrawalRequest(input: {
   const pool = getPool();
   const client = await pool.connect();
   try {
+    // Fora da TX: ALTER CONSTRAINT não pode rolar back com o INSERT.
+    await ensureWithdrawalBalanceSourceConstraint(client);
+
     await client.query("BEGIN");
 
     // Id gerado antes do débito: serve de chave de idempotência no ledger.
