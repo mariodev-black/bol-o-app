@@ -1,5 +1,4 @@
 import { calcPredictionPoints } from "@/lib/predictions/calc-points";
-import { getCopaFinalExactPoints } from "@/lib/predictions/copa-final-bonus";
 
 export type ScoringRuleExplainer = {
   title: string;
@@ -12,11 +11,6 @@ export const SCORING_RULES_EXPLAINER: ScoringRuleExplainer[] = [
   {
     title: "Placar exato",
     pointsLabel: "+6 pontos",
-  },
-  {
-    title: "Final da Copa (ESP x ARG)",
-    pointsLabel: `+${getCopaFinalExactPoints()} pontos`,
-    detail: "Somente no jogo da final — placar exato vale pontuação especial.",
   },
   {
     title: "Vencedor + gols de 1 time",
