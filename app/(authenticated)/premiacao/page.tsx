@@ -26,29 +26,31 @@ const surfacePanel =
 const prizeCardInner =
   "overflow-hidden rounded-lg border border-primary/35 bg-[#121212] shadow-[0_0_32px_rgba(177,235,11,0.08),inset_0_1px_0_rgba(255,255,255,0.04)] sm:rounded-xl";
 
-const GENERAL_PRIZE_ROWS: { rank: string; prize: string }[] = [
-  { rank: "1º lugar", prize: "R$ 180.000,00" },
-  { rank: "2º lugar", prize: "R$ 90.000,00" },
-  { rank: "3º lugar", prize: "R$ 50.000,00" },
-  { rank: "4º lugar", prize: "R$ 35.000,00" },
-  { rank: "5º lugar", prize: "R$ 25.000,00" },
-  { rank: "6º lugar", prize: "R$ 18.000,00" },
-  { rank: "7º lugar", prize: "R$ 14.000,00" },
-  { rank: "8º lugar", prize: "R$ 11.000,00" },
-  { rank: "9º lugar", prize: "R$ 9.000,00" },
-  { rank: "10º lugar", prize: "R$ 7.000,00" },
-];
-
 const GENERAL_FOOTNOTE =
-  "Valores proporcionais a um pool de exemplo de R$ 1.000.000. O pool real é 60% da arrecadação dos tickets gerais pagos — distribuição até o 2.506º lugar.";
+  "Pool total de R$ 8.127,00 · 291 participantes · 29 premiados (Top 29 do ranking final).";
 
-/** Simulação oficial (mesma função do sistema) para pool de exemplo R$ 1M e 2.506 classificados. */
-const GENERAL_EXAMPLE_POOL_CENTS = 100_000_000;
+/** Mesma função do sistema — pool fixo R$ 8.127 e 29 classificados. */
+const GENERAL_EXAMPLE_POOL_CENTS = 812_700;
+const GENERAL_FIXED_WINNER_COUNT = 29;
 const GENERAL_SIMULATION_AWARDS = calculatePrizeAwards(
   GENERAL_EXAMPLE_POOL_CENTS,
-  2506,
-  "general"
+  GENERAL_FIXED_WINNER_COUNT,
+  "general",
 );
+const GENERAL_PRIZE_ROWS: { rank: string; prize: string }[] = GENERAL_SIMULATION_AWARDS.slice(
+  0,
+  10,
+).map((award) => ({
+  rank: `${award.rank}º lugar`,
+  prize: formatBrlCentsStatic(award.amountCents),
+}));
+
+function formatBrlCentsStatic(cents: number): string {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(cents / 100);
+}
 const GENERAL_SIMULATION_TOTAL_CENTS = GENERAL_SIMULATION_AWARDS.reduce(
   (s, a) => s + a.amountCents,
   0
@@ -263,10 +265,10 @@ function PrizeTableGeral({ onOpenDetalhes }: { onOpenDetalhes: () => void }) {
             Premiação total
           </p>
           <p className="mt-0.5 font-helvetica-now-display text-[clamp(1.25rem,4.5vw+0.4rem,2rem)] font-black leading-none tracking-[-0.03em] text-primary sm:text-3xl md:text-[34px]">
-            R$ 1.000.000
+            R$ 8.127
           </p>
           <p className="mt-1.5 text-[12px] font-semibold text-white/80 sm:mt-2 sm:text-[12px]">
-            + de 2.500 premiados no bolão principal
+            291 participantes · 29 premiados no bolão principal
           </p>
         </div>
       </div>

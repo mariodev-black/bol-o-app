@@ -6,6 +6,13 @@ import type { PredictionBolaoType } from "./palpites-kickoff-lock";
 const GLOBAL_COUNTS_REVALIDATE_SEC = 15;
 
 export { calcPredictionPoints } from "@/lib/predictions/calc-points";
+export {
+  COPA_FINAL_BONUS_COPY,
+  getCopaFinalExactPoints,
+  getCopaFinalGraceAfterKickoffSeconds,
+  getCopaFinalMatchId,
+  isCopaFinalMatch,
+} from "@/lib/predictions/copa-final-bonus";
 export type { PredictionBolaoType } from "./palpites-kickoff-lock";
 export {
   PALPITE_LOCK_BEFORE_KICKOFF_MS_DEFAULT,

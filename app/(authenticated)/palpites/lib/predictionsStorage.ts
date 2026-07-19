@@ -65,27 +65,9 @@ export function listPredictionsByTicket(ticketId: string): StoredPrediction[] {
   return readAll().filter((p) => p.ticketId === ticketId);
 }
 
-export function calcPredictionPoints(
-  predCasa: number,
-  predVisit: number,
-  realCasa: number,
-  realVisit: number
-): { points: number; exact: boolean; outcomeHit: boolean; goalsHitCount: number } {
-  const exact = predCasa === realCasa && predVisit === realVisit;
-  if (exact) {
-    return { points: 6, exact: true, outcomeHit: true, goalsHitCount: 0 };
-  }
+import { calcPredictionPoints } from "@/lib/predictions/calc-points";
 
-  const predDiff = predCasa - predVisit;
-  const realDiff = realCasa - realVisit;
-  const outcomeHit = (predDiff === 0 && realDiff === 0) || (predDiff > 0 && realDiff > 0) || (predDiff < 0 && realDiff < 0);
-  const goalsHitCount = (predCasa === realCasa ? 1 : 0) + (predVisit === realVisit ? 1 : 0);
-  if (outcomeHit) {
-    return { points: goalsHitCount > 0 ? 4 : 3, exact: false, outcomeHit: true, goalsHitCount };
-  }
-
-  return { points: goalsHitCount, exact: false, outcomeHit: false, goalsHitCount };
-}
+export { calcPredictionPoints };
 
 export type RankingTicketRow = {
   ticketId: string;
@@ -125,7 +107,13 @@ export function buildTicketRanking(input: {
         firstSubmitAt: p.submittedAt,
       } as RankingTicketRow);
 
-    const calc = calcPredictionPoints(p.scoreCasa, p.scoreVisitante, match.resultCasa, match.resultVisitante);
+    const calc = calcPredictionPoints(
+      p.scoreCasa,
+      p.scoreVisitante,
+      match.resultCasa,
+      match.resultVisitante,
+      p.matchId,
+    );
     base.totalPoints += calc.points;
     base.exactCount += calc.exact ? 1 : 0;
     base.outcomeCount += calc.outcomeHit ? 1 : 0;

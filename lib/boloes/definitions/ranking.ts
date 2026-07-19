@@ -106,6 +106,7 @@ export async function buildDefinitionRanking(
       p.score_visitante,
       match.resultCasa,
       match.resultVisitante,
+      p.match_id,
     );
     row.totalPoints += pts.points;
     row.exactCount += pts.exact ? 1 : 0;

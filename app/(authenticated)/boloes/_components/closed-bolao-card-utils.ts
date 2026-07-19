@@ -3,7 +3,7 @@ import type { ActiveBolaoListItem } from "@/app/(authenticated)/boloes/BoloesCli
 import { resolveBolaoListItemLogoSrc } from "@/app/(authenticated)/boloes/_components/BolaoListItemLogo";
 import { ARTILHEIROS_BOLAO_SUBTITLE, ARTILHEIROS_BOLAO_TITLE } from "@/lib/artilheiros/config";
 import { getExtraBolaoHeroSideVariant } from "@/lib/boloes-extra-competition-branding";
-import { SHOWCASE_FULL_COMPETITION_PHASE_LABEL, SHOWCASE_FULL_COMPETITION_PRIZE_TOTAL, SHOWCASE_PRIZES } from "@/lib/boloes-prize-copy";
+import { SHOWCASE_GENERAL_PRIZE_TOTAL, SHOWCASE_FULL_COMPETITION_PHASE_LABEL, SHOWCASE_PRIZES, SHOWCASE_SKALE_PRIZE_TOTAL } from "@/lib/boloes-prize-copy";
 import { isSkaleBolaoCompetition } from "@/lib/boloes/skale-config";
 import type { BolaoDefinitionCatalogItem } from "@/lib/boloes/definitions/types";
 
@@ -36,7 +36,10 @@ function isFullCompetitionActiveItem(item: ActiveBolaoListItem): boolean {
 
 function prizePoolLabelForActive(item: ActiveBolaoListItem): string {
   if (item.type === "dynamic") return "A definir";
-  if (isFullCompetitionActiveItem(item)) return SHOWCASE_FULL_COMPETITION_PRIZE_TOTAL;
+  if (item.type === "principal") return SHOWCASE_GENERAL_PRIZE_TOTAL;
+  if (item.type === "extra" && isSkaleBolaoCompetition(item.championshipId)) {
+    return SHOWCASE_SKALE_PRIZE_TOTAL;
+  }
   return SHOWCASE_PRIZES[item.type]?.total ?? "A definir";
 }
 

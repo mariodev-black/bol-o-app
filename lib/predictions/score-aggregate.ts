@@ -29,7 +29,7 @@ export function scorePredictionAgainstMatch(
   prediction: Pick<PredictionAggregateRow, "score_casa" | "score_visitante">,
   match: Pick<
     MatchMapEntry,
-    "status" | "kickoffAt" | "resultCasa" | "resultVisitante"
+    "id" | "status" | "kickoffAt" | "resultCasa" | "resultVisitante"
   >,
 ): ReturnType<typeof calcPredictionPoints> | null {
   const official = resolveOfficialMatchResults({
@@ -46,5 +46,6 @@ export function scorePredictionAgainstMatch(
     prediction.score_visitante,
     official.resultCasa,
     official.resultVisitante,
+    match.id,
   );
 }

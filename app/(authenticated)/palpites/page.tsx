@@ -616,6 +616,7 @@ async function buildInitialData(
                       p.score_visitante,
                       m.resultCasa!,
                       m.resultVisitante!,
+                      normalizedMatchId ?? p.match_id,
                     )
                   : null;
               if (calc) {
