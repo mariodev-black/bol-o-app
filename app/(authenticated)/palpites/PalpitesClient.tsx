@@ -48,10 +48,6 @@ import { fetchRankingBoardClient } from "@/lib/ranking/load-board-client";
 import { rankingDefaultScopeKey } from "@/lib/ranking/scopes-shared";
 import type { RankingBoardMeta, RankingBoardRow } from "@/lib/ranking/board-types";
 import { calcPredictionPoints } from "./lib/predictionsStorage";
-import {
-  COPA_FINAL_BONUS_COPY,
-  isCopaFinalMatch,
-} from "@/lib/predictions/copa-final-bonus";
 import { inferBolaoTypeFromTicketPrefix } from "@/lib/ticket-kind";
 import {
   matchDateMapFromJogos,
@@ -1469,7 +1465,6 @@ function JogoCard({
         jogo.id,
       )
     : null;
-  const isCopaFinal = isCopaFinalMatch(jogo.id);
 
   const koMs = kickoffMsFromJogo(jogo);
   const beforeKickoff = koMs != null && nowMs < koMs;
@@ -1635,11 +1630,6 @@ function JogoCard({
           />
           {showPreDivider ? (
             <div className="mx-5 border-b border-white/10" />
-          ) : null}
-          {isCopaFinal ? (
-            <p className="mx-5 mb-3 mt-1 text-center text-[11px] font-semibold text-primary">
-              {COPA_FINAL_BONUS_COPY}
-            </p>
           ) : null}
         </>
       ) : null}
