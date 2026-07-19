@@ -2,11 +2,12 @@ import { config } from "dotenv";
 config({ path: ".env" });
 
 import { Pool } from "pg";
+import { calculatePrizeAwards } from "@/lib/prizes/distribution";
 import {
-  calculatePrizeAwards,
-  calculatePrizePoolCents,
-  PRIZE_POOL_BPS,
-} from "@/lib/prizes/distribution";
+  getGeneralBolaoFixedParticipantCount,
+  getGeneralBolaoFixedPoolCents,
+  getGeneralBolaoFixedWinnerCount,
+} from "@/lib/prizes/general-bolao-fixed-prize";
 import {
   calculateSkalePrizeAwards,
   calculateSkalePrizePoolCents,
@@ -169,9 +170,14 @@ async function main() {
 
     const genRev = Number(generalStats.revenue_cents);
     const skRev = Number(skaleStats.revenue_cents);
-    const genPool = calculatePrizePoolCents(genRev, "general");
+    const genPool = getGeneralBolaoFixedPoolCents();
+    const genWinnerCap = getGeneralBolaoFixedWinnerCount();
     const skPool = calculateSkalePrizePoolCents(skRev);
-    const genAwardsProj = calculatePrizeAwards(genPool, generalRanking.length, "general");
+    const genAwardsProj = calculatePrizeAwards(
+      genPool,
+      Math.min(generalRanking.length, genWinnerCap),
+      "general",
+    );
     const skAwardsProj = calculateSkalePrizeAwards(skRev);
 
     console.log(
@@ -180,9 +186,9 @@ async function main() {
           generatedAt: new Date().toISOString(),
           general: {
             stats: generalStats,
-            revenueBrl: brl(genRev),
-            pool60Bps: brl(genPool),
-            poolPercent: `${PRIZE_POOL_BPS / 100}%`,
+            fixedParticipants: getGeneralBolaoFixedParticipantCount(),
+            fixedWinners: genWinnerCap,
+            poolFixedBrl: brl(genPool),
             matchesCopa72: matches72,
             closures: generalClosures,
             awardsPaid: generalAwards,

@@ -33,6 +33,12 @@ function prizesLog(phase: string, fields: Record<string, unknown> = {}): void {
 }
 import { calcPredictionPoints } from "@/lib/predictions";
 import { isCopaFinalMatch, getCopaFinalGraceAfterKickoffSeconds } from "@/lib/predictions/copa-final-bonus";
+import {
+  getGeneralBolaoFixedParticipantCount,
+  getGeneralBolaoFixedPoolCents,
+  getGeneralBolaoFixedWinnerCount,
+  isGeneralBolaoFixedPrizeEnabled,
+} from "@/lib/prizes/general-bolao-fixed-prize";
 import { calculatePrizeAwards, calculatePrizePoolCents } from "@/lib/prizes/distribution";
 
 type BolaoPrizeType = "general" | "daily" | "extra";
@@ -268,12 +274,13 @@ async function listTicketsForClosure(
   },
 ): Promise<TicketRow[]> {
   if (input.type === "general") {
+    const includePromo = isGeneralBolaoFixedPrizeEnabled();
     const { rows } = await client.query<TicketRow>(
       `SELECT id::text AS id, user_id::text AS user_id, total_amount_cents, paid_at, created_at
        FROM tickets
        WHERE ticket_type = 'general'
          AND bolao_definition_id IS NULL
-         AND NOT COALESCE(is_promo_bonus, false)
+         AND (${includePromo ? "true" : "NOT COALESCE(is_promo_bonus, false)"})
          AND status IN ('paid', 'approved')
        ORDER BY paid_at ASC NULLS LAST, created_at ASC`
     );
@@ -588,7 +595,10 @@ async function processClosure(
     dailyEditionNumber: input.dailyEditionNumber,
   });
   const totalRevenueCents = tickets.reduce((sum, ticket) => sum + Number(ticket.total_amount_cents || 0), 0);
-  const poolCents = calculatePrizePoolCents(totalRevenueCents, input.type);
+  const useFixedGeneralPool = input.type === "general" && isGeneralBolaoFixedPrizeEnabled();
+  const poolCents = useFixedGeneralPool
+    ? getGeneralBolaoFixedPoolCents()
+    : calculatePrizePoolCents(totalRevenueCents, input.type);
   if (tickets.length === 0 || poolCents <= 0) return;
 
   const closureId = await insertClosure(client, {
@@ -601,6 +611,14 @@ async function processClosure(
     metadata: {
       ticketCount: tickets.length,
       matchCount: input.matches.length,
+      ...(useFixedGeneralPool
+        ? {
+            prizeModel: "general_fixed_pool",
+            fixedPoolCents: poolCents,
+            fixedWinnerCount: getGeneralBolaoFixedWinnerCount(),
+            fixedParticipantCount: getGeneralBolaoFixedParticipantCount(),
+          }
+        : {}),
       ...(input.metadataExtra ?? {}),
     },
   });
@@ -608,7 +626,10 @@ async function processClosure(
 
   const predictions = await listPredictionsForTickets(client, tickets.map((ticket) => ticket.id));
   const ranking = buildRanking({ tickets, predictions, matches: input.matches });
-  const awardAmounts = calculatePrizeAwards(poolCents, ranking.length, input.type);
+  const rankedForAwards = useFixedGeneralPool
+    ? Math.min(ranking.length, getGeneralBolaoFixedWinnerCount())
+    : ranking.length;
+  const awardAmounts = calculatePrizeAwards(poolCents, rankedForAwards, input.type);
   for (const award of awardAmounts) {
     const row = ranking[award.rank - 1];
     if (!row) continue;

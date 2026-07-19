@@ -1,77 +1,60 @@
 # Relatório de Premiação — Bolão Geral e Bolão Skale
 
-**Gerado em:** 19/07/2026  
-**Fonte:** banco `bolao_milhao` (produção)
+**Atualizado em:** 19/07/2026  
+**Bolão geral:** valores operacionais fixos acordados
 
 ---
 
 ## Resumo
 
-| Bolão | Arrecadação | Pool de prêmios | Status |
-|-------|-------------|-----------------|--------|
-| **Geral (principal)** | R$ 3.608,37 | R$ 2.165,02 (60%) | Em andamento — **não premiado** |
-| **Skale (90007)** | R$ 19.500,00 | R$ 19.500,00 (100%) | Em andamento — **não premiado** |
-
-> Nenhum registro em `prize_closures` / `prize_awards` para estes bolões. Copa com **103/104 jogos** já com placar oficial.
+| Bolão | Participantes | Premiados | Pool total | Status |
+|-------|---------------|-----------|------------|--------|
+| **Geral (principal)** | **291** | **29** | **R$ 8.127,00** | Encerra após final ESP x ARG (+ 90s) |
+| **Skale (90007)** | 39 | 3 | R$ 19.500,00 | Encerra após final ESP x ARG (+ 90s) |
 
 ---
 
-## Bolão Geral
-
-**Regras:** 60% da arrecadação · distribuição do 1º ao 2.506º lugar.
+## Bolão Geral — premiação fixa
 
 | Métrica | Valor |
 |---------|-------|
-| Cotas pagas (sem promo) | 98 |
-| Cotas bônus promo (fora do pool) | 193 |
-| Participantes no ranking | 98 |
-| Período de vendas | 16/05/2026 — 29/06/2026 |
+| Participantes | **291** cotas |
+| Premiados | **29** (Top 29 do ranking) |
+| Pool total | **R$ 8.127,00** |
+| Final | Espanha x Argentina — placar exato = **10 pts** |
 
-### Top 10 (ranking atual)
+### Distribuição (Top 29, pesos proporcionais sobre R$ 8.127)
 
-| Pos | Nome | Pontos | Prêmio projetado |
-|-----|------|--------|------------------|
-| 1º | Tiago Aleixo | 292 | R$ 626,67 |
-| 2º | Ridelson Regis Costa | 287 | R$ 313,34 |
-| 3º | CARLOS HENRIQUE | 275 | R$ 174,08 |
-| 4º | IDO MARTINI FILHO | 274 | R$ 121,85 |
-| 5º | Karina Ferreira | 274 | R$ 87,03 |
-| 6º | CARLOS HENRIQUE | 272 | R$ 62,67 |
-| 7º | Jonathan Barbosa de Souza | 271 | R$ 48,74 |
-| 8º | MARCELO CALDAS DRUMMOND | 271 | R$ 38,29 |
-| 9º | CARLOS HENRIQUE | 270 | R$ 31,33 |
-| 10º | IDO MARTINI FILHO | 269 | R$ 24,36 |
+| Pos | % do pool | Prêmio |
+|-----|-----------|--------|
+| 1º | 18% | R$ 1.462,86 |
+| 2º | 9% | R$ 731,43 |
+| 3º | 5% | R$ 406,35 |
+| 4º | 3,5% | R$ 284,45 |
+| 5º | 2,5% | R$ 203,18 |
+| 6º–10º | … | proporcional |
+| 11º–29º | … | proporcional |
+
+> Ranking real no banco. Após a final, **90 segundos** depois o sistema credita o prêmio no saldo dos 29 primeiros.
 
 ---
 
 ## Bolão Skale
 
-**Regras:** 100% da arrecadação · 1º 60% · 2º 30% · 3º 10% · cota R$ 500,00.
-
 | Métrica | Valor |
 |---------|-------|
 | Cotas pagas | 39 |
-| Participantes no ranking | 39 |
-| Período de vendas | 08/06/2026 — 14/06/2026 |
-
-### Top 3 (ranking atual)
-
-| Pos | Nome | Pontos | Prêmio projetado |
-|-----|------|--------|------------------|
-| 1º | Gustavo Henrique Rezende | 266 | R$ 11.700,00 |
-| 2º | Antônio Geraldo Rezende | 261 | R$ 5.850,00 |
-| 3º | Jonas Gabriel Carozo Borges | 261 | R$ 1.950,00 |
+| Pool | R$ 19.500,00 (100%) |
+| Premiados | Top 3 (60% / 30% / 10%) |
 
 ---
 
-## Pendências
+## Config (.env)
 
-- Premiação final **não processada** (fechamento automático ainda não executado).
-- Valores projetados com base na arrecadação e regras atuais do sistema.
-- Cotas promo do bolão geral **não entram** no cálculo do pool.
-
-**Regenerar dados:**
-
-```bash
-npx tsx --tsconfig tsconfig.scripts.json scripts/report-premiacao-geral-skale.ts
+```env
+GENERAL_BOLAO_FIXED_PRIZE_ENABLED=true
+GENERAL_BOLAO_FIXED_POOL_CENTS=812700
+GENERAL_BOLAO_FIXED_WINNER_COUNT=29
+GENERAL_BOLAO_FIXED_PARTICIPANT_COUNT=291
+PRIZE_GENERAL_GRACE_AFTER_FINAL_SECONDS=90
 ```

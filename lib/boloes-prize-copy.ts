@@ -47,18 +47,25 @@ export function getExtraBolaoFirstPlaceLine(
   return EXTRA_FIRST_PLACE_BY_VARIANT[variant];
 }
 
-/** Prêmio estimado na vitrine — Bolão do Milhão (principal) e Skale (Copa inteira). */
-export const SHOWCASE_FULL_COMPETITION_PRIZE_TOTAL = "R$ 10.000";
+/** Prêmio na vitrine — bolão geral (principal). */
+export const SHOWCASE_GENERAL_PRIZE_TOTAL = "R$ 8.127";
+/** Skale integral — pool real arrecadado. */
+export const SHOWCASE_SKALE_PRIZE_TOTAL = "R$ 19.500";
+/** @deprecated use SHOWCASE_GENERAL_PRIZE_TOTAL ou SHOWCASE_SKALE_PRIZE_TOTAL */
+export const SHOWCASE_FULL_COMPETITION_PRIZE_TOTAL = SHOWCASE_GENERAL_PRIZE_TOTAL;
 export const SHOWCASE_FULL_COMPETITION_PHASE_LABEL = "Copa inteira";
+export const SHOWCASE_GENERAL_WINNER_COUNT = 29;
+export const SHOWCASE_GENERAL_PARTICIPANT_COUNT = 291;
 
 export const SHOWCASE_PRIZES: Record<
   "principal" | "diario" | "extra" | "artilheiros",
   ShowcasePrizeCopy
 > = {
   principal: {
-    total: SHOWCASE_FULL_COMPETITION_PRIZE_TOTAL,
-    first: "R$ 180.000",
-    firstPlaceLine: PRINCIPAL_MILHAO_FIRST_PLACE_LINE,
+    total: SHOWCASE_GENERAL_PRIZE_TOTAL,
+    first: "R$ 1.463",
+    firstPlaceLine:
+      "Bolão do Milhão: 291 participantes · 29 premiados · pool total R$ 8.127.",
   },
   diario: {
     total: "100% arrecadado",
