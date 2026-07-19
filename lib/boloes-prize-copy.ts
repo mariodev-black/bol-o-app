@@ -47,12 +47,16 @@ export function getExtraBolaoFirstPlaceLine(
   return EXTRA_FIRST_PLACE_BY_VARIANT[variant];
 }
 
+/** Prêmio estimado na vitrine — Bolão do Milhão (principal) e Skale (Copa inteira). */
+export const SHOWCASE_FULL_COMPETITION_PRIZE_TOTAL = "R$ 10.000";
+export const SHOWCASE_FULL_COMPETITION_PHASE_LABEL = "Copa inteira";
+
 export const SHOWCASE_PRIZES: Record<
   "principal" | "diario" | "extra" | "artilheiros",
   ShowcasePrizeCopy
 > = {
   principal: {
-    total: "R$ 1.000.000",
+    total: SHOWCASE_FULL_COMPETITION_PRIZE_TOTAL,
     first: "R$ 180.000",
     firstPlaceLine: PRINCIPAL_MILHAO_FIRST_PLACE_LINE,
   },
@@ -61,7 +65,7 @@ export const SHOWCASE_PRIZES: Record<
     first: "R$ 35.000",
     firstPlaceLine: "Bolão Diário: 100% da arrecadação dividida entre o Top 10 (1º leva 35%).",
   },
-  extra: { total: "R$ 10.000", first: "R$ 1.000" },
+  extra: { total: SHOWCASE_FULL_COMPETITION_PRIZE_TOTAL, first: "R$ 1.000" },
   artilheiros: {
     total: "ATÉ 100 PTS",
     first: "por cota",
