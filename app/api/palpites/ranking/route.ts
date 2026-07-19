@@ -113,7 +113,13 @@ export async function GET(request: NextRequest) {
         firstSubmitAt: new Date(p.submitted_at).getTime(),
         hitSequence: [],
       };
-    const calc = calcPredictionPoints(p.score_casa, p.score_visitante, m.resultCasa, m.resultVisitante);
+    const calc = calcPredictionPoints(
+      p.score_casa,
+      p.score_visitante,
+      m.resultCasa,
+      m.resultVisitante,
+      matchId,
+    );
     cur.totalPoints += calc.points;
     cur.exactCount += calc.exact ? 1 : 0;
     cur.outcomeCount += calc.outcomeHit ? 1 : 0;

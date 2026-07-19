@@ -101,6 +101,7 @@ export async function GET(request: NextRequest) {
               p.score_visitante,
               resultadoCasa,
               resultadoVisitante,
+              normalizedMatchId ?? Number(p.match_id),
             )
           : null;
       const matchInput = {

@@ -99,6 +99,7 @@ export async function previewRegulationMatchRepontuation(
       row.score_visitante,
       input.resultCasa,
       input.resultVisitante,
+      Number(input.matchId),
     );
     const oldPoints = row.old_points ?? 0;
     return {

@@ -32,6 +32,7 @@ function prizesLog(phase: string, fields: Record<string, unknown> = {}): void {
   }
 }
 import { calcPredictionPoints } from "@/lib/predictions";
+import { isCopaFinalMatch, getCopaFinalGraceAfterKickoffSeconds } from "@/lib/predictions/copa-final-bonus";
 import { calculatePrizeAwards, calculatePrizePoolCents } from "@/lib/prizes/distribution";
 
 type BolaoPrizeType = "general" | "daily" | "extra";
@@ -132,7 +133,12 @@ function generalPoolReadyForClosure(matches: MatchRow[], nowMs: number): boolean
   if (!matches.every(isMatchResolvedForPrizes)) return false;
   const lastKo = lastKickoffMs(matches);
   if (lastKo == null) return true;
-  return nowMs >= lastKo + prizeGeneralGraceHoursAfterLastKickoff() * 3600_000;
+  const finalMatch = matches.find((m) => isCopaFinalMatch(Number(m.match_id)));
+  const graceMs =
+    finalMatch && isMatchResolvedForPrizes(finalMatch)
+      ? getCopaFinalGraceAfterKickoffSeconds() * 1000
+      : prizeGeneralGraceHoursAfterLastKickoff() * 3600_000;
+  return nowMs >= lastKo + graceMs;
 }
 
 function closureKey(input: {
@@ -424,7 +430,8 @@ function buildRanking(input: { tickets: TicketRow[]; predictions: PredictionRow[
         prediction.score_casa,
         prediction.score_visitante,
         match.result_casa,
-        match.result_visitante
+        match.result_visitante,
+        Number(prediction.match_id),
       );
       totalPoints += calc.points;
       exactCount += calc.exact ? 1 : 0;
@@ -812,7 +819,11 @@ export async function processPrizeClosuresAfterMatchSync(
             metadataExtra: {
               prizeGate: "general",
               lastKickoffMs: lastKickoffMs(matches),
-              graceHoursAfterLastKickoff: prizeGeneralGraceHoursAfterLastKickoff(),
+              graceSecondsAfterLastKickoff: matches.some(
+                (m) => isCopaFinalMatch(Number(m.match_id)) && isMatchResolvedForPrizes(m),
+              )
+                ? getCopaFinalGraceAfterKickoffSeconds()
+                : prizeGeneralGraceHoursAfterLastKickoff() * 3600,
             },
           });
           await client.query("COMMIT");
@@ -875,7 +886,11 @@ export async function processPrizeClosuresAfterMatchSync(
             metadataExtra: {
               prizeGate: "skale_final_copa",
               lastKickoffMs: lastKickoffMs(skaleMatches),
-              graceHoursAfterLastKickoff: prizeGeneralGraceHoursAfterLastKickoff(),
+              graceSecondsAfterLastKickoff: skaleMatches.some(
+                (m) => isCopaFinalMatch(Number(m.match_id)) && isMatchResolvedForPrizes(m),
+              )
+                ? getCopaFinalGraceAfterKickoffSeconds()
+                : prizeGeneralGraceHoursAfterLastKickoff() * 3600,
             },
           });
           await client.query("COMMIT");

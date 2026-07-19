@@ -160,7 +160,13 @@ export async function recomputePredictionScoresForMatches(
     const { resultCasa, resultVisitante } = resolveMatchScoresFromCacheRow(cacheRow);
     const hasResult = resultCasa != null && resultVisitante != null;
     const calc = hasResult
-      ? calcPredictionPoints(row.score_casa, row.score_visitante, resultCasa, resultVisitante)
+      ? calcPredictionPoints(
+          row.score_casa,
+          row.score_visitante,
+          resultCasa,
+          resultVisitante,
+          Number(row.match_id),
+        )
       : { points: 0, exact: false, outcomeHit: false, goalsHitCount: 0 };
 
     const placeholders: string[] = [];

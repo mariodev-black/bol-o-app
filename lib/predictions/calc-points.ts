@@ -1,9 +1,15 @@
+import {
+  getCopaFinalExactPoints,
+  isCopaFinalMatch,
+} from "@/lib/predictions/copa-final-bonus";
+
 /** Fórmula de pontuação por jogo — sem dependências de Node/DB (seguro no client). */
 export function calcPredictionPoints(
   predCasa: number,
   predVisit: number,
   realCasa: number,
   realVisit: number,
+  matchId?: number,
 ): {
   points: number;
   exact: boolean;
@@ -12,7 +18,8 @@ export function calcPredictionPoints(
 } {
   const exact = predCasa === realCasa && predVisit === realVisit;
   if (exact) {
-    return { points: 6, exact: true, outcomeHit: true, goalsHitCount: 0 };
+    const points = isCopaFinalMatch(matchId) ? getCopaFinalExactPoints() : 6;
+    return { points, exact: true, outcomeHit: true, goalsHitCount: 0 };
   }
   const predDiff = predCasa - predVisit;
   const realDiff = realCasa - realVisit;
