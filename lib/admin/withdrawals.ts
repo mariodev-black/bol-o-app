@@ -155,29 +155,68 @@ export async function approveWithdrawalRequestById(
     amount_cents: number;
     pix_key_type: string;
     pix_key: string;
+    cartwave_transaction_id: number | null;
   } | null = null;
 
   try {
     await ensureWithdrawalSchema(client);
     await client.query("BEGIN");
-    const pending = await client.query<{
+
+    const locked = await client.query<{
       amount_cents: number;
       pix_key_type: string;
       pix_key: string;
+      status: string;
+      cartwave_transaction_id: number | null;
     }>(
-      `SELECT amount_cents, pix_key_type, pix_key
+      `SELECT amount_cents, pix_key_type, pix_key, status, cartwave_transaction_id
        FROM affiliate_withdrawal_requests
        WHERE id = $1::uuid
-         AND status = 'pending'
          AND amount_cents > 0
        FOR UPDATE`,
       [id],
     );
-    row = pending.rows[0] ?? null;
-    if (!row) {
+    const current = locked.rows[0];
+    if (!current) {
+      await client.query("ROLLBACK");
+      return { ok: false, error: "Solicitacao nao encontrada" };
+    }
+
+    if (current.cartwave_transaction_id != null) {
+      await client.query("COMMIT");
+      return { ok: true, cartwaveTransactionId: current.cartwave_transaction_id };
+    }
+
+    if (current.status === "processing") {
+      await client.query("COMMIT");
+      return { ok: false, error: "PIX ja esta sendo enviado — aguarde o webhook" };
+    }
+
+    if (current.status !== "pending") {
       await client.query("ROLLBACK");
       return { ok: false, error: "Solicitacao nao encontrada ou ja processada" };
     }
+
+    const marked = await client.query<{ id: string }>(
+      `UPDATE affiliate_withdrawal_requests
+       SET status = 'processing'
+       WHERE id = $1::uuid
+         AND status = 'pending'
+         AND cartwave_transaction_id IS NULL
+       RETURNING id`,
+      [id],
+    );
+    if (!marked.rows[0]) {
+      await client.query("ROLLBACK");
+      return { ok: false, error: "Solicitacao ja processada por outro admin" };
+    }
+
+    row = {
+      amount_cents: current.amount_cents,
+      pix_key_type: current.pix_key_type,
+      pix_key: current.pix_key,
+      cartwave_transaction_id: null,
+    };
     await client.query("COMMIT");
   } catch {
     await client.query("ROLLBACK");
@@ -197,6 +236,20 @@ export async function approveWithdrawalRequestById(
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Falha ao enviar PIX via Fyhub";
+    const pool2 = getPool();
+    const revert = await pool2.connect();
+    try {
+      await revert.query(
+        `UPDATE affiliate_withdrawal_requests
+         SET status = 'pending'
+         WHERE id = $1::uuid
+           AND status = 'processing'
+           AND cartwave_transaction_id IS NULL`,
+        [id],
+      );
+    } finally {
+      revert.release();
+    }
     return { ok: false, error: msg };
   }
 
@@ -206,13 +259,13 @@ export async function approveWithdrawalRequestById(
     await client2.query("BEGIN");
     const { rows: updated } = await client2.query<{ id: string; status: string }>(
       `UPDATE affiliate_withdrawal_requests
-       SET status = CASE WHEN status = 'pending' THEN 'processing' ELSE status END,
-           cartwave_transaction_id = COALESCE($2, cartwave_transaction_id),
+       SET cartwave_transaction_id = COALESCE($2, cartwave_transaction_id),
            cartwave_status = COALESCE($3, cartwave_status),
            cartwave_end_to_end = COALESCE($4, cartwave_end_to_end),
            cartwave_response = COALESCE(cartwave_response, '{}'::jsonb) || $5::jsonb
        WHERE id = $1::uuid
-         AND status IN ('pending', 'processing', 'paid')
+         AND status = 'processing'
+         AND (cartwave_transaction_id IS NULL OR cartwave_transaction_id = $2)
        RETURNING id, status`,
       [
         id,
@@ -232,12 +285,8 @@ export async function approveWithdrawalRequestById(
       );
       const existingRow = existing.rows[0];
       await client2.query("ROLLBACK");
-      if (
-        existingRow &&
-        (existingRow.status === "paid" || existingRow.status === "processing") &&
-        existingRow.cartwave_transaction_id === cashout.transactionId
-      ) {
-        return { ok: true, cartwaveTransactionId: cashout.transactionId };
+      if (existingRow?.cartwave_transaction_id != null) {
+        return { ok: true, cartwaveTransactionId: existingRow.cartwave_transaction_id };
       }
       return { ok: false, error: "Solicitacao ja processada por outro admin" };
     }
