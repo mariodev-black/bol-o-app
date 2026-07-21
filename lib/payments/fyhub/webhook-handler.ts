@@ -2,6 +2,7 @@ import type { PoolClient } from "pg";
 import { getPool } from "@/lib/db";
 import { fyhubIdempotencyKeyFromUuid } from "@/lib/payments/fyhub/config";
 import { creditWithdrawalBalance } from "@/lib/referrals/withdrawRefund";
+import { notifyWithdrawalPaidById } from "@/lib/referrals/withdraw-notify";
 import type { WithdrawalBalanceSource } from "@/lib/referrals/withdrawSource";
 import { ensureWithdrawalStatusConstraint } from "@/lib/referrals/withdrawSchema";
 import {
@@ -335,6 +336,12 @@ export async function handleFyhubCashoutWebhookPayload(
       [dedupeKey, JSON.stringify({ action, status: nextStatus, withdrawalId: row.id })],
     );
     await client.query("COMMIT");
+
+    if (nextStatus === "paid" && row.id) {
+      void notifyWithdrawalPaidById(row.id).catch((err) => {
+        console.error("[fyhub/webhook] withdraw notify failed", { withdrawalId: row.id, err });
+      });
+    }
 
     return { ok: true, eventType, action, withdrawalId: row.id };
   } catch (error) {
