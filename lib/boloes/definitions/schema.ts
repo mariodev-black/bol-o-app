@@ -13,12 +13,28 @@ let ensuredPromise: Promise<void> | null = null;
 export function ensureBolaoDefinitionsSchema(client?: PoolClient): Promise<void> {
   if (client) return ensureBolaoDefinitionsSchemaOnce(client);
   if (!ensuredPromise) {
-    ensuredPromise = ensureBolaoDefinitionsSchemaOnce().catch((err) => {
+    ensuredPromise = ensureBolaoDefinitionsSchemaWithRetry().catch((err) => {
       ensuredPromise = null;
       throw err;
     });
   }
   return ensuredPromise;
+}
+
+async function ensureBolaoDefinitionsSchemaWithRetry(): Promise<void> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      await ensureBolaoDefinitionsSchemaOnce();
+      return;
+    } catch (error) {
+      lastError = error;
+      const msg = error instanceof Error ? error.message : String(error);
+      if (!/lock timeout|deadlock/i.test(msg) || attempt === 2) break;
+      await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)));
+    }
+  }
+  throw lastError;
 }
 
 async function ensureBolaoDefinitionsSchemaOnce(client?: PoolClient): Promise<void> {
@@ -30,7 +46,7 @@ async function ensureBolaoDefinitionsSchemaOnce(client?: PoolClient): Promise<vo
     // nessas tabelas (bolao_definitions/tickets recebem tráfego real) — sem
     // isso, um DDL como ADD CONSTRAINT pode ficar preso por dezenas de
     // segundos esperando ACCESS EXCLUSIVE, travando a página inteira.
-    await c.query(`SET lock_timeout = '3000ms'`);
+    await c.query(`SET lock_timeout = '8000ms'`);
     await c.query(`CREATE EXTENSION IF NOT EXISTS pgcrypto`);
     await c.query(`
       CREATE TABLE IF NOT EXISTS bolao_definitions (
