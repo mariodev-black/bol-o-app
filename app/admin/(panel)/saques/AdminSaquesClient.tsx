@@ -79,8 +79,8 @@ export function AdminSaquesClient() {
       if (kind === "approve") {
         setSuccess(
           data.cartwaveTransactionId
-            ? `PIX enviado (Cartwave #${data.cartwaveTransactionId}). Aguardando confirmacao do webhook.`
-            : "PIX em processamento na Cartwave. Status final via webhook.",
+            ? `PIX enviado (Fyhub #${data.cartwaveTransactionId}). Aguardando confirmacao do webhook.`
+            : "PIX em processamento na Fyhub. Status final via webhook.",
         );
       } else {
         setSuccess("Saque recusado e saldo estornado ao usuario.");
@@ -99,7 +99,7 @@ export function AdminSaquesClient() {
     <>
       <AdminPageTitle
         title="Saques"
-        subtitle="Aprove para enviar PIX. O webhook Cartwave confirma pagamento ou estorna em caso de falha."
+        subtitle="Aprove para enviar PIX. O webhook Fyhub confirma pagamento ou estorna em caso de falha."
       />
 
       <div className="mb-4 flex flex-wrap gap-2">
@@ -198,7 +198,7 @@ export function AdminSaquesClient() {
                     <td className="px-4 py-4">
                       <p className="font-black uppercase text-[11px] text-white/70">{row.status}</p>
                       {row.cartwaveTransactionId ? (
-                        <p className="mt-1 text-[11px] text-white/45">Cartwave #{row.cartwaveTransactionId}</p>
+                        <p className="mt-1 text-[11px] text-white/45">Fyhub #{row.cartwaveTransactionId}</p>
                       ) : null}
                     </td>
                     <td className="px-4 py-4 text-white/80">{formatAdminDate(row.createdAt)}</td>

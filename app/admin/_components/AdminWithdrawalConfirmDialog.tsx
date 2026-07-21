@@ -49,7 +49,7 @@ export function AdminWithdrawalConfirmDialog({
           {isApprove ? "Aprovar saque" : "Recusar saque"}
         </p>
         <h2 id="admin-withdrawal-dialog-title" className="mt-2 pr-10 text-[20px] font-black tracking-[-0.03em] text-white">
-          {isApprove ? "Enviar PIX via Cartwave?" : "Estornar saldo ao usuário?"}
+          {isApprove ? "Enviar PIX via Fyhub?" : "Estornar saldo ao usuário?"}
         </h2>
         <p className="mt-3 text-[13px] leading-relaxed text-white/58">
           {isApprove
