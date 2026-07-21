@@ -18,6 +18,8 @@ export const EMAIL_TAG_INDIQUE_OFERTA = "indique_oferta" as const;
 export const EMAIL_TAG_CHECKOUT_RECOVERY = "checkout_recovery" as const;
 /** Disparo manual pelo painel admin (Notificações). */
 export const EMAIL_TAG_ADMIN_BROADCAST = "admin_broadcast" as const;
+/** Saque PIX concluído (pago). */
+export const EMAIL_TAG_WITHDRAWAL_PAID = "withdrawal_paid" as const;
 
 export type ResendEmailCategory =
   | typeof EMAIL_TAG_WELCOME
@@ -30,4 +32,5 @@ export type ResendEmailCategory =
   | typeof EMAIL_TAG_COMPROU_INDIQUE
   | typeof EMAIL_TAG_INDIQUE_OFERTA
   | typeof EMAIL_TAG_CHECKOUT_RECOVERY
-  | typeof EMAIL_TAG_ADMIN_BROADCAST;
+  | typeof EMAIL_TAG_ADMIN_BROADCAST
+  | typeof EMAIL_TAG_WITHDRAWAL_PAID;
