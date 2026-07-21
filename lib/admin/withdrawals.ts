@@ -1,7 +1,7 @@
 import type { PoolClient } from "pg";
 import { getPool } from "@/lib/db";
-import { isCartwaveConfigured } from "@/lib/payments/cartwave/config";
-import { createCartwavePixCashoutSelfApprove } from "@/lib/payments/cartwave/cashout";
+import { isFyhubCashoutConfigured } from "@/lib/payments/fyhub/config";
+import { createFyhubPixCashout } from "@/lib/payments/fyhub/cashout";
 import type { WithdrawalBalanceSource } from "@/lib/referrals/withdrawSource";
 import { creditWithdrawalBalance } from "@/lib/referrals/withdrawRefund";
 import { ensureWithdrawalStatusConstraint } from "@/lib/referrals/withdrawSchema";
@@ -145,8 +145,8 @@ export async function approveWithdrawalRequestById(
   if (!isUuidString(id)) {
     return { ok: false, error: "Identificador de solicitacao invalido" };
   }
-  if (!isCartwaveConfigured()) {
-    return { ok: false, error: "Cartwave nao configurado no servidor (.env)" };
+  if (!isFyhubCashoutConfigured()) {
+    return { ok: false, error: "Fyhub Contas (cashout) nao configurado no servidor (.env)" };
   }
 
   const pool = getPool();
@@ -188,15 +188,15 @@ export async function approveWithdrawalRequestById(
 
   let cashout;
   try {
-    cashout = await createCartwavePixCashoutSelfApprove({
+    cashout = await createFyhubPixCashout({
       amountCents: row.amount_cents,
       pixKeyType: row.pix_key_type,
       pixKey: row.pix_key,
-      idempotencyKey: id,
-      tag: `bolao-withdraw:${id}`,
+      withdrawalId: id,
+      description: `bolao-withdraw:${id}`,
     });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Falha ao enviar PIX via Cartwave";
+    const msg = err instanceof Error ? err.message : "Falha ao enviar PIX via Fyhub";
     return { ok: false, error: msg };
   }
 
@@ -209,11 +209,18 @@ export async function approveWithdrawalRequestById(
        SET status = CASE WHEN status = 'pending' THEN 'processing' ELSE status END,
            cartwave_transaction_id = COALESCE($2, cartwave_transaction_id),
            cartwave_status = COALESCE($3, cartwave_status),
-           cartwave_response = COALESCE(cartwave_response, '{}'::jsonb) || $4::jsonb
+           cartwave_end_to_end = COALESCE($4, cartwave_end_to_end),
+           cartwave_response = COALESCE(cartwave_response, '{}'::jsonb) || $5::jsonb
        WHERE id = $1::uuid
          AND status IN ('pending', 'processing', 'paid')
        RETURNING id, status`,
-      [id, cashout.transactionId, cashout.status, JSON.stringify(cashout.raw)],
+      [
+        id,
+        cashout.transactionId,
+        cashout.status,
+        cashout.endToEndId,
+        JSON.stringify({ provider: "fyhub", ...cashout.raw, idempotencyKey: cashout.idempotencyKey }),
+      ],
     );
     const saved = updated[0];
     if (!saved) {
@@ -223,12 +230,12 @@ export async function approveWithdrawalRequestById(
          WHERE id = $1::uuid`,
         [id],
       );
-      const row = existing.rows[0];
+      const existingRow = existing.rows[0];
       await client2.query("ROLLBACK");
       if (
-        row &&
-        (row.status === "paid" || row.status === "processing") &&
-        row.cartwave_transaction_id === cashout.transactionId
+        existingRow &&
+        (existingRow.status === "paid" || existingRow.status === "processing") &&
+        existingRow.cartwave_transaction_id === cashout.transactionId
       ) {
         return { ok: true, cartwaveTransactionId: cashout.transactionId };
       }
