@@ -22,6 +22,7 @@ import {
 import { countMatchesInTicketScope } from "@/lib/admin/ticket-scope-stats";
 import { isSkaleDailyBolaoCompetition } from "@/lib/boloes/skale-daily-config";
 import { isFullCopaMirrorBolao } from "@/lib/boloes/skale-match-resolve";
+import { ensureBolaoDefinitionsSchema } from "@/lib/boloes/definitions/schema";
 
 export type {
   AdminBolaoRankingRow,
@@ -598,6 +599,7 @@ export async function getAdminBoloesDashboardData(
   selectedDailyDate?: string | null,
   selectedExtraKey?: string | null,
 ): Promise<AdminBoloesDashboardData> {
+  await ensureBolaoDefinitionsSchema();
   const pool = getPool();
   const extraIds = parseExtraBolaoChampionshipIds();
   const competitionLabels = await readCompetitionDisplayNamesFromDb(extraIds).catch(

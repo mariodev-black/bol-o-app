@@ -10,7 +10,7 @@ import { formatAdminBRL, formatAdminDate } from "@/lib/admin/format";
 import type { AdminWithdrawalRow } from "@/lib/admin/withdrawals";
 
 type Tab = "pending" | "processing" | "paid" | "failed" | "rejected" | "all";
-type ConfirmState = { row: AdminWithdrawalRow; kind: "approve" | "reject" } | null;
+type ConfirmState = { row: AdminWithdrawalRow; kind: "approve" | "reject" | "refund" } | null;
 
 export function AdminSaquesClient() {
   const [tab, setTab] = useState<Tab>("pending");
@@ -42,7 +42,7 @@ export function AdminSaquesClient() {
     void load();
   }, [load]);
 
-  function openConfirm(row: AdminWithdrawalRow, kind: "approve" | "reject") {
+  function openConfirm(row: AdminWithdrawalRow, kind: "approve" | "reject" | "refund") {
     setDialogError(null);
     setConfirm({ row, kind });
   }
@@ -61,7 +61,9 @@ export function AdminSaquesClient() {
     setError(null);
     setSuccess(null);
     try {
-      const r = await fetch(`/api/admin/withdrawals/${row.id}/${kind}`, {
+      const endpoint =
+        kind === "approve" ? "approve" : kind === "reject" ? "reject" : "refund";
+      const r = await fetch(`/api/admin/withdrawals/${row.id}/${endpoint}`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -79,9 +81,11 @@ export function AdminSaquesClient() {
       if (kind === "approve") {
         setSuccess(
           data.cartwaveTransactionId
-            ? `PIX enviado (Cartwave #${data.cartwaveTransactionId}). Aguardando confirmacao do webhook.`
-            : "PIX em processamento na Cartwave. Status final via webhook.",
+            ? `PIX enviado (Fyhub #${data.cartwaveTransactionId}). O usuario sera notificado por e-mail, app e push.`
+            : "PIX em processamento na Fyhub. O usuario sera notificado quando concluir.",
         );
+      } else if (kind === "refund") {
+        setSuccess("Saldo devolvido ao usuario com sucesso.");
       } else {
         setSuccess("Saque recusado e saldo estornado ao usuario.");
       }
@@ -99,7 +103,7 @@ export function AdminSaquesClient() {
     <>
       <AdminPageTitle
         title="Saques"
-        subtitle="Aprove para enviar PIX. O webhook Cartwave confirma pagamento ou estorna em caso de falha."
+        subtitle="Aprove para enviar PIX. O webhook Fyhub confirma pagamento ou estorna em caso de falha."
       />
 
       <div className="mb-4 flex flex-wrap gap-2">
@@ -198,7 +202,7 @@ export function AdminSaquesClient() {
                     <td className="px-4 py-4">
                       <p className="font-black uppercase text-[11px] text-white/70">{row.status}</p>
                       {row.cartwaveTransactionId ? (
-                        <p className="mt-1 text-[11px] text-white/45">Cartwave #{row.cartwaveTransactionId}</p>
+                        <p className="mt-1 text-[11px] text-white/45">Fyhub #{row.cartwaveTransactionId}</p>
                       ) : null}
                     </td>
                     <td className="px-4 py-4 text-white/80">{formatAdminDate(row.createdAt)}</td>
@@ -222,6 +226,15 @@ export function AdminSaquesClient() {
                             Recusar
                           </button>
                         </div>
+                      ) : row.status === "failed" ? (
+                        <button
+                          type="button"
+                          disabled={actionBusy}
+                          onClick={() => openConfirm(row, "refund")}
+                          className="rounded-full border border-amber-400/30 bg-amber-400/10 px-4 py-2 text-[11px] font-black uppercase tracking-wide text-amber-200 hover:bg-amber-400/15 disabled:opacity-40"
+                        >
+                          Devolver saldo
+                        </button>
                       ) : (
                         <span className="text-[11px] text-white/35">—</span>
                       )}

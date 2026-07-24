@@ -25,6 +25,7 @@
     "simulate:skale-paid": "tsx --tsconfig tsconfig.scripts.json scripts/simulate-skale-paid-webhook.ts",
     "debug:ranking-extra": "tsx --tsconfig tsconfig.scripts.json scripts/debug-ranking-extra.ts",
     "serie-b:prizes": "tsx --tsconfig tsconfig.scripts.json scripts/credit-serie-b-prizes.ts",
+    "debug:fyhub-cashout": "tsx --tsconfig tsconfig.scripts.json scripts/debug-fyhub-cashout-auth.ts",
     "cartwave:debug": "tsx --tsconfig tsconfig.scripts.json scripts/debug-cartwave-auth.ts",
     "daily:dispatch-prizes": "tsx --tsconfig tsconfig.scripts.json scripts/dispatch-daily-edition-prizes.ts",
     "match:fix-bel-sen": "tsx --tsconfig tsconfig.scripts.json scripts/fix-bel-sen-regulation-score.ts",

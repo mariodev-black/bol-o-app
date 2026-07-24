@@ -6,7 +6,7 @@ import type { AdminWithdrawalRow } from "@/lib/admin/withdrawals";
 
 type Props = {
   open: boolean;
-  kind: "approve" | "reject";
+  kind: "approve" | "reject" | "refund";
   row: AdminWithdrawalRow | null;
   submitting: boolean;
   error: string | null;
@@ -26,6 +26,7 @@ export function AdminWithdrawalConfirmDialog({
   if (!open || !row) return null;
 
   const isApprove = kind === "approve";
+  const isRefund = kind === "refund";
 
   return (
     <div
@@ -46,15 +47,17 @@ export function AdminWithdrawalConfirmDialog({
         </button>
 
         <p className="text-[11px] font-black uppercase tracking-[0.18em] text-primary">
-          {isApprove ? "Aprovar saque" : "Recusar saque"}
+          {isApprove ? "Aprovar saque" : isRefund ? "Devolver saldo" : "Recusar saque"}
         </p>
         <h2 id="admin-withdrawal-dialog-title" className="mt-2 pr-10 text-[20px] font-black tracking-[-0.03em] text-white">
-          {isApprove ? "Enviar PIX via Cartwave?" : "Estornar saldo ao usuário?"}
+          {isApprove ? "Enviar PIX via Fyhub?" : isRefund ? "Devolver saldo ao usuário?" : "Recusar solicitação?"}
         </h2>
         <p className="mt-3 text-[13px] leading-relaxed text-white/58">
           {isApprove
-            ? "O valor será transferido para a chave PIX abaixo. Esta ação não pode ser desfeita automaticamente."
-            : "O saldo será devolvido para a conta do usuário e o pedido ficará como recusado."}
+            ? "O valor será transferido para a chave PIX abaixo. O usuário receberá e-mail, notificação no app e push quando o PIX for enviado."
+            : isRefund
+              ? "O valor será devolvido ao saldo do usuário. Use quando o PIX falhou e o estorno automático não ocorreu."
+              : "O saldo será devolvido para a conta do usuário e o pedido ficará como recusado."}
         </p>
 
         <div className="mt-5 space-y-3 rounded-[14px] border border-white/8 bg-white/2.5 p-4 text-[13px]">
@@ -105,16 +108,18 @@ export function AdminWithdrawalConfirmDialog({
             disabled={submitting}
             className={[
               "flex h-11 items-center justify-center gap-2 rounded-[12px] text-[12px] font-black uppercase tracking-[0.12em] disabled:opacity-60",
-              isApprove ? "bg-primary text-black" : "border border-red-400/30 bg-red-400/15 text-red-200",
+              isApprove ? "bg-primary text-black" : isRefund ? "border border-amber-400/30 bg-amber-400/15 text-amber-100" : "border border-red-400/30 bg-red-400/15 text-red-200",
             ].join(" ")}
           >
             {submitting ? (
               <>
                 <Loader2 className="size-4 animate-spin" />
-                {isApprove ? "Enviando PIX…" : "Recusando…"}
+                {isApprove ? "Enviando PIX…" : isRefund ? "Devolvendo…" : "Recusando…"}
               </>
             ) : isApprove ? (
               "Confirmar PIX"
+            ) : isRefund ? (
+              "Confirmar estorno"
             ) : (
               "Confirmar recusa"
             )}

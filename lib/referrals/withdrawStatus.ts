@@ -28,14 +28,20 @@ const STATUS_RANK: Record<string, number> = {
   refunded: 4,
 };
 
-/** Cartwave: não regredir SUCCESS/ERROR/etc. para NEW por evento atrasado. */
+/** Cartwave/Fyhub: não regredir SUCCESS/LIQUIDATED para NEW/PROCESSING por evento atrasado. */
 const CARTWAVE_STATUS_RANK: Record<string, number> = {
   NEW: 1,
   PROCESSING: 2,
+  QUEUED: 2,
+  PENDING: 2,
   SUCCESS: 10,
+  LIQUIDATED: 10,
+  COMPLETED: 10,
   ERROR: 10,
+  CANCELED: 10,
   CANCELLED: 10,
   REFUNDED: 10,
+  PARTIALLY_REFUNDED: 10,
 };
 
 export function isTerminalWithdrawalStatus(status: string): boolean {

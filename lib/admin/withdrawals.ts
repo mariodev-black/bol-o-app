@@ -1,9 +1,10 @@
 import type { PoolClient } from "pg";
 import { getPool } from "@/lib/db";
-import { isCartwaveConfigured } from "@/lib/payments/cartwave/config";
-import { createCartwavePixCashoutSelfApprove } from "@/lib/payments/cartwave/cashout";
+import { isFyhubCashoutConfigured } from "@/lib/payments/fyhub/config";
+import { createFyhubPixCashout } from "@/lib/payments/fyhub/cashout";
 import type { WithdrawalBalanceSource } from "@/lib/referrals/withdrawSource";
 import { creditWithdrawalBalance } from "@/lib/referrals/withdrawRefund";
+import { notifyWithdrawalPaid } from "@/lib/referrals/withdraw-notify";
 import { ensureWithdrawalStatusConstraint } from "@/lib/referrals/withdrawSchema";
 import { isUuidString } from "@/lib/referrals/withdrawGuards";
 
@@ -145,8 +146,8 @@ export async function approveWithdrawalRequestById(
   if (!isUuidString(id)) {
     return { ok: false, error: "Identificador de solicitacao invalido" };
   }
-  if (!isCartwaveConfigured()) {
-    return { ok: false, error: "Cartwave nao configurado no servidor (.env)" };
+  if (!isFyhubCashoutConfigured()) {
+    return { ok: false, error: "Fyhub Contas (cashout) nao configurado no servidor (.env)" };
   }
 
   const pool = getPool();
@@ -155,29 +156,79 @@ export async function approveWithdrawalRequestById(
     amount_cents: number;
     pix_key_type: string;
     pix_key: string;
+    cartwave_transaction_id: number | null;
+    user_id: string;
+    user_email: string;
+    user_name: string | null;
   } | null = null;
 
   try {
     await ensureWithdrawalSchema(client);
     await client.query("BEGIN");
-    const pending = await client.query<{
+
+    const locked = await client.query<{
       amount_cents: number;
       pix_key_type: string;
       pix_key: string;
+      status: string;
+      cartwave_transaction_id: number | null;
+      user_id: string;
+      user_email: string;
+      user_name: string | null;
     }>(
-      `SELECT amount_cents, pix_key_type, pix_key
-       FROM affiliate_withdrawal_requests
-       WHERE id = $1::uuid
-         AND status = 'pending'
-         AND amount_cents > 0
-       FOR UPDATE`,
+      `SELECT w.amount_cents, w.pix_key_type, w.pix_key, w.status, w.cartwave_transaction_id,
+              w.user_id, u.email AS user_email, u.name AS user_name
+       FROM affiliate_withdrawal_requests w
+       JOIN users u ON u.id = w.user_id
+       WHERE w.id = $1::uuid
+         AND w.amount_cents > 0
+       FOR UPDATE OF w`,
       [id],
     );
-    row = pending.rows[0] ?? null;
-    if (!row) {
+    const current = locked.rows[0];
+    if (!current) {
+      await client.query("ROLLBACK");
+      return { ok: false, error: "Solicitacao nao encontrada" };
+    }
+
+    if (current.cartwave_transaction_id != null) {
+      await client.query("COMMIT");
+      return { ok: true, cartwaveTransactionId: current.cartwave_transaction_id };
+    }
+
+    if (current.status === "processing") {
+      await client.query("COMMIT");
+      return { ok: false, error: "PIX ja esta sendo enviado — aguarde o webhook" };
+    }
+
+    if (current.status !== "pending") {
       await client.query("ROLLBACK");
       return { ok: false, error: "Solicitacao nao encontrada ou ja processada" };
     }
+
+    const marked = await client.query<{ id: string }>(
+      `UPDATE affiliate_withdrawal_requests
+       SET status = 'processing'
+       WHERE id = $1::uuid
+         AND status = 'pending'
+         AND cartwave_transaction_id IS NULL
+       RETURNING id`,
+      [id],
+    );
+    if (!marked.rows[0]) {
+      await client.query("ROLLBACK");
+      return { ok: false, error: "Solicitacao ja processada por outro admin" };
+    }
+
+    row = {
+      amount_cents: current.amount_cents,
+      pix_key_type: current.pix_key_type,
+      pix_key: current.pix_key,
+      cartwave_transaction_id: null,
+      user_id: current.user_id,
+      user_email: current.user_email,
+      user_name: current.user_name,
+    };
     await client.query("COMMIT");
   } catch {
     await client.query("ROLLBACK");
@@ -188,15 +239,29 @@ export async function approveWithdrawalRequestById(
 
   let cashout;
   try {
-    cashout = await createCartwavePixCashoutSelfApprove({
+    cashout = await createFyhubPixCashout({
       amountCents: row.amount_cents,
       pixKeyType: row.pix_key_type,
       pixKey: row.pix_key,
-      idempotencyKey: id,
-      tag: `bolao-withdraw:${id}`,
+      withdrawalId: id,
+      description: `bolao-withdraw:${id}`,
     });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Falha ao enviar PIX via Cartwave";
+    const msg = err instanceof Error ? err.message : "Falha ao enviar PIX via Fyhub";
+    const pool2 = getPool();
+    const revert = await pool2.connect();
+    try {
+      await revert.query(
+        `UPDATE affiliate_withdrawal_requests
+         SET status = 'pending'
+         WHERE id = $1::uuid
+           AND status = 'processing'
+           AND cartwave_transaction_id IS NULL`,
+        [id],
+      );
+    } finally {
+      revert.release();
+    }
     return { ok: false, error: msg };
   }
 
@@ -206,14 +271,21 @@ export async function approveWithdrawalRequestById(
     await client2.query("BEGIN");
     const { rows: updated } = await client2.query<{ id: string; status: string }>(
       `UPDATE affiliate_withdrawal_requests
-       SET status = CASE WHEN status = 'pending' THEN 'processing' ELSE status END,
-           cartwave_transaction_id = COALESCE($2, cartwave_transaction_id),
+       SET cartwave_transaction_id = COALESCE($2, cartwave_transaction_id),
            cartwave_status = COALESCE($3, cartwave_status),
-           cartwave_response = COALESCE(cartwave_response, '{}'::jsonb) || $4::jsonb
+           cartwave_end_to_end = COALESCE($4, cartwave_end_to_end),
+           cartwave_response = COALESCE(cartwave_response, '{}'::jsonb) || $5::jsonb
        WHERE id = $1::uuid
-         AND status IN ('pending', 'processing', 'paid')
+         AND status = 'processing'
+         AND (cartwave_transaction_id IS NULL OR cartwave_transaction_id = $2)
        RETURNING id, status`,
-      [id, cashout.transactionId, cashout.status, JSON.stringify(cashout.raw)],
+      [
+        id,
+        cashout.transactionId,
+        cashout.status,
+        cashout.endToEndId,
+        JSON.stringify({ provider: "fyhub", ...cashout.raw, idempotencyKey: cashout.idempotencyKey }),
+      ],
     );
     const saved = updated[0];
     if (!saved) {
@@ -223,18 +295,25 @@ export async function approveWithdrawalRequestById(
          WHERE id = $1::uuid`,
         [id],
       );
-      const row = existing.rows[0];
+      const existingRow = existing.rows[0];
       await client2.query("ROLLBACK");
-      if (
-        row &&
-        (row.status === "paid" || row.status === "processing") &&
-        row.cartwave_transaction_id === cashout.transactionId
-      ) {
-        return { ok: true, cartwaveTransactionId: cashout.transactionId };
+      if (existingRow?.cartwave_transaction_id != null) {
+        return { ok: true, cartwaveTransactionId: existingRow.cartwave_transaction_id };
       }
       return { ok: false, error: "Solicitacao ja processada por outro admin" };
     }
     await client2.query("COMMIT");
+
+    void notifyWithdrawalPaid({
+      withdrawalId: id,
+      userId: row.user_id,
+      userEmail: row.user_email,
+      userName: row.user_name,
+      amountCents: row.amount_cents,
+    }).catch((err) => {
+      console.error("[withdrawals/approve] notify failed", { withdrawalId: id, err });
+    });
+
     return { ok: true, cartwaveTransactionId: cashout.transactionId };
   } catch {
     await client2.query("ROLLBACK");
@@ -310,6 +389,89 @@ export async function rejectWithdrawalRequestById(
   } catch {
     await client.query("ROLLBACK");
     return { ok: false, error: "Erro ao recusar saque" };
+  } finally {
+    client.release();
+  }
+}
+
+/** Devolve saldo de saque com falha no PIX (manual pelo admin). */
+export async function refundFailedWithdrawalRequestById(
+  requestId: string,
+  adminNote?: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const id = requestId.trim();
+  if (!isUuidString(id)) {
+    return { ok: false, error: "Identificador de solicitacao invalido" };
+  }
+
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    await ensureWithdrawalSchema(client);
+    await client.query("BEGIN");
+
+    const locked = await client.query<{
+      id: string;
+      user_id: string;
+      amount_cents: number;
+      balance_source: string | null;
+      status: string;
+    }>(
+      `SELECT id, user_id, amount_cents, balance_source, status
+       FROM affiliate_withdrawal_requests
+       WHERE id = $1::uuid
+         AND amount_cents > 0
+       FOR UPDATE`,
+      [id],
+    );
+    const row = locked.rows[0];
+    if (!row) {
+      await client.query("ROLLBACK");
+      return { ok: false, error: "Solicitacao nao encontrada" };
+    }
+
+    if (row.status === "refunded") {
+      await client.query("COMMIT");
+      return { ok: true };
+    }
+
+    if (row.status !== "failed") {
+      await client.query("ROLLBACK");
+      return { ok: false, error: "Somente saques com falha no PIX podem ser estornados manualmente" };
+    }
+
+    await client.query(`SELECT id FROM users WHERE id = $1::uuid FOR UPDATE`, [row.user_id]);
+
+    const src: WithdrawalBalanceSource =
+      row.balance_source === "wallet" ? "wallet" : row.balance_source === "combined" ? "combined" : "affiliate";
+
+    try {
+      await creditWithdrawalBalance(client, row.user_id, src, row.amount_cents, row.id);
+    } catch {
+      await client.query("ROLLBACK");
+      return { ok: false, error: "Estado de saldo invalido apos estorno" };
+    }
+
+    const note = adminNote?.trim() || "Saldo devolvido manualmente pelo admin apos falha no PIX";
+    const marked = await client.query(
+      `UPDATE affiliate_withdrawal_requests
+       SET status = 'refunded',
+           processed_at = COALESCE(processed_at, now()),
+           admin_note = COALESCE($2, admin_note)
+       WHERE id = $1::uuid
+         AND status = 'failed'`,
+      [row.id, note],
+    );
+    if (!marked.rowCount) {
+      await client.query("ROLLBACK");
+      return { ok: false, error: "Solicitacao ja foi estornada" };
+    }
+
+    await client.query("COMMIT");
+    return { ok: true };
+  } catch {
+    await client.query("ROLLBACK");
+    return { ok: false, error: "Erro ao estornar saque" };
   } finally {
     client.release();
   }

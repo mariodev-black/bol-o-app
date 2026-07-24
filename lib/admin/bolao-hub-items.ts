@@ -6,6 +6,7 @@ import {
 import { isLegacyBolaoDefinition } from "@/lib/boloes/definitions/legacy-bolao";
 import { loadPrizeReleasedDefinitionIds } from "@/lib/boloes/definitions/prize-released-ids";
 import { getBolaoDefinitionById } from "@/lib/boloes/definitions/repository";
+import { ensureBolaoDefinitionsSchema } from "@/lib/boloes/definitions/schema";
 import { scopeMatchesForBolaoDefinition } from "@/lib/boloes/definitions/scope";
 import {
   getBolaoDefinitionStats,
@@ -30,7 +31,10 @@ async function enrichAdminBolaoHubItems(
   const enrichedById = new Map(enriched.map((item) => [item.id, item]));
 
   return items.map((def) => {
-    const branding = enrichedById.get(def.id)!;
+    const branding = enrichedById.get(def.id);
+    if (!branding) {
+      throw new Error(`Branding ausente para bolao ${def.id}`);
+    }
     const ctx = buildLifecycleContext(def, matches, {
       prizesReleased: prizeReleased.has(def.id),
     });
@@ -50,10 +54,27 @@ async function enrichAdminBolaoHubItems(
 }
 
 export async function buildAdminBolaoHubItems(): Promise<AdminBolaoHubItem[]> {
-  const [dynamicItems, legacyItems] = await Promise.all([
+  // Schema antes do paralelo: legacy (dashboard) e dinâmico (stats) usam bolao_definition_id.
+  await ensureBolaoDefinitionsSchema();
+
+  const [dynamicResult, legacyResult] = await Promise.allSettled([
     buildDynamicAdminBolaoHubItems(),
     buildAdminBolaoHubLegacyItems(),
   ]);
+
+  if (dynamicResult.status === "rejected") {
+    console.error("[admin/bolao-hub] dynamic items failed", dynamicResult.reason);
+  }
+  if (legacyResult.status === "rejected") {
+    console.error("[admin/bolao-hub] legacy items failed", legacyResult.reason);
+  }
+
+  if (dynamicResult.status === "rejected" && legacyResult.status === "rejected") {
+    throw dynamicResult.reason;
+  }
+
+  const dynamicItems = dynamicResult.status === "fulfilled" ? dynamicResult.value : [];
+  const legacyItems = legacyResult.status === "fulfilled" ? legacyResult.value : [];
 
   const legacyCompetitionIds = new Set(
     legacyItems.map((item) => item.competitionId),
