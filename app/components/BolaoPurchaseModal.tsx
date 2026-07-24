@@ -9,13 +9,17 @@ import {
   Loader2,
   Wallet,
   X,
+  AlertCircle,
 } from "lucide-react";
 import type { BolaoDefinitionCatalogItem } from "@/lib/boloes/definitions/types";
 import { formatBRLFromCents } from "@/lib/wallet/format";
 import { useAuth } from "@/app/shared/AuthContext";
 import { extraBolaoIconSrc, type ExtraBolaoIconVariant } from "@/app/shared/extra-bolao-icons";
+import { QuantitySelector } from "./QuantitySelector";
 
-type CheckoutConfig = {
+const MAX_QUANTITY = 20;
+
+export type CheckoutConfig = {
   prices?: {
     general?: number;
     daily?: number;
@@ -94,31 +98,40 @@ function displayPriceCents(item: BolaoDefinitionCatalogItem, config: CheckoutCon
   return prices.extra ?? 0;
 }
 
+function resolveMaxQuantity(item: BolaoDefinitionCatalogItem): number {
+  if (typeof item.maxTicketsPerUser === "number" && item.maxTicketsPerUser > 0) {
+    return Math.min(item.maxTicketsPerUser, MAX_QUANTITY);
+  }
+  return MAX_QUANTITY;
+}
+
 function purchaseBodyForItem(
   item: BolaoDefinitionCatalogItem,
   config: CheckoutConfig | null,
+  quantity: number,
 ): Record<string, unknown> {
   const kind = kindForItem(item);
+  const qty = Math.max(1, Math.min(MAX_QUANTITY, Math.trunc(quantity) || 1));
   if (kind === "general") {
-    return { ticketType: "general", quantity: 1, payWith: "wallet" };
+    return { ticketType: "general", quantity: qty, payWith: "wallet" };
   }
   if (kind === "extra") {
     return {
       ticketType: "extra",
-      quantity: 1,
+      quantity: qty,
       extraChampionshipId: item.competitionId,
       payWith: "wallet",
     };
   }
   if (kind === "artilheiros") {
-    return { ticketType: "artilheiros", quantity: 1, payWith: "wallet" };
+    return { ticketType: "artilheiros", quantity: qty, payWith: "wallet" };
   }
   if (kind === "daily") {
     const edition = config?.dailyEdition?.number;
     return {
       generalQuantity: 0,
       dailyQuantity: 0,
-      dailyByEdition: edition ? { [String(edition)]: 1 } : {},
+      dailyByEdition: edition ? { [String(edition)]: qty } : {},
       skaleDailyByEdition: {},
       extraByChampionship: {},
       artilheirosQuantity: 0,
@@ -131,7 +144,7 @@ function purchaseBodyForItem(
       generalQuantity: 0,
       dailyQuantity: 0,
       dailyByEdition: {},
-      skaleDailyByEdition: edition ? { [String(edition)]: 1 } : {},
+      skaleDailyByEdition: edition ? { [String(edition)]: qty } : {},
       extraByChampionship: {},
       artilheirosQuantity: 0,
       payWith: "wallet",
@@ -144,7 +157,7 @@ function purchaseBodyForItem(
     skaleDailyByEdition: {},
     extraByChampionship: {},
     artilheirosQuantity: 0,
-    definitionsById: { [item.id]: 1 },
+    definitionsById: { [item.id]: qty },
     payWith: "wallet",
   };
 }
@@ -179,6 +192,7 @@ export function BolaoPurchaseModal({
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [quantity, setQuantity] = useState(1);
 
   const activeItem = item ?? renderedItem;
   const logoSrc = activeItem
@@ -186,11 +200,14 @@ export function BolaoPurchaseModal({
       extraBolaoIconSrc((activeItem.resolvedIconVariant || "generic") as ExtraBolaoIconVariant).src
     : "";
   const priceCents = activeItem ? displayPriceCents(activeItem, config) : 0;
+  const maxQuantity = activeItem ? resolveMaxQuantity(activeItem) : MAX_QUANTITY;
+  const totalCents = useMemo(() => priceCents * quantity, [priceCents, quantity]);
   const balance = balanceCents ?? 0;
-  const missingCents = Math.max(0, priceCents - balance);
-  const insufficient = balanceCents != null && missingCents > 0;
+  const missingCents = Math.max(0, totalCents - balance);
+  const hasBalance = balanceCents != null && totalCents > 0 && balance >= totalCents;
   const walletEnabled = config?.walletCheckoutEnabled ?? false;
   const ready = !loading && balanceCents != null && config != null;
+  const canPurchase = ready && walletEnabled && hasBalance;
   const phase = activeItem?.subtitle?.trim() || activeItem?.datesLabel || null;
 
   const requestClose = useCallback(() => {
@@ -201,6 +218,7 @@ export function BolaoPurchaseModal({
       closeTimerRef.current = null;
       setClosing(false);
       setRenderedItem(null);
+      setQuantity(1);
       onClose();
     }, 180);
   }, [onClose, submitting]);
@@ -212,6 +230,7 @@ export function BolaoPurchaseModal({
         closeTimerRef.current = null;
       }
       setRenderedItem(item);
+      setQuantity(1);
       setClosing(false);
     }
   }, [item, open]);
@@ -264,13 +283,19 @@ export function BolaoPurchaseModal({
       if (typeof user?.balanceCents === "number") setBalanceCents(user.balanceCents);
       setError(null);
       setSubmitting(false);
+      setQuantity(1);
       return;
     }
     void load();
   }, [open, load, user?.balanceCents]);
 
+  const handleQuantityChange = useCallback((next: number) => {
+    setQuantity(next);
+    setError(null);
+  }, []);
+
   const handleBuy = useCallback(async () => {
-    if (!activeItem || submitting || insufficient) return;
+    if (!activeItem || submitting || !canPurchase) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -278,7 +303,7 @@ export function BolaoPurchaseModal({
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(purchaseBodyForItem(activeItem, config)),
+        body: JSON.stringify(purchaseBodyForItem(activeItem, config, quantity)),
       });
       const data = (await resp.json().catch(() => ({}))) as PurchaseResponse;
       if (resp.status === 402 || data.code === "WALLET_INSUFFICIENT_FUNDS") {
@@ -298,7 +323,7 @@ export function BolaoPurchaseModal({
     } finally {
       setSubmitting(false);
     }
-  }, [activeItem, balance, config, insufficient, onClose, refresh, router, submitting]);
+  }, [activeItem, balance, canPurchase, config, onClose, quantity, refresh, router, submitting]);
 
   const modal = useMemo(() => {
     if ((!open && !closing) || !activeItem) return null;
@@ -313,7 +338,7 @@ export function BolaoPurchaseModal({
           aria-label="Fechar modal de compra"
         />
         <section
-          className={`relative w-full max-w-[390px] overflow-hidden rounded-[26px] border border-white/10 bg-[#0A0A0A] text-white duration-200 ${
+          className={`relative w-full max-w-[420px] overflow-hidden rounded-[26px] border border-white/10 bg-[#0A0A0A] text-white duration-200 ${
             closing
               ? "animate-out fade-out zoom-out-95"
               : "animate-in fade-in zoom-in-95"
@@ -352,66 +377,85 @@ export function BolaoPurchaseModal({
             </div>
 
             <div className="mt-5 grid grid-cols-2 gap-2.5">
-              <div className="rounded-[18px] border border-white/10 bg-white/[0.025] p-3">
+              <div className="rounded-[18px] border border-white/10 bg-white/[0.025] p-3 transition-colors">
                 <p className="text-[10px] font-black uppercase tracking-[0.13em] text-white/45">Valor da cota</p>
-                <p className="mt-2 text-[22px] font-black text-primary">
+                <p className="mt-2 text-[22px] font-black text-primary transition-all duration-300">
                   {priceCents > 0 ? formatBRLFromCents(priceCents) : "…"}
                 </p>
               </div>
-              <div className="rounded-[18px] border border-white/10 bg-white/[0.025] p-3">
+              <div className="rounded-[18px] border border-white/10 bg-white/[0.025] p-3 transition-colors">
                 <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.13em] text-white/45">
                   <Wallet className="size-3 text-primary" />
                   Seu saldo
                 </p>
-                <p className="mt-2 text-[22px] font-black text-white">
+                <p className="mt-2 text-[22px] font-black text-white transition-all duration-300">
                   {balanceCents != null ? formatBRLFromCents(balance) : "…"}
                 </p>
               </div>
             </div>
 
-            <div className="mt-4 rounded-[18px] border border-primary/20 bg-primary/[0.04] px-4 py-3">
+            <div className="mt-4 rounded-[18px] border border-white/10 bg-white/[0.025] p-3">
+              <QuantitySelector
+                label="Quantidade"
+                value={quantity}
+                min={1}
+                max={maxQuantity}
+                onChange={handleQuantityChange}
+                disabled={!ready || submitting}
+              />
+            </div>
+
+            <div className="mt-4 rounded-[18px] border border-white/10 bg-white/[0.025] p-3">
+              <p className="text-[10px] font-black uppercase tracking-[0.13em] text-white/45">Total</p>
+              <p className="mt-1 text-[26px] font-black text-primary transition-all duration-300">
+                {totalCents > 0 ? formatBRLFromCents(totalCents) : "…"}
+              </p>
+            </div>
+
+            <div
+              className={`mt-4 rounded-[18px] border px-4 py-3 transition-all duration-300 ${
+                hasBalance
+                  ? "border-primary/20 bg-primary/[0.04]"
+                  : "border-red-400/20 bg-red-500/10"
+              }`}
+            >
               <div className="flex items-start gap-2.5 text-left">
-                <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-primary" />
+                {hasBalance ? (
+                  <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-primary" />
+                ) : (
+                  <AlertCircle className="mt-0.5 size-4 shrink-0 text-red-400" />
+                )}
                 <p className="text-[12px] font-semibold leading-relaxed text-white/62">
-                  A compra é debitada do saldo da carteira e sua cota aparece em <strong className="text-white">Meus bolões</strong> assim que confirmar.
+                  {hasBalance ? (
+                    <>
+                      Sua compra será debitada automaticamente do saldo da carteira. Após a confirmação, suas cotas aparecerão imediatamente em <strong className="text-white">Meus bolões</strong>.
+                    </>
+                  ) : balanceCents != null ? (
+                    <>
+                      Saldo insuficiente. Faltam <strong className="text-red-200">{formatBRLFromCents(missingCents)}</strong> para concluir.
+                    </>
+                  ) : (
+                    <>Carregando saldo…</>
+                  )}
                 </p>
               </div>
             </div>
 
             {error ? (
-              <p className="mt-3 rounded-xl border border-red-400/20 bg-red-500/10 px-3 py-2 text-center text-[12px] font-bold text-red-200">
+              <p className="mt-3 rounded-xl border border-red-400/20 bg-red-500/10 px-3 py-2 text-center text-[12px] font-bold text-red-200 animate-in fade-in slide-in-from-top-1">
                 {error}
               </p>
             ) : null}
 
-            {insufficient ? (
-              <>
-                <p className="mt-4 text-center text-[13px] font-bold text-red-200">
-                  Saldo insuficiente. Faltam {formatBRLFromCents(missingCents)} para concluir.
-                </p>
-                <Link
-                  href="/carteira"
-                  className="mt-3 flex h-12 w-full items-center justify-center gap-2 overflow-hidden rounded-[18px] bg-primary text-[14px] font-black uppercase tracking-wide text-[#0E141B] transition active:scale-[0.98]"
-                >
-                  Adicionar créditos
-                  <ArrowRight className="size-4" strokeWidth={2.8} />
-                </Link>
-              </>
-            ) : !walletEnabled ? (
-              <>
-                <p className="mt-4 text-center text-[13px] font-bold text-red-200">
-                  Pagamento com saldo indisponível no momento.
-                </p>
-                <button
-                  type="button"
-                  disabled
-                  className="mt-3 flex h-12 w-full items-center justify-center gap-2 overflow-hidden rounded-[18px] bg-primary text-[14px] font-black uppercase tracking-wide text-[#0E141B] opacity-45"
-                >
-                  Comprar agora
-                  <ArrowRight className="size-4" strokeWidth={2.8} />
-                </button>
-              </>
-            ) : (
+            {!walletEnabled ? (
+              <button
+                type="button"
+                disabled
+                className="mt-5 flex h-12 w-full items-center justify-center gap-2 overflow-hidden rounded-[18px] bg-primary text-[14px] font-black uppercase tracking-wide text-[#0E141B] opacity-45 transition"
+              >
+                Pagamento com saldo indisponível
+              </button>
+            ) : hasBalance ? (
               <button
                 type="button"
                 onClick={handleBuy}
@@ -433,6 +477,14 @@ export function BolaoPurchaseModal({
                   )}
                 </span>
               </button>
+            ) : (
+              <Link
+                href="/carteira"
+                className="mt-5 flex h-12 w-full items-center justify-center gap-2 overflow-hidden rounded-[18px] bg-red-500 text-[14px] font-black uppercase tracking-wide text-white transition hover:bg-red-600 active:scale-[0.98]"
+              >
+                Adicionar saldo
+                <ArrowRight className="size-4" strokeWidth={2.8} />
+              </Link>
             )}
 
             <button
@@ -448,23 +500,28 @@ export function BolaoPurchaseModal({
       </div>
     );
   }, [
+    activeItem,
     balance,
     balanceCents,
-    activeItem,
     closing,
     error,
     handleBuy,
-    insufficient,
+    handleQuantityChange,
+    hasBalance,
     logoSrc,
+    maxQuantity,
     missingCents,
     open,
     phase,
     priceCents,
+    quantity,
     ready,
     requestClose,
     submitting,
+    totalCents,
     walletEnabled,
   ]);
+
 
   return modal;
 }
