@@ -16,6 +16,8 @@ import {
 
 export type TicketType = "general" | "daily" | "extra" | "artilheiros";
 
+const MAX_TICKET_QUANTITY = 999;
+
 function env(name: string): string {
   const raw = process.env[name];
   return raw == null ? "" : String(raw).trim();
@@ -160,7 +162,7 @@ export type PurchaseExtraInput =
  * `allowedOrderedIds` deve seguir a ordem do servidor (ex.: `parseExtraBolaoChampionshipIds()` ou GET `extraBoloes`).
  */
 export function expandExtraQuantityWithOrder(quantity: number, allowedOrderedIds: number[]): number[] {
-  const q = Math.max(0, Math.min(20, Math.trunc(quantity)));
+  const q = Math.max(0, Math.min(MAX_TICKET_QUANTITY, Math.trunc(quantity)));
   if (q <= 0 || allowedOrderedIds.length === 0) return [];
   const seq: number[] = [];
   for (let i = 0; i < q; i++) {
@@ -189,7 +191,7 @@ function normalizeExtraMap(map: Record<number, number> | undefined): Record<numb
   for (const [k, v] of Object.entries(map)) {
     const id = Number.parseInt(k, 10);
     if (!Number.isFinite(id) || !allowedExtra.has(id)) continue;
-    out[id] = Math.max(0, Math.min(20, Math.trunc(Number(v) || 0)));
+    out[id] = Math.max(0, Math.min(MAX_TICKET_QUANTITY, Math.trunc(Number(v) || 0)));
   }
   return out;
 }
@@ -218,7 +220,7 @@ export function buildDailyEditionPurchaseLines(
  * Desconto progressivo: geral e dia por tipo; extras — uma curva só sobre a quantidade total de extras.
  */
 export function buildArtilheirosPurchaseLines(quantity: number): PurchaseTicketLine[] {
-  const q = Math.max(0, Math.min(20, Math.trunc(quantity)));
+  const q = Math.max(0, Math.min(MAX_TICKET_QUANTITY, Math.trunc(quantity)));
   const unit = getArtilheirosTicketPriceCents();
   return distributeDiscountedTicketAmounts(unit, q).map((unitCents) => ({
     ticketType: "artilheiros" as const,
@@ -258,7 +260,7 @@ export function buildPurchaseTicketLines(
   artilheirosQty = 0,
   skaleDailyByEdition?: Record<number, number> | Record<string, number>,
 ): PurchaseTicketLine[] {
-  const g = Math.max(0, Math.min(20, Math.trunc(generalQty)));
+  const g = Math.max(0, Math.min(MAX_TICKET_QUANTITY, Math.trunc(generalQty)));
   const lines: PurchaseTicketLine[] = [];
   const genUnit = getTicketPriceCents("general");
 
@@ -273,7 +275,7 @@ export function buildPurchaseTicketLines(
   const allowedOrdered = parseExtraBolaoChampionshipIds();
 
   if (extraInput && "extraQuantity" in extraInput) {
-    const q = Math.max(0, Math.min(20, Math.trunc(extraInput.extraQuantity)));
+    const q = Math.max(0, Math.min(MAX_TICKET_QUANTITY, Math.trunc(extraInput.extraQuantity)));
     const seq = expandExtraQuantityWithOrder(q, allowedOrdered);
     seq.forEach((cid) => {
       const unitCents = getExtraBolaoUnitCentsForChampionship(cid);
@@ -287,7 +289,7 @@ export function buildPurchaseTicketLines(
     const extraMap = normalizeExtraMap(extraInput.extraByChampionship);
     for (const compId of allowedExtra) {
       const raw = extraMap[compId] ?? 0;
-      const cq = Math.max(0, Math.min(20, Math.trunc(raw)));
+      const cq = Math.max(0, Math.min(MAX_TICKET_QUANTITY, Math.trunc(raw)));
       const unitCents = getExtraBolaoUnitCentsForChampionship(compId);
       const amounts = isSkaleBolaoCompetition(compId)
         ? Array.from({ length: cq }, () => unitCents)

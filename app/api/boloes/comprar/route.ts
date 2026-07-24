@@ -10,7 +10,7 @@ export const runtime = "nodejs";
 
 const purchaseSchema = z.object({
   bolaoId: z.string().trim().uuid(),
-  quantidade: z.number().int().min(1).max(20),
+  quantidade: z.number().int().min(1).max(999),
   idempotencyKey: z.string().trim().max(128).optional(),
 });
 

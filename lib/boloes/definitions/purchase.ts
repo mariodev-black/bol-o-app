@@ -6,6 +6,8 @@ import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
 import { scopeMatchesForBolaoDefinition } from "@/lib/boloes/definitions/scope";
 import type { BolaoDefinition } from "@/lib/boloes/definitions/types";
 
+const MAX_TICKET_QUANTITY = 999;
+
 /** Converte definição admin → linha de compra (preço sempre do servidor). */
 export function bolaoDefinitionToPurchaseLine(def: BolaoDefinition): PurchaseTicketLine {
   const line: PurchaseTicketLine = {
@@ -47,7 +49,7 @@ export function buildDefinitionPurchaseLines(
     if (!def.enabled || !def.saleEnabled) {
       throw new Error(`${def.displayName} indisponivel para compra`);
     }
-    const q = Math.max(0, Math.min(20, Math.trunc(rawQty)));
+    const q = Math.max(0, Math.min(MAX_TICKET_QUANTITY, Math.trunc(rawQty)));
     for (let i = 0; i < q; i++) {
       lines.push(bolaoDefinitionToPurchaseLine(def));
     }
@@ -102,7 +104,7 @@ export function normalizeDefinitionsByIdInput(
   for (const [k, v] of Object.entries(raw)) {
     const id = String(k).trim();
     if (!id) continue;
-    const q = Math.max(0, Math.min(20, Math.trunc(Number(v) || 0)));
+    const q = Math.max(0, Math.min(MAX_TICKET_QUANTITY, Math.trunc(Number(v) || 0)));
     if (q > 0) out[id] = q;
   }
   return out;

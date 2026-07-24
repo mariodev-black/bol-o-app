@@ -17,7 +17,7 @@ import { useAuth } from "@/app/shared/AuthContext";
 import { extraBolaoIconSrc, type ExtraBolaoIconVariant } from "@/app/shared/extra-bolao-icons";
 import { QuantitySelector } from "./QuantitySelector";
 
-const MAX_QUANTITY = 20;
+const MAX_QUANTITY = 999;
 
 export type CheckoutConfig = {
   prices?: {
@@ -100,13 +100,6 @@ function displayPriceCents(item: BolaoDefinitionCatalogItem, config: CheckoutCon
   return prices.extra ?? 0;
 }
 
-function resolveMaxQuantity(item: BolaoDefinitionCatalogItem): number {
-  if (typeof item.maxTicketsPerUser === "number" && item.maxTicketsPerUser > 0) {
-    return Math.min(item.maxTicketsPerUser, MAX_QUANTITY);
-  }
-  return MAX_QUANTITY;
-}
-
 function getProgressiveDiscountPercent(quantity: number): number {
   const q = Math.max(0, Math.trunc(quantity));
   if (q >= 4) return 15;
@@ -164,7 +157,7 @@ function purchaseBodyForItem(
   idempotencyKey: string,
 ): Record<string, unknown> {
   const kind = kindForItem(item);
-  const qty = Math.max(1, Math.min(resolveMaxQuantity(item), Math.trunc(quantity) || 1));
+  const qty = Math.max(1, Math.min(MAX_QUANTITY, Math.trunc(quantity) || 1));
   if (kind === "general") {
     return { ticketType: "general", quantity: qty, payWith: "wallet", idempotencyKey };
   }
@@ -258,7 +251,7 @@ export function BolaoPurchaseModal({
       extraBolaoIconSrc((activeItem.resolvedIconVariant || "generic") as ExtraBolaoIconVariant).src
     : "";
   const priceCents = activeItem ? displayPriceCents(activeItem, config) : 0;
-  const maxQuantity = activeItem ? resolveMaxQuantity(activeItem) : MAX_QUANTITY;
+  const maxQuantity = MAX_QUANTITY;
   const totalCents = useMemo(
     () => calculateTotalCents(activeItem, config, quantity),
     [activeItem, config, quantity],

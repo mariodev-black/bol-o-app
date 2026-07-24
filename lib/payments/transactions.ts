@@ -37,6 +37,8 @@ import {
 } from "@/lib/boloes/definitions/purchase";
 import { getBolaoDefinitionsByIds } from "@/lib/boloes/definitions/repository";
 
+const MAX_TICKET_QUANTITY = 999;
+
 type BillingUser = {
   id: string;
   name: string | null;
@@ -123,40 +125,13 @@ export type CreateDepositTransactionInput =
       idempotencyKey?: string;
     };
 
-async function countExistingDefinitionTickets(
-  userId: string,
-  definitionIds: string[],
-): Promise<Record<string, number>> {
-  if (definitionIds.length === 0) return {};
-  try {
-    const pool = getPool();
-    const { rows } = await pool.query<{ bolao_definition_id: string; count: string }>(
-      `SELECT bolao_definition_id, COUNT(*) AS count
-       FROM tickets
-       WHERE user_id = $1::uuid
-         AND bolao_definition_id = ANY($2::uuid[])
-         AND status IN ('paid', 'pending_payment')
-       GROUP BY bolao_definition_id`,
-      [userId, definitionIds],
-    );
-    const out: Record<string, number> = {};
-    for (const row of rows) {
-      out[row.bolao_definition_id] = Number(row.count);
-    }
-    return out;
-  } catch (e) {
-    console.error("[countExistingDefinitionTickets] falha ao contar tickets existentes", e);
-    return {};
-  }
-}
-
 function normalizeExtraByChampionship(map: Record<number, number> | undefined): Record<number, number> {
   const out: Record<number, number> = {};
   if (!map) return out;
   for (const [k, v] of Object.entries(map)) {
     const id = Number(k);
     if (!Number.isFinite(id)) continue;
-    out[id] = Math.max(0, Math.min(20, Math.trunc(Number(v) || 0)));
+    out[id] = Math.max(0, Math.min(MAX_TICKET_QUANTITY, Math.trunc(Number(v) || 0)));
   }
   return out;
 }
@@ -169,17 +144,17 @@ function resolvePurchaseQuantities(input: CreateDepositTransactionInput): {
   artilheirosQty: number;
 } {
   if ("generalQty" in input) {
-    const g = Math.max(0, Math.min(20, Math.trunc(input.generalQty)));
+    const g = Math.max(0, Math.min(MAX_TICKET_QUANTITY, Math.trunc(input.generalQty)));
     const dailyByEdition = normalizeDailyByEditionInput(input.dailyByEdition);
     const skaleDailyByEdition = normalizeDailyByEditionInput(
       input.skaleDailyByEdition,
     );
-    const legacyDaily = Math.max(0, Math.min(20, Math.trunc(Number(input.dailyQty) || 0)));
+    const legacyDaily = Math.max(0, Math.min(MAX_TICKET_QUANTITY, Math.trunc(Number(input.dailyQty) || 0)));
     if (legacyDaily > 0 && Object.keys(dailyByEdition).length === 0) {
       throw new Error("Selecione a edicao do bolao diario (Bolao Diario #N)");
     }
-    const exQ = Math.max(0, Math.min(20, Math.trunc(Number(input.extraQuantity) || 0)));
-    const artQ = Math.max(0, Math.min(20, Math.trunc(Number(input.artilheirosQuantity) || 0)));
+    const exQ = Math.max(0, Math.min(MAX_TICKET_QUANTITY, Math.trunc(Number(input.extraQuantity) || 0)));
+    const artQ = Math.max(0, Math.min(MAX_TICKET_QUANTITY, Math.trunc(Number(input.artilheirosQuantity) || 0)));
     const rawMap = normalizeExtraByChampionship(input.extraByChampionship);
     let extraPurchase: PurchaseExtraInput | undefined;
     if (exQ > 0) extraPurchase = { extraQuantity: exQ };
@@ -193,7 +168,7 @@ function resolvePurchaseQuantities(input: CreateDepositTransactionInput): {
     | { ticketType: "daily"; quantity: number; dailyEditionNumber?: number }
     | { ticketType: "extra"; quantity: number; extraChampionshipId: number }
     | { ticketType: "artilheiros"; quantity: number };
-  const q = Math.max(1, Math.min(20, Math.trunc(single.quantity)));
+  const q = Math.max(1, Math.min(MAX_TICKET_QUANTITY, Math.trunc(single.quantity)));
   if (single.ticketType === "general") {
     return { generalQty: q, dailyByEdition: {}, skaleDailyByEdition: {}, artilheirosQty: 0 };
   }
@@ -265,19 +240,9 @@ async function resolvePurchaseLines(
     const matchMap = await fetchMatchesMap({ ensureCompetitionIds: [mainComp] }).catch(
       () => new Map(),
     );
-    const existingByDef = await countExistingDefinitionTickets(input.userId, definitionIds);
     for (const def of definitions) {
       if (!isBolaoDefinitionPurchaseOpen(def, matchMap)) {
         throw new Error(`${def.displayName} ja encerrado para compra`);
-      }
-      const requested = definitionsById[def.id] ?? 0;
-      const existing = existingByDef[def.id] ?? 0;
-      const max = def.maxTicketsPerUser ?? 20;
-      if (requested > 0 && existing + requested > max) {
-        const remaining = Math.max(0, max - existing);
-        throw new Error(
-          `${def.displayName}: limite de ${max} cotas por usuário. Você já possui ${existing}${remaining > 0 ? ` e pode comprar mais ${remaining}` : ""}.`,
-        );
       }
     }
     lines = [...lines, ...buildDefinitionPurchaseLines(definitionsById, definitions)];
@@ -695,7 +660,7 @@ export type WalletDefinitionPurchaseInput = {
 export async function createWalletPurchaseForDefinition(
   input: WalletDefinitionPurchaseInput,
 ): Promise<WalletPurchaseResult> {
-  const qty = Math.max(1, Math.min(20, Math.trunc(input.quantity) || 1));
+  const qty = Math.max(1, Math.min(MAX_TICKET_QUANTITY, Math.trunc(input.quantity) || 1));
   return createWalletPurchase({
     userId: input.userId,
     generalQty: 0,

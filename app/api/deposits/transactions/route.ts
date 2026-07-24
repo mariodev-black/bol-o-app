@@ -45,8 +45,10 @@ import { clientPriceFieldError, findClientPriceField } from "@/lib/payments/reje
 
 export const runtime = "nodejs";
 
+const MAX_TICKET_QUANTITY = 999;
+
 const extraByChampionshipSchema = z
-  .record(z.string(), z.number().int().min(0).max(20))
+  .record(z.string(), z.number().int().min(0).max(MAX_TICKET_QUANTITY))
   .optional()
   .transform((rec) => {
     if (!rec) return {} as Record<number, number>;
@@ -59,8 +61,6 @@ const extraByChampionshipSchema = z
     }
     return out;
   });
-
-const MAX_TICKET_QUANTITY = 20;
 
 const dailyByEditionSchema = z
   .record(z.string(), z.number().int().min(0).max(MAX_TICKET_QUANTITY))
@@ -91,7 +91,7 @@ const skaleDailyByEditionSchema = z
   });
 
 const definitionsByIdSchema = z
-  .record(z.string(), z.number().int().min(0).max(20))
+  .record(z.string(), z.number().int().min(0).max(MAX_TICKET_QUANTITY))
   .optional()
   .transform((rec) => {
     if (!rec) return {} as Record<string, number>;
@@ -282,8 +282,8 @@ async function handlePost(request: NextRequest): Promise<NextResponse> {
         idempotencyKey,
       } = parsed.data;
       const extra = extraByChampionship ?? {};
-      const exQ = Math.max(0, Math.min(20, extraQuantity ?? 0));
-      const artQ = Math.max(0, Math.min(20, artilheirosQuantity ?? 0));
+      const exQ = Math.max(0, Math.min(MAX_TICKET_QUANTITY, extraQuantity ?? 0));
+      const artQ = Math.max(0, Math.min(MAX_TICKET_QUANTITY, artilheirosQuantity ?? 0));
       const extraTotalLegacy = Object.values(extra).reduce((a, b) => a + b, 0);
       const dailyTotal = Object.values(dailyByEdition ?? {}).reduce((a, b) => a + b, 0);
       const skaleDailyTotal = Object.values(skaleDailyByEdition ?? {}).reduce(
