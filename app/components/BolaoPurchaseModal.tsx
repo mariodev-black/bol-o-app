@@ -264,7 +264,7 @@ export function BolaoPurchaseModal({
   const missingCents = Math.max(0, totalCents - balance);
   const hasBalance = balanceCents != null && balance >= totalCents;
   const walletEnabled = config?.walletCheckoutEnabled ?? false;
-  const ready = !loading && balanceCents != null && config != null;
+  const ready = !loading && balanceCents != null && config != null && priceCents > 0;
   const canPurchase = ready && walletEnabled && hasBalance;
   const phase = activeItem?.subtitle?.trim() || activeItem?.datesLabel || null;
 
@@ -321,19 +321,6 @@ export function BolaoPurchaseModal({
       setLoading(false);
     }
   }, [user?.balanceCents]);
-
-  useEffect(() => {
-    const id = window.setTimeout(() => {
-      void loadCheckoutConfig().then(setConfig);
-    }, 350);
-    return () => window.clearTimeout(id);
-  }, []);
-
-  useEffect(() => {
-    if (!open && typeof user?.balanceCents === "number") {
-      setBalanceCents(user.balanceCents);
-    }
-  }, [open, user?.balanceCents]);
 
   useEffect(() => {
     if (!open) {
@@ -512,7 +499,16 @@ export function BolaoPurchaseModal({
               </p>
             ) : null}
 
-            {!hasBalance ? (
+            {!ready ? (
+              <button
+                type="button"
+                disabled
+                className="mt-5 flex h-12 w-full items-center justify-center gap-2 overflow-hidden rounded-[18px] bg-white/10 text-[14px] font-black uppercase tracking-wide text-white/40 opacity-60 transition"
+              >
+                <Loader2 className="size-4 animate-spin" />
+                Carregando…
+              </button>
+            ) : !hasBalance ? (
               <Link
                 href="/carteira"
                 className="mt-5 flex h-12 w-full items-center justify-center gap-2 overflow-hidden rounded-[18px] bg-red-500 text-[14px] font-black uppercase tracking-wide text-white transition hover:bg-red-600 active:scale-[0.98]"
