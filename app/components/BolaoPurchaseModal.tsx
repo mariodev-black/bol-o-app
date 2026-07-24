@@ -354,7 +354,14 @@ export function BolaoPurchaseModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(purchaseBodyForItem(activeItem, config, quantity, idempotencyKey)),
       });
-      const data = (await resp.json().catch(() => ({}))) as PurchaseResponse;
+      const raw = await resp.text();
+      console.error("[purchase] HTTP", resp.status, raw.slice(0, 2000));
+      let data: PurchaseResponse = {};
+      try {
+        data = JSON.parse(raw) as PurchaseResponse;
+      } catch {
+        // resposta nao e JSON (provavel erro 500 HTML do Next.js)
+      }
       if (resp.status === 402 || data.code === "WALLET_INSUFFICIENT_FUNDS") {
         const available =
           typeof data.purchase?.balanceCents === "number"
@@ -371,7 +378,7 @@ export function BolaoPurchaseModal({
           data.error ??
           (typeof data.message === "string" ? data.message : null) ??
           (typeof data.detail === "string" ? data.detail : null) ??
-          "Não foi possível concluir a compra.";
+          (raw ? `Erro ${resp.status}: ${raw.slice(0, 200)}` : `Erro ${resp.status} no servidor.`);
         setError(serverError);
         return;
       }

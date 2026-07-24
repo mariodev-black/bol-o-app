@@ -211,7 +211,7 @@ export async function GET() {
   });
 }
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest): Promise<NextResponse> {
   const token = request.cookies.get(sessionCookieName())?.value;
   if (!token) {
     return NextResponse.json({ error: "Nao autenticado" }, { status: 401 });
@@ -432,5 +432,15 @@ export async function POST(request: NextRequest) {
     if (db) return NextResponse.json({ error: db.error }, { status: db.status });
     const message = e instanceof Error ? e.message : "Nao foi possivel criar a transacao";
     return NextResponse.json({ error: message }, { status: 400 });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    return await handlePost(request);
+  } catch (e) {
+    console.error("[api/deposits/transactions] unhandled error", e);
+    const message = e instanceof Error ? e.message : "Erro interno no servidor";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
