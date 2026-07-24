@@ -217,12 +217,13 @@ function purchaseBodyForItem(
   };
 }
 
-function successQueryForItem(item: BolaoDefinitionCatalogItem, tx: string): string {
+function successQueryForItem(item: BolaoDefinitionCatalogItem, tx: string, quantity: number): string {
   const kind = kindForItem(item);
   const q = new URLSearchParams({ tx });
-  if (kind === "general") q.set("principal", "1");
-  else if (kind === "daily" || kind === "skaleDaily") q.set("diario", "1");
-  else q.set("extra", "1");
+  const qty = Math.max(1, Math.min(MAX_QUANTITY, Math.trunc(quantity) || 1));
+  if (kind === "general") q.set("principal", String(qty));
+  else if (kind === "daily" || kind === "skaleDaily") q.set("diario", String(qty));
+  else q.set("extra", String(qty));
   return q.toString();
 }
 
@@ -369,7 +370,7 @@ export function BolaoPurchaseModal({
       }
       await refresh().catch(() => {});
       onClose();
-      router.replace(`/tickets/obrigado?${successQueryForItem(activeItem, data.purchase.transactionId)}`);
+      router.replace(`/tickets/obrigado?${successQueryForItem(activeItem, data.purchase.transactionId, quantity)}`);
     } catch {
       setError("Erro de rede ao concluir a compra.");
     } finally {
