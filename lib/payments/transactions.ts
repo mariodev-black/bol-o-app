@@ -128,21 +128,26 @@ async function countExistingDefinitionTickets(
   definitionIds: string[],
 ): Promise<Record<string, number>> {
   if (definitionIds.length === 0) return {};
-  const pool = getPool();
-  const { rows } = await pool.query<{ bolao_definition_id: string; count: string }>(
-    `SELECT bolao_definition_id, COUNT(*) AS count
-     FROM tickets
-     WHERE user_id = $1::uuid
-       AND bolao_definition_id = ANY($2::uuid[])
-       AND status IN ('paid', 'pending_payment')
-     GROUP BY bolao_definition_id`,
-    [userId, definitionIds],
-  );
-  const out: Record<string, number> = {};
-  for (const row of rows) {
-    out[row.bolao_definition_id] = Number(row.count);
+  try {
+    const pool = getPool();
+    const { rows } = await pool.query<{ bolao_definition_id: string; count: string }>(
+      `SELECT bolao_definition_id, COUNT(*) AS count
+       FROM tickets
+       WHERE user_id = $1::uuid
+         AND bolao_definition_id = ANY($2::uuid[])
+         AND status IN ('paid', 'pending_payment')
+       GROUP BY bolao_definition_id`,
+      [userId, definitionIds],
+    );
+    const out: Record<string, number> = {};
+    for (const row of rows) {
+      out[row.bolao_definition_id] = Number(row.count);
+    }
+    return out;
+  } catch (e) {
+    console.error("[countExistingDefinitionTickets] falha ao contar tickets existentes", e);
+    return {};
   }
-  return out;
 }
 
 function normalizeExtraByChampionship(map: Record<number, number> | undefined): Record<number, number> {

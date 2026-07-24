@@ -34,6 +34,8 @@ export type CheckoutConfig = {
 
 type PurchaseResponse = {
   error?: string;
+  message?: string;
+  detail?: string;
   code?: string;
   purchase?: {
     transactionId: string;
@@ -365,7 +367,12 @@ export function BolaoPurchaseModal({
         return;
       }
       if (!resp.ok || !data.purchase) {
-        setError(data.error ?? "Não foi possível concluir a compra.");
+        const serverError =
+          data.error ??
+          (typeof data.message === "string" ? data.message : null) ??
+          (typeof data.detail === "string" ? data.detail : null) ??
+          "Não foi possível concluir a compra.";
+        setError(serverError);
         return;
       }
       await refresh().catch(() => {});

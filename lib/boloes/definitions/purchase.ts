@@ -62,13 +62,17 @@ export function isBolaoDefinitionPurchaseOpen(
 ): boolean {
   if (!def.enabled || !def.saleEnabled) return false;
   const now = Date.now();
-  if (def.startsAt) {
-    const starts = new Date(def.startsAt).getTime();
-    if (Number.isFinite(starts) && starts > now) return false;
-  }
-  if (def.endsAt) {
-    const ends = new Date(def.endsAt).getTime();
-    if (Number.isFinite(ends) && ends < now) return false;
+  try {
+    if (def.startsAt) {
+      const starts = new Date(def.startsAt).getTime();
+      if (Number.isFinite(starts) && starts > now) return false;
+    }
+    if (def.endsAt) {
+      const ends = new Date(def.endsAt).getTime();
+      if (Number.isFinite(ends) && ends < now) return false;
+    }
+  } catch {
+    // Ignora erros de parsing de data — deixa a validação por partidas decidir.
   }
   const mainComp = getFootballMainCompetitionId();
   if (
