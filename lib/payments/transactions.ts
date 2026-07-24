@@ -675,6 +675,34 @@ export async function createWalletPurchase(
   return { transactionId: purchaseId, amountCents, ticketIds, balanceCents };
 }
 
+export type WalletDefinitionPurchaseInput = {
+  userId: string;
+  bolaoDefinitionId: string;
+  quantity: number;
+  idempotencyKey?: string;
+};
+
+/**
+ * Compra com saldo de N cotas de uma definição de bolão admin.
+ * Reutiliza todo o pipeline de compra com saldo: valida cadastro, janela de
+ * compra, limite por usuário, saldo, debita ledger e cria tickets atomically.
+ */
+export async function createWalletPurchaseForDefinition(
+  input: WalletDefinitionPurchaseInput,
+): Promise<WalletPurchaseResult> {
+  const qty = Math.max(1, Math.min(20, Math.trunc(input.quantity) || 1));
+  return createWalletPurchase({
+    userId: input.userId,
+    generalQty: 0,
+    dailyByEdition: {},
+    skaleDailyByEdition: {},
+    extraByChampionship: {},
+    artilheirosQuantity: 0,
+    definitionsById: { [input.bolaoDefinitionId]: qty },
+    ...(input.idempotencyKey ? { idempotencyKey: input.idempotencyKey } : {}),
+  });
+}
+
 export async function getDepositTransactionById(userId: string, id: string): Promise<DepositTransactionView | null> {
   const pool = getPool();
   const { rows } = await pool.query<{
