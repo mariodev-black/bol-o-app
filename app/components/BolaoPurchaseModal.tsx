@@ -189,6 +189,7 @@ export function BolaoPurchaseModal({
   const balance = balanceCents ?? 0;
   const missingCents = Math.max(0, priceCents - balance);
   const insufficient = balanceCents != null && missingCents > 0;
+  const walletEnabled = config?.walletCheckoutEnabled ?? false;
   const ready = !loading && balanceCents != null && config != null;
   const phase = activeItem?.subtitle?.trim() || activeItem?.datesLabel || null;
 
@@ -396,6 +397,20 @@ export function BolaoPurchaseModal({
                   <ArrowRight className="size-4" strokeWidth={2.8} />
                 </Link>
               </>
+            ) : !walletEnabled ? (
+              <>
+                <p className="mt-4 text-center text-[13px] font-bold text-red-200">
+                  Pagamento com saldo indisponível no momento.
+                </p>
+                <button
+                  type="button"
+                  disabled
+                  className="mt-3 flex h-12 w-full items-center justify-center gap-2 overflow-hidden rounded-[18px] bg-primary text-[14px] font-black uppercase tracking-wide text-[#0E141B] opacity-45"
+                >
+                  Comprar agora
+                  <ArrowRight className="size-4" strokeWidth={2.8} />
+                </button>
+              </>
             ) : (
               <button
                 type="button"
@@ -448,6 +463,7 @@ export function BolaoPurchaseModal({
     ready,
     requestClose,
     submitting,
+    walletEnabled,
   ]);
 
   return modal;
