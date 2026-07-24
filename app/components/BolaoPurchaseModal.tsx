@@ -105,15 +105,66 @@ function resolveMaxQuantity(item: BolaoDefinitionCatalogItem): number {
   return MAX_QUANTITY;
 }
 
+function getProgressiveDiscountPercent(quantity: number): number {
+  const q = Math.max(0, Math.trunc(quantity));
+  if (q >= 4) return 15;
+  if (q === 3) return 10;
+  if (q === 2) return 5;
+  return 0;
+}
+
+function calculateProgressiveDiscountTotalCents(unitCents: number, quantity: number): number {
+  const q = Math.max(0, Math.trunc(quantity));
+  if (q <= 0 || unitCents <= 0) return 0;
+  const subtotal = unitCents * q;
+  const discount = getProgressiveDiscountPercent(q);
+  return Math.round((subtotal * (100 - discount)) / 100);
+}
+
+function calculateTotalCents(
+  item: BolaoDefinitionCatalogItem | null,
+  config: CheckoutConfig | null,
+  quantity: number,
+): number {
+  if (!item) return 0;
+  const kind = kindForItem(item);
+  const q = Math.max(1, Math.min(MAX_QUANTITY, Math.trunc(quantity) || 1));
+  const prices = config?.prices ?? {};
+  if (kind === "definition") {
+    const unit = Number(item.unitPriceCents) || parsePriceLabelCents(item.priceLabel) || prices.extra || 0;
+    return unit * q;
+  }
+  const unit =
+    kind === "general"
+      ? prices.general ?? 0
+      : kind === "daily"
+        ? prices.daily ?? 0
+        : kind === "skaleDaily"
+          ? prices.skaleDaily ?? prices.extra ?? 0
+          : kind === "artilheiros"
+            ? prices.artilheiros ?? 0
+            : prices.extra ?? 0;
+  if (unit <= 0) return 0;
+  return calculateProgressiveDiscountTotalCents(unit, q);
+}
+
+function generateIdempotencyKey(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 function purchaseBodyForItem(
   item: BolaoDefinitionCatalogItem,
   config: CheckoutConfig | null,
   quantity: number,
+  idempotencyKey: string,
 ): Record<string, unknown> {
   const kind = kindForItem(item);
-  const qty = Math.max(1, Math.min(MAX_QUANTITY, Math.trunc(quantity) || 1));
+  const qty = Math.max(1, Math.min(resolveMaxQuantity(item), Math.trunc(quantity) || 1));
   if (kind === "general") {
-    return { ticketType: "general", quantity: qty, payWith: "wallet" };
+    return { ticketType: "general", quantity: qty, payWith: "wallet", idempotencyKey };
   }
   if (kind === "extra") {
     return {
@@ -121,10 +172,11 @@ function purchaseBodyForItem(
       quantity: qty,
       extraChampionshipId: item.competitionId,
       payWith: "wallet",
+      idempotencyKey,
     };
   }
   if (kind === "artilheiros") {
-    return { ticketType: "artilheiros", quantity: qty, payWith: "wallet" };
+    return { ticketType: "artilheiros", quantity: qty, payWith: "wallet", idempotencyKey };
   }
   if (kind === "daily") {
     const edition = config?.dailyEdition?.number;
@@ -136,6 +188,7 @@ function purchaseBodyForItem(
       extraByChampionship: {},
       artilheirosQuantity: 0,
       payWith: "wallet",
+      idempotencyKey,
     };
   }
   if (kind === "skaleDaily") {
@@ -148,6 +201,7 @@ function purchaseBodyForItem(
       extraByChampionship: {},
       artilheirosQuantity: 0,
       payWith: "wallet",
+      idempotencyKey,
     };
   }
   return {
@@ -159,6 +213,7 @@ function purchaseBodyForItem(
     artilheirosQuantity: 0,
     definitionsById: { [item.id]: qty },
     payWith: "wallet",
+    idempotencyKey,
   };
 }
 
@@ -201,10 +256,13 @@ export function BolaoPurchaseModal({
     : "";
   const priceCents = activeItem ? displayPriceCents(activeItem, config) : 0;
   const maxQuantity = activeItem ? resolveMaxQuantity(activeItem) : MAX_QUANTITY;
-  const totalCents = useMemo(() => priceCents * quantity, [priceCents, quantity]);
+  const totalCents = useMemo(
+    () => calculateTotalCents(activeItem, config, quantity),
+    [activeItem, config, quantity],
+  );
   const balance = balanceCents ?? 0;
   const missingCents = Math.max(0, totalCents - balance);
-  const hasBalance = balanceCents != null && totalCents > 0 && balance >= totalCents;
+  const hasBalance = balanceCents != null && balance >= totalCents;
   const walletEnabled = config?.walletCheckoutEnabled ?? false;
   const ready = !loading && balanceCents != null && config != null;
   const canPurchase = ready && walletEnabled && hasBalance;
@@ -299,15 +357,22 @@ export function BolaoPurchaseModal({
     setSubmitting(true);
     setError(null);
     try {
+      const idempotencyKey = generateIdempotencyKey();
       const resp = await fetch("/api/deposits/transactions", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(purchaseBodyForItem(activeItem, config, quantity)),
+        body: JSON.stringify(purchaseBodyForItem(activeItem, config, quantity, idempotencyKey)),
       });
       const data = (await resp.json().catch(() => ({}))) as PurchaseResponse;
       if (resp.status === 402 || data.code === "WALLET_INSUFFICIENT_FUNDS") {
-        setBalanceCents(typeof data.purchase?.balanceCents === "number" ? data.purchase.balanceCents : balance);
+        const available =
+          typeof data.purchase?.balanceCents === "number"
+            ? data.purchase.balanceCents
+            : typeof (data as { availableCents?: number }).availableCents === "number"
+              ? (data as { availableCents?: number }).availableCents
+              : balance;
+        setBalanceCents(typeof available === "number" ? available : balance);
         setError(data.error ?? "Saldo insuficiente para concluir a compra.");
         return;
       }
@@ -447,7 +512,15 @@ export function BolaoPurchaseModal({
               </p>
             ) : null}
 
-            {!walletEnabled ? (
+            {!hasBalance ? (
+              <Link
+                href="/carteira"
+                className="mt-5 flex h-12 w-full items-center justify-center gap-2 overflow-hidden rounded-[18px] bg-red-500 text-[14px] font-black uppercase tracking-wide text-white transition hover:bg-red-600 active:scale-[0.98]"
+              >
+                Adicionar saldo
+                <ArrowRight className="size-4" strokeWidth={2.8} />
+              </Link>
+            ) : !walletEnabled ? (
               <button
                 type="button"
                 disabled
@@ -455,7 +528,7 @@ export function BolaoPurchaseModal({
               >
                 Pagamento com saldo indisponível
               </button>
-            ) : hasBalance ? (
+            ) : (
               <button
                 type="button"
                 onClick={handleBuy}
@@ -477,14 +550,6 @@ export function BolaoPurchaseModal({
                   )}
                 </span>
               </button>
-            ) : (
-              <Link
-                href="/carteira"
-                className="mt-5 flex h-12 w-full items-center justify-center gap-2 overflow-hidden rounded-[18px] bg-red-500 text-[14px] font-black uppercase tracking-wide text-white transition hover:bg-red-600 active:scale-[0.98]"
-              >
-                Adicionar saldo
-                <ArrowRight className="size-4" strokeWidth={2.8} />
-              </Link>
             )}
 
             <button

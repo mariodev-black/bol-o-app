@@ -61,6 +61,15 @@ export function isBolaoDefinitionPurchaseOpen(
   matchMap: MatchMap,
 ): boolean {
   if (!def.enabled || !def.saleEnabled) return false;
+  const now = Date.now();
+  if (def.startsAt) {
+    const starts = new Date(def.startsAt).getTime();
+    if (Number.isFinite(starts) && starts > now) return false;
+  }
+  if (def.endsAt) {
+    const ends = new Date(def.endsAt).getTime();
+    if (Number.isFinite(ends) && ends < now) return false;
+  }
   const mainComp = getFootballMainCompetitionId();
   if (
     def.editionNumber != null &&
@@ -71,7 +80,6 @@ export function isBolaoDefinitionPurchaseOpen(
   }
   const scoped = scopeMatchesForBolaoDefinition(def, matchMap);
   if (scoped.length === 0) return def.saleEnabled;
-  const now = Date.now();
   return scoped.some((m) => {
     if (!m.dateBR) return true;
     const [d, mo, y] = m.dateBR.split("/").map(Number);

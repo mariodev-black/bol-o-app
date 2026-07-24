@@ -60,8 +60,10 @@ const extraByChampionshipSchema = z
     return out;
   });
 
+const MAX_TICKET_QUANTITY = 20;
+
 const dailyByEditionSchema = z
-  .record(z.string(), z.number().int().min(0).max(5))
+  .record(z.string(), z.number().int().min(0).max(MAX_TICKET_QUANTITY))
   .optional()
   .transform((rec) => {
     if (!rec) return {} as Record<number, number>;
@@ -75,7 +77,7 @@ const dailyByEditionSchema = z
   });
 
 const skaleDailyByEditionSchema = z
-  .record(z.string(), z.number().int().min(0).max(5))
+  .record(z.string(), z.number().int().min(0).max(MAX_TICKET_QUANTITY))
   .optional()
   .transform((rec) => {
     if (!rec) return {} as Record<number, number>;
@@ -104,15 +106,15 @@ const definitionsByIdSchema = z
 
 const createCartSchema = z
   .object({
-    generalQuantity: z.number().int().min(0).max(20),
+    generalQuantity: z.number().int().min(0).max(MAX_TICKET_QUANTITY),
     /** Legado — rejeitado pelo servidor; use `dailyByEdition`. */
-    dailyQuantity: z.number().int().min(0).max(20).optional().default(0),
+    dailyQuantity: z.number().int().min(0).max(MAX_TICKET_QUANTITY).optional().default(0),
     /** Quantidade por edição do bolão diário (chave = número da edição). */
     dailyByEdition: dailyByEditionSchema,
     /** Quantidade por edição do bolão diário Skale. */
     skaleDailyByEdition: skaleDailyByEditionSchema,
     /** Quantidade total de cotas “Bolão extra” (valor calculado só no servidor). */
-    extraQuantity: z.number().int().min(0).max(20).optional(),
+    extraQuantity: z.number().int().min(0).max(MAX_TICKET_QUANTITY).optional(),
     /** Legado — ignorado se `extraQuantity` > 0. */
     extraByChampionship: extraByChampionshipSchema,
     /** Cotas por bolão do catálogo admin (UUID → quantidade). */
@@ -120,19 +122,23 @@ const createCartSchema = z
     /** Checkout `/comprar-cotas` — preço promocional fixo (1–3 cotas gerais). */
     checkoutPromo: z.enum(["comprar-cotas"]).optional(),
     /** Cotas Bolão dos Artilheiros. */
-    artilheirosQuantity: z.number().int().min(0).max(20).optional().default(0),
+    artilheirosQuantity: z.number().int().min(0).max(MAX_TICKET_QUANTITY).optional().default(0),
     /** Forma de pagamento: `pix` (padrão) ou `wallet` (debita saldo da carteira). */
     payWith: z.enum(["pix", "wallet"]).optional().default("pix"),
+    /** Chave de idempotência do cliente — evita compras duplicadas por duplo clique. */
+    idempotencyKey: z.string().trim().max(128).optional(),
   })
   .strict();
 
 const createLegacySchema = z
   .object({
     ticketType: z.enum(["general", "daily", "extra", "artilheiros"]),
-    quantity: z.number().int().min(1).max(20).default(1),
+    quantity: z.number().int().min(1).max(MAX_TICKET_QUANTITY).default(1),
     extraChampionshipId: z.number().int().positive().optional(),
     /** Forma de pagamento: `pix` (padrão) ou `wallet` (debita saldo da carteira). */
     payWith: z.enum(["pix", "wallet"]).optional().default("pix"),
+    /** Chave de idempotência do cliente — evita compras duplicadas por duplo clique. */
+    idempotencyKey: z.string().trim().max(128).optional(),
   })
   .strict();
 
@@ -273,6 +279,7 @@ export async function POST(request: NextRequest) {
         checkoutPromo,
         artilheirosQuantity,
         payWith,
+        idempotencyKey,
       } = parsed.data;
       const extra = extraByChampionship ?? {};
       const exQ = Math.max(0, Math.min(20, extraQuantity ?? 0));
@@ -350,6 +357,7 @@ export async function POST(request: NextRequest) {
           ...(exQ > 0 ? { extraQuantity: exQ } : { extraByChampionship: extra }),
           ...(checkoutPromo ? { checkoutPromo } : {}),
           ...(catalogTotal > 0 ? { definitionsById: definitionsById ?? {} } : {}),
+          ...(idempotencyKey ? { idempotencyKey } : {}),
         },
         payWith,
       );
@@ -363,6 +371,7 @@ export async function POST(request: NextRequest) {
     const ticketType = parseTicketTypeOrThrow(parsed.data.ticketType);
     const quantity = parsed.data.quantity;
     const payWith = parsed.data.payWith;
+    const idempotencyKey = parsed.data.idempotencyKey;
     if (ticketType === "extra") {
       const cid = parsed.data.extraChampionshipId;
       if (cid == null || !parseExtraBolaoChampionshipIds().includes(cid)) {
@@ -374,6 +383,7 @@ export async function POST(request: NextRequest) {
           ticketType: "extra",
           quantity,
           extraChampionshipId: cid,
+          ...(idempotencyKey ? { idempotencyKey } : {}),
         },
         payWith,
       );
@@ -391,6 +401,7 @@ export async function POST(request: NextRequest) {
           userId,
           ticketType: "artilheiros",
           quantity,
+          ...(idempotencyKey ? { idempotencyKey } : {}),
         },
         payWith,
       );
@@ -401,6 +412,7 @@ export async function POST(request: NextRequest) {
         userId,
         ticketType,
         quantity,
+        ...(idempotencyKey ? { idempotencyKey } : {}),
       },
       payWith,
     );
