@@ -6,6 +6,8 @@ import { getFootballMainCompetitionId } from "@/lib/boloes-extra-config";
 import { scopeMatchesForBolaoDefinition } from "@/lib/boloes/definitions/scope";
 import type { BolaoDefinition } from "@/lib/boloes/definitions/types";
 
+const MAX_TICKET_QUANTITY = 999;
+
 /** Converte definição admin → linha de compra (preço sempre do servidor). */
 export function bolaoDefinitionToPurchaseLine(def: BolaoDefinition): PurchaseTicketLine {
   const line: PurchaseTicketLine = {
@@ -47,7 +49,7 @@ export function buildDefinitionPurchaseLines(
     if (!def.enabled || !def.saleEnabled) {
       throw new Error(`${def.displayName} indisponivel para compra`);
     }
-    const q = Math.max(0, Math.min(20, Math.trunc(rawQty)));
+    const q = Math.max(0, Math.min(MAX_TICKET_QUANTITY, Math.trunc(rawQty)));
     for (let i = 0; i < q; i++) {
       lines.push(bolaoDefinitionToPurchaseLine(def));
     }
@@ -61,6 +63,19 @@ export function isBolaoDefinitionPurchaseOpen(
   matchMap: MatchMap,
 ): boolean {
   if (!def.enabled || !def.saleEnabled) return false;
+  const now = Date.now();
+  try {
+    if (def.startsAt) {
+      const starts = new Date(def.startsAt).getTime();
+      if (Number.isFinite(starts) && starts > now) return false;
+    }
+    if (def.endsAt) {
+      const ends = new Date(def.endsAt).getTime();
+      if (Number.isFinite(ends) && ends < now) return false;
+    }
+  } catch {
+    // Ignora erros de parsing de data — deixa a validação por partidas decidir.
+  }
   const mainComp = getFootballMainCompetitionId();
   if (
     def.editionNumber != null &&
@@ -71,7 +86,6 @@ export function isBolaoDefinitionPurchaseOpen(
   }
   const scoped = scopeMatchesForBolaoDefinition(def, matchMap);
   if (scoped.length === 0) return def.saleEnabled;
-  const now = Date.now();
   return scoped.some((m) => {
     if (!m.dateBR) return true;
     const [d, mo, y] = m.dateBR.split("/").map(Number);
@@ -90,7 +104,7 @@ export function normalizeDefinitionsByIdInput(
   for (const [k, v] of Object.entries(raw)) {
     const id = String(k).trim();
     if (!id) continue;
-    const q = Math.max(0, Math.min(20, Math.trunc(Number(v) || 0)));
+    const q = Math.max(0, Math.min(MAX_TICKET_QUANTITY, Math.trunc(Number(v) || 0)));
     if (q > 0) out[id] = q;
   }
   return out;

@@ -27,11 +27,17 @@ import { isSkaleBolaoCompetition } from "@/lib/boloes/skale-config";
 import { isSkaleDailyBolaoEnabled } from "@/lib/boloes/skale-daily-config";
 import { getTicketShopExtraRoundNumber } from "@/lib/ticket-shop-extra-display";
 import {
+  isDailyTicketShopEnabled,
+  isGeneralTicketShopEnabled,
+} from "@/lib/ticket-shop-flags";
+import {
   buildDefinitionPurchaseLines,
   isBolaoDefinitionPurchaseOpen,
   normalizeDefinitionsByIdInput,
 } from "@/lib/boloes/definitions/purchase";
 import { getBolaoDefinitionsByIds } from "@/lib/boloes/definitions/repository";
+
+const MAX_TICKET_QUANTITY = 999;
 
 type BillingUser = {
   id: string;
@@ -93,9 +99,9 @@ function mapRowToView(row: {
 }
 
 export type CreateDepositTransactionInput =
-  | { userId: string; ticketType: "general" | "daily"; quantity: number; dailyEditionNumber?: number }
-  | { userId: string; ticketType: "extra"; quantity: number; extraChampionshipId: number }
-  | { userId: string; ticketType: "artilheiros"; quantity: number }
+  | { userId: string; ticketType: "general" | "daily"; quantity: number; dailyEditionNumber?: number; idempotencyKey?: string }
+  | { userId: string; ticketType: "extra"; quantity: number; extraChampionshipId: number; idempotencyKey?: string }
+  | { userId: string; ticketType: "artilheiros"; quantity: number; idempotencyKey?: string }
   | {
       userId: string;
       generalQty: number;
@@ -115,6 +121,8 @@ export type CreateDepositTransactionInput =
       artilheirosQuantity?: number;
       /** Cotas por bolão do catálogo admin (chave = UUID da definição). */
       definitionsById?: Record<string, number>;
+      /** Chave de idempotência do cliente — evita compras duplicadas. */
+      idempotencyKey?: string;
     };
 
 function normalizeExtraByChampionship(map: Record<number, number> | undefined): Record<number, number> {
@@ -123,7 +131,7 @@ function normalizeExtraByChampionship(map: Record<number, number> | undefined): 
   for (const [k, v] of Object.entries(map)) {
     const id = Number(k);
     if (!Number.isFinite(id)) continue;
-    out[id] = Math.max(0, Math.min(20, Math.trunc(Number(v) || 0)));
+    out[id] = Math.max(0, Math.min(MAX_TICKET_QUANTITY, Math.trunc(Number(v) || 0)));
   }
   return out;
 }
@@ -136,17 +144,17 @@ function resolvePurchaseQuantities(input: CreateDepositTransactionInput): {
   artilheirosQty: number;
 } {
   if ("generalQty" in input) {
-    const g = Math.max(0, Math.min(20, Math.trunc(input.generalQty)));
+    const g = Math.max(0, Math.min(MAX_TICKET_QUANTITY, Math.trunc(input.generalQty)));
     const dailyByEdition = normalizeDailyByEditionInput(input.dailyByEdition);
     const skaleDailyByEdition = normalizeDailyByEditionInput(
       input.skaleDailyByEdition,
     );
-    const legacyDaily = Math.max(0, Math.min(20, Math.trunc(Number(input.dailyQty) || 0)));
+    const legacyDaily = Math.max(0, Math.min(MAX_TICKET_QUANTITY, Math.trunc(Number(input.dailyQty) || 0)));
     if (legacyDaily > 0 && Object.keys(dailyByEdition).length === 0) {
       throw new Error("Selecione a edicao do bolao diario (Bolao Diario #N)");
     }
-    const exQ = Math.max(0, Math.min(20, Math.trunc(Number(input.extraQuantity) || 0)));
-    const artQ = Math.max(0, Math.min(20, Math.trunc(Number(input.artilheirosQuantity) || 0)));
+    const exQ = Math.max(0, Math.min(MAX_TICKET_QUANTITY, Math.trunc(Number(input.extraQuantity) || 0)));
+    const artQ = Math.max(0, Math.min(MAX_TICKET_QUANTITY, Math.trunc(Number(input.artilheirosQuantity) || 0)));
     const rawMap = normalizeExtraByChampionship(input.extraByChampionship);
     let extraPurchase: PurchaseExtraInput | undefined;
     if (exQ > 0) extraPurchase = { extraQuantity: exQ };
@@ -160,7 +168,7 @@ function resolvePurchaseQuantities(input: CreateDepositTransactionInput): {
     | { ticketType: "daily"; quantity: number; dailyEditionNumber?: number }
     | { ticketType: "extra"; quantity: number; extraChampionshipId: number }
     | { ticketType: "artilheiros"; quantity: number };
-  const q = Math.max(1, Math.min(20, Math.trunc(single.quantity)));
+  const q = Math.max(1, Math.min(MAX_TICKET_QUANTITY, Math.trunc(single.quantity)));
   if (single.ticketType === "general") {
     return { generalQty: q, dailyByEdition: {}, skaleDailyByEdition: {}, artilheirosQty: 0 };
   }
@@ -198,6 +206,15 @@ async function resolvePurchaseLines(
 ): Promise<{ lines: ReturnType<typeof buildPurchaseTicketLines>; amountCents: number }> {
   const { generalQty, dailyByEdition, skaleDailyByEdition, extraPurchase, artilheirosQty } =
     resolvePurchaseQuantities(input);
+
+  if (generalQty > 0 && !isGeneralTicketShopEnabled()) {
+    throw new Error("Bolao geral indisponivel no momento");
+  }
+  const dailyTotal = Object.values(dailyByEdition).reduce((a, b) => a + b, 0);
+  if (dailyTotal > 0 && !isDailyTicketShopEnabled()) {
+    throw new Error("Bolao diario indisponivel no momento");
+  }
+
   let lines =
     "checkoutPromo" in input && input.checkoutPromo === "comprar-cotas"
       ? buildComprarCotasPromoTicketLines(generalQty)
@@ -329,19 +346,7 @@ function buildTicketRows(
 export async function createDepositTransaction(input: CreateDepositTransactionInput): Promise<DepositTransactionView> {
   const pool = getPool();
   const billingUser = await findBillingUserById(input.userId);
-  if (!billingUser) throw new Error("Usuario nao encontrado");
-  if (!billingUser.name || billingUser.name.trim().length < 2) {
-    throw new Error("Nome do usuario incompleto para pagamento");
-  }
-  if (!billingUser.cpf || billingUser.cpf.replace(/\D/g, "").length !== 11) {
-    throw new Error("CPF do usuario invalido para pagamento");
-  }
-  if (!billingUser.phone || billingUser.phone.replace(/\D/g, "").length < 10) {
-    throw new Error("Telefone do usuario invalido para pagamento");
-  }
-  if (!billingUser.email || !billingUser.email.includes("@")) {
-    throw new Error("E-mail do usuario invalido para pagamento");
-  }
+  assertBillingUserComplete(billingUser);
 
   const { lines, amountCents } = await resolvePurchaseLines(input);
 
@@ -397,10 +402,10 @@ export async function createDepositTransaction(input: CreateDepositTransactionIn
       amountCents,
       externalId: paymentExternalRef,
       customer: {
-        name: billingUser.name.trim(),
+        name: billingUser.name!.trim(),
         email: billingUser.email.trim(),
-        phone: billingUser.phone,
-        document: billingUser.cpf.replace(/\D/g, ""),
+        phone: billingUser.phone!,
+        document: billingUser.cpf!.replace(/\D/g, ""),
       },
       itemTitle:
         lines.length === 1
@@ -490,12 +495,75 @@ export type WalletPurchaseResult = {
  * checkout PIX via `resolvePurchaseLines`. A comissão de afiliado é registrada
  * aqui (no gasto), já que o depósito não gera comissão.
  */
+function assertBillingUserComplete(user: BillingUser | null): asserts user is BillingUser {
+  if (!user) throw new Error("Usuario nao encontrado");
+  if (!user.name || user.name.trim().length < 2) {
+    throw new Error("Nome do usuario incompleto para pagamento");
+  }
+  if (!user.cpf || user.cpf.replace(/\D/g, "").length !== 11) {
+    throw new Error("CPF do usuario invalido para pagamento");
+  }
+  if (!user.phone || user.phone.replace(/\D/g, "").length < 10) {
+    throw new Error("Telefone do usuario invalido para pagamento");
+  }
+  if (!user.email || !user.email.includes("@")) {
+    throw new Error("E-mail do usuario invalido para pagamento");
+  }
+}
+
+async function findExistingWalletPurchase(
+  userId: string,
+  idempotencyKey: string,
+): Promise<WalletPurchaseResult | null> {
+  const pool = getPool();
+  const externalRef = `wallet_purchase:${idempotencyKey}`;
+  const { rows: txRows } = await pool.query<{
+    id: string;
+    amount_cents: number;
+  }>(
+    `SELECT id, amount_cents
+     FROM transactions
+     WHERE user_id = $1::uuid AND external_ref = $2 AND purpose = 'wallet_purchase'
+     LIMIT 1`,
+    [userId, externalRef],
+  );
+  if (txRows.length === 0) return null;
+  const tx = txRows[0]!;
+  const { rows: ticketRows } = await pool.query<{ id: string }>(
+    `SELECT id FROM tickets WHERE transaction_id = $1::uuid`,
+    [tx.id],
+  );
+  const { rows: userRows } = await pool.query<{ balance_cents: number; affiliate_balance_cents: number }>(
+    `SELECT balance_cents, affiliate_balance_cents FROM users WHERE id = $1::uuid`,
+    [userId],
+  );
+  const userRow = userRows[0];
+  const balanceCents = userRow ? (userRow.balance_cents ?? 0) + (userRow.affiliate_balance_cents ?? 0) : 0;
+  return {
+    transactionId: tx.id,
+    amountCents: tx.amount_cents,
+    ticketIds: ticketRows.map((r) => r.id),
+    balanceCents,
+  };
+}
+
 export async function createWalletPurchase(
   input: CreateDepositTransactionInput
 ): Promise<WalletPurchaseResult> {
+  const billingUser = await findBillingUserById(input.userId);
+  assertBillingUserComplete(billingUser);
+
+  const idempotencyKey = input.idempotencyKey?.trim();
+  if (idempotencyKey) {
+    const existing = await findExistingWalletPurchase(input.userId, idempotencyKey);
+    if (existing) return existing;
+  }
+
   const { lines, amountCents } = await resolvePurchaseLines(input);
   const purchaseId = randomUUID();
-  const externalRef = `wallet_purchase_${purchaseId}`;
+  const externalRef = idempotencyKey
+    ? `wallet_purchase:${idempotencyKey}`
+    : `wallet_purchase_${purchaseId}`;
   const rows = buildTicketRows(lines, input.userId, externalRef);
 
   const pool = getPool();
@@ -575,6 +643,34 @@ export async function createWalletPurchase(
   }
 
   return { transactionId: purchaseId, amountCents, ticketIds, balanceCents };
+}
+
+export type WalletDefinitionPurchaseInput = {
+  userId: string;
+  bolaoDefinitionId: string;
+  quantity: number;
+  idempotencyKey?: string;
+};
+
+/**
+ * Compra com saldo de N cotas de uma definição de bolão admin.
+ * Reutiliza todo o pipeline de compra com saldo: valida cadastro, janela de
+ * compra, limite por usuário, saldo, debita ledger e cria tickets atomically.
+ */
+export async function createWalletPurchaseForDefinition(
+  input: WalletDefinitionPurchaseInput,
+): Promise<WalletPurchaseResult> {
+  const qty = Math.max(1, Math.min(MAX_TICKET_QUANTITY, Math.trunc(input.quantity) || 1));
+  return createWalletPurchase({
+    userId: input.userId,
+    generalQty: 0,
+    dailyByEdition: {},
+    skaleDailyByEdition: {},
+    extraByChampionship: {},
+    artilheirosQuantity: 0,
+    definitionsById: { [input.bolaoDefinitionId]: qty },
+    ...(input.idempotencyKey ? { idempotencyKey: input.idempotencyKey } : {}),
+  });
 }
 
 export async function getDepositTransactionById(userId: string, id: string): Promise<DepositTransactionView | null> {

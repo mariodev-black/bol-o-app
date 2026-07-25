@@ -23,6 +23,15 @@ export function getTicketShopFlags(): TicketShopFlags {
   return { ticketsExtraOnly, ticketsHideDaily };
 }
 
+export function isGeneralTicketShopEnabled(): boolean {
+  return !getTicketShopFlags().ticketsExtraOnly;
+}
+
+export function isDailyTicketShopEnabled(): boolean {
+  const flags = getTicketShopFlags();
+  return !flags.ticketsExtraOnly && !flags.ticketsHideDaily;
+}
+
 /**
  * Quando `WALLET_CHECKOUT_ENABLED=1`, o checkout passa a debitar o saldo da
  * carteira em vez de gerar PIX por compra. Default OFF — checkout segue idêntico

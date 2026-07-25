@@ -9,13 +9,17 @@ import {
   Loader2,
   Wallet,
   X,
+  AlertCircle,
 } from "lucide-react";
 import type { BolaoDefinitionCatalogItem } from "@/lib/boloes/definitions/types";
 import { formatBRLFromCents } from "@/lib/wallet/format";
 import { useAuth } from "@/app/shared/AuthContext";
 import { extraBolaoIconSrc, type ExtraBolaoIconVariant } from "@/app/shared/extra-bolao-icons";
+import { QuantitySelector } from "./QuantitySelector";
 
-type CheckoutConfig = {
+const MAX_QUANTITY = 999;
+
+export type CheckoutConfig = {
   prices?: {
     general?: number;
     daily?: number;
@@ -30,6 +34,8 @@ type CheckoutConfig = {
 
 type PurchaseResponse = {
   error?: string;
+  message?: string;
+  detail?: string;
   code?: string;
   purchase?: {
     transactionId: string;
@@ -94,35 +100,90 @@ function displayPriceCents(item: BolaoDefinitionCatalogItem, config: CheckoutCon
   return prices.extra ?? 0;
 }
 
+function getProgressiveDiscountPercent(quantity: number): number {
+  const q = Math.max(0, Math.trunc(quantity));
+  if (q >= 4) return 15;
+  if (q === 3) return 10;
+  if (q === 2) return 5;
+  return 0;
+}
+
+function calculateProgressiveDiscountTotalCents(unitCents: number, quantity: number): number {
+  const q = Math.max(0, Math.trunc(quantity));
+  if (q <= 0 || unitCents <= 0) return 0;
+  const subtotal = unitCents * q;
+  const discount = getProgressiveDiscountPercent(q);
+  return Math.round((subtotal * (100 - discount)) / 100);
+}
+
+function calculateTotalCents(
+  item: BolaoDefinitionCatalogItem | null,
+  config: CheckoutConfig | null,
+  quantity: number,
+): number {
+  if (!item) return 0;
+  const kind = kindForItem(item);
+  const q = Math.max(1, Math.min(MAX_QUANTITY, Math.trunc(quantity) || 1));
+  const prices = config?.prices ?? {};
+  if (kind === "definition") {
+    const unit = Number(item.unitPriceCents) || parsePriceLabelCents(item.priceLabel) || prices.extra || 0;
+    return unit * q;
+  }
+  const unit =
+    kind === "general"
+      ? prices.general ?? 0
+      : kind === "daily"
+        ? prices.daily ?? 0
+        : kind === "skaleDaily"
+          ? prices.skaleDaily ?? prices.extra ?? 0
+          : kind === "artilheiros"
+            ? prices.artilheiros ?? 0
+            : prices.extra ?? 0;
+  if (unit <= 0) return 0;
+  return calculateProgressiveDiscountTotalCents(unit, q);
+}
+
+function generateIdempotencyKey(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 function purchaseBodyForItem(
   item: BolaoDefinitionCatalogItem,
   config: CheckoutConfig | null,
+  quantity: number,
+  idempotencyKey: string,
 ): Record<string, unknown> {
   const kind = kindForItem(item);
+  const qty = Math.max(1, Math.min(MAX_QUANTITY, Math.trunc(quantity) || 1));
   if (kind === "general") {
-    return { ticketType: "general", quantity: 1, payWith: "wallet" };
+    return { ticketType: "general", quantity: qty, payWith: "wallet", idempotencyKey };
   }
   if (kind === "extra") {
     return {
       ticketType: "extra",
-      quantity: 1,
+      quantity: qty,
       extraChampionshipId: item.competitionId,
       payWith: "wallet",
+      idempotencyKey,
     };
   }
   if (kind === "artilheiros") {
-    return { ticketType: "artilheiros", quantity: 1, payWith: "wallet" };
+    return { ticketType: "artilheiros", quantity: qty, payWith: "wallet", idempotencyKey };
   }
   if (kind === "daily") {
     const edition = config?.dailyEdition?.number;
     return {
       generalQuantity: 0,
       dailyQuantity: 0,
-      dailyByEdition: edition ? { [String(edition)]: 1 } : {},
+      dailyByEdition: edition ? { [String(edition)]: qty } : {},
       skaleDailyByEdition: {},
       extraByChampionship: {},
       artilheirosQuantity: 0,
       payWith: "wallet",
+      idempotencyKey,
     };
   }
   if (kind === "skaleDaily") {
@@ -131,10 +192,11 @@ function purchaseBodyForItem(
       generalQuantity: 0,
       dailyQuantity: 0,
       dailyByEdition: {},
-      skaleDailyByEdition: edition ? { [String(edition)]: 1 } : {},
+      skaleDailyByEdition: edition ? { [String(edition)]: qty } : {},
       extraByChampionship: {},
       artilheirosQuantity: 0,
       payWith: "wallet",
+      idempotencyKey,
     };
   }
   return {
@@ -144,17 +206,19 @@ function purchaseBodyForItem(
     skaleDailyByEdition: {},
     extraByChampionship: {},
     artilheirosQuantity: 0,
-    definitionsById: { [item.id]: 1 },
+    definitionsById: { [item.id]: qty },
     payWith: "wallet",
+    idempotencyKey,
   };
 }
 
-function successQueryForItem(item: BolaoDefinitionCatalogItem, tx: string): string {
+function successQueryForItem(item: BolaoDefinitionCatalogItem, tx: string, quantity: number): string {
   const kind = kindForItem(item);
   const q = new URLSearchParams({ tx });
-  if (kind === "general") q.set("principal", "1");
-  else if (kind === "daily" || kind === "skaleDaily") q.set("diario", "1");
-  else q.set("extra", "1");
+  const qty = Math.max(1, Math.min(MAX_QUANTITY, Math.trunc(quantity) || 1));
+  if (kind === "general") q.set("principal", String(qty));
+  else if (kind === "daily" || kind === "skaleDaily") q.set("diario", String(qty));
+  else q.set("extra", String(qty));
   return q.toString();
 }
 
@@ -179,6 +243,7 @@ export function BolaoPurchaseModal({
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [quantity, setQuantity] = useState(1);
 
   const activeItem = item ?? renderedItem;
   const logoSrc = activeItem
@@ -186,10 +251,17 @@ export function BolaoPurchaseModal({
       extraBolaoIconSrc((activeItem.resolvedIconVariant || "generic") as ExtraBolaoIconVariant).src
     : "";
   const priceCents = activeItem ? displayPriceCents(activeItem, config) : 0;
+  const maxQuantity = MAX_QUANTITY;
+  const totalCents = useMemo(
+    () => calculateTotalCents(activeItem, config, quantity),
+    [activeItem, config, quantity],
+  );
   const balance = balanceCents ?? 0;
-  const missingCents = Math.max(0, priceCents - balance);
-  const insufficient = balanceCents != null && missingCents > 0;
-  const ready = !loading && balanceCents != null && config != null;
+  const missingCents = Math.max(0, totalCents - balance);
+  const hasBalance = balanceCents != null && balance >= totalCents;
+  const walletEnabled = config?.walletCheckoutEnabled ?? false;
+  const ready = !loading && balanceCents != null && config != null && priceCents > 0;
+  const canPurchase = ready && walletEnabled && hasBalance;
   const phase = activeItem?.subtitle?.trim() || activeItem?.datesLabel || null;
 
   const requestClose = useCallback(() => {
@@ -200,6 +272,7 @@ export function BolaoPurchaseModal({
       closeTimerRef.current = null;
       setClosing(false);
       setRenderedItem(null);
+      setQuantity(1);
       onClose();
     }, 180);
   }, [onClose, submitting]);
@@ -211,6 +284,7 @@ export function BolaoPurchaseModal({
         closeTimerRef.current = null;
       }
       setRenderedItem(item);
+      setQuantity(1);
       setClosing(false);
     }
   }, [item, open]);
@@ -245,59 +319,71 @@ export function BolaoPurchaseModal({
   }, [user?.balanceCents]);
 
   useEffect(() => {
-    const id = window.setTimeout(() => {
-      void loadCheckoutConfig().then(setConfig);
-    }, 350);
-    return () => window.clearTimeout(id);
-  }, []);
-
-  useEffect(() => {
-    if (!open && typeof user?.balanceCents === "number") {
-      setBalanceCents(user.balanceCents);
-    }
-  }, [open, user?.balanceCents]);
-
-  useEffect(() => {
     if (!open) {
       setConfig(checkoutConfigCache);
       if (typeof user?.balanceCents === "number") setBalanceCents(user.balanceCents);
       setError(null);
       setSubmitting(false);
+      setQuantity(1);
       return;
     }
     void load();
   }, [open, load, user?.balanceCents]);
 
+  const handleQuantityChange = useCallback((next: number) => {
+    setQuantity(next);
+    setError(null);
+  }, []);
+
   const handleBuy = useCallback(async () => {
-    if (!activeItem || submitting || insufficient) return;
+    if (!activeItem || submitting || !canPurchase) return;
     setSubmitting(true);
     setError(null);
     try {
+      const idempotencyKey = generateIdempotencyKey();
       const resp = await fetch("/api/deposits/transactions", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(purchaseBodyForItem(activeItem, config)),
+        body: JSON.stringify(purchaseBodyForItem(activeItem, config, quantity, idempotencyKey)),
       });
-      const data = (await resp.json().catch(() => ({}))) as PurchaseResponse;
+      const raw = await resp.text();
+      console.error("[purchase] HTTP", resp.status, raw.slice(0, 2000));
+      let data: PurchaseResponse = {};
+      try {
+        data = JSON.parse(raw) as PurchaseResponse;
+      } catch {
+        // resposta nao e JSON (provavel erro 500 HTML do Next.js)
+      }
       if (resp.status === 402 || data.code === "WALLET_INSUFFICIENT_FUNDS") {
-        setBalanceCents(typeof data.purchase?.balanceCents === "number" ? data.purchase.balanceCents : balance);
+        const available =
+          typeof data.purchase?.balanceCents === "number"
+            ? data.purchase.balanceCents
+            : typeof (data as { availableCents?: number }).availableCents === "number"
+              ? (data as { availableCents?: number }).availableCents
+              : balance;
+        setBalanceCents(typeof available === "number" ? available : balance);
         setError(data.error ?? "Saldo insuficiente para concluir a compra.");
         return;
       }
       if (!resp.ok || !data.purchase) {
-        setError(data.error ?? "Não foi possível concluir a compra.");
+        const serverError =
+          data.error ??
+          (typeof data.message === "string" ? data.message : null) ??
+          (typeof data.detail === "string" ? data.detail : null) ??
+          (raw ? `Erro ${resp.status}: ${raw.slice(0, 200)}` : `Erro ${resp.status} no servidor.`);
+        setError(serverError);
         return;
       }
       await refresh().catch(() => {});
       onClose();
-      router.replace(`/tickets/obrigado?${successQueryForItem(activeItem, data.purchase.transactionId)}`);
+      router.replace(`/tickets/obrigado?${successQueryForItem(activeItem, data.purchase.transactionId, quantity)}`);
     } catch {
       setError("Erro de rede ao concluir a compra.");
     } finally {
       setSubmitting(false);
     }
-  }, [activeItem, balance, config, insufficient, onClose, refresh, router, submitting]);
+  }, [activeItem, balance, canPurchase, config, onClose, quantity, refresh, router, submitting]);
 
   const modal = useMemo(() => {
     if ((!open && !closing) || !activeItem) return null;
@@ -312,7 +398,7 @@ export function BolaoPurchaseModal({
           aria-label="Fechar modal de compra"
         />
         <section
-          className={`relative w-full max-w-[390px] overflow-hidden rounded-[26px] border border-white/10 bg-[#0A0A0A] text-white duration-200 ${
+          className={`relative w-full max-w-[420px] overflow-hidden rounded-[26px] border border-white/10 bg-[#0A0A0A] text-white duration-200 ${
             closing
               ? "animate-out fade-out zoom-out-95"
               : "animate-in fade-in zoom-in-95"
@@ -351,51 +437,101 @@ export function BolaoPurchaseModal({
             </div>
 
             <div className="mt-5 grid grid-cols-2 gap-2.5">
-              <div className="rounded-[18px] border border-white/10 bg-white/[0.025] p-3">
+              <div className="rounded-[18px] border border-white/10 bg-white/[0.025] p-3 transition-colors">
                 <p className="text-[10px] font-black uppercase tracking-[0.13em] text-white/45">Valor da cota</p>
-                <p className="mt-2 text-[22px] font-black text-primary">
+                <p className="mt-2 text-[22px] font-black text-primary transition-all duration-300">
                   {priceCents > 0 ? formatBRLFromCents(priceCents) : "…"}
                 </p>
               </div>
-              <div className="rounded-[18px] border border-white/10 bg-white/[0.025] p-3">
+              <div className="rounded-[18px] border border-white/10 bg-white/[0.025] p-3 transition-colors">
                 <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.13em] text-white/45">
                   <Wallet className="size-3 text-primary" />
                   Seu saldo
                 </p>
-                <p className="mt-2 text-[22px] font-black text-white">
+                <p className="mt-2 text-[22px] font-black text-white transition-all duration-300">
                   {balanceCents != null ? formatBRLFromCents(balance) : "…"}
                 </p>
               </div>
             </div>
 
-            <div className="mt-4 rounded-[18px] border border-primary/20 bg-primary/[0.04] px-4 py-3">
+            <div className="mt-4 rounded-[18px] border border-white/10 bg-white/[0.025] p-3">
+              <QuantitySelector
+                label="Quantidade"
+                value={quantity}
+                min={1}
+                max={maxQuantity}
+                onChange={handleQuantityChange}
+                disabled={!ready || submitting}
+              />
+            </div>
+
+            <div className="mt-4 rounded-[18px] border border-white/10 bg-white/[0.025] p-3">
+              <p className="text-[10px] font-black uppercase tracking-[0.13em] text-white/45">Total</p>
+              <p className="mt-1 text-[26px] font-black text-primary transition-all duration-300">
+                {totalCents > 0 ? formatBRLFromCents(totalCents) : "…"}
+              </p>
+            </div>
+
+            <div
+              className={`mt-4 rounded-[18px] border px-4 py-3 transition-all duration-300 ${
+                hasBalance
+                  ? "border-primary/20 bg-primary/[0.04]"
+                  : "border-red-400/20 bg-red-500/10"
+              }`}
+            >
               <div className="flex items-start gap-2.5 text-left">
-                <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-primary" />
+                {hasBalance ? (
+                  <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-primary" />
+                ) : (
+                  <AlertCircle className="mt-0.5 size-4 shrink-0 text-red-400" />
+                )}
                 <p className="text-[12px] font-semibold leading-relaxed text-white/62">
-                  A compra é debitada do saldo da carteira e sua cota aparece em <strong className="text-white">Meus bolões</strong> assim que confirmar.
+                  {hasBalance ? (
+                    <>
+                      Sua compra será debitada automaticamente do saldo da carteira. Após a confirmação, suas cotas aparecerão imediatamente em <strong className="text-white">Meus bolões</strong>.
+                    </>
+                  ) : balanceCents != null ? (
+                    <>
+                      Saldo insuficiente. Faltam <strong className="text-red-200">{formatBRLFromCents(missingCents)}</strong> para concluir.
+                    </>
+                  ) : (
+                    <>Carregando saldo…</>
+                  )}
                 </p>
               </div>
             </div>
 
             {error ? (
-              <p className="mt-3 rounded-xl border border-red-400/20 bg-red-500/10 px-3 py-2 text-center text-[12px] font-bold text-red-200">
+              <p className="mt-3 rounded-xl border border-red-400/20 bg-red-500/10 px-3 py-2 text-center text-[12px] font-bold text-red-200 animate-in fade-in slide-in-from-top-1">
                 {error}
               </p>
             ) : null}
 
-            {insufficient ? (
-              <>
-                <p className="mt-4 text-center text-[13px] font-bold text-red-200">
-                  Saldo insuficiente. Faltam {formatBRLFromCents(missingCents)} para concluir.
-                </p>
-                <Link
-                  href="/carteira"
-                  className="mt-3 flex h-12 w-full items-center justify-center gap-2 overflow-hidden rounded-[18px] bg-primary text-[14px] font-black uppercase tracking-wide text-[#0E141B] transition active:scale-[0.98]"
-                >
-                  Adicionar créditos
-                  <ArrowRight className="size-4" strokeWidth={2.8} />
-                </Link>
-              </>
+            {!ready ? (
+              <button
+                type="button"
+                disabled
+                className="mt-5 flex h-12 w-full items-center justify-center gap-2 overflow-hidden rounded-[18px] bg-white/10 text-[14px] font-black uppercase tracking-wide text-white/40 opacity-60 transition"
+              >
+                <Loader2 className="size-4 animate-spin" />
+                Carregando…
+              </button>
+            ) : !hasBalance ? (
+              <Link
+                href="/carteira"
+                className="mt-5 flex h-12 w-full items-center justify-center gap-2 overflow-hidden rounded-[18px] bg-red-500 text-[14px] font-black uppercase tracking-wide text-white transition hover:bg-red-600 active:scale-[0.98]"
+              >
+                Adicionar saldo
+                <ArrowRight className="size-4" strokeWidth={2.8} />
+              </Link>
+            ) : !walletEnabled ? (
+              <button
+                type="button"
+                disabled
+                className="mt-5 flex h-12 w-full items-center justify-center gap-2 overflow-hidden rounded-[18px] bg-primary text-[14px] font-black uppercase tracking-wide text-[#0E141B] opacity-45 transition"
+              >
+                Pagamento com saldo indisponível
+              </button>
             ) : (
               <button
                 type="button"
@@ -433,22 +569,28 @@ export function BolaoPurchaseModal({
       </div>
     );
   }, [
+    activeItem,
     balance,
     balanceCents,
-    activeItem,
     closing,
     error,
     handleBuy,
-    insufficient,
+    handleQuantityChange,
+    hasBalance,
     logoSrc,
+    maxQuantity,
     missingCents,
     open,
     phase,
     priceCents,
+    quantity,
     ready,
     requestClose,
     submitting,
+    totalCents,
+    walletEnabled,
   ]);
+
 
   return modal;
 }
