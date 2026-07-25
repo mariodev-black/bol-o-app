@@ -23,6 +23,7 @@ import {
   getSkaleBolaoUnitCents,
   isSkaleBolaoEnabled,
 } from "@/lib/boloes/skale-config";
+import { getDailyEdition } from "@/lib/boloes/daily-editions";
 import {
   SKALE_DAILY_BOLAO_DISPLAY_NAME,
   SKALE_DAILY_BOLAO_SUBTITLE,
@@ -331,6 +332,7 @@ export async function buildAdminBolaoHubLegacyItems(): Promise<AdminBolaoHubItem
     });
 
     for (const card of skaleDailyCards) {
+      const editionDates = getDailyEdition(card.rodada)?.datesBR ?? [];
       items.push(
         await enrichLegacyHubItem(
           {
@@ -341,6 +343,7 @@ export async function buildAdminBolaoHubLegacyItems(): Promise<AdminBolaoHubItem
               ticketType: "extra",
               competitionId: skaleDailyId,
               scopeMode: "daily_dates",
+              scopeDates: editionDates,
               editionNumber: card.rodada,
               unitPriceCents: getSkaleDailyBolaoUnitCents(),
               logoVariant: "skale",

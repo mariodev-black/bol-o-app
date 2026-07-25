@@ -1,5 +1,7 @@
 import type { BolaoDefinition, BolaoLifecycleStatus } from "@/lib/boloes/definitions/types";
 import { LIFECYCLE_STATUS_LABELS } from "@/lib/boloes/definitions/lifecycle-labels";
+import { getDailyEdition, isValidDailyEditionNumber } from "@/lib/boloes/daily-editions";
+import { utcMsForBrDate } from "@/lib/diario-playable-date";
 import { type MatchMap, type MatchMapEntry } from "@/lib/football-api";
 import { scopeMatchesForBolaoDefinition } from "@/lib/boloes/definitions/scope";
 import {
@@ -49,6 +51,56 @@ function isMatchStarted(match: MatchMapEntry, nowMs: number): boolean {
   return kickoff != null && kickoff <= nowMs;
 }
 
+function isBrDatePast(dateBR: string, nowMs: number): boolean {
+  const dayMs = utcMsForBrDate(dateBR);
+  if (dayMs == null) return false;
+  return nowMs >= dayMs + 24 * 60 * 60 * 1000;
+}
+
+function resolveDailyEditionLifecycleFallback(
+  editionNumber: number,
+  nowMs: number,
+): BolaoLifecycleStatus | null {
+  if (!isValidDailyEditionNumber(editionNumber)) return "encerrado";
+  const edition = getDailyEdition(editionNumber);
+  if (!edition) return "encerrado";
+
+  const lastDate = edition.datesBR[edition.datesBR.length - 1];
+  if (lastDate && isBrDatePast(lastDate, nowMs)) return "encerrado";
+
+  const firstDate = edition.datesBR[0];
+  const firstMs = firstDate ? utcMsForBrDate(firstDate) : null;
+  if (firstMs != null && nowMs < firstMs) return "programado";
+
+  return null;
+}
+
+function resolveDailyDatesLifecycleFallback(
+  def: BolaoDefinition,
+  nowMs: number,
+): BolaoLifecycleStatus | null {
+  if (def.scopeMode !== "daily_dates") return null;
+
+  if (def.editionNumber != null) {
+    const byEdition = resolveDailyEditionLifecycleFallback(def.editionNumber, nowMs);
+    if (byEdition) return byEdition;
+  }
+
+  if (def.scopeDates.length === 0) return null;
+
+  const sorted = [...def.scopeDates].sort(
+    (a, b) => (utcMsForBrDate(a) ?? 0) - (utcMsForBrDate(b) ?? 0),
+  );
+  const lastDate = sorted[sorted.length - 1];
+  if (lastDate && isBrDatePast(lastDate, nowMs)) return "encerrado";
+
+  const firstDate = sorted[0];
+  const firstMs = firstDate ? utcMsForBrDate(firstDate) : null;
+  if (firstMs != null && nowMs < firstMs) return "programado";
+
+  return null;
+}
+
 export type BolaoLifecycleContext = {
   scopedMatches: MatchMapEntry[];
   nowMs?: number;
@@ -87,6 +139,11 @@ export function computeBolaoLifecycleStatus(
 
   if (startsAt != null && nowMs < startsAt) return "programado";
   if (endsAt != null && nowMs > endsAt) return "encerrado";
+
+  if (matches.length === 0) {
+    const dailyFallback = resolveDailyDatesLifecycleFallback(def, nowMs);
+    if (dailyFallback) return dailyFallback;
+  }
 
   if (def.saleEnabled && def.enabled) return "aberto";
   if (startsAt != null && nowMs >= startsAt) return "aberto";
